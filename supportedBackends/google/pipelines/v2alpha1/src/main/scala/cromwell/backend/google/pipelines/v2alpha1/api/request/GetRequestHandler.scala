@@ -7,7 +7,9 @@ import cats.data.EitherT
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.either._
+import cats.syntax.functor._
 import cats.syntax.traverse._
+import cats.instances.list._
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.model.UnexpectedExitStatusEvent
@@ -19,6 +21,7 @@ import cromwell.backend.google.pipelines.common.api.RunStatus
 import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, Success, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
+import cromwell.backend.google.pipelines.v2alpha1.api.request.GetRequestHandler.{unexpectedExistStatus, _}
 import cromwell.backend.google.pipelines.v2alpha1.api.request.RequestHandler._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
@@ -28,6 +31,11 @@ import mouse.all._
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Try, Success => TrySuccess}
+
+object GetRequestHandler {
+  private val failedEvent = classOf[FailedEvent].getSimpleName
+  private val unexpectedExistStatus = classOf[UnexpectedExitStatusEvent].getSimpleName
+}
 
 trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
@@ -129,10 +137,19 @@ trait GetRequestHandler { this: RequestHandler =>
   }
 
   private def augmentedErrorMessage(events: List[Event], actions: List[Action], error: String): String = {
-    val failedEvent = classOf[FailedEvent].getSimpleName
-    val unexpectedExistStatus = classOf[UnexpectedExitStatusEvent].getSimpleName
-    error + events
-      .filter(e => e.hasDetailsClass(unexpectedExistStatus) || e.hasDetailsClass(failedEvent))
-      .map(_.getDescription).mkString(start = "\n", sep = "\n", end = "")
+    val failedEvents = events
+      .flatMap(_.details[FailedEvent])
+      .traverse(_.toErrorOr)
+
+    val unexpectedExitStatusEvents = events
+      .flatMap(_.details[UnexpectedExitStatusEvent])
+      .traverse(_.toErrorOr)
+    
+    (failedEvents, unexpectedExitStatusEvents) mapN {
+      case (failed, unexpected) =>
+        unexpected.map(_.getActionId)
+    }
+    
+    error + failedEvents
   }
 }

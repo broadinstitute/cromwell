@@ -1,5 +1,6 @@
 name: dot_dir_stuck_running
 testFormat: workflowsuccess
+labels: [upgrade]
 
 files {
   workflow: dot_dir_stuck_running/dot_dir_stuck_running.wdl

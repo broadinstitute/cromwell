@@ -7,6 +7,8 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
 import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
+import wdl.draft2.model.WdlNamespace
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers.wdlDraft2NamespaceWomBundleMaker
 
 @DoNotDiscover
 abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends FlatSpec with Matchers {
@@ -29,16 +31,48 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
-    def runTest(): Unit = {
-      testCase.testFunction.run.get
-      ()
-    }
+//    def runTest(): Unit = {
+//      testCase.testFunction.run.get
+//      ()
+//    }
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
 
-    runOrDont(nameTest, tags, isIgnored, runTest())
+//    if (!(testCase.workflow.data.workflowContent.contains("version 1.0") ||
+//          testCase.workflow.data.workflowContent.contains("version draft-3")) &&
+//        !testCase.workflow.data.workflowType.contains("CWL") &&
+//        !tags.map(_.name).contains("subworkflow")) {
+    if (tags.map(_.name).contains("upgrade")) {
+
+      cromwell.languages.util.ImportResolver.localFileResolver
+      val draft2Wdl = WdlNamespace.loadUsingSource(
+        testCase.workflow.data.workflowContent,
+        None,
+        Some(Seq(WdlNamespace.fileResolver))
+      ).get
+
+      val bundle = wdlDraft2NamespaceWomBundleMaker.toWomBundle(draft2Wdl).right.get
+
+      import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
+      import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
+      import wdl.draft3.transforms.wom2wdlom.WomToWdlom.ops._
+      import wdl.draft3.transforms.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
+
+      val v1testCase = testCase.copy(
+        workflow = testCase.workflow.copy(
+          data = testCase.workflow.data.copy(workflowContent = bundle.toWdlom.toWdlV1)))
+
+      def runTest(): Unit = {
+        v1testCase.testFunction.run.get
+        ()
+      }
+
+      runOrDont(nameTest + "_upgrade", tags, isIgnored, runTest())
+    }
+
+//    runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Any): Unit = {

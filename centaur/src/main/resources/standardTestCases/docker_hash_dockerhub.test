@@ -1,5 +1,6 @@
 name: docker_hash_dockerhub
 testFormat: workflowsuccess
+labels: [upgrade]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub.wdl

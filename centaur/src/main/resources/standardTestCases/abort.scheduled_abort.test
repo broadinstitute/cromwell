@@ -2,6 +2,7 @@ ignore: false
 name: abort.scheduled_abort
 testFormat: scheduledabort
 callMark: scheduled_abort.aborted
+labels: [upgrade]
 
 files {
   workflow: abort/scheduled_abort.wdl

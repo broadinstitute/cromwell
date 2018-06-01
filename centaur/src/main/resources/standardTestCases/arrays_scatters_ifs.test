@@ -1,5 +1,6 @@
 name: arrays_scatters_ifs
 testFormat: workflowsuccess
+labels: [upgrade]
 
 files {
   workflow: arrays_scatters_ifs/arrays_scatters_ifs.wdl

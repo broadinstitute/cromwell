@@ -8,10 +8,10 @@ import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
 import wdl.draft2.parser.WdlParser.Terminal
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import shapeless.{Inl, Inr}
-import wdl.draft2.model.WdlWomExpression
+import wdl.draft2.model.{MemberAccess, WdlWomExpression}
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
-import wdl.model.draft3.elements.ExpressionElement.ExpressionLiteralElement
+import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
 import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
@@ -33,13 +33,12 @@ object WomToWdlomImpl {
   implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] =
     new WomToWdlom[GraphOutputNode, WorkflowGraphElement] {
       override def toWdlom(a: GraphOutputNode): WorkflowGraphElement = a match {
-        case _: PortBasedGraphOutputNode =>
-          ??? // Don't yet know when this would happen
-//          OutputDeclarationElement(
-//            a.womType.toWdlom,
-//            a.identifier.localName.value,
-//            StringLiteral("bogus") // TODO
-//          )
+        case a: PortBasedGraphOutputNode =>
+          OutputDeclarationElement(
+            a.womType.toWdlom,
+            a.identifier.localName.value,
+            StringLiteral(a.toString) // TODO: debug more
+          )
         case a: ExpressionBasedGraphOutputNode =>
           OutputDeclarationElement(
             a.womType.toWdlom,
@@ -142,6 +141,9 @@ object WomToWdlomImpl {
 
             p.expression.ast match {
               case t: Terminal => PlaceholderCommandPartElement(ExpressionLiteralElement(t.getSourceString), attrs)
+              case _: wdl.draft2.parser.WdlParser => ???
+              case ast: wdl.draft2.parser.WdlParser.Ast => StringCommandPartElement(ast.toPrettyString) // TODO: probably bogus
+              case m: MemberAccess => PlaceholderCommandPartElement(ExpressionLiteralElement(m.lhsString + "." + m.rhsString), attrs)
               case _ => throw UnrepresentableException
             }
         })
@@ -301,6 +303,7 @@ object WomToWdlomImpl {
             None
           case a: PlainAnonymousExpressionNode => Some(a.womExpression.toWdlom)
           case a: TaskCallInputExpressionNode => Some(a.womExpression.toWdlom)
+          case _: RequiredGraphInputNode => None // TODO: questionable
         }
         case Inr(Inl(a: WdlWomExpression)) => Some(womExpressionToExpressionElement.toWdlom(a))
         case Inr(_) =>

@@ -1,5 +1,6 @@
 name: passingfiles
 testFormat: workflowsuccess
+labels: [upgrade]
 
 files {
   workflow: passingfiles/passingfiles.wdl

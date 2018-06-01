@@ -1,5 +1,6 @@
 name: recursive_imports
 testFormat: workflowsuccess
+tags: [subworkflow]
 
 files {
   workflow: recursive_imports/recursive_imports.wdl

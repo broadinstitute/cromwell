@@ -1,0 +1,11 @@
+name: input_expressions
+testFormat: workflowsuccess
+backends: [Papi, Local]
+
+files {
+  workflow: input_expressions/input_expressions.wdl
+}
+
+metadata {
+    "outputs.input_expressions.wf_out": 256.0
+}

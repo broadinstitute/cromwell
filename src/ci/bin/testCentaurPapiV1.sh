@@ -10,9 +10,9 @@ cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
 
-cromwell::build::assemble_jars
-
 cromwell::build::setup_secure_resources
+
+cromwell::build::assemble_jars
 
 GOOGLE_AUTH_MODE="service-account"
 GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_refresh_token.txt"

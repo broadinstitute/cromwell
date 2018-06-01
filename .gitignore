@@ -28,9 +28,11 @@ cromwell-service-account.json
 cromwell-centaur-service-account.json
 cromwell-centaur-requester-pays-service-account.json
 cwl_conformance_test.inputs.json
-dockerhub_provider_config.inc.conf
+dockerhub_provider_config_v1.inc.conf
+dockerhub_provider_config_v2.inc.conf
 github_private_deploy_key
 papi_application.inc.conf
 papi_refresh_token.txt
 artifactory_credentials.properties
 dockerhub_auth.inc.sh
+src/ci/resources/private_docker_papi_v2_usa.options

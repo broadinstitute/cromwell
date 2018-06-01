@@ -107,6 +107,7 @@ object PipelinesApiTestConfig {
       override def getRequest(job: StandardAsyncJob) = ???
       override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = ???
     }
+    override def usesEncryptedDocker: Boolean = false
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val googleConfiguration = GoogleConfiguration(JesGlobalConfig)

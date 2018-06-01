@@ -108,7 +108,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       override def getRequest(job: StandardAsyncJob) = null
       override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = null
     }
-    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory)
+    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory, None, None)
   }
 
   class TestablePipelinesApiJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: PipelinesApiExpressionFunctions)

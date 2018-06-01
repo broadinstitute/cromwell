@@ -130,7 +130,6 @@ class AwsBatchConfigurationSpec extends FlatSpec with Matchers with TableDrivenP
   it should "have correct docker" in {
     val dockerConf = new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).dockerCredentials
     dockerConf shouldBe defined
-    dockerConf.get.account shouldBe "dockerAccount"
     dockerConf.get.token shouldBe "dockerToken"
   }
 }

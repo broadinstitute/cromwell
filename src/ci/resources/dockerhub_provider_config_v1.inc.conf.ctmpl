@@ -1,6 +1,5 @@
 {{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
 dockerhub {
-    account = "{{$cromwellDockerhub.Data.account}}"
-    token = "{{$cromwellDockerhub.Data.token}}"
+  token = "{{$cromwellDockerhub.Data.token}}"
 }
 {{end}}

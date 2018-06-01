@@ -18,7 +18,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
     backendInitializationDataAs[PipelinesApiBackendInitializationData]
   }
 
-  lazy val pipelinesConfiguration: PipelinesApiConfiguration = initializationData.jesConfiguration
+  lazy val pipelinesConfiguration: PipelinesApiConfiguration = initializationData.papiConfiguration
 
   lazy val pipelinesApiCallPaths: PipelinesApiJobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths]
 
@@ -27,7 +27,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
 
   lazy val demoDosResolver: DemoDosResolver = DemoDosResolver(
-    initializationData.jesConfiguration.configurationDescriptor.globalConfig
+    initializationData.papiConfiguration.configurationDescriptor.globalConfig
   )
 
   lazy val callRootPath: Path = pipelinesApiCallPaths.callExecutionRoot

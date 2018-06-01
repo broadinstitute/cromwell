@@ -63,6 +63,7 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_RESOURCES_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/resources"
 
     CROMWELL_BUILD_CENTAUR_RESOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/src/main/resources"
+    CROMWELL_BUILD_CENTAUR_STANDARD_TESTS="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
     CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS="${CROMWELL_BUILD_CENTAUR_RESOURCES}/integrationTestCases"
 
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_ROOT_DIRECTORY}/cromwell_build_exit_functions.$$"
@@ -354,13 +355,19 @@ cromwell::private::render_secure_resources() {
     fi
 }
 
+cromwell::private::copy_rendered_workflow_options() {
+    cp -f "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/*.options "$CROMWELL_BUILD_CENTAUR_STANDARD_TESTS"/rendered
+}
+
 cromwell::private::setup_secure_resources() {
     if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
             cromwell::private::vault_login
             cromwell::private::render_secure_resources
+            cromwell::private::copy_rendered_workflow_options
             cromwell::private::docker_login
     else
             cromwell::private::render_secure_resources
+            cromwell::private::copy_rendered_workflow_options
     fi
 }
 

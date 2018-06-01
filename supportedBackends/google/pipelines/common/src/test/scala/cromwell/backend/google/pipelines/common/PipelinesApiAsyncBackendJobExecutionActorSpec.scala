@@ -491,7 +491,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
-        val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
+        val jesInputs = testActorRef.underlyingActor.generateInputs(jobDescriptor)
         jesInputs should have size 8
         jesInputs should contain(PipelinesApiFileInput(
           "stringToFileMap-0", gcsPath("gs://path/to/stringTofile1"), DefaultPathBuilder.get("path/to/stringTofile1"), workingDisk))
@@ -548,14 +548,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val jesBackend = makeJesActorRef(SampleWdl.FilePassingWorkflow, "a", inputs).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val workflowId = jesBackend.workflowId
-    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
+    val jesInputs = jesBackend.generateInputs(jobDescriptor)
     jesInputs should have size 1
     jesInputs should contain(PipelinesApiFileInput("in-0", gcsPath("gs://blah/b/c.txt"), DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
-    val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
+    val jesOutputs = jesBackend.generateOutputs(jobDescriptor)
     jesOutputs should have size 1
     jesOutputs should contain(PipelinesApiFileOutput("out",
-      gcsPath(s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out"), DefaultPathBuilder.get("out"), workingDisk, optional = true))
+      gcsPath(s"gs://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out"), DefaultPathBuilder.get("out"), workingDisk, optional = false, secondary = false))
   }
+
 
   it should "generate correct JesInputs when a command line contains a write_lines call in it" taggedAs PostWomTest ignore {
     val inputs = Map(
@@ -571,11 +572,11 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val functions = new TestPipelinesApiExpressionFunctions
     val jesBackend = makeJesActorRef(SampleWdl.ArrayIO, "serialize", inputs, functions).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
-    val jesInputs = jesBackend.generateJesInputs(jobDescriptor)
+    val jesInputs = jesBackend.generateInputs(jobDescriptor)
     jesInputs should have size 1
     jesInputs should contain(PipelinesApiFileInput(
       "c6fd5c91-0", gcsPath("gs://some/path/file.txt"), DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
-    val jesOutputs = jesBackend.generateJesOutputs(jobDescriptor)
+    val jesOutputs = jesBackend.generateOutputs(jobDescriptor)
     jesOutputs should have size 0
   }
 
@@ -606,7 +607,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
-        val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
+        val jesInputs = testActorRef.underlyingActor.generateInputs(jobDescriptor)
         jesInputs should have size 2
         jesInputs should contain(PipelinesApiFileInput("fileArray-0", gcsPath("gs://path/to/file1"), DefaultPathBuilder.get("path/to/file1"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput("fileArray-1", gcsPath("gs://path/to/file2"), DefaultPathBuilder.get("path/to/file2"), workingDisk))
@@ -641,7 +642,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
-        val jesInputs = testActorRef.underlyingActor.generateJesInputs(jobDescriptor)
+        val jesInputs = testActorRef.underlyingActor.generateInputs(jobDescriptor)
         jesInputs should have size 2
         jesInputs should contain(PipelinesApiFileInput("file1-0", gcsPath("gs://path/to/file1"), DefaultPathBuilder.get("path/to/file1"), workingDisk))
         jesInputs should contain(PipelinesApiFileInput("file2-0", gcsPath("gs://path/to/file2"), DefaultPathBuilder.get("path/to/file2"), workingDisk))
@@ -653,15 +654,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   it should "convert local Paths back to corresponding GCS paths in JesOutputs" in {
     val jesOutputs = Set(
       PipelinesApiFileOutput("/cromwell_root/path/to/file1", gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk, optional = true),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk, optional = false, secondary = false),
       PipelinesApiFileOutput("/cromwell_root/path/to/file2", gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk, optional = true),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk, optional = false, secondary = false),
       PipelinesApiFileOutput("/cromwell_root/path/to/file3", gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk, optional = true),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk, optional = false, secondary = false),
       PipelinesApiFileOutput("/cromwell_root/path/to/file4", gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk, optional = true),
+        DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk, optional = false, secondary = false),
       PipelinesApiFileOutput("/cromwell_root/path/to/file5", gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk, optional = true)
+        DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk, optional = false, secondary = false)
     )
     val outputValues = Seq(
       WomSingleFile("/cromwell_root/path/to/file1"),

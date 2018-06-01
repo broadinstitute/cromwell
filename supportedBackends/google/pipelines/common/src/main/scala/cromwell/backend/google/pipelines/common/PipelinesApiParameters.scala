@@ -52,6 +52,7 @@ final case class PipelinesApiFileOutput(name: String,
                                         relativeHostPath: Path,
                                         mount: PipelinesApiAttachedDisk,
                                         optional: Boolean,
+                                        secondary: Boolean,
                                         contentType: Option[ContentType] = None) extends PipelinesApiOutput
 
 final case class PipelinesApiDirectoryOutput(name: String,
@@ -59,6 +60,7 @@ final case class PipelinesApiDirectoryOutput(name: String,
                                              relativeHostPath: Path,
                                              mount: PipelinesApiAttachedDisk,
                                              optional: Boolean,
+                                             secondary: Boolean,
                                              contentType: Option[ContentType] = None) extends PipelinesApiOutput
 
 // TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file

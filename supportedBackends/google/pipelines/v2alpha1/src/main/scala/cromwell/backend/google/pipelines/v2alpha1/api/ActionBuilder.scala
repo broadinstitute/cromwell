@@ -37,8 +37,7 @@ object ActionBuilder {
   def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount], jobShell: String): Action = {
     new Action()
       .setImageUri(docker)
-      // TODO this should use jobShell instead of "/bin/bash"
-      .setCommands(List("/bin/bash", scriptContainerPath).asJava)
+      .setCommands(List(jobShell, scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
       .setEntrypoint("")
   }

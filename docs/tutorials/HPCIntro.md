@@ -139,8 +139,8 @@ When Cromwell runs a task, it will fill in a template for the job using the decl
 ```bash
 qsub -terse -V -b y -N my_job_name \
   -wd /path/to/working_directory \
-  -o /path/to/stdout \
-  -e /path/to/stderr \
+  -o /path/to/stdout.qsub \
+  -e /path/to/stderr.qsub \
   -pe smp 1 -l mem_free=0.5g -q short \
   /usr/bin/env bash myScript.bash
 ```
@@ -158,8 +158,8 @@ backend.providers.SGE.config {
   -b y \
   -N ${job_name} \
   -wd ${cwd} \
-  -o ${out} \
-  -e ${err} \
+  -o ${out}.qsub \
+  -e ${err}.qsub \
   -pe smp ${cpu} \
   ${"-l mem_free=" + memory_gb + "g"} \
   ${"-q " + sge_queue} \

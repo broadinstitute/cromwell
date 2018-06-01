@@ -301,9 +301,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) => s"""export $k="$v"""" } mkString("", "\n", "\n")
 
     val home = jobDescriptor.taskCall.callable.homeOverride.map { _ (runtimeEnvironment) }.getOrElse("$HOME")
-    val shortId = jobDescriptor.workflowDescriptor.id.shortString
-    // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
-    val (out, err) = (s"out$shortId", s"err$shortId")
 
     val dockerOutputDir = jobDescriptor.taskCall.callable.dockerOutputDirectory map { d =>
       s"ln -s $cwd $d"
@@ -325,16 +322,11 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |SCRIPT_PREAMBLE
         |)
-        |$out="$${tmpDir}/out.$$$$" $err="$${tmpDir}/err.$$$$"
-        |mkfifo "$$$out" "$$$err"
-        |trap 'rm "$$$out" "$$$err"' EXIT
-        |tee $stdoutRedirection < "$$$out" &
-        |tee $stderrRedirection < "$$$err" >&2 &
         |(
         |cd $cwd
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
-        |) $stdinRedirection > "$$$out" 2> "$$$err"
+        |) $stdinRedirection > $stdoutRedirection 2> $stderrRedirection
         |echo $$? > $rcTmpPath
         |(
         |# add a .file in every empty directory to facilitate directory delocalization on the cloud

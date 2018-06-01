@@ -44,8 +44,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val mounts = createPipelineParameters |> toMounts
 
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
-      // localization.size + 1 because action indices are 1-based and the next action after localization will be the user's
-      val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts, localization.size + 1)
+      val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
 
       val environment = Map.empty[String, String].asJava
 

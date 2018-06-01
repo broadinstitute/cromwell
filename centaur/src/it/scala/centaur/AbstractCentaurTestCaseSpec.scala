@@ -67,7 +67,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
         ()
       }
 
-      runOrDont(nameTest + "_upgrade", tags, isIgnored, runTest())
+      runOrDont(nameTest, tags, isIgnored, runTest())
     }
 
 //    runOrDont(nameTest, tags, isIgnored, runTest())

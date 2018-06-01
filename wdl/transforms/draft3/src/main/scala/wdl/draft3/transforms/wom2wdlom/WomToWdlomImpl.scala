@@ -8,7 +8,7 @@ import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
 import wdl.draft2.parser.WdlParser.Terminal
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import shapeless.{Inl, Inr}
-import wdl.draft2.model.{MemberAccess, WdlWomExpression}
+import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
 import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
@@ -141,9 +141,12 @@ object WomToWdlomImpl {
 
             p.expression.ast match {
               case t: Terminal => PlaceholderCommandPartElement(ExpressionLiteralElement(t.getSourceString), attrs)
-              case _: wdl.draft2.parser.WdlParser => ???
-              case ast: wdl.draft2.parser.WdlParser.Ast => StringCommandPartElement(ast.toPrettyString) // TODO: probably bogus
-              case m: MemberAccess => PlaceholderCommandPartElement(ExpressionLiteralElement(m.lhsString + "." + m.rhsString), attrs)
+              case ast: wdl.draft2.parser.WdlParser.Ast =>
+                // TODO: this could recurse to another AST
+                // TODO: should we really be working with AST right here?
+                val lhs = ast.getAttribute("lhs").asInstanceOf[Terminal]
+                val rhs = ast.getAttribute("rhs").asInstanceOf[Terminal]
+                PlaceholderCommandPartElement(ExpressionLiteralElement(lhs.getSourceString + "." + rhs.getSourceString), attrs)
               case _ => throw UnrepresentableException
             }
         })

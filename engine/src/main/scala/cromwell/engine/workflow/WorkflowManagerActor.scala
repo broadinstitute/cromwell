@@ -318,7 +318,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
         } getOrElse ""
         reason.getMessage + stderrMessage
       case reason =>
-        reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
+        val m = ExceptionUtils.getStackTrace(reason)
+        m
     } mkString "\n"
   }
 }

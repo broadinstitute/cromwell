@@ -4,6 +4,7 @@ import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common.PipelinesApiFileOutput
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Gsutil.ContentTypeTextHeader
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag.ActionFlag
 import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
@@ -14,6 +15,21 @@ import scala.collection.JavaConverters._
   * Utility singleton to create high level actions.
   */
 object ActionBuilder {
+  object Labels {
+    object Key {
+      /**
+        * Very short description of the action
+        */
+      val Tag = "tag"
+      val InputName = "inputName"
+    }
+    object Value {
+      val UserAction = "UserAction"
+      val Localization = "Localization"
+      val Delocalization = "DeLocalization"
+    }
+  }
+  
   implicit class EnhancedAction(val action: Action) extends AnyVal {
     private def javaFlags(flags: List[ActionFlag]) = flags.map(_.toString).asJava
 
@@ -40,18 +56,19 @@ object ActionBuilder {
       .setCommands(List(jobShell, scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
       .setEntrypoint("")
+      .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
   }
 
-  def gsutilAsText(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty): Action = {
+  def gsutilAsText(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {
     gsutil(List("-h", ContentTypeTextHeader) ++ command.toList: _*)(mounts, flags)
   }
 
-  def gsutil(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, description: Option[String] = None): Action = {
+  def gsutil(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {
     cloudSdkAction
       .setCommands((List("gsutil") ++ command.toList).asJava)
       .withFlags(flags)
       .setMounts(mounts.asJava)
-      .setLabels(description.map("description" -> _).toMap.asJava)
+      .setLabels(labels.asJava)
   }
 
   def delocalizeFile(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
@@ -66,6 +83,6 @@ object ActionBuilder {
       .withCommand("/bin/sh", "-c", if (fileOutput.optional) copyOnlyIfExists else copy)
       .withFlags(List(ActionFlag.AlwaysRun))
       .withMounts(mounts)
-      .withLabels(Map("description" -> "delocalizing"))
+      .withLabels(Map(Key.Tag -> Value.Delocalization))
   }
 }

@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
+import cats.data.NonEmptyList
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
@@ -10,7 +11,7 @@ import simulacrum.typeclass
 import scala.language.implicitConversions
 
 @typeclass trait ToParameter[A <: PipelinesParameter] {
-  def toActions(p: A, mounts: List[Mount], projectId: String): List[Action]
+  def toActions(p: A, mounts: List[Mount], projectId: String): NonEmptyList[Action]
   def toMount(p: A): Mount = {
     new Mount()
       .setDisk(p.mount.name)
@@ -25,7 +26,7 @@ trait PipelinesParameterConversions {
         Key.Tag -> Value.Localization,
         Key.InputName -> fileInput.name
       )
-      List(gsutil("cp", fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString)(mounts, labels = labels))
+      NonEmptyList.of(gsutil("cp", fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString)(mounts, labels = labels))
     }
   }
 
@@ -38,19 +39,19 @@ trait PipelinesParameterConversions {
 
       val gsutilAction = gsutil("-m", "rsync", "-r", directoryInput.cloudPath.pathAsString, directoryInput.containerPath.pathAsString)(mounts, labels =  Map(Key.Tag -> Value.Localization))
 
-      List(mkdirAction, gsutilAction)
+      NonEmptyList.of(mkdirAction, gsutilAction)
     }
   }
 
   implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
     override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
-      List(delocalizeFile(fileOutput, mounts, projectId))
+      NonEmptyList.of(delocalizeFile(fileOutput, mounts, projectId))
     }
   }
 
   implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
     override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount], projectId: String) = {
-      List(gsutil("-m", "rsync", "-r", directoryOutput.containerPath.pathAsString, directoryOutput.cloudPath.pathAsString)(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization)))
+      NonEmptyList.of(gsutil("-m", "rsync", "-r", directoryOutput.containerPath.pathAsString, directoryOutput.cloudPath.pathAsString)(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization)))
     }
   }
 

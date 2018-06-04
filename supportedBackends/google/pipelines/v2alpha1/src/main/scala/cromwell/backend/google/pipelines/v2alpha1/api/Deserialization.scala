@@ -10,7 +10,6 @@ import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.ErrorReporter._
-import cromwell.core.WorkflowId
 import mouse.all._
 
 import scala.collection.JavaConverters._
@@ -27,12 +26,12 @@ import scala.util.{Failure, Success, Try}
   */
 private [api] object Deserialization {
   def findEvent[T <: GenericJson](events: List[Event],
-                                  filter: T => Boolean = Function.const(true) _)(implicit tag: ClassTag[T], workflowId: WorkflowId, operation: Operation): Option[T] =
+                                  filter: T => Boolean = Function.const(true) _)(implicit tag: ClassTag[T]): Option[RequestContextReader[Option[T]]] =
     events.toStream
       .map(_.details(tag))
       .collectFirst({
         case Some(event) if event.map(filter).getOrElse(false) => event.toErrorOr.fallBack
-      }).flatten
+      })
   
   implicit class EventDeserialization(val event: Event) extends AnyVal {
     /**

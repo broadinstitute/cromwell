@@ -98,7 +98,7 @@ trait Delocalization {
 
     val projectId = createPipelineParameters.projectId
 
-    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId)) ++
+    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId).toList) ++
       List(parseAction, delocalizeAction) :+
       copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath, projectId) :+
       delocalizeLogsAction(gcsLogDirectoryPath.pathAsString, projectId)

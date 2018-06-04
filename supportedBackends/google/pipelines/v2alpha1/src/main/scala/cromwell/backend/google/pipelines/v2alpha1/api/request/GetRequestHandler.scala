@@ -42,18 +42,15 @@ trait GetRequestHandler { this: RequestHandler =>
   }
 
   private [request] def interpretOperationStatus(operation: Operation, pollingRequest: PAPIStatusPollRequest): RunStatus = {
-    implicit val workflowId = pollingRequest.workflowId
-    implicit val op = operation
-
     require(operation != null, "Operation must not be null.")
 
     try {
       if (operation.getDone) {
         val metadata = operation.getMetadata.asScala.toMap
         // Deserialize the response
-        val events: List[Event] = operation.events.fallBackTo(List.empty)
-        val pipeline: Option[Pipeline] = operation.pipeline.toErrorOr.fallBack
-        val workerEvent: Option[WorkerAssignedEvent] = findEvent[WorkerAssignedEvent](events)
+        val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
+        val pipeline: Option[Pipeline] = operation.pipeline.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
+        val workerEvent: Option[WorkerAssignedEvent] = findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
         val executionEvents = getEventList(metadata, events).toList
         val machineType = pipeline.map(_.getResources.getVirtualMachine.getMachineType)
         // preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
@@ -67,7 +64,7 @@ trait GetRequestHandler { this: RequestHandler =>
         Option(operation.getError) match {
           case Some(error) =>
             val actions = pipeline.map(_.getActions.asScala.toList).toList.flatten
-            val errorReporter = new ErrorReporter(machineType, preemptible, executionEvents, zone, instanceName, actions)(operation, pollingRequest.workflowId)
+            val errorReporter = new ErrorReporter(machineType, preemptible, executionEvents, zone, instanceName, actions, operation, pollingRequest.workflowId)
             errorReporter.toUnsuccessfulRunStatus(error, events)
           case None => Success(executionEvents, machineType, zone, instanceName)
         }

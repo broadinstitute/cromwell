@@ -26,7 +26,6 @@ task mk_object {
   }
 }
 
-# member access problematic
 task use_object {
   Object obj_in
   command {

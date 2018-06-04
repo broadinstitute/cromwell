@@ -47,7 +47,7 @@ class ErrorReporter(machineType: Option[String],
   def toUnsuccessfulRunStatus(error: Status, events: List[Event]) = {
     val status = GStatus.fromCodeValue(error.getCode)
     val builder = status match {
-      case GStatus.ABORTED if wasPreemptible => Preempted.apply _
+      case GStatus.UNAVAILABLE if wasPreemptible => Preempted.apply _
       case GStatus.CANCELLED => Cancelled.apply _
       case _ => Failed.apply _
     }

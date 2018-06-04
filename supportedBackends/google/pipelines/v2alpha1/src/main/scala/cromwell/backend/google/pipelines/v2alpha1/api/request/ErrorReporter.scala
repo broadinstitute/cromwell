@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2alpha1.api.request
 
+import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr.ErrorOr
@@ -17,20 +18,21 @@ import scala.collection.JavaConverters._
 object ErrorReporter {
   // This can be used to log non-critical deserialization failures and not fail the task
   implicit class ErrorOrLogger[A](val t: ErrorOr[A]) extends AnyVal {
-    private def errorMessage(workflowId: WorkflowId, operation: Operation, exception: Option[Throwable] = None) =
-      s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}"
-    
+    private def logErrors(errors: NonEmptyList[String])(implicit workflowId: WorkflowId, operation: Operation) = {
+      logger.error(s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}" + s"${errors.toList.mkString(", ")}")
+    }
+
     def fallBack(implicit workflowId: WorkflowId, operation: Operation): Option[A] = t match {
       case Valid(s) => Option(s)
       case Invalid(f) =>
-        logger.error(errorMessage(workflowId, operation) + s" ${f.toList.mkString(", ")}")
+        logErrors(f)
         None
     }
 
     def fallBackTo(to: A)(implicit workflowId: WorkflowId, operation: Operation): A = t match {
       case Valid(s) => s
       case Invalid(f) =>
-        logger.error(s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}. ${f.toList.mkString(", ")}")
+        logErrors(f)
         to
     }
   }

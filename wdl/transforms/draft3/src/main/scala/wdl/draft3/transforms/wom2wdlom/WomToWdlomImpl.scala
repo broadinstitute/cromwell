@@ -328,9 +328,17 @@ object WomToWdlomImpl {
 
       val inputs = (a.inputDefinitionMappings flatMap tupleToKvPair).toVector
 
+      val callableName = a.callable.name
+      val callAlias = a.identifier.localName.value // If no alias, this is just the name; we evaluate for that below
+
+      val maybeAlias = if (callableName != callAlias)
+        Some(callAlias)
+      else
+        None
+
       CallElement(
         a.callable.name,
-        None,
+        maybeAlias,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       )
     }

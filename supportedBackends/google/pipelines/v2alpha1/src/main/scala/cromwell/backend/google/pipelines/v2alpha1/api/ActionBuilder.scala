@@ -76,7 +76,7 @@ object ActionBuilder {
     val List(containerPath, cloudPath) = List(fileOutput.containerPath.pathAsString, fileOutput.cloudPath.pathAsString) map ESCAPE_XSI.translate
 
     // To re-enable requester pays, this need to be added back: -u $projectId
-    val copy = s"gsutil cp $containerPath $cloudPath"
+    val copy = s"if [[ -d $containerPath ]]; then gsutil -m rsync -r $containerPath $cloudPath; else gsutil cp $containerPath $cloudPath; fi"
     lazy val copyOnlyIfExists = s"if [[ -e $containerPath ]]; then $copy; fi"
 
     cloudSdkAction

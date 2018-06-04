@@ -174,14 +174,10 @@ object WomToWdlomImpl {
         val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
-        val expressions: Set[GraphNode] = a.graph.nodes.filterByType[ExposedExpressionNode]
-        val scatters: Set[GraphNode] = a.graph.nodes.filterByType[ScatterNode]
-        val calls: Set[GraphNode] = a.graph.nodes.filterByType[CallNode]
-
         WorkflowDefinitionElement(
           a.name,
           if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-          (expressions ++ scatters ++ calls).map(_.toWdlom),
+          selectWdlomRepresentableNodes(a.graph.nodes).map(_.toWdlom),
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
           mapToMetaSectionElement.toWdlom(a.meta),
           mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
@@ -201,6 +197,17 @@ object WomToWdlomImpl {
       }
     }
 
+  // Select only nodes that have a Wdlom representation (i.e. were not synthesized during WOMification)
+  private def selectWdlomRepresentableNodes(allNodes: Set[GraphNode]): Set[GraphNode] = {
+    val expressions: Set[GraphNode] = allNodes.filterByType[ExposedExpressionNode]
+    val scatters: Set[GraphNode] = allNodes.filterByType[ScatterNode]
+    val calls: Set[GraphNode] = allNodes.filterByType[CallNode]
+    val conditionals: Set[GraphNode] = allNodes.filterByType[ConditionalNode]
+
+    expressions ++ scatters ++ calls ++ conditionals
+  }
+
+
   implicit val graphNodeToWorkflowGraphElement: WomToWdlom[GraphNode, WorkflowGraphElement] = new WomToWdlom[GraphNode, WorkflowGraphElement] {
     override def toWdlom(a: GraphNode): WorkflowGraphElement = {
       a match {
@@ -209,7 +216,7 @@ object WomToWdlomImpl {
         case a: ConditionalNode =>
           IfElement(
             conditionExpression = a.conditionExpression.toWdlom,
-            graphElements = a.innerGraph.nodes.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
+            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement.toWdlom)
           )
         case a: ExpressionNodeLike =>
           a.toWdlom

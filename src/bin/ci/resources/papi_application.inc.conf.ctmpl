@@ -5,7 +5,7 @@ backend {
 }
 
 engine {
-  filesystems {
+  file
     gcs {
       auth = "service_account"
       project = "broad-dsde-cromwell-dev"

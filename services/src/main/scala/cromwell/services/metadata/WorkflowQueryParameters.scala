@@ -19,7 +19,8 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
                                            pageSize: Option[Int],
-                                           additionalQueryResultFields: Set[String])
+                                           additionalQueryResultFields: Set[String],
+                                           submissionTime: Option[OffsetDateTime])
 
 object WorkflowQueryParameters {
 
@@ -93,7 +94,7 @@ object WorkflowQueryParameters {
       additionalQueryResultFieldsValidation
     ) mapN {
       (_, _, statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields)
+        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields, Option(OffsetDateTime.parse("2018-05-30T19:42:25.918Z")))
     }
   }
 

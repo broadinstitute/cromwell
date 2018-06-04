@@ -201,10 +201,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       page: Option[Int],
-                                      pageSize: Option[Int])
+                                      pageSize: Option[Int],
+                                      submissionTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize, submissionTimestampOption).result
     runTransaction(action)
   }
 
@@ -214,10 +215,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       labelAndKeyLabelValues: Set[(String,String)],
                                       labelOrKeyLabelValues: Set[(String,String)],
                                       startTimestampOption: Option[Timestamp],
-                                      endTimestampOption: Option[Timestamp])
+                                      endTimestampOption: Option[Timestamp],
+                                      submissionTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, submissionTimestampOption).result
     runTransaction(action)
   }
 }

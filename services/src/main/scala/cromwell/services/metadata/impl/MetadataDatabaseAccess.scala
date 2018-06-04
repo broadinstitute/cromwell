@@ -185,7 +185,8 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.page,
-      queryParameters.pageSize
+      queryParameters.pageSize,
+      queryParameters.submissionTime.map(_.toSystemTimestamp)
     )
 
     val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
@@ -195,7 +196,8 @@ trait MetadataDatabaseAccess {
       labelsAndToQuery,
       labelsOrToQuery,
       queryParameters.startDate.map(_.toSystemTimestamp),
-      queryParameters.endDate.map(_.toSystemTimestamp)
+      queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.submissionTime.map(_.toSystemTimestamp)
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {

@@ -83,7 +83,8 @@ trait MetadataSqlDatabase {
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              page: Option[Int],
-                             pageSize: Option[Int])
+                             pageSize: Option[Int],
+                             submissionTimestamp: Option[Timestamp])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
@@ -91,6 +92,7 @@ trait MetadataSqlDatabase {
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
                              startTimestampOption: Option[Timestamp],
-                             endTimestampOption: Option[Timestamp])
+                             endTimestampOption: Option[Timestamp],
+                             submissionTimestamp: Option[Timestamp])
                              (implicit ec: ExecutionContext): Future[Int]
 }

@@ -20,6 +20,8 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def workflowStatus = column[Option[String]]("WORKFLOW_STATUS", O.Length(50))
 
+    def submissionTimestamp = column[Option[Timestamp]]("SUBMISSION_TIMESTAMP")
+
     def startTimestamp = column[Option[Timestamp]]("START_TIMESTAMP")
 
     def endTimestamp = column[Option[Timestamp]]("END_TIMESTAMP")
@@ -59,7 +61,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                            labelAndKeyValues: Set[(String, String)],
                                            labelOrKeyValues: Set[(String, String)],
                                            startTimestampOption: Option[Timestamp],
-                                           endTimestampOption: Option[Timestamp]):
+                                           endTimestampOption: Option[Timestamp],
+                                           submissionTimestampOption: Option[Timestamp]):
   (WorkflowMetadataSummaryEntries) => Rep[Boolean] = {
     val include: Rep[Boolean] = true
     val exclude: Rep[Boolean] = false
@@ -74,6 +77,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         map(startTimestamp => workflowMetadataSummaryEntry.startTimestamp.fold(ifEmpty = exclude)(_ >= startTimestamp))
       val endTimestampFilter = endTimestampOption.
         map(endTimestamp => workflowMetadataSummaryEntry.endTimestamp.fold(ifEmpty = exclude)(_ <= endTimestamp))
+      val submissionTimestampFilter = submissionTimestampOption.
+        map(submissionTimestamp => workflowMetadataSummaryEntry.submissionTimestamp.fold(ifEmpty = exclude)(_ >= submissionTimestamp))
       // Names, UUIDs, and statuses are potentially multi-valued, the reduceLeftOption ORs together any name, UUID, or
       // status criteria to include all matching names, UUIDs, and statuses.
       val workflowNameFilter = workflowNames.
@@ -95,7 +100,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         labelsAndFilter,
         labelsOrFilter,
         startTimestampFilter,
-        endTimestampFilter
+        endTimestampFilter,
+        submissionTimestampFilter
       )
       // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
       // rows which might otherwise have been filtered.
@@ -126,7 +132,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
                                           startTimestampOption: Option[Timestamp],
-                                          endTimestampOption: Option[Timestamp]) = {
+                                          endTimestampOption: Option[Timestamp],
+                                          submissionTimestampOption: Option[Timestamp]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
       workflowStatuses,
       workflowNames,
@@ -134,7 +141,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
       startTimestampOption,
-      endTimestampOption
+      endTimestampOption,
+      submissionTimestampOption
     )
     workflowMetadataSummaryEntries.filter(filter).length
   }
@@ -148,7 +156,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           labelOrKeyLabelValues: Set[(String,String)],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp], page: Option[Int],
-                                          pageSize: Option[Int]) = {
+                                          pageSize: Option[Int],
+                                          submissionTimestampOption: Option[Timestamp]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
       workflowStatuses,
       workflowNames,
@@ -156,7 +165,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
       startTimestampOption,
-      endTimestampOption
+      endTimestampOption,
+      submissionTimestampOption
     )
     val query = workflowMetadataSummaryEntries.filter(filter)
     (page, pageSize) match {

@@ -26,7 +26,7 @@ object ActionBuilder {
     object Value {
       val UserAction = "UserAction"
       val Localization = "Localization"
-      val Delocalization = "DeLocalization"
+      val Delocalization = "Delocalization"
     }
   }
   

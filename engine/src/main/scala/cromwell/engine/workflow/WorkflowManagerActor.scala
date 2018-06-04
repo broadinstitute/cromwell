@@ -317,9 +317,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
           s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
         } getOrElse ""
         reason.getMessage + stderrMessage
-      case reason =>
-        val m = ExceptionUtils.getStackTrace(reason)
-        m
+      case reason => ExceptionUtils.getStackTrace(reason)
     } mkString "\n"
   }
 }

@@ -47,6 +47,10 @@ object Validation {
       Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
     }
 
+    def toErrorOrWithContext(context: String): ErrorOr[A] = {
+      Validated.fromTry(t).leftMap(e => context + ": " + e.getMessage).toValidatedNel[String, A]
+    }
+
     def toChecked: Checked[A] = {
       Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))
     }

@@ -11,6 +11,8 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomOptionalValue, WomValue}
+import common.validation.Validation._
+import scala.util.Try
 
 object ValueStore {
   def initialize(knownValues: Map[OutputPort, WomValue]): ValueStore = {
@@ -65,9 +67,12 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
 
         // Verify that we have all the expected shards.
         if (collectedValue.size == collector.scatterWidth) {
-          val collectedResult = collector.scatterCollectionFunction(collectedValue, scatterGatherPort.womType)
           // If the sizes match, create an Array from the values and assign it to the ScatterGatherPort
-          Map(ValueKey(scatterGatherPort, None) -> collectedResult).validNel
+          Try(collector.scatterCollectionFunction(collectedValue, scatterGatherPort.womType)).toErrorOrWithContext(
+            s"Failed to collect shards on node ${collector.node.fullyQualifiedName} for output ${sourcePort.identifier.fullyQualifiedName}"
+          ) map { collectedResult =>
+            Map(ValueKey(scatterGatherPort, None) -> collectedResult)
+          }
         } else {
           // If we don't find enough shards, this collector was found "runnable" when it shouldn't have
           s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel

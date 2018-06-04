@@ -1,13 +1,19 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
+import akka.http.scaladsl.model.ContentType
 import common.util.StringUtil._
 import cromwell.core.path.Path
 import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
 
+import scala.concurrent.duration._
+
 /**
   * Utility methods to build shell commands for localization / delocalization.
   */
 object ActionCommands {
+  implicit val nbRetries: Int = 5
+  implicit val waitBetweenRetries: FiniteDuration = 5.seconds
+
   implicit class ShellPath(val path: Path) extends AnyVal {
     // The command String runs in Bourne shell so shell metacharacters in filenames must be escaped
     def escape = ESCAPE_XSI.translate(path.pathAsString)
@@ -15,7 +21,7 @@ object ActionCommands {
 
   def makeContainerDirectory(containerPath: Path) = s"mkdir -p ${containerPath.escape}"
 
-  def delocalizeDirectory(containerPath: Path, cloudPath: Path) = {
+  def delocalizeDirectory(containerPath: Path, cloudPath: Path) = retry {
     s"gsutil -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
   }
 
@@ -31,21 +37,28 @@ object ActionCommands {
    * By instead using the parent directory (and ensuring it ends with a slash), gsutil will treat that as a directory and put the file under it.
    * So the final gsutil command will look something like gsutil cp /local/file.txt gs://bucket/subdir/
    */
-  def delocalizeFile(containerPath: Path, cloudPath: Path) = {
-    s"gsutil cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
+  def delocalizeFile(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
+    val contentTypeFlag = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
+    s"gsutil $contentTypeFlag cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
   }
 
   def ifExist(containerPath: Path)(f: => String) = s"if [[ -e ${containerPath.escape} ]]; then $f; fi"
 
-  def delocalizeFileOrDirectory(containerPath: Path, cloudPath: Path) = {
-    s"if [[ -d ${containerPath.escape} ]]; then ${delocalizeDirectory(containerPath, cloudPath)}; else ${delocalizeFile(containerPath, cloudPath)}; fi"
+  def every(duration: FiniteDuration)(f: => String) = s"while true; do $f 2> /dev/null || true; sleep ${duration.toSeconds}; done"
+  
+  def retry(f: => String)(implicit times: Int, wait: FiniteDuration) = {
+    s"for i in `seq $times`; do $f && break; sleep ${wait.toSeconds}; done"
   }
 
-  def localizeDirectory(cloudPath: Path, containerPath: Path) = {
+  def delocalizeFileOrDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = {
+    s"if [[ -d ${containerPath.escape} ]]; then ${delocalizeDirectory(containerPath, cloudPath)}; else ${delocalizeFile(containerPath, cloudPath, contentType)}; fi"
+  }
+
+  def localizeDirectory(cloudPath: Path, containerPath: Path) = retry {
     s"${containerPath |> makeContainerDirectory} && gsutil -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
   }
 
-  def localizeFile(cloudPath: Path, containerPath: Path) = {
+  def localizeFile(cloudPath: Path, containerPath: Path) = retry {
     s"gsutil cp ${cloudPath.escape} ${containerPath.escape}"
   }
 }

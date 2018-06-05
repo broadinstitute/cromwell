@@ -22,11 +22,8 @@ object CwlCodecs {
   implicit val scatterMethodDecoder = Decoder.enumDecoder(ScatterMethod)
   implicit val linkMergeMethodDecoder = Decoder.enumDecoder(LinkMergeMethod)
 
-  //According to automatic derivation, these instances should not be required.  But
-  //removing these breaks decodeCwl, so...
-  implicit val wfD = implicitly[Decoder[Workflow]]
-  implicit val cltD = implicitly[Decoder[CommandLineTool]]
-  implicit val etD = implicitly[Decoder[ExpressionTool]]
+  //optimization as it is derived both by itself and as part of Workflow
+  implicit val cltD = Decoder[CommandLineTool]
 
   def decodeCwl(json: Json): Checked[Cwl] = {
     findClass(json) match {

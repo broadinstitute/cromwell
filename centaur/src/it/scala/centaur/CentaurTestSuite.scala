@@ -24,6 +24,8 @@ object CentaurTestSuite {
     case _: RestartFormat| _: ScheduledAbort | InstantAbort => true
     case _ => false
   }
+
+  def runUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.testOptions.tags.contains("upgrade")
   
   def runParallel(testCase: CentaurTestCase) = !runSequential(testCase)
 }

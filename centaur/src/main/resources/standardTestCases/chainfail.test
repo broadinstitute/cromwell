@@ -2,7 +2,6 @@
 # the workflow fails properly even if later nodes depend on the scatter / conditional / sub workflow.
 name: chainfail
 testFormat: workflowfailure
-tags: [ subworkflow ]
 
 files {
   workflow: chain_fail/chain_fail.wdl

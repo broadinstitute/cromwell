@@ -2,7 +2,6 @@ ignore: false
 name: abort.sub_workflow_abort
 testFormat: scheduledabort
 callMark: sub_workflow_abort.inner_abort
-tags: [subworkflow]
 
 files {
   workflow: abort/sub_workflow_abort.wdl

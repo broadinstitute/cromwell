@@ -134,7 +134,7 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
         EXCLUDE="-l $val "${EXCLUDE}
     done
     TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}
-else if [[ -n ${INCLUDE_TAG[*]} ]]; then
+elif [[ -n ${INCLUDE_TAG[*]} ]]; then
     echo "Running Centaur running only ${EXCLUDE_TAG[*]} tests"
     INCLUDE=""
     for val in "${INCLUDE_TAG[@]}"; do

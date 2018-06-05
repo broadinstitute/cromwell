@@ -36,12 +36,13 @@ object MetadataDatabaseAccess {
         workflowName = summary1.workflowName orElse summary2.workflowName,
         workflowStatus = resolvedStatus orElse summary1.workflowStatus orElse summary2.workflowStatus,
         startTimestamp = summary1.startTimestamp orElse summary2.startTimestamp,
-        endTimestamp = summary1.endTimestamp orElse summary2.endTimestamp
+        endTimestamp = summary1.endTimestamp orElse summary2.endTimestamp,
+        submissionTimestamp = summary1.submissionTimestamp orElse summary2.submissionTimestamp
       )
     }
   }
 
-  def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None)
+  def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None)
 
   // If visibility is made `private`, there's a bogus warning about this being unused.
   implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
@@ -54,6 +55,8 @@ object MetadataDatabaseAccess {
           base.copy(startTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
         case WorkflowMetadataKeys.EndTime =>
           base.copy(endTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
+        case WorkflowMetadataKeys.SubmissionTime =>
+          base.copy(submissionTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
       }
     }
   }
@@ -153,7 +156,7 @@ trait MetadataDatabaseAccess {
 
   def refreshWorkflowMetadataSummaries()(implicit ec: ExecutionContext): Future[Long] = {
     metadataDatabaseInterface.refreshMetadataSummaryEntries(WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
-      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, MetadataDatabaseAccess.buildUpdatedSummary)
+      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.SubmissionTime, MetadataDatabaseAccess.buildUpdatedSummary)
   }
 
   def getWorkflowStatus(id: WorkflowId)

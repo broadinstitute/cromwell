@@ -20,13 +20,13 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def workflowStatus = column[Option[String]]("WORKFLOW_STATUS", O.Length(50))
 
-    def submissionTimestamp = column[Option[Timestamp]]("SUBMISSION_TIMESTAMP")
-
     def startTimestamp = column[Option[Timestamp]]("START_TIMESTAMP")
 
     def endTimestamp = column[Option[Timestamp]]("END_TIMESTAMP")
 
-    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
+    def submissionTimestamp = column[Option[Timestamp]]("SUBMISSION_TIMESTAMP")
+
+    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp, submissionTimestamp,
       workflowMetadataSummaryEntryId.?) <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
 
     def ucWorkflowMetadataSummaryEntryWeu =

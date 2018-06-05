@@ -42,7 +42,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
 
   val papiBackendName = serviceConfig.as[Option[String]]("papi-backend-name").getOrElse("Jes")
   val papiProviderConfig: Config = globalConfig.as[Config](s"backend.providers.$papiBackendName")
-  val papiConfig: Config = globalConfig.as[Config](s"$papiProviderConfig.config")
+  val papiConfig: Config = papiProviderConfig.as[Config]("config")
 
   val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
 

@@ -8,4 +8,8 @@ class StandardTestCaseSpec(cromwellBackends: List[String]) extends AbstractCenta
   def this() = this(CentaurTestSuite.cromwellBackends)
 
   allTestCases.filter(CentaurTestSuite.runParallel) foreach executeStandardTest
+
+  // The WDL version upgrade tests are just regular draft-2 test cases tagged for re-use in testing the upgrade script
+  allTestCases.filter(CentaurTestSuite.runUpgradeTest) foreach executeUpgradeTest
+
 }

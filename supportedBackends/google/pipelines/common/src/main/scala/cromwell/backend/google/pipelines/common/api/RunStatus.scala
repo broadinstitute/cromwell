@@ -28,8 +28,8 @@ object RunStatus {
   }
 
   sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
-    val errorMessage: Option[String]
-    lazy val prettyPrintedError: String = errorMessage map { e => s" Message: $e" } getOrElse ""
+    val errorMessages: List[String]
+    lazy val prettyPrintedError: String = errorMessages.mkString("\n")
     val errorCode: Status
 
     /**
@@ -66,13 +66,13 @@ object RunStatus {
         case Status.CANCELLED => Cancelled.apply _
         case _ => Failed.apply _
       }
-      unsuccessfulStatusBuilder.apply(errorCode, jesCode, errorMessage, eventList, machineType, zone, instanceName)
+      unsuccessfulStatusBuilder.apply(errorCode, jesCode, errorMessage.toList, eventList, machineType, zone, instanceName)
     }
   }
 
   final case class Failed(errorCode: Status,
                           jesCode: Option[Int],
-                          errorMessage: Option[String],
+                          errorMessages: List[String],
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
@@ -85,7 +85,7 @@ object RunStatus {
     */
   final case class Cancelled(errorCode: Status,
                           jesCode: Option[Int],
-                          errorMessage: Option[String],
+                          errorMessages: List[String],
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
@@ -95,7 +95,7 @@ object RunStatus {
 
   final case class Preempted(errorCode: Status,
                              jesCode: Option[Int],
-                             errorMessage: Option[String],
+                             errorMessages: List[String],
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],

@@ -3,16 +3,18 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 import java.lang.reflect.ParameterizedType
 import java.util.{ArrayList => JArrayList, Map => JMap}
 
+import cats.instances.list._
+import cats.syntax.traverse._
 import com.google.api.client.json.GenericJson
 import com.google.api.services.genomics.v2alpha1.model._
-import mouse.all._
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.google.pipelines.v2alpha1.api.request.ErrorReporter._
+import mouse.all._
+
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
-import cats.syntax.traverse._
-import cats.instances.list._
 /**
   * This bundles up some code to work around the fact that Operation is not deserialized
   * completely from the JSON HTTP response.
@@ -23,6 +25,14 @@ import cats.instances.list._
   * However it is only used once, when the job completes, which should limit the performance hit.
   */
 private [api] object Deserialization {
+  def findEvent[T <: GenericJson](events: List[Event],
+                                  filter: T => Boolean = Function.const(true) _)(implicit tag: ClassTag[T]): Option[RequestContextReader[Option[T]]] =
+    events.toStream
+      .map(_.details(tag))
+      .collectFirst({
+        case Some(event) if event.map(filter).getOrElse(false) => event.toErrorOr.fallBack
+      })
+  
   implicit class EventDeserialization(val event: Event) extends AnyVal {
     /**
       * Attempts to deserialize the details map to T

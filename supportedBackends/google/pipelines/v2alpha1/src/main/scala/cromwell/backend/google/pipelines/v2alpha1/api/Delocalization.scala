@@ -78,10 +78,6 @@ trait Delocalization {
       .withMounts(mounts)
   }
 
-  /**
-    * The user action number is the index of the user's action in the list of actions
-    * It's used to copy stdout / stderr and the logs back to the execution directory
-    */
   def deLocalizeActions(createPipelineParameters: CreatePipelineParameters,
                         mounts: List[Mount]): List[Action] = {
     val cloudCallRoot = createPipelineParameters.cloudCallRoot.pathAsString
@@ -102,7 +98,7 @@ trait Delocalization {
 
     val projectId = createPipelineParameters.projectId
 
-    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId)) ++
+    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId).toList) ++
       List(parseAction, delocalizeAction) :+
       copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath, projectId) :+
       delocalizeLogsAction(gcsLogDirectoryPath.pathAsString, projectId)

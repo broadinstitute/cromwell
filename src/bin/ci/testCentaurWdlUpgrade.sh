@@ -11,4 +11,8 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-sbt "centaur/it:testOnly *.UpgradeTestCaseSpec"
+centaur/test_cromwell.sh \
+    -j "${CROMWELL_BUILD_JAR}" \
+    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_application.conf" \
+    -g
+    -n "upgrade"

@@ -13,6 +13,11 @@ in On Hold state). More information can be found [here](http://cromwell.readthed
 
 Submission time of a workflow is now included in WorkflowQueryResult, which is part of the response for workflow query.
 
+### File Localization (NIO) Hint
+
+Cromwell now allows tasks in WDL 1.0 can now specify an optimization in their `parameter_meta` that some `File` inputs do not need to be localized for the task to run successfully.
+Full details are available in the [documentation page for this optimization](http://cromwell.readthedocs.io/en/develop/optimizations/FileLocalization).
+
 ### Bug Fixes
 
 Workflows which are in 'On Hold' state can now be fetched using the query endpoint.

@@ -1,5 +1,7 @@
 package wdl.draft3.transforms.wdlom2wom
 
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
@@ -11,7 +13,7 @@ import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartEleme
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph.LinkedGraph
 import wom.{CommandPart, RuntimeAttributes}
-import wom.callable.{Callable, CallableTaskDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement}
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.draft3.transforms.linking.expression._
 import wom.callable.Callable._
@@ -33,11 +35,13 @@ object TaskDefinitionElementToWomTaskDefinition {
     val a = eliminateInputDependencies(b)
     val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
 
-
     val declarations = a.taskDefinitionElement.declarations
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
 
-    val conversion = createTaskGraph(inputElements, declarations, outputElements, a.typeAliases) flatMap { taskGraph =>
+    val conversion = (
+      createTaskGraph(inputElements, declarations, outputElements, a.taskDefinitionElement.parameterMetaSection, a.typeAliases),
+      validateParameterMetaEntries(a.taskDefinitionElement.parameterMetaSection, a.taskDefinitionElement.inputsSection, a.taskDefinitionElement.outputsSection)
+    ) flatMapN { (taskGraph, _) =>
       val validRuntimeAttributes: ErrorOr[RuntimeAttributes] = a.taskDefinitionElement.runtimeSection match {
         case Some(attributeSection) => createRuntimeAttributes(attributeSection, taskGraph.linkedGraph)
         case None => RuntimeAttributes(Map.empty).validNel
@@ -55,6 +59,24 @@ object TaskDefinitionElementToWomTaskDefinition {
     }
 
     conversion.contextualizeErrors(s"process task definition '${b.taskDefinitionElement.name}'")
+  }
+
+  private def validateParameterMetaEntries(parameterMetaSectionElement: Option[ParameterMetaSectionElement], inputs: Option[InputsSectionElement], outputs: Option[OutputsSectionElement]): ErrorOr[Unit] = {
+    val validKeys: List[String] = inputs.toList.flatMap(_.inputDeclarations.map(_.name)) ++ outputs.toList.flatMap(_.outputs.map(_.name))
+    val errors = parameterMetaSectionElement.toList.flatMap { pmse =>
+      val keys = pmse.metaAttributes.keySet.toList
+      val duplicationErrors = keys.groupBy(identity).collect {
+        case (name, list) if list.size > 1 => s"Found ${list.size} parameter meta entries for '$name' (expected 0 or 1)"
+      }
+      val notValidKeyErrors = keys.collect {
+        case name if !validKeys.contains(name) => s"Invalid parameter_meta entry for '$name': not an input or output parameter"
+      }
+      duplicationErrors.toList ++ notValidKeyErrors
+    }
+    NonEmptyList.fromList(errors) match {
+      case Some(nel) => Invalid(nel)
+      case None => Valid(())
+    }
   }
 
   private def eliminateInputDependencies(a: TaskDefinitionElementToWomInputs): TaskDefinitionElementToWomInputs = {
@@ -146,6 +168,7 @@ object TaskDefinitionElementToWomTaskDefinition {
   private def createTaskGraph(inputs: Seq[InputDeclarationElement],
                               declarations: Seq[IntermediateValueDeclarationElement],
                               outputs: Seq[OutputDeclarationElement],
+                              parameterMeta: Option[ParameterMetaSectionElement],
                               typeAliases: Map[String, WomType]): ErrorOr[TaskGraph] = {
     val combined: Set[WorkflowGraphElement] = (inputs ++ declarations ++ outputs).toSet
     LinkedGraphMaker.make(combined, Set.empty, typeAliases, Map.empty) flatMap { linked =>
@@ -154,6 +177,9 @@ object TaskDefinitionElementToWomTaskDefinition {
       def foldFunction(currentGraphValidation: ErrorOr[TaskGraph], next: WorkflowGraphElement): ErrorOr[TaskGraph] = {
         currentGraphValidation flatMap { accumulator => addToTaskGraph(next, accumulator) }
       }
+
+      def findParameterMeta(declName: String): Option[MetaValueElement] =
+        parameterMeta.flatMap { _.metaAttributes.get(declName) }
 
       def addToTaskGraph(element: WorkflowGraphElement, accumulator: TaskGraph): ErrorOr[TaskGraph] = element match {
         case IntermediateValueDeclarationElement(womTypeElement, name, expression) =>
@@ -166,8 +192,8 @@ object TaskDefinitionElementToWomTaskDefinition {
         case InputDeclarationElement(womTypeElement, name, None) =>
           womTypeElement.determineWomType(linked.typeAliases) map { womType =>
             val newInput = womType match {
-              case optional: WomOptionalType => OptionalInputDefinition(name, optional)
-              case required => RequiredInputDefinition(name, required)
+              case optional: WomOptionalType => OptionalInputDefinition(name, optional, findParameterMeta(name))
+              case required => RequiredInputDefinition(name, required, findParameterMeta(name))
             }
             accumulator.copy(inputs = accumulator.inputs :+ newInput)
           }
@@ -176,7 +202,7 @@ object TaskDefinitionElementToWomTaskDefinition {
           val expressionValidation = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
-            accumulator.copy(inputs = accumulator.inputs :+ InputDefinitionWithDefault(name, womType, womExpression))
+            accumulator.copy(inputs = accumulator.inputs :+ InputDefinitionWithDefault(name, womType, womExpression, findParameterMeta(name)))
           }
 
         // In this case, the expression has upstream dependencies. Since WOM won't allow that, make this an optional input and fixed declaration pair:
@@ -184,12 +210,12 @@ object TaskDefinitionElementToWomTaskDefinition {
           womTypeElement.determineWomType(linked.typeAliases) flatMap { womType =>
             val newInputName = s"__$name"
             val newInputType = WomOptionalType(womType).flatOptionalType
-            val newInputDefinition = OptionalInputDefinition(newInputName, newInputType)
+            val newInputDefinition = OptionalInputDefinition(newInputName, newInputType, findParameterMeta(name))
 
             val intermediateExpression: ExpressionElement = SelectFirst(ArrayLiteral(Seq(IdentifierLookup(newInputName), expression)))
 
             intermediateExpression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup) map { womExpression =>
-              val intermediateDefinition = FixedInputDefinition(name, womType, womExpression)
+              val intermediateDefinition = FixedInputDefinition(name, womType, womExpression, findParameterMeta(name))
 
               accumulator.copy(inputs = accumulator.inputs :+ newInputDefinition :+ intermediateDefinition)
             }

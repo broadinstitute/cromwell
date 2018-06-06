@@ -102,25 +102,25 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
           )
 
         // No input mapping, either not an input or in a subworkflow: use the default expression
-        case withDefault@InputDefinitionWithDefault(_, _, expression, _) if inASubworkflow || expression.inputs.nonEmpty =>
+        case withDefault@InputDefinitionWithDefault(_, _, expression, _, _) if inASubworkflow || expression.inputs.nonEmpty =>
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
 
         // No input mapping and in a top-level workflow: add an input with a default
-        case withDefault@InputDefinitionWithDefault(n, womType, expression, _) =>
+        case withDefault@InputDefinitionWithDefault(n, womType, expression, _, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
 
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
-        case required@RequiredInputDefinition(n, womType, _) =>
+        case required@RequiredInputDefinition(n, womType, _, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
-        case optional@OptionalInputDefinition(n, womType, _) =>
+        case optional@OptionalInputDefinition(n, womType, _, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
       }

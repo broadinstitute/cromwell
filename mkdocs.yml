@@ -32,6 +32,9 @@ pages:
 - Workflow Options:
   - Overview: wf_options/Overview.md
   - Google Cloud: wf_options/Google.md
+- Workflow Optimizations:
+  - Optimizations: optimizations/optimizations.md
+  - "Task inputs: localization_optional": optimizations/FileLocalization.md
 - Configuration: Configuring.md
 - WOMtool: WOMtool.md
 - Labels: Labels.md

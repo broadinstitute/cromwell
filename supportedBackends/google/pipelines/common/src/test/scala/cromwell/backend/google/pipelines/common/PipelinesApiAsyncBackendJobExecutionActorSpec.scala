@@ -420,7 +420,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
 
         def gcsPathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, Set.empty)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs mapValues gcsPathToLocal
@@ -692,7 +692,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet))(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet), Set.empty)(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)

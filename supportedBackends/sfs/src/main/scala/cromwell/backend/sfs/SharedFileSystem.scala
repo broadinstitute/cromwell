@@ -139,7 +139,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
+    WomFileMapper.mapWomFiles(mapJobWomFile(job), Set.empty)(womValue)
   }
 
   def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
@@ -163,7 +163,7 @@ trait SharedFileSystem extends PathFactory {
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
-      inputs mapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker)),
+      inputs mapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker), Set.empty),
       "Failures during localization"
     ) recoverWith {
       case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)

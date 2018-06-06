@@ -8,8 +8,8 @@ import wom.types._
 import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
+import wom.callable.MetaValueElement._
 import wom.values.{WomBoolean, WomFloat, WomInteger}
-import wdl.model.draft3.elements.MetaValueElement._
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -622,6 +622,37 @@ object WdlFileToWdlomSpec {
             parameterMetaSection = None))
     ),
     "default_input_overrides" -> null,
+    "nio_file" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector.empty,
+      tasks = Vector(
+        TaskDefinitionElement(
+          name = "nio_file",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "f", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "g", Some(IdentifierLookup("f"))),
+            InputDeclarationElement(OptionalTypeElement(PrimitiveTypeElement(WomSingleFileType)), "h", None)
+          ))),
+          declarations = Vector.empty,
+          outputsSection = Some(OutputsSectionElement(Vector(
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", PrimitiveLiteralExpressionElement(WomInteger(5)))
+          ))),
+          commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
+            StringCommandPartElement("echo "),
+            PlaceholderCommandPartElement(IdentifierLookup("f"), PlaceholderAttributeSet(None,None,None,None)),
+            StringCommandPartElement(" | cut -c 1-5")
+          )))),
+          runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker",StringLiteral("ubuntu:latest"))))),
+          metaSection = None,
+          parameterMetaSection = Some(ParameterMetaSectionElement(Map(
+            "f" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))),
+            "g" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))),
+            "h" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))
+          )))
+        )
+      )
+  ),
     "taskless_engine_functions" -> FileElement(
       imports = Vector.empty,
       structs = Vector.empty,

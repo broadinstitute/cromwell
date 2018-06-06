@@ -16,7 +16,7 @@ import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
-import wom.expression.{InputLookupExpression, ValueAsAnExpression, WomExpression}
+import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph._
@@ -295,7 +295,6 @@ object WomToWdlomImpl {
       case _: WdlomWomExpression => ???
       case a: WdlWomExpression => ExpressionLiteralElement(a.sourceString)
       case _: ValueAsAnExpression => ???
-      case _: InputLookupExpression => ???
       case _: PlainAnonymousExpressionNode => ???
       case _: TaskCallInputExpressionNode => ???
       case _: ExposedExpressionNode => ???

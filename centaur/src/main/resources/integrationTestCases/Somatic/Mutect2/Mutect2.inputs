@@ -1,4 +1,5 @@
 {
+    "Mutect2.preemptible_attempts": 0,
     "Mutect2.normal_bam": "gs://gatk-best-practices/somatic-b37/HCC1143_normal.bam",
     "Mutect2.tumor_bam": "gs://gatk-best-practices/somatic-b37/HCC1143.bam",
     "Mutect2.normal_bai": "gs://gatk-best-practices/somatic-b37/HCC1143_normal.bai",

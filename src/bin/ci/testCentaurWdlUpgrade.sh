@@ -15,4 +15,4 @@ centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
     -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_application.conf" \
     -g \
-    -n "upgrade"
+    -n upgrade

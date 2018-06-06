@@ -67,5 +67,6 @@ centaur/test_cromwell.sh \
     "${exclude_known_bugs[@]}" \
     "${exclude_docker_tests[@]}" \
     "${exclude_glob_tests[@]}" \
+    -e upgrade
 
 cromwell::build::generate_code_coverage

@@ -39,6 +39,7 @@ centaur/test_cromwell.sh \
     -g \
     -e localdockertest \
     -e docker_hash_dockerhub_private \
-    "${INTEGRATION_TESTS[@]}"
+    "${INTEGRATION_TESTS[@]}" \
+    -e upgrade
 
 cromwell::build::generate_code_coverage

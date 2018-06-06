@@ -2,7 +2,6 @@
 
 name: sub_function
 testFormat: workflowsuccess
-labels: [upgrade]
 
 files {
   workflow: sub_function/sub_function.wdl

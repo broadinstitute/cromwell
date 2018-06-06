@@ -2,7 +2,6 @@
 
 name: final_call_logs_dir_tes
 backends: [Tes]
-labels: [upgrade]
 
 testFormat: workflowsuccess
 

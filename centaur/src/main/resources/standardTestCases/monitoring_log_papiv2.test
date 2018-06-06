@@ -3,7 +3,6 @@
 name: monitoring_log
 testFormat: workflowsuccess
 backends: [Papiv2]
-labels: [upgrade]
 
 files {
   workflow: monitoring_log/monitoring_log.wdl

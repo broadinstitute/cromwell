@@ -1,6 +1,5 @@
 name: variable_scoping
 testFormat: workflowsuccess
-labels: [upgrade]
 
 files {
   workflow: variable_scoping/variable_scoping.wdl

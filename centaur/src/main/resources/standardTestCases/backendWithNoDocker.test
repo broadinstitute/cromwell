@@ -1,7 +1,6 @@
 name: backendWithNoDocker
 backends: [LocalNoDocker]
 testFormat: runtwiceexpectingcallcaching
-labels: [ upgrade ]
 
 files {
   workflow: backendWithNoDocker/backendWithNoDocker.wdl

@@ -26,7 +26,7 @@ Arguments:
     -c    If supplied, the config file to pass to Cromwell
     -t    If supplied, the timeout for request-plus-response from Centaur to Cromwell
     -e    If supplied, will exclude tests with this tag
-    -n    If supplied, will include only tests with this tag
+    -s    If supplied, will run only the specified suite
     -p    If supplied, number of tests to be run in parallel. 16 is the default
     -i    If supplied, will run the tests in this directory instead of the standard tests
 "
@@ -37,7 +37,7 @@ TEST_THREAD_COUNT=16
 CENTAUR_SBT_COVERAGE=false
 CROMWELL_TIMEOUT=10s
 
-while getopts ":hb:r:c:p:j:gt:e:n:i:" option; do
+while getopts ":hb:r:c:p:j:gt:e:s:i:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -61,7 +61,7 @@ while getopts ":hb:r:c:p:j:gt:e:n:i:" option; do
             ;;
         e) EXCLUDE_TAG+=("${OPTARG}")
             ;;
-        n) INCLUDE_TAG+=("${OPTARG}")
+        s) SUITE=("${OPTARG}")
             ;;
         :) printf "Missing argument for -%s\n" "$OPTARG" >&2
             echo "$usage" >&2
@@ -134,13 +134,9 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
         EXCLUDE="-l $val "${EXCLUDE}
     done
     TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}
-elif [[ -n ${INCLUDE_TAG[*]} ]]; then
-    echo "Running Centaur including only ${INCLUDE_TAG[*]} tests"
-    INCLUDE=""
-    for val in "${INCLUDE_TAG[@]}"; do
-        INCLUDE="-n $val "${INCLUDE}
-    done
-    TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${INCLUDE}
+elif [[ -n SUITE ]]; then
+    echo "Running Centaur with suite $SUITE"
+    TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} -s $SUITE"
 else
     echo "Running Centaur with sbt test"
     TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT}"

@@ -1,6 +1,5 @@
 name: optional_declarations
 testFormat: workflowsuccess
-labels: [upgrade]
 
 files {
   workflow: optional_declarations/optional_declarations.wdl

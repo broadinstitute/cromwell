@@ -1,4 +1,5 @@
 {
+    "CNVSomaticPairWorkflow.preemptible_attempts": 0,
     "CNVSomaticPairWorkflow.ref_fasta": "gs://gatk-test-data/cnv/somatic/human_g1k_v37.chr-20.truncated.fasta",
     "CNVSomaticPairWorkflow.read_count_pon": "gs://gatk-test-data/cnv/somatic/wes-do-gc-trunc.pon.hdf5",
     "CNVSomaticPairWorkflow.ref_fasta_fai": "gs://gatk-test-data/cnv/somatic/human_g1k_v37.chr-20.truncated.fasta.fai",

@@ -336,6 +336,14 @@ paths:
           description: >
             Returns only workflows with an equal or earlier end datetime.  Can be specified at most once.
             If both start and end date are specified, start date must be before or equal to end date.
+        - name : submission
+          required: false
+          type: string
+          format: date-time
+          in: query
+          description: >
+            Returns only workflows with an equal or later submission time. Can be specified at most once. If both submission time and start date are
+            specified, submission time should be before or equal to start date.
         - name: status
           required: false
           in: query
@@ -821,6 +829,12 @@ definitions:
         description: >
           Returns only workflows with an equal or earlier end datetime.  Can be specified at most once.
           If both start and end date are specified, start date must be before or equal to end date.
+      submission:
+        type: string
+        format: date-time
+        description: >
+          Returns only workflows with an equal or later submission time. Can be specified at most once. If both submission time and start date are
+          specified, submission time should be before or equal to start date.
       status:
         type: string
         enum:

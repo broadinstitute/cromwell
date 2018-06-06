@@ -24,17 +24,17 @@ case class WorkflowQueryParameters private(statuses: Set[String],
 
 object WorkflowQueryParameters {
 
-  private def validateStartBeforeEnd(start: Option[OffsetDateTime], end: Option[OffsetDateTime]): ErrorOr[Unit] = {
+  private def validateDate1BeforeDate2(date1: Option[OffsetDateTime], date2: Option[OffsetDateTime], date1Type: String, date2Type: String): ErrorOr[Unit] = {
     // Invert the notion of success/failure here to only "successfully" generate an error message if
-    // both start and end dates have been specified and start is after end.
-    val startAfterEndError = for {
-      s <- start
-      e <- end
+    // both date1 and date2 dates have been specified and date1 is after date2.
+    val date1AfterDate2Error = for {
+      s <- date1
+      e <- date2
       if s.isAfter(e)
-    } yield s"Specified start date is after specified end date: start: $s, end: $e"
+    } yield s"Specified $date1Type date is after specified $date2Type date: $date1Type: $s, $date2Type: $e"
 
     // If the Option is defined this represents a failure, if it's empty this is a success.
-    startAfterEndError map { _.invalidNel } getOrElse ().validNel
+    date1AfterDate2Error map { _.invalidNel } getOrElse ().validNel
   }
 
   private def validateOnlyRecognizedKeys(rawParameters: Seq[(String, String)]): ErrorOr[Unit] = {
@@ -65,6 +65,7 @@ object WorkflowQueryParameters {
 
     val startDateValidation = StartDate.validate(valuesByCanonicalCapitalization)
     val endDateValidation = EndDate.validate(valuesByCanonicalCapitalization)
+    val submissionTimeValidation = SubmissionTime.validate(valuesByCanonicalCapitalization)
     val statusesValidation: ErrorOr[Set[String]] = Status.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val namesValidation: ErrorOr[Set[String]] = Name.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val workflowIdsValidation: ErrorOr[Set[WorkflowId]] = WorkflowQueryKey.Id.validate(valuesByCanonicalCapitalization).map(ids => (ids map WorkflowId.fromString).toSet)
@@ -76,12 +77,19 @@ object WorkflowQueryParameters {
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
-      case (Valid(s), Valid(e)) => validateStartBeforeEnd(s, e)
+      case (Valid(s), Valid(e)) => validateDate1BeforeDate2(s, e, "start", "end")
+      case _ => ().validNel[String]
+    }
+
+    // Only validate submission before start if both of the individual date parsing validations have already succeeded.
+    val submissionBeforeStartValidation: ErrorOr[Unit] = (submissionTimeValidation, startDateValidation) match {
+      case (Valid(sub), Valid(st)) => validateDate1BeforeDate2(sub, st, "submission", "start")
       case _ => ().validNel[String]
     }
 
     (onlyRecognizedKeysValidation,
       startBeforeEndValidation,
+      submissionBeforeStartValidation,
       statusesValidation,
       namesValidation,
       workflowIdsValidation,
@@ -91,10 +99,11 @@ object WorkflowQueryParameters {
       endDateValidation,
       pageValidation,
       pageSizeValidation,
-      additionalQueryResultFieldsValidation
+      additionalQueryResultFieldsValidation,
+      submissionTimeValidation
     ) mapN {
-      (_, _, statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields, Option(OffsetDateTime.parse("2018-05-30T19:42:25.918Z")))
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields, submissionTimeValidation) =>
+        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields, submissionTimeValidation)
     }
   }
 

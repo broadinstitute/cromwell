@@ -25,7 +25,8 @@ object WorkflowQueryKey {
     LabelOrKeyValue,
     Page,
     PageSize,
-    AdditionalQueryResultFields
+    AdditionalQueryResultFields,
+    SubmissionTime
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -36,6 +37,11 @@ object WorkflowQueryKey {
   case object EndDate extends DateTimeWorkflowQueryKey {
     override val name = "End"
     override def displayName = "end date"
+  }
+
+  case object SubmissionTime extends DateTimeWorkflowQueryKey {
+    override val name = "Submission"
+    override def displayName = "submission time"
   }
 
   case object Page extends IntWorkflowQueryKey {

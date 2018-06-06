@@ -4,11 +4,12 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import cwl.CwlType.CwlType
 import shapeless.Poly1
-import wom.expression.{FileEvaluation, IoFunctionSet}
+import wom.expression.{EmptyIoFunctionSet, FileEvaluation, IoFunctionSet}
 import wom.types._
-import wom.values.{WomFile, WomValue}
+import wom.values.WomValue
 
 import scala.Function.const
+import scala.concurrent.{ExecutionContext, Future}
 
 case class OutputParameterExpression(parameter: OutputParameter,
                                      override val cwlExpressionType: WomType,
@@ -41,7 +42,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
                                     ioFunctionSet: IoFunctionSet,
                                     secondaryFilesOption: Option[SecondaryFiles],
                                     coerceTo: WomType
-                                   )(outputBinding: CommandOutputBinding) = {
+                                   )(outputBinding: CommandOutputBinding): ErrorOr[Set[FileEvaluation]] = {
     CommandOutputBinding.getOutputWomFiles(
       inputValues,
       coerceTo,
@@ -77,22 +78,30 @@ case class OutputParameterExpression(parameter: OutputParameter,
     * - WomMaybeListedDirectoryType
     * - WomArrayType(WomMaybeListedDirectoryType) (Possible according to the way the spec is written, but not likely?)
     */
-  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
+  override def evaluateFiles(inputs: Map[String, WomValue], unused: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     import cats.syntax.apply._
-    
-    def fromOutputBinding: ErrorOr[Set[WomFile]] = parameter
-      .outputBinding
-      .map(evaluateOutputBindingFiles(inputs, ioFunctionSet, parameter.secondaryFiles, coerceTo))
-      .getOrElse(Set.empty[WomFile].validNel)
 
-    def fromType: ErrorOr[Set[WomFile]] = parameter
+    // Ignore the supplied ioFunctionSet and use a custom stubbed IoFunctionSet. This is better than a real I/O function set
+    // because in the context of file evaluation we don't care about the results of these operations. The NoIoFunctionSet
+    // that otherwise would be used throws for all of its operations which doesn't fly for the way our CWL evaluation works.
+    val stubbedIoFunctionSet = new EmptyIoFunctionSet {
+      override def size(path: String): Future[Long] = Future.successful(0L)
+      override def isDirectory(path: String): Future[Boolean] = Future.successful(false)
+      override def ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+    }
+    def fromOutputBinding: ErrorOr[Set[FileEvaluation]] = parameter
+      .outputBinding
+      .map(evaluateOutputBindingFiles(inputs, stubbedIoFunctionSet, parameter.secondaryFiles, coerceTo))
+      .getOrElse(Set.empty[FileEvaluation].validNel)
+
+    def fromType: ErrorOr[Set[FileEvaluation]] = parameter
       .`type`
-      .map(_.fold(MyriadOutputTypeToWomFiles).apply(evaluateOutputBindingFiles(inputs, ioFunctionSet, parameter.secondaryFiles, coerceTo)))
-      .getOrElse(Set.empty[WomFile].validNel)
+      .map(_.fold(MyriadOutputTypeToWomFiles).apply(evaluateOutputBindingFiles(inputs, stubbedIoFunctionSet, parameter.secondaryFiles, coerceTo)))
+      .getOrElse(Set.empty[FileEvaluation].validNel)
 
     val optional: Boolean = parameter.`type`.exists(_.fold(OutputTypeIsOptional))
 
-    (fromOutputBinding, fromType) mapN (_ ++ _) map { _ map { FileEvaluation(_, optional) } }
+    (fromOutputBinding, fromType) mapN (_ ++ _) map { _ map { _.copy(optional = optional) } }
   }
 }
 

@@ -6,7 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import wom.expression.IoFunctionSet
+import wom.expression.{FileEvaluation, IoFunctionSet}
 import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
 import wom.types._
 import wom.values._
@@ -46,7 +46,7 @@ object CommandOutputBinding {
                         commandOutputBinding: CommandOutputBinding,
                         secondaryFilesOption: Option[SecondaryFiles],
                         ioFunctionSet: IoFunctionSet,
-                        expressionLib: ExpressionLib): ErrorOr[Set[WomFile]] = {
+                        expressionLib: ExpressionLib): ErrorOr[Set[FileEvaluation]] = {
     val parameterContext = ParameterContext(ioFunctionSet, expressionLib, inputs = inputValues)
 
     /*
@@ -89,8 +89,12 @@ object CommandOutputBinding {
     for {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib)
       primaryWomFiles <- primaryPathsToWomFiles(primaryPaths)
+      // This sets optional = false arbitrarily for now as this code doesn't have the context to make that determination,
+      // the caller can change this if necessary.
+      primaryEvaluations = primaryWomFiles map { FileEvaluation(_, optional = false, secondary = false) }
       secondaryWomFiles <- secondaryFilesToWomFiles(primaryWomFiles, ioFunctionSet)
-    } yield (primaryWomFiles ++ secondaryWomFiles).toSet
+      secondaryEvaluations = secondaryWomFiles map { FileEvaluation(_, optional = false, secondary = true) }
+    } yield (primaryEvaluations ++ secondaryEvaluations).toSet
   }
 
   /**

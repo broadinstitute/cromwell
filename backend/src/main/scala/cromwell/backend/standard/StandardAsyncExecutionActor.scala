@@ -306,15 +306,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       s"ln -s $cwd $d"
     } getOrElse ""
 
-    // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
-    // stdout and stderr for PAPI to periodically upload to cloud storage.
-    // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
+    // Only adjust the temporary directory permissions if this is executing under Docker.
+    val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
+    
     (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
     s"""|#!$jobShell
         |DOCKER_OUTPUT_DIR_LINK
         |cd $cwd
         |tmpDir=`$temporaryDirectory`
-        |chmod 777 "$$tmpDir"
+        |$tmpDirPermissionsAdjustment
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"
         |export HOME="$home"

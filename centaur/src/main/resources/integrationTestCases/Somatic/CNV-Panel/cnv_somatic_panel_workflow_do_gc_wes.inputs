@@ -1,4 +1,5 @@
 {
+  "CNVSomaticPanelWorkflow.preemptible_attempts": 0,
   "CNVSomaticPanelWorkflow.do_explicit_gc_correction": "true",
   "CNVSomaticPanelWorkflow.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.1.2",
   "CNVSomaticPanelWorkflow.intervals": "gs://gatk-test-data/cnv/somatic/ice_targets_sample-chr20.interval_list",

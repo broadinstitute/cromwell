@@ -3,13 +3,13 @@ package wom.values
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 
+import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.IoFunctionSet
 import wom.types._
 
 import scala.concurrent.Future
 import scala.util.{Success, Try}
-import cats.syntax.validated._
 
 sealed trait WomFile extends WomValue {
   def value: String

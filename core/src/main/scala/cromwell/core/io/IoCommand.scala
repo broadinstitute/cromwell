@@ -128,3 +128,11 @@ abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Tr
   override def toString = s"read lines of ${file.pathAsString}"
   override lazy val name = "read lines"
 }
+
+/**
+  * Check whether a path represents a directory
+  */
+abstract class IoIsDirectoryCommand(val file: Path) extends SingleFileIoCommand[Boolean] {
+  override def toString = s"check whether ${file.pathAsString} is a directory"
+  override lazy val name = "is directory"
+}

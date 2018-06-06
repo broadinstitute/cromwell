@@ -21,6 +21,7 @@ import cromwell.backend.OutputEvaluator._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.StandardAsyncExecutionActor._
 import cromwell.backend.validation._
 import cromwell.backend.{Command, OutputEvaluator, _}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
@@ -42,6 +43,10 @@ import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+
+object StandardAsyncExecutionActor {
+  val DirectoryPlaceholderFile = ".file"
+}
 
 trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
   /** The promise that will be completed when the async run is complete. */
@@ -331,7 +336,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |(
         |# add a .file in every empty directory to facilitate directory delocalization on the cloud
         |cd $cwd
-        |find . -type d -empty -print | xargs -I % touch %/.file
+        |find . -type d -empty -print | xargs -I % touch %/$DirectoryPlaceholderFile
         |)
         |(
         |cd $cwd

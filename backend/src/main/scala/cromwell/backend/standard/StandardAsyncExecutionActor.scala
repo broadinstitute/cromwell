@@ -314,7 +314,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |DOCKER_OUTPUT_DIR_LINK
         |cd $cwd
         |tmpDir=`$temporaryDirectory`
-        |chmod 777 "$$tmpDir"
+        |chmod 711 "$$tmpDir"
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"
         |export HOME="$home"

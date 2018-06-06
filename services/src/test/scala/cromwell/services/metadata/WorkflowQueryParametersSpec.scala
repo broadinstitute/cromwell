@@ -11,6 +11,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
 
   val StartDateString = "2015-11-01T11:11:11Z"
   val EndDateString = "2015-11-01T12:12:12Z"
+  val SubmissionTimeString = "2015-11-01T11:01:10Z"
 
   "Workflow query parameters" should {
 
@@ -24,6 +25,7 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.statuses should be('empty)
           r.labelsAnd should be ('empty)
           r.labelsOr should be ('empty)
+          r.submissionTime should be('empty)
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
       }
@@ -38,13 +40,15 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         LabelAndKeyValue.name -> "label-and-key:label-and-value",
         LabelOrKeyValue.name -> "label-or-key:label-or-value",
         StartDate.name -> StartDateString,
-        EndDate.name -> EndDateString
+        EndDate.name -> EndDateString,
+        SubmissionTime.name -> SubmissionTimeString
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {
         case Valid(r) =>
           r.startDate.get.toInstant should equal(OffsetDateTime.parse(StartDateString).toInstant)
           r.endDate.get.toInstant should equal(OffsetDateTime.parse(EndDateString).toInstant)
+          r.submissionTime.get.toInstant should equal(OffsetDateTime.parse(SubmissionTimeString).toInstant)
           r.names should be(Set("my_workflow", "my_other_workflow"))
           r.statuses should be(Set("Succeeded", "Running"))
           r.labelsAnd should be(Set(Label("label-and-key", "label-and-value")))
@@ -85,6 +89,22 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
       }
     }
 
+    "reject incompatible submission time and start time" in {
+      // Intentionally setting submission after start.
+      val rawParameters = Seq(
+        StartDate.name -> SubmissionTimeString,
+        SubmissionTime.name -> StartDateString
+      )
+      val result = WorkflowQueryParameters.runValidation(rawParameters)
+      result match {
+        case Valid(r) =>
+          throw new RuntimeException(s"Unexpected success: $r")
+        case Invalid(fs) =>
+          fs.toList should have size 1
+          fs.toList.head should include("Specified submission date is after specified start date")
+      }
+    }
+
     "reject nonconforming names" in {
       // One good one bad.
       val rawParameters = Seq(
@@ -107,6 +127,21 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
       val rawParameters = Seq(
         StartDate.name -> StartDateString,
         EndDate.name -> (EndDateString + "_")
+      )
+      val result = WorkflowQueryParameters.runValidation(rawParameters)
+      result match {
+        case Valid(r) =>
+          throw new RuntimeException(s"Unexpected success: $r")
+        case Invalid(fs) =>
+          fs.toList should have size 1
+          fs.toList.head should include("does not parse as a datetime")
+      }
+    }
+
+    "reject malformed submission dates" in {
+      // One badly-formed.
+      val rawParameters = Seq(
+        SubmissionTime.name -> (SubmissionTimeString + "_")
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {

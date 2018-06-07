@@ -299,8 +299,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   protected def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[PipelinesApiFileOutput] = {
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
-    // To generate the appropriate cloud path, first normalize the local path (to get rid of ".." and "."), and then strip the mount point (to get rid of "/cromwell_root/")
-    val destination = callRootPath.resolve(relpath.normalize().pathAsString.stripPrefix(disk.mountPoint.pathAsString).stripPrefix("/"))
+    // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
+    // For the default one (cromwell_root), the expctation is that it does not appear
+    val mountedPath = if (disk != PipelinesApiWorkingDisk.Default) disk.mountPoint.resolve(relpath) else relpath
+    // Normalize the local path (to get rid of ".." and "."). Also strip any potential leading / so that it gets appended to the call root
+    val normalizedPath = mountedPath.normalize().pathAsString.stripPrefix("/")
+    val destination = callRootPath.resolve(normalizedPath)
     val jesFileOutput = PipelinesApiFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
     List(jesFileOutput)
   }

@@ -7,7 +7,7 @@ Are you concerned with running your own instance of Cromwell,e.g. config issues?
 https://gatkforums.broadinstitute.org/wdl/categories/ask-the-wdl-team
 
 
-Are you having an issue w/ [Firecloud]()?  Then please report your issue to the Firecloud Forum:
+Are you having an issue w/ Firecloud?  Then please report your issue to the Firecloud Forum:
 
 https://gatkforums.broadinstitute.org/firecloud/categories/ask-the-firecloud-team
 

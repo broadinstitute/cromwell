@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 import common.util.StringUtil._
-import cromwell.backend.standard.StandardAsyncExecutionActor._
 import cromwell.core.path.Path
 import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
@@ -13,9 +12,6 @@ object ActionCommands {
     // The command String runs in Bourne shell so shell metacharacters in filenames must be escaped
     def escape = ESCAPE_XSI.translate(path.pathAsString)
   }
-
-  // the -x excludes any path ending with "/.file" or that is strictly ".file"
-  private val rsyncExcludeRegexp = s"""".*/\\$DirectoryPlaceholderFile$$|^\\$DirectoryPlaceholderFile$$""""
 
   def makeContainerDirectory(containerPath: Path) = s"mkdir -p ${containerPath.escape}"
 
@@ -46,10 +42,10 @@ object ActionCommands {
   }
 
   def localizeDirectory(cloudPath: Path, containerPath: Path) = {
-    s"${containerPath |> makeContainerDirectory} && gsutil -m rsync -r -x $rsyncExcludeRegexp $cloudPath $containerPath"
+    s"${containerPath |> makeContainerDirectory} && gsutil -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
   }
 
   def localizeFile(cloudPath: Path, containerPath: Path) = {
-    s"gsutil cp $cloudPath $containerPath"
+    s"gsutil cp ${cloudPath.escape} ${containerPath.escape}"
   }
 }

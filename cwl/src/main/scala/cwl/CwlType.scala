@@ -147,11 +147,10 @@ object File {
     val filePath = asAbsoluteSiblingOfPrimary(primaryWomFile, ioFunctions.pathFunctions)(secondaryRelativeFileName)
 
     // If the secondary file is in fact a directory, look into it and build its listing
-    val r = for {
+    for {
       isDirectory <- sync(ioFunctions.isDirectory(filePath)).toErrorOr
       file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions)() else WomFile(stringWomFileType, filePath).validNel
     } yield file
-    r
   }
 
   def secondaryExpressionFiles(primaryWomFile: WomFile,

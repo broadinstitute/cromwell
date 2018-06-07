@@ -43,13 +43,10 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
-  def executeUpgradeTest(testCase: CentaurTestCase): Unit = {
-    def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName} (upgrade)"
+  def executeUpgradeTest(testCase: CentaurTestCase): Unit =
+    executeStandardTest(upgradeTestWdl(testCase))
 
-    // Make tags, but enforce lowercase:
-    val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
-    val isIgnored = testCase.isIgnored(cromwellBackends)
-
+  private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
     val draft2Wdl = WdlNamespace.loadUsingSource(
       testCase.workflow.data.workflowContent,
       None,
@@ -63,16 +60,10 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     import wdl.draft3.transforms.wom2wdlom.WomToWdlom.ops._
     import wdl.draft3.transforms.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
 
-    val v1testCase = testCase.copy(
+    testCase.copy(
       workflow = testCase.workflow.copy(
-        data = testCase.workflow.data.copy(workflowContent = bundle.toWdlom.toWdlV1)))
-
-    def runTest(): Unit = {
-      v1testCase.testFunction.run.get
-      ()
-    }
-
-    runOrDont(nameTest, tags, isIgnored, runTest())
+        data = testCase.workflow.data.copy(
+          workflowContent = bundle.toWdlom.toWdlV1)))
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Any): Unit = {

@@ -165,7 +165,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
-      previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(0L)
+      previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual((
         previousMetadataEntryId + 1L, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey, submissionMetadataKey)).result
       metadataWithoutLabels = metadataEntries.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)

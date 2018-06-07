@@ -221,7 +221,8 @@ trait MetadataDatabaseAccess {
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
           labels = labels.nonEmpty.option(labels),
-          parentWorkflowId = parentId
+          parentWorkflowId = parentId,
+          submission = workflow.submissionTimestamp map {_.toSystemOffsetDateTime}
         )
       }
 

@@ -265,8 +265,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         // Filter by submission time
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.SubmissionTime.name -> workflowQueryResult2.start.get.toString))) map { case (response, _) =>
-          //TODO : once submission is part of WorkflowQueryResult, use submission for comparison instead of id
-          response.results partition { r => !r.id.isEmpty && r.id.compareTo(workflowQueryResult2.id) <= 0 } match {
+          response.results partition { r => r.submission.isDefined && r.submission.get.compareTo(workflowQueryResult2.submission.get) <= 0 } match {
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
           }

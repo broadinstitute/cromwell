@@ -31,7 +31,7 @@ sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
 
   /**
     * Method called in the success callback of a batched request to decide what to do next.
-    * Returns an Either[T, GcsBatchIoCommand[T, U] ]
+    * Returns an Either[T, GcsBatchIoCommand[T, U]]
     *   Left(value) means the command is complete, and the result can be sent back to the sender.
     *   Right(newCommand) means the command is not complete and needs another request to be executed.
     * Most commands will reply with Left(value).

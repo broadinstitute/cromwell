@@ -53,7 +53,7 @@ class NioFlow(parallelism: Int,
       case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
       case readLinesCommand: IoReadLinesCommand => readLines(readLinesCommand) map readLinesCommand.success
-      case isDirectoryCommand: IoIsDirectoryCommand => isDirecotry(isDirectoryCommand) map isDirectoryCommand.success
+      case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
       case _ => Future.failed(new NotImplementedError("Method not implemented"))
     }
   }
@@ -120,7 +120,7 @@ class NioFlow(parallelism: Int,
     exists.file.readAllLinesInFile
   }
   
-  private def isDirecotry(isDirectory: IoIsDirectoryCommand) = Future {
+  private def isDirectory(isDirectory: IoIsDirectoryCommand) = Future {
     isDirectory.file.isDirectory
   }
 

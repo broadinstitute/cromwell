@@ -5,7 +5,6 @@ import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
-import wdl.draft2.parser.WdlParser.Terminal
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import shapeless.{Inl, Inr}
 import wdl.draft2.model.WdlWomExpression
@@ -123,12 +122,12 @@ object WomToWdlomImpl {
         val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
-        val command = a.commandTemplateBuilder(Map()) match {
+        val commands = a.commandTemplateBuilder(Map()) match {
           case Valid(cmd) => cmd
           case _ => ???
         }
 
-        val commandLine = CommandSectionLine(command map {
+        val commandLine = CommandSectionLine(commands map {
           case s: StringCommandPart =>
             StringCommandPartElement(s.literal)
           case p: ParameterCommandPart =>
@@ -139,16 +138,7 @@ object WomToWdlomImpl {
               sepAttribute = p.attributes.get("sep")
             )
 
-            p.expression.ast match {
-              case t: Terminal => PlaceholderCommandPartElement(ExpressionLiteralElement(t.getSourceString), attrs)
-              case ast: wdl.draft2.parser.WdlParser.Ast =>
-                // TODO: this could recurse to another AST
-                // TODO: should we really be working with AST right here?
-                val lhs = ast.getAttribute("lhs").asInstanceOf[Terminal]
-                val rhs = ast.getAttribute("rhs").asInstanceOf[Terminal]
-                PlaceholderCommandPartElement(ExpressionLiteralElement(lhs.getSourceString + "." + rhs.getSourceString), attrs)
-              case _ => throw UnrepresentableException
-            }
+            PlaceholderCommandPartElement(ExpressionLiteralElement(p.expression.toWomString), attrs)
         })
 
         TaskDefinitionElement(

@@ -33,7 +33,7 @@ object CentaurTestSuite {
 /**
   * The main centaur test suites, runs sub suites in parallel, but allows better control over the way each nested suite runs.
   */
-class CentaurTestSuite extends Suites(new SequentialTestCaseSpec(), new StandardTestCaseSpec()) with ParallelTestExecution with BeforeAndAfterAll {
+class CentaurTestSuite extends Suites(new SequentialTestCaseSpec(), new StandardTestCaseSpec(), new UpgradeTestCaseSpec()) with ParallelTestExecution with BeforeAndAfterAll {
   private var shutdownHook: Option[ShutdownHookThread] = _
 
   override def beforeAll() = {

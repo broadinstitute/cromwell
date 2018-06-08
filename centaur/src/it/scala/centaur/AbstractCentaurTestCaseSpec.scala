@@ -62,6 +62,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
     testCase.copy(
       workflow = testCase.workflow.copy(
+        testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
           workflowContent = bundle.toWdlom.toWdlV1)))
   }

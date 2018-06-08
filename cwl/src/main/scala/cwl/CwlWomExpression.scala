@@ -72,7 +72,6 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
           case Invalid(es) => throw new RuntimeException(es.toList.mkString("Error building directory: ", ", ", ""))
         }
       }
-      case (k, v: WomMaybePopulatedFile) => k -> WomSingleFile(v.value)
       case kv => kv
     }
     val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, updatedValues)

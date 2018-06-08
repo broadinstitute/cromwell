@@ -8,6 +8,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.DirectoryFunctions.listFiles
+import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet
 import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
@@ -17,7 +18,7 @@ import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopula
 import scala.concurrent.Future
 import scala.util.Try
 
-trait DirectoryFunctions extends IoFunctionSet with PathFactory {
+trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunctions {
 
   def findDirectoryOutputs(call: CommandCallNode,
                            jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
@@ -28,8 +29,16 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory {
     }
   }
 
-  override def isDirectory(path: String) = Future.fromTry(Try(buildPath(path).isDirectory))
+  override def isDirectory(path: String) = asyncIo.isDirectory(buildPath(path))
 
+  /*
+   * Several things are wrong here.
+   * 1) None of this is going through the I/O Actor: https://github.com/broadinstitute/cromwell/issues/3133
+   * which means no instrumentation, no throttling, no batching, and no custom retries.
+   * 2) The NIO implementation of "list" in GCS will list all objects with the prefix "path", unlike the unix
+   * implementation which lists files and directories children. What we need is the unix behavior, even for cloud filesystems.
+   * 3) It uses the isDirectory function directly on the path, which cannot be trusted for GCS paths. It should use asyncIo.isDirectory instead.
+   */
   override def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]] = {
     Future.fromTry(Try {
       val visitedPaths = visited.map(buildPath)

@@ -3,13 +3,13 @@ package cromwell.backend.google.pipelines.v2alpha1
 import cats.data.NonEmptyList
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
-
 @typeclass trait ToParameter[A <: PipelinesParameter] {
   def toActions(p: A, mounts: List[Mount], projectId: String): NonEmptyList[Action]
   def toMount(p: A): Mount = {
@@ -21,37 +21,45 @@ import scala.language.implicitConversions
 
 trait PipelinesParameterConversions {
   implicit val fileInputToParameter = new ToParameter[PipelinesApiFileInput] {
-    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount], projectId: String) = {
+    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
       val labels = Map(
         Key.Tag -> Value.Localization,
         Key.InputName -> fileInput.name
       )
-      NonEmptyList.of(gsutil("cp", fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString)(mounts, labels = labels))
+      cloudSdkBashAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
     }
   }
 
   implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
-    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount], projectId: String) = {
-      // rsync need the target directory to exist already, so create it beforehand
-      val mkdirAction = cloudSdkAction
-        .withCommand("mkdir", "-p", directoryInput.containerPath.pathAsString)
-        .withMounts(mounts)
-
-      val gsutilAction = gsutil("-m", "rsync", "-r", directoryInput.cloudPath.pathAsString, directoryInput.containerPath.pathAsString)(mounts, labels =  Map(Key.Tag -> Value.Localization))
-
-      NonEmptyList.of(mkdirAction, gsutilAction)
+    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount], projectId: String) =  NonEmptyList.of {
+      cloudSdkBashAction(
+        localizeDirectory(directoryInput.cloudPath, directoryInput.containerPath)
+      )(mounts, labels =  Map(Key.Tag -> Value.Localization))
     }
   }
 
   implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
-    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
-      NonEmptyList.of(delocalizeFile(fileOutput, mounts, projectId))
+    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
+      // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
+      // The fileOrDirectory method will generate a command that can cover both cases
+      val copy = if (fileOutput.secondary)
+        delocalizeFileOrDirectory(fileOutput.containerPath, fileOutput.cloudPath)
+      else
+        delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath)
+
+      lazy val copyOnlyIfExists = ifExist(fileOutput.containerPath) { copy }
+
+      cloudSdkBashAction(
+        if (fileOutput.optional || fileOutput.secondary) copyOnlyIfExists else copy
+      )(mounts = mounts, flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
     }
   }
 
   implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
-    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount], projectId: String) = {
-      NonEmptyList.of(gsutil("-m", "rsync", "-r", directoryOutput.containerPath.pathAsString, directoryOutput.cloudPath.pathAsString)(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization)))
+    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
+      cloudSdkBashAction(
+        delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath)
+      )(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization))
     }
   }
 

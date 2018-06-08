@@ -3,9 +3,12 @@ package cromwell.filesystems.gcs.batch
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.storage.StorageRequest
-import com.google.api.services.storage.model.{RewriteResponse, StorageObject}
+import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject}
+import common.util.StringUtil._
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
+
+import scala.collection.JavaConverters._
 
 /**
   * NOTE: the setUserProject commented out code disables uses of requester pays bucket
@@ -107,6 +110,22 @@ case class GcsBatchCrc32Command(override val file: GcsPath) extends IoHashComman
 
 case class GcsBatchTouchCommand(override val file: GcsPath) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
   override def mapGoogleResponse(response: StorageObject): Unit = ()
+}
+
+/*
+ * The only reliable way to know if a path represents a GCS "directory" is to list objects inside of it.
+ * Specifically, list objects that have this path as a prefix. Since we don't really care about what's inside here,
+ * set max results to 1 to avoid unnecessary payload.
+ */
+case class GcsBatchIsDirectoryCommand(override val file: GcsPath) extends IoIsDirectoryCommand(file) with GcsBatchIoCommand[Boolean, Objects] {
+  private val blob = file.blob
+  override def operation: StorageRequest[Objects] = {
+    file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L)
+  }
+  override def mapGoogleResponse(response: Objects): Boolean = {
+    // Wrap in an Option because getItems can (always ?) return null if there are no objects
+    Option(response.getItems).map(_.asScala).exists(_.nonEmpty)
+  }
 }
 
 case class GcsBatchExistsCommand(override val file: GcsPath) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {

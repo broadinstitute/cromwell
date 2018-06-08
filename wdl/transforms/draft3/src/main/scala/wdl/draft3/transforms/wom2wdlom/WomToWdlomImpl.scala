@@ -188,6 +188,8 @@ object WomToWdlomImpl {
     }
 
   // Select only nodes that have a Wdlom representation (i.e. were not synthesized during WOMification)
+  // WOM has some explicit representations that are implicit in WDL; they are necessary for execution,
+  // but do not make sense (or are illegal) in WDL source.
   private def selectWdlomRepresentableNodes(allNodes: Set[GraphNode]): Set[GraphNode] = {
     val expressions: Set[GraphNode] = allNodes.filterByType[ExposedExpressionNode]
     val scatters: Set[GraphNode] = allNodes.filterByType[ScatterNode]
@@ -215,10 +217,6 @@ object WomToWdlomImpl {
         case a: GraphOutputNode =>
           a.toWdlom
         case a: ScatterNode =>
-          // Why do we filter (here and other places)? WOM has some explicit representations that are
-          // implicit in WDL; they are necessary for execution, but do not sensibly belong in WDL source.
-          val scatterGraph = a.innerGraph.calls ++ a.innerGraph.workflowCalls ++ a.innerGraph.conditionals ++ a.innerGraph.scatters
-
           // Only CWL has multi-variable scatters
           if (a.scatterVariableNodes.size != 1) throw UnrepresentableException // TODO: upgrade from exceptions to typed errors
 
@@ -226,7 +224,7 @@ object WomToWdlomImpl {
             scatterName = a.identifier.localName.value,
             scatterExpression = a.scatterCollectionExpressionNodes.head.toWdlom,
             scatterVariableName = a.inputPorts.toList.head.name,
-            graphElements = scatterGraph.toList.map(graphNodeToWorkflowGraphElement.toWdlom)
+            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement.toWdlom)
           )
       }
     }

@@ -2,6 +2,18 @@
 
 ## 33 Release Notes
 
+### Query endpoint
+
+#### Query workflows by Submission time
+
+Cromwell now supports querying workflows by submission time. This will help find workflows that are submitted but not started yet (i.e. workflows which are
+in On Hold state). Similar to the start and end timestamps, you can include `submission:<timestamp>` to fetch workflows who have submission time greater or equal to specified timestamp.
+If both submission and start time are specified, submission time should be before or equal to start time.
+
+#### Submission time in Workflow Query Response
+
+Submission time of a workflow is now included in WorkflowQueryResult, which is part of the response for workflow query.
+
 ### Bug Fixes
 
 Workflows which are in 'On Hold' state can now be fetched using the query endpoint.

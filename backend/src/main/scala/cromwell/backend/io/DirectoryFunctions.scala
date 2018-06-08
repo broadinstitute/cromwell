@@ -33,7 +33,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunc
 
   /*
    * Several things are wrong here.
-   * 1) None of this is going through the I/O Actor,
+   * 1) None of this is going through the I/O Actor: https://github.com/broadinstitute/cromwell/issues/3133
    * which means no instrumentation, no throttling, no batching, and no custom retries.
    * 2) The NIO implementation of "list" in GCS will list all objects with the prefix "path", unlike the unix
    * implementation which lists files and directories children. What we need is the unix behavior, even for cloud filesystems.

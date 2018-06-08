@@ -5,7 +5,7 @@ import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
 
 /**
-  * Utility methods to build bash commands for localization / delocalization.
+  * Utility methods to build shell commands for localization / delocalization.
   */
 object ActionCommands {
   implicit class ShellPath(val path: Path) extends AnyVal {

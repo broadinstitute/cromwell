@@ -60,9 +60,9 @@ trait WorkflowMetadataSummaryEntryComponent {
                                            workflowExecutionUuids: Set[String],
                                            labelAndKeyValues: Set[(String, String)],
                                            labelOrKeyValues: Set[(String, String)],
+                                           submissionTimestampOption: Option[Timestamp],
                                            startTimestampOption: Option[Timestamp],
-                                           endTimestampOption: Option[Timestamp],
-                                           submissionTimestampOption: Option[Timestamp]):
+                                           endTimestampOption: Option[Timestamp]):
   (WorkflowMetadataSummaryEntries) => Rep[Boolean] = {
     val include: Rep[Boolean] = true
     val exclude: Rep[Boolean] = false
@@ -131,18 +131,18 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
+                                          submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
-                                          endTimestampOption: Option[Timestamp],
-                                          submissionTimestampOption: Option[Timestamp]) = {
+                                          endTimestampOption: Option[Timestamp]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
       workflowStatuses,
       workflowNames,
       workflowExecutionUuids,
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
+      submissionTimestampOption,
       startTimestampOption,
-      endTimestampOption,
-      submissionTimestampOption
+      endTimestampOption
     )
     workflowMetadataSummaryEntries.filter(filter).length
   }
@@ -154,19 +154,19 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
+                                          submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp], page: Option[Int],
-                                          pageSize: Option[Int],
-                                          submissionTimestampOption: Option[Timestamp]) = {
+                                          pageSize: Option[Int]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
       workflowStatuses,
       workflowNames,
       workflowExecutionUuids,
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
+      submissionTimestampOption,
       startTimestampOption,
-      endTimestampOption,
-      submissionTimestampOption
+      endTimestampOption
     )
     val query = workflowMetadataSummaryEntries.filter(filter)
     (page, pageSize) match {

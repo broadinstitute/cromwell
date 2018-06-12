@@ -7,8 +7,7 @@
 #### Query workflows by Submission time
 
 Cromwell now supports querying workflows by submission time. This will help find workflows that are submitted but not started yet (i.e. workflows which are
-in On Hold state). Similar to the start and end timestamps, you can include `submission:<timestamp>` to fetch workflows who have submission time greater or equal to specified timestamp.
-If both submission and start time are specified, submission time should be before or equal to start time.
+in On Hold state). More information can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
 
 #### Submission time in Workflow Query Response
 

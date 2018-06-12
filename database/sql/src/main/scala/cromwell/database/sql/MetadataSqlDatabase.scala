@@ -80,19 +80,19 @@ trait MetadataSqlDatabase {
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
+                             submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              page: Option[Int],
-                             pageSize: Option[Int],
-                             submissionTimestamp: Option[Timestamp])
+                             pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
+                             submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
-                             endTimestampOption: Option[Timestamp],
-                             submissionTimestamp: Option[Timestamp])
+                             endTimestampOption: Option[Timestamp])
                              (implicit ec: ExecutionContext): Future[Int]
 }

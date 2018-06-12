@@ -15,12 +15,12 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            ids: Set[WorkflowId],
                                            labelsAnd: Set[Label],
                                            labelsOr: Set[Label],
+                                           submissionTime: Option[OffsetDateTime],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
                                            pageSize: Option[Int],
-                                           additionalQueryResultFields: Set[String],
-                                           submissionTime: Option[OffsetDateTime])
+                                           additionalQueryResultFields: Set[String])
 
 object WorkflowQueryParameters {
 
@@ -95,15 +95,15 @@ object WorkflowQueryParameters {
       workflowIdsValidation,
       labelsAndValidation,
       labelsOrValidation,
+      submissionTimeValidation,
       startDateValidation,
       endDateValidation,
       pageValidation,
       pageSizeValidation,
-      additionalQueryResultFieldsValidation,
-      submissionTimeValidation
+      additionalQueryResultFieldsValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields, submissionTimeValidation) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, startDate, endDate, page, pageSize, additionalQueryResultFields, submissionTimeValidation)
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields) =>
+        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields)
     }
   }
 

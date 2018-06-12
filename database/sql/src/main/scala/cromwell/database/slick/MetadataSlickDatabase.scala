@@ -198,14 +198,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       workflowExecutionUuids: Set[String],
                                       labelAndKeyLabelValues: Set[(String,String)],
                                       labelOrKeyLabelValues: Set[(String,String)],
+                                      submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       page: Option[Int],
-                                      pageSize: Option[Int],
-                                      submissionTimestampOption: Option[Timestamp])
+                                      pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize, submissionTimestampOption).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, submissionTimestampOption, startTimestampOption, endTimestampOption, page, pageSize).result
     runTransaction(action)
   }
 
@@ -214,12 +214,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       workflowExecutionUuids: Set[String],
                                       labelAndKeyLabelValues: Set[(String,String)],
                                       labelOrKeyLabelValues: Set[(String,String)],
+                                      submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
-                                      endTimestampOption: Option[Timestamp],
-                                      submissionTimestampOption: Option[Timestamp])
+                                      endTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, submissionTimestampOption).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, submissionTimestampOption, startTimestampOption, endTimestampOption).result
     runTransaction(action)
   }
 }

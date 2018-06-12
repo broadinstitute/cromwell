@@ -185,11 +185,11 @@ trait MetadataDatabaseAccess {
       queryParameters.ids.map(_.toString),
       labelsAndToQuery,
       labelsOrToQuery,
+      queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.page,
-      queryParameters.pageSize,
-      queryParameters.submissionTime.map(_.toSystemTimestamp)
+      queryParameters.pageSize
     )
 
     val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
@@ -198,9 +198,9 @@ trait MetadataDatabaseAccess {
       queryParameters.ids.map(_.toString),
       labelsAndToQuery,
       labelsOrToQuery,
+      queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
-      queryParameters.submissionTime.map(_.toSystemTimestamp)
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
@@ -218,11 +218,11 @@ trait MetadataDatabaseAccess {
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
           status = workflow.workflowStatus,
+          submission = workflow.submissionTimestamp map {_.toSystemOffsetDateTime},
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
           labels = labels.nonEmpty.option(labels),
-          parentWorkflowId = parentId,
-          submission = workflow.submissionTimestamp map {_.toSystemOffsetDateTime}
+          parentWorkflowId = parentId
         )
       }
 

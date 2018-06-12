@@ -212,6 +212,29 @@ object WdlFileToWdlomSpec {
           metaSection = None,
           parameterMetaSection = None)),
         tasks = Vector.empty),
+    "nested_conditionals" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(
+          WorkflowDefinitionElement(
+            "Test",
+            None,
+            Set(
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", PrimitiveLiteralExpressionElement(WomInteger(5))),
+              IfElement(PrimitiveLiteralExpressionElement(WomBoolean(true)), Vector(
+                IfElement(PrimitiveLiteralExpressionElement(WomBoolean(true)), Vector(
+                  IfElement(PrimitiveLiteralExpressionElement(WomBoolean(true)), Vector(
+                    IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "b", PrimitiveLiteralExpressionElement(WomInteger(5))))))))),
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "c", SelectFirst(ArrayLiteral(Vector(IdentifierLookup("a"), IdentifierLookup("b")))))
+            ),
+            None,
+            None,
+            None
+          )
+        ),
+        tasks = Vector.empty
+      ),
     "declaration_chain" ->
       FileElement(
         imports = Vector(),

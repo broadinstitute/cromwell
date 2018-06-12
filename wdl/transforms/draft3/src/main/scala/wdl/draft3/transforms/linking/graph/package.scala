@@ -45,8 +45,8 @@ package object graph {
   implicit val IfElementUnlinkedValueGenerator: UnlinkedValueGenerator[IfElement] = new UnlinkedValueGenerator[IfElement] {
     override def generatedValueHandles(a: IfElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
-        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType))
-        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType))
+        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType).flatOptionalType)
+        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType).flatOptionalType)
       } }
     }
   }

@@ -42,7 +42,7 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, overrid
   }
 
   def deleteLog(src: Path) = if (WorkflowLogger.isTemporary) {
-    sendIoCommand(GcsBatchCommandBuilder.deleteCommand(src))
+    sendIoCommand(DefaultIoCommandBuilder.deleteCommand(src))
   } else removeWork()
   
   def updateLogsPathInMetadata(workflowId: WorkflowId, path: Path) = {
@@ -60,6 +60,8 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, overrid
           workflowLogger.info(s"Copying workflow logs from $src to $destPath")
 
           copyLog(src, destPath, workflowId)
+          // Deliberately not deleting the file here, that will be done in batch in `deleteLog` after the copy is terminal.
+          workflowLogger.close()
         }
       }
       

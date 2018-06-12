@@ -9,7 +9,6 @@ tags: [localdockertest]
 
 files {
   workflow: cwl_input_json/cwl_input_json.yaml
-  inputs: cwl_input_json/cwl_input_json.json
 }
 
 metadata {

@@ -1,0 +1,18 @@
+name: cwl_input_json
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+backendsMode: "any"
+workflowRoot: cwl_input_json
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
+
+files {
+  workflow: cwl_input_json/cwl_input_json.yaml
+  inputs: cwl_input_json/cwl_input_json.json
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+}

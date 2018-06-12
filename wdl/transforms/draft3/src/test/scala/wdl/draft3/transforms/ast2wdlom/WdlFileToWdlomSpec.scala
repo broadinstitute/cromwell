@@ -193,6 +193,25 @@ object WdlFileToWdlomSpec {
             metaSection = None,
             parameterMetaSection = None)),
         tasks = Vector()),
+    "scatter_var_member_access" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(
+          WorkflowDefinitionElement("scatter_var_member_access", None,
+            Set(IntermediateValueDeclarationElement(
+              ArrayTypeElement(PairTypeElement(PrimitiveTypeElement(WomIntegerType), PrimitiveTypeElement(WomIntegerType))),
+              "pairs",
+              ArrayLiteral(Vector(
+                  PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2))),
+                  PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(3)), PrimitiveLiteralExpressionElement(WomInteger(4))),
+                  PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(5)), PrimitiveLiteralExpressionElement(WomInteger(6)))))),
+            ScatterElement("ScatterAt5_12", IdentifierLookup("pairs"), "p",
+              Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", IdentifierMemberAccess("p", "left", Vector()))))),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
+        tasks = Vector.empty),
     "declaration_chain" ->
       FileElement(
         imports = Vector(),

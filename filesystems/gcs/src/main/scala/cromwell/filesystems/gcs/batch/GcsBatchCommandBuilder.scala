@@ -27,6 +27,10 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
   override def existsCommand = {
     case gcsPath: GcsPath => GcsBatchExistsCommand(gcsPath)
   }
+
+  override def isDirectoryCommand = {
+    case gcsPath: GcsPath => GcsBatchIsDirectoryCommand(gcsPath)
+  }
 }
 
 case object GcsBatchCommandBuilder extends IoCommandBuilder(List(PartialGcsBatchCommandBuilder))

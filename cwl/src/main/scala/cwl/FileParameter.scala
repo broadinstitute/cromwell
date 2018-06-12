@@ -8,7 +8,7 @@ import common.validation.Validation.validate
 import cwl.ontology.Schema
 import shapeless.Poly1
 import wom.expression.IoFunctionSet
-import wom.types.{WomFileType, WomSingleFileType}
+import wom.types.{WomFileType, WomMaybePopulatedFileType}
 import wom.values.{WomArray, WomFile, WomMaybePopulatedFile, WomValue}
 
 import scala.concurrent.duration._
@@ -33,7 +33,7 @@ object FileParameter {
       case womMaybePopulatedFile: WomMaybePopulatedFile =>
         val secondaryFilesErrorOr = FileParameter.secondaryFiles(
           womMaybePopulatedFile,
-          WomSingleFileType,
+          WomMaybePopulatedFileType,
           secondaryFilesCoproduct,
           parameterContext,
           expressionLib,

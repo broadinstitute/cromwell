@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
-import cromwell.filesystems.gcs.batch.{GcsBatchCopyCommand, GcsBatchCrc32Command, GcsBatchDeleteCommand, GcsBatchSizeCommand}
+import cromwell.filesystems.gcs.batch._
 import cromwell.filesystems.gcs.{GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -40,6 +40,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
 
   lazy val randomUUID = UUID.randomUUID().toString
 
+  lazy val directory = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test").get
   lazy val src = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFile.txt").get
   lazy val dst = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFile-copy.txt").get
   lazy val srcRegional = pathBuilder.build(s"gs://cloud-cromwell-dev-regional/unit-test/$randomUUID/testRegional.txt").get
@@ -58,6 +59,10 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
     val copyCommand = GcsBatchCopyCommand(src, dst, overwrite = false)
     val sizeCommand = GcsBatchSizeCommand(src)
     val hashCommand = GcsBatchCrc32Command(src)
+    // Should return true
+    val isDirectoryCommand = GcsBatchIsDirectoryCommand(directory)
+    // Should return false
+    val isDirectoryCommand2 = GcsBatchIsDirectoryCommand(src)
     
     val deleteSrcCommand = GcsBatchDeleteCommand(src, swallowIOExceptions = false)
     val deleteDstCommand = GcsBatchDeleteCommand(dst, swallowIOExceptions = false)
@@ -65,10 +70,12 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
     testActor ! copyCommand
     testActor ! sizeCommand
     testActor ! hashCommand
+    testActor ! isDirectoryCommand
+    testActor ! isDirectoryCommand2
     
-    val received1 = receiveN(3, 10 seconds)
+    val received1 = receiveN(5, 10 seconds)
     
-    received1.size shouldBe 3
+    received1.size shouldBe 5
     received1 forall { _.isInstanceOf[IoSuccess[_]] } shouldBe true
     
     received1 collect {
@@ -77,6 +84,14 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
 
     received1 collect {
       case IoSuccess(_: GcsBatchCrc32Command, hash: String) => hash shouldBe "mnG7TA=="
+    }
+
+    received1 collect {
+      case IoSuccess(command: GcsBatchIsDirectoryCommand, isDirectory: Boolean) if command.file.pathAsString == directory.pathAsString => isDirectory shouldBe true
+    }
+
+    received1 collect {
+      case IoSuccess(command: GcsBatchIsDirectoryCommand, isDirectory: Boolean) if command.file.pathAsString == src.pathAsString => isDirectory shouldBe false
     }
 
     testActor ! deleteSrcCommand

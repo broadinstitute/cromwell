@@ -27,7 +27,7 @@ case class WdlDraft3SyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSour
     val expectedTokens = expected.asScala.map(_.string).mkString(", ")
     s"""ERROR: Unexpected symbol (line ${actual.getLine}, col ${actual.getColumn}) when parsing '$method'.
        |
-        |Expected $expectedTokens, got ${actual.getSourceString}.
+        |Expected $expectedTokens, got "${actual.getSourceString}".
        |
         |${pointToSource(actual)}
        |

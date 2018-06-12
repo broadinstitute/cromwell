@@ -52,7 +52,9 @@ object ScatterElementToGraphNode {
 
       (required, generated) mapN { (r, g) => r collect {
         case hook @ UnlinkedIdentifierHook(id) if id != scatterVariableName && !g.exists(_.linkableName == id) => a.linkableValues(hook).linkableName
-        case hook @ UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") => a.linkableValues(hook).linkableName
+        case hook @ UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second)
+          // NB: mirrors logic in scatterElementUnlinkedValueConsumer
+          if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") && (first != scatterVariableName) => a.linkableValues(hook).linkableName
       }}
     }
 

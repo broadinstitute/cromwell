@@ -56,6 +56,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "input_types" -> anyWomWillDo,
     "input_values" -> anyWomWillDo,
     "passthrough_workflow" -> anyWomWillDo,
+    "scatter_var_member_access" -> anyWomWillDo,
     "simple_first_test" -> anyWomWillDo,
     "static_value_workflow" -> anyWomWillDo,
     "nested_struct" -> anyWomWillDo,

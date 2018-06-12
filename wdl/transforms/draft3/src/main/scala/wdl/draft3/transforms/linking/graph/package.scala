@@ -96,7 +96,8 @@ package object graph {
       (bodyConsumedValuesValidation, bodyGeneratedValuesValidation) mapN { (bodyConsumedValues, bodyGeneratedValues) =>
         val unsatisfiedBodyElementHooks = bodyConsumedValues.filterNot {
           case UnlinkedIdentifierHook(id) => bodyGeneratedValues.contains(id) || id == a.scatterVariableName
-          case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) => bodyGeneratedValues.contains(first) || bodyGeneratedValues.contains(s"$first.$second")
+          case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) =>
+            bodyGeneratedValues.contains(first) || bodyGeneratedValues.contains(s"$first.$second") || a.scatterVariableName == first
         }
 
         unsatisfiedBodyElementHooks ++ scatterExpressionHooks

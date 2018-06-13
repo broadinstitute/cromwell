@@ -2,14 +2,14 @@
 
 ## Scope
 
-The 'localization_optional' optimization applies to `File` and `File?` inputs on `task`s. It allows
-you to save time and money by identifying `File` inputs which do not need to be localized for the task to succeed.
+The 'localization_optional' optimization can be applied to a task's individual input declarations containing files, specifically `File` and `File?` values and any complex types containing them. 
+It allows you to save time and money by identifying files which do not need to be localized for the task to succeed.
 
 ## Condition
 
 The optimization signals to Cromwell that a task has been written in such a way that:
-
- * The task **will work** if Cromwell does localize the specified file input 
+ 
+ * The task **will work** if Cromwell does localize the specified file inputs
    * For example if a file is localized for a local dockerized execution environment.
 
 **And**:
@@ -39,17 +39,25 @@ an input's entry in the task's `parameter_meta` section. Here's an example:
 task nio_task {
   input {
     File foo_file
+    File bar_file
   }
   
   parameter_meta {
     foo_file: {
+      description: "a foo file",
       localization_optional: true
+    }
+    bar_file: {
+      description: "a bar file"
     }
   }
   
   command <<<
     # This tool must work for **BOTH** local file paths **AND** object store URL values:
-    java -jar my_tool.jar ~{foo_file}
+    java -jar my_tool_1.jar ~{foo_file}
+    
+    # Because the optimization is not applied to 'bar_file' in parameter_meta, this file **WILL** be localized:
+    java -jar my_tool_2.jar ~{bar_file}
   >>>
 }
 ```

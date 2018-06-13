@@ -11,10 +11,10 @@ import cromwell.core.labels.Labels
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import wom.callable.ExecutableCallable
+import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.{WomEvaluatedCallInputs, WomValue}
+import wom.values.{WomEvaluatedCallInputs, WomFile, WomOptionalValue, WomValue}
 
 import scala.util.Try
 
@@ -37,9 +37,16 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
-  val fullyQualifiedInputs = evaluatedTaskInputs map { case (declaration, value) =>
+
+  val fullyQualifiedInputs: Map[String, WomValue] = evaluatedTaskInputs map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }
+
+  def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs.collect {
+    case (declaration, value: WomFile) if declaration.parameterMeta.exists(filter) => value
+    case (declaration, WomOptionalValue(_, Some(value: WomFile))) if declaration.parameterMeta.exists(filter) => value
+  }.toSet
+
   val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
   val taskCall = key.call
   override lazy val toString = key.mkTag(workflowDescriptor.id)

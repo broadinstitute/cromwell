@@ -38,9 +38,9 @@ object InputPointerToWomValue extends Poly1 {
           withInitializedValue(ioFunctions, womValue) {
             inputDefinition.valueMapper(ioFunctions)
           }
-        case (_, InputDefinitionWithDefault(_, _, defaultExpression, valueMapper)) =>
+        case (_, InputDefinitionWithDefault(_, _, defaultExpression, valueMapper, _)) =>
           evaluateAndMap(defaultExpression, knownValues, valueMapper, ioFunctions)
-        case (_, OptionalInputDefinition(_, optionalType, valueMapper)) => valueMapper(ioFunctions)(optionalType.none)
+        case (_, OptionalInputDefinition(_, optionalType, valueMapper, _)) => valueMapper(ioFunctions)(optionalType.none)
         case _ => s"Failed to lookup input value for required input ${port.internalName}".invalidNel
       }
   }

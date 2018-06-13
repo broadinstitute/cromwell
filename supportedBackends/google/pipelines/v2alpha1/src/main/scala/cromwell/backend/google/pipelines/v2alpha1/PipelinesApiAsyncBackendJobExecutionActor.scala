@@ -32,7 +32,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
     case (key, womFile) =>
       key -> womFile.collectAsSeq({
-        case womFile: WomFile => womFile
+        case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
       })
   }
 
@@ -44,7 +44,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     List(directoryOutput)
   }
 
-  // Delocalize the glob directory as a PipelinesApiDirectoryOutput instead of using * pattern match
+  // De-localize the glob directory as a PipelinesApiDirectoryOutput instead of using * pattern match
   override def generateGlobFileOutputs(womFile: WomGlobFile): List[PipelinesApiOutput] = {
     val globName = GlobFunctions.globName(womFile.value)
     val globDirectory = globName + "/"

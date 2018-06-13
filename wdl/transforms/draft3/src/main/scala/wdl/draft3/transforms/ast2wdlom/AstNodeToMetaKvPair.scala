@@ -5,7 +5,7 @@ import cats.syntax.either._
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.parser.WdlParser.{Ast, AstNode}
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
-import wdl.model.draft3.elements.{MetaValueElement, MetaKvPair}
+import wom.callable.{MetaKvPair, MetaValueElement}
 
 object AstNodeToMetaKvPair {
   def convert(astNode: AstNode): ErrorOr[MetaKvPair] = astNode match {

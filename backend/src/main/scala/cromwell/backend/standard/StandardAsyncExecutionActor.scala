@@ -127,7 +127,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** @see [[Command.instantiate]] */
   final lazy val commandLinePreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = {
     inputs =>
-      TryUtil.sequenceMap(inputs mapValues WomFileMapper.mapWomFiles(preProcessWomFile)).
+      TryUtil.sequenceMap(inputs mapValues WomFileMapper.mapWomFiles(preProcessWomFile, inputsToNotLocalize)).
         recoverWith {
           case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
         }
@@ -135,7 +135,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /**
     * Maps WomFile to a local path, for use in the commandLineValueMapper.
-    *
     */
   def mapCommandLineWomFile(womFile: WomFile): WomFile =
     womFile.mapFile(workflowPaths.buildPath(_).pathAsString)
@@ -145,14 +144,18 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   // keeping track of the paths cleanly without so many value mappers 
   def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = mapCommandLineWomFile(womFile)
 
+  // Allows backends to signal to the StandardAsyncExecutionActor that there's a set of input files which
+  // they don't intend to localize for this task.
+  def inputsToNotLocalize: Set[WomFile] = Set.empty
+
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = {
-    womValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile)(womValue).get
+    womValue => WomFileMapper.mapWomFiles(mapCommandLineWomFile, inputsToNotLocalize)(womValue).get
   }
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineJobInputValueMapper: WomValue => WomValue = {
-    womValue => WomFileMapper.mapWomFiles(mapCommandLineJobInputWomFile)(womValue).get
+    womValue => WomFileMapper.mapWomFiles(mapCommandLineJobInputWomFile, inputsToNotLocalize)(womValue).get
   }
 
   lazy val jobShell: String = configurationDescriptor.backendConfig.getOrElse("job-shell",
@@ -743,7 +746,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The Try wrapped and mapped WOM value.
     */
   final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapOutputWomFile)(womValue)
+    WomFileMapper.mapWomFiles(mapOutputWomFile, Set.empty)(womValue)
   }
 
   /**

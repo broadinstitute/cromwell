@@ -26,7 +26,8 @@ object WorkflowQueryKey {
     Page,
     PageSize,
     AdditionalQueryResultFields,
-    SubmissionTime
+    SubmissionTime,
+    IncludeSubworkflows
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -127,8 +128,13 @@ object WorkflowQueryKey {
       val nels: List[ErrorOr[String]] = values map { v => {
         allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])
       }}
-      sequenceListOfValidatedNels("Unrecognized values", nels)
+      sequenceListOfValidatedNels(s"Keys should be from ${allowedValues.toString}. Unrecognized values", nels)
     }
+  }
+
+  case object IncludeSubworkflows extends BooleanWorkflowQueryKey[Boolean] {
+    override val name = "Includesubworkflows"
+    override def displayName = "include subworkflows"
   }
 }
 
@@ -180,5 +186,21 @@ sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
     }
   }
   def displayName: String
+}
+
+sealed trait BooleanWorkflowQueryKey[A] extends WorkflowQueryKey[Boolean] {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Boolean] = {
+    valuesFromMap(grouped) match {
+      case vs if vs.lengthCompare(1) > 0 => s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Boolean]
+      case Nil => true.validNel
+      case v :: Nil => {
+        Try(v.toBoolean) match {
+          case Success(bool) => bool.validNel
+          case _ => s"Value given for $displayName does not parse as a boolean: $v".invalidNel[Boolean]
+        }
+      }
+    }
+  }
+   def displayName: String
 }
 

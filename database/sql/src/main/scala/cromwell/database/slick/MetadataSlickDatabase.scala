@@ -157,17 +157,17 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String,
-                                             statusMetadataKey: String, labelMetadataKey: String, buildUpdatedSummary:
-                                             (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
+                                             statusMetadataKey: String, labelMetadataKey: String, submissionMetadataKey: String,
+                                             buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
                                                WorkflowMetadataSummaryEntry)
                                             (implicit ec: ExecutionContext): Future[Long] = {
     val likeMetadataLabelKey = labelMetadataKey + "%"
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
-      previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(0L)
+      previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual((
-        previousMetadataEntryId + 1L, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey)).result
+        previousMetadataEntryId + 1L, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey, submissionMetadataKey)).result
       metadataWithoutLabels = metadataEntries.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
       customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
@@ -198,13 +198,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       workflowExecutionUuids: Set[String],
                                       labelAndKeyLabelValues: Set[(String,String)],
                                       labelOrKeyLabelValues: Set[(String,String)],
+                                      submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption, page, pageSize).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, submissionTimestampOption, startTimestampOption, endTimestampOption, page, pageSize).result
     runTransaction(action)
   }
 
@@ -213,11 +214,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       workflowExecutionUuids: Set[String],
                                       labelAndKeyLabelValues: Set[(String,String)],
                                       labelOrKeyLabelValues: Set[(String,String)],
+                                      submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, startTimestampOption, endTimestampOption).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, submissionTimestampOption, startTimestampOption, endTimestampOption).result
     runTransaction(action)
   }
 }

@@ -6,5 +6,6 @@
     <include file="metadata_changesets/move_sql_metadata_changelog.xml" relativeToChangelogFile="true" />
     <include file="changesets/change_max_size_label_entry.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/delete_duplicate_custom_labels.xml" relativeToChangelogFile="true"/>
+    <include file="metadata_changesets/add_submission_timestamp_metadata_summary.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

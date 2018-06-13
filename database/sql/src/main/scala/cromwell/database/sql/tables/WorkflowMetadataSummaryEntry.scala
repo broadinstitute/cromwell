@@ -9,5 +9,6 @@ case class WorkflowMetadataSummaryEntry
   workflowStatus: Option[String],
   startTimestamp: Option[Timestamp],
   endTimestamp: Option[Timestamp],
+  submissionTimestamp: Option[Timestamp],
   workflowMetadataSummaryEntryId: Option[Long] = None
 )

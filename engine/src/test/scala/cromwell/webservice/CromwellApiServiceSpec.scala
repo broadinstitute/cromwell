@@ -744,7 +744,7 @@ object CromwellApiServiceSpec {
           parameters.contains(("additionalQueryResultFields", "parentWorkflowId")).option("pid")
         }
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None, labels, parentWorkflowId)), 1), None)
+          None, Some(WorkflowSucceeded.toString), None, None, None, labels, parentWorkflowId)), 1), None)
         sender ! response
       case ValidateWorkflowId(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

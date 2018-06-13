@@ -2,7 +2,7 @@ name: cwl_input_json
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
-backendsMode: "any"
+backendsMode: "only"
 workflowRoot: cwl_input_json
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]

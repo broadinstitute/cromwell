@@ -37,7 +37,7 @@ trait Delocalization {
   // Action logs are now located in the pipelines-logs directory. The aggregated log is copied from this pipelines-logs directory.
   private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path): Action = {
     cloudSdkBashAction(
-      every(30.seconds) { delocalizeFile(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, Option(ContentTypes.`text/plain(UTF-8)`)) }
+      every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, Option(ContentTypes.`text/plain(UTF-8)`)) }
     )(flags = List(ActionFlag.RunInBackground))
   }
 

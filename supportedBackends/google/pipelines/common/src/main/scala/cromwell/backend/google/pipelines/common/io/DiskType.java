@@ -1,9 +1,9 @@
 package cromwell.backend.google.pipelines.common.io;
 
 public enum DiskType {
-    LOCAL("LOCAL", "LOCAL_SSD"),
-    SSD("SSD", "PERSISTENT_SSD"),
-    HDD("HDD", "PERSISTENT_HDD");
+    LOCAL("LOCAL", "local-ssd"),
+    SSD("SSD", "pd-ssd"),
+    HDD("HDD", "pd-standard");
 
     public final String diskTypeName;
     public final String googleTypeName;

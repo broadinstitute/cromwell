@@ -24,6 +24,8 @@ $graph:
   requirements:
   - class: ShellCommandRequirement
   - class: InlineJavascriptRequirement
+  - class: DockerRequirement
+    dockerPull: "ubuntu:latest"
   inputs: []
   outputs:
     fileoutput:

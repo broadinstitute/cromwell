@@ -2,6 +2,7 @@ package cromwell.core.logging
 
 import akka.actor.{Actor, ActorLogging}
 import akka.event.LoggingAdapter
+import ch.qos.logback.classic
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.classic.{Level, LoggerContext}
@@ -108,7 +109,15 @@ class WorkflowLogger(loggerName: String,
 
   override def getName = loggerName
 
-  def deleteLogFile() = Try { workflowLogPath foreach { _.delete() } }
+  /**
+    * Stop all log appenders to release file handles, delete the file if requested.
+    */
+  def close(andDelete: Boolean = false) = Try {
+    workflowLogPath foreach { path =>
+      if (andDelete) path.delete()
+      if (fileLogger != NOPLogger.NOP_LOGGER) fileLogger.asInstanceOf[classic.Logger].detachAndStopAllAppenders()
+    }
+  }
 
   import WorkflowLogger._
 

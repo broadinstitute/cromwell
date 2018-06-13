@@ -24,7 +24,9 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def endTimestamp = column[Option[Timestamp]]("END_TIMESTAMP")
 
-    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
+    def submissionTimestamp = column[Option[Timestamp]]("SUBMISSION_TIMESTAMP")
+
+    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp, submissionTimestamp,
       workflowMetadataSummaryEntryId.?) <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
 
     def ucWorkflowMetadataSummaryEntryWeu =
@@ -58,6 +60,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                            workflowExecutionUuids: Set[String],
                                            labelAndKeyValues: Set[(String, String)],
                                            labelOrKeyValues: Set[(String, String)],
+                                           submissionTimestampOption: Option[Timestamp],
                                            startTimestampOption: Option[Timestamp],
                                            endTimestampOption: Option[Timestamp]):
   (WorkflowMetadataSummaryEntries) => Rep[Boolean] = {
@@ -74,6 +77,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         map(startTimestamp => workflowMetadataSummaryEntry.startTimestamp.fold(ifEmpty = exclude)(_ >= startTimestamp))
       val endTimestampFilter = endTimestampOption.
         map(endTimestamp => workflowMetadataSummaryEntry.endTimestamp.fold(ifEmpty = exclude)(_ <= endTimestamp))
+      val submissionTimestampFilter = submissionTimestampOption.
+        map(submissionTimestamp => workflowMetadataSummaryEntry.submissionTimestamp.fold(ifEmpty = exclude)(_ >= submissionTimestamp))
       // Names, UUIDs, and statuses are potentially multi-valued, the reduceLeftOption ORs together any name, UUID, or
       // status criteria to include all matching names, UUIDs, and statuses.
       val workflowNameFilter = workflowNames.
@@ -95,7 +100,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         labelsAndFilter,
         labelsOrFilter,
         startTimestampFilter,
-        endTimestampFilter
+        endTimestampFilter,
+        submissionTimestampFilter
       )
       // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
       // rows which might otherwise have been filtered.
@@ -125,6 +131,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
+                                          submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
@@ -133,6 +140,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       workflowExecutionUuids,
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
+      submissionTimestampOption,
       startTimestampOption,
       endTimestampOption
     )
@@ -146,6 +154,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
+                                          submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp], page: Option[Int],
                                           pageSize: Option[Int]) = {
@@ -155,6 +164,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       workflowExecutionUuids,
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
+      submissionTimestampOption,
       startTimestampOption,
       endTimestampOption
     )

@@ -65,9 +65,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
       def keyAndValue(name: String) = Array(
-        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString),
+        (WorkflowMetadataKeys.SubmissionTime, OffsetDateTime.now.toString),
         (WorkflowMetadataKeys.Status, WorkflowSubmitted.toString),
-        (WorkflowMetadataKeys.Name, name)
+        (WorkflowMetadataKeys.Name, name),
+        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString)
       ) ++ labelMetadata
 
       publishMetadataEvents(workflowKey, keyAndValue(name)).map(_ => workflowId)
@@ -257,6 +258,14 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.EndDate.name -> workflowQueryResult.end.get.toString))) map { case (response, _) =>
           response.results partition { r => r.end.isDefined && r.end.get.compareTo(workflowQueryResult.end.get) <= 0 } match {
+            case (y, n) if y.nonEmpty && n.isEmpty => // good
+            case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
+          }
+        }
+        // Filter by submission time
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.SubmissionTime.name -> workflowQueryResult2.start.get.toString))) map { case (response, _) =>
+          response.results partition { r => r.submission.isDefined && r.submission.get.compareTo(workflowQueryResult2.submission.get) <= 0 } match {
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
           }

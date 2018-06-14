@@ -8,10 +8,12 @@ you to save time and money by identifying `File` inputs which do not need to be 
 ## Condition
 
 The optimization signals to Cromwell that a task has been written in such a way that:
+
  * The task **will work** if Cromwell does localize the specified file input 
    * For example if a file is localized for a local dockerized execution environment.
 
 **And**:
+
  * The task will **also** work if Cromwell **does not** localize the same file input
    * For example the file remains in a cloud object store and the command is constructed using its URL rather than a local path.
 
@@ -32,6 +34,7 @@ Files marked for optional localization are still treated in exactly the same way
 
 In a WDL 1.0 `task`, this optimization is specified by adding a `localization_optional` field to 
 an input's entry in the task's `parameter_meta` section. Here's an example:
+
 ```wdl
 task nio_task {
   input {

@@ -4,6 +4,11 @@
 
 ### Query endpoint
 
+#### Include/Exclude subworkflows
+
+Cromwell now supports excluding subworkflows from workflow query results using `includeSubworkflows` parameter. By default they are included in the results.
+More information can be found at [REST API](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+
 #### Query workflows by Submission time
 
 Cromwell now supports querying workflows by submission time. This will help find workflows that are submitted but not started yet (i.e. workflows which are

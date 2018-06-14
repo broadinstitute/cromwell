@@ -2,7 +2,6 @@ name: three_step_cwl
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
-tags: [upgrade]
 
 files {
   workflow: three_step/three_step.cwl

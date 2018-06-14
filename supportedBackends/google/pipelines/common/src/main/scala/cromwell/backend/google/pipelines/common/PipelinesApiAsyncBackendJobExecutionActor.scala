@@ -30,6 +30,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.demo.dos.DemoDosPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
@@ -669,6 +670,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         case (Success(demoDosPath: DemoDosPath), _) =>
           val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
           workingDisk.mountPoint.resolve(filePath).pathAsString
+        case (Success(sraPath: SraPath), _) =>
+          workingDisk.mountPoint.resolve(s"sra-${sraPath.accession}/${sraPath.pathWithoutScheme}").pathAsString
         case _ => value
       }
     )

@@ -160,6 +160,7 @@ lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(demoDosFileSystem)
+  .dependsOn(sraFileSystem)
   .dependsOn(backend % "test->test")
   .dependsOn(gcsFileSystem % "test->test")
   .dependsOn(services % "test->test")

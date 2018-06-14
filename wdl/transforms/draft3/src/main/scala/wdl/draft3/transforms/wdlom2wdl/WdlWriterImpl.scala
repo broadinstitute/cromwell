@@ -440,9 +440,14 @@ object WdlWriterImpl {
     override def toWdlV1(a: StructEntryElement): String = s"${a.typeElement.toWdlV1} ${a.identifier}"
   }
 
+  implicit val importElementWriter: WdlWriter[ImportElement] = new WdlWriter[ImportElement] {
+    override def toWdlV1(a: ImportElement): String = "import \"" + a.importUrl + "\""
+  }
+
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
     override def toWdlV1(a: FileElement) = {
       "version 1.0" +
+      combine(a.imports.map(_.toWdlV1)) +
       combine(a.structs.map(_.toWdlV1)) +
       combine(a.tasks.map(_.toWdlV1)) +
       combine(a.workflows.map(_.toWdlV1))

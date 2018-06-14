@@ -1,5 +1,6 @@
 name: read_write_json
 testFormat: workflowsuccess
+tags: [upgrade]
 
 files {
   workflow: read_write_json/read_write_json.wdl

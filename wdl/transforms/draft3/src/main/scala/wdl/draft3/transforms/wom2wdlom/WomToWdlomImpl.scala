@@ -124,7 +124,7 @@ object WomToWdlomImpl {
 
         val commands = a.commandTemplateBuilder(Map()) match {
           case Valid(cmd) => cmd
-          case _ => ???
+          case _ => throw UnrepresentableException
         }
 
         val commandLine = CommandSectionLine(commands map {
@@ -160,7 +160,6 @@ object WomToWdlomImpl {
         // This is a bit odd, so let's explain. "Real" inputs/outputs that are specified by the WDL's author
         // cannot have periods in them - period. So any input/output that has a period in it
         // is an artifact of WOMification and should be dropped
-        // TODO: a problem in e.g. hello.wdl; maybe the above is only true in 1.0?
         val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
@@ -280,12 +279,12 @@ object WomToWdlomImpl {
 
   implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = new WomToWdlom[WomExpression, ExpressionElement] {
     override def toWdlom(a: WomExpression): ExpressionElement = a match {
-      case _: WdlomWomExpression => ???
+      case _: WdlomWomExpression => throw UnrepresentableException
       case a: WdlWomExpression => ExpressionLiteralElement(a.sourceString)
-      case _: ValueAsAnExpression => ???
-      case _: PlainAnonymousExpressionNode => ???
-      case _: TaskCallInputExpressionNode => ???
-      case _: ExposedExpressionNode => ???
+      case _: ValueAsAnExpression => throw UnrepresentableException
+      case _: PlainAnonymousExpressionNode => throw UnrepresentableException
+      case _: TaskCallInputExpressionNode => throw UnrepresentableException
+      case _: ExposedExpressionNode => throw UnrepresentableException
     }
   }
 

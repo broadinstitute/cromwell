@@ -11,7 +11,7 @@ import wdl.draft2.model.WdlWomExpression
 import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
 import wdl.model.draft3.elements.ExpressionElement.{ExpressionLiteralElement, StringLiteral}
-import wdl.model.draft3.elements.MetaValueElement.MetaValueElementString
+import wom.callable.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}

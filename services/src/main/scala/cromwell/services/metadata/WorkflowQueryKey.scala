@@ -132,9 +132,10 @@ object WorkflowQueryKey {
     }
   }
 
-  case object IncludeSubworkflows extends BooleanWorkflowQueryKey[Boolean] {
+  case object IncludeSubworkflows extends BooleanWorkflowQueryKey {
     override val name = "Includesubworkflows"
     override def displayName = "include subworkflows"
+    override def defaultBooleanValue: Boolean = true
   }
 }
 
@@ -148,7 +149,7 @@ sealed trait WorkflowQueryKey[T] {
 
 sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDateTime]] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[OffsetDateTime]] = {
-    valuesFromMap(grouped) match {
+    valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[OffsetDateTime]]
       case Nil => None.validNel[String]
@@ -174,25 +175,25 @@ sealed trait SeqWorkflowQueryKey[A] extends WorkflowQueryKey[Seq[A]] {
 
 sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Int]] = {
-    valuesFromMap(grouped) match {
+    valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[Int]]
       case Nil => None.validNel
       case v :: Nil =>
         Try(v.toInt) match {
           case Success(intVal) => if (intVal > 0) Option(intVal).validNel else s"Integer value not greater than 0".invalidNel[Option[Int]]
-          case _ => s"Value given for $displayName does not parse as a integer: $v".invalidNel[Option[Int]]
+          case _ => s"Value given  for $displayName does not parse as a integer: $v".invalidNel[Option[Int]]
         }
     }
   }
   def displayName: String
 }
 
-sealed trait BooleanWorkflowQueryKey[A] extends WorkflowQueryKey[Boolean] {
+sealed trait BooleanWorkflowQueryKey extends WorkflowQueryKey[Boolean] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Boolean] = {
-    valuesFromMap(grouped) match {
+    valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 => s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Boolean]
-      case Nil => true.validNel
+      case Nil => defaultBooleanValue.validNel
       case v :: Nil => {
         Try(v.toBoolean) match {
           case Success(bool) => bool.validNel
@@ -202,5 +203,7 @@ sealed trait BooleanWorkflowQueryKey[A] extends WorkflowQueryKey[Boolean] {
     }
   }
    def displayName: String
+
+  def defaultBooleanValue: Boolean
 }
 

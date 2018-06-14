@@ -11,7 +11,8 @@ import scala.concurrent.duration._
   * Utility methods to build shell commands for localization / delocalization.
   */
 object ActionCommands {
-  implicit val nbRetries: Int = 5
+  // Not sure what appropriate values should be. It should also be smarter than just "retry always"...
+  implicit val nbRetries: Int = 2
   implicit val waitBetweenRetries: FiniteDuration = 5.seconds
 
   implicit class ShellPath(val path: Path) extends AnyVal {
@@ -56,7 +57,7 @@ object ActionCommands {
   def every(duration: FiniteDuration)(f: => String) = s"while true; do $f 2> /dev/null || true; sleep ${duration.toSeconds}; done"
 
   def retry(f: => String)(implicit times: Int, wait: FiniteDuration) = {
-    s"for i in `seq $times`; do $f && break; sleep ${wait.toSeconds}; done"
+    s"""retry() { for i in `seq $times`; do $f; RC=$$?; if [[ "$$RC" -eq 0 ]]; then break; fi; sleep ${wait.toSeconds}; done; return "$$RC"; }; retry"""
   }
 
   def delocalizeFileOrDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = {

@@ -1,0 +1,19 @@
+name: draft3_short_circuit
+testFormat: workflowsuccess
+
+backends: [Local]
+tags: [localdockertest]
+
+
+files {
+  workflow: wdl_draft3/draft3_short_circuit/draft3_short_circuit.wdl
+}
+
+metadata {
+  workflowName: draft3_short_circuit
+  status: Succeeded
+  "outputs.draft3_short_circuit.a_out": null,
+  "outputs.draft3_short_circuit.b_out": 1,
+  "outputs.draft3_short_circuit.c_out": 1,
+  "outputs.draft3_short_circuit.d_out": 1
+}

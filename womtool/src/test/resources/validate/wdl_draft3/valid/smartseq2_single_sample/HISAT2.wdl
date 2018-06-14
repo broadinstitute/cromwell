@@ -8,15 +8,15 @@ task HISAT2PairedEnd {
     String ref_name
     String output_basename
     String sample_name
-  }
 
-  # runtime values
-  String docker = "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
-  Int machine_mem_mb = 15000
-  Int cpu = 4
-  # use provided disk number or dynamically size on our own, 10 is our zipped fastq -> bam conversion with 50GB of additional disk
-  Int disk = ceil((size(fastq1, "GB") + size(fastq2, "GB") * 10) + size(hisat2_ref, "GB") + 50)
-  Int preemptible = 5
+    # runtime values
+    String docker = "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
+    Int machine_mem_mb = 15000
+    Int cpu = 4
+    # use provided disk number or dynamically size on our own, 10 is our zipped fastq -> bam conversion with 50GB of additional disk
+    Int disk = ceil((size(fastq1, "GB") + size(fastq2, "GB") * 10) + size(hisat2_ref, "GB") + 50)
+    Int preemptible = 5
+  }
 
   meta {
     description: "HISAT2 alignment task will align paired-end fastq reads to reference genome."
@@ -100,15 +100,15 @@ task HISAT2RSEM {
     String ref_name
     String output_basename
     String sample_name
-  }
 
-  # runtime values
-  String docker = "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
-  Int machine_mem_mb = 15000
-  Int cpu = 4
-  # use provided disk number or dynamically size on our own, 10 is our zipped fastq -> bam conversion with 50GB of additional disk
-  Int disk = ceil((size(fastq1, "GB") + size(fastq2, "GB") * 10) + size(hisat2_ref, "GB") + 50)
-  Int preemptible = 5
+    # runtime values
+    String docker = "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
+    Int machine_mem_mb = 15000
+    Int cpu = 4
+    # use provided disk number or dynamically size on our own, 10 is our zipped fastq -> bam conversion with 50GB of additional disk
+    Int disk = ceil((size(fastq1, "GB") + size(fastq2, "GB") * 10) + size(hisat2_ref, "GB") + 50)
+    Int preemptible = 5
+  }
 
   meta {
     description: "This HISAT2 alignment task will align paired-end fastq reads to transcriptome only. "
@@ -200,14 +200,16 @@ task HISAT2SingleEnd {
     String ref_name
     String output_basename
     String sample_name
+
+    # runtime values
+    String docker = "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
+    Int machine_mem_mb = 15000
+    Int cpu = 4
+    # use provided disk number or dynamically size on our own, 10 is our zipped fastq -> bam conversion with 50GB of additional disk
+    Int disk = ceil((size(fastq, "GB") * 10) + size(hisat2_ref, "GB") + 50)
+    Int preemptible = 5
   }
-  # runtime values
-  String docker = "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
-  Int machine_mem_mb = 15000
-  Int cpu = 4
-  # use provided disk number or dynamically size on our own, 10 is our zipped fastq -> bam conversion with 50GB of additional disk
-  Int disk = ceil((size(fastq, "GB") * 10) + size(hisat2_ref, "GB") + 50)
-  Int preemptible = 5
+
 
   meta {
     description: "This HISAT2 alignment task will align single-end fastq reads to reference genome."
@@ -260,15 +262,15 @@ task HISAT2InspectIndex {
   input {
     File hisat2_ref
     String ref_name
-  }
 
-  # runtime values
-  String docker =  "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
-  Int machine_mem_mb = 3500
-  Int cpu = 1
-  # use provided disk number or dynamically size on our own, with 10GB of additional disk
-  Int disk = ceil(size(hisat2_ref, "GB") + 10)
-  Int preemptible = 5
+    # runtime values
+    String docker =  "quay.io/humancellatlas/secondary-analysis-hisat2:v0.2.2-2-2.1.0"
+    Int machine_mem_mb = 3500
+    Int cpu = 1
+    # use provided disk number or dynamically size on our own, with 10GB of additional disk
+    Int disk = ceil(size(hisat2_ref, "GB") + 10)
+    Int preemptible = 5
+  }
 
   meta {
     description: "This task will test reference indexing files built for HISAT2 aligner."

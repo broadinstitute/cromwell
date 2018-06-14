@@ -36,6 +36,7 @@ import shapeless.Coproduct
 import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
+import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.types.{WomArrayType, WomSingleFileType}
@@ -174,19 +175,29 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs map {
-    case (key, womFile) =>
-      val arrays: Seq[WomArray] = womFile collectAsSeq {
-        case womFile: WomFile =>
-          val files: List[WomSingleFile] = DirectoryFunctions
-            .listWomSingleFiles(womFile, pipelinesApiCallPaths.workflowPaths)
-            .toTry(s"Error getting single files for $womFile").get
-          WomArray(WomArrayType(WomSingleFileType), files)
-      }
+  override lazy val inputsToNotLocalize: Set[WomFile] = {
+    jobDescriptor.findInputFilesByParameterMeta {
+      case MetaValueElementObject(values) => values.get("localization_optional").contains(MetaValueElementBoolean(true))
+      case _ => false
+    }
+  }
 
-      key -> arrays.flatMap(_.value).collect {
-        case womFile: WomFile => womFile
-      }
+  protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = {
+
+    jobDescriptor.fullyQualifiedInputs map {
+      case (key, womFile) =>
+        val arrays: Seq[WomArray] = womFile collectAsSeq {
+          case womFile: WomFile if !inputsToNotLocalize.contains(womFile) =>
+            val files: List[WomSingleFile] = DirectoryFunctions
+              .listWomSingleFiles(womFile, pipelinesApiCallPaths.workflowPaths)
+              .toTry(s"Error getting single files for $womFile").get
+            WomArray(WomArrayType(WomSingleFileType), files)
+        }
+
+        key -> arrays.flatMap(_.value).collect {
+          case womFile: WomFile => womFile
+        }
+    }
   }
   
   protected def localizationPath(f: CommandSetupSideEffectFile) = {

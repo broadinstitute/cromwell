@@ -38,7 +38,7 @@ class WomtoolInputsSpec extends FlatSpec with Matchers {
             val unexpected = actualSet.diff(expectedSet)
             val ungenerated = expectedSet.diff(actualSet)
 
-            assert(inputSet(actualContent) == inputSet(allInputsExpectation), s"Received inputs: $actualContent${System.lineSeparator}with unexpected values: ${unexpected.mkString} and missing expected values: ${ungenerated.mkString}")
+            assert(actualSet == expectedSet, s"Received inputs: $actualContent${System.lineSeparator}with unexpected values: ${unexpected.mkString("[", ",", "]")}${System.lineSeparator}and missing expected values: ${ungenerated.mkString("[", ",", "]")}")
 
           case other => fail(s"Expected successful termination but got $other")
         }
@@ -63,7 +63,7 @@ class WomtoolInputsSpec extends FlatSpec with Matchers {
 
   }
 
-  private def inputSet(json: String): Set[String] = json.lines.toSet[String].map(_.stripSuffix(","))
+  private def inputSet(json: String): Set[String] = json.lines.toSet[String].map(_.stripSuffix(",")).filterNot(_.forall(_.isWhitespace))
 
   private def expectedJson(versionDirectory: File, caseName: String, jsonName: String): String = {
     File(mustExist(versionDirectory.path.resolve(caseName).resolve(jsonName).toFile).getAbsolutePath).contentAsString

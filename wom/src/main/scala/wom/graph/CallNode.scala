@@ -102,17 +102,23 @@ object TaskCall {
     
     val inputDefinitionFold = taskDefinition.inputs.foldMap({ inputDef =>
     {
-      val newNode = inputDef match {
-        case RequiredInputDefinition(name, womType, _) => RequiredGraphInputNode(identifier(name), womType, name.value)
-        case InputDefinitionWithDefault(name, womType, default, _) => OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value)
-        case OptionalInputDefinition(name, womType, _) => OptionalGraphInputNode(identifier(name), womType, name.value)
+      val newNode: Option[ExternalGraphInputNode] = inputDef match {
+        case RequiredInputDefinition(name, womType, _, _) => Some(RequiredGraphInputNode(identifier(name), womType, name.value))
+        case InputDefinitionWithDefault(name, womType, default, _, _) => Some(OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value))
+        case OptionalInputDefinition(name, womType, _, _) => Some(OptionalGraphInputNode(identifier(name), womType, name.value))
+        case _: FixedInputDefinition => None
       }
 
-      InputDefinitionFold(
-        mappings = List(inputDef -> Coproduct[InputDefinitionPointer](newNode.singleOutputPort: OutputPort)),
-        newGraphInputNodes = Set(newNode),
-        callInputPorts = Set(callNodeBuilder.makeInputPort(inputDef, newNode.singleOutputPort))
-      )
+      newNode match {
+        case Some(inputNode) =>
+          InputDefinitionFold(
+            mappings = List(inputDef -> Coproduct[InputDefinitionPointer](inputNode.singleOutputPort: OutputPort)),
+            newGraphInputNodes = Set(inputNode),
+            callInputPorts = Set(callNodeBuilder.makeInputPort(inputDef, inputNode.singleOutputPort))
+          )
+        case None => InputDefinitionFold() // No-op
+      }
+
     }
     })(inputDefinitionFoldMonoid)
 

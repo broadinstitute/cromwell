@@ -11,6 +11,7 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wom.callable.Callable.{FixedInputDefinition, OptionalInputDefinition}
+import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.types._
@@ -76,10 +77,11 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "standalone_task" -> anyWomWillDo,
     "task_with_metas" -> anyWomWillDo,
     "input_values" -> anyWomWillDo,
-    "gap_in_command" -> anyWomWillDo
+    "gap_in_command" -> anyWomWillDo,
+    "nio_file" -> validateNioFile
   )
 
-  private def anyWomWillDo(b: WomBundle) = Succeeded
+  private def anyWomWillDo(b: WomBundle): Assertion = Succeeded
 
   private def validateStructDefinitionWom(b: WomBundle): Assertion = {
     val wfDef: WorkflowDefinition = (b.allCallables.values.toSet.filterByType[WorkflowDefinition]: Set[WorkflowDefinition]).head
@@ -98,7 +100,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     taskDef.commandTemplate(Map.empty) shouldBe List(WdlomWomStringCommandPart(StringCommandPartElement("echo Hello World ")))
   }
 
-  private def validateCommandSyntaxes(b: WomBundle) = {
+  private def validateCommandSyntaxes(b: WomBundle): Assertion = {
     b.allCallables.size should be(2)
     b.allCallables.get("a")match {
       case Some(taskA) =>
@@ -115,6 +117,20 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
         taskB.outputs.map(_.name) should be(Seq("out"))
         taskB.asInstanceOf[CallableTaskDefinition].runtimeAttributes.attributes("docker").asInstanceOf[WdlomWomExpression].expressionElement should be(StringLiteral("ubuntu:latest"))
       case None => fail("Expected a task called 'b'")
+    }
+  }
+
+  private def validateNioFile(b: WomBundle): Assertion = {
+    b.allCallables.size should be(1)
+    b.allCallables.get("nio_file") match {
+      case None => fail("No callable found 'nio_file'")
+      case Some(nioFileTask) =>
+        // Plain old input:
+        nioFileTask.inputs.find(_.name == "f").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
+        // Input based on upstream:
+        nioFileTask.inputs.find(_.name == "g").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
+        // Optional input:
+        nioFileTask.inputs.find(_.name == "h").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
     }
   }
 }

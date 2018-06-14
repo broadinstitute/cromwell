@@ -439,7 +439,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
 
         def pathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, exceptions = Set.empty)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs mapValues pathToLocal
@@ -710,7 +710,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToS3Path(outputs: Set[AwsBatchFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs))(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs), exceptions = Set.empty)(womValue).get
     }
 
     val result = outputValues map wdlValueToS3Path(outputs)

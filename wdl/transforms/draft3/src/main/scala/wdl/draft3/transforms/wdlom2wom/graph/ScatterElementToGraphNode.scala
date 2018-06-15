@@ -22,7 +22,7 @@ import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
-import wom.graph.{ExternalGraphInputNode, _}
+import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.{WomArrayType, WomType}
 

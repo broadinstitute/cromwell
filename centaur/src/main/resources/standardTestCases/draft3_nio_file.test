@@ -15,6 +15,8 @@ metadata {
   "outputs.draft3_nio_file.f_path_prefix": "gs://"
   "outputs.draft3_nio_file.g_path_prefix": "gs://"
   "outputs.draft3_nio_file.h_path_prefix": "gs://"
+  "outputs.draft3_nio_file.x_path_prefix": "gs://"
+  "outputs.draft3_nio_file.y_path_prefix": "gs://"
   "outputs.draft3_nio_file.errors": ""
 
   "calls.draft3_nio_file.cc_nio_file.callCaching.hit": true

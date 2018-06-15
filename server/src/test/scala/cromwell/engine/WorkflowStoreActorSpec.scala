@@ -54,14 +54,16 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
   "The WorkflowStoreActor" should {
     "return an ID for a submitted workflow" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! SubmitWorkflow(helloWorldSourceFiles)
       expectMsgType[WorkflowSubmittedToStore](10 seconds)
     }
 
     "check if workflow state is 'On Hold' when workflowOnHold = true" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! SubmitWorkflow(helloWorldSourceFilesOnHold)
       expectMsgPF(10 seconds) {
         case submit: WorkflowSubmittedToStore => submit.state shouldBe WorkflowOnHold
@@ -70,7 +72,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
     "return 3 IDs for a batch submission of 3" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       expectMsgPF(10 seconds) {
         case WorkflowsBatchSubmittedToStore(ids, WorkflowSubmitted) => ids.toList.size shouldBe 3
@@ -79,7 +82,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
     "fetch exactly N workflows" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -122,7 +126,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
 
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       val readMetadataActor = system.actorOf(ReadMetadataActor.props())
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
@@ -165,7 +170,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
     "return only the remaining workflows if N is larger than size" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -185,7 +191,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
     "remain responsive if you ask to remove a workflow it doesn't have" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
+      val storeActor = system.actorOf(WorkflowStoreActor.props(store, coordinator, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {

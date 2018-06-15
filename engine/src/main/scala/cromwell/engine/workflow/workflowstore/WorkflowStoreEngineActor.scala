@@ -1,6 +1,8 @@
 package cromwell.engine.workflow.workflowstore
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
+import akka.pattern.ask
+import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
@@ -19,11 +21,11 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(
-                                                   store: WorkflowStore,
-                                                   serviceRegistryActor: ActorRef,
-                                                   abortAllJobsOnTerminate: Boolean,
-                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
+final case class WorkflowStoreEngineActor private(store: WorkflowStore,
+                                                  workflowStoreCoordinatedWriteActor: ActorRef,
+                                                  serviceRegistryActor: ActorRef,
+                                                  abortAllJobsOnTerminate: Boolean,
+                                                  workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -32,7 +34,7 @@ final case class WorkflowStoreEngineActor private(
   self ! InitializerCommand
 
   scheduleInstrumentation {
-    store.stats map { (stats: Map[WorkflowStoreState, Int]) =>
+    store.stats map { stats: Map[WorkflowStoreState, Int] =>
       // Update the count for Submitted and Running workflows, defaulting to 0
       val statesMap = stats.withDefault(_ => 0)
       updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
@@ -152,15 +154,17 @@ final case class WorkflowStoreEngineActor private(
     * Fetches at most n workflows, and builds the correct response message based on if there were any workflows or not
     */
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
-    def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
+    def fetchStartableWorkflowsIfNeeded = {
       if (maxWorkflows > 0) {
-        store.fetchStartableWorkflows(maxWorkflowsInner, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
+        implicit val timeout = Timeout(WorkflowStoreCoordinatedWriteActor.Timeout)
+        val message = WorkflowStoreCoordinatedWriteActor.FetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
+        workflowStoreCoordinatedWriteActor.ask(message).mapTo[List[WorkflowToStart]]
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
     }
 
-    fetchStartableWorkflowsIfNeeded(maxWorkflows) map {
+    fetchStartableWorkflowsIfNeeded map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     } recover {
@@ -174,12 +178,13 @@ final case class WorkflowStoreEngineActor private(
 
 object WorkflowStoreEngineActor {
   def props(
-             workflowStoreDatabase: WorkflowStore,
+             workflowStore: WorkflowStore,
+             workflowStoreCoordinatedWriteActor: ActorRef,
              serviceRegistryActor: ActorRef,
              abortAllJobsOnTerminate: Boolean,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig
              ) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
+    Props(WorkflowStoreEngineActor(workflowStore, workflowStoreCoordinatedWriteActor, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

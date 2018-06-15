@@ -149,7 +149,7 @@ object WdlExpression {
         s"if $c then $t else $f"
       case a: Ast if a.isArrayLiteral =>
         val evaluatedElements = a.getAttribute("values").astListAsVector map {x => toString(x, highlighter)}
-        s"[${evaluatedElements.mkString(",")}]"
+        s"[${evaluatedElements.mkString(", ")}]"
       case a: Ast if a.isTupleLiteral =>
         val evaluatedElements = a.getAttribute("values").astListAsVector map { x => toString(x, highlighter)}
         s"(${evaluatedElements.mkString(", ")})"
@@ -159,14 +159,14 @@ object WdlExpression {
           val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
           s"$key:$value"
         }
-        s"{${evaluatedMap.mkString(",")}}"
+        s"{${evaluatedMap.mkString(", ")}}"
       case a: Ast if a.isObjectLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)
           val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
           s"$key:$value"
         }
-        s"{${evaluatedMap.mkString(",")}}"
+        s"object {${evaluatedMap.mkString(", ")}}"
       case a: Ast if a.isMemberAccess =>
         val lhs = toString(a.getAttribute("lhs"), highlighter)
         val rhs = toString(a.getAttribute("rhs"), highlighter)

@@ -182,7 +182,7 @@ sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
       case v :: Nil =>
         Try(v.toInt) match {
           case Success(intVal) => if (intVal > 0) Option(intVal).validNel else s"Integer value not greater than 0".invalidNel[Option[Int]]
-          case _ => s"Value given  for $displayName does not parse as a integer: $v".invalidNel[Option[Int]]
+          case _ => s"Value given for $displayName does not parse as a integer: $v".invalidNel[Option[Int]]
         }
     }
   }

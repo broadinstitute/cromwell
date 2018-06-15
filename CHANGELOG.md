@@ -6,7 +6,7 @@
 
 #### Include/Exclude subworkflows
 
-Cromwell now supports excluding subworkflows from workflow query results using `includeSubworkflows` parameter. By default they are included in the results.
+Cromwell now supports excluding subworkflows from workflow query results using the `includeSubworkflows` parameter. By default they are included in the results.
 More information can be found at [REST API](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
 
 #### Query workflows by Submission time

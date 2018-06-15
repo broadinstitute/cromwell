@@ -26,7 +26,7 @@ import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
-import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowHeartbeatConfig, WorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore._
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStoreActor}
@@ -72,9 +72,11 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
+  lazy val workflowStoreCoordinatedWriteActor: ActorRef = context.actorOf(WorkflowStoreCoordinatedWriteActor.props(workflowStore))
   lazy val workflowStoreActor =
     context.actorOf(WorkflowStoreActor.props(
       workflowStoreDatabase = workflowStore,
+      workflowStoreCoordinatedWriteActor = workflowStoreCoordinatedWriteActor,
       serviceRegistryActor = serviceRegistryActor,
       abortAllJobsOnTerminate = abortJobsOnTerminate,
       workflowHeartbeatConfig = workflowHeartbeatConfig),

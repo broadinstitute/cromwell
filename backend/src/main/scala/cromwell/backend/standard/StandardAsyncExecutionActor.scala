@@ -119,7 +119,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   lazy val temporaryDirectory = configurationDescriptor.backendConfig.getOrElse(
       path = "temporary-directory",
-      default = s"""mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}""""
+      default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
     )
 
   def preProcessWomFile(womFile: WomFile): WomFile = womFile
@@ -329,7 +329,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     s"""|#!$jobShell
         |DOCKER_OUTPUT_DIR_LINK
         |cd $cwd
-        |tmpDir=`$temporaryDirectory`
+        |tmpDir=$temporaryDirectory
         |$tmpDirPermissionsAdjustment
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"

@@ -28,6 +28,10 @@ None!
 
 Files marked for optional localization are still treated in exactly the same way as other `File` inputs for call caching.
 
+## Cromwell Support
+
+This optimization will be active in Cromwell as of version 33 and higher.
+
 ## Language Support
 
 ### WDL 1.0 (or later)

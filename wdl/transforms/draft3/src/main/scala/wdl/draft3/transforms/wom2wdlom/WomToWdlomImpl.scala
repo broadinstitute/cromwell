@@ -31,18 +31,13 @@ object WomToWdlomImpl {
   implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] =
     new WomToWdlom[GraphOutputNode, WorkflowGraphElement] {
       override def toWdlom(a: GraphOutputNode): WorkflowGraphElement = a match {
-        case a: PortBasedGraphOutputNode =>
-          OutputDeclarationElement(
-            a.womType.toWdlom,
-            a.identifier.localName.value,
-            StringLiteral(a.toString) // TODO: debug more
-          )
         case a: ExpressionBasedGraphOutputNode =>
           OutputDeclarationElement(
-            a.womType.toWdlom,
-            a.identifier.localName.value,
-            a.womExpression.toWdlom
-          )
+          a.womType.toWdlom,
+          a.identifier.localName.value,
+          a.womExpression.toWdlom)
+        case _ =>
+          throw UnrepresentableException
       }
     }
 

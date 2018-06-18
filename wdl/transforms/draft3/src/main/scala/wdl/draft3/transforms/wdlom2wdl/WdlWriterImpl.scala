@@ -180,6 +180,8 @@ object WdlWriterImpl {
       }
 
       // Readability / cosmetic reordering
+      // TODO: use graph ordering
+      // https://github.com/broadinstitute/cromwell/issues/3796
       val inputDeclarationElements: List[InputDeclarationElement] =
         a.graphElements.toList.filterByType[InputDeclarationElement]
       val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =

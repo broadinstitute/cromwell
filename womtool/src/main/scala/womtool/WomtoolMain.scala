@@ -3,10 +3,9 @@ package womtool
 import java.nio.file.Paths
 
 import common.validation.Validation._
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.{AstTools, WdlNamespace}
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
-import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers.wdlDraft2NamespaceWomBundleMaker
 import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
 import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
 import wdl.draft3.transforms.wom2wdlom.WomToWdlom.ops._
@@ -19,7 +18,7 @@ import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
 import womtool.validate.Validate
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object WomtoolMain extends App {
   sealed trait Termination {
@@ -78,12 +77,11 @@ object WomtoolMain extends App {
   }
 
   def upgrade(workflowSourcePath: String): Termination = {
-    val file = Paths.get(workflowSourcePath)
-    val maybeWdl = WdlNamespace.loadUsingPath(file, None, None)
+    val maybeWdl: Try[Path] = DefaultPathBuilder.build(workflowSourcePath)
 
     maybeWdl match {
       case Success(wdl) =>
-        val maybeWomBundle = wdlDraft2NamespaceWomBundleMaker.toWomBundle(wdl)
+        val maybeWomBundle = WomGraphMaker.getBundle(wdl)
 
         maybeWomBundle match {
           case Right(womBundle) =>

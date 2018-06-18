@@ -42,7 +42,6 @@ centaur/test_cromwell.sh \
     -g \
     -e localdockertest \
     -e gpu_on_papi \
-    "${INTEGRATION_TESTS[@]}" \
-    -e upgrade
+    "${INTEGRATION_TESTS[@]}"
 
 cromwell::build::generate_code_coverage

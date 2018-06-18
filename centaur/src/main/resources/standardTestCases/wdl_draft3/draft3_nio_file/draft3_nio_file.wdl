@@ -7,28 +7,41 @@ workflow draft3_nio_file {
   call nio_file { input:
     ready = true,
     f = mk_files.f,
-    h = mk_files.h
+    h = mk_files.h,
+    x = mk_files.x,
+    y = mk_files.y
   }
 
   call nio_file as cc_nio_file { input:
     ready = nio_file.done,
     f = mk_files.f,
-    h = mk_files.h
+    h = mk_files.h,
+    x = mk_files.x,
+    y = mk_files.y
   }
 
   call nio_file as non_cc_nio_file { input:
     ready = nio_file.done,
     f = mk_more_files.f,
-    h = mk_more_files.h
+    h = mk_more_files.h,
+    x = mk_more_files.x,
+    y = mk_more_files.y
   }
 
   output {
     String f_path_prefix = nio_file.result[0]
     String g_path_prefix = nio_file.result[1]
     String h_path_prefix = nio_file.result[2]
+    String x_path_prefix = nio_file.result[3]
+    String y_path_prefix = nio_file.result[4]
 
     String errors = nio_file.errors
   }
+}
+
+struct FileBox {
+  File val0
+  File val1
 }
 
 task mk_files {
@@ -44,6 +57,10 @@ task mk_files {
   command {
     echo "f~{salt}" > f
     echo "h~{salt}" > h
+    echo "x0~{salt}" > x0
+    echo "x1~{salt}" > x1
+    echo "y0~{salt}" > y0
+    echo "y1~{salt}" > y1
   }
 
   runtime {
@@ -53,6 +70,8 @@ task mk_files {
   output {
     File f = "f"
     File h = "h"
+    Array[File] x = ["x0", "x1"]
+    FileBox y = object { val0: "y0", val1: "y1" }
   }
 }
 
@@ -70,6 +89,8 @@ task nio_file {
       localization_optional: true,
       after: "... and after it..."
     }
+    x: { localization_optional: true }
+    y: { localization_optional: true }
     done: "Always true, can be chained into the 'ready' of a subsequent invocation"
   }
 
@@ -78,6 +99,8 @@ task nio_file {
     File f
     File g = f
     File? h
+    Array[File] x
+    FileBox y
   }
 
   command {
@@ -86,6 +109,8 @@ task nio_file {
     echo ~{f} | cut -c 1-5
     echo ~{g} | cut -c 1-5
     echo ~{h} | cut -c 1-5
+    echo ~{x[0]} | cut -c 1-5
+    echo ~{y.val1} | cut -c 1-5
 
     # Check that the NIO files were not localized
     INSTANCE=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
@@ -102,6 +127,8 @@ task nio_file {
     grep -q "draft3_nio_file.nio_file.g" <<< $PAPI_METADATA && echo "g was incorrectly localized" >> errors.txt
     grep -q "draft3_nio_file.nio_file.__g" <<< $PAPI_METADATA && echo "__g was incorrectly localized" >> errors.txt
     grep -q "draft3_nio_file.nio_file.h" <<< $PAPI_METADATA && echo "h was incorrectly localized" >> errors.txt
+    grep -q "draft3_nio_file.nio_file.x" <<< $PAPI_METADATA && echo "x was incorrectly localized" >> errors.txt
+    grep -q "draft3_nio_file.nio_file.y" <<< $PAPI_METADATA && echo "y was incorrectly localized" >> errors.txt
   }
   runtime {
     docker: "google/cloud-sdk:alpine"

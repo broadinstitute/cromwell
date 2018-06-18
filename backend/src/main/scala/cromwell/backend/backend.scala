@@ -14,7 +14,8 @@ import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.{WomEvaluatedCallInputs, WomFile, WomOptionalValue, WomValue}
+import wom.values.WomArray.WomArrayLike
+import wom.values._
 
 import scala.util.Try
 
@@ -43,9 +44,18 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
   }
 
   def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs.collect {
-    case (declaration, value: WomFile) if declaration.parameterMeta.exists(filter) => value
-    case (declaration, WomOptionalValue(_, Some(value: WomFile))) if declaration.parameterMeta.exists(filter) => value
-  }.toSet
+    case (declaration, value) if declaration.parameterMeta.exists(filter) => findFiles(value)
+  }.flatten.toSet
+
+  def findFiles(v: WomValue): Set[WomFile] = v match {
+    case value: WomFile => Set(value)
+    case WomOptionalValue(_, Some(value)) => findFiles(value)
+    case value: WomObjectLike => value.values.values.toSet flatMap findFiles
+    case WomArrayLike(value) => value.value.toSet flatMap findFiles
+    case WomPair(left, right) => findFiles(left) ++ findFiles(right)
+    case WomMap(_, innerMap) => (innerMap.keySet flatMap findFiles) ++ (innerMap.values.toSet flatMap findFiles)
+    case _ => Set.empty
+  }
 
   val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
   val taskCall = key.call

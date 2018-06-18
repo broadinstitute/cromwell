@@ -134,7 +134,7 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
         EXCLUDE="-l $val "${EXCLUDE}
     done
     TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} "${EXCLUDE}
-elif [[ -n SUITE ]]; then
+elif [[ -n "${SUITE}" ]]; then
     echo "Running Centaur with suite $SUITE"
     TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${TEST_THREAD_COUNT} -s $SUITE"
 else

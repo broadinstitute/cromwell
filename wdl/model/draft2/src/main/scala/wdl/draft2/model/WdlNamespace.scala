@@ -433,10 +433,7 @@ object WdlNamespace {
   private def validateRuntime(attributeExpression: WdlExpression, task: WdlTask, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
     val invalidVariableReferences = for {
       variable <- referencesToAbsentValues(task, attributeExpression)
-    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsReferenceToAbsentValue(
-      Some(task),
-      variable
-    ))
+    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsReferenceToAbsentValue(Option(task), variable))
 
     invalidVariableReferences.toSeq
   }

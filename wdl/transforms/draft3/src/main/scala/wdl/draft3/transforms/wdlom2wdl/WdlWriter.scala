@@ -10,7 +10,7 @@ trait WdlWriter[A] {
 
 object WdlWriter {
   // Stolen from WomGraph.scala
-  final def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
-  final def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
-  final def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
+  def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
+  def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
+  def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
 }

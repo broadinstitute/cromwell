@@ -1,6 +1,6 @@
 name: read_write_json
 testFormat: workflowsuccess
-tags: [upgrade_NOTYET]
+tags: [upgrade_waiting_on_3790]
 
 files {
   workflow: read_write_json/read_write_json.wdl

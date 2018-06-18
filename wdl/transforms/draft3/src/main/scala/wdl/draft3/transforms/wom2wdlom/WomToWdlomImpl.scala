@@ -21,7 +21,6 @@ import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph._
 import wom.graph.expression._
 import wom.types._
-import wom.values.WomValue
 
 case object UnrepresentableException extends Exception("Value has no representation in the destination format (WDL)")
 
@@ -291,8 +290,7 @@ object WomToWdlomImpl {
   implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, Option[ExpressionElement]] =
     new WomToWdlom[InputDefinitionPointer, Option[ExpressionElement]] {
       override def toWdlom(a: InputDefinitionPointer): Option[ExpressionElement] = a match {
-        case a: WomExpression => Some(womExpressionToExpressionElement.toWdlom(a))
-        case a: WomValue => Some(womExpressionToExpressionElement.toWdlom(a.asWomExpression))
+        // If the input definition is a node containing an expression, it's been declared explicitly
         case Inl(a: GraphNodeOutputPort) => a.graphNode match {
           case _: OptionalGraphInputNode =>
             None
@@ -302,7 +300,8 @@ object WomToWdlomImpl {
           case a: TaskCallInputExpressionNode => Some(a.womExpression.toWdlom)
           case _: RequiredGraphInputNode => None // TODO: questionable
         }
-        case Inr(Inl(a: WdlWomExpression)) => Some(womExpressionToExpressionElement.toWdlom(a))
+        // Input definitions that directly contain expressions are the result of accepting a default input defined by the callable
+        case Inr(Inl(_: WdlWomExpression)) => None
         case Inr(_) =>
           throw UnrepresentableException
         case _ =>
@@ -311,7 +310,7 @@ object WomToWdlomImpl {
     }
 
   implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = new WomToWdlom[CallNode, CallElement] {
-    override def toWdlom(a: CallNode): CallElement = {
+    override def toWdlom(call: CallNode): CallElement = {
       def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): Option[ExpressionElement.KvPair] = {
         tuple._2.toWdlom match {
           case Some(value) => Some(ExpressionElement.KvPair(tuple._1.name, value))
@@ -319,10 +318,10 @@ object WomToWdlomImpl {
         }
       }
 
-      val inputs = (a.inputDefinitionMappings flatMap tupleToKvPair).toVector
+      val inputs = (call.inputDefinitionMappings flatMap tupleToKvPair).toVector
 
-      val callableName = a.callable.name
-      val callAlias = a.identifier.localName.value // If no alias, this is just the name; we evaluate for that below
+      val callableName = call.callable.name
+      val callAlias = call.identifier.localName.value // If no alias, this is just the name; we evaluate for that below
 
       val maybeAlias = if (callableName != callAlias)
         Some(callAlias)
@@ -330,7 +329,7 @@ object WomToWdlomImpl {
         None
 
       CallElement(
-        a.callable.name,
+        call.callable.name,
         maybeAlias,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       )

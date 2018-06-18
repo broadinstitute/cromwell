@@ -157,14 +157,14 @@ object WdlExpression {
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)
           val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
-          s"$key:$value"
+          s"$key: $value"
         }
         s"{${evaluatedMap.mkString(", ")}}"
       case a: Ast if a.isObjectLiteral =>
         val evaluatedMap = a.getAttribute("map").astListAsVector map { kv =>
           val key = toString(kv.asInstanceOf[Ast].getAttribute("key"), highlighter)
           val value = toString(kv.asInstanceOf[Ast].getAttribute("value"), highlighter)
-          s"$key:$value"
+          s"$key: $value"
         }
         s"object {${evaluatedMap.mkString(", ")}}"
       case a: Ast if a.isMemberAccess =>

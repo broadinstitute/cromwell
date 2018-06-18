@@ -128,7 +128,7 @@ object WorkflowQueryKey {
       val nels: List[ErrorOr[String]] = values map { v => {
         allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])
       }}
-      sequenceListOfValidatedNels(s"Keys should be from ${allowedValues.toString}. Unrecognized values", nels)
+      sequenceListOfValidatedNels(s"Keys should be from $allowedValues. Unrecognized values", nels)
     }
   }
 

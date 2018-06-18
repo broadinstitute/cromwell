@@ -24,7 +24,7 @@ import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
-import wom.types.{WomArrayType, WomType}
+import wom.types.{WomAnyType, WomArrayType, WomType}
 
 object ScatterElementToGraphNode {
   def convert(a: ScatterNodeMakerInputs): ErrorOr[Set[GraphNode]] = if (a.insideAnotherScatter) {
@@ -43,6 +43,7 @@ object ScatterElementToGraphNode {
 
     val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
       case a: WomArrayType => a.memberType.validNel
+      case WomAnyType => WomAnyType.validNel
       case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.toDisplayString}".invalidNel
     }
 

@@ -20,7 +20,7 @@ import wom.callable.Callable
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
-import wom.types.{WomBooleanType, WomType}
+import wom.types.{WomAnyType, WomBooleanType, WomType}
 
 object IfElementToGraphNode {
   def convert(a: ConditionalNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
@@ -30,8 +30,8 @@ object IfElementToGraphNode {
     val conditionWomExpression: WdlomWomExpression = WdlomWomExpression(conditionExpression, a.linkableValues)
     val conditionExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier("if_condition"), conditionWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
 
-    val scatterVariableTypeValidation: ErrorOr[Unit] = conditionExpression.evaluateType(a.linkableValues) flatMap {
-      case WomBooleanType => ().validNel
+    val conditionVariableTypeValidation: ErrorOr[Unit] = conditionExpression.evaluateType(a.linkableValues) flatMap {
+      case WomBooleanType | WomAnyType => ().validNel
       case other => s"Invalid type for condition variable: ${other.toDisplayString}".invalidNel
     }
 
@@ -51,7 +51,7 @@ object IfElementToGraphNode {
       }).toMap
     }
 
-    (conditionExpressionNodeValidation, scatterVariableTypeValidation, foundOuterGeneratorsValidation) flatMapN { (expressionNode, _, foundOuterGenerators) =>
+    (conditionExpressionNodeValidation, conditionVariableTypeValidation, foundOuterGeneratorsValidation) flatMapN { (expressionNode, _, foundOuterGenerators) =>
       val ogins: Set[GraphNode] = (foundOuterGenerators.toList map { case (name: String, port: OutputPort) =>
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = true)
       }).toSet

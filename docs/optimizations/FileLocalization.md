@@ -1,5 +1,7 @@
 # The 'localization_optional' Optimization
 
+Available in Cromwell version 33 and higher.
+
 ## Scope
 
 The 'localization_optional' optimization can be applied to a task's individual input declarations containing files, specifically `File` and `File?` values and any complex types containing them. 

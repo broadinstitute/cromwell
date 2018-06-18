@@ -45,8 +45,8 @@ object WomToWdlomImpl {
       val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
 
       FileElement(
-        Seq(), // TODO: imports
-        Seq(), // Structs do not exist in draft-2
+        Seq.empty, // TODO: imports
+        Seq.empty, // Structs do not exist in draft-2
         workflows.map(_.toWdlom).toSeq,
         tasks.map(_.toWdlom).toSeq
       )
@@ -136,7 +136,7 @@ object WomToWdlomImpl {
         TaskDefinitionElement(
           a.name,
           if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-          Seq(), // No such thing in draft-2
+          Seq.empty, // No such thing in draft-2
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
           CommandSectionElement(Seq(commandLine)),
           a.runtimeAttributes.toWdlom,

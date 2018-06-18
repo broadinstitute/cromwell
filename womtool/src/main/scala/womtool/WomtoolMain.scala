@@ -6,8 +6,8 @@ import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.{AstTools, WdlNamespace}
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
-import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
-import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.fileElementWriter
 import womtool.wom2wdlom.WomToWdlom.womBundleToFileElement
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._

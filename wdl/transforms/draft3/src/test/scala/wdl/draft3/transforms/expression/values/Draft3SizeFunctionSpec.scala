@@ -4,7 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.{Assertion, FlatSpec, Matchers}
 import wdl.draft3.transforms.expression.values.Draft3SizeFunctionSpec.testFunctions
-import wdl.draft3.transforms.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
+import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
 import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, Size}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.{EmptyIoFunctionSet, IoFunctionSet}

@@ -4,65 +4,59 @@ import better.files.File
 import cats.instances.either._
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
-import wdl.draft3.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
-import wdl.draft3.transforms.parsing._
+import wdl.draft3.parser.WdlParser.{Ast, AstNode}
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wdl.model.draft3.elements._
-import wom.callable.{MetaKvPair, MetaValueElement}
-
-import collection.JavaConverters._
+import wdl.transforms.base.ast2wdlom.{AstNodeToCommandPartElement, AstNodeToExpressionElement, AstNodeToKvPair, AstNodeToMetaKvPair, AstNodeToPlaceholderAttributeSet, AstNodeToTypeElement, AstToCallElement, AstToCommandSectionElement, AstToDeclarationContent, AstToFileBodyElement, AstToFileElement, AstToIfElement, AstToImportElement, AstToInputDeclarationElement, AstToInputsSectionElement, AstToMetaSectionElement, AstToOutputsSectionElement, AstToParameterMetaSectionElement, AstToRuntimeAttributesSectionElement, AstToScatterElement, AstToStructElement, AstToTaskDefinitionElement, AstToTaskSectionElement, AstToWorkflowBodyElement, AstToWorkflowDefinitionElement, AstToWorkflowGraphNodeElementConverterMaker, GenericAst, GenericAstNode, astNodeToAst, astNodeToAstList}
+import wdl.draft3.transforms.parsing.fileToAst
+import wom.callable.MetaKvPair
 
 package object ast2wdlom {
 
-  implicit val astNodeToAst: CheckedAtoB[AstNode, Ast] = CheckedAtoB.fromCheck {
-    case ast: Ast => ast.validNelCheck
-    case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Ast".invalidNelCheck
-  }
-
-  implicit val astNodeToAstList: CheckedAtoB[AstNode, AstList] = CheckedAtoB.fromCheck {
-    case astList: AstList => astList.validNelCheck
-    case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into AstList".invalidNelCheck
-  }
-
-  implicit val astNodeToTerminal: CheckedAtoB[AstNode, Terminal] = CheckedAtoB.fromCheck {
-    case t: Terminal => t.validNelCheck
-    case other => s"Cannot convert from AstNode type '${other.getClass.getSimpleName}' into Terminal".invalidNelCheck
-  }
-
-  implicit val astToFileElement: CheckedAtoB[Ast, FileElement] = CheckedAtoB.fromErrorOr(AstToFileElement.convert)
-  implicit val astToFileBodyElement: CheckedAtoB[AstNode, FileBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToFileBodyElement.convert)
-  implicit val astNodeToStructEntry: CheckedAtoB[AstNode, StructElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToStructElement.convert)
-  implicit val astNodeToImportElement: CheckedAtoB[AstNode, ImportElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToImportElement.convert)
-  implicit val astNodeToTaskDefinitionElement: CheckedAtoB[AstNode, TaskDefinitionElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToTaskDefinitionElement.convert)
-  implicit val astNodeToWorkflowDefinitionElement: CheckedAtoB[AstNode, WorkflowDefinitionElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToWorkflowDefinitionElement.convert)
-  implicit val astNodeToInputsSectionElement: CheckedAtoB[AstNode, InputsSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToInputsSectionElement.convert)
-  implicit val astNodeToInputDeclarationElement: CheckedAtoB[AstNode, InputDeclarationElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToInputDeclarationElement.convert)
-  implicit val astNodeToTypeElement: CheckedAtoB[AstNode, TypeElement] = CheckedAtoB.fromErrorOr(AstNodeToTypeElement.convert)
-  implicit val astNodeToExpressionElement: CheckedAtoB[AstNode, ExpressionElement] = CheckedAtoB.fromErrorOr(AstNodeToExpressionElement.convert)
-  implicit val astNodeToKvPair: CheckedAtoB[AstNode, KvPair] = CheckedAtoB.fromErrorOr(AstNodeToKvPair.convert)
-  implicit val astNodeToTaskSectionElement: CheckedAtoB[AstNode, TaskSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToTaskSectionElement.convert)
-  implicit val astNodeToWorkflowBodyElement: CheckedAtoB[AstNode, WorkflowBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToWorkflowBodyElement.convert)
-  implicit val astNodeToOutputsSectionElement: CheckedAtoB[AstNode, OutputsSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToOutputsSectionElement.convert)
-  implicit val astNodeToDeclarationContent: CheckedAtoB[AstNode, DeclarationContent] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToDeclarationContent.convert)
-  implicit val astNodeToRuntimeAttributesSectionElement: CheckedAtoB[AstNode, RuntimeAttributesSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToRuntimeAttributesSectionElement.convert)
-  implicit val astNodeToCommandSectionElement: CheckedAtoB[AstNode, CommandSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToCommandSectionElement.convert)
-  implicit val astNodeToCommandPartElement: CheckedAtoB[AstNode, CommandPartElement] = CheckedAtoB.fromErrorOr(AstNodeToCommandPartElement.convert)
-  implicit val astNodeToPlaceholderAttributeSet: CheckedAtoB[AstNode, PlaceholderAttributeSet] = astNodeToAstList andThen AstNodeToPlaceholderAttributeSet.attributeKvpConverter
-  implicit val astNodeToCallElement: CheckedAtoB[AstNode, CallElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToCallElement.convert)
-  implicit val astNodeToScatterElement: CheckedAtoB[AstNode, ScatterElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToScatterElement.convert)
-  implicit val astNodeToIfElement: CheckedAtoB[AstNode, IfElement] = astNodeToAst andThen CheckedAtoB.fromErrorOr(AstToIfElement.convert)
-  implicit val astNodeToGraphElement: CheckedAtoB[AstNode, WorkflowGraphElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToWorkflowGraphNodeElement.convert)
-  implicit val fileToFileElement: CheckedAtoB[File, FileElement] = fileToAst andThen astToFileElement
-
-  implicit val astNodeToString: CheckedAtoB[AstNode, String] = CheckedAtoB.fromCheck { a: AstNode => a match {
-    case t: Terminal => t.getSourceString.validNelCheck
-    case a: Ast => s"Cannot convert Ast of type ${a.getName} into String. Did you want one of its attributes (${a.getAttributes.asScala.keys.mkString(", ")})?".invalidNelCheck
-    case other: AstNode => s"Cannot convert ${other.getClass.getSimpleName} into String".invalidNelCheck
-  }}
+  val wrapAst: CheckedAtoB[Ast, GenericAst] = CheckedAtoB.fromCheck { a => Draft3GenericAst(a).validNelCheck }
+  val wrapAstNode: CheckedAtoB[AstNode, GenericAstNode] = CheckedAtoB.fromCheck { a => Draft3GenericAstNode(a).validNelCheck }
 
   // meta sections
-  implicit val astNodeToMetaValueElement: CheckedAtoB[AstNode, MetaValueElement] = CheckedAtoB.fromErrorOr(AstNodeToMetaValueElement.convert)
-  implicit val astNodeToMetaKvPair: CheckedAtoB[AstNode, MetaKvPair] = CheckedAtoB.fromErrorOr(AstNodeToMetaKvPair.convert)
-  implicit val astNodeToMetaSectionElement: CheckedAtoB[AstNode, MetaSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToMetaSectionElement.convert)
-  implicit val astNodeToParameterMetaSectionElement: CheckedAtoB[AstNode, ParameterMetaSectionElement] = astNodeToAst andThen CheckedAtoB.fromCheck(AstToParameterMetaSectionElement.convert)
+  implicit val astNodeToMetaKvPair: CheckedAtoB[GenericAstNode, MetaKvPair] = AstNodeToMetaKvPair.astNodeToMetaKvPair
+  implicit val astNodeToMetaSectionElement: CheckedAtoB[GenericAstNode, MetaSectionElement] = astNodeToAst andThen AstToMetaSectionElement.astToMetaSectionElement
+  implicit val astNodeToParameterMetaSectionElement: CheckedAtoB[GenericAstNode, ParameterMetaSectionElement] = astNodeToAst andThen AstToParameterMetaSectionElement.astToParameterMetaSectionElement
+
+  implicit val astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement] = AstNodeToExpressionElement.astNodeToExpressionElement
+  implicit val astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair] = AstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
+
+  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement()
+  implicit val astToStructElement: CheckedAtoB[GenericAst, StructElement] = AstToStructElement.astToStructElement
+  implicit val astNodeToImportElement: CheckedAtoB[GenericAstNode, ImportElement] = astNodeToAst andThen AstToImportElement.astToImportElement
+
+  implicit val astNodeToInputDeclarationElement: CheckedAtoB[GenericAstNode, InputDeclarationElement] = astNodeToAst andThen AstToInputDeclarationElement.astToInputDeclarationElement
+  implicit val astNodeToInputsSectionElement: CheckedAtoB[GenericAstNode, InputsSectionElement] = astNodeToAst andThen AstToInputsSectionElement.astToInputsSectionElement
+
+  implicit val astNodeToDeclarationContent: CheckedAtoB[GenericAstNode, DeclarationContent] = astNodeToAst andThen AstToDeclarationContent.astToDeclarationContent
+  implicit val astNodeToOutputsSectionElement: CheckedAtoB[GenericAstNode, OutputsSectionElement] = astNodeToAst andThen AstToOutputsSectionElement.astToOutputSectionElement
+
+  val astToWorkflowGraphNodeElementConverterMaker = new AstToWorkflowGraphNodeElementConverterMaker()
+  implicit val astNodeToGraphElement: CheckedAtoB[GenericAstNode, WorkflowGraphElement] = astNodeToAst andThen astToWorkflowGraphNodeElementConverterMaker.converter
+  implicit val astNodeToCallElement: CheckedAtoB[GenericAstNode, CallElement] = astNodeToAst andThen AstToCallElement.astToCallElement
+  implicit val astNodeToScatterElement: CheckedAtoB[GenericAstNode, ScatterElement] = astNodeToAst andThen AstToScatterElement.astToScatterElement
+  implicit val astNodeToIfElement: CheckedAtoB[GenericAstNode, IfElement] = astNodeToAst andThen AstToIfElement.astToIfElement
+  astToWorkflowGraphNodeElementConverterMaker.astNodeToScatterElement = Some(astNodeToScatterElement)
+  astToWorkflowGraphNodeElementConverterMaker.astNodeToIfElement = Some(astNodeToIfElement)
+  astToWorkflowGraphNodeElementConverterMaker.astNodeToCallElement = Some(astNodeToCallElement)
+  astToWorkflowGraphNodeElementConverterMaker.astNodeToDeclarationContent = Some(astNodeToDeclarationContent)
+
+  implicit val astNodeToWorkflowBodyElement: CheckedAtoB[GenericAstNode, WorkflowBodyElement] = astNodeToAst andThen AstToWorkflowBodyElement.astToWorkflowBodyElement
+  implicit val astToWorkflowDefinitionElement: CheckedAtoB[GenericAst, WorkflowDefinitionElement] = AstToWorkflowDefinitionElement.astToWorkflowDefinitionElement
+
+  implicit val astNodeToPlaceholderAttributeSet: CheckedAtoB[GenericAstNode, PlaceholderAttributeSet] = astNodeToAstList andThen AstNodeToPlaceholderAttributeSet.attributeKvpConverter
+  implicit val astNodeToCommandPartElement: CheckedAtoB[GenericAstNode, CommandPartElement] = AstNodeToCommandPartElement.astNodeToCommandPartElement
+  implicit val astNodeToCommandSectionElement: CheckedAtoB[GenericAstNode, CommandSectionElement] = astNodeToAst andThen AstToCommandSectionElement.astToCommandSectionElement
+  implicit val astNodeToRuntimeAttributesSectionElement: CheckedAtoB[GenericAstNode, RuntimeAttributesSectionElement] = astNodeToAst andThen AstToRuntimeAttributesSectionElement.astToRuntimeSectionElement
+  implicit val astNodeToTaskSectionElement: CheckedAtoB[GenericAstNode, TaskSectionElement] = astNodeToAst andThen AstToTaskSectionElement.astToTaskSectionElement
+  implicit val astToTaskDefinitionElement: CheckedAtoB[GenericAst, TaskDefinitionElement] = AstToTaskDefinitionElement.astToTaskDefinitionElement
+
+  implicit val astToFileBodyElement: CheckedAtoB[GenericAstNode, FileBodyElement] = astNodeToAst andThen AstToFileBodyElement.astToFileBodyElement(astToWorkflowDefinitionElement, astToTaskDefinitionElement, astToStructElement)
+
+  implicit val astToFileElement: CheckedAtoB[GenericAst, FileElement] = AstToFileElement.astToFileElement
+  implicit val fileToFileElement: CheckedAtoB[File, FileElement] = fileToAst andThen wrapAst andThen astToFileElement
+
 }

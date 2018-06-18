@@ -1,0 +1,13 @@
+package wdl.transforms.base
+
+import common.transforms.CheckedAtoB
+import wdl.transforms.base.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
+import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
+import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
+import wom.executable.WomBundle
+
+package object wdlom2wom {
+  val taskDefinitionElementToWomTaskDefinition: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition] = CheckedAtoB.fromErrorOr(TaskDefinitionElementToWomTaskDefinition.convert)
+  val workflowDefinitionElementToWomWorkflowDefinition: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = CheckedAtoB.fromErrorOr(WorkflowDefinitionElementToWomWorkflowDefinition.convert)
+  val fileElementToWomBundle: CheckedAtoB[FileElementToWomBundleInputs, WomBundle] = CheckedAtoB.fromCheck(FileElementToWomBundle.convert)
+}

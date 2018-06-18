@@ -7,9 +7,10 @@ import common.transforms.CheckedAtoB
 import org.scalatest.{Assertion, FlatSpec, Matchers, Succeeded}
 import wdl.draft3.transforms.parsing._
 import wdl.draft3.transforms.ast2wdlom._
-import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
+import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
+import wdl.transforms.base.wdlom2wom._
 import wom.callable.Callable.{FixedInputDefinition, OptionalInputDefinition}
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
@@ -39,7 +40,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     }
 
     testOrIgnore {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
 
       converter.run(testCase) match {
         case Right(bundle) => validators(testName).apply(bundle)

@@ -7,15 +7,13 @@ import common.collections.EnhancedCollections.EnhancedTraversableLike
 import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import shapeless.{Inl, Inr}
-import wdl.draft2.model.WdlWomExpression
-import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
 import wdl.model.draft3.elements.ExpressionElement.ExpressionLiteralElement
 import wom.callable.MetaValueElement.MetaValueElementString
 import wom.RuntimeAttributes
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
-import wom.expression.{ValueAsAnExpression, WomExpression}
+import wom.expression.WomExpression
 import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph._
@@ -273,12 +271,8 @@ object WomToWdlomImpl {
 
   implicit val womExpressionToExpressionElement: WomToWdlom[WomExpression, ExpressionElement] = new WomToWdlom[WomExpression, ExpressionElement] {
     override def toWdlom(a: WomExpression): ExpressionElement = a match {
-      case _: WdlomWomExpression => throw UnrepresentableException
-      case a: WdlWomExpression => ExpressionLiteralElement(a.sourceString)
-      case _: ValueAsAnExpression => throw UnrepresentableException
-      case _: PlainAnonymousExpressionNode => throw UnrepresentableException
-      case _: TaskCallInputExpressionNode => throw UnrepresentableException
-      case _: ExposedExpressionNode => throw UnrepresentableException
+      case a: WomExpression => ExpressionLiteralElement(a.sourceString)
+      case _ => throw UnrepresentableException
     }
   }
 
@@ -296,7 +290,7 @@ object WomToWdlomImpl {
           case _: RequiredGraphInputNode => None // TODO: questionable
         }
         // Input definitions that directly contain expressions are the result of accepting a default input defined by the callable
-        case Inr(Inl(_: WdlWomExpression)) => None
+        case Inr(Inl(_: WomExpression)) => None
         case Inr(_) =>
           throw UnrepresentableException
         case _ =>

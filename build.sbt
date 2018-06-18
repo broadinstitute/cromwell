@@ -109,7 +109,6 @@ lazy val centaur = project
   .dependsOn(cromwellApiClient)
   .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)
-  .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft3)
 
 lazy val services = project

@@ -6,9 +6,9 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
+import cromwell.core.path
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
-import wdl.draft2.model.WdlNamespace
-import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers.wdlDraft2NamespaceWomBundleMaker
 
 @DoNotDiscover
 abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends FlatSpec with Matchers {
@@ -47,24 +47,17 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     executeStandardTest(upgradeTestWdl(testCase))
 
   private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
-    val draft2Wdl = WdlNamespace.loadUsingSource(
-      testCase.workflow.data.workflowContent,
-      None,
-      Some(Seq(WdlNamespace.fileResolver))
-    ).get
+    import womtool.WomtoolMain
 
-    val bundle = wdlDraft2NamespaceWomBundleMaker.toWomBundle(draft2Wdl).right.get
-
-    import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
-    import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
-    import womtool.wom2wdlom.WomToWdlom.ops._
-    import womtool.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
+    // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
+    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
+    val upgradeResult = WomtoolMain.upgrade(tempFile.pathAsString)
 
     testCase.copy(
       workflow = testCase.workflow.copy(
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
-          workflowContent = bundle.toWdlom.toWdlV1)))
+          workflowContent = upgradeResult.stdout.get)))
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Any): Unit = {

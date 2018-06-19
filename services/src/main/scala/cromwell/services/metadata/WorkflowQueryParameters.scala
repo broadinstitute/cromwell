@@ -20,7 +20,8 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            endDate: Option[OffsetDateTime],
                                            page: Option[Int],
                                            pageSize: Option[Int],
-                                           additionalQueryResultFields: Set[String])
+                                           additionalQueryResultFields: Set[String],
+                                           includeSubworkflows: Boolean)
 
 object WorkflowQueryParameters {
 
@@ -74,6 +75,7 @@ object WorkflowQueryParameters {
     val pageValidation = Page.validate(valuesByCanonicalCapitalization)
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
     val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val includeSubworkflowsValidation = IncludeSubworkflows.validate(valuesByCanonicalCapitalization)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
@@ -100,10 +102,11 @@ object WorkflowQueryParameters {
       endDateValidation,
       pageValidation,
       pageSizeValidation,
-      additionalQueryResultFieldsValidation
+      additionalQueryResultFieldsValidation,
+      includeSubworkflowsValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields)
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows) =>
+        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows)
     }
   }
 

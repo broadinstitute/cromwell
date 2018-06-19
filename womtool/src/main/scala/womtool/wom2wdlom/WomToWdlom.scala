@@ -1,4 +1,4 @@
-package wdl.draft3.transforms.wom2wdlom
+package womtool.wom2wdlom
 
 trait WomToWdlom[A, B] {
   def toWdlom(a: A): B

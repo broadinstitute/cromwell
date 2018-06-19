@@ -1,4 +1,4 @@
-package wdl.draft3.transforms.wom2wdlom
+package womtool.wom2wdlom
 
 import cats.data.Validated.Valid
 import wdl.model.draft3.elements._

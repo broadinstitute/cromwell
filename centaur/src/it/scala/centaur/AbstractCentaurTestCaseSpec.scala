@@ -57,8 +57,8 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
     import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
     import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
-    import wdl.draft3.transforms.wom2wdlom.WomToWdlom.ops._
-    import wdl.draft3.transforms.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
+    import womtool.wom2wdlom.WomToWdlom.ops._
+    import womtool.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
 
     testCase.copy(
       workflow = testCase.workflow.copy(

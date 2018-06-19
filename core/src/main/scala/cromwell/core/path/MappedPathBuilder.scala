@@ -28,4 +28,6 @@ case class MappedPath(prefix: String, mappedRoot: NioPath, nioPath: NioPath) ext
   override def pathWithoutScheme: String = mappedRoot.relativize(nioPath).toString
 
   def prefixedPathAsString: String = prefix + pathWithoutScheme
+
+  override def requesterPays = false
 }

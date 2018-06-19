@@ -27,7 +27,7 @@ object CentaurCromwellClient {
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
   final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
-    Executors.newCachedThreadPool(DaemonizedDefaultThreadFactory))
+    Executors.newFixedThreadPool(20, DaemonizedDefaultThreadFactory))
 
   // Akka HTTP needs both the actor system and a materializer
   final implicit val system = ActorSystem("centaur-acting-like-a-system")

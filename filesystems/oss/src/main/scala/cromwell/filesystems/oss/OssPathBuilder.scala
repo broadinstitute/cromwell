@@ -132,4 +132,6 @@ final case class OssPath private[oss](nioPath: NioPath) extends Path {
     case ossPath: OssStoragePath => ossPath
     case _ => throw new RuntimeException(s"Internal path was not a cloud storage path: $nioPath")
   }
+
+  override def requesterPays = false
 }

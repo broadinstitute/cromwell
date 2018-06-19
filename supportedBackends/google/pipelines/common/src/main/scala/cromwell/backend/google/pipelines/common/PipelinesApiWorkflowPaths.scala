@@ -10,7 +10,9 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies
 
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 object PipelinesApiWorkflowPaths {
@@ -22,8 +24,7 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
                                      gcsCredentials: Credentials,
                                      genomicsCredentials: Credentials,
                                      papiConfiguration: PipelinesApiConfiguration,
-                                     override val pathBuilders: PathBuilders) extends WorkflowPaths {
-
+                                     override val pathBuilders: PathBuilders)(implicit ec: ExecutionContext) extends WorkflowPaths {
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(PipelinesApiWorkflowPaths.GcsRootOptionKey, papiConfiguration.root)
 
@@ -44,7 +45,9 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
       RetrySettings.newBuilder().build(),
       GcsStorage.DefaultCloudStorageConfiguration,
       workflowOptions,
-      Option(papiConfiguration.jesAttributes.project)
+      Option(papiConfiguration.jesAttributes.project),
+      // This is only used for Pipelines V1, no need to go out of our way to support requester pays there, so use the static default
+      GcsBucketInformationPolicies.Default
     )
 
     val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover {

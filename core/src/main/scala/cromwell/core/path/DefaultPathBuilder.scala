@@ -58,4 +58,6 @@ case class DefaultPath private[path](nioPath: NioPath) extends Path {
   override def pathAsString: String = nioPath.toString
 
   override def pathWithoutScheme: String = nioPath.toAbsolutePath.toString
+
+  override def requesterPays = false
 }

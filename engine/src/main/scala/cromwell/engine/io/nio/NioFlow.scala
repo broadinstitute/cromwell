@@ -1,6 +1,6 @@
 package cromwell.engine.io.nio
 
-import java.io.{IOException, InputStream}
+import java.io._
 import java.nio.charset.StandardCharsets
 
 import akka.actor.{ActorSystem, Scheduler}
@@ -15,6 +15,7 @@ import cromwell.util.TryWithResource._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Codec
+import scala.util.Failure
 
 object NioFlow {
   def NoopOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
@@ -41,7 +42,7 @@ class NioFlow(parallelism: Int,
       case failure => Future.successful(commandContext.fail(failure))
     }
   }
-  
+
   private [nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]) = {
     ioSingleCommand match {
       case copyCommand: IoCopyCommand => copy(copyCommand) map copyCommand.success
@@ -68,7 +69,7 @@ class NioFlow(parallelism: Int,
 
   private def write(write: IoWriteCommand) = Future {
     createDirectoriesForSFSPath(write.file)
-    write.file.write(write.content)(write.openOptions, Codec.UTF8)
+    write.file.writeContent(write.content)(write.openOptions, Codec.UTF8)
     ()
   }
 
@@ -77,20 +78,11 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readBytes(read: IoContentAsStringCommand, limit: Int, inputStream: InputStream) : String = {
-    // Take 1 more than the limit so that we can look at the size and know if it's overflowing
-    val bytesArray = Iterator.continually(inputStream.read).takeWhile(_ != -1).map(_.toByte).take(limit + 1).toArray
-    if (read.options.failOnOverflow && bytesArray.length > limit)
-      throw new IOException(s"File ${read.file.pathAsString} is larger than $limit Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
-    else
-      new String(bytesArray.take(limit), StandardCharsets.UTF_8)
-  }
-
-  private def readAsString(read: IoContentAsStringCommand) = {
-    read.options.maxBytes match {
-      case Some(limit) => Future(tryWithResource(() => read.file.mediaInputStream)(inputStream => readBytes(read, limit, inputStream)).get)
-      case _ => Future(read.file.readContentAsString)
-    }
+  private def readAsString(read: IoContentAsStringCommand) = Future {
+    new String(
+      limitFileContent(read.file, read.options.maxBytes, read.options.failOnOverflow),
+      StandardCharsets.UTF_8
+    )
   }
 
   private def size(size: IoSizeCommand) = Future {
@@ -117,9 +109,11 @@ class NioFlow(parallelism: Int,
   }
 
   private def readLines(exists: IoReadLinesCommand) = Future {
-    exists.file.readAllLinesInFile
+    withReader(exists.file) { reader =>
+      Stream.continually(reader.readLine()).takeWhile(_ != null).toList
+    }
   }
-  
+
   private def isDirectory(isDirectory: IoIsDirectoryCommand) = Future {
     isDirectory.file.isDirectory
   }
@@ -127,5 +121,33 @@ class NioFlow(parallelism: Int,
   private def createDirectoriesForSFSPath(path: Path) = path match {
     case _: DefaultPath => path.parent.createDirectories()
     case _ =>
+  }
+
+  /*
+   * The input stream will be closed when this method returns, which means the f function
+   * cannot leak an open stream.
+   */
+  private def withReader[A](file: Path)(f: BufferedReader => A): A = {
+    // Use an input reader to convert the byte stream to character stream. Buffered reader for efficiency.
+    tryWithResource(() => new BufferedReader(new InputStreamReader(file.mediaInputStream, Codec.UTF8.name)))(f).recoverWith({
+      case failure => Failure(new IOException(s"Failed to open an input stream for ${file.pathAsString}: ${failure.getMessage}", failure))
+    }).get
+  }
+
+  /**
+    * Returns an Array[Byte] from a Path. Limit the array size to "limit" byte if defined.
+    * @throws IOException if failOnOverflow is true and the file is larger than limit
+    */
+  private def limitFileContent(file: Path, limit: Option[Int], failOnOverflow: Boolean) = withReader(file) { reader =>
+    val bytesIterator = Iterator.continually(reader.read).takeWhile(_ != -1).map(_.toByte)
+    // Take 1 more than the limit so that we can look at the size and know if it's overflowing
+    val bytesArray = limit.map(l => bytesIterator.take(l + 1)).getOrElse(bytesIterator).toArray
+
+    limit match {
+      case Some(l) if failOnOverflow && bytesArray.length > l =>
+        throw new IOException(s"File $file is larger than $l Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
+      case Some(l) => bytesArray.take(l)
+      case _ => bytesArray
+    }
   }
 }

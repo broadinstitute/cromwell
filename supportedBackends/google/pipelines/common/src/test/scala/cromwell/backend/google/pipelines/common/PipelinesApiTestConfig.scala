@@ -76,7 +76,7 @@ object PipelinesApiTestConfig {
        |
        |filesystems {
        |  gcs {
-       |    class = "cromwell.filesystems.gcs.GcsPathBuilderFactory"
+       |    class = "cromwell.filesystems.gcs.MockGcsPathBuilderFactory"
        |  }
        |}
        |

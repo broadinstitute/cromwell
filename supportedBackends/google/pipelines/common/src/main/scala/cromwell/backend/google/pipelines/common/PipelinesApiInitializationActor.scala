@@ -5,6 +5,7 @@ import com.google.auth.Credentials
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.core.Dispatcher
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -30,6 +31,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   override lazy val ioActor = pipelinesParams.ioActor
   protected val jesConfiguration = pipelinesParams.jesConfiguration
   protected val workflowOptions = workflowDescriptor.workflowOptions
+  private lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
@@ -51,7 +53,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     gcsCred <- gcsCredentials
     genomicsCred <- genomicsCredentials
     validatedPathBuilders <- pathBuilders
-  } yield new PipelinesApiWorkflowPaths(workflowDescriptor, gcsCred, genomicsCred, jesConfiguration, validatedPathBuilders)
+  } yield new PipelinesApiWorkflowPaths(workflowDescriptor, gcsCred, genomicsCred, jesConfiguration, validatedPathBuilders)(ioEc)
 
   override lazy val initializationData: Future[PipelinesApiBackendInitializationData] = for {
     jesWorkflowPaths <- workflowPaths

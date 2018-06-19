@@ -4,6 +4,7 @@ import common.util.StringUtil._
 import cromwell.core.path.Path
 import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
+import cromwell.filesystems.gcs.GcsPathBuilder._
 
 import scala.concurrent.duration._
 
@@ -40,7 +41,7 @@ object ActionCommands {
     */
   def delocalizeFile(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
     val contentTypeFlag = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
-    s"gsutil $contentTypeFlag cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
+    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} $contentTypeFlag cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
   }
 
   /**
@@ -49,7 +50,7 @@ object ActionCommands {
     */
   def delocalizeFileTo(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
     val contentTypeFlag = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
-    s"gsutil $contentTypeFlag cp ${containerPath.escape} ${cloudPath.escape}"
+    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} $contentTypeFlag cp ${containerPath.escape} ${cloudPath.escape}"
   }
 
   def ifExist(containerPath: Path)(f: => String) = s"if [[ -e ${containerPath.escape} ]]; then $f; fi"
@@ -65,10 +66,10 @@ object ActionCommands {
   }
 
   def localizeDirectory(cloudPath: Path, containerPath: Path) = retry {
-    s"${containerPath |> makeContainerDirectory} && gsutil -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
+    s"${containerPath |> makeContainerDirectory} && gsutil ${cloudPath.requesterPaysGSUtilFlag} -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
   }
 
   def localizeFile(cloudPath: Path, containerPath: Path) = retry {
-    s"gsutil cp ${cloudPath.escape} ${containerPath.escape}"
+    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} cp ${cloudPath.escape} ${containerPath.escape}"
   }
 }

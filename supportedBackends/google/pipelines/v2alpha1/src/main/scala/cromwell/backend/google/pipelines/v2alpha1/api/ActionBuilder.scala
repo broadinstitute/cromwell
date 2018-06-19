@@ -58,8 +58,8 @@ object ActionBuilder {
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
   }
 
-  def gsutilAsText(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {
-    gsutil(List("-h", ContentTypeTextHeader) ++ command.toList: _*)(mounts, flags)
+  def gsutilAsText(command: List[String])(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {
+    gsutil(List("-h", ContentTypeTextHeader) ++ command: _*)(mounts, flags)
   }
 
   def gsutil(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {

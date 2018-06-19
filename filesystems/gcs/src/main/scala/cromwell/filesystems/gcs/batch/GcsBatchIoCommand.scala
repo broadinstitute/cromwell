@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
 /**
   * NOTE: the setUserProject commented out code disables uses of requester pays bucket
   * To re-enable, uncomment the code (and possibly adjust if necessary)
-  * 
+  *
   * Io commands with GCS paths and some logic enabling batching of request.
   * @tparam T Return type of the IoCommand
   * @tparam U Return type of the Google response
@@ -47,20 +47,21 @@ sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
 }
 
 case class GcsBatchCopyCommand(
-                           override val source: GcsPath,
-                           override val destination: GcsPath,
-                           override val overwrite: Boolean,
-                           rewriteToken: Option[String] = None
-                         ) extends IoCopyCommand(source, destination, overwrite) with GcsBatchIoCommand[Unit, RewriteResponse] {
+                                override val source: GcsPath,
+                                override val destination: GcsPath,
+                                override val overwrite: Boolean,
+                                rewriteToken: Option[String] = None
+                              ) extends IoCopyCommand(source, destination, overwrite) with GcsBatchIoCommand[Unit, RewriteResponse] {
   val sourceBlob = source.blob
   val destinationBlob = destination.blob
-  
+
   override def operation: StorageRequest[RewriteResponse] = {
     val rewriteOperation = source.apiStorage.objects()
       .rewrite(sourceBlob.getBucket, sourceBlob.getName, destinationBlob.getBucket, destinationBlob.getName, null)
-      // .setUserProject(source.projectId)
+      .setUserProject(source.requesterPaysProject)
+
     // Set the rewrite token if present
-    rewriteToken foreach rewriteOperation.setRewriteToken 
+    rewriteToken foreach rewriteOperation.setRewriteToken
     rewriteOperation
   }
 
@@ -68,14 +69,14 @@ case class GcsBatchCopyCommand(
     * Clone this command with the give rewrite token
     */
   def withRewriteToken(rewriteToken: String) = copy(rewriteToken = Option(rewriteToken))
-  
+
   override def onSuccess(response: RewriteResponse, httpHeaders: HttpHeaders) = {
     if (response.getDone) super.onSuccess(response, httpHeaders)
     else {
       Right(withRewriteToken(response.getRewriteToken))
     }
   }
-  
+
   override def mapGoogleResponse(response: RewriteResponse): Unit = ()
 }
 
@@ -84,7 +85,9 @@ case class GcsBatchDeleteCommand(
                                   override val swallowIOExceptions: Boolean
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with GcsBatchIoCommand[Unit, Void] {
   private val blob = file.blob
-  def operation = file.apiStorage.objects().delete(blob.getBucket, blob.getName) //.setUserProject(file.projectId)
+  def operation = {
+    file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(file.requesterPaysProject)
+  }
   override protected def mapGoogleResponse(response: Void): Unit = ()
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     if (swallowIOExceptions) Option(Left(())) else None
@@ -97,7 +100,9 @@ case class GcsBatchDeleteCommand(
 sealed trait GcsBatchGetCommand[T] extends GcsBatchIoCommand[T, StorageObject] {
   def file: GcsPath
   private val blob = file.blob
-  override def operation: StorageRequest[StorageObject] = file.apiStorage.objects().get(blob.getBucket, blob.getName) //.setUserProject(file.projectId)
+  override def operation: StorageRequest[StorageObject] = {
+    file.apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(file.requesterPaysProject)
+  }
 }
 
 case class GcsBatchSizeCommand(override val file: GcsPath) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
@@ -120,7 +125,7 @@ case class GcsBatchTouchCommand(override val file: GcsPath) extends IoTouchComma
 case class GcsBatchIsDirectoryCommand(override val file: GcsPath) extends IoIsDirectoryCommand(file) with GcsBatchIoCommand[Boolean, Objects] {
   private val blob = file.blob
   override def operation: StorageRequest[Objects] = {
-    file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L)
+    file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L).setUserProject(file.requesterPaysProject)
   }
   override def mapGoogleResponse(response: Objects): Boolean = {
     // Wrap in an Option because getItems can (always ?) return null if there are no objects

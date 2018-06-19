@@ -11,5 +11,5 @@ metadata {
     workflowName: missing_input_failure
     status: Failed
     "failures.0.message": "Workflow failed"
-    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: java.nio.file.NoSuchFileException: gs://nonexistingbucket/path/doesnt/exist"
+    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: java.io.IOException: Failed to open an input stream for gs://nonexistingbucket/path/doesnt/exist: 404 Not Found\nNot Found"
 }

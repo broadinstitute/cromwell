@@ -4,6 +4,8 @@ import java.io.InputStream
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
+import better.files.File.OpenOptions
+
 import scala.collection.JavaConverters._
 import scala.io.Codec
 
@@ -87,7 +89,5 @@ trait EvenBetterPathMethods {
 
   def mediaInputStream: InputStream = newInputStream
 
-  def readContentAsString(implicit codec: Codec): String = contentAsString
-
-  def readAllLinesInFile(implicit codec: Codec): Traversable[String] = lines
+  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec): this.type = write(content)(openOptions, Codec.UTF8)
 }

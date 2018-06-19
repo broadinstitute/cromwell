@@ -418,6 +418,12 @@ paths:
           collectionFormat: multi
           description: >
             Includes the specified keys in the metadata for the returned workflows.
+        - name : includeSubworkflows
+          required: false
+          type: boolean
+          format: boolean
+          in: query
+          description: Include subworkflows in results. By default, it is taken as true.
       tags:
         - Workflows
       responses:
@@ -859,6 +865,10 @@ definitions:
         description: >
           Returns only workflows with the specified workflow id.  If specified multiple times,
           returns workflows with any of the specified workflow ids.
+      includeSubworkflows:
+        type: string
+        format: boolean
+        description: Include subworkflows in results. By default, it is taken as true.
   WorkflowQueryResponse:
     description: Response to a workflow query
     required:

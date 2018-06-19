@@ -337,6 +337,12 @@ object WdlNamespace {
       error <- validateDeclaration(declaration, wdlSyntaxErrorFormatter) if parentIsNotAWorkflowCall(declaration)
     } yield error
 
+    val runtimeErrors = for {
+      task <- namespace.tasks
+      runtime <- task.runtimeAttributes.attrs
+      error <- validateRuntime(runtime._2, task, wdlSyntaxErrorFormatter)
+    } yield error
+
     val scatterErrors = for {
       scatter <- namespace.descendants.collect { case sc: Scatter => sc }
       expression = scatter.collection
@@ -384,7 +390,7 @@ object WdlNamespace {
       if !task.declarations.map(_.unqualifiedName).contains(variable.terminal.getSourceString)
     } yield new SyntaxError(wdlSyntaxErrorFormatter.commandExpressionContainsInvalidVariableReference(task.ast.getAttribute("name").asInstanceOf[Terminal], variable.terminal))
 
-    val all = workflowOutputErrors ++ declarationErrors ++ scatterErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
+    val all = workflowOutputErrors ++ declarationErrors ++ runtimeErrors ++ scatterErrors ++ callInputSectionErrors ++ taskCommandReferenceErrors ++ duplicateSiblingScopeNameErrors
 
     all.sortWith({ case (l, r) => l.getMessage < r.getMessage }) match {
       case s: Seq[SyntaxError] if s.nonEmpty => throw s.head
@@ -422,6 +428,14 @@ object WdlNamespace {
     val typeMismatches = typeCheckDeclaration(declaration, wdlSyntaxErrorFormatter).toSeq
 
     invalidVariableReferences ++ typeMismatches
+  }
+
+  private def validateRuntime(attributeExpression: WdlExpression, task: WdlTask, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter): Seq[SyntaxError] = {
+    val invalidVariableReferences = for {
+      variable <- referencesToAbsentValues(task, attributeExpression)
+    } yield new SyntaxError(wdlSyntaxErrorFormatter.declarationContainsReferenceToAbsentValue(Option(task), variable))
+
+    invalidVariableReferences.toSeq
   }
 
   private [wdl] def lookupType(from: Scope)(n: String): WomType = {

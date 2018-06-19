@@ -1,6 +1,11 @@
 package wdl.model.draft3.graph
 
-sealed trait UnlinkedConsumedValueHook
+sealed trait UnlinkedConsumedValueHook {
+  def linkString: String = this match {
+    case UnlinkedIdentifierHook(name: String) => name
+    case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(name, firstLookup) => s"$name.$firstLookup"
+  }
+}
 
 final case class UnlinkedIdentifierHook(name: String) extends UnlinkedConsumedValueHook
 

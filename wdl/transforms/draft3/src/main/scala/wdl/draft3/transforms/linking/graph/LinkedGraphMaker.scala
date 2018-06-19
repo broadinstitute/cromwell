@@ -81,10 +81,11 @@ object LinkedGraphMaker {
         case handle if isMatch(consumedValueHook, handle) => handle
       } match {
         case Some(foundHandle) => (consumedValueHook -> foundHandle).validNel
-        case None => s"No generated value handle found for consumed value '$consumedValueHook'".invalidNel
+        case None =>
+          val didYouMean = availableHandles.map(h => s"'${h.linkableName}'").mkString("[", ", ", "]")
+          s"Value '${consumedValueHook.linkString}' is never declared. Available values are: $didYouMean".invalidNel
       }
     }
-
 
     consumedValues.toList.traverse { findHandle } map {_.toMap}
 

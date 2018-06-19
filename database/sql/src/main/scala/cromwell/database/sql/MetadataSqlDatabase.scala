@@ -80,6 +80,8 @@ trait MetadataSqlDatabase {
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
+                             excludeLabelAndValues: Set[(String,String)],
+                             excludeLabelOrValues: Set[(String,String)],
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
@@ -91,6 +93,8 @@ trait MetadataSqlDatabase {
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
+                             excludeLabelAndValues: Set[(String,String)],
+                             excludeLabelOrValues: Set[(String,String)],
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp])

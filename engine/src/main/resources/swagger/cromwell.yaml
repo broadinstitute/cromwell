@@ -382,6 +382,32 @@ paths:
             returns workflows with any of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
+        - name: excludeLabelAnd
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Excludes workflows with the specified label keys.  If specified multiple times,
+            excludes workflows with all of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
+        - name: excludeLabelOr
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Excludes workflows with the specified label keys.  If specified multiple times,
+            excludes workflows with any of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
         - name: additionalQueryResultFields
           required: false
           in: query
@@ -813,6 +839,24 @@ definitions:
         description: >
           Returns only workflows with the specified workflow id.  If specified multiple times,
           returns workflows with any of the specified workflow ids.
+      excludeLabelAnd:
+        type: string
+        format: array
+        pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+        description: >
+          Excludes workflows with the specified label keys.  If specified multiple times,
+          excludes workflows with all of the specified label keys. Specify the label key
+          and label value pair as separated with
+          "label-key:label-value"
+      excludeLabelOr:
+        type: string
+        format: array
+        pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+        description: >
+          Excludes workflows with the specified label keys.  If specified multiple times,
+          excludes workflows with any of the specified label keys. Specify the label key
+          and label value pair as separated with
+          "label-key:label-value"
       includeSubworkflows:
         type: string
         format: boolean

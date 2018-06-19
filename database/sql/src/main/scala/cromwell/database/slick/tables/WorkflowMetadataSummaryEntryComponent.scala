@@ -92,6 +92,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         reduceLeftOption(_ || _)
       val labelsAndFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelAndKeyValues, _ && _)
       val labelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelOrKeyValues, _ || _)
+//      val excludeLabelsFilter = excludeWorkflowLabels(workflowMetadataSummaryEntry, labelAndKeyValues, _ && _)
+//      val excludeLabelsOrFilter = excludeWorkflowLabels(workflowMetadataSummaryEntry, labelOrKeyValues, _ || _)
       // Put all the optional filters above together in one place.
       val optionalFilters: List[Option[Rep[Boolean]]] = List(
         workflowNameFilter,
@@ -126,6 +128,15 @@ trait WorkflowMetadataSummaryEntryComponent {
       })
       .reduceLeftOption(op)
   }
+
+//  private def excludeWorkflowLabels(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntries,
+//                                    labelKeyValues: Set[(String, String)],
+//                                    op: (Rep[Boolean], Rep[Boolean]) => Rep[Boolean]): Option[Rep[Boolean]] = {
+//    existsWorkflowLabels(workflowMetadataSummaryEntry, labelKeyValues, op) match {
+//      case Some(v) => Some(!v)
+//      case _ => None
+//    }
+//  }
 
   def countWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
                                           workflowExecutionUuids: Set[String],

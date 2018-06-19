@@ -23,6 +23,11 @@ google {
       json-file = ${?GOOGLE_SERVICE_ACCOUNT_JSON}
     }
     {
+      name = "requester_pays_service_account"
+      scheme = "service_account"
+      json-file = ${?GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS}
+    }
+    {
       name = "refresh_token"
       scheme = "refresh_token"
       client-id = "{{$cromwellRefreshToken.Data.client_id}}"

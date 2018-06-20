@@ -31,7 +31,7 @@ object WomToWdlomImpl {
 
   import WomToWdlom.ops._
 
-  val graphOutputNodeToWorkflowGraphElement: CheckedAtoB[GraphOutputNode, WorkflowGraphElement] =
+  def graphOutputNodeToWorkflowGraphElement: CheckedAtoB[GraphOutputNode, WorkflowGraphElement] =
     CheckedAtoB.fromCheck { a: GraphOutputNode => a match {
       case a: ExpressionBasedGraphOutputNode =>
         OutputDeclarationElement(
@@ -57,16 +57,14 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val mapToMetaSectionElement: WomToWdlom[Map[String, String], Option[MetaSectionElement]] =
-    new WomToWdlom[Map[String, String], Option[MetaSectionElement]] {
-      override def toWdlom(a: Map[String, String]): Option[MetaSectionElement] = {
-        if (a.nonEmpty)
-          Some(MetaSectionElement(a map { case (key, value) =>
-            key -> MetaValueElementString(value) // draft-2: strings only
-          }))
-        else
-          None
-      }
+  def mapToMetaSectionElement: CheckedAtoB[Map[String, String], Option[MetaSectionElement]] =
+    CheckedAtoB.fromCheck {a: Map[String, String] =>
+      if (a.nonEmpty)
+        Some(MetaSectionElement(a map { case (key, value) =>
+          key -> MetaValueElementString(value) // draft-2: strings only
+        })).validNelCheck
+      else
+        None.validNelCheck
     }
 
   implicit val mapToParameterMetaSectionElement: WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] =
@@ -81,19 +79,17 @@ object WomToWdlomImpl {
       }
     }
 
-  implicit val runtimeAttributesToRuntimeAttributesSectionElement: WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] =
-    new WomToWdlom[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] {
-      override def toWdlom(a: RuntimeAttributes): Option[RuntimeAttributesSectionElement] = {
-        def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
-          ExpressionElement.KvPair(tuple._1, tuple._2.toWdlom)
+  def runtimeAttributesToRuntimeAttributesSectionElement: CheckedAtoB[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] =
+    CheckedAtoB.fromCheck { a: RuntimeAttributes =>
+      def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
+        ExpressionElement.KvPair(tuple._1, tuple._2.toWdlom)
 
-        val kvPairs = (a.attributes map tupleToKvPair).toVector
+      val kvPairs = (a.attributes map tupleToKvPair).toVector
 
-        if (kvPairs.nonEmpty)
-          Some(RuntimeAttributesSectionElement(kvPairs))
-        else
-          None
-      }
+      if (kvPairs.nonEmpty)
+        Some(RuntimeAttributesSectionElement(kvPairs)).validNelCheck
+      else
+        None.validNelCheck
     }
 
   implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] =
@@ -143,8 +139,8 @@ object WomToWdlomImpl {
           Seq.empty, // No such thing in draft-2
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
           CommandSectionElement(Seq(commandLine)),
-          a.runtimeAttributes.toWdlom,
-          mapToMetaSectionElement.toWdlom(a.meta),
+          runtimeAttributesToRuntimeAttributesSectionElement.run(a.runtimeAttributes).getOrElse(???),
+          mapToMetaSectionElement.run(a.meta).getOrElse(???),
           mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
         )
       }
@@ -164,13 +160,13 @@ object WomToWdlomImpl {
           if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
           selectWdlomRepresentableNodes(a.graph.nodes).map(_.toWdlom),
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
-          mapToMetaSectionElement.toWdlom(a.meta),
+          mapToMetaSectionElement.run(a.meta).getOrElse(???),
           mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
         )
       }
     }
 
-  implicit val expressionNodeLikeToWorkflowGraphElement: CheckedAtoB[ExpressionNodeLike, WorkflowGraphElement] =
+  def expressionNodeLikeToWorkflowGraphElement: CheckedAtoB[ExpressionNodeLike, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
       case a: ExpressionNode =>
         IntermediateValueDeclarationElement(
@@ -278,7 +274,7 @@ object WomToWdlomImpl {
     }
   }
 
-  val inputDefinitionPointerToExpressionElement: CheckedAtoB[InputDefinitionPointer, Option[ExpressionElement]] =
+  def inputDefinitionPointerToExpressionElement: CheckedAtoB[InputDefinitionPointer, Option[ExpressionElement]] =
     CheckedAtoB.fromCheck {
       // If the input definition is a node containing an expression, it's been declared explicitly
       case Inl(a: GraphNodeOutputPort) => a.graphNode match {
@@ -298,7 +294,7 @@ object WomToWdlomImpl {
         invalidFromString(a.toString)
     }
 
-  val callNodeToCallElement: CheckedAtoB[CallNode, CallElement] =
+  def callNodeToCallElement: CheckedAtoB[CallNode, CallElement] =
     CheckedAtoB.fromCheck { call: CallNode =>
       def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): Option[ExpressionElement.KvPair] = {
         inputDefinitionPointerToExpressionElement.run(tuple._2).getOrElse(???) match {

@@ -35,7 +35,7 @@ object WomToWdlomImpl {
     CheckedAtoB.fromCheck { a: GraphOutputNode => a match {
       case a: ExpressionBasedGraphOutputNode =>
         OutputDeclarationElement(
-          a.womType.toWdlom,
+          womTypeToTypeElement.run(a.womType).getOrElse(???),
           a.identifier.localName.value,
           a.womExpression.toWdlom).validNelCheck
       case _ =>
@@ -66,16 +66,14 @@ object WomToWdlomImpl {
         None.validNelCheck
     }
 
-  implicit val mapToParameterMetaSectionElement: WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] =
-    new WomToWdlom[Map[String, String], Option[ParameterMetaSectionElement]] {
-      override def toWdlom(a: Map[String, String]): Option[ParameterMetaSectionElement] = {
-        if (a.nonEmpty)
-          Some(ParameterMetaSectionElement(a map { case (key, value) =>
-            key -> MetaValueElementString(value) // draft-2: strings only
-          }))
-        else
-          None
-      }
+  def mapToParameterMetaSectionElement: CheckedAtoB[Map[String, String], Option[ParameterMetaSectionElement]] =
+    CheckedAtoB.fromCheck { a: Map[String, String] =>
+      if (a.nonEmpty)
+        Some(ParameterMetaSectionElement(a map { case (key, value) =>
+          key -> MetaValueElementString(value) // draft-2: strings only
+        })).validNelCheck
+      else
+        None.validNelCheck
     }
 
   def runtimeAttributesToRuntimeAttributesSectionElement: CheckedAtoB[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] =
@@ -94,16 +92,16 @@ object WomToWdlomImpl {
   implicit val outputDefinitionToOutputDeclarationElement: WomToWdlom[OutputDefinition, OutputDeclarationElement] =
     new WomToWdlom[OutputDefinition, OutputDeclarationElement] {
       override def toWdlom(a: OutputDefinition): OutputDeclarationElement =
-        OutputDeclarationElement(a.womType.toWdlom, a.name, a.expression.toWdlom)
+        OutputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.name, a.expression.toWdlom)
     }
 
   implicit val inputDefinitionToInputDeclarationElement: WomToWdlom[InputDefinition, InputDeclarationElement] =
     new WomToWdlom[InputDefinition, InputDeclarationElement] {
       override def toWdlom(a: InputDefinition): InputDeclarationElement = a match {
-        case a: RequiredInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
-        case a: InputDefinitionWithDefault => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
-        case a: FixedInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, Some(a.default.toWdlom))
-        case a: OptionalInputDefinition => InputDeclarationElement(a.womType.toWdlom, a.localName.value, None)
+        case a: RequiredInputDefinition => InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, None)
+        case a: InputDefinitionWithDefault => InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, Some(a.default.toWdlom))
+        case a: FixedInputDefinition => InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, Some(a.default.toWdlom))
+        case a: OptionalInputDefinition => InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, None)
       }
     }
 
@@ -140,7 +138,7 @@ object WomToWdlomImpl {
           CommandSectionElement(Seq(commandLine)),
           runtimeAttributesToRuntimeAttributesSectionElement.run(a.runtimeAttributes).getOrElse(???),
           mapToMetaSectionElement.run(a.meta).getOrElse(???),
-          mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
+          mapToParameterMetaSectionElement.run(a.parameterMeta).getOrElse(???)
         )
       }
     }
@@ -160,7 +158,7 @@ object WomToWdlomImpl {
           selectWdlomRepresentableNodes(a.graph.nodes).map(_.toWdlom),
           if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
           mapToMetaSectionElement.run(a.meta).getOrElse(???),
-          mapToParameterMetaSectionElement.toWdlom(a.parameterMeta)
+          mapToParameterMetaSectionElement.run(a.parameterMeta).getOrElse(???)
         )
       }
     }
@@ -169,7 +167,7 @@ object WomToWdlomImpl {
     CheckedAtoB.fromCheck {
       case a: ExpressionNode =>
         IntermediateValueDeclarationElement(
-          typeElement = a.womType.toWdlom,
+          typeElement = womTypeToTypeElement.run(a.womType).getOrElse(???),
           name = a.identifier.localName.value,
           expression = a.toWdlom).validNelCheck
       case a: ExpressionCallNode => invalidFromString(a.toString)
@@ -201,7 +199,7 @@ object WomToWdlomImpl {
         case a: ExpressionNodeLike =>
           expressionNodeLikeToWorkflowGraphElement.run(a).getOrElse(???)
         case a: GraphNodeWithSingleOutputPort =>
-          a.toWdlom
+          graphNodeWithSingleOutputPortToWorkflowGraphElement.run(a).getOrElse(???)
         case a: GraphOutputNode =>
           graphOutputNodeToWorkflowGraphElement.run(a).getOrElse(???) // TODO: as de-exceptioning progresses, return bare Checked[]
         case a: ScatterNode =>
@@ -218,44 +216,41 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val graphNodeWithSingleOutputPortToWorkflowGraphElement: WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =
-    new WomToWdlom[GraphNodeWithSingleOutputPort, WorkflowGraphElement] {
-      override def toWdlom(a: GraphNodeWithSingleOutputPort): WorkflowGraphElement = a match {
-        case a: GraphInputNode =>
-          InputDeclarationElement(
-            a.womType.toWdlom,
-            a.identifier.localName.value,
-            None
-          )
-        case a: ExpressionNode =>
-          IntermediateValueDeclarationElement(
-            a.womType.toWdlom,
-            a.identifier.localName.value,
-            a.womExpression.toWdlom
-          )
-      }
+  def graphNodeWithSingleOutputPortToWorkflowGraphElement: CheckedAtoB[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =
+    CheckedAtoB.fromCheck {
+      case a: GraphInputNode =>
+        InputDeclarationElement(
+          womTypeToTypeElement.run(a.womType).getOrElse(???),
+          a.identifier.localName.value,
+          None
+        ).validNelCheck
+      case a: ExpressionNode =>
+        IntermediateValueDeclarationElement(
+          womTypeToTypeElement.run(a.womType).getOrElse(???),
+          a.identifier.localName.value,
+          a.womExpression.toWdlom
+        ).validNelCheck
     }
 
-  implicit val womTypeToTypeElement: WomToWdlom[WomType, TypeElement] = new WomToWdlom[WomType, TypeElement] {
-    override def toWdlom(a: WomType): TypeElement = a match {
+  def womTypeToTypeElement: CheckedAtoB[WomType, TypeElement] =
+    CheckedAtoB.fromCheck {
       case a: WomArrayType =>
         if (a.guaranteedNonEmpty)
-          NonEmptyTypeElement(ArrayTypeElement(womTypeToTypeElement.toWdlom(a.memberType)))
+          NonEmptyTypeElement(ArrayTypeElement(womTypeToTypeElement.run(a.memberType).getOrElse(???))).validNelCheck
         else
-          ArrayTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
+          ArrayTypeElement(womTypeToTypeElement.run(a.memberType).getOrElse(???)).validNelCheck
       case _: WomCoproductType => throw UnrepresentableException
-      case _: WomFileType => PrimitiveTypeElement(WomSingleFileType)
-      case a: WomMapType => MapTypeElement(womTypeToTypeElement.toWdlom(a.keyType), womTypeToTypeElement.toWdlom(a.valueType))
+      case _: WomFileType => PrimitiveTypeElement(WomSingleFileType).validNelCheck
+      case a: WomMapType => MapTypeElement(womTypeToTypeElement.run(a.keyType).getOrElse(???), womTypeToTypeElement.run(a.valueType).getOrElse(???)).validNelCheck
       case _: WomNothingType.type => throw UnrepresentableException
-      case _: WomObjectType.type => ObjectTypeElement
-      case a: WomOptionalType => a.toWdlom
-      case a: WomPairType => PairTypeElement(womTypeToTypeElement.toWdlom(a.leftType), womTypeToTypeElement.toWdlom(a.rightType))
-      case a: WomPrimitiveType => a.toWdlom
+      case _: WomObjectType.type => ObjectTypeElement.validNelCheck
+      case a: WomOptionalType => a.toWdlom.validNelCheck
+      case a: WomPairType => PairTypeElement(womTypeToTypeElement.run(a.leftType).getOrElse(???), womTypeToTypeElement.run(a.rightType).getOrElse(???)).validNelCheck
+      case a: WomPrimitiveType => a.toWdlom.validNelCheck
     }
-  }
 
   implicit val womOptionalTypeToOptionalTypeElement: WomToWdlom[WomOptionalType, OptionalTypeElement] = new WomToWdlom[WomOptionalType, OptionalTypeElement] {
-    override def toWdlom(a: WomOptionalType): OptionalTypeElement = OptionalTypeElement(womTypeToTypeElement.toWdlom(a.memberType))
+    override def toWdlom(a: WomOptionalType): OptionalTypeElement = OptionalTypeElement(womTypeToTypeElement.run(a.memberType).getOrElse(???))
   }
 
   implicit val womPrimitiveTypeToPrimitiveTypeElement: WomToWdlom[WomPrimitiveType, PrimitiveTypeElement] = new WomToWdlom[WomPrimitiveType, PrimitiveTypeElement] {

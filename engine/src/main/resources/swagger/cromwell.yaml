@@ -391,7 +391,7 @@ paths:
           collectionFormat: multi
           pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
           description: >
-            Excludes workflows with the specified label keys.  If specified multiple times,
+            Excludes workflows with the specified label.  If specified multiple times,
             excludes workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
@@ -404,7 +404,7 @@ paths:
           collectionFormat: multi
           pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
           description: >
-            Excludes workflows with the specified label keys.  If specified multiple times,
+            Excludes workflows with the specified label.  If specified multiple times,
             excludes workflows with any of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
@@ -856,7 +856,7 @@ definitions:
         format: array
         pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
         description: >
-          Excludes workflows with the specified label keys.  If specified multiple times,
+          Excludes workflows with the specified label.  If specified multiple times,
           excludes workflows with all of the specified label keys. Specify the label key
           and label value pair as separated with
           "label-key:label-value"
@@ -865,7 +865,7 @@ definitions:
         format: array
         pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
         description: >
-          Excludes workflows with the specified label keys.  If specified multiple times,
+          Excludes workflows with the specified label.  If specified multiple times,
           excludes workflows with any of the specified label keys. Specify the label key
           and label value pair as separated with
           "label-key:label-value"

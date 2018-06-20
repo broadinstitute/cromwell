@@ -27,7 +27,7 @@ case object UnrepresentableException extends Exception("Value has no representat
 object WomToWdlomImpl {
 
   private def invalidFromString(text: String) =
-    s"Value \"$text\" has no representation in the destination format (WDL)".invalidNelCheck
+    s"Value \'$text\' has no representation in the destination format (WDL)".invalidNelCheck
 
   import WomToWdlom.ops._
 
@@ -170,16 +170,14 @@ object WomToWdlomImpl {
       }
     }
 
-  implicit val expressionNodeLikeToWorkflowGraphElement: WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] =
-    new WomToWdlom[ExpressionNodeLike, WorkflowGraphElement] {
-      override def toWdlom(a: ExpressionNodeLike): WorkflowGraphElement = a match {
-        case a: ExpressionNode =>
-          IntermediateValueDeclarationElement(
-            typeElement = a.womType.toWdlom,
-            name = a.identifier.localName.value,
-            expression = a.toWdlom)
-        case _: ExpressionCallNode => ???
-      }
+  implicit val expressionNodeLikeToWorkflowGraphElement: CheckedAtoB[ExpressionNodeLike, WorkflowGraphElement] =
+    CheckedAtoB.fromCheck {
+      case a: ExpressionNode =>
+        IntermediateValueDeclarationElement(
+          typeElement = a.womType.toWdlom,
+          name = a.identifier.localName.value,
+          expression = a.toWdlom).validNelCheck
+      case a: ExpressionCallNode => invalidFromString(a.toString)
     }
 
   // Select only nodes that have a Wdlom representation (i.e. were not synthesized during WOMification)
@@ -199,14 +197,14 @@ object WomToWdlomImpl {
     override def toWdlom(a: GraphNode): WorkflowGraphElement = {
       a match {
         case a: CallNode =>
-          a.toWdlom
+          callNodeToCallElement.run(a).getOrElse(???)
         case a: ConditionalNode =>
           IfElement(
             conditionExpression = a.conditionExpression.toWdlom,
             graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement.toWdlom)
           )
         case a: ExpressionNodeLike =>
-          a.toWdlom
+          expressionNodeLikeToWorkflowGraphElement.run(a).getOrElse(???)
         case a: GraphNodeWithSingleOutputPort =>
           a.toWdlom
         case a: GraphOutputNode =>
@@ -280,32 +278,30 @@ object WomToWdlomImpl {
     }
   }
 
-  implicit val inputDefinitionPointerToExpressionElement: WomToWdlom[InputDefinitionPointer, Option[ExpressionElement]] =
-    new WomToWdlom[InputDefinitionPointer, Option[ExpressionElement]] {
-      override def toWdlom(a: InputDefinitionPointer): Option[ExpressionElement] = a match {
-        // If the input definition is a node containing an expression, it's been declared explicitly
-        case Inl(a: GraphNodeOutputPort) => a.graphNode match {
-          case _: OptionalGraphInputNode =>
-            None
-          case _: OptionalGraphInputNodeWithDefault =>
-            None
-          case a: PlainAnonymousExpressionNode => Some(a.womExpression.toWdlom)
-          case a: TaskCallInputExpressionNode => Some(a.womExpression.toWdlom)
-          case _: RequiredGraphInputNode => None // TODO: questionable
-        }
-        // Input definitions that directly contain expressions are the result of accepting a default input defined by the callable
-        case Inr(Inl(_: WomExpression)) => None
-        case Inr(_) =>
-          throw UnrepresentableException
-        case _ =>
-          throw UnrepresentableException
+  val inputDefinitionPointerToExpressionElement: CheckedAtoB[InputDefinitionPointer, Option[ExpressionElement]] =
+    CheckedAtoB.fromCheck {
+      // If the input definition is a node containing an expression, it's been declared explicitly
+      case Inl(a: GraphNodeOutputPort) => a.graphNode match {
+        case _: OptionalGraphInputNode =>
+          None.validNelCheck
+        case _: OptionalGraphInputNodeWithDefault =>
+          None.validNelCheck
+        case a: PlainAnonymousExpressionNode => Some(a.womExpression.toWdlom).validNelCheck
+        case a: TaskCallInputExpressionNode => Some(a.womExpression.toWdlom).validNelCheck
+        case _: RequiredGraphInputNode => None.validNelCheck
       }
+      // Input definitions that directly contain expressions are the result of accepting a default input defined by the callable
+      case Inr(Inl(_: WomExpression)) => None.validNelCheck
+      case Inr(_) =>
+        throw UnrepresentableException
+      case a =>
+        invalidFromString(a.toString)
     }
 
-  implicit val callNodeToCallElement: WomToWdlom[CallNode, CallElement] = new WomToWdlom[CallNode, CallElement] {
-    override def toWdlom(call: CallNode): CallElement = {
+  val callNodeToCallElement: CheckedAtoB[CallNode, CallElement] =
+    CheckedAtoB.fromCheck { call: CallNode =>
       def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): Option[ExpressionElement.KvPair] = {
-        tuple._2.toWdlom match {
+        inputDefinitionPointerToExpressionElement.run(tuple._2).getOrElse(???) match {
           case Some(value) => Some(ExpressionElement.KvPair(tuple._1.name, value))
           case _ => None
         }
@@ -325,7 +321,6 @@ object WomToWdlomImpl {
         call.callable.name,
         maybeAlias,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
-      )
+      ).validNelCheck
     }
-  }
 }

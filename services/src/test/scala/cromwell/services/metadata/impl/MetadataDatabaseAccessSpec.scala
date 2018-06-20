@@ -289,7 +289,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         ) map { case (response, _) =>
           response.totalResultsCount match {
             case 2 =>
-            case ct => fail(s"totalResultsCount is expected to be 0 but is actually $ct. Something has gone horribly wrong!")
+            case ct => fail(s"totalResultsCount is expected to be 2 but is actually $ct. Something has gone horribly wrong!")
           }
         }
         // Filter by start date
@@ -322,8 +322,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           case (response, _) =>
             response.results partition { r => r.labels.isDefined} match {
               case (y, n) if y.nonEmpty && n.isEmpty => //good
-              case (y, n) => fail(s"Labels exist for each test workflow! " +
-                s"Something went horribly wrong since labels were populated for ${y.size} workflow(s) only were missing for ${n.size} workflow(s)!")
+              case (y, n) => fail(s"Something went horribly wrong since labels were populated for ${y.size} and were missing for ${n.size} workflow(s)!")
             }
         }
       } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
@@ -407,7 +406,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           case (response, _) =>
             response.results partition { r => r.parentWorkflowId.isDefined} match {
               case (y, n) if y.nonEmpty && n.isEmpty => //good
-              case (y, n) => fail(s"parentWorkflowId should be populated for a subworkflow. It was populated correctly for ${y.size} subworkflow(s)" +
+              case (y, n) => fail(s"parentWorkflowId should be populated for a subworkflow. It was populated correctly for ${y.size} " +
                 s"and was missing in ${n.size} subworkflow(s). Something went horribly wrong!")
             }
         }

@@ -94,19 +94,32 @@ object WomToWdlomImpl {
 
   def outputDefinitionToOutputDeclarationElement: CheckedAtoB[OutputDefinition, OutputDeclarationElement] =
     CheckedAtoB.fromCheck { a: OutputDefinition =>
-      OutputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.name, womExpressionToExpressionElement.run(a.expression).getOrElse(???)).validNelCheck
+      for {
+        typeElement <- womTypeToTypeElement.run(a.womType)
+        expression <- womExpressionToExpressionElement.run(a.expression)
+      } yield {
+        OutputDeclarationElement(typeElement, a.name, expression)
+      }
     }
 
   def inputDefinitionToInputDeclarationElement: CheckedAtoB[InputDefinition, InputDeclarationElement] =
-    CheckedAtoB.fromCheck {
-      case a: RequiredInputDefinition =>
-        InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, None).validNelCheck
-      case a: InputDefinitionWithDefault =>
-        InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, Some(womExpressionToExpressionElement.run(a.default).getOrElse(???))).validNelCheck
-      case a: FixedInputDefinition =>
-        InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, Some(womExpressionToExpressionElement.run(a.default).getOrElse(???))).validNelCheck
-      case a: OptionalInputDefinition =>
-        InputDeclarationElement(womTypeToTypeElement.run(a.womType).getOrElse(???), a.localName.value, None).validNelCheck
+    CheckedAtoB.fromCheck { a: InputDefinition =>
+      womTypeToTypeElement.run(a.womType) flatMap { womType =>
+        a match {
+          case a: RequiredInputDefinition =>
+            InputDeclarationElement(womType, a.localName.value, None).validNelCheck
+          case a: InputDefinitionWithDefault =>
+            womExpressionToExpressionElement.run(a.default) map { expression =>
+              InputDeclarationElement(womType, a.localName.value, Some(expression))
+            }
+          case a: FixedInputDefinition =>
+            womExpressionToExpressionElement.run(a.default) map { expression =>
+              InputDeclarationElement(womType, a.localName.value, Some(expression))
+            }
+          case a: OptionalInputDefinition =>
+            InputDeclarationElement(womType, a.localName.value, None).validNelCheck
+        }
+      }
     }
 
   def callableTaskDefinitionToTaskDefinitionElement: CheckedAtoB[CallableTaskDefinition, TaskDefinitionElement] =

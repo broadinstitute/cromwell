@@ -1,9 +1,11 @@
 package womtool.wom2wdlom
 
 import cats.data.Validated.Valid
+import common.validation.Checked._
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import common.transforms.CheckedAtoB
 import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import shapeless.{Inl, Inr}
@@ -24,18 +26,20 @@ case object UnrepresentableException extends Exception("Value has no representat
 
 object WomToWdlomImpl {
 
+  private def invalidFromString(text: String) =
+    s"Value \"$text\" has no representation in the destination format (WDL)".invalidNelCheck
+
   import WomToWdlom.ops._
 
-  implicit val graphOutputNodeToWorkflowGraphElement: WomToWdlom[GraphOutputNode, WorkflowGraphElement] =
-    new WomToWdlom[GraphOutputNode, WorkflowGraphElement] {
-      override def toWdlom(a: GraphOutputNode): WorkflowGraphElement = a match {
-        case a: ExpressionBasedGraphOutputNode =>
-          OutputDeclarationElement(
+  val graphOutputNodeToWorkflowGraphElement: CheckedAtoB[GraphOutputNode, WorkflowGraphElement] =
+    CheckedAtoB.fromCheck { a: GraphOutputNode => a match {
+      case a: ExpressionBasedGraphOutputNode =>
+        OutputDeclarationElement(
           a.womType.toWdlom,
           a.identifier.localName.value,
-          a.womExpression.toWdlom)
-        case _ =>
-          throw UnrepresentableException
+          a.womExpression.toWdlom).validNelCheck
+      case _ =>
+        invalidFromString(a.toString)
       }
     }
 
@@ -206,7 +210,7 @@ object WomToWdlomImpl {
         case a: GraphNodeWithSingleOutputPort =>
           a.toWdlom
         case a: GraphOutputNode =>
-          a.toWdlom
+          graphOutputNodeToWorkflowGraphElement.run(a).getOrElse(???) // TODO: as de-exceptioning progresses, return bare Checked[]
         case a: ScatterNode =>
           // Only CWL has multi-variable scatters
           if (a.scatterVariableNodes.size != 1) throw UnrepresentableException // TODO: upgrade from exceptions to typed errors

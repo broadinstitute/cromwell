@@ -6,7 +6,7 @@
 
 #### Exclude workflows based on Labels
 
-This gives the ability to **filter out** workflows which have specified labels. Two new parameters called `excludeLabelAnd` and `excludeLabelOr` can be used for this purpose.
+This gives the ability to **filter out** workflows based on labels. Two new parameters called `excludeLabelAnd` and `excludeLabelOr` can be used for this purpose.
 More details on how to use them can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
 
 #### Include/Exclude subworkflows

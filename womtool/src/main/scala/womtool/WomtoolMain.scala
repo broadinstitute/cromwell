@@ -8,9 +8,7 @@ import wdl.draft2.model.{AstTools, WdlNamespace}
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
 import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
-import womtool.wom2wdlom.WomToWdlom.ops._
 import womtool.wom2wdlom.WomToWdlomImpl.womBundleToFileElement
-import wdl.model.draft3.elements.FileElement
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
@@ -85,8 +83,13 @@ object WomtoolMain extends App {
 
         maybeWomBundle match {
           case Right(womBundle) =>
-            val fileElement: FileElement = womBundle.toWdlom
-            SuccessfulTermination(fileElement.toWdlV1)
+            val maybeFileElement = womBundleToFileElement.run(womBundle)
+            maybeFileElement match {
+              case Right(fileElement) =>
+                SuccessfulTermination(fileElement.toWdlV1)
+              case Left(errors) =>
+                UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
+            }
           case Left(errors) =>
             UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
         }

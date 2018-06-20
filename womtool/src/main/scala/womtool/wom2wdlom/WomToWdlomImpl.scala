@@ -43,8 +43,8 @@ object WomToWdlomImpl {
       }
     }
 
-  implicit val womBundleToFileElement: WomToWdlom[WomBundle, FileElement] = new WomToWdlom[WomBundle, FileElement] {
-    override def toWdlom(a: WomBundle): FileElement = {
+  def womBundleToFileElement: CheckedAtoB[WomBundle, FileElement] =
+    CheckedAtoB.fromCheck { a: WomBundle =>
       val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
       val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
 
@@ -53,12 +53,11 @@ object WomToWdlomImpl {
         Seq.empty, // Structs do not exist in draft-2
         workflows.map(_.toWdlom).toSeq,
         tasks.map(_.toWdlom).toSeq
-      )
+      ).validNelCheck
     }
-  }
 
   def mapToMetaSectionElement: CheckedAtoB[Map[String, String], Option[MetaSectionElement]] =
-    CheckedAtoB.fromCheck {a: Map[String, String] =>
+    CheckedAtoB.fromCheck { a: Map[String, String] =>
       if (a.nonEmpty)
         Some(MetaSectionElement(a map { case (key, value) =>
           key -> MetaValueElementString(value) // draft-2: strings only

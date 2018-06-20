@@ -56,7 +56,7 @@ object WomToWdlomImpl {
       FileElement(
         Seq.empty, // TODO: imports
         Seq.empty, // Structs do not exist in draft-2
-        workflows.map(_.toWdlom).toSeq,
+        workflows.map(workflowDefinitionToWorkflowDefinitionElement.run(_).getOrElse(???)).toSeq,
         tasks.map(_.toWdlom).toSeq
       ).validNelCheck
     }
@@ -152,25 +152,27 @@ object WomToWdlomImpl {
       }
     }
 
-  implicit val workflowDefinitionToWorkflowDefinitionElement: WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] =
-    new WomToWdlom[WorkflowDefinition, WorkflowDefinitionElement] {
-      override def toWdlom(a: WorkflowDefinition): WorkflowDefinitionElement = {
+  def workflowDefinitionToWorkflowDefinitionElement: CheckedAtoB[WorkflowDefinition, WorkflowDefinitionElement] =
+    CheckedAtoB.fromCheck { a: WorkflowDefinition =>
         // This is a bit odd, so let's explain. "Real" inputs/outputs that are specified by the WDL's author
         // cannot have periods in them - period. So any input/output that has a period in it
         // is an artifact of WOMification and should be dropped
         val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement.toWdlom)
         val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement.toWdlom)
 
-        WorkflowDefinitionElement(
-          a.name,
-          if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-          selectWdlomRepresentableNodes(a.graph.nodes).map(_.toWdlom),
-          if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
-          mapToMetaSectionElement.run(a.meta).getOrElse(???),
-          mapToParameterMetaSectionElement.run(a.parameterMeta).getOrElse(???)
-        )
+        for {
+          meta <- mapToMetaSectionElement.run(a.meta)
+          parameterMeta <- mapToParameterMetaSectionElement.run(a.parameterMeta)
+        } yield {
+          WorkflowDefinitionElement(
+            a.name,
+            if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
+            selectWdlomRepresentableNodes(a.graph.nodes).map(_.toWdlom),
+            if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
+            meta,
+            parameterMeta)
+        }
       }
-    }
 
   def expressionNodeLikeToWorkflowGraphElement: CheckedAtoB[ExpressionNodeLike, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
@@ -233,39 +235,60 @@ object WomToWdlomImpl {
   def graphNodeWithSingleOutputPortToWorkflowGraphElement: CheckedAtoB[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
       case a: GraphInputNode =>
-        InputDeclarationElement(
-          womTypeToTypeElement.run(a.womType).getOrElse(???),
-          a.identifier.localName.value,
-          None
-        ).validNelCheck
+        womTypeToTypeElement.run(a.womType) map { typeElement =>
+          InputDeclarationElement(
+            typeElement,
+            a.identifier.localName.value,
+            None)
+        }
       case a: ExpressionNode =>
-        IntermediateValueDeclarationElement(
-          womTypeToTypeElement.run(a.womType).getOrElse(???),
-          a.identifier.localName.value,
-          womExpressionToExpressionElement.run(a.womExpression).getOrElse(???)
-        ).validNelCheck
+        for {
+          typeElement <- womTypeToTypeElement.run(a.womType)
+          expression <- womExpressionToExpressionElement.run(a.womExpression)
+        } yield {
+          IntermediateValueDeclarationElement(
+            typeElement,
+            a.identifier.localName.value,
+            expression)
+        }
     }
 
   def womTypeToTypeElement: CheckedAtoB[WomType, TypeElement] =
     CheckedAtoB.fromCheck {
       case a: WomArrayType =>
-        if (a.guaranteedNonEmpty)
-          NonEmptyTypeElement(ArrayTypeElement(womTypeToTypeElement.run(a.memberType).getOrElse(???))).validNelCheck
-        else
-          ArrayTypeElement(womTypeToTypeElement.run(a.memberType).getOrElse(???)).validNelCheck
+        womTypeToTypeElement.run(a.memberType) map { typeElement =>
+          if (a.guaranteedNonEmpty)
+            NonEmptyTypeElement(ArrayTypeElement(typeElement))
+          else
+            ArrayTypeElement(typeElement)
+        }
       case _: WomCoproductType => throw UnrepresentableException
       case _: WomFileType => PrimitiveTypeElement(WomSingleFileType).validNelCheck
-      case a: WomMapType => MapTypeElement(womTypeToTypeElement.run(a.keyType).getOrElse(???), womTypeToTypeElement.run(a.valueType).getOrElse(???)).validNelCheck
+      case a: WomMapType =>
+        for {
+          keyType <- womTypeToTypeElement.run(a.keyType)
+          valueType <- womTypeToTypeElement.run(a.valueType)
+        } yield {
+          MapTypeElement(keyType, valueType)
+        }
       case _: WomNothingType.type => throw UnrepresentableException
       case _: WomObjectType.type => ObjectTypeElement.validNelCheck
       case a: WomOptionalType => womOptionalTypeToOptionalTypeElement.run(a)
-      case a: WomPairType => PairTypeElement(womTypeToTypeElement.run(a.leftType).getOrElse(???), womTypeToTypeElement.run(a.rightType).getOrElse(???)).validNelCheck
+      case a: WomPairType =>
+        for {
+          leftType <- womTypeToTypeElement.run(a.leftType)
+          rightType <- womTypeToTypeElement.run(a.rightType)
+        } yield {
+          PairTypeElement(leftType, rightType)
+        }
       case a: WomPrimitiveType => womPrimitiveTypeToPrimitiveTypeElement.run(a)
     }
 
   def womOptionalTypeToOptionalTypeElement: CheckedAtoB[WomOptionalType, OptionalTypeElement] =
     CheckedAtoB.fromCheck { a: WomOptionalType =>
-      OptionalTypeElement(womTypeToTypeElement.run(a.memberType).getOrElse(???)).validNelCheck
+      womTypeToTypeElement.run(a.memberType) map { typeElement =>
+        OptionalTypeElement(typeElement)
+      }
     }
 
   def womPrimitiveTypeToPrimitiveTypeElement: CheckedAtoB[WomPrimitiveType, PrimitiveTypeElement] =
@@ -292,8 +315,14 @@ object WomToWdlomImpl {
           None.validNelCheck
         case _: OptionalGraphInputNodeWithDefault =>
           None.validNelCheck
-        case a: PlainAnonymousExpressionNode => Some(womExpressionToExpressionElement.run(a.womExpression).getOrElse(???)).validNelCheck
-        case a: TaskCallInputExpressionNode => Some(womExpressionToExpressionElement.run(a.womExpression).getOrElse(???)).validNelCheck
+        case a: PlainAnonymousExpressionNode =>
+          womExpressionToExpressionElement.run(a.womExpression) map { expressionElement =>
+            Some(expressionElement)
+          }
+        case a: TaskCallInputExpressionNode =>
+          womExpressionToExpressionElement.run(a.womExpression) map { expressionElement =>
+            Some(expressionElement)
+          }
         case _: RequiredGraphInputNode => None.validNelCheck
       }
       // Input definitions that directly contain expressions are the result of accepting a default input defined by the callable

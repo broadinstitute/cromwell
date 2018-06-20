@@ -423,6 +423,18 @@ paths:
           format: boolean
           in: query
           description: Include subworkflows in results. By default, it is taken as true.
+        - name: page
+          required: false
+          type: string
+          format: integer
+          in: query
+          description: Page number for results (for paginated query)
+        - name: pagesize
+          required: false
+          type: string
+          format: integer
+          in: query
+          description: Number of results per page (for paginated query)
       tags:
         - Workflows
       responses:
@@ -861,6 +873,14 @@ definitions:
         type: string
         format: boolean
         description: Include subworkflows in results. By default, it is taken as true.
+      page:
+        type: string
+        format: integer
+        description: Page number for results (for paginated query)
+      pagesize:
+        type: string
+        format: integer
+        description: Number of results per page (for paginated query)
   WorkflowQueryResponse:
     description: Response to a workflow query
     required:

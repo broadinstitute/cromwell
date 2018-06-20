@@ -89,9 +89,6 @@ paths:
           $ref: '#/responses/InvalidSubmission'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/batch':
     post:
       summary: Submit a batch of workflows for execution
@@ -145,9 +142,6 @@ paths:
           $ref: '#/responses/BadRequest'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/labels':
     get:
       summary: Retrieves the current labels for a workflow
@@ -167,9 +161,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
     patch:
       summary: Update labels for a workflow
       description: Update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.
@@ -203,9 +194,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/abort':
     post:
       summary: Abort a running workflow
@@ -226,32 +214,26 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/releaseHold':
-      post:
-        summary: Switch a workflow from 'On Hold' to 'Submitted' status
-        description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
-        parameters:
-          - $ref: '#/parameters/versionParam'
-          - $ref: '#/parameters/singleId'
-        tags:
-          - Workflows
-        responses:
-          '200':
-            $ref: '#/responses/OkIdAndStatus'
-          '400':
-            $ref: '#/responses/BadRequest'
-          '403':
-            $ref: '#/responses/Forbidden'
-          '404':
-            $ref: '#/responses/NotFound'
-          '500':
-            $ref: '#/responses/ServerError'
-        security:
-          - google_oauth:
-              - openid
+    post:
+      summary: Switch a workflow from 'On Hold' to 'Submitted' status
+      description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OkIdAndStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Forbidden'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/status':
     get:
       summary: Retrieves the current state for a workflow
@@ -269,9 +251,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/outputs':
     get:
       summary: Get the outputs for a workflow
@@ -290,9 +269,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/logs':
     get:
       summary: Get the logs for a workflow
@@ -311,9 +287,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/query':
     get:
       summary: Get workflows matching some criteria
@@ -437,9 +410,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
     post:
       summary: Get workflows matching some criteria
       description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
@@ -466,9 +436,6 @@ paths:
           $ref: '#/responses/BadRequest'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-          - openid
   '/api/workflows/{version}/{id}/timing':
     get:
       summary: Get a visual diagram of a running workflow
@@ -487,9 +454,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/metadata':
     get:
       summary: Get workflow and call-level metadata for a specified workflow
@@ -536,9 +500,6 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/callcaching/diff':
     get:
       summary: Explain hashing differences for 2 calls
@@ -586,9 +547,6 @@ paths:
            description: No matching cache entry. Cromwell versions prior to 28 will not have recorded information necessary for this endpoint and thus will also appear to not exist.
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/backends':
     get:
       summary: List the supported backends
@@ -602,9 +560,6 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
-      security:
-        - google_oauth:
-            - openid
   '/engine/{version}/stats':
     get:
       summary: Returns basic statistics from this Cromwell server.
@@ -630,21 +585,21 @@ paths:
           schema:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
-      get:
-        summary: Return the current health status of any monitored subsystems
-        parameters:
-          - $ref: '#/parameters/versionParam'
-        tags:
-          - Engine
-        responses:
-          '200':
-            description: All subsystems report an "ok" status
-            schema:
-              $ref: '#/definitions/StatusResponse'
-          '500':
-            description: At least one subsystem does not have an "ok" status
-            schema:
-              $ref: '#/definitions/StatusResponse'
+    get:
+      summary: Return the current health status of any monitored subsystems
+      parameters:
+        - $ref: '#/parameters/versionParam'
+      tags:
+        - Engine
+      responses:
+        '200':
+          description: All subsystems report an "ok" status
+          schema:
+            $ref: '#/definitions/StatusResponse'
+        '500':
+          description: At least one subsystem does not have an "ok" status
+          schema:
+            $ref: '#/definitions/StatusResponse'
 responses:
   OkIdAndStatus:
     description: Successful Request
@@ -693,13 +648,6 @@ parameters:
     type: string
     in: path
     default: v1 # This really should be an enum but swagger-ui seems to not like it
-securityDefinitions:
-  google_oauth:
-    type: oauth2
-    authorizationUrl: 'https://accounts.google.com/o/oauth2/auth'
-    flow: implicit
-    scopes:
-      openid: open id authorization
 definitions:
   WorkflowSubmitResponse:
     required:

@@ -60,9 +60,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}':
     post:
       summary: Submit a new workflow for execution
@@ -143,9 +143,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/batch':
     post:
       summary: Submit a batch of new workflows for execution
@@ -203,9 +203,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/{id}/outputs':
     get:
       summary: Query for workflow outputs based on workflow id
@@ -234,9 +234,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/{id}/labels':
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
@@ -275,9 +275,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/query':
     get:
       summary: Query workflows by start dates, end dates, names, ids, or statuses.
@@ -356,9 +356,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
     post:
       summary: Query workflows by start dates, end dates, names, ids, or statuses.
       parameters:
@@ -391,9 +391,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/{id}/status':
     get:
       summary: Query for workflow status based on workflow id
@@ -424,43 +424,45 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/{id}/releaseHold':
-        post:
-          summary: Switch a workflow from 'On Hold' to 'Submitted' status
-          description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
-          parameters:
-            - name: version
-              description: API Version
-              required: true
-              type: string
-              in: path
-              default: v1
-            - name: id
-              description: A workflow ID
-              required: true
-              type: string
-              in: path
-          tags:
-            - Workflows
-          responses:
-            '200':
-              description: Successful Request
-              schema:
-                $ref: '#/definitions/WorkflowStatusResponse'
-            '400':
-              description: Malformed Workflow ID
-            '403':
-              description: Malformed Request
-            '404':
-              description: Workflow ID Not Found
-            '500':
-              description: Internal Error
-          security:
-            - google_oauth:
-                - openid
+    post:
+      summary: Switch a workflow from 'On Hold' to 'Submitted' status
+      description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
+      parameters:
+        - name: version
+          description: API Version
+          required: true
+          type: string
+          in: path
+          default: v1
+        - name: id
+          description: A workflow ID
+          required: true
+          type: string
+          in: path
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/WorkflowStatusResponse'
+        '400':
+          description: Malformed Workflow ID
+        '403':
+          description: Malformed Request
+        '404':
+          description: Workflow ID Not Found
+        '500':
+          description: Internal Error
+      security:
+        - googleoauth:
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/{id}/logs':
     get:
       summary: Query for the standard output and error of all calls in a workflow
@@ -489,9 +491,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/{id}/metadata':
     get:
       summary: Query for workflow and call-level metadata for a specified workflow
@@ -676,9 +678,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/callcaching/diff':
     get:
       summary: Return the hash differential between two calls
@@ -732,9 +734,9 @@ paths:
           description: Internal Error
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/api/workflows/{version}/backends':
     get:
       summary: Returns the backends supported by this Cromwell.
@@ -754,9 +756,9 @@ paths:
             $ref: '#/definitions/BackendResponse'
       security:
         - googleoauth:
-            - openid
-            - email
-            - profile
+          - openid
+          - email
+          - profile
   '/engine/{version}/version':
     get:
       summary: Returns the version of the Cromwell Engine
@@ -774,11 +776,6 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/VersionResponse'
-      security:
-        - googleoauth:
-            - openid
-            - email
-            - profile
   '/engine/{version}/status':
         get:
           summary: Returns the current health status of any monitored subsystems

@@ -34,10 +34,15 @@ object WomToWdlomImpl {
   def graphOutputNodeToWorkflowGraphElement: CheckedAtoB[GraphOutputNode, WorkflowGraphElement] =
     CheckedAtoB.fromCheck { a: GraphOutputNode => a match {
       case a: ExpressionBasedGraphOutputNode =>
-        OutputDeclarationElement(
-          womTypeToTypeElement.run(a.womType).getOrElse(???),
-          a.identifier.localName.value,
-          womExpressionToExpressionElement.run(a.womExpression).getOrElse(???)).validNelCheck
+        for {
+          typeElement <- womTypeToTypeElement.run(a.womType)
+          expression <- womExpressionToExpressionElement.run(a.womExpression)
+        } yield {
+          OutputDeclarationElement(
+            typeElement,
+            a.identifier.localName.value,
+            expression)
+        }
       case _ =>
         invalidFromString(a.toString)
       }
@@ -170,10 +175,15 @@ object WomToWdlomImpl {
   def expressionNodeLikeToWorkflowGraphElement: CheckedAtoB[ExpressionNodeLike, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
       case a: ExpressionNode =>
-        IntermediateValueDeclarationElement(
-          typeElement = womTypeToTypeElement.run(a.womType).getOrElse(???),
-          name = a.identifier.localName.value,
-          expression = expressionNodeToExpressionElement.run(a).getOrElse(???)).validNelCheck
+        for {
+          typeElement <- womTypeToTypeElement.run(a.womType)
+          expression <- expressionNodeToExpressionElement.run(a)
+        } yield {
+          IntermediateValueDeclarationElement(
+            typeElement = typeElement,
+            name = a.identifier.localName.value,
+            expression = expression)
+        }
       case a: ExpressionCallNode => invalidFromString(a.toString)
     }
 

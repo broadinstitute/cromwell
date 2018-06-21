@@ -55,12 +55,17 @@ object WomToWdlomImpl {
       val tasks: Iterable[CallableTaskDefinition] = a.allCallables.values.filterByType[CallableTaskDefinition]
       val workflows: Iterable[WorkflowDefinition] = a.allCallables.values.filterByType[WorkflowDefinition]
 
-      FileElement(
-        Seq.empty, // TODO: imports
-        Seq.empty, // Structs do not exist in draft-2
-        workflows.map(workflowDefinitionToWorkflowDefinitionElement(_).getOrElse(???)).toSeq,
-        tasks.map(callableTaskDefinitionToTaskDefinitionElement(_).getOrElse(???)).toSeq
-      ).validNelCheck
+      for {
+        workflows <- workflows.map(workflowDefinitionToWorkflowDefinitionElement(_)).toList.sequence[Checked, WorkflowDefinitionElement]
+        tasks <- tasks.map(callableTaskDefinitionToTaskDefinitionElement(_)).toList.sequence[Checked, TaskDefinitionElement]
+      } yield {
+        FileElement(
+          Seq.empty, // TODO: imports
+          Seq.empty, // Structs do not exist in draft-2
+          workflows,
+          tasks
+        )
+      }
     }
 
   def mapToMetaSectionElement: CheckedAtoB[Map[String, String], Option[MetaSectionElement]] =
@@ -232,10 +237,15 @@ object WomToWdlomImpl {
         case a: CallNode =>
           callNodeToCallElement(a)
         case a: ConditionalNode =>
-          IfElement(
-            conditionExpression = expressionNodeToExpressionElement(a.conditionExpression).getOrElse(???),
-            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_).getOrElse(???))
-          ).validNelCheck
+          for {
+            condition <- expressionNodeToExpressionElement(a.conditionExpression)
+            nodes <- selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_)).sequence[Checked, WorkflowGraphElement]
+          } yield {
+            IfElement(
+              conditionExpression = condition,
+              graphElements = nodes
+            )
+          }
         case a: ExpressionNodeLike =>
           expressionNodeLikeToWorkflowGraphElement(a)
         case a: GraphNodeWithSingleOutputPort =>
@@ -244,14 +254,20 @@ object WomToWdlomImpl {
           graphOutputNodeToWorkflowGraphElement(a)
         case a: ScatterNode =>
           // Only CWL has multi-variable scatters
-          if (a.scatterVariableNodes.size != 1) throw UnrepresentableException // TODO: upgrade from exceptions to typed errors
-
-          ScatterElement(
-            scatterName = a.identifier.localName.value,
-            scatterExpression = expressionNodeToExpressionElement(a.scatterCollectionExpressionNodes.head).getOrElse(???),
-            scatterVariableName = a.inputPorts.toList.head.name,
-            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_).getOrElse(???))
-          ).validNelCheck
+          if (a.scatterVariableNodes.size != 1)
+            s"In WDL, the scatter node count must be exactly one, was ${a.scatterVariableNodes.size}".invalidNelCheck
+          else
+            for {
+              expression <- expressionNodeToExpressionElement(a.scatterCollectionExpressionNodes.head)
+              graph <- selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_)).sequence[Checked, WorkflowGraphElement]
+            } yield {
+              ScatterElement(
+                scatterName = a.identifier.localName.value,
+                scatterExpression = expression,
+                scatterVariableName = a.inputPorts.toList.head.name,
+                graphElements = graph
+              )
+            }
       }
 
   def graphNodeWithSingleOutputPortToWorkflowGraphElement: CheckedAtoB[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =

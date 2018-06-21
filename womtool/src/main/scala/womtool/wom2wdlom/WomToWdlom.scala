@@ -33,8 +33,8 @@ object WomToWdlomImpl {
     CheckedAtoB.fromCheck { a: GraphOutputNode => a match {
       case a: ExpressionBasedGraphOutputNode =>
         for {
-          typeElement <- womTypeToTypeElement.run(a.womType)
-          expression <- womExpressionToExpressionElement.run(a.womExpression)
+          typeElement <- womTypeToTypeElement(a.womType)
+          expression <- womExpressionToExpressionElement(a.womExpression)
         } yield {
           OutputDeclarationElement(
             typeElement,
@@ -54,8 +54,8 @@ object WomToWdlomImpl {
       FileElement(
         Seq.empty, // TODO: imports
         Seq.empty, // Structs do not exist in draft-2
-        workflows.map(workflowDefinitionToWorkflowDefinitionElement.run(_).getOrElse(???)).toSeq,
-        tasks.map(callableTaskDefinitionToTaskDefinitionElement.run(_).getOrElse(???)).toSeq
+        workflows.map(workflowDefinitionToWorkflowDefinitionElement(_).getOrElse(???)).toSeq,
+        tasks.map(callableTaskDefinitionToTaskDefinitionElement(_).getOrElse(???)).toSeq
       ).validNelCheck
     }
 
@@ -82,7 +82,7 @@ object WomToWdlomImpl {
   def runtimeAttributesToRuntimeAttributesSectionElement: CheckedAtoB[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] =
     CheckedAtoB.fromCheck { a: RuntimeAttributes =>
       def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
-        ExpressionElement.KvPair(tuple._1, womExpressionToExpressionElement.run(tuple._2).getOrElse(???))
+        ExpressionElement.KvPair(tuple._1, womExpressionToExpressionElement(tuple._2).getOrElse(???))
 
       val kvPairs = (a.attributes map tupleToKvPair).toVector
 
@@ -95,8 +95,8 @@ object WomToWdlomImpl {
   def outputDefinitionToOutputDeclarationElement: CheckedAtoB[OutputDefinition, OutputDeclarationElement] =
     CheckedAtoB.fromCheck { a: OutputDefinition =>
       for {
-        typeElement <- womTypeToTypeElement.run(a.womType)
-        expression <- womExpressionToExpressionElement.run(a.expression)
+        typeElement <- womTypeToTypeElement(a.womType)
+        expression <- womExpressionToExpressionElement(a.expression)
       } yield {
         OutputDeclarationElement(typeElement, a.name, expression)
       }
@@ -104,16 +104,16 @@ object WomToWdlomImpl {
 
   def inputDefinitionToInputDeclarationElement: CheckedAtoB[InputDefinition, InputDeclarationElement] =
     CheckedAtoB.fromCheck { a: InputDefinition =>
-      womTypeToTypeElement.run(a.womType) flatMap { womType =>
+      womTypeToTypeElement(a.womType) flatMap { womType =>
         a match {
           case a: RequiredInputDefinition =>
             InputDeclarationElement(womType, a.localName.value, None).validNelCheck
           case a: InputDefinitionWithDefault =>
-            womExpressionToExpressionElement.run(a.default) map { expression =>
+            womExpressionToExpressionElement(a.default) map { expression =>
               InputDeclarationElement(womType, a.localName.value, Some(expression))
             }
           case a: FixedInputDefinition =>
-            womExpressionToExpressionElement.run(a.default) map { expression =>
+            womExpressionToExpressionElement(a.default) map { expression =>
               InputDeclarationElement(womType, a.localName.value, Some(expression))
             }
           case a: OptionalInputDefinition =>
@@ -125,8 +125,8 @@ object WomToWdlomImpl {
   def callableTaskDefinitionToTaskDefinitionElement: CheckedAtoB[CallableTaskDefinition, TaskDefinitionElement] =
     CheckedAtoB.fromCheck {
       a: CallableTaskDefinition =>
-        val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement.run(_).getOrElse(???))
-        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement.run(_).getOrElse(???))
+        val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement(_).getOrElse(???))
+        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement(_).getOrElse(???))
 
         val commands = a.commandTemplateBuilder(Map()) match {
           case Valid(cmd) => cmd
@@ -148,9 +148,9 @@ object WomToWdlomImpl {
         })
 
         for {
-          runtime <- runtimeAttributesToRuntimeAttributesSectionElement.run(a.runtimeAttributes)
-          meta <- mapToMetaSectionElement.run(a.meta)
-          parameterMeta <- mapToParameterMetaSectionElement.run(a.parameterMeta)
+          runtime <- runtimeAttributesToRuntimeAttributesSectionElement(a.runtimeAttributes)
+          meta <- mapToMetaSectionElement(a.meta)
+          parameterMeta <- mapToParameterMetaSectionElement(a.parameterMeta)
         } yield {
           TaskDefinitionElement(
             a.name,
@@ -170,17 +170,17 @@ object WomToWdlomImpl {
         // This is a bit odd, so let's explain. "Real" inputs/outputs that are specified by the WDL's author
         // cannot have periods in them - period. So any input/output that has a period in it
         // is an artifact of WOMification and should be dropped
-        val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement.run(_).getOrElse(???))
-        val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement.run(_).getOrElse(???))
+        val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement(_).getOrElse(???))
+        val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement(_).getOrElse(???))
 
         for {
-          meta <- mapToMetaSectionElement.run(a.meta)
-          parameterMeta <- mapToParameterMetaSectionElement.run(a.parameterMeta)
+          meta <- mapToMetaSectionElement(a.meta)
+          parameterMeta <- mapToParameterMetaSectionElement(a.parameterMeta)
         } yield {
           WorkflowDefinitionElement(
             a.name,
             if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-            selectWdlomRepresentableNodes(a.graph.nodes).map(graphNodeToWorkflowGraphElement.run(_).getOrElse(???)),
+            selectWdlomRepresentableNodes(a.graph.nodes).map(graphNodeToWorkflowGraphElement(_).getOrElse(???)),
             if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
             meta,
             parameterMeta)
@@ -191,8 +191,8 @@ object WomToWdlomImpl {
     CheckedAtoB.fromCheck {
       case a: ExpressionNode =>
         for {
-          typeElement <- womTypeToTypeElement.run(a.womType)
-          expression <- expressionNodeToExpressionElement.run(a)
+          typeElement <- womTypeToTypeElement(a.womType)
+          expression <- expressionNodeToExpressionElement(a)
         } yield {
           IntermediateValueDeclarationElement(
             typeElement = typeElement,
@@ -217,34 +217,34 @@ object WomToWdlomImpl {
   def graphNodeToWorkflowGraphElement: CheckedAtoB[GraphNode, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
         case a: CallNode =>
-          callNodeToCallElement.run(a)
+          callNodeToCallElement(a)
         case a: ConditionalNode =>
           IfElement(
-            conditionExpression = expressionNodeToExpressionElement.run(a.conditionExpression).getOrElse(???),
-            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement.run(_).getOrElse(???))
+            conditionExpression = expressionNodeToExpressionElement(a.conditionExpression).getOrElse(???),
+            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_).getOrElse(???))
           ).validNelCheck
         case a: ExpressionNodeLike =>
-          expressionNodeLikeToWorkflowGraphElement.run(a)
+          expressionNodeLikeToWorkflowGraphElement(a)
         case a: GraphNodeWithSingleOutputPort =>
-          graphNodeWithSingleOutputPortToWorkflowGraphElement.run(a)
+          graphNodeWithSingleOutputPortToWorkflowGraphElement(a)
         case a: GraphOutputNode =>
-          graphOutputNodeToWorkflowGraphElement.run(a)
+          graphOutputNodeToWorkflowGraphElement(a)
         case a: ScatterNode =>
           // Only CWL has multi-variable scatters
           if (a.scatterVariableNodes.size != 1) throw UnrepresentableException // TODO: upgrade from exceptions to typed errors
 
           ScatterElement(
             scatterName = a.identifier.localName.value,
-            scatterExpression = expressionNodeToExpressionElement.run(a.scatterCollectionExpressionNodes.head).getOrElse(???),
+            scatterExpression = expressionNodeToExpressionElement(a.scatterCollectionExpressionNodes.head).getOrElse(???),
             scatterVariableName = a.inputPorts.toList.head.name,
-            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement.run(_).getOrElse(???))
+            graphElements = selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_).getOrElse(???))
           ).validNelCheck
       }
 
   def graphNodeWithSingleOutputPortToWorkflowGraphElement: CheckedAtoB[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
       case a: GraphInputNode =>
-        womTypeToTypeElement.run(a.womType) map { typeElement =>
+        womTypeToTypeElement(a.womType) map { typeElement =>
           InputDeclarationElement(
             typeElement,
             a.identifier.localName.value,
@@ -252,8 +252,8 @@ object WomToWdlomImpl {
         }
       case a: ExpressionNode =>
         for {
-          typeElement <- womTypeToTypeElement.run(a.womType)
-          expression <- womExpressionToExpressionElement.run(a.womExpression)
+          typeElement <- womTypeToTypeElement(a.womType)
+          expression <- womExpressionToExpressionElement(a.womExpression)
         } yield {
           IntermediateValueDeclarationElement(
             typeElement,
@@ -265,7 +265,7 @@ object WomToWdlomImpl {
   def womTypeToTypeElement: CheckedAtoB[WomType, TypeElement] =
     CheckedAtoB.fromCheck {
       case a: WomArrayType =>
-        womTypeToTypeElement.run(a.memberType) map { typeElement =>
+        womTypeToTypeElement(a.memberType) map { typeElement =>
           if (a.guaranteedNonEmpty)
             NonEmptyTypeElement(ArrayTypeElement(typeElement))
           else
@@ -275,27 +275,27 @@ object WomToWdlomImpl {
       case _: WomFileType => PrimitiveTypeElement(WomSingleFileType).validNelCheck
       case a: WomMapType =>
         for {
-          keyType <- womTypeToTypeElement.run(a.keyType)
-          valueType <- womTypeToTypeElement.run(a.valueType)
+          keyType <- womTypeToTypeElement(a.keyType)
+          valueType <- womTypeToTypeElement(a.valueType)
         } yield {
           MapTypeElement(keyType, valueType)
         }
       case _: WomNothingType.type => throw UnrepresentableException
       case _: WomObjectType.type => ObjectTypeElement.validNelCheck
-      case a: WomOptionalType => womOptionalTypeToOptionalTypeElement.run(a)
+      case a: WomOptionalType => womOptionalTypeToOptionalTypeElement(a)
       case a: WomPairType =>
         for {
-          leftType <- womTypeToTypeElement.run(a.leftType)
-          rightType <- womTypeToTypeElement.run(a.rightType)
+          leftType <- womTypeToTypeElement(a.leftType)
+          rightType <- womTypeToTypeElement(a.rightType)
         } yield {
           PairTypeElement(leftType, rightType)
         }
-      case a: WomPrimitiveType => womPrimitiveTypeToPrimitiveTypeElement.run(a)
+      case a: WomPrimitiveType => womPrimitiveTypeToPrimitiveTypeElement(a)
     }
 
   def womOptionalTypeToOptionalTypeElement: CheckedAtoB[WomOptionalType, OptionalTypeElement] =
     CheckedAtoB.fromCheck { a: WomOptionalType =>
-      womTypeToTypeElement.run(a.memberType) map { typeElement =>
+      womTypeToTypeElement(a.memberType) map { typeElement =>
         OptionalTypeElement(typeElement)
       }
     }
@@ -307,7 +307,7 @@ object WomToWdlomImpl {
 
   def expressionNodeToExpressionElement: CheckedAtoB[ExpressionNode, ExpressionElement] =
     CheckedAtoB.fromCheck {
-      a: ExpressionNode => womExpressionToExpressionElement.run(a.womExpression)
+      a: ExpressionNode => womExpressionToExpressionElement(a.womExpression)
     }
 
   def womExpressionToExpressionElement: CheckedAtoB[WomExpression, ExpressionElement] =
@@ -325,11 +325,11 @@ object WomToWdlomImpl {
         case _: OptionalGraphInputNodeWithDefault =>
           None.validNelCheck
         case a: PlainAnonymousExpressionNode =>
-          womExpressionToExpressionElement.run(a.womExpression) map { expressionElement =>
+          womExpressionToExpressionElement(a.womExpression) map { expressionElement =>
             Some(expressionElement)
           }
         case a: TaskCallInputExpressionNode =>
-          womExpressionToExpressionElement.run(a.womExpression) map { expressionElement =>
+          womExpressionToExpressionElement(a.womExpression) map { expressionElement =>
             Some(expressionElement)
           }
         case _: RequiredGraphInputNode => None.validNelCheck
@@ -345,7 +345,7 @@ object WomToWdlomImpl {
   def callNodeToCallElement: CheckedAtoB[CallNode, CallElement] =
     CheckedAtoB.fromCheck { call: CallNode =>
       def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): Option[ExpressionElement.KvPair] = {
-        inputDefinitionPointerToExpressionElement.run(tuple._2).getOrElse(???) match {
+        inputDefinitionPointerToExpressionElement(tuple._2).getOrElse(???) match {
           case Some(value) => Some(ExpressionElement.KvPair(tuple._1.name, value))
           case _ => None
         }

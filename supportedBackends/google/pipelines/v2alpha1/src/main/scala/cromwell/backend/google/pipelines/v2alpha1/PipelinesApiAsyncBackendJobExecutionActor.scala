@@ -91,8 +91,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation) = {
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
     // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
-    // For the default one (cromwell_root), the expctation is that it does not appear
-    val mountedPath = if (disk != PipelinesApiWorkingDisk.Default) disk.mountPoint.resolve(relpath) else relpath
+    // For the default one (cromwell_root), the expectation is that it does not appear
+    val mountedPath = if (!disk.mountPoint.isSamePathAs(PipelinesApiWorkingDisk.Default.mountPoint)) disk.mountPoint.resolve(relpath) else relpath
     // Normalize the local path (to get rid of ".." and "."). Also strip any potential leading / so that it gets appended to the call root
     val normalizedPath = mountedPath.normalize().pathAsString.stripPrefix("/")
     val destination = callRootPath.resolve(normalizedPath)

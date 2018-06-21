@@ -1,6 +1,10 @@
 package womtool.wom2wdlom
 
 import cats.data.Validated.Valid
+import cats.instances.either._
+import cats.instances.list._
+import cats.syntax.traverse._
+import common.Checked
 import common.validation.Checked._
 import wdl.model.draft3.elements._
 import wom.executable.WomBundle
@@ -125,8 +129,10 @@ object WomToWdlomImpl {
   def callableTaskDefinitionToTaskDefinitionElement: CheckedAtoB[CallableTaskDefinition, TaskDefinitionElement] =
     CheckedAtoB.fromCheck {
       a: CallableTaskDefinition =>
-        val inputs = a.inputs.map(inputDefinitionToInputDeclarationElement(_).getOrElse(???))
-        val outputs = a.outputs.map(outputDefinitionToOutputDeclarationElement(_).getOrElse(???))
+        val inputs: Checked[List[InputDeclarationElement]] =
+          a.inputs.map(inputDefinitionToInputDeclarationElement(_)).sequence[Checked, InputDeclarationElement]
+        val outputs: Checked[List[OutputDeclarationElement]] =
+          a.outputs.map(outputDefinitionToOutputDeclarationElement(_)).sequence[Checked, OutputDeclarationElement]
 
         val commands = a.commandTemplateBuilder(Map()) match {
           case Valid(cmd) => cmd
@@ -151,6 +157,8 @@ object WomToWdlomImpl {
           runtime <- runtimeAttributesToRuntimeAttributesSectionElement(a.runtimeAttributes)
           meta <- mapToMetaSectionElement(a.meta)
           parameterMeta <- mapToParameterMetaSectionElement(a.parameterMeta)
+          inputs <- inputs
+          outputs <- outputs
         } yield {
           TaskDefinitionElement(
             a.name,
@@ -170,17 +178,22 @@ object WomToWdlomImpl {
         // This is a bit odd, so let's explain. "Real" inputs/outputs that are specified by the WDL's author
         // cannot have periods in them - period. So any input/output that has a period in it
         // is an artifact of WOMification and should be dropped
-        val inputs = a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement(_).getOrElse(???))
-        val outputs = a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement(_).getOrElse(???))
+        val inputs =
+          a.inputs.filter(!_.localName.value.contains(".")).map(inputDefinitionToInputDeclarationElement(_)).sequence[Checked, InputDeclarationElement]
+        val outputs =
+          a.outputs.filter(!_.localName.value.contains(".")).map(outputDefinitionToOutputDeclarationElement(_)).sequence[Checked, OutputDeclarationElement]
 
         for {
           meta <- mapToMetaSectionElement(a.meta)
           parameterMeta <- mapToParameterMetaSectionElement(a.parameterMeta)
+          inputs <- inputs
+          outputs <- outputs
+          nodes <- selectWdlomRepresentableNodes(a.graph.nodes).map(graphNodeToWorkflowGraphElement(_)).toList.sequence[Checked, WorkflowGraphElement]
         } yield {
           WorkflowDefinitionElement(
             a.name,
             if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,
-            selectWdlomRepresentableNodes(a.graph.nodes).map(graphNodeToWorkflowGraphElement(_).getOrElse(???)),
+            nodes.toSet,
             if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
             meta,
             parameterMeta)

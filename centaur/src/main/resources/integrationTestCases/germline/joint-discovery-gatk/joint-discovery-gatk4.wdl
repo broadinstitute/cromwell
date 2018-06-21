@@ -329,24 +329,6 @@ workflow JointGenotyping {
   }
 }
 
-task GetNumberOfSamples {
-  File sample_name_map
-  String mem_size
-  Int preemptibles
-
-  command <<<
-    wc -l ${sample_name_map} | awk '{print $1}'
-  >>>
-  runtime {
-    docker: docker_image
-    memory: mem_size
-    preemptible: preemptibles
-  }
-  output {
-    Int sample_count = read_int(stdout())
-  }
-}
-
 task ImportGVCFs {
   File sample_name_map
   String interval

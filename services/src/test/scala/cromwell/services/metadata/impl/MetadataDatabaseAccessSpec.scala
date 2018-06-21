@@ -272,9 +272,15 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
           Seq(testLabel2, testLabel3)
             .map(label => WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${label.key}:${label.value}"))
-        ) map { case (response, _) =>
-          val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+        ) map { case (response, _) => {
+            val resultByName = response.results groupBy (_.name)
+            resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+            response.totalResultsCount match {
+              case 3 => //good
+              case ct => fail(s"totalResultsCount for multiple exclude labels using AND query is expected to be 3 but is actually $ct. " +
+                s"Something has gone horribly wrong!")
+            }
+          }
         }
         // Filter by exclude label using OR
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
@@ -287,9 +293,12 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           Seq(testLabel2, testLabel3)
             .map(label => WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
           response.totalResultsCount match {
-            case 2 =>
-            case ct => fail(s"totalResultsCount is expected to be 2 but is actually $ct. Something has gone horribly wrong!")
+            case 2 => //good
+            case ct => fail(s"totalResultsCount is for multiple exclude labels using OR query is expected to be 2 but is actually $ct. " +
+              s"Something has gone horribly wrong!")
           }
         }
         // Filter by start date

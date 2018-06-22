@@ -2,11 +2,12 @@ package cromwell.backend.google.pipelines.v2alpha1
 
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common._
+import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
 import cromwell.core.path.DefaultPathBuilder
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
-import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomUnlistedDirectory}
+import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend .google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
   
@@ -85,5 +86,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
           pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(relativeLocalizationPath(womFile)), jobDescriptor)
       })
     case _ => List.empty
+  }
+
+  override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation) = {
+    val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
+    // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
+    // For the default one (cromwell_root), the expectation is that it does not appear
+    val mountedPath = if (!disk.mountPoint.isSamePathAs(PipelinesApiWorkingDisk.Default.mountPoint)) disk.mountPoint.resolve(relpath) else relpath
+    // Normalize the local path (to get rid of ".." and "."). Also strip any potential leading / so that it gets appended to the call root
+    val normalizedPath = mountedPath.normalize().pathAsString.stripPrefix("/")
+    val destination = callRootPath.resolve(normalizedPath)
+    val jesFileOutput = PipelinesApiFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
+    List(jesFileOutput)
   }
 }

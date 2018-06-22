@@ -2,6 +2,7 @@ package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.validation._
+import eu.timepit.refined.api.Refined
 import wdl.draft2.model.expression.NoFunctions
 import wdl.draft2.model.{Declaration, NoLookup, WdlExpression}
 import wom.RuntimeAttributesKeys
@@ -110,7 +111,8 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     */
   def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] = {
     RuntimeAttributesValidation.extractOption(instanceValidation, validatedRuntimeAttributes) map {
-      declaration.womType.coerceRawValue(_).get
+      case refined: Refined[_, _] => declaration.womType.coerceRawValue(refined.value).get
+      case other => declaration.womType.coerceRawValue(other).get
     }
   }
 }

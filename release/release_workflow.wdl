@@ -115,13 +115,10 @@ task versionPrep {
     }
 
     command <<<
+      which jq | brew install jq
       curl -s https://api.github.com/repos/~{organization}/cromwell/releases/latest | jq --raw-output '.tag_name'
     >>>
     
-    runtime {
-        docker: "broadinstitute/cromwell:cromwell-release-image"
-    }
-
     output {
         String previouslyReleasedVersion = read_string(stdout())
         Float previouslyReleasedVersionAsFloat = read_float(stdout())

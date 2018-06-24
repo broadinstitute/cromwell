@@ -663,6 +663,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def saveCacheResults(hashes: CallCacheHashes, data: SucceededResponseData) = {
+    workflowLogger.info(s"Writing detrituses to cache DB: ${data.response.jobDetritusFiles.map(_.map({case (k, v) => s"$k -> $v"}).mkString("\n")).getOrElse("N/A")}")
     callCacheWriteActor ! SaveCallCacheHashes(CallCacheHashBundle(workflowIdForLogging, hashes, data.response))
     val updatedData = data.copy(hashes = Option(Success(hashes)))
     goto(UpdatingCallCache) using updatedData

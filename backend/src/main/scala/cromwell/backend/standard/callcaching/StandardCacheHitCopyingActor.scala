@@ -8,7 +8,7 @@ import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor.{CallCached, JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
@@ -117,7 +117,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   lazy val destinationCallRootPath: Path = jobPaths.callRoot
-  lazy val destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
+  def destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
+  
   lazy val ioActor = standardParams.ioActor
 
   startWith(Idle, None)

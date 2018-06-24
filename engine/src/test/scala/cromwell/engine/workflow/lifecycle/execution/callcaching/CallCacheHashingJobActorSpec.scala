@@ -249,8 +249,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
 
     cchja ! FileHashResponse(mock[HashResult])
 
-    callCacheReadProbe.expectNoMsg()
-    parent.expectNoMsg()
+    callCacheReadProbe.expectNoMessage()
+    parent.expectNoMessage()
     cchja.stateName shouldBe HashingFiles
   }
 

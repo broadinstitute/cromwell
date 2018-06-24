@@ -104,7 +104,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectNoMsg(AwaitAlmostNothing)
+      supervisorProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
 
@@ -131,7 +131,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectNoMsg(AwaitAlmostNothing)
+      supervisorProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
 
@@ -142,7 +142,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectNoMsg(AwaitAlmostNothing)
+      supervisorProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
 
@@ -150,7 +150,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       val actor = createWorkflowActor(WorkflowUnstartedState)
       deathwatch watch actor
       actor ! AbortWorkflowCommand
-      finalizationProbe.expectNoMsg(AwaitAlmostNothing)
+      finalizationProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
 
@@ -158,7 +158,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       val actor = createWorkflowActor(MaterializingWorkflowDescriptorState)
       deathwatch watch actor
       actor ! AbortWorkflowCommand
-      finalizationProbe.expectNoMsg(AwaitAlmostNothing)
+      finalizationProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
 
@@ -166,11 +166,11 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       val actor = createWorkflowActor(MaterializingWorkflowDescriptorState)
       deathwatch watch actor
 
-      copyWorkflowLogsProbe.expectNoMsg(AwaitAlmostNothing)
+      copyWorkflowLogsProbe.expectNoMessage(AwaitAlmostNothing)
       actor ! MaterializeWorkflowDescriptorFailureResponse(new Exception("Intentionally failing workflow materialization to test log copying"))
       copyWorkflowLogsProbe.expectMsg(CopyWorkflowLogsActor.Copy(currentWorkflowId, mockDir))
 
-      finalizationProbe.expectNoMsg(AwaitAlmostNothing)
+      finalizationProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
   }

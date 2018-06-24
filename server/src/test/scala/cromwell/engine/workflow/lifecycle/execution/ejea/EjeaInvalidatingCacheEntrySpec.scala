@@ -23,7 +23,7 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
         // Send the response from the invalidate actor
         ejea ! invalidateActorResponse
 
-        helper.bjeaProbe.expectNoMsg(awaitAlmostNothing)
+        helper.bjeaProbe.expectNoMessage(awaitAlmostNothing)
         helper.ejhaProbe.expectMsg(NextHit)
         eventually { ejea.stateName should be(CheckingCallCache) }
         ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, None, Option(helper.ejhaProbe.ref), None))

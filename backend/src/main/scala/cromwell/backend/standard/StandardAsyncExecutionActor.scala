@@ -251,6 +251,21 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   //       of lazy vals
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
+
+  // It's here at instantiation time that the names of standard input/output/error files are calculated.
+  // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
+  // the command, but the standard input file will never be accessed after the command completes. standard output and
+  // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
+  // by the backend.
+  //
+  // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
+  // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
+  // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
+  // will need to be mapped back to host paths for use outside the command script.
+  //
+  // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
+  // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
+  // the names from redirections may or may not be relative.
   private def absolutizeContainerPath(path: String): String = {
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
   }
@@ -258,6 +273,25 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def executionStdin: Option[String] = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
   def executionStdout: String = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
   def executionStderr: String = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+
+  def hostPathFromContainerPath(string: String): Path = {
+    val cwdString = cwd.pathAsString.ensureSlashed
+    val relativePath = string.stripPrefix(cwdString)
+    jobPaths.callExecutionRoot.resolve(relativePath)
+  }
+  
+  def updateJobPaths() = {
+    /* .get's are safe on stdout and stderr after falling back to default names above.
+   * This NEED to be done outside commandScriptContents, because in the case of a restart, it will be used as the detritus paths
+   * for the job but commandScriptContents won't be called
+   */
+    jobPaths.standardPaths = StandardPaths(
+      output = hostPathFromContainerPath(executionStdout),
+      error = hostPathFromContainerPath(executionStderr)
+    )
+    // Re-publish stdout and stderr paths that were possibly just updated.
+    tellMetadata(jobPaths.standardOutputAndErrorPaths)
+  }
   // End added lift code
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
@@ -266,42 +300,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
-    // It's here at instantiation time that the names of standard input/output/error files are calculated.
-    // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
-    // the command, but the standard input file will never be accessed after the command completes. standard output and
-    // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
-    // by the backend.
-    //
-    // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
-    // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
-    // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
-    // will need to be mapped back to host paths for use outside the command script.
-    //
-    // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
-    // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
-    // the names from redirections may or may not be relative.
-    def absolutizeContainerPath(path: String): String = {
-      if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
-    }
-
-    val executionStdin = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
-    val executionStdout = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
-    val executionStderr = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
-
-    def hostPathFromContainerPath(string: String): Path = {
-      val cwdString = cwd.pathAsString.ensureSlashed
-      val relativePath = string.stripPrefix(cwdString)
-      jobPaths.callExecutionRoot.resolve(relativePath)
-    }
-
-    // .get's are safe on stdout and stderr after falling back to default names above.
-    jobPaths.standardPaths = StandardPaths(
-      output = hostPathFromContainerPath(executionStdout),
-      error = hostPathFromContainerPath(executionStderr)
-    )
-
-    // Re-publish stdout and stderr paths that were possibly just updated.
-    tellMetadata(jobPaths.standardOutputAndErrorPaths)
+    updateJobPaths()
 
     // The standard input redirection gets a '<' that standard output and error do not since standard input is only
     // redirected if requested. Standard output and error are always redirected but not necessarily to the default
@@ -831,6 +830,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
                              returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     evaluateOutputs() map {
       case ValidJobOutputs(outputs) =>
+        updateJobPaths()
         SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
       case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {

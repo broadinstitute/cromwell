@@ -79,7 +79,7 @@ class LoadControllerServiceActorSpec extends TestKitSuite with FlatSpecLike with
     expectMsg(max = 2.seconds, HighLoad)
 
     // And only one
-    expectNoMsg(2.seconds)
+    expectNoMessage(2.seconds)
 
     // Set the load level back to normal
     loadActor ! LoadMetric("itsme", NormalLoad)

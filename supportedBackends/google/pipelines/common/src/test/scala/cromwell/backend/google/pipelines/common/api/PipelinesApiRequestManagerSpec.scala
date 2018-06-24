@@ -55,7 +55,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
     }
 
     // Should have no messages to the actual statusPoller yet:
-    statusPoller.expectNoMsg(max = AwaitAlmostNothing)
+    statusPoller.expectNoMessage(max = AwaitAlmostNothing)
 
     // Verify batches:
     2 times {

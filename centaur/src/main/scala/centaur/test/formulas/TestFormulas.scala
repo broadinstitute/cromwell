@@ -44,6 +44,7 @@ object TestFormulas {
     for {
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition)
+      _ <- printHashDifferential(firstWF, secondWf)
       metadata <- validateMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
       _ <- validateNoCacheMisses(metadata, workflowDefinition.testName)
       _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf)

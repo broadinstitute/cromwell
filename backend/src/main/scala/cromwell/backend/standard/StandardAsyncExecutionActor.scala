@@ -10,6 +10,7 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.functor._
 import cats.syntax.traverse._
+import common.Checked
 import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
@@ -132,6 +133,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
         }
   }
+  
+  final lazy val localizedInputs: Try[WomEvaluatedCallInputs] = commandLinePreProcessor(jobDescriptor.evaluatedTaskInputs)
 
   /**
     * Maps WomFile to a local path, for use in the commandLineValueMapper.
@@ -434,10 +437,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val unmappedInputs: Map[String, WomValue] = jobDescriptor.evaluatedTaskInputs.map({
       case (inputDefinition, womValue) => inputDefinition.localName.value -> womValue
     })
-    val mappedInputs: Map[String, WomValue] = unmappedInputs.mapValues(tryCommandLineValueMapper).map(identity)
+
+    val mappedInputs: Checked[Map[String, WomValue]] = localizedInputs.toErrorOr.map(
+      _.map({
+        case (inputDefinition, value) => inputDefinition.localName.value -> tryCommandLineValueMapper(value)
+      })
+    ).toEither
     
     val evaluateAndInitialize = (containerizedInputExpression: ContainerizedInputExpression) => for {
-      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mappedInputs, backendEngineFunctions).toEither
+      mapped <- mappedInputs
+      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toEither
       initialized <- evaluated.traverse[ErrorOr, AdHocValue]({ adHocValue =>
         adHocValue.womValue.initializeWomFile(backendEngineFunctions).map(i => adHocValue.copy(womValue = i))
       }).toEither
@@ -479,7 +488,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // Gets the inputs that will be mutated by instantiating the command.
     def mutatingPreProcessor(in: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
       for {
-        commandLineProcessed <- commandLinePreProcessor(in)
+        commandLineProcessed <- localizedInputs
         adHocProcessed <- adHocFilePreProcessor(commandLineProcessed)
       } yield adHocProcessed
     }

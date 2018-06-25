@@ -200,7 +200,13 @@ task releaseHomebrew {
     String headBranch = if (organization == "broadinstitute") then "broadinstitute:~{branchName}" else branchName
     String baseBranch = "master"
     String pullRepo = if (organization == "broadinstitute") then "Homebrew" else organization
+    
+    meta {
+        doc: "https://docs.brew.sh/How-To-Open-a-Homebrew-Pull-Request"
+    }
 
+    # 'brew bump-formula-pr' seems very promising and could simplify a lot of this, however it's unclear if it would be 
+    # able to update the womtool version too.
     command <<<
         set -e
         set -x 

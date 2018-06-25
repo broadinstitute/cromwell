@@ -1,16 +1,14 @@
 version 1.0
 
-# Cromwell Release WDL
-# Part 1 of the release process.
-# See also: https://docs.google.com/document/d/1khCqpOYpkCE95pE4a6VfBIxd2zHPWuMILgpisNKCF6c
-
 task do_major_release {
    input {
-      # Current version being released
       Int releaseVersion
-   
-      # Can be swapped out to try this on a fork
       String organization
+   }
+   
+   parameter_meta {
+     releaseVersion: "Current version being released"
+     organization: "Organization on which the release will be performed. Can be used for testing."
    }
 
    Int nextV = releaseVersion + 1
@@ -58,8 +56,8 @@ task do_major_release {
    }
 
    output {
-     File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-${releaseVersion}.jar"
-     File womtoolJar = "cromwell/womtool/target/scala-2.12/womtool-${releaseVersion}.jar"
+     File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-~{releaseVersion}.jar"
+     File womtoolJar = "cromwell/womtool/target/scala-2.12/womtool-~{releaseVersion}.jar"
    }
 }
 
@@ -75,7 +73,7 @@ task do_minor_release {
 
    Float releaseVersionAsFloat = releaseVersion
    Int majorReleaseNumber = floor(releaseVersionAsFloat)   
-   String hotfixBranchName = "${majorReleaseNumber}_hotfix"
+   String hotfixBranchName = "~{majorReleaseNumber}_hotfix"
 
    command {
      set -e
@@ -103,8 +101,8 @@ task do_minor_release {
    }
 
    output {
-     File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-${releaseVersion}.jar"
-     File womtoolJar = "cromwell/womtool/target/scala-2.12/womtool-${releaseVersion}.jar"
+     File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-~{releaseVersion}.jar"
+     File womtoolJar = "cromwell/womtool/target/scala-2.12/womtool-~{releaseVersion}.jar"
    }
 }
 
@@ -115,7 +113,7 @@ task versionPrep {
     }
 
     command <<<
-      which jq | brew install jq
+      which jq || brew install jq
       curl -s https://api.github.com/repos/~{organization}/cromwell/releases/latest | jq --raw-output '.tag_name'
     >>>
     
@@ -176,8 +174,8 @@ task makeGithubRelease {
         docker: "python:2.7"
     }
     output {
-        String cromwellReleaseUrl = "https://github.com/${organization}/cromwell/releases/download/${newVersion}/${cromwellJarName}"
-        String womtoolReleaseUrl = "https://github.com/${organization}/cromwell/releases/download/${newVersion}/${womtoolJarName}"
+        String cromwellReleaseUrl = "https://github.com/~{organization}/cromwell/releases/download/~{newVersion}/~{cromwellJarName}"
+        String womtoolReleaseUrl = "https://github.com/~{organization}/cromwell/releases/download/~{newVersion}/~{womtoolJarName}"
     }
 }
 
@@ -195,11 +193,11 @@ task releaseHomebrew {
         File womtoolJar
     }
     
-    String branchName = "cromwell-${releaseVersion}"
+    String branchName = "cromwell-~{releaseVersion}"
     
     # This is to allow for testing. If the organization is not broadinstitute, meaning we're doing a test,
     # instead of creating the PR in the official homebrew repo make a PR in the test repo.
-    String headBranch = if (organization == "broadinstitute") then "broadinstitute:${branchName}" else branchName
+    String headBranch = if (organization == "broadinstitute") then "broadinstitute:~{branchName}" else branchName
     String baseBranch = "master"
     String pullRepo = if (organization == "broadinstitute") then "Homebrew" else organization
 
@@ -289,8 +287,14 @@ task releaseHomebrew {
 workflow release_cromwell {
   input {
     String githubToken
-    String organization
-    Boolean majorRelease = false
+    String organization = "broadinstitute"
+    Boolean majorRelease = true
+  }
+  
+  parameter_meta {
+    githubToken: "Github token use interact with github API"
+    organization: "Organization on which the release will be performed. Swap out for a test organization for testing"
+    majorRelease: "Set to false to do a .X minor release"
   }
 
   call versionPrep { input:
@@ -343,5 +347,10 @@ workflow release_cromwell {
   output {
     File cromwellReleasedJar = cromwellJar
     File womtoolReleasedJar = womtoolJar
+  }
+  
+  meta {
+    title: "Cromwell Release WDL"
+    doc: "https://docs.google.com/document/d/1khCqpOYpkCE95pE4a6VfBIxd2zHPWuMILgpisNKCF6c"
   }
 }

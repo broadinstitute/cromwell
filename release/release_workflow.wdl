@@ -114,12 +114,12 @@ task versionPrep {
 
     command <<<
       which jq || brew install jq
-      curl -s https://api.github.com/repos/~{organization}/cromwell/releases/latest | jq --raw-output '.tag_name'
+      curl -s https://api.github.com/repos/~{organization}/cromwell/releases/latest | jq --raw-output '.tag_name' > version
     >>>
     
     output {
-        String previouslyReleasedVersion = read_string(stdout())
-        Float previouslyReleasedVersionAsFloat = read_float(stdout())
+        String previouslyReleasedVersion = read_string("version")
+        Float previouslyReleasedVersionAsFloat = read_float("version")
         String currentReleaseVersion = if (majorRelease) then floor(previouslyReleasedVersionAsFloat) + 1 else previouslyReleasedVersionAsFloat + 0.1
     }
 }

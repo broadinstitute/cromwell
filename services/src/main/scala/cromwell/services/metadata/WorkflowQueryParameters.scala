@@ -15,6 +15,8 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            ids: Set[WorkflowId],
                                            labelsAnd: Set[Label],
                                            labelsOr: Set[Label],
+                                           excludeLabelsAnd: Set[Label],
+                                           excludeLabelsOr: Set[Label],
                                            submissionTime: Option[OffsetDateTime],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
@@ -72,6 +74,8 @@ object WorkflowQueryParameters {
     val workflowIdsValidation: ErrorOr[Set[WorkflowId]] = WorkflowQueryKey.Id.validate(valuesByCanonicalCapitalization).map(ids => (ids map WorkflowId.fromString).toSet)
     val labelsAndValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val labelsOrValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.LabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val excludeLabelsAndValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.ExcludeLabelAndKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val excludeLabelsOrValidation: ErrorOr[Set[Label]] = WorkflowQueryKey.ExcludeLabelOrKeyValue.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val pageValidation = Page.validate(valuesByCanonicalCapitalization)
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
     val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
@@ -97,6 +101,8 @@ object WorkflowQueryParameters {
       workflowIdsValidation,
       labelsAndValidation,
       labelsOrValidation,
+      excludeLabelsAndValidation,
+      excludeLabelsOrValidation,
       submissionTimeValidation,
       startDateValidation,
       endDateValidation,
@@ -105,8 +111,8 @@ object WorkflowQueryParameters {
       additionalQueryResultFieldsValidation,
       includeSubworkflowsValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows)
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows) =>
+        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows)
     }
   }
 

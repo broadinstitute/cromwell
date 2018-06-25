@@ -4,6 +4,11 @@
 
 ### Query endpoint
 
+#### Exclude workflows based on Labels
+
+This gives the ability to **filter out** workflows based on labels. Two new parameters called `excludeLabelAnd` and `excludeLabelOr` can be used for this purpose.
+More details on how to use them can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+
 #### Include/Exclude subworkflows
 
 Cromwell now supports excluding subworkflows from workflow query results using the `includeSubworkflows` parameter. By default they are included in the results.

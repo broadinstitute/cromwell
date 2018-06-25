@@ -23,6 +23,8 @@ object WorkflowQueryKey {
     Status,
     LabelAndKeyValue,
     LabelOrKeyValue,
+    ExcludeLabelAndKeyValue,
+    ExcludeLabelOrKeyValue,
     Page,
     PageSize,
     AdditionalQueryResultFields,
@@ -90,6 +92,14 @@ object WorkflowQueryKey {
 
   case object LabelOrKeyValue extends LabelLikeKeyValue {
     override val name = "Labelor"
+  }
+
+  case object ExcludeLabelAndKeyValue extends LabelLikeKeyValue {
+    override val name = "Excludelabeland"
+  }
+
+  case object ExcludeLabelOrKeyValue extends LabelLikeKeyValue {
+    override val name = "Excludelabelor"
   }
 
   case object Id extends SeqWorkflowQueryKey[String] {

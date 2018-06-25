@@ -179,12 +179,17 @@ trait MetadataDatabaseAccess {
     val labelsAndToQuery = queryParameters.labelsAnd.map(label => (label.key, label.value))
     val labelsOrToQuery = queryParameters.labelsOr.map(label => (label.key, label.value))
 
+    val excludeLabelsAndToQuery = queryParameters.excludeLabelsAnd.map(label => (label.key, label.value))
+    val excludeLabelsOrToQuery = queryParameters.excludeLabelsOr.map(label => (label.key, label.value))
+
     val workflowSummaries = metadataDatabaseInterface.queryWorkflowSummaries(
       queryParameters.statuses,
       queryParameters.names,
       queryParameters.ids.map(_.toString),
       labelsAndToQuery,
       labelsOrToQuery,
+      excludeLabelsAndToQuery,
+      excludeLabelsOrToQuery,
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
@@ -198,6 +203,8 @@ trait MetadataDatabaseAccess {
       queryParameters.ids.map(_.toString),
       labelsAndToQuery,
       labelsOrToQuery,
+      excludeLabelsAndToQuery,
+      excludeLabelsOrToQuery,
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp)

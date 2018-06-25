@@ -1,7 +1,6 @@
 package wom.expression
 
 import cats.data.Validated._
-import cats.syntax.option._
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.IoFunctionSet.IoElement
 import wom.types.WomType
@@ -10,10 +9,10 @@ import wom.values._
 import scala.concurrent.{ExecutionContext, Future}
 
 object FileEvaluation {
-  def requiredFile(file: WomFile): FileEvaluation = FileEvaluation(file = file, optional = false)
+  def requiredFile(file: WomFile): FileEvaluation = FileEvaluation(file = file, optional = false, secondary = false)
 }
 
-case class FileEvaluation(file: WomFile, optional: Boolean)
+case class FileEvaluation(file: WomFile, optional: Boolean, secondary: Boolean)
 
 trait WomExpression {
   def sourceString: String
@@ -118,6 +117,12 @@ trait IoFunctionSet {
   def writeFile(path: String, content: String): Future[WomSingleFile]
 
   /**
+    * Creates a temporary directory. This must be in a place accessible to the backend.
+    * In a world where then backend is not known at submission time this will not be sufficient.
+    */
+  def createTemporaryDirectory(name: Option[String]): Future[String]
+
+  /**
     * Copy pathFrom to targetName
     * @return destination as a WomSingleFile
     */
@@ -155,25 +160,4 @@ trait IoFunctionSet {
     * To map/flatMap over IO results
     */
   implicit def ec: ExecutionContext
-}
-
-/**
-  * Simply looks up the id in the inputs map.
-  */
-case class InputLookupExpression(tpe: WomType, id: String) extends WomExpression {
-
-  override def sourceString: String = id
-
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-    inputValues.get(id).toValidNel(s"could not find $id in $inputValues!")
-
-  override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = validNel(tpe)
-
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] =
-    evaluateValue(inputTypes, ioFunctionSet).map{
-      case x: WomFile => Set(FileEvaluation.requiredFile(x))
-      case _ => Set.empty
-    }
-
-  override def inputs: Set[String] = Set(id)
 }

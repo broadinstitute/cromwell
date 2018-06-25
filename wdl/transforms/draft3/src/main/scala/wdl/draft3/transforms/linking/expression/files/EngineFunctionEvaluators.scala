@@ -19,14 +19,14 @@ import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 object EngineFunctionEvaluators {
 
   private def evaluateToFile(forFunction: String, a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[Set[WomFile]] = {
-    a match {
+    (a match {
       case _: IdentifierLookup | _: IdentifierMemberAccess | _: IndexAccess => Set.empty[WomFile].validNel
       case _ =>
-        (a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+        a.evaluateValue(inputs, ioFunctionSet, None) flatMap {
           case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomSingleFile(p.valueString)).validNel
           case other => s"Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
-        }).contextualizeErrors(s"predict files needed to de-localize from '${a.toWdlV1}' for $forFunction")
-    }
+        }
+    }).contextualizeErrors(s"predict files needed to de-localize from '${a.toWdlV1}' for $forFunction")
   }
 
   implicit val stdoutFunctionEvaluator: FileEvaluator[StdoutElement.type] = new FileEvaluator[StdoutElement.type] {

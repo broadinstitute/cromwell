@@ -12,13 +12,15 @@ class DirectoryFunctionsSpec extends FlatSpec with Matchers {
 
   val functions = new DirectoryFunctions {
     override def pathBuilders = List(DefaultPathBuilder)
-    override def copyFile(source: String, destination: String) = ???
-    override def glob(pattern: String) = ???
-    override def size(path: String) = ???
-    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean)  = ???
-    override def pathFunctions = ???
-    override def writeFile(path: String, content: String) = ???
-    override implicit def ec = ???
+    override def copyFile(source: String, destination: String) = throw new UnsupportedOperationException()
+    override def glob(pattern: String) = throw new UnsupportedOperationException()
+    override def size(path: String) = throw new UnsupportedOperationException()
+    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean)  = throw new UnsupportedOperationException()
+    override def pathFunctions = throw new UnsupportedOperationException()
+    override def writeFile(path: String, content: String) = throw new UnsupportedOperationException()
+    override implicit def ec = throw new UnsupportedOperationException()
+    override def createTemporaryDirectory(name: Option[String]) = throw new UnsupportedOperationException()
+    override def asyncIo = throw new UnsupportedOperationException()
   }
 
   "listDirectory" should "exclude visited directories when listing" in {

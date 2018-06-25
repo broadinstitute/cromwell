@@ -2,8 +2,9 @@ package wdl.draft3.transforms.wdlom2wdl
 
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.elements.MetaValueElement._
 import wdl.model.draft3.elements._
+import wom.callable.MetaValueElement
+import wom.callable.MetaValueElement._
 import wom.types._
 
 object WdlWriterImpl {

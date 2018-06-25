@@ -20,11 +20,10 @@ object WdlDraft2WomBundleMakers {
       val tasksValidation: ErrorOr[List[TaskDefinition]] = from.tasks.toList.traverse(_.toWomTaskDefinition)
 
       val errorOr = (workflowsValidation, tasksValidation) mapN { (workflows, tasks) =>
-        val primary = if (workflows.size == 1) {
-          workflows.headOption
-        } else if (workflows.isEmpty && tasks.size == 1) {
-          tasks.headOption
-        } else None
+        val primary =
+          if (workflows.size == 1) {
+            workflows.headOption
+          } else None
         WomBundle(primary, (tasks ++ workflows).map(c => c.name -> c).toMap, Map.empty) }
       errorOr.toEither
     }

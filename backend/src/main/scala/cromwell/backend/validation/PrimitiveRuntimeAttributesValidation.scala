@@ -1,7 +1,12 @@
 package cromwell.backend.validation
 
+import cats.data.NonEmptyList
+import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineV
 import wom.types._
 import wom.values._
 
@@ -61,6 +66,16 @@ class IntRuntimeAttributesValidation(override val key: String) extends
   override val womType = WomIntegerType
 
   override protected def validateCoercedValue(womValue: WomInteger): ErrorOr[Int] = womValue.value.validNel
+
+  override protected def typeString: String = "an Integer"
+}
+
+class PositiveIntRuntimeAttributesValidation(override val key: String) extends
+  PrimitiveRuntimeAttributesValidation[Int Refined Positive, WomInteger] {
+
+  override val womType = WomIntegerType
+
+  override protected def validateCoercedValue(womValue: WomInteger): ErrorOr[Int Refined Positive] = refineV[Positive](womValue.value).leftMap(NonEmptyList.one).toValidated
 
   override protected def typeString: String = "an Integer"
 }

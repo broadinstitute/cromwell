@@ -9,4 +9,7 @@ files {
 metadata {
   "calls.custom_mount_point.t.backend": "Papi"
   "calls.custom_mount_point.t.backendStatus": "Success"
+  
+  "outputs.custom_mount_point.o1": "bazqux"
+  "outputs.custom_mount_point.o2": "foobar"
 }

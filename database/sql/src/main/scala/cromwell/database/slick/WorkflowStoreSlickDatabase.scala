@@ -72,12 +72,12 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(action)
   }
 
-  override def writeWorkflowHeartbeats(workflowExecutionUuids: List[String])(implicit ec: ExecutionContext): Future[Int] = {
+  override def writeWorkflowHeartbeats(workflowExecutionUuids: Set[String])(implicit ec: ExecutionContext): Future[Int] = {
     val optionNow = Option(now)
     // Return the count of heartbeats written. This could legitimately be less than the size of the `workflowExecutionUuids`
     // List if any of those workflows completed and their workflow store entries were removed.
     val action = for {
-      counts <- DBIO.sequence(workflowExecutionUuids map { i => dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow) })
+      counts <- DBIO.sequence(workflowExecutionUuids.toList map { i => dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow) })
     } yield counts.sum
     runTransaction(action)
   }

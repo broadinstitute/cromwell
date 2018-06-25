@@ -114,12 +114,12 @@ trait MetadataEntryComponent {
   // that last ID + 1 as the minimum ID for the next query iteration.
   val metadataEntriesForIdGreaterThanOrEqual = Compiled(
     (metadataEntryId: Rep[Long], startMetadataKey: Rep[String], endMetadataKey: Rep[String], nameMetadataKey: Rep[String],
-     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String]) => for {
+     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String], submissionMetadataKey: Rep[String]) => for {
       metadataEntry <- metadataEntries
       if metadataEntry.metadataEntryId >= metadataEntryId
       if (metadataEntry.metadataKey === startMetadataKey || metadataEntry.metadataKey === endMetadataKey ||
         metadataEntry.metadataKey === nameMetadataKey || metadataEntry.metadataKey === statusMetadataKey ||
-        metadataEntry.metadataKey.like(likeLabelMetadataKey)) &&
+        metadataEntry.metadataKey.like(likeLabelMetadataKey) || metadataEntry.metadataKey === submissionMetadataKey) &&
         (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
           metadataEntry.jobAttempt.isEmpty)
     } yield metadataEntry

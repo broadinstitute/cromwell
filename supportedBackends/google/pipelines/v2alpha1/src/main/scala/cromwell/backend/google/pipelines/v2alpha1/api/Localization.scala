@@ -4,6 +4,7 @@ import com.google.api.services.genomics.v2alpha1.model.Mount
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
+import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
 
 import scala.collection.JavaConverters._
 
@@ -20,7 +21,7 @@ trait Localization {
       )
       .setMounts(mounts.asJava)
 
-    val jobInputLocalization = createPipelineParameters.inputOutputParameters.fileInputParameters.map(_.toAction(mounts, createPipelineParameters.projectId))
+    val jobInputLocalization = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts, createPipelineParameters.projectId).toList)
     
     List(containerRootSetup) ++ jobInputLocalization
   }

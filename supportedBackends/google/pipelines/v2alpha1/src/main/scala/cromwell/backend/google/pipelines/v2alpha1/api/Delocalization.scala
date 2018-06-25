@@ -6,21 +6,19 @@ import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
+import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
+import cromwell.core.path.Path
 
 import scala.collection.JavaConverters._
 
 object Delocalization {
   private val logsRoot = "/google/logs"
-  private val actionsLogRoot = logsRoot + "/action"
 }
 
 trait Delocalization {
-  private def actionLogRoot(number: Int) = s"$actionsLogRoot/$number"
 
-  private def stdout(number: Int) = s"${actionLogRoot(number)}/stdout"
-  private def stderr(number: Int) = s"${actionLogRoot(number)}/stderr"
   private def aggregatedLog = s"$logsRoot/output"
 
   private def delocalizeLogsAction(gcsLogPath: String, projectId: String) = {
@@ -28,14 +26,11 @@ trait Delocalization {
     gsutilAsText("-m", "cp", "-r", "/google/logs", gcsLogPath)(flags = List(ActionFlag.AlwaysRun))
   }
 
-  // The logs are now located in the pipelines-logs directory
-  // To keep the behavior similar to V1, we copy stdout/stderr from the user action to the call directory,
-  // along with the aggregated log file. To re-enable requester pays, this need to be added back: "-u", projectId
-  private def copyLogsToLegacyPaths(stdoutPath: String, stderrPath: String, userActionNumber: Int, gcsLegacyLogPath: String, projectId: String) = List (
-    gsutilAsText("cp", stdout(userActionNumber), stdoutPath)(flags = List(ActionFlag.AlwaysRun)),
-    gsutilAsText("cp", stderr(userActionNumber), stderrPath)(flags = List(ActionFlag.AlwaysRun)),
+  // Action logs are now located in the pipelines-logs directory. The aggregated log is copied from this pipelines-logs directory.
+  private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: String, projectId: String): Action = {
+    // To re-enable requester pays, this needs to be added back: "-u", projectId
     gsutilAsText("cp", aggregatedLog, gcsLegacyLogPath)(flags = List(ActionFlag.AlwaysRun))
-  )
+  }
 
   private def parseOutputJsonAction(containerCallRoot: String, outputDirectory: String, outputFile: String, mounts: List[Mount]): Action = {
     val commands = List(
@@ -44,8 +39,9 @@ trait Delocalization {
       s"mkdir -p $outputDirectory &&" +
       // Read the content of cwl.output.json - redirect stderr to /dev/null so it doesn't fail if there's no cwl.output.json
       s" cat ${containerCallRoot.ensureSlashed}cwl.output.json 2>/dev/null" +
-        // Pipe the result to jq. Parse the json and traverse it looking for "path" values
-      " | jq -r '.. | .path? // empty'" +
+        // Pipe the result to jq. Parse the json and traverse it looking for "path" or "location" values,
+        // stripping any fully qualified file:// URLs.
+      """ | jq -r '.. | .path? // .location? // empty | gsub("file://"; "")' """ +
       // Redirect the result to a file that can be used in the next action to delocalize the extracted files / directories
       s" > $outputFile"
     )
@@ -82,42 +78,29 @@ trait Delocalization {
       .withMounts(mounts)
   }
 
-  /**
-    * The user action number is the index of the user's action in the list of actions
-    * It's used to copy stdout / stderr and the logs back to the execution directory
-    */
   def deLocalizeActions(createPipelineParameters: CreatePipelineParameters,
-                        mounts: List[Mount],
-                        userActionNumber: Int): List[Action] = {
+                        mounts: List[Mount]): List[Action] = {
     val cloudCallRoot = createPipelineParameters.cloudCallRoot.pathAsString
-    val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent.pathAsString
+    val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent
 
     val gcsLogDirectoryPath = createPipelineParameters.cloudCallRoot / "pipelines-logs"
     val gcsLegacyLogPath = createPipelineParameters.logGcsPath.pathAsString
 
-    val stdoutPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stdout.log")
-      .pathAsString
-
-    val stderrPath = createPipelineParameters.logGcsPath
-      .sibling(createPipelineParameters.logGcsPath.nameWithoutExtensionNoIo + "-stderr.log")
-      .pathAsString
-    
     /*
      * CWL specific delocalization. For now this always runs, even for WDL jobs.
      * Ideally temporaryFofnForCwlOutputJson should be somewhere else than the execution directory (we could mount anther directory)
      * However because it runs after everything else there's no risk of polluting the task's results and the random ID ensures we don't override anything
      */
-    val temporaryFofnDirectoryForCwlOutputJson = callExecutionContainerRoot.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
+    val temporaryFofnDirectoryForCwlOutputJson = callExecutionContainerRoot.pathAsString.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
     val temporaryFofnForCwlOutputJson = temporaryFofnDirectoryForCwlOutputJson + "/cwl_output_json_references.txt"
-    val parseAction = parseOutputJsonAction(callExecutionContainerRoot, temporaryFofnDirectoryForCwlOutputJson, temporaryFofnForCwlOutputJson, mounts)
+    val parseAction = parseOutputJsonAction(callExecutionContainerRoot.pathAsString, temporaryFofnDirectoryForCwlOutputJson, temporaryFofnForCwlOutputJson, mounts)
     val delocalizeAction = delocalizeOutputJsonFilesAction(cloudCallRoot, temporaryFofnForCwlOutputJson, mounts)
 
     val projectId = createPipelineParameters.projectId
 
-    createPipelineParameters.outputParameters.map(_.toAction(mounts, projectId)) ++
-      List(parseAction, delocalizeAction) ++
-      copyLogsToLegacyPaths(stdoutPath, stderrPath, userActionNumber, gcsLegacyLogPath, projectId) :+
+    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId).toList) ++
+      List(parseAction, delocalizeAction) :+
+      copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath, projectId) :+
       delocalizeLogsAction(gcsLogDirectoryPath.pathAsString, projectId)
   }
 }

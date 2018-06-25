@@ -5,7 +5,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiFactoryInterface
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.BackendDockerConfiguration
-
+import net.ceedubs.ficus.Ficus._
 
 object PipelinesApiConfiguration {
   def apply(configurationDescriptor: BackendConfigurationDescriptor,
@@ -30,4 +30,6 @@ class PipelinesApiConfiguration(
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined || jesAttributes.restrictMetadataAccess
   val qps = jesAttributes.qps
   val papiRequestWorkers = jesAttributes.requestWorkers
+  val jobShell = configurationDescriptor.backendConfig.as[Option[String]]("job-shell").getOrElse(
+    configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
 }

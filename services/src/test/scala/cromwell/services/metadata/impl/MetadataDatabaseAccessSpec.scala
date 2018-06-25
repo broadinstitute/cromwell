@@ -24,6 +24,9 @@ object MetadataDatabaseAccessSpec {
   val Workflow1Name = "test1"
   val Workflow2Name = "test2"
   val Workflow3Name = "test3"
+
+  val ParentWorkflowName = "test_parentWorkflow"
+  val SubworkflowName = "test_subworkflow"
 }
 
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
@@ -65,12 +68,26 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
       def keyAndValue(name: String) = Array(
-        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString),
+        (WorkflowMetadataKeys.SubmissionTime, OffsetDateTime.now.toString),
         (WorkflowMetadataKeys.Status, WorkflowSubmitted.toString),
-        (WorkflowMetadataKeys.Name, name)
+        (WorkflowMetadataKeys.Name, name),
+        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString)
       ) ++ labelMetadata
 
       publishMetadataEvents(workflowKey, keyAndValue(name)).map(_ => workflowId)
+    }
+
+    def subworkflowMetadata(parentWorkflowId: WorkflowId, subworkflowName: String): Future[WorkflowId] = {
+      val workflowId = WorkflowId.randomId()
+      val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
+      val metadataKeys = Array(
+        (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
+        (WorkflowMetadataKeys.Name, subworkflowName),
+        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString),
+        (WorkflowMetadataKeys.ParentWorkflowId, parentWorkflowId.toString)
+      )
+
+      publishMetadataEvents(workflowKey, metadataKeys).map(_ => workflowId)
     }
 
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
@@ -245,6 +262,45 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultByName = response.results groupBy (_.name)
           resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
         }
+        // Filter by exclude label using AND
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+        }
+        // Filter by multiple exclude labels using AND
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
+          Seq(testLabel2, testLabel3)
+            .map(label => WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${label.key}:${label.value}"))
+        ) map { case (response, _) => {
+            val resultByName = response.results groupBy (_.name)
+            resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+            response.totalResultsCount match {
+              case 3 => //good
+              case ct => fail(s"totalResultsCount for multiple exclude labels using AND query is expected to be 3 but is actually $ct. " +
+                s"Something has gone horribly wrong!")
+            }
+          }
+        }
+        // Filter by exclude label using OR
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+        }
+        // Filter by multiple exclude labels using OR
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
+          Seq(testLabel2, testLabel3)
+            .map(label => WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${label.key}:${label.value}"))
+        ) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+          response.totalResultsCount match {
+            case 2 => //good
+            case ct => fail(s"totalResultsCount is for multiple exclude labels using OR query is expected to be 2 but is actually $ct. " +
+              s"Something has gone horribly wrong!")
+          }
+        }
         // Filter by start date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.StartDate.name -> workflowQueryResult2.start.get.toString))) map { case (response, _) =>
@@ -260,6 +316,23 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             case (y, n) if y.nonEmpty && n.isEmpty => // good
             case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
           }
+        }
+        // Filter by submission time
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.SubmissionTime.name -> workflowQueryResult2.submission.get.toString))) map { case (response, _) =>
+          response.results partition { r => r.submission.isDefined && r.submission.get.compareTo(workflowQueryResult2.submission.get) <= 0 } match {
+            case (y, n) if y.nonEmpty && n.isEmpty => // good
+            case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later while filtering by submission timestamp")
+          }
+        }
+        // Check for labels in query response
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.AdditionalQueryResultFields.name -> "labels"))) map {
+          case (response, _) =>
+            response.results partition { r => r.labels.isDefined} match {
+              case (y, n) if y.nonEmpty && n.isEmpty => //good
+              case (y, n) => fail(s"Something went horribly wrong since labels were populated for ${y.size} and were missing for ${n.size} workflow(s)!")
+            }
         }
       } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
     }
@@ -307,6 +380,46 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- upsertLabelAndValidate(workflowId, "")
 
       } yield ()).futureValue(Timeout(scaled(Span(30, Seconds))), Interval(scaled(Span(500, Millis))))
+    }
+
+    it should "include/exclude subworkflows and check for parentWorkflowId in query response" taggedAs DbmsTest in {
+      def changeParentToRunningState(id: WorkflowId): Future[Unit] = {
+        val workflowKey = MetadataKey(id, jobKey = None, key = null)
+        val keyAndValue = Array((WorkflowMetadataKeys.Status, WorkflowRunning.toString))
+
+        publishMetadataEvents(workflowKey, keyAndValue)
+      }
+
+      (for {
+        parentWorkflowId <- baseWorkflowMetadata(ParentWorkflowName)
+        _ <- changeParentToRunningState(parentWorkflowId)
+        // associate subworkflow to parent
+        _ <- subworkflowMetadata(parentWorkflowId, SubworkflowName)
+        // refresh metadata
+        _ <- dataAccess.refreshWorkflowMetadataSummaries()
+        // include subworkflows
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.IncludeSubworkflows.name -> true.toString))) map { case (resp, _) =>
+          val resultByName = resp.results groupBy (_.name)
+          resultByName.keys.toSet.flatten should contain(SubworkflowName)
+        }
+        // exclude subworkflows
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.IncludeSubworkflows.name -> false.toString))) map {
+          case (resp, _) =>
+            val resultByName = resp.results groupBy (_.name)
+            resultByName.keys.toSet.flatten should not contain SubworkflowName
+        }
+        // check for parentWorkflowId in query response
+        _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
+          WorkflowQueryKey.AdditionalQueryResultFields.name -> "parentWorkflowId",
+          WorkflowQueryKey.Name.name -> SubworkflowName))) map {
+          case (response, _) =>
+            response.results partition { r => r.parentWorkflowId.isDefined} match {
+              case (y, n) if y.nonEmpty && n.isEmpty => //good
+              case (y, n) => fail(s"parentWorkflowId should be populated for a subworkflow. It was populated correctly for ${y.size} " +
+                s"and was missing in ${n.size} subworkflow(s). Something went horribly wrong!")
+            }
+        }
+      } yield()).futureValue
     }
 
     it should "close the database" taggedAs DbmsTest in {

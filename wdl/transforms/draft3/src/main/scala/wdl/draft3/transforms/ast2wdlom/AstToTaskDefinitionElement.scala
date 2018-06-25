@@ -30,7 +30,7 @@ object AstToTaskDefinitionElement {
 
     (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
       (inputs, outputs, command, runtime, meta, parameterMeta) =>
-      TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta)
+        TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta)
     }
   }
 

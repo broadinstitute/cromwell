@@ -45,8 +45,8 @@ package object graph {
   implicit val IfElementUnlinkedValueGenerator: UnlinkedValueGenerator[IfElement] = new UnlinkedValueGenerator[IfElement] {
     override def generatedValueHandles(a: IfElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
-        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType))
-        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType))
+        case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType).flatOptionalType)
+        case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType).flatOptionalType)
       } }
     }
   }
@@ -96,7 +96,8 @@ package object graph {
       (bodyConsumedValuesValidation, bodyGeneratedValuesValidation) mapN { (bodyConsumedValues, bodyGeneratedValues) =>
         val unsatisfiedBodyElementHooks = bodyConsumedValues.filterNot {
           case UnlinkedIdentifierHook(id) => bodyGeneratedValues.contains(id) || id == a.scatterVariableName
-          case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) => bodyGeneratedValues.contains(first) || bodyGeneratedValues.contains(s"$first.$second")
+          case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) =>
+            bodyGeneratedValues.contains(first) || bodyGeneratedValues.contains(s"$first.$second") || a.scatterVariableName == first
         }
 
         unsatisfiedBodyElementHooks ++ scatterExpressionHooks

@@ -3,8 +3,8 @@ package cromwell.backend
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPathsWithDocker
-import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.CallOutputs
+import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._

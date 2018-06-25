@@ -1,7 +1,5 @@
 package cwl
 
-import java.nio.file.Paths
-
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
@@ -17,8 +15,8 @@ import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
 
 trait CwlWomExpression extends WomExpression {
 
@@ -54,7 +52,7 @@ case class ECMAScriptWomExpression(expression: Expression,
 
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
-  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[AdHocValue] = {
+  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[List[AdHocValue]] = {
     def recursivelyBuildDirectory(directory: String): ErrorOr[WomMaybeListedDirectory] = {
       import cats.instances.list._
       import cats.syntax.traverse._
@@ -68,13 +66,12 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
     }
     val updatedValues = inputValues map {
       case (k, v: WomMaybeListedDirectory) => k -> {
-        val absolutePathString = Paths.get(v.value).toAbsolutePath.toString
+        val absolutePathString = ioFunctionSet.pathFunctions.relativeToHostCallRoot(v.value)
         recursivelyBuildDirectory(absolutePathString) match {
           case Valid(d) => d
           case Invalid(es) => throw new RuntimeException(es.toList.mkString("Error building directory: ", ", ", ""))
         }
       }
-      case (k, v: WomMaybePopulatedFile) => k -> WomSingleFile(v.value)
       case kv => kv
     }
     val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, updatedValues)
@@ -83,7 +80,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
 }
 
 object InitialWorkDirFileGeneratorExpression {
-  type InitialWorkDirFileEvaluator = (ParameterContext, Map[String, WomValue]) => ErrorOr[AdHocValue]
+  type InitialWorkDirFileEvaluator = (ParameterContext, Map[String, WomValue]) => ErrorOr[List[AdHocValue]]
 
   /**
     * Converts an InitialWorkDir.
@@ -116,16 +113,14 @@ object InitialWorkDirFileGeneratorExpression {
               case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext)
             }
 
-          val womValueErrorOr: ErrorOr[WomSingleFile] = entryEvaluation flatMap {
+          val womValueErrorOr: ErrorOr[AdHocValue] = entryEvaluation flatMap {
             case womFile: WomFile =>
-              val errorOrEntryName: ErrorOr[String] = expressionDirent.entryname match {
-                case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext)
-                case None => unmappedParameterContext.ioFunctionSet.pathFunctions.name(womFile.value).valid
+              val errorOrEntryName: ErrorOr[Option[String]] = expressionDirent.entryname match {
+                case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext).map(Option.apply)
+                case None => None.valid
               }
-              errorOrEntryName flatMap { entryName =>
-                validate {
-                  Await.result(unmappedParameterContext.ioFunctionSet.copyFile(womFile.value, entryName), Duration.Inf)
-                }
+              errorOrEntryName map { entryName =>
+                AdHocValue(womFile, entryName, inputName = mutableInputOption)
               }
             case other => for {
               coerced <- WomStringType.coerceRawValue(other).toErrorOr
@@ -136,10 +131,10 @@ object InitialWorkDirFileGeneratorExpression {
               entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext)
               writeFile = unmappedParameterContext.ioFunctionSet.writeFile(entryName, contentString)
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
-            } yield writtenFile
+            } yield AdHocValue(writtenFile, alternativeName = None, inputName = mutableInputOption)
           }
 
-          womValueErrorOr.map(AdHocValue(_, mutableInputOption))
+          womValueErrorOr.map(List(_))
         }
       }
     }
@@ -155,7 +150,7 @@ object InitialWorkDirFileGeneratorExpression {
               writtenFile <- validate(Await.result(writeFile, Duration.Inf))
             } yield writtenFile
 
-            womValueErrorOr.map(AdHocValue(_, mutableInputOption = None))
+            womValueErrorOr.map(AdHocValue(_, alternativeName = None, inputName = None)).map(List(_))
         }
       }
     }
@@ -166,33 +161,16 @@ object InitialWorkDirFileGeneratorExpression {
           // A single expression which must evaluate to an array of Files
           val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext)
 
-          def stageFile(file: WomFile): Future[WomSingleFile] = {
-            // TODO WomFile could be a WomMaybePopulatedFile with secondary files but this code only stages in
-            // the primary file.
-            // The file should be staged to the initial work dir using the base filename.
-            val baseFileName = unmappedParameterContext.ioFunctionSet.pathFunctions.name(file.value)
-            unmappedParameterContext.ioFunctionSet.copyFile(file.value, baseFileName)
-          }
-
-          def stageFiles(womArray: WomArray): ErrorOr[WomValue] = {
-            implicit val ec = unmappedParameterContext.ioFunctionSet.ec
-
-            val unstagedFiles = womArray.value.map(_.asInstanceOf[WomFile])
-            val stagedFiles = Await.result(Future.sequence(unstagedFiles map stageFile), Duration.Inf)
-            womArray.womType.coerceRawValue(stagedFiles).toErrorOr
-          }
-
-          val womValueErrorOr = expressionEvaluation flatMap {
-            case array: WomArray if array.value.forall(_.isInstanceOf[WomFile]) => stageFiles(array)
+          expressionEvaluation flatMap {
+            case array: WomArray if array.value.forall(_.isInstanceOf[WomFile]) => 
+              array.value.toList.map(_.asInstanceOf[WomFile]).map(AdHocValue(_, alternativeName = None, inputName = None)).validNel
             case file: WomFile =>
-              validate(Await.result(stageFile(file), Duration.Inf))
+              List(AdHocValue(file, alternativeName = None, inputName = None)).validNel
             case other =>
               val error = "InitialWorkDirRequirement listing expression must be File or Array[File] but got %s: %s"
                 .format(other, other.womType.toDisplayString)
               error.invalidNel
           }
-
-          womValueErrorOr.map(AdHocValue(_, mutableInputOption = None))
         }
       }
     }
@@ -200,7 +178,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseString: Case.Aux[String, InitialWorkDirFileEvaluator] = {
       at { string =>
         (_, _) => {
-          AdHocValue(WomSingleFile(string), mutableInputOption = None).valid
+          List(AdHocValue(WomSingleFile(string), alternativeName = None, inputName = None)).valid
         }
       }
     }
@@ -214,7 +192,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseFile: Case.Aux[File, InitialWorkDirFileEvaluator] = {
       at { file =>
         (_, _) => {
-          file.asWomValue.map(AdHocValue(_, mutableInputOption = None))
+          file.asWomValue.map(AdHocValue(_, alternativeName = None, inputName = None)).map(List(_))
         }
       }
     }
@@ -222,7 +200,7 @@ object InitialWorkDirFileGeneratorExpression {
     implicit val caseDirectory: Case.Aux[Directory, InitialWorkDirFileEvaluator] = {
       at { directory =>
         (_, _) => {
-          directory.asWomValue.map(AdHocValue(_, mutableInputOption = None))
+          directory.asWomValue.map(AdHocValue(_, alternativeName = None, inputName = None)).map(List(_))
         }
       }
     }

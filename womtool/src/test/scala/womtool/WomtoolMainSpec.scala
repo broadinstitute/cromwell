@@ -55,7 +55,7 @@ class WomtoolMainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   it should "not return inputs when there is no workflow" in {
     testWdl(EmptyTask) { wdlAndInputs =>
       val res = WomtoolMain.runWomtool(Seq("inputs", wdlAndInputs.wdl))
-      res should be(UnsuccessfulTermination("Namespace does not have a local workflow to run"))
+      res should be(UnsuccessfulTermination("Cannot convert WOM bundle to executable. No primary callable was available."))
     }
   }
 }

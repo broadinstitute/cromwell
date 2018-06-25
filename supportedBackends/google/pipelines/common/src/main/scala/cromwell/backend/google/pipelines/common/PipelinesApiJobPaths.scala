@@ -13,18 +13,14 @@ object PipelinesApiJobPaths {
 
 final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
 
+  // `jesLogBasename` is a `def` rather than a `val` because it is referenced polymorphically from
+  // the initialization code of the extended `JobPaths` trait, but this class will not have initialized its `val`s
+  // at the time that code runs.
   def jesLogBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
     s"${jobKey.node.localName}$index"
   }
 
-  override val returnCodeFilename: String = s"$jesLogBasename-rc.txt"
-  // These and `jesLogBasename` above are `def`s rather than `val`s because they are referenced polymorphically from
-  // the initialization code of the extended `JobPaths` trait, but this class will not have initialized its `val`s
-  // at the time that code runs.
-  override def defaultStdoutFilename: String = s"$jesLogBasename-stdout.log"
-  override def defaultStderrFilename: String = s"$jesLogBasename-stderr.log"
-  override val scriptFilename: String = s"${PipelinesApiJobPaths.JesExecParamName}.sh"
   val jesLogFilename: String = s"$jesLogBasename.log"
   lazy val jesLogPath: Path = callExecutionRoot.resolve(jesLogFilename)
 

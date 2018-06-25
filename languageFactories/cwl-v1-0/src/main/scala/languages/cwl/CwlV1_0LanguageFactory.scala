@@ -55,7 +55,7 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
       _ <- unzipDependencies(cwlFile)
       cwl <- CwlDecoder.decodeCwlFile(cwlFile, source.workflowRoot)
       executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson), ioFunctions, standardConfig.strictValidation))
-      validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable))
+      validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions))
       _ <- CwlDecoder.todoDeleteCwlFileParentDirectory(cwlFile.parent)
     } yield validatedWomNamespace
   }

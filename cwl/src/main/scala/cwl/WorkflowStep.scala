@@ -339,13 +339,13 @@ case class WorkflowStep(
             ).validNel
 
           // No expression node mapping, use the default
-          case withDefault @ InputDefinitionWithDefault(_, _, expression, _) =>
+          case withDefault @ InputDefinitionWithDefault(_, _, expression, _, _) =>
             InputDefinitionFold(
               mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
             ).validNel
 
           // Required input without default value and without mapping, this is a validation error
-          case RequiredInputDefinition(requiredName, _, _) =>
+          case RequiredInputDefinition(requiredName, _, _, _) =>
             s"Input ${requiredName.value} is required and is not bound to any value".invalidNel
 
           // Optional input without mapping, defaults to empty value

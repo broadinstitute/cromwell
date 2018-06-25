@@ -17,14 +17,14 @@ import wdl.draft3.transforms.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
-import wom.callable.Callable.InputDefinition
+import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
-import wom.types.{WomArrayType, WomType}
+import wom.types.{WomAnyType, WomArrayType, WomType}
 
 object ScatterElementToGraphNode {
   def convert(a: ScatterNodeMakerInputs): ErrorOr[Set[GraphNode]] = if (a.insideAnotherScatter) {
@@ -43,6 +43,7 @@ object ScatterElementToGraphNode {
 
     val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
       case a: WomArrayType => a.memberType.validNel
+      case WomAnyType => WomAnyType.validNel
       case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.toDisplayString}".invalidNel
     }
 
@@ -52,7 +53,9 @@ object ScatterElementToGraphNode {
 
       (required, generated) mapN { (r, g) => r collect {
         case hook @ UnlinkedIdentifierHook(id) if id != scatterVariableName && !g.exists(_.linkableName == id) => a.linkableValues(hook).linkableName
-        case hook @ UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") => a.linkableValues(hook).linkableName
+        case hook @ UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second)
+          // NB: mirrors logic in scatterElementUnlinkedValueConsumer
+          if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") && (first != scatterVariableName) => a.linkableValues(hook).linkableName
       }}
     }
 
@@ -99,8 +102,16 @@ object ScatterElementToGraphNode {
     val scatterableGraphValidation = subWorkflowDefinitionValidation map { subWorkflowDefinition =>
       val callNodeBuilder = new CallNodeBuilder()
       val graphNodeSetter = new GraphNodeSetter[CallNode]
+
+      val unsatisfiedInputs = subWorkflowDefinition.inputs filter { i => !a.linkablePorts.contains(i.name) }
+      val newInputNodes: Map[String, ExternalGraphInputNode] = (unsatisfiedInputs collect {
+        case i: RequiredInputDefinition => i.name -> RequiredGraphInputNode(WomIdentifier(i.name), i.womType, i.name, Callable.InputDefinition.IdentityValueMapper)
+        case i: OptionalInputDefinition => i.name -> OptionalGraphInputNode(WomIdentifier(i.name), i.womType, i.name, Callable.InputDefinition.IdentityValueMapper)
+        case i: InputDefinitionWithDefault => i.name -> OptionalGraphInputNodeWithDefault(WomIdentifier(i.name), i.womType, i.default, i.name, Callable.InputDefinition.IdentityValueMapper)
+      }).toMap
+
       val mappingAndPorts: List[((InputDefinition, InputDefinitionPointer), InputPort)] = subWorkflowDefinition.inputs map { i =>
-        val port: OutputPort = a.linkablePorts(i.name)
+        val port: OutputPort = a.linkablePorts.getOrElse(i.name, newInputNodes(i.name).singleOutputPort)
         val pointer = Coproduct[InputDefinitionPointer](port)
         (i -> pointer, ConnectedInputPort(i.name, i.womType, port, graphNodeSetter.get))
       }
@@ -108,7 +119,7 @@ object ScatterElementToGraphNode {
       val inputPorts = mappingAndPorts.map(_._2).toSet
       val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), (_, localName) => WomIdentifier(localName))
       graphNodeSetter._graphNode = result.node
-      result
+      result.copy(newInputs = result.newInputs ++ newInputNodes.values)
     }
 
     scatterableGraphValidation map { scatterableGraph =>

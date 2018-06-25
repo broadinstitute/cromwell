@@ -17,7 +17,7 @@ import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreCoordinatedWriteActor}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
@@ -58,8 +58,10 @@ object SingleWorkflowRunnerActorSpec {
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with Mockito {
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
+  val store = new InMemoryWorkflowStore
+  val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
   private val workflowStore =
-    system.actorOf(WorkflowStoreActor.props(new InMemoryWorkflowStore, dummyServiceRegistryActor, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+    system.actorOf(WorkflowStoreActor.props(store, coordinator, dummyServiceRegistryActor, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
   private val serviceRegistry = TestProbe().ref
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val ioActor = system.actorOf(SimpleIoActor.props)

@@ -7,12 +7,12 @@ import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleCo
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.core.WorkflowOptions
+import eu.timepit.refined.refineMV
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
-import wdl4s.parser.MemoryUnit
-import wom.format.MemorySize
+import squants.information.{Gigabytes, Megabytes}
 import wom.types._
 import wom.values._
 
@@ -24,8 +24,8 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
     )))
   }
 
-  val expectedDefaults = new PipelinesApiRuntimeAttributes(1, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+  val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, Vector("us-central1-b", "us-central1-a"), 0, 10,
+    Megabytes(2048), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {
@@ -94,13 +94,13 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid gpu entry (1)" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("nvidia-tesla-k80"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = 1, gpuType = GpuType.NVIDIATeslaK80)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = refineMV(1), gpuType = GpuType.NVIDIATeslaK80)))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid gpu entry (2)" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(2), "gpuType" -> WomString("nvidia-tesla-p100"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = 2, gpuType = GpuType.NVIDIATeslaP100)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = refineMV(2), gpuType = GpuType.NVIDIATeslaP100)))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -130,13 +130,13 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid cpu entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(2))
-      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 2)
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(2))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid cpu string entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("2"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 2)
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(2))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -214,7 +214,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize.parse("1 GB").get)
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Gigabytes(1))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -245,7 +245,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
         """.stripMargin.parseJson.asInstanceOf[JsObject]
 
       val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
-      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 2)
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(2))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
     }
 
@@ -259,7 +259,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
         """.stripMargin.parseJson.asInstanceOf[JsObject]
 
       val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
-      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 4)
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(4))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
     }
 
@@ -273,7 +273,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
         """.stripMargin.parseJson.asInstanceOf[JsObject]
 
       val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
-      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = 4)
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(4))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
     }
   }

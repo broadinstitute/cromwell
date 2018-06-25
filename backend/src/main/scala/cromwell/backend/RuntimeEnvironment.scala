@@ -5,6 +5,9 @@ import java.util.UUID
 import cromwell.backend.io.JobPaths
 import cromwell.backend.validation.{CpuValidation, MemoryValidation}
 import cromwell.core.path.Path
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
 import wdl4s.parser.MemoryUnit
 import wom.callable.RuntimeEnvironment
 import wom.format.MemorySize
@@ -23,12 +26,12 @@ object RuntimeEnvironmentBuilder {
         callRoot.resolve(s"tmp.$hash").pathAsString
       }
 
-      val cores: Int = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
+      val cores: Int Refined Positive = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
 
       val memoryInMiB: Double =
         MemoryValidation.instance().
           validate(runtimeAttributes).
-          map(_.to(MemoryUnit.MiB).amount).
+          map(_.toMebibytes).
           getOrElse(minimums.ram.amount)
 
       //TODO: Read these from somewhere else
@@ -50,7 +53,7 @@ object RuntimeEnvironmentBuilder {
   }
 }
 
-case class MinimumRuntimeSettings(cores: Int = 1,
+case class MinimumRuntimeSettings(cores: Int Refined Positive = refineMV(1),
                                   ram: MemorySize = MemorySize(4, MemoryUnit.GiB),
                                   outputPathSize: Long = Long.MaxValue,
                                   tempPathSize: Long = Long.MaxValue)

@@ -23,9 +23,13 @@ object WorkflowQueryKey {
     Status,
     LabelAndKeyValue,
     LabelOrKeyValue,
+    ExcludeLabelAndKeyValue,
+    ExcludeLabelOrKeyValue,
     Page,
     PageSize,
-    AdditionalQueryResultFields
+    AdditionalQueryResultFields,
+    SubmissionTime,
+    IncludeSubworkflows
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -36,6 +40,11 @@ object WorkflowQueryKey {
   case object EndDate extends DateTimeWorkflowQueryKey {
     override val name = "End"
     override def displayName = "end date"
+  }
+
+  case object SubmissionTime extends DateTimeWorkflowQueryKey {
+    override val name = "Submission"
+    override def displayName = "submission time"
   }
 
   case object Page extends IntWorkflowQueryKey {
@@ -85,6 +94,14 @@ object WorkflowQueryKey {
     override val name = "Labelor"
   }
 
+  case object ExcludeLabelAndKeyValue extends LabelLikeKeyValue {
+    override val name = "Excludelabeland"
+  }
+
+  case object ExcludeLabelOrKeyValue extends LabelLikeKeyValue {
+    override val name = "Excludelabelor"
+  }
+
   case object Id extends SeqWorkflowQueryKey[String] {
     override val name = "Id"
 
@@ -103,7 +120,10 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowState.withName(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else v.invalidNel[String]
+        Try(WorkflowState.withName(v)) match {
+          case Success(workflowState) => workflowState.toString.validNel[String]
+          case _ => v.invalidNel[String]
+        }
       }
       sequenceListOfValidatedNels("Unrecognized status values", nels)
     }
@@ -118,8 +138,14 @@ object WorkflowQueryKey {
       val nels: List[ErrorOr[String]] = values map { v => {
         allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])
       }}
-      sequenceListOfValidatedNels("Unrecognized values", nels)
+      sequenceListOfValidatedNels(s"Keys should be from $allowedValues. Unrecognized values", nels)
     }
+  }
+
+  case object IncludeSubworkflows extends BooleanWorkflowQueryKey {
+    override val name = "Includesubworkflows"
+    override def displayName = "include subworkflows"
+    override def defaultBooleanValue: Boolean = true
   }
 }
 
@@ -133,7 +159,7 @@ sealed trait WorkflowQueryKey[T] {
 
 sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDateTime]] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[OffsetDateTime]] = {
-    valuesFromMap(grouped) match {
+    valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[OffsetDateTime]]
       case Nil => None.validNel[String]
@@ -159,7 +185,7 @@ sealed trait SeqWorkflowQueryKey[A] extends WorkflowQueryKey[Seq[A]] {
 
 sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
   override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Int]] = {
-    valuesFromMap(grouped) match {
+    valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[Int]]
       case Nil => None.validNel
@@ -171,5 +197,23 @@ sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
     }
   }
   def displayName: String
+}
+
+sealed trait BooleanWorkflowQueryKey extends WorkflowQueryKey[Boolean] {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Boolean] = {
+    valuesFromMap(grouped).toList match {
+      case vs if vs.lengthCompare(1) > 0 => s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Boolean]
+      case Nil => defaultBooleanValue.validNel
+      case v :: Nil => {
+        Try(v.toBoolean) match {
+          case Success(bool) => bool.validNel
+          case _ => s"Value given for $displayName does not parse as a boolean: $v".invalidNel[Boolean]
+        }
+      }
+    }
+  }
+   def displayName: String
+
+  def defaultBooleanValue: Boolean
 }
 

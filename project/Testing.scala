@@ -24,6 +24,10 @@ object Testing {
   lazy val UseGcsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", GcsIntegrationTestTag)
   lazy val DontUseGcsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", GcsIntegrationTestTag)
 
+  lazy val AwsIntegrationTestTag = "AwsTest"
+  lazy val UseAwsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", AwsIntegrationTestTag)
+  lazy val DontUseAwsIntegrationTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", AwsIntegrationTestTag)
+
   lazy val DbmsTestTag = "DbmsTest"
   lazy val UseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", DbmsTestTag)
   lazy val DontUseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", DbmsTestTag)
@@ -36,7 +40,7 @@ object Testing {
   Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
  */
   lazy val defaultExcludeTests = Seq(DontUseDockerTaggedTests, DontUseCromwellIntegrationTaggedTests,
-    DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests)
+    DontUseDbmsTaggedTests, DontUseGcsIntegrationTaggedTests, DontUseAwsIntegrationTaggedTests)
 
   val testSettings = List(
     libraryDependencies ++= testDependencies.map(_ % Test),
@@ -49,9 +53,11 @@ object Testing {
     // `nodocker:test` - Run all tests, except docker
     testOptions in NoDockerTest := (testOptions in AllTests).value ++ Seq(DontUseDockerTaggedTests),
     // `integration:test` - Run only integration tests
-    testOptions in CromwellIntegrationTest := (testOptions in AllTests).value ++ Seq(UseCromwellIntegrationTaggedTests, UseGcsIntegrationTaggedTests),
+    testOptions in CromwellIntegrationTest := (testOptions in AllTests).value ++
+      Seq(UseCromwellIntegrationTaggedTests, UseGcsIntegrationTaggedTests, UseAwsIntegrationTaggedTests),
     // `nointegration:test` - Run all tests, except integration
-    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++ Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests),
+    testOptions in CromwellNoIntegrationTest := (testOptions in AllTests).value ++
+      Seq(DontUseCromwellIntegrationTaggedTests, DontUseGcsIntegrationTaggedTests, DontUseAwsIntegrationTaggedTests),
     // `dbms:test` - Run database management tests.
     testOptions in DbmsTest := (testOptions in AllTests).value ++ Seq(UseDbmsTaggedTests),
     // Add scalameter as a test framework in the CromwellBenchmarkTest scope

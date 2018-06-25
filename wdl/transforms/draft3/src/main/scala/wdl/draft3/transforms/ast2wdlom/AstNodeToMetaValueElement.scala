@@ -5,11 +5,11 @@ import cats.syntax.validated._
 import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft3.parser.WdlParser.{Ast, AstNode, Terminal}
-import wdl.model.draft3.elements.{MetaKvPair, MetaValueElement}
-import wdl.model.draft3.elements.MetaValueElement._
 import wdl.draft3.transforms.ast2wdlom.EnhancedDraft3Ast._
+import wom.callable.{MetaKvPair, MetaValueElement}
+import wom.callable.MetaValueElement._
 
-import scala.util.{Try, Failure}
+import scala.util.{Failure, Try}
 
 object AstNodeToMetaValueElement {
 

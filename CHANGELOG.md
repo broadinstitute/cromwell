@@ -1,5 +1,37 @@
 # Cromwell Change Log
 
+## 33 Release Notes
+
+### Query endpoint
+
+#### Exclude workflows based on Labels
+
+This gives the ability to **filter out** workflows based on labels. Two new parameters called `excludeLabelAnd` and `excludeLabelOr` can be used for this purpose.
+More details on how to use them can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+
+#### Include/Exclude subworkflows
+
+Cromwell now supports excluding subworkflows from workflow query results using the `includeSubworkflows` parameter. By default they are included in the results.
+More information can be found at [REST API](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+
+#### Query workflows by Submission time
+
+Cromwell now supports querying workflows by submission time. This will help find workflows that are submitted but not started yet (i.e. workflows which are
+in On Hold state). More information can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+
+#### Submission time in Workflow Query Response
+
+Submission time of a workflow is now included in WorkflowQueryResult, which is part of the response for workflow query.
+
+### File Localization (NIO) Hint
+
+Cromwell now allows tasks in WDL 1.0 can now specify an optimization in their `parameter_meta` that some `File` inputs do not need to be localized for the task to run successfully.
+Full details are available in the [documentation page for this optimization](http://cromwell.readthedocs.io/en/develop/optimizations/FileLocalization).
+
+### Bug Fixes
+
+Workflows which are in 'On Hold' state can now be fetched using the query endpoint.
+
 ## 32 Release Notes
 
 ### Backends

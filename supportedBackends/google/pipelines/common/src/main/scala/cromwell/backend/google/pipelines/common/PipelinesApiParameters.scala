@@ -6,37 +6,62 @@ import cromwell.core.path.Path
 
 sealed trait PipelinesParameter {
   def name: String
-}
 
-sealed trait PipelinesApiFileParameter extends PipelinesParameter {
+  def mount: PipelinesApiAttachedDisk
+
   /**
     * This HAS to be GCS, for now
     * The file already exists in GCS for input files, but does not for output files
+    *
+    * e.g: gs://root_bucket/input_data/my_input.bam
     */
-  def cloudPath: String
+  def cloudPath: Path
+
+  /**
+    * Relative path on the host machine where the file should be localized to / delocalized from.
+    * Note that the actual localization / delocalization happens in a docker container, therefore
+    * [[containerPath]] should be used as the actual source / destination path when localizing / delocalizing
+    *
+    * e.g: root_bucket/input_data/my_input.bam
+    */
+  def relativeHostPath: Path
 
   /**
     * Path in the docker container. It must be mounted on the docker from / to its hostPath
+    *
+    * e.g: /cromwell_root/root_bucket/input_data/my_input.bam
     */
-  def containerPath: Path
+  def containerPath: Path = mount.mountPoint.resolve(relativeHostPath)
 }
 
 sealed trait PipelinesApiInput extends PipelinesParameter
+sealed trait PipelinesApiOutput extends PipelinesParameter
 
 final case class PipelinesApiFileInput(name: String,
-                                       cloudPath: String,
-                                       local: Path,
-                                       mount: PipelinesApiAttachedDisk) extends PipelinesApiFileParameter with PipelinesApiInput {
-  def containerPath: Path = mount.mountPoint.resolve(local)
-}
+                                       cloudPath: Path,
+                                       relativeHostPath: Path,
+                                       mount: PipelinesApiAttachedDisk) extends PipelinesApiInput
+
+final case class PipelinesApiDirectoryInput(name: String,
+                                            cloudPath: Path,
+                                            relativeHostPath: Path,
+                                            mount: PipelinesApiAttachedDisk) extends PipelinesApiInput
 
 final case class PipelinesApiFileOutput(name: String,
-                                        cloudPath: String,
-                                        local: Path,
+                                        cloudPath: Path,
+                                        relativeHostPath: Path,
                                         mount: PipelinesApiAttachedDisk,
                                         optional: Boolean,
-                                        contentType: Option[ContentType] = None) extends PipelinesApiFileParameter {
-  def containerPath: Path = mount.mountPoint.resolve(local)
-}
+                                        secondary: Boolean,
+                                        contentType: Option[ContentType] = None) extends PipelinesApiOutput
 
-final case class PipelinesApiLiteralInput(name: String, value: String) extends PipelinesApiInput
+final case class PipelinesApiDirectoryOutput(name: String,
+                                             cloudPath: Path,
+                                             relativeHostPath: Path,
+                                             mount: PipelinesApiAttachedDisk,
+                                             optional: Boolean,
+                                             secondary: Boolean,
+                                             contentType: Option[ContentType] = None) extends PipelinesApiOutput
+
+// TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file
+final case class PipelinesApiLiteralInput(name: String, value: String)

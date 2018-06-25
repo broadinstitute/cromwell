@@ -425,7 +425,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
             pathBuilders.map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
-          case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
+          case None if WorkflowLogger.isTemporary => workflowLogger.close(andDelete = true) match {
             case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>
           }

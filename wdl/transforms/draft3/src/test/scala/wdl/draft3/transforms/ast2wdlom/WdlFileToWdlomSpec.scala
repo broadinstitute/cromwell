@@ -8,8 +8,8 @@ import wom.types._
 import wdl.draft3.transforms.ast2wdlom.ExpressionSet._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
+import wom.callable.MetaValueElement._
 import wom.values.{WomBoolean, WomFloat, WomInteger}
-import wdl.model.draft3.elements.MetaValueElement._
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
@@ -193,6 +193,48 @@ object WdlFileToWdlomSpec {
             metaSection = None,
             parameterMetaSection = None)),
         tasks = Vector()),
+    "scatter_var_member_access" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(
+          WorkflowDefinitionElement("scatter_var_member_access", None,
+            Set(IntermediateValueDeclarationElement(
+              ArrayTypeElement(PairTypeElement(PrimitiveTypeElement(WomIntegerType), PrimitiveTypeElement(WomIntegerType))),
+              "pairs",
+              ArrayLiteral(Vector(
+                  PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2))),
+                  PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(3)), PrimitiveLiteralExpressionElement(WomInteger(4))),
+                  PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(5)), PrimitiveLiteralExpressionElement(WomInteger(6)))))),
+            ScatterElement("ScatterAt5_12", IdentifierLookup("pairs"), "p",
+              Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", IdentifierMemberAccess("p", "left", Vector()))))),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
+        tasks = Vector.empty),
+    "nested_conditionals" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(
+          WorkflowDefinitionElement(
+            "Test",
+            None,
+            Set(
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "a", PrimitiveLiteralExpressionElement(WomInteger(5))),
+              IfElement(PrimitiveLiteralExpressionElement(WomBoolean(true)), Vector(
+                IfElement(PrimitiveLiteralExpressionElement(WomBoolean(true)), Vector(
+                  IfElement(PrimitiveLiteralExpressionElement(WomBoolean(true)), Vector(
+                    IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "b", PrimitiveLiteralExpressionElement(WomInteger(5))))))))),
+              IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "c", SelectFirst(ArrayLiteral(Vector(IdentifierLookup("a"), IdentifierLookup("b")))))
+            ),
+            None,
+            None,
+            None
+          )
+        ),
+        tasks = Vector.empty
+      ),
     "declaration_chain" ->
       FileElement(
         imports = Vector(),
@@ -580,6 +622,37 @@ object WdlFileToWdlomSpec {
             parameterMetaSection = None))
     ),
     "default_input_overrides" -> null,
+    "nio_file" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector.empty,
+      tasks = Vector(
+        TaskDefinitionElement(
+          name = "nio_file",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "f", None),
+            InputDeclarationElement(PrimitiveTypeElement(WomSingleFileType), "g", Some(IdentifierLookup("f"))),
+            InputDeclarationElement(OptionalTypeElement(PrimitiveTypeElement(WomSingleFileType)), "h", None)
+          ))),
+          declarations = Vector.empty,
+          outputsSection = Some(OutputsSectionElement(Vector(
+            OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", PrimitiveLiteralExpressionElement(WomInteger(5)))
+          ))),
+          commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
+            StringCommandPartElement("echo "),
+            PlaceholderCommandPartElement(IdentifierLookup("f"), PlaceholderAttributeSet(None,None,None,None)),
+            StringCommandPartElement(" | cut -c 1-5")
+          )))),
+          runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker",StringLiteral("ubuntu:latest"))))),
+          metaSection = None,
+          parameterMetaSection = Some(ParameterMetaSectionElement(Map(
+            "f" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))),
+            "g" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))),
+            "h" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))
+          )))
+        )
+      )
+  ),
     "taskless_engine_functions" -> FileElement(
       imports = Vector.empty,
       structs = Vector.empty,

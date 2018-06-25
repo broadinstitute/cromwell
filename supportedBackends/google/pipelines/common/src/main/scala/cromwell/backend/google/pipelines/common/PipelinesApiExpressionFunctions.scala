@@ -12,7 +12,7 @@ class PipelinesApiPathFunctions(pathBuilders: PathBuilders, callContext: CallCon
   override def relativeToHostCallRoot(path: String) = {
     GcsPathBuilder.validateGcsPath(path) match {
       case _: ValidFullGcsPath => path
-      case _ => callContext.root.resolve(path.stripPrefix("/")).pathAsString
+      case _ => callContext.root.resolve(path.stripPrefix("file://").stripPrefix("/")).pathAsString
     }
   }
 }

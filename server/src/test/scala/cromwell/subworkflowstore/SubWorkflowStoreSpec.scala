@@ -8,7 +8,7 @@ import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
-import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreCoordinatedWriteActor}
 import cromwell.services.EngineServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
@@ -34,7 +34,8 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
 
       lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
       val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
-      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, TestProbe().ref, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(workflowStore))
+      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, coordinator, TestProbe().ref, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
 
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()

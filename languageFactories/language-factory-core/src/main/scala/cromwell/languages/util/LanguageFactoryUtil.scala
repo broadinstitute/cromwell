@@ -1,18 +1,18 @@
 package cromwell.languages.util
 
-import cats.syntax.validated._
 import cats.data.NonEmptyList
+import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wom.executable.Executable.ResolvedExecutableInputs
+import cromwell.languages.ValidatedWomNamespace
 import wom.executable.Executable
-import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.executable.Executable.ResolvedExecutableInputs
+import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomSingleFile, WomValue}
-import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
-import cromwell.languages.ValidatedWomNamespace
 
 import scala.util.{Failure, Success, Try}
 
@@ -44,8 +44,8 @@ object LanguageFactoryUtil {
     }
   }
 
-  def validateWomNamespace(womExecutable: Executable): Checked[ValidatedWomNamespace] = for {
-    evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, NoIoFunctionSet).toEither
+  def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
+    evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
     validatedWomNamespace = ValidatedWomNamespace(womExecutable, evaluatedInputs, Map.empty)
     _ <- validateWdlFiles(validatedWomNamespace.womValueInputs)
   } yield validatedWomNamespace

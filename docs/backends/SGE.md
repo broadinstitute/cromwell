@@ -37,8 +37,8 @@ qsub \
     -b n \
     -N ${job_name} \
     -wd ${cwd} \
-    -o ${out} \
-    -e ${err} \
+    -o ${out}.qsub \
+    -e ${err}.qsub \
     -pe smp ${cpu} \
     ${"-l m_mem_free=" + memory_gb + "gb"} \
     ${"-q " + sge_queue} \
@@ -71,8 +71,8 @@ backend {
             -b n \
             -N ${job_name} \
             -wd ${cwd} \
-            -o ${out} \
-            -e ${err} \
+            -o ${out}.qsub \
+            -e ${err}.qsub \
             ${script}
         """
       }
@@ -100,8 +100,8 @@ backend {
             -b n \
             -N ${job_name} \
             -wd ${cwd} \
-            -o ${out} \
-            -e ${err} \
+            -o ${out}.qsub \
+            -e ${err}.qsub \
             -l docker,docker_images="${docker}"
             -xdv ${cwd}:${docker_cwd}
             ${script}

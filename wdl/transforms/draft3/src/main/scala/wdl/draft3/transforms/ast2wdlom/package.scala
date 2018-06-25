@@ -8,6 +8,7 @@ import wdl.draft3.parser.WdlParser.{Ast, AstList, AstNode, Terminal}
 import wdl.draft3.transforms.parsing._
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wdl.model.draft3.elements._
+import wom.callable.{MetaKvPair, MetaValueElement}
 
 import collection.JavaConverters._
 

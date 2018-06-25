@@ -2,10 +2,12 @@ package cwl
 
 import cats.instances.list._
 import cats.syntax.traverse._
+import eu.timepit.refined.numeric.Positive
 import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
 import shapeless.Coproduct
 import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.RuntimeEnvironment
+import eu.timepit.refined.refineMV
 import wom.expression.NoIoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
@@ -31,7 +33,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
   
   val noIoFunctionSet = NoIoFunctionSet
   
-  val runtimeEnv = RuntimeEnvironment("", "", 0, 0D, 0L, 0L)
+  val runtimeEnv = RuntimeEnvironment("", "", refineMV[Positive](1), 0D, 0L, 0L)
   
   def validate(tool: String, expectation: List[String]) = {
     val cltFile = better.files.File.newTemporaryFile()().write(tool)

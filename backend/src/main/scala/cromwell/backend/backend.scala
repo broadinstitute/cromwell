@@ -11,10 +11,11 @@ import cromwell.core.labels.Labels
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import wom.callable.ExecutableCallable
+import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.{WomEvaluatedCallInputs, WomValue}
+import wom.values.WomArray.WomArrayLike
+import wom.values._
 
 import scala.util.Try
 
@@ -37,9 +38,25 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
-  val fullyQualifiedInputs = evaluatedTaskInputs map { case (declaration, value) =>
+
+  val fullyQualifiedInputs: Map[String, WomValue] = evaluatedTaskInputs map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }
+
+  def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs.collect {
+    case (declaration, value) if declaration.parameterMeta.exists(filter) => findFiles(value)
+  }.flatten.toSet
+
+  def findFiles(v: WomValue): Set[WomFile] = v match {
+    case value: WomFile => Set(value)
+    case WomOptionalValue(_, Some(value)) => findFiles(value)
+    case value: WomObjectLike => value.values.values.toSet flatMap findFiles
+    case WomArrayLike(value) => value.value.toSet flatMap findFiles
+    case WomPair(left, right) => findFiles(left) ++ findFiles(right)
+    case WomMap(_, innerMap) => (innerMap.keySet flatMap findFiles) ++ (innerMap.values.toSet flatMap findFiles)
+    case _ => Set.empty
+  }
+
   val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
   val taskCall = key.call
   override lazy val toString = key.mkTag(workflowDescriptor.id)

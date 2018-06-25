@@ -95,7 +95,7 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
       womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson), ioFunctions, standardConfig.strictValidation)
-      validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable)
+      validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable, ioFunctions)
       _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
     } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)
 
@@ -116,7 +116,7 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     for {
       _ <- standardConfig.enabledCheck
-      namespace <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toChecked
+      namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked
       womBundle <- namespace.toWomBundle
     } yield womBundle
   }
@@ -124,7 +124,7 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
     _ <- standardConfig.enabledCheck
     executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, standardConfig.strictValidation)
-    validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable)
+    validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
   } yield validatedNamespace
 
   // Commentary: we'll set this as the default in the reference.conf, so most people will get WDL draft 2 if nothing else looks parsable.

@@ -65,7 +65,7 @@ trait MetadataSqlDatabase {
     * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
     */
   def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String,
-                                    statusMetadataKey: String, labelMetadataKey: String,
+                                    statusMetadataKey: String, labelMetadataKey: String, submissionMetadataKey: String,
                                     buildUpdatedSummary:
                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                       => WorkflowMetadataSummaryEntry)
@@ -80,6 +80,9 @@ trait MetadataSqlDatabase {
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
+                             excludeLabelAndValues: Set[(String,String)],
+                             excludeLabelOrValues: Set[(String,String)],
+                             submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              page: Option[Int],
@@ -90,6 +93,9 @@ trait MetadataSqlDatabase {
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
+                             excludeLabelAndValues: Set[(String,String)],
+                             excludeLabelOrValues: Set[(String,String)],
+                             submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp])
                              (implicit ec: ExecutionContext): Future[Int]

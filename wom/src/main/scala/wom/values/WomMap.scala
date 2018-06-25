@@ -1,11 +1,14 @@
 package wom.values
 
+import cats.Applicative
 import common.util.TryUtil
 import wom.TsvSerializable
 import wom.types._
 import wom.util.FileUtil
 import wom.values.WomArray.WomArrayLike
-
+import cats.syntax.traverse._
+import cats.instances.list._
+import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
 
 object WomMap {
@@ -74,6 +77,18 @@ case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends W
     value map f match {
       case m: Map[WomValue, WomValue] if m.nonEmpty => WomMap(WomMapType(m.head._1.womType, m.head._2.womType), m)
       case _ => this
+    }
+  }
+
+  def traverseValues[R <: WomValue, G[_]](f: WomValue => G[R])(implicit applicative: Applicative[G]): G[WomMap] = {
+    if (value.isEmpty) applicative.pure(this)
+    else {
+      val traverseFunction: (WomValue, WomValue) => G[(WomValue, R)] = {
+        case (key, v) => applicative.map(f(v)) { key -> _ }
+      }
+      applicative.map(value.toList.traverse[G, (WomValue, R)](traverseFunction.tupled)) { mapped =>
+        WomMap(mapped.toMap)
+      }
     }
   }
 

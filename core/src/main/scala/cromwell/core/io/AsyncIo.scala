@@ -57,6 +57,10 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
   def readLinesAsync(path: Path): Future[Traversable[String]] = {
     asyncCommand(ioCommandBuilder.readLines(path))
   }
+  
+  def isDirectory(path: Path): Future[Boolean] = {
+    asyncCommand(ioCommandBuilder.isDirectoryCommand(path))
+  }
 
   def copyAsync(src: Path, dest: Path, overwrite: Boolean = true): Future[Unit] = {
     // Allow for a much larger timeout for copies, as large files can take a while (even on gcs, if they are in different locations...)

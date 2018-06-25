@@ -3,7 +3,6 @@ package cromwell.backend.google.pipelines.v1alpha2.api
 import com.google.api.services.genomics.model.{DockerExecutor, PipelineResources}
 import cromwell.backend.google.pipelines.common.{GpuResource, PipelinesApiRuntimeAttributes}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesConversions._
-import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 
@@ -22,15 +21,15 @@ trait PipelineInfoBuilder {
     runtimeAttributes.gpuResource match {
       case Some(GpuResource(gpuType, gpuCount, _)) => resources
         .setAcceleratorType(gpuType.toString)
-        .setAcceleratorCount(gpuCount.toLong)
+        .setAcceleratorCount(gpuCount.value.toLong)
       case _ => resources
     }
   }
 
   def buildResources(runtimeAttributes: PipelinesApiRuntimeAttributes): PipelineResources = {
     val resources = new PipelineResources()
-      .setMinimumRamGb(runtimeAttributes.memory.to(MemoryUnit.GB).amount)
-      .setMinimumCpuCores(runtimeAttributes.cpu)
+      .setMinimumRamGb(runtimeAttributes.memory.toGigabytes)
+      .setMinimumCpuCores(runtimeAttributes.cpu.value)
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)

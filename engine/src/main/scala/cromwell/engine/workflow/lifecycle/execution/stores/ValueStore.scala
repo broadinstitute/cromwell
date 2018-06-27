@@ -69,7 +69,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         if (collectedValue.size == collector.scatterWidth) {
           // If the sizes match, create an Array from the values and assign it to the ScatterGatherPort
           Try(collector.scatterCollectionFunction(collectedValue, scatterGatherPort.womType)).toErrorOrWithContext(
-            s"Failed to collect shards on node ${collector.node.fullyQualifiedName} for output ${sourcePort.identifier.fullyQualifiedName}"
+            s"collect shards on node ${collector.node.fullyQualifiedName} for output ${sourcePort.identifier.fullyQualifiedName}"
           ) map { collectedResult =>
             Map(ValueKey(scatterGatherPort, None) -> collectedResult)
           }

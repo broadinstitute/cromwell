@@ -1,11 +1,12 @@
 package common.validation
 
+import java.io.{PrintWriter, StringWriter}
 import java.net.{URI, URL}
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
-import cats.syntax.validated._
 import cats.syntax.either._
+import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
@@ -47,9 +48,16 @@ object Validation {
       Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
     }
 
-    def toErrorOrWithContext(context: String): ErrorOr[A] = {
-      Validated.fromTry(t).leftMap(e => context + ": " + e.getMessage).toValidatedNel[String, A]
-    }
+    def toErrorOrWithContext(context: String): ErrorOr[A] = toChecked
+      .contextualizeErrors(context)
+      .leftMap({contextualizedErrors => 
+        if (t.failed.isFailure) {
+          val errors = new StringWriter
+          t.failed.get.printStackTrace(new PrintWriter(errors))
+          contextualizedErrors.::(s"Stacktrace: ${errors.toString}")
+        } else contextualizedErrors
+      })
+      .toValidated
 
     def toChecked: Checked[A] = {
       Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))

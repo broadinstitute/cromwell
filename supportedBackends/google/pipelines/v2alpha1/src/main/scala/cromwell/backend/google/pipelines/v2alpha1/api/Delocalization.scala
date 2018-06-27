@@ -78,7 +78,7 @@ trait Delocalization {
          * We can't use the gsutil -I flag here because it would lose the directory structure once it gets copied to the bucket
          * sh -c 'gsutil cp % $(echo % | sed -e "s/^\///")'
          */
-        s""" | xargs -I % sh -c 'gsutil cp -r % ${cloudCallRoot.ensureSlashed}$$(echo % | sed -e "$sedStripSlashPrefix")'"""
+        s""" | xargs -I % sh -c 'gsutil -m cp -r % ${cloudCallRoot.ensureSlashed}$$(echo % | sed -e "$sedStripSlashPrefix")'"""
     )
 
     ActionBuilder

@@ -197,7 +197,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", taskId)
 
     val job = client.submitJob(SubmitJobRequest.builder()
-                .jobName(sanitize(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}"""))
+                .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
                 .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
                 .jobQueue(runtimeAttributes.queueArn)
                 .jobDefinition(definitionArn).build)

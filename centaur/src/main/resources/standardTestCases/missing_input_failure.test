@@ -11,5 +11,5 @@ metadata {
     workflowName: missing_input_failure
     status: Failed
     "failures.0.message": "Workflow failed"
-    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: java.io.IOException: Failed to open an input stream for gs://nonexistingbucket/path/doesnt/exist: 404 Not Found\nNot Found"
+    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: java.lang.IllegalArgumentException: Either gs://nonexistingbucket/path/doesnt/exist exists on a filesystem not supported by this instance of Cromwell, or a failure occurred while building an actionable path from it. Supported filesystems are: Google Cloud Storage. Failures: Google Cloud Storage: java.nio.file.NoSuchFileException: GCS bucket nonexistingbucket does not exist (of class java.nio.file.NoSuchFileException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems"
 }

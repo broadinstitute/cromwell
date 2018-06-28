@@ -274,23 +274,29 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def executionStdout: String = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
   def executionStderr: String = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
 
-  def hostPathFromContainerPath(string: String): Path = {
-    val cwdString = cwd.pathAsString.ensureSlashed
-    val relativePath = string.stripPrefix(cwdString)
-    jobPaths.callExecutionRoot.resolve(relativePath)
-  }
-  
-  def updateJobPaths() = {
-    /* .get's are safe on stdout and stderr after falling back to default names above.
-   * This NEED to be done outside commandScriptContents, because in the case of a restart, it will be used as the detritus paths
-   * for the job but commandScriptContents won't be called
+  /*
+   * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
+   * before sending the results back to the engine. The latter is to cover for the case of a restart where the command is not re-generated,
+   * but the standard paths are still being used in the Success response to the engine. In that response paths need to be correct, hence
+   * the call to this method. The var is to avoid doing the work twice: in non restarted runs the command is generated and so there is no need
+   * to re-do this before sending the response.
    */
+  private var jobPathsUpdated: Boolean = false
+  private def updateJobPaths() = if (!jobPathsUpdated) {
+    // .get's are safe on stdout and stderr after falling back to default names above.
     jobPaths.standardPaths = StandardPaths(
       output = hostPathFromContainerPath(executionStdout),
       error = hostPathFromContainerPath(executionStderr)
     )
     // Re-publish stdout and stderr paths that were possibly just updated.
     tellMetadata(jobPaths.standardOutputAndErrorPaths)
+    jobPathsUpdated = true
+  }
+
+  def hostPathFromContainerPath(string: String): Path = {
+    val cwdString = cwd.pathAsString.ensureSlashed
+    val relativePath = string.stripPrefix(cwdString)
+    jobPaths.callExecutionRoot.resolve(relativePath)
   }
   // End added lift code
 
@@ -830,6 +836,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
                              returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     evaluateOutputs() map {
       case ValidJobOutputs(outputs) =>
+        // Need to make sure the paths are up to date before sending the detritus back in the response
         updateJobPaths()
         SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
       case InvalidJobOutputs(errors) =>

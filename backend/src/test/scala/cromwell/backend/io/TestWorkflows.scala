@@ -67,11 +67,11 @@ object TestWorkflows {
       |}
     """.stripMargin
 
-  val Sleep10 =
+  val Sleep20 =
     """
       |task abort {
       |  command {
-      |    sleep 10
+      |    sleep 20
       |    echo "something after sleep"
       |  }
       |}

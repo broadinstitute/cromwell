@@ -183,6 +183,4 @@ case class S3Path private[s3](nioPath: NioPath,
       case _ => nioPath.resolve(s"/${bucket}/${originalPath}").toAbsolutePath.toString
     }
   }
-
-  override def requesterPays = false
 }

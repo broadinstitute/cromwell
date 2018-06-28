@@ -117,6 +117,4 @@ trait Path extends PathObjectMethods with NioPathMethods with BetterFileMethods 
 
   // Some Path methods return null.
   private[path] final def newPathOrNull(nioPath: NioPath) = Option(nioPath).map(newPath).orNull
-
-  def requesterPays: Boolean
 }

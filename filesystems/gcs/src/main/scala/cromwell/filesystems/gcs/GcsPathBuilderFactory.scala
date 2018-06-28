@@ -33,10 +33,9 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
 
   val authMode = authModeValidation.unsafe(s"Failed to create authentication mode for $authModeAsString")
 
-  val defaultProject = instanceConfig.as[Option[String]]("project")
-
-  val requesterPaysCacheTTL = instanceConfig
-    .as[Option[FiniteDuration]]("requester-pays-cache-ttl")
+  val requesterPaysEnabled = instanceConfig.as[Option[Config]]("requester-pays")
+  val defaultProject = requesterPaysEnabled.flatMap(_.as[Option[String]]("project"))
+  val requesterPaysCacheTTL = requesterPaysEnabled.flatMap(_.as[Option[FiniteDuration]]("cache-ttl")).getOrElse(20.minutes)
   
   def cachePolicy(ttl: FiniteDuration) = {
     val guavaCache = CacheBuilder
@@ -51,10 +50,10 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
   val gcsBucketInformationPolicy: GcsBucketInformationPolicy = requesterPaysCacheTTL match {
     // Default to no lookup at all if there is no config.
     // This preserves the behavior on V1, however it forces to set a config value in V2
-    case None => GcsBucketInformationPolicies.Default
-    case Some(inf) if !inf.isFinite() => GcsBucketInformationPolicies.Default
-    case Some(zero) if zero == SDuration.Zero => GcsBucketInformationPolicies.NoCache
-    case Some(other) => cachePolicy(other)
+    case _ if requesterPaysEnabled.isEmpty => GcsBucketInformationPolicies.Default
+    case inf if !inf.isFinite() => GcsBucketInformationPolicies.Default
+    case zero if zero == SDuration.Zero => GcsBucketInformationPolicies.NoCache
+    case other => cachePolicy(other)
   }
 
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {

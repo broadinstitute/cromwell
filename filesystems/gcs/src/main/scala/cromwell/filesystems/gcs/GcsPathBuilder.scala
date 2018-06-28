@@ -21,8 +21,10 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
+import cromwell.filesystems.gcs.GcsPath.BucketInformationGetter
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.GoogleUtil._
+import cromwell.filesystems.gcs.cache.GcsBucketCache.GcsBucketInformation
 import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies.GcsBucketInformationPolicy
 import cromwell.filesystems.gcs.cache.GcsFileSystemCache
 import mouse.all._
@@ -179,40 +181,49 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
     validateGcsPath(string) match {
       case ValidFullGcsPath(bucket, path) =>
         val pathAndRpIO = for {
-          // Use the provided EC to get bucket information
-          _ <- IO.shift(ec)
           fileSystem <- fileSystemCache.getCachedValue(bucket)
           cloudStoragePath = fileSystem.getPath(path)
-          bucketInfo <- bucketStore.information(bucket)
-        } yield (cloudStoragePath, bucketInfo.requesterPays)
+        } yield cloudStoragePath
         
         Try {
-          val (cloudStoragePath, requesterPays) = pathAndRpIO.unsafeRunSync()
-          GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId, requesterPays)
+          val cloudStoragePath = pathAndRpIO.unsafeRunSync()
+          GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId, bucketInformation)
         }
       case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"$string does not have a gcs scheme"))
       case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
     }
   }
+  
+  // Provide a way to the Path to get most up to date information about the status of requester pays for its bucket
+  private val bucketInformation: BucketInformationGetter = bucket => for {
+    // Use the provided EC to get bucket information
+    _ <- IO.shift(ec)
+    bucketInfo <- bucketStore.information(bucket)
+  } yield bucketInfo
 
   override def name: String = "Google Cloud Storage"
+}
+
+object GcsPath {
+  type BucketInformationGetter = String => IO[GcsBucketInformation]
 }
 
 case class GcsPath private[gcs](nioPath: NioPath,
                                 apiStorage: com.google.api.services.storage.Storage,
                                 cloudStorage: com.google.cloud.storage.Storage,
                                 projectId: String,
-                                requesterPays: Boolean) extends Path {
+                                bucketInformationGetter: BucketInformationGetter) extends Path {
   lazy val blob = BlobId.of(cloudStoragePath.bucket, cloudStoragePath.toRealPath().toString)
 
+  def requesterPays = bucketInformationGetter(blob.getBucket).unsafeRunSync().requesterPays
   /**
     * Will be null if requesterPays is false 
     */
-  val requesterPaysProject = requesterPays.option(projectId).orNull
-  private lazy val userProjectBlobTarget: List[BlobTargetOption] = requesterPays.option(BlobTargetOption.userProject(projectId)).toList
-  private lazy val userProjectBlobSource: List[BlobSourceOption] = requesterPays.option(BlobSourceOption.userProject(projectId)).toList
+  def requesterPaysProject = requesterPays.option(projectId).orNull
+  private def userProjectBlobTarget: List[BlobTargetOption] = requesterPays.option(BlobTargetOption.userProject(projectId)).toList
+  private def userProjectBlobSource: List[BlobSourceOption] = requesterPays.option(BlobSourceOption.userProject(projectId)).toList
 
-  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId, requesterPays)
+  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId, bucketInformationGetter)
 
   override def pathAsString: String = {
     val host = cloudStoragePath.bucket().stripSuffix("/")

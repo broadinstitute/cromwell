@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, Props, Status}
 import cats.data.NonEmptyVector
 import cromwell.core.{Dispatcher, WorkflowId}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedWriteActor._
@@ -22,7 +22,7 @@ class WorkflowStoreCoordinatedWriteActor(workflowStore: WorkflowStore) extends A
   def run[A](future: Future[A]): Unit = {
     val result = Try(Await.result(future, Timeout)) match {
       case Success(s) => s
-      case f: Failure[_] => f
+      case f: Failure[_] => Status.Failure(f.exception)
     }
     sender() ! result
   }

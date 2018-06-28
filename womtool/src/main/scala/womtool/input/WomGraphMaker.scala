@@ -26,9 +26,9 @@ object WomGraphMaker {
     // - Where we run from
     // - Where the file is
     lazy val importResolvers = List(
+      localFileResolver,
       directoryResolver(DefaultPathBuilder.build(Paths.get("."))),
       directoryResolver(DefaultPathBuilder.build(Paths.get(mainFile.toAbsolutePath.toFile.getParent))),
-      localFileResolver,
       httpResolver
     )
 

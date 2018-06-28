@@ -16,12 +16,12 @@ task sleep_exit {
 
 workflow restart_while_failing {
     # A will fail after 5 minutes
-    call sleep_exit as A { input: s = 300, exit_code = 1 }
+    call sleep_exit as A { input: s = 240, exit_code = 1 }
     
     # B starts at the same time as A and finishes immediately
     call sleep_exit as B { input: s = 1 }
     # B1 starts as soon as B is done
-    call sleep_exit as B1 { input: s = 600, flow_control = B.done }
+    call sleep_exit as B1 { input: s = 360, flow_control = B.done }
     # B2 depends on B1. Note that B2 should never be run because by the time we get to it, A will have failed.
     call sleep_exit as B2 { input: s = 1, flow_control = B1.done }
     

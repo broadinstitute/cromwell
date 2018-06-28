@@ -70,7 +70,6 @@ object CentaurCromwellClient {
 
   def metadata(id: WorkflowId): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id)) map { m =>
-      if (LogFailures) Console.err.println(s"Got metadata for $id")
       WorkflowMetadata.fromMetadataJson(m.value).toOption.get
     }
   }
@@ -82,7 +81,9 @@ object CentaurCromwellClient {
     val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit
 
     ioDelay.flatMap( _ =>
-      IO.fromFuture(IO(Retry.withRetry(x, Option(5), 5.seconds, isTransient = isTransient, onRetry = onRetry)).timeout(timeout))
+      // Could probably use IO to do the retrying too. For now use a copyport of Retry from cromwell core. Retry 5 times,
+      // wait 5 seconds between retries. Timeout the whole thing using the IO timeout.
+      IO.fromFuture(IO(Retry.withRetry(x, Option(5), 5.seconds, isTransient = isTransient)).timeout(timeout))
     )
   }
 
@@ -90,8 +91,6 @@ object CentaurCromwellClient {
     retryedRequest(x, CentaurConfig.sendReceiveTimeout)
   }
 
-  private def onRetry(t: Throwable) = if (LogFailures) Console.err.println(s"Retrying due to ${t.getMessage}")
-  
   private def isTransient(f: Throwable) = f match {
     case _: TimeoutException |
                     _: StreamTcpException |

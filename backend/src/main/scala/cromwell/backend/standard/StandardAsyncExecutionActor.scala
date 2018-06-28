@@ -252,7 +252,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
-  // It's here at instantiation time that the names of standard input/output/error files are calculated.
   // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
   // the command, but the standard input file will never be accessed after the command completes. standard output and
   // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read

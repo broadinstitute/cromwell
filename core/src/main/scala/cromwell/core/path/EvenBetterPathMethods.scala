@@ -5,6 +5,7 @@ import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
 import better.files.File.OpenOptions
+import cromwell.util.TryWithResource.tryWithResource
 
 import scala.collection.JavaConverters._
 import scala.io.Codec
@@ -90,4 +91,8 @@ trait EvenBetterPathMethods {
   def mediaInputStream: InputStream = newInputStream
 
   def writeContent(content: String)(openOptions: OpenOptions, codec: Codec): this.type = write(content)(openOptions, Codec.UTF8)
+  
+  def hash: String = tryWithResource(() => newInputStream)({ inputStream =>
+    org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
+  }).get
 }

@@ -12,7 +12,7 @@ import cats.effect.IO
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
-import com.google.cloud.storage.Storage.{BlobSourceOption, BlobTargetOption}
+import com.google.cloud.storage.Storage.{BlobField, BlobGetOption, BlobSourceOption, BlobTargetOption}
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.cloud.storage.{BlobId, BlobInfo, StorageOptions}
 import com.google.common.cache.CacheBuilder
@@ -220,8 +220,10 @@ case class GcsPath private[gcs](nioPath: NioPath,
     * Will be null if requesterPays is false 
     */
   def requesterPaysProject = requesterPays.option(projectId).orNull
+  // Utility flags to pass to gcs requests
   private def userProjectBlobTarget: List[BlobTargetOption] = requesterPays.option(BlobTargetOption.userProject(projectId)).toList
   private def userProjectBlobSource: List[BlobSourceOption] = requesterPays.option(BlobSourceOption.userProject(projectId)).toList
+  private def userProjectBlobGet: List[BlobGetOption] = requesterPays.option(BlobGetOption.userProject(projectId)).toList
 
   override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId, bucketInformationGetter)
 
@@ -252,6 +254,10 @@ case class GcsPath private[gcs](nioPath: NioPath,
       case Failure(e) => e.getMessage
         throw new IOException(s"Failed to open an input stream for $pathAsString: ${e.getMessage}", e)
     }
+  }
+
+  override def hash = {
+    cloudStorage.get(blob, userProjectBlobGet :+ BlobGetOption.fields(BlobField.CRC32C): _*).getCrc32c
   }
 
   override def pathWithoutScheme: String = {

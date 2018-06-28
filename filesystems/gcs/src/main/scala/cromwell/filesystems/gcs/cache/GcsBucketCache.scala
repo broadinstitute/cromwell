@@ -13,6 +13,12 @@ object GcsBucketCache {
   case class GcsBucketInformation(requesterPays: Boolean)
   val BucketIsRequesterPaysErrorMessage = "Bucket is requester pays bucket but no user project provided."
   val DoesNotHaveServiceUsePermissionError = "does not have serviceusage.services.use"
+  def recoverNoUserProvided[A](value: A): PartialFunction[Throwable, A] = {
+    case storageException: StorageException if
+    storageException.getCode == 400 &&
+      storageException.getReason.equalsIgnoreCase("required") &&
+      storageException.getMessage == BucketIsRequesterPaysErrorMessage => value
+  }
 }
 
 class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInformation], projectId: String) extends BucketCache[GcsBucketInformation](cache) {
@@ -43,12 +49,9 @@ class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInform
       IO(getBucket(BucketGetOption.fields(BucketField.ID)))
         // If we can get the metadata without specifying a billing project, then requester pays is off
         .map(_ => false)
-        .handleErrorWith({
-          case storageException: StorageException if
-          storageException.getCode == 400 &&
-            storageException.getReason.equalsIgnoreCase("required") &&
-            storageException.getMessage == BucketIsRequesterPaysErrorMessage => IO.pure(true)
-        })
+        .handleErrorWith(recoverNoUserProvided(IO.pure(true)).orElse({
+          case other => IO.raiseError(other)
+        }))
     }
 
     // First try with the project

@@ -10,7 +10,6 @@ import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.Retry
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoCommandContext
-import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -89,15 +88,8 @@ class NioFlow(parallelism: Int,
     size.file.size
   }
 
-  private def hash(hash: IoHashCommand) = {
-    hash.file match {
-      case gcsPath: GcsPath => Future { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
-      case path => Future.fromTry(
-        tryWithResource(() => path.newInputStream) { inputStream =>
-          org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
-        }
-      )
-    }
+  private def hash(hash: IoHashCommand) = Future {
+    hash.file.hash
   }
 
   private def touch(touch: IoTouchCommand) = Future {

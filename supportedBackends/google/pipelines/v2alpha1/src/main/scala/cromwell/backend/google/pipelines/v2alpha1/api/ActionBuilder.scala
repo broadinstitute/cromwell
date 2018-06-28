@@ -25,6 +25,7 @@ object ActionBuilder {
       val UserAction = "UserAction"
       val Localization = "Localization"
       val Delocalization = "Delocalization"
+      val Background = "Background"
     }
   }
 
@@ -69,7 +70,7 @@ object ActionBuilder {
       .setLabels(labels.asJava)
   }
 
-  def cloudSdkBashAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = 
+  def cloudSdkBashAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action =
     cloudSdkAction
       .withCommand("/bin/sh", "-c", shellCommand)
       .withFlags(flags)

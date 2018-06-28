@@ -11,11 +11,11 @@ import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import net.ceedubs.ficus.Ficus._
+import squants.information.{Bytes, Information, Mebibytes}
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
-import net.ceedubs.ficus.Ficus._
-import squants.information.Information
 
 object GpuResource {
   val DefaultNvidiaDriverVersion = "390.46"
@@ -107,6 +107,14 @@ object PipelinesApiRuntimeAttributes {
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
+  private val outDirMinValidation: OptionalRuntimeAttributesValidation[Information] = {
+    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, Mebibytes)
+  }
+
+  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[Information] = {
+    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, Mebibytes)
+  }
+
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = jesConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
@@ -122,7 +130,9 @@ object PipelinesApiRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       bootDiskSizeValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
-      dockerValidation
+      dockerValidation,
+      outDirMinValidation,
+      tmpDirMinValidation
     )
   }
 
@@ -150,6 +160,17 @@ object PipelinesApiRuntimeAttributes {
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
+    val outDirMin: Option[Information] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
+    val tmpDirMin: Option[Information] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
+
+    val totalExecutionDiskSize = List(outDirMin, tmpDirMin).flatten.fold(Bytes(0))(_ + _)
+
+    val adjustedDisks = disks.map({
+      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < totalExecutionDiskSize.toGigabytes =>
+        disk.copy(sizeGb = totalExecutionDiskSize.toGigabytes.intValue())
+      case other => other
+    })
+
     new PipelinesApiRuntimeAttributes(
       cpu,
       gpuResource,
@@ -157,7 +178,7 @@ object PipelinesApiRuntimeAttributes {
       preemptible,
       bootDiskSize,
       memory,
-      disks,
+      adjustedDisks,
       docker,
       failOnStderr,
       continueOnReturnCode,

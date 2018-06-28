@@ -4,6 +4,7 @@ import java.net.SocketTimeoutException
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
+import akka.http.scaladsl.model.ContentTypes
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -388,6 +389,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       dockerImage = jobDockerImage,
+      cloudWorkflowRoot = workflowPaths.workflowRoot,
       cloudCallRoot = callRootPath,
       commandScriptContainerPath = cmdInput.containerPath,
       logGcsPath = jesLogPath,
@@ -434,7 +436,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         StandardStream("stdout", _.output),
         StandardStream("stderr", _.error)
       ) map { s =>
-        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename), workingDisk, optional = false, secondary = false)
+        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename),
+          workingDisk, optional = false, secondary = false, uploadPeriod = jesAttributes.logFlushPeriod, contentType = Option(ContentTypes.`text/plain(UTF-8)`))
       }
 
       InputOutputParameters(
@@ -501,7 +504,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFileToGcsPath(generateOutputs(jobDescriptor))(womFile)
   }
 
-  private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
+  protected [pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
       jesOutputs collectFirst {
         case jesOutput if jesOutput.name == makeSafeReferenceName(path) => jesOutput.cloudPath.pathAsString

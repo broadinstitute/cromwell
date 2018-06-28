@@ -1,8 +1,8 @@
 package cwl
 
 import cats.data.{NonEmptyList, OptionT}
-import cats.syntax.traverse._
 import cats.syntax.apply._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr._
@@ -17,7 +17,7 @@ import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpress
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
-import wom.values.{WomArray, WomEvaluatedCallInputs, WomFile, WomGlobFile, WomInteger, WomString, WomValue}
+import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
 import scala.concurrent.ExecutionContext
@@ -158,10 +158,6 @@ case class CommandLineTool private(
         json.get(outputPort.internalName)
           .map(
             _.foldWith(CwlJsonToDelayedCoercionFunction).apply(outputPort.womType)
-              .map({
-                case womFile: WomFile => womFile.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot)
-                case womValue => womValue
-              })
               .map(outputPort -> _)
           )
           .orElse(emptyValue)

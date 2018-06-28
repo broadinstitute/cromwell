@@ -4,6 +4,8 @@ import akka.http.scaladsl.model.ContentType
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.core.path.Path
 
+import scala.concurrent.duration.FiniteDuration
+
 sealed trait PipelinesParameter {
   def name: String
 
@@ -53,6 +55,7 @@ final case class PipelinesApiFileOutput(name: String,
                                         mount: PipelinesApiAttachedDisk,
                                         optional: Boolean,
                                         secondary: Boolean,
+                                        uploadPeriod: Option[FiniteDuration] = None,
                                         contentType: Option[ContentType] = None) extends PipelinesApiOutput
 
 final case class PipelinesApiDirectoryOutput(name: String,

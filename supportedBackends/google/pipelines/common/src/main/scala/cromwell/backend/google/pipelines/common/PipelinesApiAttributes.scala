@@ -20,6 +20,7 @@ import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.{FiniteDuration, _}
 
 case class PipelinesApiAttributes(project: String,
                                   computeServiceAccount: String,
@@ -30,7 +31,8 @@ case class PipelinesApiAttributes(project: String,
                                   maxPollingInterval: Int,
                                   qps: Int Refined Positive,
                                   duplicationStrategy: PipelinesCacheHitDuplicationStrategy,
-                                  requestWorkers: Int Refined Positive)
+                                  requestWorkers: Int Refined Positive,
+                                  logFlushPeriod: Option[FiniteDuration])
 
 object PipelinesApiAttributes {
   lazy val Logger = LoggerFactory.getLogger("JesAttributes")
@@ -102,6 +104,13 @@ object PipelinesApiAttributes {
       case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
     } }
     val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
+    val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
+      case Some(duration) if duration.isFinite() => Option(duration)
+        // "Inf" disables upload
+      case Some(_) => None
+        // Defaults to 1 minute
+      case None => Option(1.minute)
+    }
 
 
     def authGoogleConfigForJesAttributes(project: String,
@@ -113,7 +122,7 @@ object PipelinesApiAttributes {
                                          qps: Int Refined Positive,
                                          cachingStrategy: PipelinesCacheHitDuplicationStrategy,
                                          requestWorkers: Int Refined Positive): ErrorOr[PipelinesApiAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
-      (genomicsAuth, gcsAuth) => PipelinesApiAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers)
+      (genomicsAuth, gcsAuth) => PipelinesApiAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers, logFlushPeriod)
     }
 
     (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy, requestWorkers) flatMapN authGoogleConfigForJesAttributes match {

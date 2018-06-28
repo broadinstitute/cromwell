@@ -68,4 +68,7 @@ If a bucket has RP, requests to this bucket must be billed to a google project. 
 - Otherwise, the value of the `requester-pays.project` field in the `gcs` filesystem configuration will be used
 - Otherwise, if the machine Cromwell runs on is authenticated to gcloud and a default project is set, this value will be used
 
-*Important*: In order for a project to be billable to access a bucket with requester pays, the credentials used need to have the `serviceusage.services.use` permission on this project. 
+**Important #1**: In order for a project to be billable to access a bucket with requester pays, the credentials used need to have the `serviceusage.services.use` permission on this project. 
+
+**Important #2**: Pipelines API version 1 does **not** support buckets with requester pays, so while Cromwell itself might be able to access bucket with RP, jobs running on Pipelines API V1 with file inputs and / or outputs will **not** work.
+For full requester pays support, use the [Pipelines API v2 Cromwell backend](https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md#pipelines-api-v2). 

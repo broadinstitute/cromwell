@@ -72,7 +72,7 @@ trait PipelinesParameterConversions {
   implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
     override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
       cloudSdkBashAction(
-        delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath)
+        delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
       )(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization))
     }
   }

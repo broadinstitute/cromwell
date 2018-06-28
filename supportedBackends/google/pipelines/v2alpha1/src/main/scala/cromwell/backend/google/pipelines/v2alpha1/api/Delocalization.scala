@@ -18,6 +18,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 object Delocalization {
   private val logsRoot = "/google/logs"
+  val plainTextContentType = Option(ContentTypes.`text/plain(UTF-8)`)
 }
 
 trait Delocalization {
@@ -25,18 +26,22 @@ trait Delocalization {
   private def aggregatedLog = s"$logsRoot/output"
 
   private def delocalizeLogsAction(gcsLogPath: Path, projectId: String) = {
-    gsutilAsText(gcsLogPath.requesterPaysGSUtilFlagList ++ List("cp") ++ List("-r", "/google/logs", gcsLogPath.pathAsString))(flags = List(ActionFlag.AlwaysRun))
+    cloudSdkBashAction(
+    delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, plainTextContentType)
+    )(flags = List(ActionFlag.AlwaysRun))
   }
 
-  // Action logs are now located in the pipelines-logs directory. The aggregated log is copied from this pipelines-logs directory.
+  // Used for the final copy of the logs to make sure we have the most up to date version before terminating the job
   private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path): Action = {
-    gsutilAsText(gcsLegacyLogPath.requesterPaysGSUtilFlagList ++ List("cp", aggregatedLog, gcsLegacyLogPath.pathAsString))(flags = List(ActionFlag.AlwaysRun))
+    cloudSdkBashAction(
+      delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType)
+    )(flags = List(ActionFlag.AlwaysRun))
   }
 
-  // Action logs are now located in the pipelines-logs directory. The aggregated log is copied from this pipelines-logs directory.
+  // Periodically copies the logs out to GCS
   private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path): Action = {
     cloudSdkBashAction(
-      every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, Option(ContentTypes.`text/plain(UTF-8)`)) }
+      every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType) }
     )(flags = List(ActionFlag.RunInBackground))
   }
 

@@ -20,11 +20,13 @@ object ActionCommands {
     // The command String runs in Bourne shell so shell metacharacters in filenames must be escaped
     def escape = ESCAPE_XSI.translate(path.pathAsString)
   }
+  
+  private def makeContentTypeFlag(contentType: Option[ContentType]) = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
 
   def makeContainerDirectory(containerPath: Path) = s"mkdir -p ${containerPath.escape}"
 
-  def delocalizeDirectory(containerPath: Path, cloudPath: Path) = retry {
-    s"gsutil -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
+  def delocalizeDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
+    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} ${contentType |> makeContentTypeFlag} -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
   }
 
   /**
@@ -40,8 +42,7 @@ object ActionCommands {
     * So the final gsutil command will look something like gsutil cp /local/file.txt gs://bucket/subdir/
     */
   def delocalizeFile(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
-    val contentTypeFlag = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
-    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} $contentTypeFlag cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
+    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
   }
 
   /**
@@ -49,8 +50,7 @@ object ActionCommands {
     * Make sure that there's no object named "yourfinalname_something" (see above) in the same cloud directory.
     */
   def delocalizeFileTo(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
-    val contentTypeFlag = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
-    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} $contentTypeFlag cp ${containerPath.escape} ${cloudPath.escape}"
+    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.escape}"
   }
 
   def ifExist(containerPath: Path)(f: => String) = s"if [[ -e ${containerPath.escape} ]]; then $f; fi"
@@ -62,7 +62,7 @@ object ActionCommands {
   }
 
   def delocalizeFileOrDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = {
-    s"if [[ -d ${containerPath.escape} ]]; then ${delocalizeDirectory(containerPath, cloudPath)}; else ${delocalizeFile(containerPath, cloudPath, contentType)}; fi"
+    s"if [[ -d ${containerPath.escape} ]]; then ${delocalizeDirectory(containerPath, cloudPath, contentType)}; else ${delocalizeFile(containerPath, cloudPath, contentType)}; fi"
   }
 
   def localizeDirectory(cloudPath: Path, containerPath: Path) = retry {

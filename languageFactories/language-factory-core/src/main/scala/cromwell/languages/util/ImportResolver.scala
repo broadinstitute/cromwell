@@ -13,7 +13,7 @@ import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.path.Path
 import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
@@ -27,10 +27,10 @@ object ImportResolver {
     directoryResolver(LanguageFactoryUtil.validateImportsDirectory(zippedImports).toEither)
   }
 
-  def directoryResolver(directory: Path): ImportResolver = CheckedAtoB.fromErrorOr { path =>
+  def directoryResolver(directory: Path, allowEscapingDirectory: Boolean = false): ImportResolver = CheckedAtoB.fromErrorOr { path =>
     Try(Paths.get(directory.resolve(path).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
       val absolutePathToImports = Paths.get(directory.toJava.getCanonicalPath)
-      if (absolutePathToFile.startsWith(absolutePathToImports)) {
+      if ((!allowEscapingDirectory && absolutePathToFile.startsWith(absolutePathToImports)) || allowEscapingDirectory) {
         val file = File(absolutePathToFile)
         if (file.exists) {
           File(absolutePathToFile).contentAsString.validNel
@@ -47,18 +47,16 @@ object ImportResolver {
     directoryValidation flatMap { directoryResolver(_).run(path) }
   }
 
-  def relativeFileResolver(wdlPath: Path): ImportResolver = CheckedAtoB.fromErrorOr { relativePath =>
-    Try(Paths.get(wdlPath.getParent.resolve(relativePath).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
+  lazy val localFileResolver: ImportResolver = CheckedAtoB.fromErrorOr { path =>
+    Try(Paths.get(Paths.get(".").resolve(path).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
       val file = File(absolutePathToFile)
       if (file.exists) {
         File(absolutePathToFile).contentAsString.validNel
       } else {
-        s"Import file not found: $relativePath".invalidNel
+        s"Import file not found: $path".invalidNel
       }
     }
   }
-
-  lazy val localFileResolver: ImportResolver = relativeFileResolver(DefaultPathBuilder.build(Paths.get(".")))
 
   def specificFileResolver(filePath: Path): ImportResolver = CheckedAtoB.fromErrorOr { path =>
     if (path == filePath.toAbsolutePath.toString || path == filePath.name) {

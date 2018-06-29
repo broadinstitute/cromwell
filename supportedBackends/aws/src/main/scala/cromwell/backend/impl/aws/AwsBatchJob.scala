@@ -31,7 +31,6 @@
 package cromwell.backend.impl.aws
 
 import java.security.MessageDigest
-import java.util.UUID
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model.
                                         {
@@ -179,7 +178,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     """).stripMargin
   }
   def submitJob(): Try[SubmitJobResponse] = Try {
-    val taskId = UUID.randomUUID.toString.replace("-", "")
+    val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")

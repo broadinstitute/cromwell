@@ -2,7 +2,7 @@ version 1.0
 
 import "./womtool/src/test/resources/validate/wdl_draft3/valid/task_only/task_only.wdl" as imports
 
-workflow http_import {
+workflow relative_local_import {
 
   input {
     File in_file

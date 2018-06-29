@@ -30,7 +30,7 @@ object ImportResolver {
   def directoryResolver(directory: Path, allowEscapingDirectory: Boolean = false): ImportResolver = CheckedAtoB.fromErrorOr { path =>
     Try(Paths.get(directory.resolve(path).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
       val absolutePathToImports = Paths.get(directory.toJava.getCanonicalPath)
-      if ((!allowEscapingDirectory && absolutePathToFile.startsWith(absolutePathToImports)) || allowEscapingDirectory) {
+      if (allowEscapingDirectory || absolutePathToFile.startsWith(absolutePathToImports)) {
         val file = File(absolutePathToFile)
         if (file.exists) {
           File(absolutePathToFile).contentAsString.validNel

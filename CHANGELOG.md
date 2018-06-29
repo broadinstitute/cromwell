@@ -4,7 +4,7 @@
 
 ### Requester Pays on GCS
 
-Access of Google Cloud Storage that have Requester Pays enabled is now supported.
+Access of Google Cloud Storage buckets with Requester Pays enabled is now supported.
 Please read the [relevant documentation](http://cromwell.readthedocs.io/en/develop/filesystems/GoogleCloudStorage#requester-pays) for information on how to enable it and the consequences.
 
 ## 33 Release Notes

@@ -132,13 +132,11 @@ object Operations {
           case unsuccessfulRequestException: UnsuccessfulRequestException =>
             val httpResponse = unsuccessfulRequestException.httpResponse
             val statusCode = httpResponse.status.intValue()
-            val message = httpResponse.entity match {
-              case akka.http.scaladsl.model.HttpEntity.Strict(_, data) => data.utf8String
-              case _ =>
-                throw new RuntimeException(s"Expected a strict http response entity but got ${httpResponse.entity}")
+            httpResponse.entity match {
+              case akka.http.scaladsl.model.HttpEntity.Strict(_, data) =>
+                IO.pure(SubmitHttpResponse(statusCode, data.utf8String))
+              case _ => IO.raiseError(new RuntimeException(s"Expected a strict http response entity but got ${httpResponse.entity}"))
             }
-            IO.pure(SubmitHttpResponse(statusCode, message))
-
           case unexpected => IO.raiseError(unexpected)
         },
           submittedWorkflow =>
@@ -240,13 +238,13 @@ object Operations {
     }
 
     def findCallStatus(metadata: WorkflowMetadata): IO[Option[(String, String)]] = {
+      val status = metadata.value.get(s"calls.$callFqn.executionStatus")
+      val statusString = status.map(_.asInstanceOf[JsString].value)
+      
       for {
-        status <- IO.pure(metadata.value.get(s"calls.$callFqn.executionStatus"))
-        statusString = status.map(_.asInstanceOf[JsString].value)
         jobId <- valueAsString(s"calls.$callFqn.jobId", metadata).map(jobId => IO.pure(Option(jobId)))
-          .orElse(
-            valueAsString(s"calls.$callFqn.subWorkflowId", metadata).map(findJobIdInSubWorkflow)
-          ).getOrElse(IO.pure(None))
+          .orElse(valueAsString(s"calls.$callFqn.subWorkflowId", metadata).map(findJobIdInSubWorkflow))
+          .getOrElse(IO.pure(None))
         pair = (statusString, jobId) match {
           case (Some(s), Some(j)) => Option(s -> j)
           case _ => None

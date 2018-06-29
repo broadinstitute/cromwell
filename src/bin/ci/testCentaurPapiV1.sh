@@ -32,8 +32,6 @@ if [ "${CROMWELL_BUILD_IS_CRON}" = "true" ]; then
     CENTAUR_READ_LINES_LIMIT=512000
     export CENTAUR_READ_LINES_LIMIT
 fi
-PAPI_CONCURRENT_JOB_LIMIT=9001
-export PAPI_CONCURRENT_JOB_LIMIT
 
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \

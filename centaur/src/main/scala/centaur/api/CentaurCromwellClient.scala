@@ -76,7 +76,7 @@ object CentaurCromwellClient {
 
   lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))
 
-  def retryedRequest[T](x: () => Future[T], timeout: FiniteDuration): IO[T] = {
+  def retryRequest[T](x: () => Future[T], timeout: FiniteDuration): IO[T] = {
     // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail 
     val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit
 
@@ -88,7 +88,7 @@ object CentaurCromwellClient {
   }
 
   def sendReceiveFutureCompletion[T](x: () => Future[T]) = {
-    retryedRequest(x, CentaurConfig.sendReceiveTimeout)
+    retryRequest(x, CentaurConfig.sendReceiveTimeout)
   }
 
   private def isTransient(f: Throwable) = f match {

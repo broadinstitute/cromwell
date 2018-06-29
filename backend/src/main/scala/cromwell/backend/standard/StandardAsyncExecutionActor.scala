@@ -247,8 +247,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
   def scriptPreamble: String = ""
 
-  // TODO: Discuss if this lift is appropriate, and if they should be functions
-  //       of lazy vals
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
@@ -297,7 +295,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val relativePath = string.stripPrefix(cwdString)
     jobPaths.callExecutionRoot.resolve(relativePath)
   }
-  // End added lift code
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {

@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 33.2 Release Notes
+
+### Bug Fixes
+
+Fixed internal error handling within the `WorkflowStoreCoordinatedWriteActor`.
+
+## 33.1 Release Notes
+
 ## 33 Release Notes
 
 ### Query endpoint

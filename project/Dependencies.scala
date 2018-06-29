@@ -1,8 +1,8 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpV = "10.0.10"
-  private val akkaV = "2.5.4"
+  private val akkaHttpV = "10.1.3"
+  private val akkaV = "2.5.13"
   private val alibabaCloudCoreV = "3.6.0"
   private val alibabaCloudOssV = "3.1.0"
   private val alibabaCloudBcsV = "5.3.2"

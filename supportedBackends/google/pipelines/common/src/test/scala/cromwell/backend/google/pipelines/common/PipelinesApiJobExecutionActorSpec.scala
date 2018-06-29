@@ -43,8 +43,8 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
     deathwatch watch testJJEA
 
     // Nothing happens:
-    parent.expectNoMsg(max = AwaitAlmostNothing)
-    deathwatch.expectNoMsg(max = AwaitAlmostNothing)
+    parent.expectNoMessage(max = AwaitAlmostNothing)
+    deathwatch.expectNoMessage(max = AwaitAlmostNothing)
 
     testJJEA.tell(msg = ExecuteJobCommand, sender = parent.ref)
 
@@ -77,14 +77,14 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
     deathwatch watch testJJEA
 
     // Nothing happens:
-    parent.expectNoMsg(max = AwaitAlmostNothing)
-    deathwatch.expectNoMsg(max = AwaitAlmostNothing)
+    parent.expectNoMessage(max = AwaitAlmostNothing)
+    deathwatch.expectNoMessage(max = AwaitAlmostNothing)
 
     testJJEA.tell(msg = ExecuteJobCommand, sender = parent.ref)
 
     // Wait for the JABJEA to be spawned. Then kill it:
-    parent.expectNoMsg(max = AwaitAlmostNothing)
-    deathwatch.expectNoMsg(max = AwaitAlmostNothing)
+    parent.expectNoMessage(max = AwaitAlmostNothing)
+    deathwatch.expectNoMessage(max = AwaitAlmostNothing)
     jabjeaConstructionPromise.future onComplete {
       case Success(jabjea) =>
         jabjea ! JabjeaExplode

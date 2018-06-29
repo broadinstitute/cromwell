@@ -53,7 +53,7 @@ case class ParameterCommandPart(attributes: Map[String, String], expression: Wdl
         case _ => v.validNel
       }
       case Failure(OptionalNotSuppliedException(_)) => defaultString.validNel
-      case Failure(_) => s"Could not evaluate expression: ${expression.toWomString}".invalidNel
+      case Failure(e) => s"Could not evaluate expression: ${expression.toWomString}: ${e.getMessage}".invalidNel
     }
 
     // Create the stringified version of the command and record any file created in the process.

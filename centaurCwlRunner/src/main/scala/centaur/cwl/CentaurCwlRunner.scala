@@ -168,12 +168,12 @@ object CentaurCwlRunner extends StrictLogging {
       import CentaurCromwellClient.{blockingEc, system}
       lazy val pathBuilder = Await.result(pathBuilderFactory.withOptions(WorkflowOptions.empty), Duration.Inf)
 
-      testCase.testFunction.run.get match {
+      testCase.testFunction.run.unsafeRunSync() match {
         case unexpected: SubmitHttpResponse =>
           logger.error(s"Unexpected response: $unexpected")
           ExitCode.Failure
         case SubmitWorkflowResponse(submittedWorkflow) =>
-          val status = CentaurCromwellClient.status(submittedWorkflow).get
+          val status = CentaurCromwellClient.status(submittedWorkflow).unsafeRunSync()
           status match {
             case unexpected: NonTerminalStatus =>
               logger.error(s"Unexpected status: $unexpected")

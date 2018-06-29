@@ -44,6 +44,7 @@ object TestFormulas {
     for {
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition)
+      _ <- printHashDifferential(firstWF, secondWf)
       metadata <- validateMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
       _ <- validateNoCacheMisses(metadata, workflowDefinition.testName)
       _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf)
@@ -75,7 +76,7 @@ object TestFormulas {
       for {
         w <- submitWorkflow(workflowDefinition)
         jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
-        _ = CromwellManager.stopCromwell()
+        _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
         _ = CromwellManager.startCromwell(postRestart)
         _ <- pollUntilStatus(w, workflowDefinition, finalStatus)
         _ <- validateMetadata(w, workflowDefinition)
@@ -98,7 +99,7 @@ object TestFormulas {
   def scheduledAbort(workflowDefinition: Workflow, callMarker: CallMarker, restart: Boolean): Test[SubmitResponse] = {
     def withRestart() = CentaurConfig.runMode match {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
-        CromwellManager.stopCromwell()
+        CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
         CromwellManager.startCromwell(postRestart)
       case _ =>
     }

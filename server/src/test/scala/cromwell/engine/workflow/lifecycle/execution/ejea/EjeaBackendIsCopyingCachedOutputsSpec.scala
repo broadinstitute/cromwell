@@ -52,7 +52,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           ejhaResponse foreach { ejea ! _ }
 
           // Nothing should happen here:
-          helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
+          helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
 
           // Send the response from the copying actor
           ejea ! successResponse
@@ -77,7 +77,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
 
           ejhaResponse foreach { resp =>
             // Nothing should have happened yet:
-            helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
+            helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
 
             // Ok, now send the response from the EJHA (if there was one!):
             ejea ! resp
@@ -137,7 +137,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             }
 
             // Nothing should happen here:
-            helper.jobStoreProbe.expectNoMsg(awaitAlmostNothing)
+            helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
 
             // Send the response from the copying actor
             ejea ! failureNonRetryableResponse

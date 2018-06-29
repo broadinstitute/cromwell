@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
+import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
@@ -84,8 +85,14 @@ trait CallMetadataHelper {
     val failedState = if (retryableFailure) ExecutionStatus.RetryableFailure else ExecutionStatus.Failed
     val completionEvents = completedCallMetadataEvents(jobKey, failedState, returnCode)
     val retryableFailureEvent = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure))
-    val failureEvents = throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
 
+    val failureEvents = failure match {
+      // If the job was already failed, don't republish the failure reasons, they're already there
+      case _: JobAlreadyFailedInJobStore => List.empty
+      case _ =>
+        throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
+    }
+  
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
 

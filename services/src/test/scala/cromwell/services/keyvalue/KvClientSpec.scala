@@ -32,22 +32,22 @@ class KvClientSpec extends TestKit(ActorSystem("KvClientSpec")) with FlatSpecLik
     val futureResult = kvTestClient.underlyingActor.makeKvRequest(requests)
 
     serviceActorProbe.expectMsgAllOf(putRequest, getRequest)
-    serviceActorProbe.expectNoMsg(max = 50 milliseconds)
+    serviceActorProbe.expectNoMessage(max = 50 milliseconds)
 
     kvTestClient.underlyingActor.currentKvClientRequests.size should be(2)
 
     kvTestClient.tell(getResponse, sender = serviceActorProbe.ref)
-    serviceActorProbe.expectNoMsg(max = 50 milliseconds)
+    serviceActorProbe.expectNoMessage(max = 50 milliseconds)
     futureResult.isCompleted should be(false)
 
     kvTestClient.underlyingActor.currentKvClientRequests.size should be(1)
 
     kvTestClient.tell(putResponse, sender = serviceActorProbe.ref)
-    serviceActorProbe.expectNoMsg(max = 50 milliseconds)
+    serviceActorProbe.expectNoMessage(max = 50 milliseconds)
 
     // Make sure the future completes promptly and the original order is preserved:
     Await.result(futureResult, atMost = 100 milliseconds) should be(Seq(putResponse, getResponse))
-    serviceActorProbe.expectNoMsg(max = 50 milliseconds)
+    serviceActorProbe.expectNoMessage(max = 50 milliseconds)
 
     kvTestClient.underlyingActor.currentKvClientRequests.size should be(0)
   }

@@ -45,7 +45,7 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
 
   it should "query for work and wait for a reply" in {
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[PipelinesApiRequestManager.PipelinesWorkerRequestWork])
-    managerProbe.expectNoMsg(max = AwaitAlmostNothing)
+    managerProbe.expectNoMessage(max = AwaitAlmostNothing)
   }
 
   it should "respond correctly with various run statuses" in {
@@ -72,14 +72,14 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
     eventually { batchHandler.runBatchRequested should be(true) }
 
     // The manager shouldn't have been asked for more work yet:
-    managerProbe.expectNoMsg(max = AwaitAlmostNothing)
+    managerProbe.expectNoMessage(max = AwaitAlmostNothing)
 
     // Ok, let's trigger the callbacks:
     batchHandler.executeBatch()
 
     requester1.expectMsg(successStatus)
     requester2.expectMsg(failureStatus)
-    requester3.expectNoMsg(max = AwaitAlmostNothing)
+    requester3.expectNoMessage(max = AwaitAlmostNothing)
 
     // Requester3 expected nothing... Instead, the manager expects an API failure notification and then a request for more work:
     managerProbe.expectMsgPF(TestExecutionTimeout) {
@@ -88,7 +88,7 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
         if (failure.query != query2 && failure.query != query3) fail("Unexpected query caused failure: " + failure.query)
     }
     managerProbe.expectMsg(PipelinesWorkerRequestWork(PipelinesApiRequestWorker.MaxBatchSize))
-    managerProbe.expectNoMsg(max = AwaitAlmostNothing)
+    managerProbe.expectNoMessage(max = AwaitAlmostNothing)
   }
 }
 

@@ -25,7 +25,7 @@ object ActionCommands {
     }
 
     def requesterPaysGSUtilFlag: String = path match {
-      case gcs: GcsPath => gcs.projectId
+      case gcs: GcsPath if gcs.requesterPays.withProject => s"-u ${gcs.projectId}"
       case _ => ""
     }
   }
@@ -95,12 +95,12 @@ object ActionCommands {
     }
   }
   
-  def withRequesterPaysFlag(path: Path)(f: Option[String] => String) = path.requesterPaysValue match {
-    case RequesterPaysValue.Known(true) => f(Option(path.requesterPaysGSUtilFlag))
-    case RequesterPaysValue.Known(false) => f(None)
-    case RequesterPaysValue.Disabled => f(None)
+  def withRequesterPaysFlag(path: Path)(f: String => String) = path.requesterPaysValue match {
+    case RequesterPaysValue.Known(true) => f(path.requesterPaysGSUtilFlag)
+    case RequesterPaysValue.Known(false) => f("")
+    case RequesterPaysValue.Disabled => f("")
     case RequesterPaysValue.Unknown => 
-      s"""${f(None)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 0 ]]; then
-         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; && echo "Retrying with user project"; ${f(Option(path.requesterPaysGSUtilFlag))}; fi """.stripMargin
+      s"""${f("")} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 0 ]]; then
+         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; && echo "Retrying with user project"; ${f(path.requesterPaysGSUtilFlag)}; fi """.stripMargin
   }
 }

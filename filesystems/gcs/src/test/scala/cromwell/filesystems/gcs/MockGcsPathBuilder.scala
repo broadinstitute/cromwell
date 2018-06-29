@@ -7,7 +7,7 @@ import com.google.cloud.NoCredentials
 import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
-import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies
+import cromwell.filesystems.gcs.bucket.GcsBucketInformationPolicies
 
 import scala.concurrent.ExecutionContext
 

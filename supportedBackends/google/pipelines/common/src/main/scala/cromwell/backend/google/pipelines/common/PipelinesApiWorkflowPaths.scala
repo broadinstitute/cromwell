@@ -10,7 +10,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.filesystems.gcs.GcsPathBuilder
-import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies
+import cromwell.filesystems.gcs.bucket.GcsBucketInformationPolicies
 
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps

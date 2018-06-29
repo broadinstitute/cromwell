@@ -7,7 +7,8 @@ import com.google.cloud.storage.Storage.{BucketField, BucketGetOption}
 import com.google.cloud.storage.{Storage, StorageException}
 import com.google.common.cache.Cache
 import cromwell.core.path.cache.BucketCache
-import cromwell.filesystems.gcs.cache.GcsBucketInformation._
+import cromwell.filesystems.gcs.bucket.GcsBucketInformation
+import cromwell.filesystems.gcs.bucket.GcsBucketInformation._
 
 class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInformation], projectId: String) extends BucketCache[GcsBucketInformation](cache) {
   override protected def retrieve(key: String) = {

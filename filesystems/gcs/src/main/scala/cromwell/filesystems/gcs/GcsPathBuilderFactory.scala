@@ -12,8 +12,8 @@ import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
 import cromwell.filesystems.gcs.GcsPathBuilderFactory.DefaultRetrySettings
-import cromwell.filesystems.gcs.cache.{GcsBucketInformation, GcsBucketInformationPolicies}
-import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies.GcsBucketInformationPolicy
+import cromwell.filesystems.gcs.bucket.{GcsBucketInformation, GcsBucketInformationPolicies}
+import cromwell.filesystems.gcs.bucket.GcsBucketInformationPolicies.GcsBucketInformationPolicy
 import org.threeten.bp.Duration
 
 import scala.concurrent.ExecutionContext

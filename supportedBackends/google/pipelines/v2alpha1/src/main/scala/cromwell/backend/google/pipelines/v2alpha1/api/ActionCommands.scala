@@ -3,8 +3,8 @@ import akka.http.scaladsl.model.ContentType
 import common.util.StringUtil._
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
-import cromwell.filesystems.gcs.cache.GcsBucketInformation._
-import cromwell.filesystems.gcs.cache.GcsRequestHandler.RequesterPaysValue
+import cromwell.filesystems.gcs.bucket.GcsBucketInformation._
+import cromwell.filesystems.gcs.bucket.RequesterPaysValue
 import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
 
@@ -24,10 +24,14 @@ object ActionCommands {
       case _ => RequesterPaysValue.Disabled
     }
 
-    def requesterPaysGSUtilFlag: String = path match {
-      case gcs: GcsPath if gcs.requesterPays.withProject => s"-u ${gcs.projectId}"
+    def projectId: String = path match {
+      case gcs: GcsPath => gcs.projectId
       case _ => ""
     }
+  }
+  
+  implicit class EnhancedRequesterPaysValue(val requesterPaysValue: RequesterPaysValue) extends AnyVal {
+    def gsutilFlag(project: String) = if (requesterPaysValue.withProject) s"-u $project" else ""
   }
 
   implicit class ShellPath(val path: Path) extends AnyVal {
@@ -40,7 +44,9 @@ object ActionCommands {
   def makeContainerDirectory(containerPath: Path) = s"mkdir -p ${containerPath.escape}"
 
   def delocalizeDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
-    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} ${contentType |> makeContentTypeFlag} -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
+    withRequesterPaysFlag(cloudPath) { flag =>
+      s"gsutil $flag ${contentType |> makeContentTypeFlag} -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
+    }
   }
 
   /**
@@ -96,11 +102,13 @@ object ActionCommands {
   }
   
   def withRequesterPaysFlag(path: Path)(f: String => String) = path.requesterPaysValue match {
-    case RequesterPaysValue.Known(true) => f(path.requesterPaysGSUtilFlag)
-    case RequesterPaysValue.Known(false) => f("")
-    case RequesterPaysValue.Disabled => f("")
-    case RequesterPaysValue.Unknown => 
-      s"""${f("")} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 0 ]]; then
-         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; && echo "Retrying with user project"; ${f(path.requesterPaysGSUtilFlag)}; fi """.stripMargin
+      // If the value is unknown, wrap the command with a retry for BucketIsRequesterPays errors
+    case RequesterPaysValue.Unknown =>
+      val withoutProject = ""
+      val withProject = RequesterPaysValue.Known(true).gsutilFlag(path.projectId)
+      
+      s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 0 ]]; then
+         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; && echo "Retrying with user project"; ${f(withProject)}; fi """.stripMargin
+    case value => f(value.gsutilFlag(path.projectId))
   }
 }

@@ -15,7 +15,7 @@ import cromwell.engine.io.IoActor.IoResult
 import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
 import cromwell.engine.io.{IoActor, IoCommandContext}
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
-import cromwell.filesystems.gcs.cache.GcsBucketInformation._
+import cromwell.filesystems.gcs.bucket.GcsBucketInformation._
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._

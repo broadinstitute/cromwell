@@ -1,4 +1,4 @@
-package cromwell.filesystems.gcs.cache
+package cromwell.filesystems.gcs.bucket
 
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.cloud.storage.StorageException

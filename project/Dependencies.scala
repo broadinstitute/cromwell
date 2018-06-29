@@ -380,7 +380,8 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.typelevel"  %% "squants"  % squantV
+    "org.typelevel"  %% "squants"  % squantV,
+    "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.

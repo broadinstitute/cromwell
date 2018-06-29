@@ -3,7 +3,7 @@
 ## Overview 
 
 Cromwell supports workflows referencing objects stored in [Google Cloud Storage](https://cloud.google.com/storage/)
-The Cromwell configuration for the GCS is as follow:
+The Cromwell configuration for GCS is as follow:
 
 ```hocon
 filesystems {

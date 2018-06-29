@@ -19,6 +19,7 @@ abstract class CacheHelper[K <: Object, V <: Object](cache: Cache[K, V]) {
     .map(IO.pure)
     .getOrElse({
       retrieve(key) map { value =>
+        // Guava cache is thread safe so it's ok to add to the cache in the middle of an IO
         cache.put(key, value)
         value
       }

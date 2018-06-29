@@ -5,6 +5,7 @@ import java.net.URI
 
 import akka.actor.ActorSystem
 import better.files.File.OpenOptions
+import cats.effect.IO
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
@@ -18,7 +19,7 @@ import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.bucket.GcsBucketInformationPolicies.GcsBucketInformationPolicy
-import cromwell.filesystems.gcs.bucket.GcsRequestHandler
+import cromwell.filesystems.gcs.bucket.GcsEnhancedRequests
 import cromwell.filesystems.gcs.cache.GcsFileSystemCache
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -118,7 +119,7 @@ object GcsPathBuilder {
                       cloudStorageConfiguration: CloudStorageConfiguration,
                       options: WorkflowOptions,
                       defaultProject: Option[String],
-                      bucketInformationPolicy: GcsBucketInformationPolicy): GcsPathBuilder = {
+                      bucketInformationPolicy: GcsBucketInformationPolicy)(implicit ec: ExecutionContext): GcsPathBuilder = {
     // Grab the google project from Workflow Options if specified and set
     // that to be the project used by the StorageOptions Builder. If it's not
     // specified use the default project mentioned in config file
@@ -141,9 +142,9 @@ object GcsPathBuilder {
 class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
                      cloudStorageConfiguration: CloudStorageConfiguration,
                      storageOptions: StorageOptions,
-                     bucketInformationPolicy: GcsBucketInformationPolicy) extends PathBuilder {
+                     bucketInformationPolicy: GcsBucketInformationPolicy)(implicit ec: ExecutionContext) extends PathBuilder {
   private [gcs] val projectId = storageOptions.getProjectId
-  private [gcs] val requestHandler: GcsRequestHandler = bucketInformationPolicy.toRequestHandler(cloudStorage, projectId)
+  private [gcs] val enhancedRequests: GcsEnhancedRequests = bucketInformationPolicy.toRequestHandler(cloudStorage, projectId)
   // We can cache filesystems here since they only depend on the bucket and the credentials (which are unique per instance of path builder)
   private val fileSystemCache = new GcsFileSystemCache(cloudStorage, CacheBuilder.newBuilder().build[String, CloudStorageFileSystem](), cloudStorageConfiguration, storageOptions)
 
@@ -162,14 +163,11 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
   def build(string: String): Try[GcsPath] = {
     validateGcsPath(string) match {
       case ValidFullGcsPath(bucket, path) =>
-        val pathAndRpIO = for {
-          fileSystem <- fileSystemCache.getCachedValue(bucket)
-          cloudStoragePath = fileSystem.getPath(path)
-        } yield cloudStoragePath
-        
         Try {
-          val cloudStoragePath = pathAndRpIO.unsafeRunSync()
-          GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId, requestHandler)
+          // Filesystem creation doesn't actually involve any IO so unsafeRunSync is safe
+          val fileSystem = fileSystemCache.getCachedValue(bucket).unsafeRunSync()
+          val cloudStoragePath = fileSystem.getPath(path)
+          GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId, enhancedRequests)
         }
       case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"$string does not have a gcs scheme"))
       case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
@@ -183,11 +181,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
                                 apiStorage: com.google.api.services.storage.Storage,
                                 cloudStorage: com.google.cloud.storage.Storage,
                                 projectId: String,
-                                requestHandler: GcsRequestHandler) extends Path {
+                                enhancedRequests: GcsEnhancedRequests)(implicit ec: ExecutionContext) extends Path {
   lazy val blob = BlobId.of(cloudStoragePath.bucket, cloudStoragePath.toRealPath().toString)
-  def requesterPays = requestHandler.requesterPays(blob.getBucket)
+  def requesterPays = enhancedRequests.requesterPays(blob.getBucket)
 
-  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId, requestHandler)
+  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId, enhancedRequests)
 
   override def pathAsString: String = {
     val host = cloudStoragePath.bucket().stripSuffix("/")
@@ -196,12 +194,16 @@ case class GcsPath private[gcs](nioPath: NioPath,
   }
 
   override def writeContent(content: String)(openOptions: OpenOptions, codec: Codec) = {
-    requestHandler.write(this, content, openOptions, codec).unsafeRunSync()
+    // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
+    // in the NioFlow so we don't need to worry about exceptions
+    runOnEc(enhancedRequests.write(this, content, openOptions, codec)).unsafeRunSync()
     this
   }
 
   override def mediaInputStream: InputStream = {
-    requestHandler.inputStream(this).unsafeRunSync()
+    // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
+    // in the NioFlow so we don't need to worry about exceptions
+    runOnEc(enhancedRequests.inputStream(this)).unsafeRunSync()
   }
 
   override def pathWithoutScheme: String = {
@@ -213,4 +215,9 @@ case class GcsPath private[gcs](nioPath: NioPath,
     case gcsPath: CloudStoragePath => gcsPath
     case _ => throw new RuntimeException(s"Internal path was not a cloud storage path: $nioPath")
   }
+  
+  private def runOnEc[A](io: IO[A]): IO[A] = for {
+    _ <- IO.shift(ec)
+    result <- io
+  } yield result
 }

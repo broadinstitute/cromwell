@@ -6,7 +6,8 @@ import com.google.cloud.storage.StorageException
 object GcsBucketInformation {
   val BucketIsRequesterPaysErrorCode = 400
   val BucketIsRequesterPaysErrorMessage = "Bucket is requester pays bucket but no user project provided."
-  val DoesNotHaveServiceUsePermissionError = "does not have serviceusage.services.use"
+  val DoesNotHaveServiceUsePermissionErrorCode = 403
+  val DoesNotHaveServiceUsePermissionErrorMessage = "does not have serviceusage.services.use"
 
   def isProjectNotProvidedError(storageException: StorageException) = 
     storageException.getCode == BucketIsRequesterPaysErrorCode &&

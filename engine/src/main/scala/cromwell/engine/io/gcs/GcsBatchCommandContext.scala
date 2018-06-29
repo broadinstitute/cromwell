@@ -40,7 +40,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
                                               backoff: Backoff = GcsBatchCommandContext.defaultBackoff,
                                               currentAttempt: Int = 1,
                                               promise: Promise[BatchResponse] = Promise[BatchResponse]
-                                    ) extends IoCommandContext[T] {
+                                             ) extends IoCommandContext[T] {
 
   /**
     * None if no retry should be attempted, Some(timeToWaitBeforeNextAttempt) otherwise
@@ -78,7 +78,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * On success callback. Transform the request response to a stream-ready response that can complete the promise
     */
   private def onSuccessCallback(response: U, httpHeaders: HttpHeaders) = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
-  
+
   private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
     val promiseResponse: BatchResponse = successResult match {
       // Left means the command is complete, so just create the corresponding IoSuccess with the value
@@ -90,7 +90,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     promise.trySuccess(promiseResponse)
     ()
   }
-  
+
   /**
     * On failure callback. Fail the promise with a StorageException
     */

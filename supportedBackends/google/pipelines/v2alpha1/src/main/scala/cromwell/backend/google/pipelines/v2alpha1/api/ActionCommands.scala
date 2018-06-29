@@ -107,8 +107,8 @@ object ActionCommands {
       val withoutProject = ""
       val withProject = RequesterPaysValue.Known(true).gsutilFlag(path.projectId)
       
-      s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 0 ]]; then
-         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; && echo "Retrying with user project"; ${f(withProject)}; fi """.stripMargin
+      s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 1 ]]; then
+         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt && echo "Retrying with user project"; ${f(withProject)}; fi """.stripMargin
     case value => f(value.gsutilFlag(path.projectId))
   }
 }

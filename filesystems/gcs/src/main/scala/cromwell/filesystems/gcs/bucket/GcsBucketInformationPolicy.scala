@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs.bucket
 
-import java.io.{IOException, InputStream}
+import java.io.InputStream
 import java.nio.channels.Channels
 import java.nio.file.NoSuchFileException
 
@@ -12,6 +12,7 @@ import com.google.cloud.storage.Storage.{BlobSourceOption, BlobTargetOption}
 import com.google.cloud.storage.{BlobInfo, Storage, StorageException}
 import com.google.common.cache.Cache
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.gcs.cache.GcsBucketCache.BucketGetter
 import cromwell.filesystems.gcs.cache._
 import mouse.all._
 
@@ -23,34 +24,34 @@ import scala.io.Codec
 object GcsBucketInformationPolicies {
   sealed trait GcsBucketInformationPolicy {
     /**
-      * Create a reques corresponding to the current policy
+      * Create a request handler corresponding to the current policy
       */
-    def toRequestHandler(cloudStorage: Storage, projectId: String): GcsRequestHandler
+    def toRequestHandler(cloudStorage: Storage, projectId: String): GcsEnhancedRequests
   }
 
   /**
     * Use to disable access to requester pays buckets
     */
   case object DisabledPolicy extends GcsBucketInformationPolicy {
-    override def toRequestHandler(cloudStorage: Storage, projectId: String) = new DisabledRequestHandler(cloudStorage, projectId)
+    override def toRequestHandler(cloudStorage: Storage, projectId: String) = new RequesterPaysDisabled(cloudStorage, projectId)
   }
 
   /**
     * Use to force a request without project set. It is up to the request logic to retry with project set upon failure if appropriate
     */
   case object OnDemandPolicy extends GcsBucketInformationPolicy {
-    override def toRequestHandler(cloudStorage: Storage, projectId: String) = new OnDemandRequestHandler(cloudStorage, projectId)
+    override def toRequestHandler(cloudStorage: Storage, projectId: String) = new RequesterPaysOnDemand(cloudStorage, projectId)
   }
 
   /**
     * Use to cache bucket information in the provided Guava cache
     */
   case class CachedPolicy(cache: Cache[String, GcsBucketInformation]) extends GcsBucketInformationPolicy {
-    override def toRequestHandler(cloudStorage: Storage, projectId: String) = new CachedRequestHandler(cloudStorage, projectId, cache)
+    override def toRequestHandler(cloudStorage: Storage, projectId: String) = new RequesterPaysCached(cloudStorage, projectId, cache)
   }
 }
 
-class DisabledRequestHandler(cloudStorage: Storage, projectId: String) extends GcsRequestHandler(cloudStorage, projectId) {
+class RequesterPaysDisabled(cloudStorage: Storage, projectId: String) extends GcsEnhancedRequests(cloudStorage, projectId) {
   override def requesterPays(bucket: String) = RequesterPaysValue.Disabled
 }
 
@@ -58,22 +59,23 @@ class DisabledRequestHandler(cloudStorage: Storage, projectId: String) extends G
   * On demand does not lookup nor cache information about buckets. Instead, the request should be tried without project
   * and then retried with project if the error matches.
   */
-class OnDemandRequestHandler(cloudStorage: Storage, projectId: String) extends GcsRequestHandler(cloudStorage, projectId) {
+class RequesterPaysOnDemand(cloudStorage: Storage, projectId: String) extends GcsEnhancedRequests(cloudStorage, projectId) {
   override def requesterPays(bucket: String) = RequesterPaysValue.Unknown
 }
 
 /**
   * Cached policy: looks up and caches information about buckets
   */
-class CachedRequestHandler(cloudStorage: Storage, projectId: String, cache: Cache[String, GcsBucketInformation]) extends GcsRequestHandler(cloudStorage, projectId) {
-  val gcsBucketCache = new GcsBucketCache(cloudStorage, cache, projectId)
+class RequesterPaysCached(cloudStorage: Storage, projectId: String, cache: Cache[String, GcsBucketInformation]) extends GcsEnhancedRequests(cloudStorage, projectId) {
+  lazy val bucketGetter: BucketGetter = (bucket, options) => cloudStorage.get(bucket, options: _*)
+  val gcsBucketCache = new GcsBucketCache(bucketGetter, cache, projectId)
   def requesterPays(bucket: String) = RequesterPaysValue.Known(gcsBucketCache.getCachedValue(bucket).unsafeRunSync().requesterPays)
 }
 
 /**
   * Implements read and write requests according to the GcsBucketInformationPolicy
   */
-abstract class GcsRequestHandler(cloudStorage: Storage, projectId: String) {
+abstract class GcsEnhancedRequests(cloudStorage: Storage, projectId: String) {
   
   /**
     * Write content to the provided path.
@@ -117,12 +119,10 @@ abstract class GcsRequestHandler(cloudStorage: Storage, projectId: String) {
         // Only retry with the the project if the error is right and requester pays is not disabled
         case error: StorageException if GcsBucketInformation.isProjectNotProvidedError(error) && requesterPaysValue.enabled => 
           IO(f(RequesterPaysValue.Known(true)))
-        // Wrap file not founds in NoSuchFileException for better error reporting
+        // Use NoSuchFileException for better error reporting
         case e: GoogleJsonResponseException if e.getStatusCode == StatusCodes.NotFound.intValue =>
           IO.raiseError(new NoSuchFileException(path.pathAsString))
-        // Wrap error in an IOException containing the name of the file  
-        case e => 
-          IO.raiseError(new IOException(s"Could not access $action ${path.pathAsString}: ${e.getMessage}", e))
+        case e => IO.raiseError(e)
       })
   }
 

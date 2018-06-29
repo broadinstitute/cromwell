@@ -4,17 +4,22 @@ import java.nio.file.NoSuchFileException
 
 import cats.effect.IO
 import com.google.cloud.storage.Storage.{BucketField, BucketGetOption}
-import com.google.cloud.storage.{Storage, StorageException}
+import com.google.cloud.storage.{Bucket, StorageException}
 import com.google.common.cache.Cache
 import cromwell.core.path.cache.BucketCache
 import cromwell.filesystems.gcs.bucket.GcsBucketInformation
 import cromwell.filesystems.gcs.bucket.GcsBucketInformation._
+import cromwell.filesystems.gcs.cache.GcsBucketCache.BucketGetter
 
-class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInformation], projectId: String) extends BucketCache[GcsBucketInformation](cache) {
+object GcsBucketCache {
+  // This level of indirection allows for mocking this in tests
+  type BucketGetter = (String, List[BucketGetOption]) => Bucket
+}
+
+class GcsBucketCache(bucketGetter: BucketGetter, cache: Cache[String, GcsBucketInformation], projectId: String) extends BucketCache[GcsBucketInformation](cache) {
   override protected def retrieve(key: String) = {
     
-    def getBucket(bucketGetOptions: BucketGetOption*) = Option(cloudStorage
-      .get(key, bucketGetOptions: _*))
+    def getBucket(bucketGetOptions: BucketGetOption*): Bucket = Option(bucketGetter(key, bucketGetOptions.toList))
       .getOrElse(throw new NoSuchFileException(s"GCS bucket $key does not exist"))
 
     /*
@@ -22,7 +27,7 @@ class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInform
      * We need to specify a billing project, because if the bucket does have requester pays, this request
      * will fail without a billing project.
      * Note that even with the project specified, the request can still fail if the credentials used do not have billing
-     * permission on that project, in which case we'll still won't know if requester pays is enabled.
+     * permission on that project, in which case we still won't know if requester pays is enabled.
      */
     def requesterPaysRequestWithProject: IO[Boolean] = IO {
       val bucket = getBucket(BucketGetOption.userProject(projectId), BucketGetOption.fields(BucketField.BILLING))
@@ -49,7 +54,7 @@ class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInform
       .handleErrorWith({
         // If it fails because credentials don't have the permission, fallback to trying without project
         case storageException: StorageException if storageException.getCode == 403 &&
-          storageException.getMessage.contains(DoesNotHaveServiceUsePermissionError) => requesterPaysRequestWithoutProject
+          storageException.getMessage.contains(DoesNotHaveServiceUsePermissionErrorMessage) => requesterPaysRequestWithoutProject
       })
       .map(GcsBucketInformation.apply)
   }

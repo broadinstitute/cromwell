@@ -7,19 +7,7 @@ import com.google.cloud.storage.Storage.{BucketField, BucketGetOption}
 import com.google.cloud.storage.{Storage, StorageException}
 import com.google.common.cache.Cache
 import cromwell.core.path.cache.BucketCache
-import cromwell.filesystems.gcs.cache.GcsBucketCache.{GcsBucketInformation, _}
-
-object GcsBucketCache {
-  case class GcsBucketInformation(requesterPays: Boolean)
-  val BucketIsRequesterPaysErrorMessage = "Bucket is requester pays bucket but no user project provided."
-  val DoesNotHaveServiceUsePermissionError = "does not have serviceusage.services.use"
-  def recoverNoUserProvided[A](value: A): PartialFunction[Throwable, A] = {
-    case storageException: StorageException if
-    storageException.getCode == 400 &&
-      storageException.getReason.equalsIgnoreCase("required") &&
-      storageException.getMessage == BucketIsRequesterPaysErrorMessage => value
-  }
-}
+import cromwell.filesystems.gcs.cache.GcsBucketInformation._
 
 class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInformation], projectId: String) extends BucketCache[GcsBucketInformation](cache) {
   override protected def retrieve(key: String) = {
@@ -49,9 +37,10 @@ class GcsBucketCache(cloudStorage: Storage, cache: Cache[String, GcsBucketInform
       IO(getBucket(BucketGetOption.fields(BucketField.ID)))
         // If we can get the metadata without specifying a billing project, then requester pays is off
         .map(_ => false)
-        .handleErrorWith(recoverNoUserProvided(IO.pure(true)).orElse({
+        .handleErrorWith({
+          case storageException: StorageException if isProjectNotProvidedError(storageException) => IO.pure(true)
           case other => IO.raiseError(other)
-        }))
+        })
     }
 
     // First try with the project

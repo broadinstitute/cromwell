@@ -12,8 +12,7 @@ import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
 import cromwell.filesystems.gcs.GcsPathBuilderFactory.DefaultRetrySettings
-import cromwell.filesystems.gcs.cache.GcsBucketCache.GcsBucketInformation
-import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies
+import cromwell.filesystems.gcs.cache.{GcsBucketInformation, GcsBucketInformationPolicies}
 import cromwell.filesystems.gcs.cache.GcsBucketInformationPolicies.GcsBucketInformationPolicy
 import org.threeten.bp.Duration
 
@@ -35,7 +34,7 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
 
   val requesterPaysEnabled = instanceConfig.as[Option[Config]]("requester-pays")
   val defaultProject = requesterPaysEnabled.flatMap(_.as[Option[String]]("project"))
-  val requesterPaysCacheTTL = requesterPaysEnabled.flatMap(_.as[Option[FiniteDuration]]("cache-ttl")).getOrElse(20.minutes)
+  val requesterPaysCacheTTL = requesterPaysEnabled.flatMap(_.as[Option[FiniteDuration]]("cache-ttl"))
   
   def cachePolicy(ttl: FiniteDuration) = {
     val guavaCache = CacheBuilder
@@ -43,17 +42,16 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
       .expireAfterWrite(ttl.length, ttl.unit)
       .build[String, GcsBucketInformation]()
 
-    GcsBucketInformationPolicies.CacheInformation(guavaCache)
+    GcsBucketInformationPolicies.CachedPolicy(guavaCache)
   }
   
-  // Determines the behavior of bucket information retrieval and caching
+  // Determines the GcsBucketInformationPolicy based on configuration. Currently the only information concerns requester pays
   val gcsBucketInformationPolicy: GcsBucketInformationPolicy = requesterPaysCacheTTL match {
-    // Default to no lookup at all if there is no config.
+    // Default to no requester pays disabled
     // This preserves the behavior on V1, however it forces to set a config value in V2
-    case _ if requesterPaysEnabled.isEmpty => GcsBucketInformationPolicies.Default
-    case inf if !inf.isFinite() => GcsBucketInformationPolicies.Default
-    case zero if zero == SDuration.Zero => GcsBucketInformationPolicies.NoCache
-    case other => cachePolicy(other)
+    case _ if requesterPaysEnabled.isEmpty => GcsBucketInformationPolicies.DisabledPolicy
+    case Some(cache) if cache.isFinite() && cache != SDuration.Zero => cachePolicy(cache)
+    case _ => GcsBucketInformationPolicies.OnDemandPolicy
   }
 
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {

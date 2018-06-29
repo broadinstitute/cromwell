@@ -15,6 +15,7 @@ import cromwell.engine.io.IoActor.IoResult
 import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
 import cromwell.engine.io.{IoActor, IoCommandContext}
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
+import cromwell.filesystems.gcs.cache.GcsBucketInformation._
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -76,19 +77,9 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * On success callback. Transform the request response to a stream-ready response that can complete the promise
     */
-  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders) = {
-    val promiseResponse: BatchResponse = request.onSuccess(response, httpHeaders) match {
-        // Left means the command is complete, so just create the corresponding IoSuccess with the value
-      case Left(responseValue) => Left(success(responseValue))
-        // Right means there is a subsequent request to be executed, clone this context with the new request and a new promise
-      case Right(nextCommand) => Right(this.copy(request = nextCommand, promise = Promise[BatchResponse]))
-    }
-    
-    promise.trySuccess(promiseResponse)
-    ()
-  }
+  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders) = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
   
-  private def handleSuccess(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
+  private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
     val promiseResponse: BatchResponse = successResult match {
       // Left means the command is complete, so just create the corresponding IoSuccess with the value
       case Left(responseValue) => Left(success(responseValue))
@@ -99,19 +90,24 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     promise.trySuccess(promiseResponse)
     ()
   }
-
+  
   /**
     * On failure callback. Fail the promise with a StorageException
     */
   private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
-    (request.onFailure(googleJsonError, httpHeaders), request) match {
-      case (Some(successValue), _) => handleSuccess(successValue)
-      case (None, singleFile: SingleFileIoCommand[_]) if googleJsonError.getCode == 404 =>
-        // Make the message clearer if it's a file not found error
-        googleJsonError.setMessage(s"Object ${singleFile.file.pathAsString} does not exist")
-        promise.tryFailure(new FileNotFoundException(singleFile.file.pathAsString))
-      case (None, _) => promise.tryFailure(new StorageException(googleJsonError))
+    if (request.requesterPaysEnabled && isProjectNotProvidedError(googleJsonError)) {
+      // Returning an Either.Right here means that the operation is not complete and that we need to do another request
+      handleSuccessOrNextRequest(Right(request.withUserProjectOverride))
+    } else {
+      (request.onFailure(googleJsonError, httpHeaders), request) match {
+        case (Some(successValue), _) => handleSuccessOrNextRequest(successValue)
+        case (None, singleFile: SingleFileIoCommand[_]) if googleJsonError.getCode == 404 =>
+          // Make the message clearer if it's a file not found error
+          googleJsonError.setMessage(s"Object ${singleFile.file.pathAsString} does not exist")
+          promise.tryFailure(new FileNotFoundException(singleFile.file.pathAsString))
+        case (None, _) => promise.tryFailure(new StorageException(googleJsonError))
+      }
+      ()
     }
-    ()
   }
 }

@@ -2,9 +2,11 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 import akka.http.scaladsl.model.ContentType
 import common.util.StringUtil._
 import cromwell.core.path.Path
+import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.gcs.cache.GcsBucketInformation._
+import cromwell.filesystems.gcs.cache.GcsRequestHandler.RequesterPaysValue
 import mouse.all._
 import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
-import cromwell.filesystems.gcs.GcsPathBuilder._
 
 import scala.concurrent.duration._
 
@@ -15,6 +17,18 @@ object ActionCommands {
   // Not sure what appropriate values should be. It should also be smarter than just "retry always"...
   implicit val nbRetries: Int = 2
   implicit val waitBetweenRetries: FiniteDuration = 5.seconds
+
+  implicit class EnhancedCromwellPath(val path: Path) extends AnyVal {
+    def requesterPaysValue: RequesterPaysValue = path match {
+      case gcs: GcsPath => gcs.requesterPays
+      case _ => RequesterPaysValue.Disabled
+    }
+
+    def requesterPaysGSUtilFlag: String = path match {
+      case gcs: GcsPath => gcs.projectId
+      case _ => ""
+    }
+  }
 
   implicit class ShellPath(val path: Path) extends AnyVal {
     // The command String runs in Bourne shell so shell metacharacters in filenames must be escaped
@@ -42,7 +56,9 @@ object ActionCommands {
     * So the final gsutil command will look something like gsutil cp /local/file.txt gs://bucket/subdir/
     */
   def delocalizeFile(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
-    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
+    withRequesterPaysFlag(cloudPath) { flag =>
+      s"gsutil $flag ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
+    }
   }
 
   /**
@@ -50,7 +66,9 @@ object ActionCommands {
     * Make sure that there's no object named "yourfinalname_something" (see above) in the same cloud directory.
     */
   def delocalizeFileTo(containerPath: Path, cloudPath: Path, contentType: Option[ContentType]) = retry {
-    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.escape}"
+    withRequesterPaysFlag(cloudPath) { flag =>
+      s"gsutil $flag ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.escape}"
+    }
   }
 
   def ifExist(containerPath: Path)(f: => String) = s"if [[ -e ${containerPath.escape} ]]; then $f; fi"
@@ -66,10 +84,23 @@ object ActionCommands {
   }
 
   def localizeDirectory(cloudPath: Path, containerPath: Path) = retry {
-    s"${containerPath |> makeContainerDirectory} && gsutil ${cloudPath.requesterPaysGSUtilFlag} -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
+    withRequesterPaysFlag(cloudPath) { flag =>
+      s"${containerPath |> makeContainerDirectory} && gsutil $flag -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
+    }
   }
 
   def localizeFile(cloudPath: Path, containerPath: Path) = retry {
-    s"gsutil ${cloudPath.requesterPaysGSUtilFlag} cp ${cloudPath.escape} ${containerPath.escape}"
+    withRequesterPaysFlag(cloudPath) { flag =>
+      s"gsutil $flag cp ${cloudPath.escape} ${containerPath.escape}"
+    }
+  }
+  
+  def withRequesterPaysFlag(path: Path)(f: Option[String] => String) = path.requesterPaysValue match {
+    case RequesterPaysValue.Known(true) => f(Option(path.requesterPaysGSUtilFlag))
+    case RequesterPaysValue.Known(false) => f(None)
+    case RequesterPaysValue.Disabled => f(None)
+    case RequesterPaysValue.Unknown => 
+      s"""${f(None)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 0 ]]; then
+         | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; && echo "Retrying with user project"; ${f(Option(path.requesterPaysGSUtilFlag))}; fi """.stripMargin
   }
 }

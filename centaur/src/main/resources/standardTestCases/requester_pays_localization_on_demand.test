@@ -1,13 +1,13 @@
-name: requester_pays_localization
+name: requester_pays_localization_on_demand
 testFormat: workflowsuccess
-backends: [Papiv2RequesterPays]
+backends: [Papiv2RequesterPaysOnDemand]
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]
 
 files {
   workflow: requester_pays_gcs/localization.wdl
-  options: requester_pays_gcs/localization.options
+  options: requester_pays_gcs/localization_on_demand.options
 }
 
 metadata {

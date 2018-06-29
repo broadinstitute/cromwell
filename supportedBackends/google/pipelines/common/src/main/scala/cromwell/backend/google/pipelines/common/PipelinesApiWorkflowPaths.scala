@@ -47,7 +47,7 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
       workflowOptions,
       Option(papiConfiguration.jesAttributes.project),
       // This is only used for Pipelines V1, no need to go out of our way to support requester pays there, so use the static default
-      GcsBucketInformationPolicies.Default
+      GcsBucketInformationPolicies.OnDemandPolicy
     )
 
     val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover {

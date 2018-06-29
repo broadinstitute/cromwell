@@ -12,7 +12,6 @@ import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.filesystems.gcs.GcsPathBuilder._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._

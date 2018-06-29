@@ -7,6 +7,7 @@ import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageO
 import common.util.StringUtil._
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
+import mouse.all._
 
 import scala.collection.JavaConverters._
 
@@ -44,21 +45,43 @@ sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
     * Override to handle a failure differently and potentially return a successful response.
     */
   def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders): Option[Either[T, GcsBatchIoCommand[T, U]]] = None
+
+  /**
+    * Use to signal that the request has failed because the user project was not set and that it can be retried with it.
+    */
+  def withUserProjectOverride: GcsBatchIoCommand[T, U]
+  
+  protected def userProjectOverride: Boolean
+  
+  def requesterPaysPath: GcsPath
+
+  // Return the user project (potentially null) to be set in the request based on the available information about the bucket
+  def effectiveUserProject = {
+    (userProjectOverride || requesterPaysPath.requesterPays.withProject).option(requesterPaysPath.projectId).orNull
+  }
+  
+  def requesterPaysEnabled = requesterPaysPath.requesterPays.enabled
+}
+
+sealed trait SingleFileGcsBatchIoCommand[T, U] extends GcsBatchIoCommand[T, U] with SingleFileIoCommand[T] {
+  override def file: GcsPath
+  override def requesterPaysPath = file
 }
 
 case class GcsBatchCopyCommand(
                                 override val source: GcsPath,
                                 override val destination: GcsPath,
                                 override val overwrite: Boolean,
-                                rewriteToken: Option[String] = None
+                                rewriteToken: Option[String] = None,
+                                userProjectOverride: Boolean = false
                               ) extends IoCopyCommand(source, destination, overwrite) with GcsBatchIoCommand[Unit, RewriteResponse] {
   val sourceBlob = source.blob
   val destinationBlob = destination.blob
-
+  override def requesterPaysPath = source
   override def operation: StorageRequest[RewriteResponse] = {
     val rewriteOperation = source.apiStorage.objects()
       .rewrite(sourceBlob.getBucket, sourceBlob.getName, destinationBlob.getBucket, destinationBlob.getName, null)
-      .setUserProject(source.requesterPaysProject)
+      .setUserProject(effectiveUserProject)
 
     // Set the rewrite token if present
     rewriteToken foreach rewriteOperation.setRewriteToken
@@ -78,43 +101,49 @@ case class GcsBatchCopyCommand(
   }
 
   override def mapGoogleResponse(response: RewriteResponse): Unit = ()
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }
 
 case class GcsBatchDeleteCommand(
                                   override val file: GcsPath,
-                                  override val swallowIOExceptions: Boolean
-                                ) extends IoDeleteCommand(file, swallowIOExceptions) with GcsBatchIoCommand[Unit, Void] {
+                                  override val swallowIOExceptions: Boolean,
+                                  userProjectOverride: Boolean = false
+                                ) extends IoDeleteCommand(file, swallowIOExceptions) with SingleFileGcsBatchIoCommand[Unit, Void] {
   private val blob = file.blob
   def operation = {
-    file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(file.requesterPaysProject)
+    file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(effectiveUserProject)
   }
   override protected def mapGoogleResponse(response: Void): Unit = ()
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     if (swallowIOExceptions) Option(Left(())) else None
   }
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }
 
 /**
   * Base trait for commands that use the objects.get() operation. (e.g: size, crc32, ...)
   */
-sealed trait GcsBatchGetCommand[T] extends GcsBatchIoCommand[T, StorageObject] {
+sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, StorageObject] {
   def file: GcsPath
   private val blob = file.blob
   override def operation: StorageRequest[StorageObject] = {
-    file.apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(file.requesterPaysProject)
+    file.apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(effectiveUserProject)
   }
 }
 
-case class GcsBatchSizeCommand(override val file: GcsPath) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
+case class GcsBatchSizeCommand(override val file: GcsPath, userProjectOverride: Boolean = false) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
   override def mapGoogleResponse(response: StorageObject): Long = response.getSize.longValue()
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }
 
-case class GcsBatchCrc32Command(override val file: GcsPath) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
+case class GcsBatchCrc32Command(override val file: GcsPath, userProjectOverride: Boolean = false) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): String = response.getCrc32c
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }
 
-case class GcsBatchTouchCommand(override val file: GcsPath) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
+case class GcsBatchTouchCommand(override val file: GcsPath, userProjectOverride: Boolean = false) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
   override def mapGoogleResponse(response: StorageObject): Unit = ()
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }
 
 /*
@@ -122,22 +151,24 @@ case class GcsBatchTouchCommand(override val file: GcsPath) extends IoTouchComma
  * Specifically, list objects that have this path as a prefix. Since we don't really care about what's inside here,
  * set max results to 1 to avoid unnecessary payload.
  */
-case class GcsBatchIsDirectoryCommand(override val file: GcsPath) extends IoIsDirectoryCommand(file) with GcsBatchIoCommand[Boolean, Objects] {
+case class GcsBatchIsDirectoryCommand(override val file: GcsPath, userProjectOverride: Boolean = false) extends IoIsDirectoryCommand(file) with SingleFileGcsBatchIoCommand[Boolean, Objects] {
   private val blob = file.blob
   override def operation: StorageRequest[Objects] = {
-    file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L).setUserProject(file.requesterPaysProject)
+    file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L).setUserProject(effectiveUserProject)
   }
   override def mapGoogleResponse(response: Objects): Boolean = {
     // Wrap in an Option because getItems can (always ?) return null if there are no objects
     Option(response.getItems).map(_.asScala).exists(_.nonEmpty)
   }
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }
 
-case class GcsBatchExistsCommand(override val file: GcsPath) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
+case class GcsBatchExistsCommand(override val file: GcsPath, userProjectOverride: Boolean = false) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
   override def mapGoogleResponse(response: StorageObject): Boolean = true
 
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     // If the object can't be found, don't fail the request but just return false as we were testing for existence
     if (googleJsonError.getCode == 404) Option(Left(false)) else None
   }
+  override def withUserProjectOverride = this.copy(userProjectOverride = true)
 }

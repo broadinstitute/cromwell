@@ -17,10 +17,10 @@ object MockGcsPathBuilder {
   private val storageOptions = makeStorageOptions()
   private val apiStorage = GcsStorage.gcsStorage("cromwell-test-app", storageOptions)
 
-  lazy val instance = new GcsPathBuilder(apiStorage, CloudStorageConfiguration.DEFAULT, storageOptions, GcsBucketInformationPolicies.Default)
+  lazy val instance = new GcsPathBuilder(apiStorage, CloudStorageConfiguration.DEFAULT, storageOptions, GcsBucketInformationPolicies.OnDemandPolicy)
   
   def withOptions(workflowOptions: WorkflowOptions) = {
     val customStorageOptions = makeStorageOptions(workflowOptions.get("google_project").toOption)
-    new GcsPathBuilder(apiStorage, GcsStorage.DefaultCloudStorageConfiguration, customStorageOptions, GcsBucketInformationPolicies.Default)
+    new GcsPathBuilder(apiStorage, GcsStorage.DefaultCloudStorageConfiguration, customStorageOptions, GcsBucketInformationPolicies.OnDemandPolicy)
   }
 }

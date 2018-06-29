@@ -1,4 +1,4 @@
-import "./womtool/src/test/resources/validate/wdl_draft2/valid/task_only/task_only.wdl" as imports
+import "../task_only/task_only.wdl" as imports
 
 workflow relative_local_import {
 

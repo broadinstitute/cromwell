@@ -13,10 +13,10 @@ import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.core.WorkflowSource
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.util.Try
 
@@ -47,16 +47,18 @@ object ImportResolver {
     directoryValidation flatMap { directoryResolver(_).run(path) }
   }
 
-  lazy val localFileResolver: ImportResolver = CheckedAtoB.fromErrorOr { path =>
-    Try(Paths.get(Paths.get(".").resolve(path).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
+  def relativeFileResolver(wdlPath: Path): ImportResolver = CheckedAtoB.fromErrorOr { relativePath =>
+    Try(Paths.get(wdlPath.getParent.resolve(relativePath).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
       val file = File(absolutePathToFile)
       if (file.exists) {
         File(absolutePathToFile).contentAsString.validNel
       } else {
-        s"Import file not found: $path".invalidNel
+        s"Import file not found: $relativePath".invalidNel
       }
     }
   }
+
+  lazy val localFileResolver: ImportResolver = relativeFileResolver(DefaultPathBuilder.build(Paths.get(".")))
 
   def specificFileResolver(filePath: Path): ImportResolver = CheckedAtoB.fromErrorOr { path =>
     if (path == filePath.toAbsolutePath.toString || path == filePath.name) {

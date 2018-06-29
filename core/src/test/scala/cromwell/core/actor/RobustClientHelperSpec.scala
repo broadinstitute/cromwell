@@ -42,12 +42,12 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg("world")
     
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
+    remoteActor.expectNoMessage()
     
     // Wait long enough that to make sure that we won't receive a ServiceUnreachable message, meaning the timeout timer
     // has been cancelled. Note that it is the responsibility of the actor to cancel it, the RobustClientHelper does not
     // handle that part.
-    delegateActor.expectNoMsg(8 seconds)
+    delegateActor.expectNoMessage(8 seconds)
   }
 
   it should "handle a successful response" in {
@@ -73,8 +73,8 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg("world")
     
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
-    delegateActor.expectNoMsg()
+    remoteActor.expectNoMessage()
+    delegateActor.expectNoMessage()
   }
 
   it should "timeout if no response" in {
@@ -99,8 +99,8 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg(TestActor.ServiceUnreachable)
 
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
-    delegateActor.expectNoMsg()
+    remoteActor.expectNoMessage()
+    delegateActor.expectNoMessage()
   }
 
   it should "reset timeout when backpressured is received" in {
@@ -133,9 +133,9 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg("world")
 
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
+    remoteActor.expectNoMessage()
     // ensure that no ServiceUnreachable message was sent
-    delegateActor.expectNoMsg(4 seconds)
+    delegateActor.expectNoMessage(4 seconds)
   }
   
   it should "randomize backpressure timings" in {

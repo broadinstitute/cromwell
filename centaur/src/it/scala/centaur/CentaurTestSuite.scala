@@ -35,11 +35,11 @@ class CentaurTestSuite extends Suites(new SequentialTestCaseSpec(), new Standard
   private var shutdownHook: Option[ShutdownHookThread] = _
 
   override def beforeAll() = {
-    shutdownHook = Option(sys.addShutdownHook { CromwellManager.stopCromwell() })
+    shutdownHook = Option(sys.addShutdownHook { CromwellManager.stopCromwell("JVM Shutdown Hook") })
   }
 
   override def afterAll() = {
-    CromwellManager.stopCromwell()
+    CromwellManager.stopCromwell("ScalaTest AfterAll")
     shutdownHook.foreach(_.remove())
   }
 }

@@ -108,7 +108,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(100)
-    expectNoMsg()
+    expectNoMessage()
     // We should be enqueued and the last in the queue though
     actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.last shouldBe self
 
@@ -172,7 +172,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.tell(JobExecutionTokenReturn, senders.head.ref)
 
     // Nothing should happen, specifically Sender 6 should not get his token
-    senders(6).expectNoMsg(MaxWaitTime)
+    senders(6).expectNoMessage(MaxWaitTime)
   }
 
   AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>

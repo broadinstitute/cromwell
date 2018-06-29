@@ -39,7 +39,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     expectMsgPF(1.second) {
       case CallPreparationFailed(_, ex) => ex.getMessage shouldBe "Call input and runtime attributes evaluation failed for JobPreparationSpec_call:\nFailed to prepare inputs/attributes - part of test flow"
     }
-    helper.workflowDockerLookupActor.expectNoMsg(100 millis)
+    helper.workflowDockerLookupActor.expectNoMessage(100 millis)
   }
 
   it should "prepare successfully a job without docker attribute" in {
@@ -51,7 +51,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.maybeCallCachingEligible.dockerHash shouldBe None
     }
-    helper.workflowDockerLookupActor.expectNoMsg(1 second)
+    helper.workflowDockerLookupActor.expectNoMessage(1 second)
   }
 
   it should "not ask for the docker hash if the attribute already contains a hash" in {
@@ -67,7 +67,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
         success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash("ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
     }
-    helper.workflowDockerLookupActor.expectNoMsg(1 second)
+    helper.workflowDockerLookupActor.expectNoMessage(1 second)
   }
 
   it should "lookup any requested key/value prefetches after (not) performing a docker hash lookup" in {
@@ -97,7 +97,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
       }
     }
     respondFromKv()
-    helper.workflowDockerLookupActor.expectNoMsg(max = 100 milliseconds)
+    helper.workflowDockerLookupActor.expectNoMessage(max = 100 milliseconds)
     respondFromKv()
 
     expectMsgPF(5 seconds) {

@@ -29,9 +29,7 @@ if [ "${CROMWELL_BUILD_IS_CRON}" = "true" ]; then
     INTEGRATION_TESTS=(-i "${CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS}")
     # Increase concurrent job limit to get tests to finish under three hours.
     # Increase read_lines limit because of read_lines call on hg38.even.handcurated.20k.intervals.
-    PAPI_CONCURRENT_JOB_LIMIT=9001
     CENTAUR_READ_LINES_LIMIT=512000
-    export PAPI_CONCURRENT_JOB_LIMIT
     export CENTAUR_READ_LINES_LIMIT
 fi
 

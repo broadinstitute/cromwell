@@ -28,12 +28,12 @@ class GracefulShutdownHelperSpec extends TestKitSuite with FlatSpecLike with Mat
     testProbeB.expectMsg(ShutdownCommand)
 
     // Make sure it's still alive
-    expectNoMsg()
+    expectNoMessage()
 
     system stop testProbeA.ref
 
     // Make sure it's still alive
-    expectNoMsg()
+    expectNoMessage()
 
     system stop testProbeB.ref
     

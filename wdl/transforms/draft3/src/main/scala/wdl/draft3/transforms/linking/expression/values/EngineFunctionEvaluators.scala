@@ -205,7 +205,7 @@ object EngineFunctionEvaluators {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readBoolLimit)
           asBool <- Try(read.trim.toBoolean)
         } yield WomBoolean(asBool)
-        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_int("${fileToRead.value}")""")
+        tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_boolean("${fileToRead.value}")""")
       }
     }
   }

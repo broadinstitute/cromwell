@@ -45,7 +45,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
           am <- a.status.messages.toList.flatten.headOption
           em <- e.status.messages.toList.flatten.headOption
         } yield am.startsWith(em)
-        assert(isEmpty || actualPrefixedByExpected.contains(true))
+        assert(isEmpty || actualPrefixedByExpected.contains(true), s"Instead, a.status.messages = ${a.status.messages.toList.flatten} and e.status.messages = ${e.status.messages.toList.flatten}")
       } head
     }
   }

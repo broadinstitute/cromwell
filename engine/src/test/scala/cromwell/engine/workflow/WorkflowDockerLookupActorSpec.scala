@@ -65,7 +65,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
 
     // Now the WorkflowDockerLookupActor should now have this hash in its mappings and should not query the dockerHashingActor again.
     lookupActor ! LatestRequest
-    dockerHashingActor.expectNoMsg()
+    dockerHashingActor.expectNoMessage()
     // The WorkflowDockerLookupActor should forward the success message to this actor.
     expectMsg(LatestSuccessResponse)
     numWrites should equal(1)
@@ -147,7 +147,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     lookupActor ! LatestRequest
     lookupActor ! OlderRequest
 
-    dockerHashingActor.expectNoMsg()
+    dockerHashingActor.expectNoMessage()
 
     val results = receiveN(2, 2 seconds).toSet
     val successes = results collect { case result: DockerHashSuccessResponse => result }
@@ -207,7 +207,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))
     lookupActor ! LatestRequest
 
-    dockerHashingActor.expectNoMsg()
+    dockerHashingActor.expectNoMessage()
     expectMsgClass(classOf[WorkflowDockerTerminalFailure])
     numReads should equal(1)
   }
@@ -225,7 +225,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))
     lookupActor ! LatestRequest
 
-    dockerHashingActor.expectNoMsg()
+    dockerHashingActor.expectNoMessage()
     expectMsgClass(classOf[WorkflowDockerTerminalFailure])
     numReads should equal(1)
   }

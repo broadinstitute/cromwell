@@ -160,7 +160,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   it should "abort a job and kill a process" in {
-    val workflowDescriptor = buildWdlWorkflowDescriptor(Sleep10)
+    val workflowDescriptor = buildWdlWorkflowDescriptor(Sleep20)
     val jobDescriptor: BackendJobDescriptor = jobDescriptorFromSingleCallWorkflow(workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions)
     val backendRef = createBackendRef(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
     val backend = backendRef.underlyingActor

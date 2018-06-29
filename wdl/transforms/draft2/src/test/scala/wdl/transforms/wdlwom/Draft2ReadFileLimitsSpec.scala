@@ -8,7 +8,7 @@ import wom.expression.EmptyIoFunctionSet
 import scala.concurrent.Future
 
 class Draft2ReadFileLimitsSpec extends FlatSpec with Matchers {
-  behavior of "ReadLikeFunctions Size Limit Draft 3"
+  behavior of "ReadLikeFunctions Size Limit Draft 2"
   
   it should "pass correct size limits to the ioFunctions for read_lines" in {
     new WdlWomExpression(WdlExpression.fromString("""read_lines("blah")"""), null)

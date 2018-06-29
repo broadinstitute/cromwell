@@ -60,7 +60,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeFailure.expectNoMsg(1 second)
+    probeFailure.expectNoMessage(1 second)
     probeSuccess.expectMsgPF(1 second) {
       case (response: HttpResponse, _) => response.status shouldBe StatusCodes.OK
     }
@@ -79,7 +79,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeFailure.expectNoMsg(1 second)
+    probeFailure.expectNoMessage(1 second)
     probeSuccess.expectMsgPF(1 second) {
       case (response: HttpResponse, _) => response.status shouldBe StatusCodes.BadRequest
     }
@@ -99,7 +99,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeSuccess.expectNoMsg(1 second)
+    probeSuccess.expectNoMessage(1 second)
     probeFailure.expectMsgPF(1 second) {
       case (failure: Throwable, _) => failure shouldBe mockFailure.failed.get
     }
@@ -118,7 +118,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeFailure.expectNoMsg(1 second)
+    probeFailure.expectNoMessage(1 second)
     probeSuccess.expectMsgPF(1 second) {
       case (response: HttpResponse, _) => response.status shouldBe StatusCodes.OK
     }
@@ -142,7 +142,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeFailure.expectNoMsg(1 second)
+    probeFailure.expectNoMessage(1 second)
     // backoff starts at 1 second, multiplier is 3 and default randomization is 20%
     // which means, worst case scenario, we need to wait
     // (1 + 0.2) + (3 + 0.6) + (9 + 1.8) = 15.06 -> 20 to account for test latency
@@ -167,7 +167,7 @@ class HttpFlowWithRetrySpec extends TestKitSuite with FlatSpecLike with Matchers
 
     graph.run()
 
-    probeFailure.expectNoMsg(1 second)
+    probeFailure.expectNoMessage(1 second)
     probeSuccess.expectMsgPF(20 seconds) {
       case (response: HttpResponse, _) => response.status shouldBe StatusCodes.RequestTimeout
     }

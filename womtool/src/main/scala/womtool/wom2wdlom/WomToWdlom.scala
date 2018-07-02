@@ -90,15 +90,22 @@ object WomToWdlomImpl {
 
   def runtimeAttributesToRuntimeAttributesSectionElement: CheckedAtoB[RuntimeAttributes, Option[RuntimeAttributesSectionElement]] =
     CheckedAtoB.fromCheck { a: RuntimeAttributes =>
-      def tupleToKvPair(tuple: (String, WomExpression)): ExpressionElement.KvPair =
-        ExpressionElement.KvPair(tuple._1, womExpressionToExpressionElement(tuple._2).getOrElse(???))
+      def tupleToKvPair(tuple: (String, WomExpression)): Checked[ExpressionElement.KvPair] = {
+        for {
+          expressionElement <- womExpressionToExpressionElement(tuple._2)
+        } yield {
+          ExpressionElement.KvPair(tuple._1, expressionElement)
+        }
+      }
 
-      val kvPairs = (a.attributes map tupleToKvPair).toVector
-
-      if (kvPairs.nonEmpty)
-        Some(RuntimeAttributesSectionElement(kvPairs)).validNelCheck
-      else
-        None.validNelCheck
+      for {
+        kvPairs <- (a.attributes map tupleToKvPair).toList.sequence[Checked, ExpressionElement.KvPair]
+      } yield {
+        if (kvPairs.nonEmpty)
+          Some(RuntimeAttributesSectionElement(kvPairs.toVector))
+        else
+          None
+      }
     }
 
   def outputDefinitionToOutputDeclarationElement: CheckedAtoB[OutputDefinition, OutputDeclarationElement] =
@@ -374,8 +381,8 @@ object WomToWdlomImpl {
   def callNodeToCallElement: CheckedAtoB[CallNode, CallElement] =
     CheckedAtoB.fromCheck { call: CallNode =>
       def tupleToKvPair(tuple: (InputDefinition, InputDefinitionPointer)): Option[ExpressionElement.KvPair] = {
-        inputDefinitionPointerToExpressionElement(tuple._2).getOrElse(???) match {
-          case Some(value) => Some(ExpressionElement.KvPair(tuple._1.name, value))
+        inputDefinitionPointerToExpressionElement(tuple._2) match {
+          case Right(Some(value)) => Some(ExpressionElement.KvPair(tuple._1.name, value))
           case _ => None
         }
       }

@@ -6,15 +6,11 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
-<<<<<<< HEAD
 import cromwell.core.path
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
-=======
 import org.scalatest._
 
 import scala.concurrent.Future
->>>>>>> origin/develop
 
 @DoNotDiscover
 abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends AsyncFlatSpec with Matchers {

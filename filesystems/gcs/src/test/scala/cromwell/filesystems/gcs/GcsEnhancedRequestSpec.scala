@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs
 
-import java.nio.file.NoSuchFileException
+import java.io.FileNotFoundException
 
 import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonResponseException}
 import com.google.api.client.http.{HttpHeaders, HttpResponseException}
@@ -56,7 +56,7 @@ class GcsEnhancedRequestSpec extends FlatSpec with Matchers with Mockito with Mo
 
     // Throw an unrelated exception, should only be called once
     testFunction.expects(false).throws(new StorageException(404, "gs://does/not/exist")).once()
-    a[NoSuchFileException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+    a[FileNotFoundException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
   }
 
   it should "re throw GoogleJsonResponseException 404 to NoSuchFileException" in {
@@ -68,6 +68,6 @@ class GcsEnhancedRequestSpec extends FlatSpec with Matchers with Mockito with Mo
     
     // Throw an unrelated exception, should only be called once
     testFunction.expects(false).throws(new GoogleJsonResponseException(builder, error)).once()
-    a[NoSuchFileException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+    a[FileNotFoundException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
   }
 }

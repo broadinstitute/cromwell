@@ -4,25 +4,25 @@ import cats.instances.either._
 import cats.instances.list._
 import cats.syntax.traverse._
 import common.Checked
-import common.validation.Checked._
-import wdl.model.draft3.elements._
-import wom.executable.WomBundle
 import common.collections.EnhancedCollections.EnhancedTraversableLike
 import common.transforms.CheckedAtoB
-import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
-import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
+import common.validation.Checked._
 import shapeless.{Inl, Inr}
-import wom.callable.Callable._
+import wdl.draft2.model.command.{ParameterCommandPart, StringCommandPart}
+import wdl.model.draft3.elements._
+import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement.ExpressionLiteralElement
-import wom.callable.MetaValueElement.MetaValueElementString
-import wom.RuntimeAttributes
+import wom.callable.Callable._
 import wom.callable.Callable.OutputDefinition
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.MetaValueElement.MetaValueElementString
+import wom.executable.WomBundle
 import wom.expression.WomExpression
-import wom.graph.CallNode.InputDefinitionPointer
-import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph._
+import wom.graph.CallNode.InputDefinitionPointer
 import wom.graph.expression._
+import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.RuntimeAttributes
 import wom.types._
 
 object WomToWdlom {
@@ -234,40 +234,40 @@ object WomToWdlom {
 
   def graphNodeToWorkflowGraphElement: CheckedAtoB[GraphNode, WorkflowGraphElement] =
     CheckedAtoB.fromCheck {
-        case a: CallNode =>
-          callNodeToCallElement(a)
-        case a: ConditionalNode =>
+      case a: CallNode =>
+        callNodeToCallElement(a)
+      case a: ConditionalNode =>
+        for {
+          condition <- expressionNodeToExpressionElement(a.conditionExpression)
+          nodes <- selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_)).sequence[Checked, WorkflowGraphElement]
+        } yield {
+          IfElement(
+            conditionExpression = condition,
+            graphElements = nodes
+          )
+        }
+      case a: ExpressionNodeLike =>
+        expressionNodeLikeToWorkflowGraphElement(a)
+      case a: GraphNodeWithSingleOutputPort =>
+        graphNodeWithSingleOutputPortToWorkflowGraphElement(a)
+      case a: GraphOutputNode =>
+        graphOutputNodeToWorkflowGraphElement(a)
+      case a: ScatterNode =>
+        // Only CWL has multi-variable scatters
+        if (a.scatterVariableNodes.size != 1)
+          s"In WDL, the scatter node count must be exactly one, was ${a.scatterVariableNodes.size}".invalidNelCheck
+        else
           for {
-            condition <- expressionNodeToExpressionElement(a.conditionExpression)
-            nodes <- selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_)).sequence[Checked, WorkflowGraphElement]
+            expression <- expressionNodeToExpressionElement(a.scatterCollectionExpressionNodes.head)
+            graph <- selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_)).sequence[Checked, WorkflowGraphElement]
           } yield {
-            IfElement(
-              conditionExpression = condition,
-              graphElements = nodes
+            ScatterElement(
+              scatterName = a.identifier.localName.value,
+              scatterExpression = expression,
+              scatterVariableName = a.inputPorts.toList.head.name,
+              graphElements = graph
             )
           }
-        case a: ExpressionNodeLike =>
-          expressionNodeLikeToWorkflowGraphElement(a)
-        case a: GraphNodeWithSingleOutputPort =>
-          graphNodeWithSingleOutputPortToWorkflowGraphElement(a)
-        case a: GraphOutputNode =>
-          graphOutputNodeToWorkflowGraphElement(a)
-        case a: ScatterNode =>
-          // Only CWL has multi-variable scatters
-          if (a.scatterVariableNodes.size != 1)
-            s"In WDL, the scatter node count must be exactly one, was ${a.scatterVariableNodes.size}".invalidNelCheck
-          else
-            for {
-              expression <- expressionNodeToExpressionElement(a.scatterCollectionExpressionNodes.head)
-              graph <- selectWdlomRepresentableNodes(a.innerGraph.nodes).toList.map(graphNodeToWorkflowGraphElement(_)).sequence[Checked, WorkflowGraphElement]
-            } yield {
-              ScatterElement(
-                scatterName = a.identifier.localName.value,
-                scatterExpression = expression,
-                scatterVariableName = a.inputPorts.toList.head.name,
-                graphElements = graph
-              )
-            }
       }
 
   def graphNodeWithSingleOutputPortToWorkflowGraphElement: CheckedAtoB[GraphNodeWithSingleOutputPort, WorkflowGraphElement] =

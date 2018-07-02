@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.{HttpApp, Route}
 import akka.stream.ActorMaterializer
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
+import common.util.VersionUtil
 import cromiam.server.config.{CromIamServerConfig, SwaggerOauthConfig}
 import cromiam.server.status.StatusService
 import cromiam.webservice.{CromIamApiService, SwaggerService}
@@ -25,6 +26,13 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
   override val oauthConfig: SwaggerOauthConfig = configuration.swaggerOauthConfig
 
   def run(): Unit = {
+    log.info(s"Version {}", VersionUtil.getVersion("cromiam"))
+    /*
+    TODO: We're not passing in our actor system so a new one is getting created by akka.http.scaladsl.server.HttpApp.
+    Things seem stable at the moment so not touching it. Should investigate if we should be sharing the ActorSystem.
+    If there is a reason then leave a comment why there should be two actor systems.
+    https://github.com/broadinstitute/cromwell/issues/3851
+     */
     CromIamServer.startServer(configuration.cromIamConfig.http.interface, configuration.cromIamConfig.http.port, configuration.cromIamConfig.serverSettings)
   }
 

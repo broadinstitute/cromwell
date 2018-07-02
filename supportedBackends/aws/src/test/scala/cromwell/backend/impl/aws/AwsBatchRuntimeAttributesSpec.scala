@@ -190,7 +190,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     // TODO: This is working ok (appropriate error messages), though test is throwing due to message inconsistency
     // "fail to validate a valid disks array entry" in {
     //   val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("blah"), WomString("blah blah"))))
-    //   assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got 'blah blah'")
+    //   assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk' or '/mount/point' but got 'blah blah'")
     // }
 
     "validate a valid memory entry" in {

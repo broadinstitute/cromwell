@@ -83,7 +83,9 @@ trait JobPaths {
   private lazy val commonMetadataPaths: Map[String, Path] =
     standardOutputAndErrorPaths + (CallMetadataKeys.CallRoot -> callRoot)
 
-  private lazy val commonDetritusPaths: Map[String, Path] = Map(
+  // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
+  // standard output and error file names.
+  private def commonDetritusPaths: Map[String, Path] = Map(
     JobPaths.CallRootPathKey -> callRoot,
     JobPaths.ScriptPathKey -> script,
     JobPaths.StdoutPathKey -> standardPaths.output,
@@ -101,7 +103,7 @@ trait JobPaths {
   protected lazy val customLogPaths: Map[String, Path] = Map.empty
 
   lazy val metadataPaths = commonMetadataPaths ++ customMetadataPaths
-  lazy val detritusPaths = commonDetritusPaths ++ customDetritusPaths
+  def detritusPaths = commonDetritusPaths ++ customDetritusPaths
   lazy val logPaths = commonLogPaths ++ customLogPaths
 
   lazy val callContext = CallContext(callExecutionRoot, standardPaths, isDocker)

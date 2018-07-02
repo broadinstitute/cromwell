@@ -8,7 +8,7 @@ import com.google.api.services.genomics.v2alpha1.model._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
-import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, Delocalization, Localization}
+import cromwell.backend.google.pipelines.v2alpha1.api._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.logging.JobLogger
@@ -54,6 +54,13 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         mounts,
         createPipelineParameters.jobShell
       )
+      
+      val allActions = localization ++ List(userAction) ++ deLocalization
+      
+      // Start background actions first, leave the rest as is
+      val sortedActions = allActions.sortWith({
+        case (a1, _) => Option(a1.getFlags).map(_.asScala).toList.flatten.contains(ActionFlag.RunInBackground.toString)
+      })
 
       val serviceAccount = new ServiceAccount()
         .setEmail(createPipelineParameters.computeServiceAccount)
@@ -99,7 +106,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val pipeline = new Pipeline()
         .setResources(resources)
-        .setActions((localization ++ List(userAction) ++ deLocalization).asJava)
+        .setActions(sortedActions.asJava)
         .setEnvironment(environment)
 
       val pipelineRequest = new RunPipelineRequest()

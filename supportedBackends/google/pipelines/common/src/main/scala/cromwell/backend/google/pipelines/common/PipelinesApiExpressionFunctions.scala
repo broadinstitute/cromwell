@@ -1,8 +1,10 @@
 package cromwell.backend.google.pipelines.common
 
+import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.standard.{StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.core.CallContext
 import cromwell.core.io.{CallCorePathFunctionSet, IoCommandBuilder}
+import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidGcsPath, PossiblyValidRelativeGcsPath, ValidFullGcsPath}
@@ -30,4 +32,7 @@ class PipelinesApiExpressionFunctions(standardParams: StandardExpressionFunction
   }
 
   override lazy val pathFunctions = new PipelinesApiPathFunctions(pathBuilders, callContext)
+
+  override protected def writeAsync(file: Path, content: String) =
+    asyncIo.writeAsync(file, content, Seq(CloudStorageOptions.withMimeType("text/plain")))
 }

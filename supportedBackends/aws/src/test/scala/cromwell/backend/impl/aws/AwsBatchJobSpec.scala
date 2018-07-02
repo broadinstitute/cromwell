@@ -71,9 +71,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     |mv /cromwell_root/hello-rc.txt.tmp /cromwell_root/hello-rc.txt"""
 
     val boundary = "d283898f11be0dee6f9ac01470450bee"
-    val expectedscript = """#!/bin/bash
-    |mkdir -p /cromwell_root
-    """.stripMargin + script.concat(s"""
+    val expectedscript = script.concat(s"""
     |echo "MIME-Version: 1.0
     |Content-Type: multipart/alternative; boundary="${boundary}"
 

@@ -4,6 +4,7 @@ import java.net.SocketTimeoutException
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
+import akka.http.scaladsl.model.ContentTypes
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -309,13 +310,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   protected def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[PipelinesApiFileOutput] = {
+    val destination = callRootPath.resolve(womFile.value.stripPrefix("/"))
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
-    // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
-    // For the default one (cromwell_root), the expctation is that it does not appear
-    val mountedPath = if (disk != PipelinesApiWorkingDisk.Default) disk.mountPoint.resolve(relpath) else relpath
-    // Normalize the local path (to get rid of ".." and "."). Also strip any potential leading / so that it gets appended to the call root
-    val normalizedPath = mountedPath.normalize().pathAsString.stripPrefix("/")
-    val destination = callRootPath.resolve(normalizedPath)
     val jesFileOutput = PipelinesApiFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
     List(jesFileOutput)
   }
@@ -393,6 +389,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       dockerImage = jobDockerImage,
+      cloudWorkflowRoot = workflowPaths.workflowRoot,
       cloudCallRoot = callRootPath,
       commandScriptContainerPath = cmdInput.containerPath,
       logGcsPath = jesLogPath,
@@ -439,7 +436,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         StandardStream("stdout", _.output),
         StandardStream("stderr", _.error)
       ) map { s =>
-        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename), workingDisk, optional = false, secondary = false)
+        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename),
+          workingDisk, optional = false, secondary = false, uploadPeriod = jesAttributes.logFlushPeriod, contentType = Option(ContentTypes.`text/plain(UTF-8)`))
       }
 
       InputOutputParameters(
@@ -506,7 +504,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFileToGcsPath(generateOutputs(jobDescriptor))(womFile)
   }
 
-  private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
+  protected [pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
       jesOutputs collectFirst {
         case jesOutput if jesOutput.name == makeSafeReferenceName(path) => jesOutput.cloudPath.pathAsString

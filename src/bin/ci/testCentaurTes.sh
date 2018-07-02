@@ -56,6 +56,7 @@ centaur/test_cromwell.sh \
     -e no_new_calls \
     -e non_root_default_user \
     -e non_root_specified_user \
-    -e write_lines_files
+    -e write_lines_files \
+    -e cwl_input_json \
 
 cromwell::build::generate_code_coverage

@@ -150,10 +150,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
   lazy val reconfiguredScript = {
     // We'll use the MD5 of the dockerRc so the boundary is "random" but consistent
     val boundary = MessageDigest.getInstance("MD5").digest(dockerRc.getBytes).map("%02x".format(_)).mkString
-    //TODO: Ugly hack due to lack of time. cromwell_root is not guaranteed in the container and I don't want to change the global cromwell script
-    """#!/bin/bash
-    |mkdir -p /cromwell_root
-    """.stripMargin + 
+
+    // NOTE: We are assuming the presence of a volume named "local-disk".
+    //       This requires a custom AMI with the volume defined. But, since
+    //       we need a custom AMI anyway for any real workflow, we just need
+    //       to make sure this requirement is documented.
     script.concat(s"""
     |echo "MIME-Version: 1.0
     |Content-Type: multipart/alternative; boundary="${boundary}"
@@ -177,11 +178,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     """).stripMargin
   }
   def submitJob(): Try[SubmitJobResponse] = Try {
+    val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
     Log.info(s"""commandLine: $commandLine""")
     Log.info(s"""reconfiguredScript: $reconfiguredScript""")
+    Log.info(s"""taskId: $taskId""")
     // Log.info(s"""logFileName: $logFileName""")
 
     // runtimeAttributes
@@ -191,10 +194,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
-    val definitionArn = createDefinition(workflow.callable.name)
+    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", taskId)
 
     val job = client.submitJob(SubmitJobRequest.builder()
-                .jobName(sanitize(workflow.callable.name))
+                .jobName(sanitize(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}"""))
                 .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
                 .jobQueue(runtimeAttributes.queueArn)
                 .jobDefinition(definitionArn).build)
@@ -212,9 +215,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
    *  @return Arn for newly created job definition
    *
    */
-  private def createDefinition(name: String): String = {
+  private def createDefinition(name: String, taskId: String): String = {
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
-    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes, runtimeAttributes.dockerImage)
+    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes, runtimeAttributes.dockerImage, taskId)
 
     // See:
     //

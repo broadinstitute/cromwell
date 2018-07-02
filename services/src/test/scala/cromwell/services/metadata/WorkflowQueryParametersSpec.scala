@@ -25,6 +25,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.statuses should be('empty)
           r.labelsAnd should be ('empty)
           r.labelsOr should be ('empty)
+          r.excludeLabelsAnd should be ('empty)
+          r.excludeLabelsOr should be ('empty)
           r.submissionTime should be('empty)
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
@@ -39,6 +41,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
         Status.name -> "Running",
         LabelAndKeyValue.name -> "label-and-key:label-and-value",
         LabelOrKeyValue.name -> "label-or-key:label-or-value",
+        ExcludeLabelAndKeyValue.name -> "exclude-label-and-key:exclude-label-and-value",
+        ExcludeLabelOrKeyValue.name -> "exclude-label-or-key:exclude-label-or-value",
         StartDate.name -> StartDateString,
         EndDate.name -> EndDateString,
         SubmissionTime.name -> SubmissionTimeString
@@ -53,6 +57,8 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
           r.statuses should be(Set("Succeeded", "Running"))
           r.labelsAnd should be(Set(Label("label-and-key", "label-and-value")))
           r.labelsOr should be(Set(Label("label-or-key", "label-or-value")))
+          r.excludeLabelsAnd should be(Set(Label("exclude-label-and-key", "exclude-label-and-value")))
+          r.excludeLabelsOr should be(Set(Label("exclude-label-or-key", "exclude-label-or-value")))
         case Invalid(fs) =>
           throw new RuntimeException(fs.toList.mkString(", "))
       }
@@ -233,6 +239,38 @@ class WorkflowQueryParametersSpec extends WordSpec with Matchers {
       val rawParameters = Seq(
         LabelOrKeyValue.name -> "label-key:label-value",
         LabelOrKeyValue.name -> badLabelSyntax
+      )
+      val result = WorkflowQueryParameters.runValidation(rawParameters)
+      result match {
+        case Valid(r) =>
+          throw new RuntimeException(s"Unexpected success: $r")
+        case Invalid(fs) =>
+          fs.toList should have size 1
+          fs.toList.head should include("Label values do not match allowed pattern label-key:label-value")
+      }
+    }
+
+    "reject bad label syntax for exclude AND" in {
+      val badLabelSyntax = "label-keyLabel-value"
+      val rawParameters = Seq(
+        ExcludeLabelAndKeyValue.name -> "label-key:label-value",
+        ExcludeLabelAndKeyValue.name -> badLabelSyntax
+      )
+      val result = WorkflowQueryParameters.runValidation(rawParameters)
+      result match {
+        case Valid(r) =>
+          throw new RuntimeException(s"Unexpected success: $r")
+        case Invalid(fs) =>
+          fs.toList should have size 1
+          fs.toList.head should include("Label values do not match allowed pattern label-key:label-value")
+      }
+    }
+
+    "reject bad label syntax for exclude OR" in {
+      val badLabelSyntax = "label-keyLabel-value"
+      val rawParameters = Seq(
+        ExcludeLabelOrKeyValue.name -> "label-key:label-value",
+        ExcludeLabelOrKeyValue.name -> badLabelSyntax
       )
       val result = WorkflowQueryParameters.runValidation(rawParameters)
       result match {

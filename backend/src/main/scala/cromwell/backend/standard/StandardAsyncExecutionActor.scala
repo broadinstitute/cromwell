@@ -10,6 +10,7 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.functor._
 import cats.syntax.traverse._
+import common.Checked
 import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
@@ -132,6 +133,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
           case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
         }
   }
+  
+  final lazy val localizedInputs: Try[WomEvaluatedCallInputs] = commandLinePreProcessor(jobDescriptor.evaluatedTaskInputs)
 
   /**
     * Maps WomFile to a local path, for use in the commandLineValueMapper.
@@ -244,10 +247,22 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
   def scriptPreamble: String = ""
 
-  // TODO: Discuss if this lift is appropriate, and if they should be functions
-  //       of lazy vals
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
+
+  // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
+  // the command, but the standard input file will never be accessed after the command completes. standard output and
+  // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
+  // by the backend.
+  //
+  // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
+  // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
+  // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
+  // will need to be mapped back to host paths for use outside the command script.
+  //
+  // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
+  // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
+  // the names from redirections may or may not be relative.
   private def absolutizeContainerPath(path: String): String = {
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
   }
@@ -255,7 +270,31 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def executionStdin: Option[String] = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
   def executionStdout: String = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
   def executionStderr: String = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
-  // End added lift code
+
+  /*
+   * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
+   * before sending the results back to the engine. The latter is to cover for the case of a restart where the command is not re-generated,
+   * but the standard paths are still being used in the Success response to the engine. In that response paths need to be correct, hence
+   * the call to this method. The var is to avoid doing the work twice: in non restarted runs the command is generated and so there is no need
+   * to re-do this before sending the response.
+   */
+  private var jobPathsUpdated: Boolean = false
+  private def updateJobPaths() = if (!jobPathsUpdated) {
+    // .get's are safe on stdout and stderr after falling back to default names above.
+    jobPaths.standardPaths = StandardPaths(
+      output = hostPathFromContainerPath(executionStdout),
+      error = hostPathFromContainerPath(executionStderr)
+    )
+    // Re-publish stdout and stderr paths that were possibly just updated.
+    tellMetadata(jobPaths.standardOutputAndErrorPaths)
+    jobPathsUpdated = true
+  }
+
+  def hostPathFromContainerPath(string: String): Path = {
+    val cwdString = cwd.pathAsString.ensureSlashed
+    val relativePath = string.stripPrefix(cwdString)
+    jobPaths.callExecutionRoot.resolve(relativePath)
+  }
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
@@ -263,42 +302,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
-    // It's here at instantiation time that the names of standard input/output/error files are calculated.
-    // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
-    // the command, but the standard input file will never be accessed after the command completes. standard output and
-    // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
-    // by the backend.
-    //
-    // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
-    // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
-    // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
-    // will need to be mapped back to host paths for use outside the command script.
-    //
-    // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
-    // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
-    // the names from redirections may or may not be relative.
-    def absolutizeContainerPath(path: String): String = {
-      if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
-    }
-
-    val executionStdin = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
-    val executionStdout = instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
-    val executionStderr = instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
-
-    def hostPathFromContainerPath(string: String): Path = {
-      val cwdString = cwd.pathAsString.ensureSlashed
-      val relativePath = string.stripPrefix(cwdString)
-      jobPaths.callExecutionRoot.resolve(relativePath)
-    }
-
-    // .get's are safe on stdout and stderr after falling back to default names above.
-    jobPaths.standardPaths = StandardPaths(
-      output = hostPathFromContainerPath(executionStdout),
-      error = hostPathFromContainerPath(executionStderr)
-    )
-
-    // Re-publish stdout and stderr paths that were possibly just updated.
-    tellMetadata(jobPaths.standardOutputAndErrorPaths)
+    updateJobPaths()
 
     // The standard input redirection gets a '<' that standard output and error do not since standard input is only
     // redirected if requested. Standard output and error are always redirected but not necessarily to the default
@@ -434,10 +438,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val unmappedInputs: Map[String, WomValue] = jobDescriptor.evaluatedTaskInputs.map({
       case (inputDefinition, womValue) => inputDefinition.localName.value -> womValue
     })
-    val mappedInputs: Map[String, WomValue] = unmappedInputs.mapValues(tryCommandLineValueMapper).map(identity)
+
+    val mappedInputs: Checked[Map[String, WomValue]] = localizedInputs.toErrorOr.map(
+      _.map({
+        case (inputDefinition, value) => inputDefinition.localName.value -> tryCommandLineValueMapper(value)
+      })
+    ).toEither
     
     val evaluateAndInitialize = (containerizedInputExpression: ContainerizedInputExpression) => for {
-      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mappedInputs, backendEngineFunctions).toEither
+      mapped <- mappedInputs
+      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toEither
       initialized <- evaluated.traverse[ErrorOr, AdHocValue]({ adHocValue =>
         adHocValue.womValue.initializeWomFile(backendEngineFunctions).map(i => adHocValue.copy(womValue = i))
       }).toEither
@@ -479,7 +489,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // Gets the inputs that will be mutated by instantiating the command.
     def mutatingPreProcessor(in: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
       for {
-        commandLineProcessed <- commandLinePreProcessor(in)
+        commandLineProcessed <- localizedInputs
         adHocProcessed <- adHocFilePreProcessor(commandLineProcessed)
       } yield adHocProcessed
     }
@@ -822,6 +832,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
                              returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     evaluateOutputs() map {
       case ValidJobOutputs(outputs) =>
+        // Need to make sure the paths are up to date before sending the detritus back in the response
+        updateJobPaths()
         SuccessfulExecutionHandle(outputs, returnCode, jobPaths.detritusPaths, getTerminalEvents(runStatus))
       case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {

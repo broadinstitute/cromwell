@@ -60,6 +60,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                            workflowExecutionUuids: Set[String],
                                            labelAndKeyValues: Set[(String, String)],
                                            labelOrKeyValues: Set[(String, String)],
+                                           excludeLabelAndValues: Set[(String,String)],
+                                           excludeLabelOrValues: Set[(String,String)],
                                            submissionTimestampOption: Option[Timestamp],
                                            startTimestampOption: Option[Timestamp],
                                            endTimestampOption: Option[Timestamp]):
@@ -92,6 +94,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         reduceLeftOption(_ || _)
       val labelsAndFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelAndKeyValues, _ && _)
       val labelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelOrKeyValues, _ || _)
+      val excludeLabelsAndFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, excludeLabelAndValues, _ && _).map(v => !v)
+      val excludeLabelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, excludeLabelOrValues, _ || _).map(v => !v)
       // Put all the optional filters above together in one place.
       val optionalFilters: List[Option[Rep[Boolean]]] = List(
         workflowNameFilter,
@@ -99,6 +103,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         workflowStatusFilter,
         labelsAndFilter,
         labelsOrFilter,
+        excludeLabelsAndFilter,
+        excludeLabelsOrFilter,
         startTimestampFilter,
         endTimestampFilter,
         submissionTimestampFilter
@@ -131,6 +137,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
+                                          excludeLabelAndValues: Set[(String,String)],
+                                          excludeLabelOrValues: Set[(String,String)],
                                           submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp]) = {
@@ -140,6 +148,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       workflowExecutionUuids,
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
+      excludeLabelAndValues,
+      excludeLabelOrValues,
       submissionTimestampOption,
       startTimestampOption,
       endTimestampOption
@@ -154,6 +164,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
+                                          excludeLabelAndValues: Set[(String,String)],
+                                          excludeLabelOrValues: Set[(String,String)],
                                           submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp], page: Option[Int],
@@ -164,6 +176,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       workflowExecutionUuids,
       labelAndKeyLabelValues,
       labelOrKeyLabelValues,
+      excludeLabelAndValues,
+      excludeLabelOrValues,
       submissionTimestampOption,
       startTimestampOption,
       endTimestampOption

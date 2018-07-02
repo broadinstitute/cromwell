@@ -33,7 +33,7 @@ package cromwell.backend.impl.aws
 
 import scala.language.postfixOps
 import software.amazon.awssdk.services.batch.model.{
-                                        // KeyValuePair,
+                                        KeyValuePair,
                                         ContainerProperties //,
                                         // MountPoint,
                                         // Ulimit,
@@ -41,7 +41,6 @@ import software.amazon.awssdk.services.batch.model.{
                                       }
 
 import scala.collection.JavaConverters._
-
 
 /*
  * This whole file might seem like a *lot* of ceremony just to build
@@ -69,21 +68,22 @@ trait AwsBatchJobDefinitionBuilder {
   def builder(commandLine: String, dockerImage: String): ContainerProperties.Builder =
     ContainerProperties.builder().command("/bin/bash", "-c", commandLine).image(dockerImage)
 
-  def buildResources(builder: ContainerProperties.Builder, runtimeAttributes: AwsBatchRuntimeAttributes): ContainerProperties.Builder = {
+  def buildResources(builder: ContainerProperties.Builder, runtimeAttributes: AwsBatchRuntimeAttributes, taskId: String): ContainerProperties.Builder = {
     builder
       .memory(runtimeAttributes.memory.toMegabytes.toInt)
       .vcpus(runtimeAttributes.cpu##)
-      .volumes(runtimeAttributes.disks.map(_.toVolume).asJava)
+      .volumes(runtimeAttributes.disks.map(_.toVolume(taskId)).asJava)
       .mountPoints(runtimeAttributes.disks.map(_.toMountPoint).asJava)
+      .environment(KeyValuePair.builder.name("AWS_CROMWELL_TASK_ID").value(taskId).build)
   }
 
-  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes, docker: String): AwsBatchJobDefinition
+  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes, docker: String, taskId: String): AwsBatchJobDefinition
 }
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
-  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes, dockerImage: String): AwsBatchJobDefinition = {
+  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes, dockerImage: String, taskId: String): AwsBatchJobDefinition = {
     val builderInst = builder(commandLine, dockerImage)
-    buildResources(builderInst, runtimeAttributes)
+    buildResources(builderInst, runtimeAttributes, taskId)
     new StandardAwsBatchJobDefinitionBuilder(builderInst.build)
   }
 }

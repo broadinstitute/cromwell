@@ -39,19 +39,33 @@ trait PipelinesParameterConversions {
   }
 
   implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
-    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
+    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
       // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
       // The fileOrDirectory method will generate a command that can cover both cases
       val copy = if (fileOutput.secondary)
-        delocalizeFileOrDirectory(fileOutput.containerPath, fileOutput.cloudPath)
+        delocalizeFileOrDirectory(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
       else
-        delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath)
+        delocalizeFile(fileOutput.containerPath, fileOutput.cloudPath, fileOutput.contentType)
 
       lazy val copyOnlyIfExists = ifExist(fileOutput.containerPath) { copy }
 
-      cloudSdkBashAction(
-        if (fileOutput.optional || fileOutput.secondary) copyOnlyIfExists else copy
+      val copyCommand = if (fileOutput.optional || fileOutput.secondary) copyOnlyIfExists else copy
+      
+      val delocalizationAction = cloudSdkBashAction(
+        copyCommand
       )(mounts = mounts, flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
+
+      // If the file should be uploaded periodically, create 2 actions, a background one with periodic upload, and a normal one
+      // that will run at the end and make sure we get the most up to date version of the file
+      fileOutput.uploadPeriod match {
+        case Some(period) =>
+          val periodic = cloudSdkBashAction(
+            every(period) { copyCommand }
+          )(mounts = mounts, flags = List(ActionFlag.RunInBackground), labels = Map(Key.Tag -> Value.Background))
+
+          NonEmptyList.of(delocalizationAction, periodic)
+        case None => NonEmptyList.of(delocalizationAction)
+      }
     }
   }
 

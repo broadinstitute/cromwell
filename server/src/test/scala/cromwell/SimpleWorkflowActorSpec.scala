@@ -89,7 +89,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
 
       probe.expectTerminated(workflowActor, TestExecutionTimeout)
       // Check the parent didn't see anything:
-      supervisor.expectNoMsg(AwaitAlmostNothing) // The actor's already terminated. No point hanging around waiting...
+      supervisor.expectNoMessage(AwaitAlmostNothing) // The actor's already terminated. No point hanging around waiting...
 
     }
 

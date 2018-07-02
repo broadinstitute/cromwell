@@ -1,6 +1,7 @@
 package cromwell
 
 import akka.actor.ActorSystem
+import akka.actor.CoordinatedShutdown.JvmExitReason
 import akka.pattern.GracefulStopSupport
 import akka.stream.ActorMaterializer
 import cats.data.Validated._
@@ -58,7 +59,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
     import cromwell.util.PromiseActor.EnhancedActorRef
-    waitAndExit(() => runner.askNoTimeout(RunWorkflow), () => CromwellShutdown.instance(cromwellSystem.actorSystem).run())
+    waitAndExit(() => runner.askNoTimeout(RunWorkflow), () => CromwellShutdown.instance(cromwellSystem.actorSystem).run(JvmExitReason))
   }
 
   def submitToServer(args: CommandLineArguments): Unit = {

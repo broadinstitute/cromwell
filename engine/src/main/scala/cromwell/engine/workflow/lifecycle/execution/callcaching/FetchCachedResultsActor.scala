@@ -33,6 +33,7 @@ class FetchCachedResultsActor(cacheResultId: CallCachingEntryId, replyTo: ActorR
         val jobDetritusFiles = result.callCachingDetritusEntries map { jobDetritusEntry =>
           jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue.toRawString
         }
+
         val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
                                     result.callCachingEntry.callFullyQualifiedName,
                                     result.callCachingEntry.jobIndex).mkString(":")

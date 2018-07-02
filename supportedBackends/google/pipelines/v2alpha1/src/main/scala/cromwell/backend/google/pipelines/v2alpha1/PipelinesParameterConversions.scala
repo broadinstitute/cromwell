@@ -11,7 +11,7 @@ import simulacrum.typeclass
 
 import scala.language.implicitConversions
 @typeclass trait ToParameter[A <: PipelinesParameter] {
-  def toActions(p: A, mounts: List[Mount], projectId: String): NonEmptyList[Action]
+  def toActions(p: A, mounts: List[Mount]): NonEmptyList[Action]
   def toMount(p: A): Mount = {
     new Mount()
       .setDisk(p.mount.name)
@@ -21,7 +21,7 @@ import scala.language.implicitConversions
 
 trait PipelinesParameterConversions {
   implicit val fileInputToParameter = new ToParameter[PipelinesApiFileInput] {
-    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
+    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount]) = NonEmptyList.of {
       val labels = Map(
         Key.Tag -> Value.Localization,
         Key.InputName -> fileInput.name
@@ -31,7 +31,7 @@ trait PipelinesParameterConversions {
   }
 
   implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
-    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount], projectId: String) =  NonEmptyList.of {
+    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount]) =  NonEmptyList.of {
       cloudSdkShellAction(
         localizeDirectory(directoryInput.cloudPath, directoryInput.containerPath)
       )(mounts, labels =  Map(Key.Tag -> Value.Localization))
@@ -39,7 +39,7 @@ trait PipelinesParameterConversions {
   }
 
   implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
-    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount], projectId: String) = {
+    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount]) = {
       // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
       // The fileOrDirectory method will generate a command that can cover both cases
       val copy = if (fileOutput.secondary)
@@ -70,7 +70,7 @@ trait PipelinesParameterConversions {
   }
 
   implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
-    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount], projectId: String) = NonEmptyList.of {
+    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount]) = NonEmptyList.of {
       cloudSdkShellAction(
         delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
       )(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization))
@@ -78,16 +78,16 @@ trait PipelinesParameterConversions {
   }
 
   implicit val inputToParameter = new ToParameter[PipelinesApiInput] {
-    override def toActions(p: PipelinesApiInput, mounts: List[Mount], projectId: String) = p match {
-      case fileInput: PipelinesApiFileInput => fileInputToParameter.toActions(fileInput, mounts, projectId)
-      case directoryInput: PipelinesApiDirectoryInput => directoryInputToParameter.toActions(directoryInput, mounts, projectId)
+    override def toActions(p: PipelinesApiInput, mounts: List[Mount]) = p match {
+      case fileInput: PipelinesApiFileInput => fileInputToParameter.toActions(fileInput, mounts)
+      case directoryInput: PipelinesApiDirectoryInput => directoryInputToParameter.toActions(directoryInput, mounts)
     }
   }
 
   implicit val outputToParameter = new ToParameter[PipelinesApiOutput] {
-    override def toActions(p: PipelinesApiOutput, mounts: List[Mount], projectId: String) = p match {
-      case fileOutput: PipelinesApiFileOutput => fileOutputToParameter.toActions(fileOutput, mounts, projectId)
-      case directoryOutput: PipelinesApiDirectoryOutput => directoryOutputToParameter.toActions(directoryOutput, mounts, projectId)
+    override def toActions(p: PipelinesApiOutput, mounts: List[Mount]) = p match {
+      case fileOutput: PipelinesApiFileOutput => fileOutputToParameter.toActions(fileOutput, mounts)
+      case directoryOutput: PipelinesApiDirectoryOutput => directoryOutputToParameter.toActions(directoryOutput, mounts)
     }
   }
 }

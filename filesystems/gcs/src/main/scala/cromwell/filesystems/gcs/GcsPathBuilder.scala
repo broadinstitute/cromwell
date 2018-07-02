@@ -2,7 +2,6 @@ package cromwell.filesystems.gcs
 
 import java.io._
 import java.net.URI
-import java.nio.channels.Channels
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ContentTypes
@@ -10,7 +9,7 @@ import better.files.File.OpenOptions
 import cats.effect.IO
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
-import com.google.cloud.storage.Storage.{BlobSourceOption, BlobTargetOption}
+import com.google.cloud.storage.Storage.BlobTargetOption
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
 import com.google.cloud.storage.{BlobId, BlobInfo, StorageOptions}
 import com.google.common.net.UrlEscapers
@@ -202,7 +201,12 @@ case class GcsPath private[gcs](nioPath: NioPath,
 
   override def mediaInputStream(implicit ec: ExecutionContext): InputStream = {
     def request(withProject: Boolean) = {
-      Channels.newInputStream(cloudStorage.reader(blob, withProject.option(userProjectBlobSource).toList.flatten: _*))
+      // Use apiStorage here instead of cloudStorage, because apiStorage throws now if the bucket has requester pays,
+      // whereas cloudStorage creates the input stream anyway and only throws one `read` is called (which only happens in NioFlow)
+      apiStorage.objects()
+        .get(blob.getBucket, blob.getName)
+        .setUserProject(withProject.option(projectId).orNull)
+        .executeMediaAsInputStream()
     }
     // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
     // in the NioFlow so we don't need to worry about exceptions
@@ -225,5 +229,4 @@ case class GcsPath private[gcs](nioPath: NioPath,
   } yield result
 
   private def userProjectBlobTarget: List[BlobTargetOption] = List(BlobTargetOption.userProject(projectId))
-  private def userProjectBlobSource: List[BlobSourceOption] = List(BlobSourceOption.userProject(projectId))
 }

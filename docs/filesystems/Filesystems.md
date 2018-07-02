@@ -1,6 +1,6 @@
 # Filesystems
 
-Most workflows represent their inputs and outputs in the form of files. Those files are stored in filesystems. There exists many filesystems, this section describes which filesystems Cromwell supports.
+Most workflows represent their inputs and outputs in the form of files. Those files are stored in filesystems. There exists many filesystems. This section describes which filesystems Cromwell supports.
 
 ## Overview
 
@@ -49,7 +49,7 @@ workflow my_workflow {
 }
 ```
 
-This workflow is valid WDL and does not involve any backend, or even task. However it does involve interacting with a filesystem to retrieve the content of `my_file.txt`
+This workflow is valid WDL and does not involve any backend, or even a task. However it does involve interacting with a filesystem to retrieve the content of `my_file.txt`
 With a default configuration Cromwell will be able to run this workflow because the local filesystem is enabled by default.
 If the file is located on a different filesystem (a cloud filesystem for instance), we would need to modify the configuration to tell Cromwell how to interact with this filesystem:
 

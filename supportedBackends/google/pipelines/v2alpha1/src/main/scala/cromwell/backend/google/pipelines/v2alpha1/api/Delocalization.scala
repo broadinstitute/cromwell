@@ -24,7 +24,7 @@ trait Delocalization {
 
   private def aggregatedLog = s"$logsRoot/output"
 
-  private def delocalizeLogsAction(gcsLogPath: Path, projectId: String) = {
+  private def delocalizeLogsAction(gcsLogPath: Path) = {
     cloudSdkShellAction(
     delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun))
@@ -103,12 +103,10 @@ trait Delocalization {
     val parseAction = parseOutputJsonAction(callExecutionContainerRoot.pathAsString, temporaryFofnDirectoryForCwlOutputJson, temporaryFofnForCwlOutputJson, mounts)
     val delocalizeAction = delocalizeOutputJsonFilesAction(cloudCallRoot, temporaryFofnForCwlOutputJson, createPipelineParameters.cloudWorkflowRoot.pathAsString, mounts)
 
-    val projectId = createPipelineParameters.projectId
-
-    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts, projectId).toList) ++
+    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts).toList) ++
       List(parseAction, delocalizeAction) :+
       copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath) :+
       copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot, createPipelineParameters.logGcsPath) :+
-      delocalizeLogsAction(gcsLogDirectoryPath, projectId)
+      delocalizeLogsAction(gcsLogDirectoryPath)
   }
 }

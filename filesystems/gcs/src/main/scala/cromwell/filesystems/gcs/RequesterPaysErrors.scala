@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs
 
-import com.google.api.client.googleapis.json.GoogleJsonError
+import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonResponseException}
 import com.google.cloud.storage.StorageException
 
 object RequesterPaysErrors {
@@ -16,4 +16,8 @@ object RequesterPaysErrors {
   def isProjectNotProvidedError(googleJsonError: GoogleJsonError) =
     googleJsonError.getCode == BucketIsRequesterPaysErrorCode &&
       googleJsonError.getMessage == BucketIsRequesterPaysErrorMessage
+
+  def isProjectNotProvidedError(googleJsonError: GoogleJsonResponseException) =
+    googleJsonError.getStatusCode == BucketIsRequesterPaysErrorCode &&
+      googleJsonError.getContent == BucketIsRequesterPaysErrorMessage
 }

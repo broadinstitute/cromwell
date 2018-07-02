@@ -128,6 +128,7 @@ class NioFlow(parallelism: Int,
    * cannot leak an open stream.
    */
   private def withReader[A](file: Path)(f: BufferedReader => A): A = {
+    
     // Use an input reader to convert the byte stream to character stream. Buffered reader for efficiency.
     tryWithResource(() => new BufferedReader(new InputStreamReader(file.mediaInputStream, Codec.UTF8.name)))(f).recoverWith({
       case failure => Failure(new IOException(s"Could not read from ${file.pathAsString}: ${failure.getMessage}", failure))

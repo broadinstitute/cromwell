@@ -178,11 +178,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     """).stripMargin
   }
   def submitJob(): Try[SubmitJobResponse] = Try {
+    val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
     Log.info(s"""commandLine: $commandLine""")
     Log.info(s"""reconfiguredScript: $reconfiguredScript""")
+    Log.info(s"""taskId: $taskId""")
     // Log.info(s"""logFileName: $logFileName""")
 
     // runtimeAttributes
@@ -192,7 +194,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
-    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""")
+    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", taskId)
 
     val job = client.submitJob(SubmitJobRequest.builder()
                 .jobName(sanitize(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}"""))
@@ -213,9 +215,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
    *  @return Arn for newly created job definition
    *
    */
-  private def createDefinition(name: String): String = {
+  private def createDefinition(name: String, taskId: String): String = {
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
-    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes, runtimeAttributes.dockerImage)
+    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes, runtimeAttributes.dockerImage, taskId)
 
     // See:
     //

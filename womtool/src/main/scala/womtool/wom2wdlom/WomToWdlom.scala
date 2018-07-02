@@ -307,7 +307,7 @@ object WomToWdlomImpl {
           else
             ArrayTypeElement(typeElement)
         }
-      case _: WomCoproductType => throw UnrepresentableException
+      case _: WomCoproductType => invalidFromString("WDL does not have coproducts - is this WOM from CWL?")
       case _: WomFileType => PrimitiveTypeElement(WomSingleFileType).validNelCheck
       case a: WomMapType =>
         for {
@@ -316,7 +316,7 @@ object WomToWdlomImpl {
         } yield {
           MapTypeElement(keyType, valueType)
         }
-      case _: WomNothingType.type => throw UnrepresentableException
+      case _: WomNothingType.type => invalidFromString("WDL does not have the Nothing type - is this WOM from CWL?")
       case _: WomObjectType.type => ObjectTypeElement.validNelCheck
       case a: WomOptionalType => womOptionalTypeToOptionalTypeElement(a)
       case a: WomPairType =>
@@ -372,8 +372,8 @@ object WomToWdlomImpl {
       }
       // Input definitions that directly contain expressions are the result of accepting a default input defined by the callable
       case Inr(Inl(_: WomExpression)) => None.validNelCheck
-      case Inr(_) =>
-        throw UnrepresentableException
+      case Inr(a) =>
+        invalidFromString(a.toString)
       case a =>
         invalidFromString(a.toString)
     }

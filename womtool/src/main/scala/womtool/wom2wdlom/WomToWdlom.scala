@@ -1,6 +1,5 @@
 package womtool.wom2wdlom
 
-import cats.data.Validated.Valid
 import cats.instances.either._
 import cats.instances.list._
 import cats.syntax.traverse._
@@ -26,9 +25,7 @@ import wom.graph._
 import wom.graph.expression._
 import wom.types._
 
-case object UnrepresentableException extends Exception("Value has no representation in the destination format (WDL)")
-
-object WomToWdlomImpl {
+object WomToWdlom {
 
   private def invalidFromString(text: String) =
     s"Value \'$text\' has no representation in the destination format (WDL)".invalidNelCheck
@@ -146,32 +143,28 @@ object WomToWdlomImpl {
         val outputs: Checked[List[OutputDeclarationElement]] =
           a.outputs.map(outputDefinitionToOutputDeclarationElement(_)).sequence[Checked, OutputDeclarationElement]
 
-        val commands = a.commandTemplateBuilder(Map()) match {
-          case Valid(cmd) => cmd
-          case _ => throw UnrepresentableException
-        }
-
-        val commandLine = CommandSectionLine(commands map {
-          case s: StringCommandPart =>
-            StringCommandPartElement(s.literal)
-          case p: ParameterCommandPart =>
-            val attrs = PlaceholderAttributeSet(
-              defaultAttribute = p.attributes.get("default"),
-              trueAttribute = p.attributes.get("true"),
-              falseAttribute = p.attributes.get("false"),
-              sepAttribute = p.attributes.get("sep")
-            )
-
-            PlaceholderCommandPartElement(ExpressionLiteralElement(p.expression.toWomString), attrs)
-        })
-
         for {
           runtime <- runtimeAttributesToRuntimeAttributesSectionElement(a.runtimeAttributes)
           meta <- mapToMetaSectionElement(a.meta)
           parameterMeta <- mapToParameterMetaSectionElement(a.parameterMeta)
           inputs <- inputs
           outputs <- outputs
+          commands <- a.commandTemplateBuilder(Map()).toEither
         } yield {
+          val commandLine = CommandSectionLine(commands map {
+            case s: StringCommandPart =>
+              StringCommandPartElement(s.literal)
+            case p: ParameterCommandPart =>
+              val attrs = PlaceholderAttributeSet(
+                defaultAttribute = p.attributes.get("default"),
+                trueAttribute = p.attributes.get("true"),
+                falseAttribute = p.attributes.get("false"),
+                sepAttribute = p.attributes.get("sep")
+              )
+
+              PlaceholderCommandPartElement(ExpressionLiteralElement(p.expression.toWomString), attrs)
+          })
+
           TaskDefinitionElement(
             a.name,
             if (inputs.nonEmpty) Some(InputsSectionElement(inputs)) else None,

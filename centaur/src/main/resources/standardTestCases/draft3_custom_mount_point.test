@@ -1,4 +1,4 @@
-name: custom_mount_point
+name: draft3_custom_mount_point
 testFormat: workflowsuccess
 backends: [Papi]
 

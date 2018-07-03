@@ -11,6 +11,7 @@ import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.filesystems.gcs.GcsPathBuilder
 
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 object PipelinesApiWorkflowPaths {
@@ -22,8 +23,7 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
                                      gcsCredentials: Credentials,
                                      genomicsCredentials: Credentials,
                                      papiConfiguration: PipelinesApiConfiguration,
-                                     override val pathBuilders: PathBuilders) extends WorkflowPaths {
-
+                                     override val pathBuilders: PathBuilders)(implicit ec: ExecutionContext) extends WorkflowPaths {
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(PipelinesApiWorkflowPaths.GcsRootOptionKey, papiConfiguration.root)
 

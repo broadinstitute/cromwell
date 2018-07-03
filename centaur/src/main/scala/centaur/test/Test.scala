@@ -16,7 +16,6 @@ import com.google.api.services.genomics.Genomics
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.ServiceAccountCredentials
-import com.google.cloud.compute.{Compute, ComputeOptions}
 import com.google.cloud.storage.{Storage, StorageOptions}
 import com.typesafe.config.Config
 import common.validation.Validation._
@@ -103,13 +102,6 @@ object Operations {
       .setApplicationName(configuration.applicationName)
       .setRootUrl(genomicsEndpointUrl)
       .build()
-  }
-
-  lazy val compute: Compute = {
-    val builder = ComputeOptions.newBuilder().setCredentials(credentials)
-    projectOption foreach builder.setProjectId
-    val computeOptions = builder.build()
-    computeOptions.getService
   }
 
   lazy val storage: Storage = {

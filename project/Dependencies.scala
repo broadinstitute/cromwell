@@ -26,18 +26,17 @@ object Dependencies {
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.1"
   private val fs2V = "0.10.2"
-  private val gaxV = "1.9.0"
+  private val gaxV = "1.28.0"
   private val googleApiClientV = "1.23.0"
-  private val googleCloudComputeV = "0.26.0-alpha"
-  private val googleCloudCoreV = "1.8.0"
-  private val googleCloudNioV = "0.20.1-alpha"
+  private val googleCloudCoreV = "1.34.0"
+  private val googleCloudNioV = "0.52.0-alpha"
   private val googleCredentialsV = "0.8.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev15-1.23.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleHttpClientV = googleApiClientV
   private val googleOauth2V = "0.8.0"
   private val googleOauthClientV = googleApiClientV
-  private val grpcV = "1.5.0"
+  private val grpcV = "1.12.0"
   private val guavaV = "22.0"
   private val hsqldbV = "2.3.4"
   private val jacksonV = "2.9.4"
@@ -239,7 +238,6 @@ object Dependencies {
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
-    "com.google.cloud" % "google-cloud-compute" % googleCloudComputeV,
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
       exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
@@ -382,7 +380,8 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.typelevel"  %% "squants"  % squantV
+    "org.typelevel"  %% "squants"  % squantV,
+    "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.

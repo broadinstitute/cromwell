@@ -1,8 +1,5 @@
 package cromwell.filesystems.gcs
 
-import com.google.api.gax.retrying.RetrySettings
-import com.google.cloud.NoCredentials
-import com.google.cloud.storage.contrib.nio.CloudStorageConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -18,14 +15,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
 
     val wfOptionsWithProject = WorkflowOptions.fromMap(Map("google_project" -> "my_project")).get
 
-    val gcsPathBuilderWithProjectInfo = GcsPathBuilder.fromCredentials(
-      NoCredentials.getInstance(),
-      "cromwell-test",
-      RetrySettings.newBuilder().build(),
-      CloudStorageConfiguration.DEFAULT,
-      wfOptionsWithProject,
-      Option("default_project")
-    )
+    val gcsPathBuilderWithProjectInfo = MockGcsPathBuilder.withOptions(wfOptionsWithProject)
 
     gcsPathBuilderWithProjectInfo.projectId shouldBe "my_project"
   }
@@ -314,14 +304,6 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
 
   private lazy val pathBuilder = {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
-
-    GcsPathBuilder.fromCredentials(
-      NoCredentials.getInstance(),
-      "cromwell-test",
-      RetrySettings.newBuilder().build(),
-      CloudStorageConfiguration.DEFAULT,
-      WorkflowOptions.empty,
-      Option("default_project")
-    )
+    MockGcsPathBuilder.instance
   }
 }

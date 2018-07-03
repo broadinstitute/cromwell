@@ -25,6 +25,8 @@ scripts/docker-compose-mysql/compose/mysql/data
 /common-workflow-language/
 bcs_application.conf
 cromwell-service-account.json
+cromwell-centaur-service-account.json
+cromwell-centaur-requester-pays-service-account.json
 cwl_conformance_test.inputs.json
 dockerhub_provider_config.inc.conf
 github_private_deploy_key

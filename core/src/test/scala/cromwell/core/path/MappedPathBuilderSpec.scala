@@ -40,8 +40,7 @@ class MappedPathBuilderSpec extends Suite  with FlatSpecLike with Matchers with 
       name = "world",
       getFileName = "world",
       getNameCount = 5,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "an empty prefixed path",
@@ -55,8 +54,7 @@ class MappedPathBuilderSpec extends Suite  with FlatSpecLike with Matchers with 
       name = "dir",
       getFileName = "dir",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a prefixed path starting with .",
@@ -70,8 +68,7 @@ class MappedPathBuilderSpec extends Suite  with FlatSpecLike with Matchers with 
       name = "world",
       getFileName = "world",
       getNameCount = 6,
-      isAbsolute = true,
-      isDirectory = false)
+      isAbsolute = true)
   )
 
   private def badPaths = Seq(

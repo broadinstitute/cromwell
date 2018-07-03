@@ -57,8 +57,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "with spaces",
       getFileName = s"gs://$bucket/with spaces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path with non-ascii",
@@ -72,8 +71,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "with non ascii £€",
       getFileName = s"gs://$bucket/with non ascii £€",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a gs uri path with encoded characters",
@@ -87,8 +85,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "encoded%20spaces",
       getFileName = s"gs://$bucket/encoded%20spaces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket only path",
@@ -102,8 +99,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "",
       getFileName = s"gs://$bucket/",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a bucket only path ending in a /",
@@ -117,8 +113,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a file at the top of the bucket",
@@ -132,8 +127,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "hello",
       getFileName = s"gs://$bucket/hello",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path ending in /",
@@ -147,8 +141,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 2,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     // Special paths
 
@@ -164,8 +157,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "",
       getFileName = s"gs://$bucket/.",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket with a path ..",
@@ -179,8 +171,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "",
       getFileName = s"gs://$bucket/..",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket including . in the path",
@@ -194,8 +185,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket including .. in the path",
@@ -209,8 +199,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // Normalized
 
@@ -226,8 +215,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket with a normalized path ..",
@@ -241,8 +229,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "",
       getFileName = s"gs://$bucket/",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a bucket including . in the normalized path",
@@ -256,8 +243,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 2,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket including .. in the normalized path",
@@ -271,8 +257,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"gs://$bucket/world",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket with an underscore",
@@ -286,8 +271,7 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"gs://hello_underscore/world",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = false)
+      isAbsolute = true)
   )
 
   private def badPaths = Seq(

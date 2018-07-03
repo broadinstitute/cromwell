@@ -16,8 +16,7 @@ case class GoodPath(description: String,
                     name: String,
                     getFileName: String,
                     getNameCount: Int,
-                    isAbsolute: Boolean,
-                    isDirectory: Boolean)
+                    isAbsolute: Boolean)
 
 case class BadPath(description: String, path: String, exceptionMessage: String)
 
@@ -93,11 +92,6 @@ trait PathBuilderSpecUtils {
     it should "match expected isAbsolute" taggedAs tag in
       withClue(s"for path ${goodPath.path}${if (goodPath.normalize) " (normalized)" else ""}:") {
         path.isAbsolute should be(goodPath.isAbsolute)
-      }
-
-    it should "match expected isDirectory" taggedAs tag in
-      withClue(s"for path ${goodPath.path}${if (goodPath.normalize) " (normalized)" else ""}:") {
-        path.isDirectory should be(goodPath.isDirectory)
       }
   }
 

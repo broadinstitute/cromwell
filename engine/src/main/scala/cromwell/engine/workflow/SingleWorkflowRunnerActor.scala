@@ -7,6 +7,7 @@ import akka.actor._
 import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
+import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.core.abort.WorkflowAbortFailureResponse
@@ -50,6 +51,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props, "JobStoreActor")
   override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props, "SubWorkflowStoreActor")
 
+  log.info("{}: Version {}", Tag, VersionUtil.getVersion("cromwell-engine"))
   startWith(NotStarted, EmptySwraData)
 
   when (NotStarted) {

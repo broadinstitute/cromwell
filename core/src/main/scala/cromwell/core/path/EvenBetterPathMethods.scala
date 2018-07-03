@@ -4,7 +4,10 @@ import java.io.InputStream
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
+import better.files.File.OpenOptions
+
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext
 import scala.io.Codec
 
 /**
@@ -85,9 +88,14 @@ trait EvenBetterPathMethods {
 
   final def tailed(tailedSize: Int) = TailedWriter(this, tailedSize)
 
-  def mediaInputStream: InputStream = newInputStream
+  def mediaInputStream(implicit ec: ExecutionContext): InputStream = {
+    // See https://github.com/scala/bug/issues/10347 and https://github.com/scala/bug/issues/10790
+    locally(ec)
+    newInputStream
+  }
 
-  def readContentAsString(implicit codec: Codec): String = contentAsString
-
-  def readAllLinesInFile(implicit codec: Codec): Traversable[String] = lines
+  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext): this.type = {
+    locally(ec)
+    write(content)(openOptions, Codec.UTF8)
+  }
 }

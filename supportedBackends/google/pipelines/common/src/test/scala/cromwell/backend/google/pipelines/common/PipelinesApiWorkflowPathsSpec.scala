@@ -12,6 +12,7 @@ import spray.json.{JsObject, JsString}
 class PipelinesApiWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
   import BackendSpec._
   import PipelinesApiTestConfig._
+  import cromwell.filesystems.gcs.MockGcsPathBuilder._
 
   behavior of "JesWorkflowPaths"
 

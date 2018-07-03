@@ -55,6 +55,14 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
 
   }
 
+  it should "parse localization-attempts" taggedAs IntegrationTest in {
+    val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
+
+    val jesAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    jesAttributes.localizationConfiguration.localizationAttempts.value should be(31380)
+
+  }
+
   it should "not parse invalid config" taggedAs IntegrationTest in {
     val nakedConfig =
       ConfigFactory.parseString(

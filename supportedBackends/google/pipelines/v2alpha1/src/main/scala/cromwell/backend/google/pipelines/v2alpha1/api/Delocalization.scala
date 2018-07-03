@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
+import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
@@ -24,21 +25,21 @@ trait Delocalization {
 
   private def aggregatedLog = s"$logsRoot/output"
 
-  private def delocalizeLogsAction(gcsLogPath: Path) = {
+  private def delocalizeLogsAction(gcsLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     cloudSdkShellAction(
     delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun))
   }
 
   // Used for the final copy of the logs to make sure we have the most up to date version before terminating the job
-  private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path): Action = {
+  private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     cloudSdkShellAction(
       delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun))
   }
 
   // Periodically copies the logs out to GCS
-  private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path): Action = {
+  private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     cloudSdkShellAction(
       every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType) }
     )(flags = List(ActionFlag.RunInBackground))
@@ -86,7 +87,7 @@ trait Delocalization {
   }
 
   def deLocalizeActions(createPipelineParameters: CreatePipelineParameters,
-                        mounts: List[Mount]): List[Action] = {
+                        mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration): List[Action] = {
     val cloudCallRoot = createPipelineParameters.cloudCallRoot
     val callExecutionContainerRoot = createPipelineParameters.commandScriptContainerPath.parent
 

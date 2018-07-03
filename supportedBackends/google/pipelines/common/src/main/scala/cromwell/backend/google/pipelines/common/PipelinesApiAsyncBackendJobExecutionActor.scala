@@ -27,6 +27,7 @@ import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.filesystems.demo.dos.DemoDosPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.google.pipelines.common.PreviousRetryReasons
@@ -106,7 +107,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
-  
+
   override lazy val runtimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, PipelinesApiWorkingDisk.MountPoint, PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
   }
@@ -200,7 +201,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         }
     }
   }
-  
+
   protected def localizationPath(f: CommandSetupSideEffectFile) = {
     val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
     f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
@@ -626,12 +627,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       (getPath(value), asAdHocFile(womFile)) match {
-        case (Success(gcsPath: GcsPath), Some(adHocFile)) => 
+        case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
           // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
           // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
-        case (Success(gcsPath: GcsPath), _) => 
+        case (Success(gcsPath: GcsPath), _) =>
           workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case (Success(demoDosPath: DemoDosPath), _) =>
+          workingDisk.mountPoint.resolve(demoDosPath.pathWithoutScheme).pathAsString
         case _ => value
       }
     )
@@ -641,11 +644,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case Success(demoDosPath: DemoDosPath) =>
+          workingDisk.mountPoint.resolve(demoDosPath.pathWithoutScheme).pathAsString
         case _ => value
       }
     )
   }
-  
+
   // No need for Cromwell-performed localization in the PAPI backend, ad hoc values are localized directly from GCS to the VM by PAPI.
   override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = _.map(Coproduct[StandardAdHocValue](_)).validNel
 }

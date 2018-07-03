@@ -91,8 +91,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "with spaces",
     //   getFileName = s"s3://$bucket/with spaces",
     //   getNameCount = 3,
-    //   isAbsolute = true,
-    //   isDirectory = false),
+    //   isAbsolute = true),
     GoodPath(
       description = "a path with spaces",
       path = s"s3://$bucket/hello/world/with spaces",
@@ -105,8 +104,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "with spaces",
       getFileName = s"s3://$bucket/with spaces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // GoodPath(
     //   description = "a path with non-ascii",
@@ -120,8 +118,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "with non ascii £€",
     //   getFileName = s"s3://$bucket/with non ascii £€",
     //   getNameCount = 3,
-    //   isAbsolute = true,
-    //   isDirectory = false),
+    //   isAbsolute = true),
     GoodPath(
       description = "a path with non-ascii",
       path = s"s3://$bucket/hello/world/with non ascii £€",
@@ -134,8 +131,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "with non ascii £€",
       getFileName = s"s3://$bucket/with non ascii £€",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // GoodPath(
     //   description = "a s3 uri path with encoded characters",
@@ -149,8 +145,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "encoded                    paces",
     //   getFileName = s"s3://$bucket/encoded                    paces",
     //   getNameCount = 3,
-    //   isAbsolute = true,
-    //   isDirectory = false),
+    //   isAbsolute = true),
 
     GoodPath(
       description = "a s3 uri path with encoded characters",
@@ -164,8 +159,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "encoded                    paces",
       getFileName = s"s3://$bucket/encoded                    paces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // TODO: In order for this to pass tests, S3Path needs to implement the
     //       Path trait directly and cannot inherit. We will work on this later
@@ -181,8 +175,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "",
     //   getFileName = s"s3://$bucket/",
     //   getNameCount = 1,
-    //   isAbsolute = false,
-    //   isDirectory = true),
+    //   isAbsolute = false),
 
     GoodPath(
       description = "a bucket only path ending in a /",
@@ -196,8 +189,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a file at the top of the bucket",
@@ -211,8 +203,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "hello",
       getFileName = s"s3://$bucket/hello",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // parent/getParent do not end in a "/".
     // TODO: Determine if this is critcal. Note
@@ -229,8 +220,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "world",
     //   getFileName = s"s3://$bucket/world",
     //   getNameCount = 2,
-    //   isAbsolute = true,
-    //   isDirectory = true),
+    //   isAbsolute = true),
     GoodPath(
       description = "a path ending in /",
       path = s"s3://$bucket/hello/world/",
@@ -243,8 +233,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "world",
       getFileName = s"s3://$bucket/world",
       getNameCount = 2,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // Special paths
 
@@ -260,8 +249,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "",
       getFileName = s"s3://$bucket/.",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     // GoodPath(
     //   description = "a bucket with a path ..",
@@ -275,8 +263,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "",
     //   getFileName = s"s3://$bucket/..",
     //   getNameCount = 1,
-    //   isAbsolute = true,
-    //   isDirectory = true),
+    //   isAbsolute = true),
 
     // GoodPath(
     //   description = "a bucket including . in the path",
@@ -290,8 +277,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "world",
     //   getFileName = s"s3://$bucket/world",
     //   getNameCount = 3,
-    //   isAbsolute = true,
-    //   isDirectory = false),
+    //   isAbsolute = true),
     //
     // GoodPath(
     //   description = "a bucket including .. in the path",
@@ -305,8 +291,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "world",
     //   getFileName = s"s3://$bucket/world",
     //   getNameCount = 3,
-    //   isAbsolute = true,
-    //   isDirectory = false),
+    //   isAbsolute = true),
 
     // Normalized
 
@@ -322,8 +307,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "",
     //   getFileName = null,
     //   getNameCount = 0,
-    //   isAbsolute = true,
-    //   isDirectory = true),
+    //   isAbsolute = true),
     //
     // GoodPath(
     //   description = "a bucket with a normalized path ..",
@@ -337,8 +321,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "",
     //   getFileName = s"s3://$bucket/",
     //   getNameCount = 1,
-    //   isAbsolute = false,
-    //   isDirectory = true),
+    //   isAbsolute = false),
     //
     // GoodPath(
     //   description = "a bucket including . in the normalized path",
@@ -352,8 +335,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     //   name = "world",
     //   getFileName = s"s3://$bucket/world",
     //   getNameCount = 2,
-    //   isAbsolute = true,
-    //   isDirectory = false),
+    //   isAbsolute = true),
 
     GoodPath(
       description = "a bucket including .. in the normalized path",
@@ -367,8 +349,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "world",
       getFileName = s"s3://$bucket/world",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a bucket with an underscore",
@@ -382,8 +363,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       name = "world",
       getFileName = s"s3://hello_underscore/world",
       getNameCount = 1,
-      isAbsolute = true,
-      isDirectory = false)
+      isAbsolute = true)
   )
 
   private def badPaths = Seq(

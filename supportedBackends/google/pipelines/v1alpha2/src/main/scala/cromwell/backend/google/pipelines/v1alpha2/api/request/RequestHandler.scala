@@ -1,5 +1,7 @@
 package cromwell.backend.google.pipelines.v1alpha2.api.request
 
+import java.net.URL
+
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -12,13 +14,14 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 
-class RequestHandler(applicationName: String) extends PipelinesApiRequestHandler 
+class RequestHandler(applicationName: String, endpointUrl: URL) extends PipelinesApiRequestHandler 
   with RunRequestHandler
   with GetRequestHandler 
   with AbortRequestHandler {
 
   override def makeBatchRequest = new Genomics.Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, (_: HttpRequest) => ())
     .setApplicationName(applicationName)
+    .setRootUrl(endpointUrl.toString)
     .build().batch()
 
   override def enqueue[T <: PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)

@@ -23,15 +23,15 @@ class WriteMetadataActor(override val batchSize: Int,
     with MetadataServicesStore {
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
-    val empty = (Vector.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
+    val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
 
     val (putWithoutResponse, putWithResponse) = e.foldLeft(empty)({
       case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
         (putEvents ++ action.events, putAndRespondEvents)
       case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
-        (putEvents, putAndRespondEvents + (action.events -> action.replyTo))
+        (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
     })
-    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.keys.flatten
+    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
     val dbAction = addMetadataEvents(allPutEvents)
 
     dbAction onComplete {

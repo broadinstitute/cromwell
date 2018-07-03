@@ -2,11 +2,12 @@ package cromwell.backend.google.pipelines.v2alpha1
 
 import cats.data.NonEmptyList
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag
+import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, ActionFlag}
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -26,7 +27,25 @@ trait PipelinesParameterConversions {
         Key.Tag -> Value.Localization,
         Key.InputName -> fileInput.name
       )
-      cloudSdkShellAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
+
+      if (fileInput.cloudPath.pathAsString.startsWith("dos://")) {
+        import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
+        val config = ConfigFactory.load
+        val demoDosDockerImage = config.getString("demo.dos.docker-image")
+        val demoDosCommandTemplate = config.getString("demo.dos.command-template")
+        val demoDosCommand = demoDosCommandTemplate
+          .replace(s"$${cloudPath}", fileInput.cloudPath.escape)
+          .replace(s"$${containerPath}", fileInput.containerPath.escape)
+        ActionBuilder
+          .withImage(demoDosDockerImage)
+          .withCommand("/bin/sh", "-c", demoDosCommand)
+          .withMounts(mounts)
+          .withLabels(labels)
+          .setEntrypoint("")
+      } else {
+        cloudSdkShellAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
+      }
+
     }
   }
 

@@ -47,8 +47,10 @@ object ScatterElementToGraphNode {
     val scatterVariableName = a.node.scatterVariableName
     val graphElements = a.node.graphElements
 
-    val scatterWomExpression: WdlomWomExpression = WdlomWomExpression(scatterExpression, a.linkableValues)
-    val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName), scatterWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    val scatterWomExpressionV: ErrorOr[WdlomWomExpression] = WdlomWomExpression.make(scatterExpression, a.linkableValues)
+    val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = scatterWomExpressionV flatMap { scatterWomExpression =>
+      AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName), scatterWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    }
 
     val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
       case a: WomArrayType => a.memberType.validNel

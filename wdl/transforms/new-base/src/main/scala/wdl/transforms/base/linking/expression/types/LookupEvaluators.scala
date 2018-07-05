@@ -86,7 +86,7 @@ object LookupEvaluators {
       case WomPairType(left, _) if key == "left" => left.validNel
       case WomPairType(_, right) if key == "right" => right.validNel
       case WomAnyType => WomAnyType.validNel
-      case _ => s"No such field '$key' on type ${womType.toDisplayString}. Report this bug! Static validation failed.".invalidNel
+      case _ => s"No such field '$key' on type ${womType.toDisplayString}".invalidNel
     }
 
     tail match {

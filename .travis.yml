@@ -34,7 +34,7 @@ env:
     - BUILD_TYPE=conformancePapiV2
     - BUILD_TYPE=sbt
 script:
-  - src/bin/ci/test.sh
+  - src/ci/bin/test.sh
 notifications:
   slack:
     rooms:

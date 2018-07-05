@@ -12,7 +12,7 @@ cromwell::build::setup_centaur_environment
 cromwell::build::assemble_jars
 
 FUNNEL_PATH="${CROMWELL_BUILD_ROOT_DIRECTORY}/funnel"
-FUNNEL_CONF="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/funnel.conf"
+FUNNEL_CONF="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/funnel.conf"
 
 # Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
 ulimit -n "$(ulimit -n -H)"
@@ -47,7 +47,7 @@ FUNNEL_PID=$!
 
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/tes_application.conf" \
+    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/tes_application.conf" \
     -g \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \

@@ -26,7 +26,7 @@ database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
     driver = "com.mysql.jdbc.Driver"
-    url = "jdbc:mysql://localhost/DatabaseName?useSSL=false"
+    url = "jdbc:mysql://localhost/DatabaseName?rewriteBatchedStatements=true&useSSL=false"
     user = "ChooseAName"
     password = "YourOtherPassword"
     connectionTimeout = 5000

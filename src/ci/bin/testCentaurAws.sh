@@ -17,7 +17,7 @@ cromwell::build::assemble_jars
 
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/aws_application.conf" \
+    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/aws_application.conf" \
     -g \
     -e localdockertest
 

@@ -31,7 +31,7 @@ cd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}"
 # CWL conformance uses alpine images that do not have bash.
 java \
     -Xmx2g \
-    -Dconfig.file="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_application.conf" \
+    -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf" \
     -Dcall-caching.enabled=false \
     -Dsystem.job-shell=/bin/sh \
     -jar "${CROMWELL_BUILD_JAR}" \
@@ -47,7 +47,7 @@ cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
     "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
-        "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_conformance_expected_failures.txt"
+        "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_conformance_expected_failures.txt"
 }
 JSON
 

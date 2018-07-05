@@ -15,6 +15,6 @@ cromwell::build::assemble_jars
 # them through the draft-2 to 1.0 upgrade script in Womtool, and runs them against local backend.
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/local_application.conf" \
+    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf" \
     -g \
     -s "centaur.UpgradeTestCaseSpec"

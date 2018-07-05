@@ -7,6 +7,12 @@
 Access of Google Cloud Storage buckets with Requester Pays enabled is now supported.
 Please read the [relevant documentation](http://cromwell.readthedocs.io/en/develop/filesystems/GoogleCloudStorage#requester-pays) for information on how to enable it and the consequences.
 
+### Updated MySQL client with 8.0 support
+
+Updated the MySQL connector client from `5.1.42` to `5.1.46` which adds support for connecting to MySQL 8.0. See the
+documentation on [Changes in MySQL Connector/J](https://dev.mysql.com/doc/relnotes/connector-j/5.1/en/news-5-1.html) for
+more information.
+
 ## 33 Release Notes
 
 ### Query endpoint

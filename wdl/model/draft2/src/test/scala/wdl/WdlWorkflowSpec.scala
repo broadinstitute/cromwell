@@ -381,7 +381,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
       WorkflowOutputTestCase(
         "inline declaration with complex type",
         "Map[Int, String] o12 = {1: \"1\"}",
-        Seq(WorkflowOutputExpectation("o12", WomMapType(WomIntegerType, WomStringType), "{1:\"1\"}")),
+        Seq(WorkflowOutputExpectation("o12", WomMapType(WomIntegerType, WomStringType), "{1: \"1\"}")),
         Map("o12" -> WomMap(WomMapType(WomIntegerType,WomStringType), Map(WomInteger(1) -> WomString("1"))))
       ),
       WorkflowOutputTestCase(

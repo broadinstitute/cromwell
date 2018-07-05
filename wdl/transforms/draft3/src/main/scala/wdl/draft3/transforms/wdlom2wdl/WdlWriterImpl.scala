@@ -6,6 +6,8 @@ import wdl.model.draft3.elements._
 import wom.callable.MetaValueElement
 import wom.callable.MetaValueElement._
 import wom.types._
+import WdlWriter._
+import common.collections.EnhancedCollections.EnhancedTraversableLike
 
 object WdlWriterImpl {
 
@@ -53,6 +55,7 @@ object WdlWriterImpl {
       case a: IdentifierMemberAccess => a.toWdlV1
       case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
       case a: IndexAccess => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+      case a: ExpressionLiteralElement => a.expression
     }
   }
 
@@ -117,7 +120,7 @@ object WdlWriterImpl {
     override def toWdlV1(a: CallBodyElement): String = {
       if (a.inputs.nonEmpty) {
         s"""input:
-           |${indent(indent(a.inputs.map(_.toWdlV1).mkString(", ")))}""".stripMargin
+           |${indent(indent(a.inputs.map(_.toWdlV1).mkString(",\n")))}""".stripMargin
       } else {
         ""
       }
@@ -176,9 +179,32 @@ object WdlWriterImpl {
         case None => ""
       }
 
+      // Readability / cosmetic reordering
+      // TODO: use graph ordering
+      // https://github.com/broadinstitute/cromwell/issues/3796
+      val inputDeclarationElements: List[InputDeclarationElement] =
+        a.graphElements.toList.filterByType[InputDeclarationElement]
+      val intermediateValueDeclarationElements: List[IntermediateValueDeclarationElement] =
+        a.graphElements.toList.filterByType[IntermediateValueDeclarationElement]
+      val ifElements: List[IfElement] =
+        a.graphElements.toList.filterByType[IfElement]
+      val scatterElements: List[ScatterElement] =
+        a.graphElements.toList.filterByType[ScatterElement]
+      val callElements: List[CallElement] =
+        a.graphElements.toList.filterByType[CallElement]
+      val outputDeclarationElements: List[OutputDeclarationElement] =
+        a.graphElements.toList.filterByType[OutputDeclarationElement]
+
+      val combined: List[WorkflowGraphElement] = inputDeclarationElements ++
+        intermediateValueDeclarationElements ++
+        ifElements ++
+        scatterElements ++
+        callElements ++
+        outputDeclarationElements
+
       s"""workflow ${a.name} {
          |${indent(inputs)}
-         |${indentAndCombine(a.graphElements.map(_.toWdlV1))}
+         |${indentAndCombine(combined.map(_.toWdlV1))}
          |${indent(outputs)}
          |}""".stripMargin
     }
@@ -269,8 +295,8 @@ object WdlWriterImpl {
 
   implicit val commandSectionElementWriter: WdlWriter[CommandSectionElement] = new WdlWriter[CommandSectionElement] {
     override def toWdlV1(a: CommandSectionElement): String = {
-      s"""command <<<
-         |${combine(a.parts.map(_.toWdlV1))}>>>""".stripMargin
+      s"""  command <<<
+         |${combine(a.parts.map(_.toWdlV1))}  >>>""".stripMargin
     }
   }
 
@@ -417,9 +443,14 @@ object WdlWriterImpl {
     override def toWdlV1(a: StructEntryElement): String = s"${a.typeElement.toWdlV1} ${a.identifier}"
   }
 
+  implicit val importElementWriter: WdlWriter[ImportElement] = new WdlWriter[ImportElement] {
+    override def toWdlV1(a: ImportElement): String = "import \"" + a.importUrl + "\""
+  }
+
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
     override def toWdlV1(a: FileElement) = {
       "version 1.0" +
+      combine(a.imports.map(_.toWdlV1)) +
       combine(a.structs.map(_.toWdlV1)) +
       combine(a.tasks.map(_.toWdlV1)) +
       combine(a.workflows.map(_.toWdlV1))

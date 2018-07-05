@@ -128,7 +128,7 @@ class DeclarationSpec extends FlatSpec with Matchers {
     cBar.parent shouldEqual Option(c)
     cBar.fullyQualifiedName shouldEqual "w.c.bar"
     cBar.womType should be(WomNonEmptyArrayType(WomIntegerType))
-    cBar.toWdlString shouldEqual "Array[Int]+ bar = [1,2,3]"
+    cBar.toWdlString shouldEqual "Array[Int]+ bar = [1, 2, 3]"
   }
 
   "A workflow" should "Be able to evaluate static declarations" in {

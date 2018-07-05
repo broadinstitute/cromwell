@@ -6,6 +6,8 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
+import cromwell.core.path
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest._
 
 import scala.concurrent.Future
@@ -40,6 +42,23 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     val isIgnored = testCase.isIgnored(cromwellBackends)
 
     runOrDont(nameTest, tags, isIgnored, runTest())
+  }
+
+  def executeUpgradeTest(testCase: CentaurTestCase): Unit =
+    executeStandardTest(upgradeTestWdl(testCase))
+
+  private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
+    import womtool.WomtoolMain
+
+    // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
+    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
+    val upgradeResult = WomtoolMain.upgrade(tempFile.pathAsString)
+
+    testCase.copy(
+      workflow = testCase.workflow.copy(
+        testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
+        data = testCase.workflow.data.copy(
+          workflowContent = upgradeResult.stdout.get)))
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {

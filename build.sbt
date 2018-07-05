@@ -113,6 +113,10 @@ lazy val centaur = project
   .withLibrarySettings("centaur", centaurDependencies, integrationTests = true)
   .dependsOn(cloudSupport)
   .dependsOn(cromwellApiClient)
+  .dependsOn(wdlModelDraft2)
+  .dependsOn(wdlTransformsDraft2)
+  .dependsOn(wdlTransformsDraft3)
+  .dependsOn(womtool)
 
 lazy val services = project
   .withLibrarySettings("cromwell-services")

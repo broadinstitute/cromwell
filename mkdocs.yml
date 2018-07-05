@@ -3,7 +3,7 @@ site_url: http://www.software.broadinstitute.org/WDL
 site_description: Cromwell documentation
 site_author: Red Team at Broad Institute
 
-repo_url: https://github.com/broadinstitute/cromwell/tree/develop/docs
+repo_url: https://github.com/broadinstitute/cromwell/
 
 pages:
 - Introduction: index.md

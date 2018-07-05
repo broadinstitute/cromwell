@@ -52,7 +52,7 @@ object Dependencies {
   private val metricsScalaV = "3.5.6"
   private val mockserverNettyV = "3.10.2"
   private val mouseV = "0.10-MF"
-  private val mysqlV = "5.1.42"
+  private val mysqlV = "5.1.46"
   private val nettyHandlerV = "4.1.22.Final"
   private val owlApiV = "5.1.4"
   private val paradiseV = "2.1.0"

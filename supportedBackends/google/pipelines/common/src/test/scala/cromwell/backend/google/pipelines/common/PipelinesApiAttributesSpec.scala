@@ -17,49 +17,49 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
   val googleConfig = GoogleConfiguration(JesGlobalConfig)
   val runtimeConfig = ConfigFactory.load()
 
-  it should "parse correct JES config" taggedAs IntegrationTest in {
+  it should "parse correct PAPI config" taggedAs IntegrationTest in {
 
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val jesAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
-    jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
-    jesAttributes.project should be("myProject")
-    jesAttributes.executionBucket should be("gs://myBucket")
-    jesAttributes.maxPollingInterval should be(600)
-    jesAttributes.computeServiceAccount should be("default")
-    jesAttributes.restrictMetadataAccess should be(false)
+    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.endpointUrl should be(new URL("http://myEndpoint"))
+    pipelinesApiAttributes.project should be("myProject")
+    pipelinesApiAttributes.executionBucket should be("gs://myBucket")
+    pipelinesApiAttributes.maxPollingInterval should be(600)
+    pipelinesApiAttributes.computeServiceAccount should be("default")
+    pipelinesApiAttributes.restrictMetadataAccess should be(false)
   }
 
   it should "parse correct preemptible config" taggedAs IntegrationTest in {
     val backendConfig = ConfigFactory.parseString(configString(preemptible = "preemptible = 3"))
 
-    val jesAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
-    jesAttributes.endpointUrl should be(new URL("http://myEndpoint"))
-    jesAttributes.project should be("myProject")
-    jesAttributes.executionBucket should be("gs://myBucket")
-    jesAttributes.maxPollingInterval should be(600)
+    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.endpointUrl should be(new URL("http://myEndpoint"))
+    pipelinesApiAttributes.project should be("myProject")
+    pipelinesApiAttributes.executionBucket should be("gs://myBucket")
+    pipelinesApiAttributes.maxPollingInterval should be(600)
   }
 
   it should "parse compute service account" taggedAs IntegrationTest in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
 
-    val jesAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
-    jesAttributes.computeServiceAccount should be("testing")
+    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.computeServiceAccount should be("testing")
   }
 
   it should "parse restrict-metadata-access" taggedAs IntegrationTest in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = "restrict-metadata-access = true"))
 
-    val jesAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
-    jesAttributes.restrictMetadataAccess should be(true)
+    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.restrictMetadataAccess should be(true)
 
   }
 
   it should "parse localization-attempts" taggedAs IntegrationTest in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
 
-    val jesAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
-    jesAttributes.localizationConfiguration.localizationAttempts.value should be(31380)
+    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.localizationConfiguration.localizationAttempts.value should be(31380)
 
   }
 

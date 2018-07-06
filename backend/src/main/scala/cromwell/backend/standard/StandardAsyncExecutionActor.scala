@@ -351,7 +351,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |(
         |# add a .file in every empty directory to facilitate directory delocalization on the cloud
         |cd $cwd
-        |find . -type d -empty -print0 | xargs --null -I % touch %/.file
+        |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
         |)
         |(
         |cd $cwd

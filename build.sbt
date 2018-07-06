@@ -224,6 +224,10 @@ lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a can
   .dependsOn(common)
   .dependsOn(cromwellApiClient)
 
+lazy val wes2cromwell = (project in file("wes2cromwell"))
+    .withExecutableSettings("wes2cromwell", wes2cromwellDependencies)
+    .dependsOn(common)
+
 lazy val languageFactoryRoot = Path("languageFactories")
 
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
@@ -304,5 +308,6 @@ lazy val root = (project in file("."))
   .aggregate(wdlSharedTransforms)
   .aggregate(wdlTransformsDraft2)
   .aggregate(wdlTransformsDraft3)
+  .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)

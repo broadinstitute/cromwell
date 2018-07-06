@@ -136,6 +136,11 @@ backend {
           endpoint-url = "https://genomics.googleapis.com/"
           // This allows you to use an alternative service account to launch jobs, by default uses default service account
           compute-service-account = "default"
+
+          // Pipelines v2 only: specify the number of times localization and delocalization operations should be attempted
+          // There is no logic to determine if the error was transient or not, everything is retried upon failure
+          // Defaults to 3
+          localization-attempts = 3
         }
 
         filesystems {

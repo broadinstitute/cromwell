@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
+import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
@@ -7,10 +8,12 @@ import cromwell.filesystems.demo.dos.DemoDosPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
+import eu.timepit.refined.refineMV
 
 class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
+  implicit val localizationConfiguration = LocalizationConfiguration(refineMV(1))
 
   it should "create a Demo DOS input parameter" in {
     val demoDosPathBuilder = new DemoDosPathBuilder

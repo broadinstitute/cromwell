@@ -9,12 +9,13 @@ import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import eu.timepit.refined.refineV
+import eu.timepit.refined.{refineMV, refineV}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
@@ -32,12 +33,21 @@ case class PipelinesApiAttributes(project: String,
                                   qps: Int Refined Positive,
                                   duplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                   requestWorkers: Int Refined Positive,
-                                  logFlushPeriod: Option[FiniteDuration])
+                                  logFlushPeriod: Option[FiniteDuration],
+                                  localizationConfiguration: LocalizationConfiguration)
 
 object PipelinesApiAttributes {
+
+  /**
+    * @param localizationAttempts Also used for de-localization. This is the number of attempts, not retries,
+    *                             hence it is positive.
+    */
+  case class LocalizationConfiguration(localizationAttempts: Int Refined Positive)
+
   lazy val Logger = LoggerFactory.getLogger("JesAttributes")
 
   val GenomicsApiDefaultQps = 1000
+  val DefaultLocalizationAttempts = refineMV[Positive](3)
 
   private val jesKeys = Set(
     "project",
@@ -49,6 +59,7 @@ object PipelinesApiAttributes {
     "genomics.restrict-metadata-access",
     "genomics.endpoint-url",
     "genomics-api-queries-per-100-seconds",
+    "genomics.localization-attempts",
     "dockerhub",
     "dockerhub.account",
     "dockerhub.token",
@@ -106,11 +117,17 @@ object PipelinesApiAttributes {
     val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite() => Option(duration)
-        // "Inf" disables upload
+      // "Inf" disables upload
       case Some(_) => None
-        // Defaults to 1 minute
+      // Defaults to 1 minute
       case None => Option(1.minute)
     }
+
+    val localizationConfiguration: ErrorOr[LocalizationConfiguration] =
+      backendConfig.as[Option[Int]]("genomics.localization-attempts")
+        .map(attempts => validatePositiveInt(attempts, "genomics.localization-attempts"))
+        .map(_.map(LocalizationConfiguration.apply))
+        .getOrElse(LocalizationConfiguration(DefaultLocalizationAttempts).validNel)
 
 
     def authGoogleConfigForJesAttributes(project: String,
@@ -121,11 +138,13 @@ object PipelinesApiAttributes {
                                          gcsName: String,
                                          qps: Int Refined Positive,
                                          cachingStrategy: PipelinesCacheHitDuplicationStrategy,
-                                         requestWorkers: Int Refined Positive): ErrorOr[PipelinesApiAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
-      (genomicsAuth, gcsAuth) => PipelinesApiAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers, logFlushPeriod)
+                                         requestWorkers: Int Refined Positive,
+                                         localizationConfiguration: LocalizationConfiguration): ErrorOr[PipelinesApiAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
+      (genomicsAuth, gcsAuth) => PipelinesApiAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers, logFlushPeriod, localizationConfiguration)
     }
 
-    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName, qpsValidation, duplicationStrategy, requestWorkers) flatMapN authGoogleConfigForJesAttributes match {
+    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName,
+      qpsValidation, duplicationStrategy, requestWorkers, localizationConfiguration) flatMapN authGoogleConfigForJesAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
@@ -146,7 +165,7 @@ object PipelinesApiAttributes {
       case Right(refined) => refined.validNel
     }
   }
-  
+
   def validatePositiveInt(n: Int, configPath: String) = {
     refineV[Positive](n) match {
       case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel

@@ -11,20 +11,10 @@ cromwell::build::setup_conformance_environment
 
 cromwell::build::assemble_jars
 
-cromwell::build::setup_secure_resources
-
-CENTAUR_CWL_RUNNER_MODE="papi"
-GOOGLE_AUTH_MODE="service-account"
-GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cromwell-centaur-service-account.json"
-GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cromwell-centaur-requester-pays-service-account.json"
-PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance/cwl-inputs/
+CENTAUR_CWL_RUNNER_MODE="local"
 
 # Export variables used in conf files and commands
 export CENTAUR_CWL_RUNNER_MODE
-export GOOGLE_AUTH_MODE
-export GOOGLE_SERVICE_ACCOUNT_JSON
-export GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS
-export PAPI_INPUT_GCS_PREFIX
 
 shutdown_cromwell() {
     if [ -n "${CROMWELL_PID+set}" ]; then
@@ -41,7 +31,7 @@ cd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}"
 # CWL conformance uses alpine images that do not have bash.
 java \
     -Xmx2g \
-    -Dconfig.file="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_v2_application.conf" \
+    -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf" \
     -Dcall-caching.enabled=false \
     -Dsystem.job-shell=/bin/sh \
     -jar "${CROMWELL_BUILD_JAR}" \
@@ -57,7 +47,7 @@ cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
     "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
-        "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_conformance_expected_failures.txt"
+        "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_conformance_expected_failures.txt"
 }
 JSON
 

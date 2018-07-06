@@ -15,11 +15,11 @@ cromwell::build::assemble_jars
 cromwell::build::setup_secure_resources
 
 GOOGLE_AUTH_MODE="service-account"
-GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_refresh_token.txt"
+GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_refresh_token.txt"
 # This service account does not have billing permission, and therefore cannot be used for requester pays
-GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cromwell-centaur-service-account.json"
+GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
 # This service account does have billing permission and can be used for requester pays
-GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cromwell-centaur-requester-pays-service-account.json"
+GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-requester-pays-service-account.json"
 
 # Export variables used in conf files
 export GOOGLE_AUTH_MODE
@@ -42,7 +42,7 @@ fi
 
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/papi_v2_application.conf" \
+    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_application.conf" \
     -p 100 \
     -g \
     -e localdockertest \

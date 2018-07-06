@@ -11,14 +11,10 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-# The following tests are skipped:
-#
-# TODO: Find tests to skip
-
+# UpgradeTestCaseSpec takes a selection of ordinary draft-2 test cases (tagged as "upgrade"), runs
+# them through the draft-2 to 1.0 upgrade script in Womtool, and runs them against local backend.
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_SCRIPTS_RESOURCES}/aws_application.conf" \
+    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf" \
     -g \
-    -e localdockertest
-
-cromwell::build::generate_code_coverage
+    -s "centaur.UpgradeTestCaseSpec"

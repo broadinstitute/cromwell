@@ -16,10 +16,10 @@
 #     Variables for use in other scripts.
 #
 #   - crmdbg
-#     Quick debug scripts. Example: `crmdbg=y src/bin/ci/testCentaulLocal.sh`
+#     Quick debug scripts. Example: `crmdbg=y src/ci/bin/testCentaulLocal.sh`
 #
 #   - crmcrn
-#     Simulate a cron build. Example: `crmcrn=y src/bin/ci/testCentaurPapiV2.sh`
+#     Simulate a cron build. Example: `crmcrn=y src/ci/bin/testCentaurPapiV2.sh`
 #
 cromwell::private::check_debug() {
     # shellcheck disable=SC2154
@@ -35,37 +35,16 @@ cromwell::private::check_debug() {
 
 # Exports environment variables used for scripts.
 cromwell::private::create_build_variables() {
-    if [ "${TRAVIS}" = "true" ]; then
-        CROMWELL_BUILD_IS_CI=true
-    else
-        CROMWELL_BUILD_IS_CI=false
-    fi
-
-    if [ -n "${CROMWELL_BUILD_IS_CRON}" ]; then
-        # ignore
-        :
-    elif [ "${TRAVIS_EVENT_TYPE}" = "cron" ]; then
-        CROMWELL_BUILD_IS_CRON=true
-    else
-        CROMWELL_BUILD_IS_CRON=false
-    fi
-
-    if [ "${TRAVIS_SECURE_ENV_VARS}" = "true" ]; then
-        CROMWELL_BUILD_IS_SECURE=true
-    else
-        CROMWELL_BUILD_IS_SECURE=false
-    fi
-
-    CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-    CROMWELL_BUILD_BRANCH="${TRAVIS_BRANCH}"
-    CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
-    CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
-    CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
+    CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
+    CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
+    CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [ "${TRAVIS}" = "true" ]; then
-        CROMWELL_BUILD_PROVIDER="travis"
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
+    elif [ "${JENKINS}" = "true" ]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     else
-        CROMWELL_BUILD_PROVIDER="unknown"
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
 
     # simplified from https://stackoverflow.com/a/18434831/3320205
@@ -80,40 +59,111 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_HOME_DIRECTORY="${HOME}"
     CROMWELL_BUILD_ROOT_DIRECTORY="$(pwd)"
 
-    CROMWELL_BUILD_SCRIPTS_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/bin/ci"
-    CROMWELL_BUILD_SCRIPTS_RESOURCES="${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/resources"
+    CROMWELL_BUILD_SCRIPTS_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/bin"
+    CROMWELL_BUILD_RESOURCES_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/resources"
 
-    CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.org"
-    CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
-
-    CROMWELL_BUILD_MYSQL_USERNAME="root"
     CROMWELL_BUILD_CENTAUR_RESOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/src/main/resources"
     CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS="${CROMWELL_BUILD_CENTAUR_RESOURCES}/integrationTestCases"
 
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_ROOT_DIRECTORY}/cromwell_build_exit_functions.$$"
 
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_IS_CRON=false
+            CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_BRANCH="${TRAVIS_BRANCH}"
+            CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
+            CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
+            CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.org"
+            CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
+            CROMWELL_BUILD_VAULT_TOKEN="${CROMWELL_BUILD_HOME_DIRECTORY}/.vault-token"
+            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_MYSQL_USERNAME="travis"
+            CROMWELL_BUILD_MYSQL_PASSWORD=""
+            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_IS_CRON=true
+            CROMWELL_BUILD_IS_SECURE=true
+            CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
+            CROMWELL_BUILD_BRANCH="${GIT_BRANCH}"
+            CROMWELL_BUILD_EVENT=""
+            CROMWELL_BUILD_TAG=""
+            CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
+            CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
+            CROMWELL_BUILD_VAULT_TOKEN="/dev/null"
+            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…\n"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_MYSQL_USERNAME="root"
+            CROMWELL_BUILD_MYSQL_PASSWORD=""
+            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
+            ;;
+        *)
+            CROMWELL_BUILD_IS_CI=false
+            CROMWELL_BUILD_IS_CRON="${CROMWELL_BUILD_IS_CRON-false}"
+            CROMWELL_BUILD_IS_SECURE=false
+            CROMWELL_BUILD_TYPE="unknown"
+            CROMWELL_BUILD_BRANCH="unknown"
+            CROMWELL_BUILD_EVENT="unknown"
+            CROMWELL_BUILD_TAG=""
+            CROMWELL_BUILD_NUMBER="0"
+            CROMWELL_BUILD_GIT_USER_EMAIL="unknown.git.user@example.org"
+            CROMWELL_BUILD_GIT_USER_NAME="Unknown Git User"
+            CROMWELL_BUILD_VAULT_TOKEN="${CROMWELL_BUILD_HOME_DIRECTORY}/.vault-token"
+            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
+            CROMWELL_BUILD_MYSQL_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME-root}"
+            CROMWELL_BUILD_MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD-}"
+            CROMWELL_BUILD_MYSQL_SCHEMA="${CROMWELL_BUILD_MYSQL_SCHEMA-cromwell_test}"
+            ;;
+    esac
+
+    local hours_to_minutes
+    hours_to_minutes=60
+    if [ "${CROMWELL_BUILD_IS_CRON}" = "true" ]; then
+        CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * ${hours_to_minutes}))
+    else
+        CROMWELL_BUILD_HEARTBEAT_MINUTES=$((3 * ${hours_to_minutes}))
+    fi
+
+    export CROMWELL_BUILD_BRANCH
+    export CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS
+    export CROMWELL_BUILD_CENTAUR_RESOURCES
+    export CROMWELL_BUILD_EVENT
+    export CROMWELL_BUILD_EXIT_FUNCTIONS
+    export CROMWELL_BUILD_GIT_USER_EMAIL
+    export CROMWELL_BUILD_GIT_USER_NAME
+    export CROMWELL_BUILD_HEARTBEAT_MESSAGE
+    export CROMWELL_BUILD_HEARTBEAT_MINUTES
+    export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
     export CROMWELL_BUILD_IS_CRON
     export CROMWELL_BUILD_IS_SECURE
-    export CROMWELL_BUILD_TYPE
-    export CROMWELL_BUILD_BRANCH
-    export CROMWELL_BUILD_EVENT
-    export CROMWELL_BUILD_TAG
+    export CROMWELL_BUILD_MYSQL_HOSTNAME
+    export CROMWELL_BUILD_MYSQL_PASSWORD
+    export CROMWELL_BUILD_MYSQL_PORT
+    export CROMWELL_BUILD_MYSQL_SCHEMA
+    export CROMWELL_BUILD_MYSQL_USERNAME
     export CROMWELL_BUILD_NUMBER
-    export CROMWELL_BUILD_PROVIDER
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
-    export CROMWELL_BUILD_HOME_DIRECTORY
+    export CROMWELL_BUILD_PROVIDER
+    export CROMWELL_BUILD_RESOURCES_DIRECTORY
     export CROMWELL_BUILD_ROOT_DIRECTORY
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
-    export CROMWELL_BUILD_SCRIPTS_RESOURCES
-    export CROMWELL_BUILD_GIT_USER_EMAIL
-    export CROMWELL_BUILD_GIT_USER_NAME
-    export CROMWELL_BUILD_MYSQL_USERNAME
-    export CROMWELL_BUILD_CENTAUR_RESOURCES
-    export CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS
-    export CROMWELL_BUILD_EXIT_FUNCTIONS
+    export CROMWELL_BUILD_TAG
+    export CROMWELL_BUILD_TYPE
+    export CROMWELL_BUILD_VAULT_TOKEN
 }
 
 cromwell::private::echo_build_variables() {
@@ -159,8 +209,8 @@ cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
     CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
     CROMWELL_BUILD_CWL_TEST_RESOURCES="${CROMWELL_BUILD_CWL_TEST_DIRECTORY}/v1.0/v1.0"
-    CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cwl_conformance_test.wdl"
-    CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/cwl_conformance_test.inputs.json"
+    CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
+    CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
     CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_ROOT_DIRECTORY}/cwl_conformance_test.out.txt"
     CROMWELL_BUILD_CWL_TEST_COMMIT=e7ae597e79d426feca3d4faa474806070c3fa7d5 # use known git hash to avoid tests changes
     CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
@@ -176,9 +226,14 @@ cromwell::private::export_conformance_variables() {
 }
 
 cromwell::private::exec_test_script() {
-    local upper_build_type
-    upper_build_type="$(tr '[:lower:]' '[:upper:]' <<< "${CROMWELL_BUILD_TYPE:0:1}")${CROMWELL_BUILD_TYPE:1}"
-    exec "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/test${upper_build_type}.sh"
+    if [[ -z "${CROMWELL_BUILD_TYPE}" ]]; then
+        echo "Error: unable to determine build type" >&2
+        exit 1
+    else
+        local upper_build_type
+        upper_build_type="$(tr '[:lower:]' '[:upper:]' <<< "${CROMWELL_BUILD_TYPE:0:1}")${CROMWELL_BUILD_TYPE:1}"
+        exec "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/test${upper_build_type}.sh"
+    fi
 }
 
 cromwell::private::delete_boto_config() {
@@ -199,8 +254,17 @@ cromwell::private::upgrade_pip() {
 }
 
 cromwell::private::create_mysql_cromwell_test() {
-    mysql -u "${CROMWELL_BUILD_MYSQL_USERNAME}" -e "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES';"
-    mysql -u "${CROMWELL_BUILD_MYSQL_USERNAME}" -e "CREATE DATABASE IF NOT EXISTS cromwell_test;"
+    if cromwell::private::is_xtrace_enabled; then
+        cromwell::private::exec_silent_function cromwell::private::create_mysql_cromwell_test
+    else
+        mysql \
+            --host="${CROMWELL_BUILD_MYSQL_HOSTNAME}" \
+            --port="${CROMWELL_BUILD_MYSQL_PORT}" \
+            --user="${CROMWELL_BUILD_MYSQL_USERNAME}" \
+            --password="${CROMWELL_BUILD_MYSQL_PASSWORD}" \
+            --execute \
+            "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES'; CREATE DATABASE IF NOT EXISTS ${CROMWELL_BUILD_MYSQL_SCHEMA};"
+    fi
 }
 
 cromwell::private::pull_common_docker_images() {
@@ -238,7 +302,7 @@ cromwell::private::docker_login() {
         cromwell::private::exec_silent_function cromwell::private::docker_login
     else
         local dockerhub_auth_include
-        dockerhub_auth_include="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/dockerhub_auth.inc.sh"
+        dockerhub_auth_include="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/dockerhub_auth.inc.sh"
         if [ -f "${dockerhub_auth_include}" ]; then
             # shellcheck source=/dev/null
             source "${dockerhub_auth_include}"
@@ -250,26 +314,35 @@ cromwell::private::vault_login() {
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::vault_login
     else
-        # Login to vault to access secrets
-        local vault_token
-        vault_token="${JES_TOKEN}"
-        docker run --rm \
-            -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-            broadinstitute/dsde-toolbox \
-            vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success
-        unset vault_token
+        case "${CROMWELL_BUILD_PROVIDER}" in
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+                # Login to vault to access secrets
+                local vault_token
+                vault_token="${JES_TOKEN}"
+                docker run --rm \
+                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                    broadinstitute/dsde-toolbox \
+                    vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success
+                unset vault_token
+                ;;
+            *)
+                ;;
+        esac
     fi
 }
 
 cromwell::private::render_secure_resources() {
     docker run --rm \
-        -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-        -v "${CROMWELL_BUILD_SCRIPTS_RESOURCES}:/resources" \
+        -v "${CROMWELL_BUILD_VAULT_TOKEN}:/root/.vault-token" \
+        -v "${CROMWELL_BUILD_RESOURCES_DIRECTORY}:/resources" \
         -e ENVIRONMENT=not_used \
         -e INPUT_PATH=/resources \
         -e OUT_PATH=/resources \
         broadinstitute/dsde-toolbox render-templates.sh \
-    || {
+    || if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
+        exit 1
+    else
+        echo
         echo "**************************************************************"
         echo "**************************************************************"
         echo "**                                                          **"
@@ -278,7 +351,7 @@ cromwell::private::render_secure_resources() {
         echo "**                                                          **"
         echo "**************************************************************"
         echo "**************************************************************"
-    }
+    fi
 }
 
 cromwell::private::setup_secure_resources() {
@@ -326,11 +399,11 @@ cromwell::private::publish_artifacts_and_docker() {
 # poll github. To help those environments, signal that a new set of docker images has been published to dockerhub by
 # updating a well known branch in github.
 cromwell::private::push_publish_complete() {
-    local github_private_deploy_key="${CROMWELL_BUILD_SCRIPTS_RESOURCES}/github_private_deploy_key"
+    local github_private_deploy_key="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/github_private_deploy_key"
     local git_repo="git@github.com:broadinstitute/cromwell.git"
-    local git_branch="${CROMWELL_BUILD_BRANCH}_publish_complete"
-    local git_remote="publish_complete"
-    local git_message="publish complete [skip ci]"
+    local git_publish_branch="${CROMWELL_BUILD_BRANCH}_publish_complete"
+    local git_publish_remote="publish_complete"
+    local git_publish_message="publish complete [skip ci]"
 
     # Loosely adapted from https://github.com/broadinstitute/workbench-libs/blob/435a932/scripts/version_update.sh
     mkdir publish_complete
@@ -338,22 +411,22 @@ cromwell::private::push_publish_complete() {
         cd publish_complete || exit 1
 
         git init
-        git config core.sshCommand "ssh -i $github_private_deploy_key -F /dev/null"
+        git config core.sshCommand "ssh -i ${github_private_deploy_key} -F /dev/null"
         git config user.email "${CROMWELL_BUILD_GIT_USER_EMAIL}"
         git config user.name "${CROMWELL_BUILD_GIT_USER_NAME}"
 
-        git remote add "$git_remote" "$git_repo"
-        git checkout -b "$git_branch"
-        git commit --allow-empty -m "$git_message"
-        git push -f "$git_remote" "$git_branch"
+        git remote add "${git_publish_remote}" "${git_repo}"
+        git checkout -b "${git_publish_branch}"
+        git commit --allow-empty -m "${git_publish_message}"
+        git push -f "${git_publish_remote}" "${git_publish_branch}"
     )
 }
 
 cromwell::private::start_build_heartbeat() {
-    # Sleep one minute between printouts, but don't zombie for more than three hours
-    for ((i=0; i < 180; i++)); do
+    # Sleep one minute between printouts, but don't zombie forever
+    for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
         sleep 60
-        printf "…"
+        printf "${CROMWELL_BUILD_HEARTBEAT_MESSAGE}"
     done &
     CROMWELL_BUILD_HEARTBEAT_PID=$!
 }
@@ -454,21 +527,41 @@ cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
     cromwell::private::verify_cron_build
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        cromwell::private::delete_boto_config
-        cromwell::private::delete_sbt_boot
-        cromwell::private::upgrade_pip
-        cromwell::private::create_mysql_cromwell_test
-        cromwell::private::pull_common_docker_images
-        cromwell::private::install_cwltool
-    fi
+
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            cromwell::private::upgrade_pip
+            cromwell::private::install_cwltool
+            cromwell::private::pull_common_docker_images
+            cromwell::private::create_mysql_cromwell_test
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            cromwell::private::upgrade_pip
+            cromwell::private::install_cwltool
+            cromwell::private::create_mysql_cromwell_test
+            ;;
+        *)
+            cromwell::private::pull_common_docker_images
+            ;;
+    esac
 }
 
 cromwell::build::setup_secure_resources() {
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
-        cromwell::private::verify_is_secure
-    fi
-    cromwell::private::setup_secure_resources
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            cromwell::private::verify_is_secure
+            cromwell::private::setup_secure_resources
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            ;;
+        *)
+            cromwell::private::setup_secure_resources
+            ;;
+    esac
 }
 
 cromwell::build::setup_centaur_environment() {

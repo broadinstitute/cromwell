@@ -1,11 +1,11 @@
 package wes2cromwell
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ ActorRef, ActorSystem }
 import akka.event.Logging
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.directives.MethodDirectives.{delete, get, post}
+import akka.http.scaladsl.server.directives.MethodDirectives.{ delete, get, post }
 import akka.http.scaladsl.server.directives.PathDirectives.path
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
@@ -14,7 +14,7 @@ import wes2cromwell.WorkflowActor._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import scala.util.{ Failure, Success }
 
 // WorkflowRoutes implements the 'workflows' endpoint in WES
 trait WorkflowRoutes extends JsonSupport {
@@ -27,7 +27,7 @@ trait WorkflowRoutes extends JsonSupport {
   def workflowActor: ActorRef
 
   // Required by the `ask` (?) method below
-  implicit lazy val timeout = Timeout(30.seconds) // usually we'd obtain the timeout from the system's configuration
+  implicit lazy val timeout = Timeout(30.seconds)
 
   lazy val workflowRoutes: Route =
     // TODO: factor the top of this into a path prefix in WesServer
@@ -51,11 +51,8 @@ trait WorkflowRoutes extends JsonSupport {
         path(Segment) { workflowId =>
           concat(
             get {
-              val maybeWorkflow: Future[Option[WorkflowLog]] =
-                (workflowActor ? GetWorkflow(workflowId)).mapTo[Option[WorkflowLog]]
-              rejectEmptyResponse {
-                complete(maybeWorkflow)
-              }
+              val maybeWorkflow: Future[Any] = workflowActor.ask(GetWorkflow(workflowId))
+              handleWesResponse(maybeWorkflow)
             },
             delete {
               val futureWes: Future[Any] = workflowActor.ask(DeleteWorkflow(workflowId))
@@ -88,13 +85,17 @@ trait WorkflowRoutes extends JsonSupport {
           case WesResponseWorkflowList(list) =>
             complete((StatusCodes.OK, WesResponseWorkflowList(list)))
           case WesResponseError(msg, status_code) =>
-            complete((status_code, WesResponseError(msg, status_code)) )
+            complete((status_code, WesResponseError(msg, status_code)))
+          case WesResponseWorkflowMetadata(workflowLog) =>
+            complete((StatusCodes.OK, workflowLog))
         }
       }
       case Failure(ex) => {
-        complete((StatusCodes.InternalServerError, WesResponseError(s"PostWorkflow exception: ${ex.getMessage}", StatusCodes.InternalServerError.intValue)))
+        complete((
+          StatusCodes.InternalServerError,
+          WesResponseError(s"PostWorkflow exception: ${ex.getMessage}", StatusCodes.InternalServerError.intValue)
+        ))
       }
     }
   }
-
 }

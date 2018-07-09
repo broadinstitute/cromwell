@@ -1,9 +1,23 @@
 package wes2cromwell
 
+import spray.json.{ JsString, JsValue, RootJsonFormat }
+
 sealed trait WorkflowState
 
 object WorkflowState {
   lazy val WorkflowStateValues = Seq(UNKNOWN, QUEUED, INITIALIZING, RUNNING, PAUSED, COMPLETE, EXECUTOR_ERROR, SYSTEM_ERROR, CANCELED)
+
+  implicit object WorkflowStateFormat extends RootJsonFormat[WorkflowState] {
+    def write(obj: WorkflowState): JsValue = JsString(obj.toString)
+
+    // TODO: not sure this works and nothing in the code tests it right now
+    def read(json: JsValue): WorkflowState = {
+      json match {
+        case x: JsString => WorkflowState.withName(x.value)
+        case _ => throw new IllegalArgumentException("Expected a string value for state")
+      }
+    }
+  }
 
   def withName(str: String): WorkflowState = WorkflowStateValues.find(_.toString == str).getOrElse(
     throw new NoSuchElementException(s"No such WorkflowState: $str")

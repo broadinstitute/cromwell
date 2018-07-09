@@ -11,5 +11,8 @@ case class WesResponseDeleteWorkflowId(workflow_id: String) extends WesResponse
 
 case class WesResponseStatus(workflow_id: String, state: WorkflowState) extends WesResponse
 
-case class WesResponseWorkflowList(workflow: List[WesResponseStatus]) extends WesResponse
+case class WesResponseWorkflowList(workflows: List[WesResponseStatus]) extends WesResponse
+
+case class WesResponseWorkflowMetadata(workflowLog: WorkflowLog) extends WesResponse
+
 

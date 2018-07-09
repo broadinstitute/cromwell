@@ -22,15 +22,16 @@ trait JsonSupport extends SprayJsonSupport {
     }
   }
   // WES structures
-  implicit val workflowDescriptionFormat = jsonFormat2(WorkflowDescription)
-  implicit val workflowLogEntryFormat = jsonFormat7(WorkflowLogEntry)
-  implicit val workflowRequestFormat = jsonFormat7(WorkflowRequest)
-  implicit val workflowLogFormat = jsonFormat6(WorkflowLog)
-  implicit val workflowTypeVersionFormat = jsonFormat1(WorkflowTypeVersion)
-  implicit val errorResponseFormat = jsonFormat2(ErrorResponse)
-  implicit val wesResponseErrorFormat = jsonFormat2(WesResponseError)
-  implicit val wesResponseCreateWorkflowIdFormat = jsonFormat1(WesResponseCreateWorkflowId)
-  implicit val wesResponseDeleteWorkflowIdFormat = jsonFormat1(WesResponseDeleteWorkflowId)
-  implicit val wesResponseStatusFormat = jsonFormat2(WesResponseStatus)
-  implicit val wesResponseWorkflowListFormat = jsonFormat1(WesResponseWorkflowList)
+  implicit val workflowDescriptionFormat: RootJsonFormat[WorkflowDescription] = jsonFormat2(WorkflowDescription)
+  implicit val workflowLogEntryFormat: RootJsonFormat[WorkflowLogEntry] = jsonFormat7(WorkflowLogEntry)
+  implicit val workflowRequestFormat: RootJsonFormat[WorkflowRequest] = jsonFormat7(WorkflowRequest)
+  implicit val workflowLogFormat: RootJsonFormat[WorkflowLog] = jsonFormat6(WorkflowLog)
+  implicit val workflowTypeVersionFormat: RootJsonFormat[WorkflowTypeVersion] = jsonFormat1(WorkflowTypeVersion)
+  implicit val errorResponseFormat: RootJsonFormat[ErrorResponse] = jsonFormat2(ErrorResponse)
+  implicit val wesResponseErrorFormat: RootJsonFormat[WesResponseError] = jsonFormat2(WesResponseError)
+  implicit val wesResponseCreateWorkflowIdFormat: RootJsonFormat[WesResponseCreateWorkflowId] = jsonFormat1(WesResponseCreateWorkflowId)
+  implicit val wesResponseDeleteWorkflowIdFormat: RootJsonFormat[WesResponseDeleteWorkflowId] = jsonFormat1(WesResponseDeleteWorkflowId)
+  implicit val wesResponseStatusFormat: RootJsonFormat[WesResponseStatus] = jsonFormat2(WesResponseStatus)
+  implicit val wesResponseWorkflowListFormat: RootJsonFormat[WesResponseWorkflowList] = jsonFormat1(WesResponseWorkflowList)
+  implicit val WesResponseWorkflowMetadataFormat: RootJsonFormat[WesResponseWorkflowMetadata] = jsonFormat1(WesResponseWorkflowMetadata)
 }

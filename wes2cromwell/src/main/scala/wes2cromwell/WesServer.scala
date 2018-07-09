@@ -20,9 +20,9 @@ object WesServer extends App with WorkflowRoutes {
   // from the UserRoutes trait
   val routes: Route = workflowRoutes
 
-  Http().bindAndHandle(routes, "localhost", port)
+  Http().bindAndHandle(routes, "0.0.0.0", port)
 
-  println(s"Server online at http://localhost:${port}/")
+  println(s"Server online. Listening at port:${port}")
 
   Await.result(system.whenTerminated, Duration.Inf)
 }

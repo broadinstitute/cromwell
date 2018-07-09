@@ -35,3 +35,5 @@ To build a [Docker](https://www.docker.com/) image, run:
 ```bash
 $ sbt server/docker
 ```
+
+This will build and tag a Docker image with a name like `broadinstitute/cromwell:<VERSION>-SNAP`.

@@ -28,6 +28,8 @@ object WdlWriterImpl {
     }
   }
 
+  implicit val indexAccessWriter: WdlWriter[IndexAccess] = a => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+
   // Recursive references must be explicit
   implicit val expressionElementWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
     override def toWdlV1(a: ExpressionElement) = a match {
@@ -54,7 +56,7 @@ object WdlWriterImpl {
       case a: IdentifierLookup => a.identifier
       case a: IdentifierMemberAccess => a.toWdlV1
       case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
-      case a: IndexAccess => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+      case a: IndexAccess => a.toWdlV1
       case a: ExpressionLiteralElement => a.expression
     }
   }

@@ -13,13 +13,14 @@ import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import wes2cromwell.WorkflowActor._
 import net.ceedubs.ficus.Ficus._
-
+import spray.json.JsObject
+import cromiam.webservice.RequestSupport
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 // WorkflowRoutes implements the 'workflows' endpoint in WES
-trait WesWorkflowRoutes extends JsonSupport {
+trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
   // we leave these abstract, since they will be provided by the App
   implicit def system: ActorSystem
 
@@ -43,18 +44,12 @@ trait WesWorkflowRoutes extends JsonSupport {
               handleWesResponse(futureWes)
             },
             post {
-              toStrictEntity(duration) { requestContext =>
-                val wesSubmission = formFields((
-                      "workflow_params".?,
-                      "workflow_type",
-                      "workflow_type_version",
-                      "tags".?,
-                      "workflow_engine_parameters".?,
-                      "workflow_url",
-                      "workflow_attachment".*
-                    )).as[WesSubmission]
-                val futureWes: Future[Any] = workflowActor.ask(PostWorkflow(wesSubmission))
-                handleWesResponse(futureWes)
+              extractStrictRequest { request =>
+                extractSubmission() { submission =>
+
+//                  val futureWes: Future[Any] = workflowActor.ask(PostWorkflow(submission))
+//                  handleWesResponse(futureWes)
+                }
               }
             }
           )
@@ -83,7 +78,7 @@ trait WesWorkflowRoutes extends JsonSupport {
     }
 
   def extractSubmission(): Directive1[WesSubmission] = {
-    val z = formFields(
+   formFields(
       "workflow_params".?,
       "workflow_type",
       "workflow_type_version",
@@ -91,14 +86,12 @@ trait WesWorkflowRoutes extends JsonSupport {
       "workflow_engine_parameters".?,
       "workflow_url",
       "workflow_attachment".*
-    )
-
-    z
+    ).as(WesSubmission)
   }
 
   // Common handler for some Wes Responses
   // TODO: understand if I can avoid re-constructing the responses
-  def handleWesResponse(futureWes: Future[Any]) = {
+  def handleWesResponse(futureWes: Future[Any]): Route = {
     onComplete(futureWes.mapTo[WesResponse]) {
       case Success(wesResponse) => {
         wesResponse match {

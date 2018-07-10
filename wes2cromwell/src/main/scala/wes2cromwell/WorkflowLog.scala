@@ -13,10 +13,10 @@ final case class WorkflowLogEntry(
 )
 
 final case class WorkflowLog(
-  workflow_id: String,
-  request: WorkflowRequest,
-  state: WorkflowState,
-  workflow_log: Option[WorkflowLogEntry],
-  task_logs: Option[Seq[WorkflowLogEntry]],
-  outputs: Option[JsObject]
+                              workflow_id: String,
+                              request: WesSubmission,
+                              state: WorkflowState,
+                              workflow_log: Option[WorkflowLogEntry],
+                              task_logs: Option[Seq[WorkflowLogEntry]],
+                              outputs: Option[JsObject]
 )

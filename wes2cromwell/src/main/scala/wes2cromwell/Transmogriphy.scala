@@ -56,7 +56,7 @@ class Transmogriphy(implicit system: ActorSystem, ec: ExecutionContext) {
     }
   }
 
-  def postWorkflow(replyTo: ActorRef, workflowRequest: WorkflowRequest): Unit = {
+  def postWorkflow(replyTo: ActorRef, workflowRequest: WesSubmission): Unit = {
     /*
      * See https://docs.google.com/document/d/11_qHPBbEg3Hr4Vs3lh3dvU0dLl1I2zt6rmNxEkW1U1U/edit#
      * for details on the workflow request mapping.
@@ -209,7 +209,7 @@ class Transmogriphy(implicit system: ActorSystem, ec: ExecutionContext) {
 
     val workflowEngineParams = metadata.submittedFiles.options map { JsonParser(_).asJsObject }
 
-    val workflowRequest = WorkflowRequest(
+    val workflowRequest = WesWorkflowRequest(
       workflow_descriptor = metadata.submittedFiles.workflow,
       workflow_params = workflowParams,
       workflow_type = metadata.submittedFiles.workflowType,
@@ -297,7 +297,7 @@ class Transmogriphy(implicit system: ActorSystem, ec: ExecutionContext) {
     }
   }
 
-  def getWorkflowSourceBodyPart(workflowRequest: WorkflowRequest): Future[WesBodyPart] = {
+  def getWorkflowSourceBodyPart(workflowRequest: WesSubmission): Future[WesBodyPart] = {
     if (workflowRequest.workflow_descriptor.isDefined) {
       Future.successful(ValidWesBodyPart(BodyPart("workflowSource", makeJsonEntity(workflowRequest.workflow_descriptor.get))))
     } else if (workflowRequest.workflow_url.isDefined) {

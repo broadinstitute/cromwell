@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
 
 // MAIN
-object WesServer extends App with WorkflowRoutes {
+object WesServer extends App with WesWorkflowRoutes {
   val port = 9090
 
   // set up ActorSystem and other dependencies here

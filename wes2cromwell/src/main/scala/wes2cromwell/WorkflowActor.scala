@@ -5,23 +5,28 @@ import spray.json.JsObject
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-final case class WorkflowRequest(
-  workflow_descriptor: Option[String],
-  workflow_params: Option[JsObject],
-  workflow_type: String,
-  workflow_type_version: String,
-  tags: Option[JsObject],
-  workflow_engine_parameters: Option[JsObject],
-  workflow_url: Option[String]
+// FIXME: stuff in wrong file
+
+final case class WesSubmission(
+   workflowParams: Option[JsObject],
+   workflowType: String,
+   workflowTypeVersion: String,
+   tags: Option[JsObject],
+   workflowEngineParameters: Option[JsObject],
+   workflowUrl: String,
+   workflowAttachment: List[String]
 )
 
+// FIXME: Might not be used
 final case class WorkflowDescription(
   workflow_id: String,
   state: WorkflowState
 )
 
+// FIXME: Might not be used
 final case class WorkflowTypeVersion(workflow_type_version: Seq[String])
 
+// FIXME: Might not be used
 final case class ErrorResponse(
   msg: String,
   status_code: Int
@@ -29,7 +34,7 @@ final case class ErrorResponse(
 
 object WorkflowActor {
   final case object GetWorkflows
-  final case class PostWorkflow(workflowRequest: WorkflowRequest)
+  final case class PostWorkflow(wesSubmission: WesSubmission)
   final case class GetWorkflow(workflowId: String)
   final case class DeleteWorkflow(workflowId: String)
   final case class GetWorkflowStatus(workflowId: String)

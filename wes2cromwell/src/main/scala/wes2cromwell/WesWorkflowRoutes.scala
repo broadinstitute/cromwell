@@ -1,33 +1,36 @@
 package wes2cromwell
 
-import akka.actor.{ ActorRef, ActorSystem }
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.Logging
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.directives.MethodDirectives.{ delete, get, post }
+import akka.http.scaladsl.server.{Directive1, Route}
+import akka.http.scaladsl.server.directives.MethodDirectives.{delete, get, post}
 import akka.http.scaladsl.server.directives.PathDirectives.path
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import wes2cromwell.WorkflowActor._
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{ Failure, Success }
+import scala.util.{Failure, Success}
 
 // WorkflowRoutes implements the 'workflows' endpoint in WES
-trait WorkflowRoutes extends JsonSupport {
+trait WesWorkflowRoutes extends JsonSupport {
   // we leave these abstract, since they will be provided by the App
   implicit def system: ActorSystem
 
-  lazy val log = Logging(system, classOf[WorkflowRoutes])
+  lazy val log = Logging(system, classOf[WesWorkflowRoutes])
 
   // other dependencies that Routes use
   def workflowActor: ActorRef
 
-  // Required by the `ask` (?) method below
-  implicit lazy val timeout = Timeout(30.seconds)
+  // Make this configurable
+  implicit val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
+  implicit lazy val timeout: Timeout = duration
 
   lazy val workflowRoutes: Route =
     // TODO: factor the top of this into a path prefix in WesServer
@@ -40,8 +43,17 @@ trait WorkflowRoutes extends JsonSupport {
               handleWesResponse(futureWes)
             },
             post {
-              entity(as[WorkflowRequest]) { workflowRequest =>
-                val futureWes: Future[Any] = workflowActor.ask(PostWorkflow(workflowRequest))
+              toStrictEntity(duration) { requestContext =>
+                val wesSubmission = formFields((
+                      "workflow_params".?,
+                      "workflow_type",
+                      "workflow_type_version",
+                      "tags".?,
+                      "workflow_engine_parameters".?,
+                      "workflow_url",
+                      "workflow_attachment".*
+                    )).as[WesSubmission]
+                val futureWes: Future[Any] = workflowActor.ask(PostWorkflow(wesSubmission))
                 handleWesResponse(futureWes)
               }
             }
@@ -69,6 +81,20 @@ trait WorkflowRoutes extends JsonSupport {
         }
       )
     }
+
+  def extractSubmission(): Directive1[WesSubmission] = {
+    val z = formFields(
+      "workflow_params".?,
+      "workflow_type",
+      "workflow_type_version",
+      "tags".?,
+      "workflow_engine_parameters".?,
+      "workflow_url",
+      "workflow_attachment".*
+    )
+
+    z
+  }
 
   // Common handler for some Wes Responses
   // TODO: understand if I can avoid re-constructing the responses

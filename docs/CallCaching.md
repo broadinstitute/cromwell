@@ -60,3 +60,13 @@ Cromwell provides two methods to lookup a Docker hash from a Docker tag:
     |       |   Public  | Private | Public | Private |
     | Pipelines API  |     X     |    X    |    X   |    X    |
     | Other |     X     |         |    X   |         |
+    
+**Runtime Attributes**
+
+Call caching considers three [runtime attributes](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/) of a given task when determining if a cache hit exists:
+
+* [`ContinueOnReturnCode`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#continueonreturncode)
+* [`Docker`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#docker)
+* [`FailOnStderr`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#failonstderr)
+
+If any of these options change from the previous iteration of the same task, the `call` will be executed as normal. All other runtime attributes, including [`memory`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#memory), [`cpu`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpu), and [`disks`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#disks), will not be considered in call caching's evaluation and therefore may be changed without preventing cached tasks from being used. 

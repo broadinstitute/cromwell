@@ -19,6 +19,7 @@ package object defaults {
 
   implicit val womOptionalOfAnyCoercer = defaultCoercionForType[WomOptionalValue](WomOptionalType(WomAnyType))
   implicit val womArrayOfAnyCoercer = defaultCoercionForType[WomArray](WomArrayType(WomAnyType))
+  implicit val womMapOfAnyCoercer = defaultCoercionForType[WomMap](WomMapType(WomAnyType, WomAnyType))
   implicit def womArrayTypeCoercer(arrayType: WomArrayType): WomTypeCoercer[WomArray] = defaultCoercionForType[WomArray](arrayType)
 
   private def defaultCoercionForType[A](typeObject: WomType)(implicit classTag: ClassTag[A]): WomTypeCoercer[A] = new WomTypeCoercer[A] {

@@ -10,14 +10,14 @@ import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, KvPair, SelectFirst}
 import wdl.model.draft3.elements._
-import wdl.model.draft3.graph.LinkedGraph
+import wdl.model.draft3.graph.{ExpressionValueConsumer, LinkedGraph}
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement}
 import wom.expression.WomExpression
 import wom.types.{WomOptionalType, WomType}
 import wom.{CommandPart, RuntimeAttributes}
-import wdl.transforms.base.linking.expression.consumed._
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.transforms.base.linking.expression._
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
@@ -31,7 +31,11 @@ object TaskDefinitionElementToWomTaskDefinition {
 
   final case class TaskDefinitionElementToWomInputs(taskDefinitionElement: TaskDefinitionElement, typeAliases: Map[String, WomType])
 
-  def convert(b: TaskDefinitionElementToWomInputs): ErrorOr[CallableTaskDefinition] = {
+  def convert(b: TaskDefinitionElementToWomInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[CallableTaskDefinition] = {
     val a = eliminateInputDependencies(b)
     val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
 
@@ -79,7 +83,8 @@ object TaskDefinitionElementToWomTaskDefinition {
     }
   }
 
-  private def eliminateInputDependencies(a: TaskDefinitionElementToWomInputs): TaskDefinitionElementToWomInputs = {
+  private def eliminateInputDependencies(a: TaskDefinitionElementToWomInputs)
+                                        (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): TaskDefinitionElementToWomInputs = {
     case class NewInputElementsSet(original: InputDeclarationElement, newInput: InputDeclarationElement, newDeclaration: IntermediateValueDeclarationElement)
 
     val inputElementsWithUpstreams: Seq[NewInputElementsSet] = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty) collect {
@@ -169,7 +174,11 @@ object TaskDefinitionElementToWomTaskDefinition {
                               declarations: Seq[IntermediateValueDeclarationElement],
                               outputs: Seq[OutputDeclarationElement],
                               parameterMeta: Option[ParameterMetaSectionElement],
-                              typeAliases: Map[String, WomType]): ErrorOr[TaskGraph] = {
+                              typeAliases: Map[String, WomType])
+                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                              fileEvaluator: FileEvaluator[ExpressionElement],
+                              typeEvaluator: TypeEvaluator[ExpressionElement],
+                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[TaskGraph] = {
     val combined: Set[WorkflowGraphElement] = (inputs ++ declarations ++ outputs).toSet
     LinkedGraphMaker.make(combined, Set.empty, typeAliases, Map.empty) flatMap { linked =>
       val ordered = LinkedGraphMaker.getOrdering(linked)
@@ -184,7 +193,7 @@ object TaskDefinitionElementToWomTaskDefinition {
       def addToTaskGraph(element: WorkflowGraphElement, accumulator: TaskGraph): ErrorOr[TaskGraph] = element match {
         case IntermediateValueDeclarationElement(womTypeElement, name, expression) =>
           val typeValidation = womTypeElement.determineWomType(linked.typeAliases)
-          val expressionValidation = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
+          val expressionValidation: ErrorOr[WomExpression] = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
             accumulator.copy(inputs = accumulator.inputs :+ FixedInputDefinition(name, womType, womExpression))
@@ -199,7 +208,7 @@ object TaskDefinitionElementToWomTaskDefinition {
           }
         case InputDeclarationElement(womTypeElement, name, Some(expression)) if expression.expressionConsumedValueHooks.isEmpty =>
           val typeValidation = womTypeElement.determineWomType(linked.typeAliases)
-          val expressionValidation = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
+          val expressionValidation: ErrorOr[WomExpression] = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
             accumulator.copy(inputs = accumulator.inputs :+ InputDefinitionWithDefault(name, womType, womExpression, findParameterMeta(name)))
@@ -214,7 +223,8 @@ object TaskDefinitionElementToWomTaskDefinition {
 
             val intermediateExpression: ExpressionElement = SelectFirst(ArrayLiteral(Seq(IdentifierLookup(newInputName), expression)))
 
-            intermediateExpression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup) map { womExpression =>
+            val intermediateWomExpression: ErrorOr[WomExpression] = intermediateExpression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
+            intermediateWomExpression map { womExpression =>
               val intermediateDefinition = FixedInputDefinition(name, womType, womExpression, findParameterMeta(name))
 
               accumulator.copy(inputs = accumulator.inputs :+ newInputDefinition :+ intermediateDefinition)
@@ -224,7 +234,7 @@ object TaskDefinitionElementToWomTaskDefinition {
 
         case OutputDeclarationElement(womTypeElement, name, expression) =>
           val typeValidation = womTypeElement.determineWomType(linked.typeAliases)
-          val expressionValidation = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
+          val expressionValidation: ErrorOr[WomExpression] = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
             accumulator.copy(outputs = accumulator.outputs :+ OutputDefinition(name, womType, womExpression))
@@ -238,7 +248,11 @@ object TaskDefinitionElementToWomTaskDefinition {
     }
   }
 
-  private def createRuntimeAttributes(attributes: RuntimeAttributesSectionElement, linkedGraph: LinkedGraph): ErrorOr[RuntimeAttributes] = {
+  private def createRuntimeAttributes(attributes: RuntimeAttributesSectionElement, linkedGraph: LinkedGraph)
+                                     (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                                      fileEvaluator: FileEvaluator[ExpressionElement],
+                                      typeEvaluator: TypeEvaluator[ExpressionElement],
+                                      valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[RuntimeAttributes] = {
 
     def processSingleRuntimeAttribute(kvPair: KvPair): ErrorOr[(String, WomExpression)] = for {
       consumedValueLookup <- LinkedGraphMaker.makeConsumedValueLookup(kvPair.value.expressionConsumedValueHooks, linkedGraph.generatedHandles)

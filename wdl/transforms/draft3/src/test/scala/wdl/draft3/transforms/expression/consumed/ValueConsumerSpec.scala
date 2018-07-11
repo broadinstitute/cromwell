@@ -3,7 +3,7 @@ package wdl.draft3.transforms.expression.consumed
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
-import wdl.transforms.base.linking.expression.consumed.expressionElementUnlinkedValueConsumer
+import wdl.draft3.transforms.linking.expression.consumed.expressionElementUnlinkedValueConsumer
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.UnlinkedIdentifierHook
 import wom.values.WomInteger

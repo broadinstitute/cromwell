@@ -7,8 +7,9 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import shapeless.Coproduct
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
-import wdl.model.draft3.elements.CallElement
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wdl.model.draft3.elements.{CallElement, ExpressionElement}
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
+import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
@@ -20,7 +21,11 @@ import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object CallElementToGraphNode {
-  def convert(a: CallNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
+  def convert(a: CallNodeMakerInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = {
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
     val callName = a.node.alias.getOrElse(a.node.callableReference.split("\\.").last)

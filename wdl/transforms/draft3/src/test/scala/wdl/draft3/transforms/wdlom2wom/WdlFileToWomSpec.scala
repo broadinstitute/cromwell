@@ -40,7 +40,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     }
 
     testOrIgnore {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
 
       converter.run(testCase) match {
         case Right(bundle) => validators(testName).apply(bundle)

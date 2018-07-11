@@ -5,13 +5,12 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
-import wdl.model.draft3.elements.WorkflowGraphElement
+import wdl.model.draft3.elements.{ExpressionElement, WorkflowGraphElement}
 import wdl.model.draft3.graph._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wom.callable.Callable
 import wom.types.WomType
-
 import scalax.collection.Graph
 import scalax.collection.GraphEdge.DiEdge
 
@@ -19,7 +18,8 @@ object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
            externalHandles: Set[GeneratedValueHandle],
            typeAliases: Map[String, WomType],
-           callables: Map[String, Callable]): ErrorOr[LinkedGraph] = {
+           callables: Map[String, Callable])
+          (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[LinkedGraph] = {
 
     val generatedValuesByGraphNodeValidation = nodes.toList.traverse{ node =>
       node.generatedValueHandles(typeAliases, callables).map(node -> _)
@@ -62,7 +62,8 @@ object LinkedGraphMaker {
                                       typeAliases: Map[String, WomType],
                                       availableHandles: Set[GeneratedValueHandle],
                                       callables: Map[String, Callable]
-                                     ): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
+                                     )
+                                     (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Map[UnlinkedConsumedValueHook, GeneratedValueHandle]] = {
     val consumedValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = nodes.toList.traverse(n => n.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
 
     consumedValidation.flatMap { consumed => makeConsumedValueLookup(consumed, availableHandles) }

@@ -1,24 +1,24 @@
 package wdl.transforms.base.wdlom2wom.expression
 
 import common.validation.ErrorOr.ErrorOr
-import wdl.transforms.base.linking.expression.consumed._
-import wdl.transforms.base.linking.expression.files._
-import wdl.transforms.base.linking.expression.types._
-import wdl.transforms.base.linking.expression.values._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions}
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wdl.model.draft3.graph.expression._
+import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types.WomType
 import wom.values.WomValue
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
-final case class WdlomWomExpression(expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]) extends WomExpression {
+final case class WdlomWomExpression(expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                                   (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                                    fileEvaluator: FileEvaluator[ExpressionElement],
+                                    typeEvaluator: TypeEvaluator[ExpressionElement],
+                                    valueEvaluator: ValueEvaluator[ExpressionElement]) extends WomExpression {
   override def sourceString: String = expressionElement.toWdlV1
 
   override def inputs: Set[String] = {

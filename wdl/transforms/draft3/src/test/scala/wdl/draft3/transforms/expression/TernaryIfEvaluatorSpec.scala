@@ -9,8 +9,8 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wom.expression.NoIoFunctionSet
 import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
-import wdl.transforms.base.linking.expression.values.expressionEvaluator
-import wdl.transforms.base.linking.expression.types.expressionTypeEvaluator
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
 import wdl.model.draft3.graph.expression.EvaluatedValue
 import wom.types.{WomFloatType, WomIntegerType, WomType}
 

@@ -4,6 +4,7 @@ import cats.syntax.validated._
 import common.validation.Validation._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
@@ -37,7 +38,8 @@ object BinaryOperatorEvaluators {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
       a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { left =>
         if (shortCircuit.isDefinedAt(left.value)) {
           EvaluatedValue(shortCircuit(left.value), left.sideEffectFiles).validNel

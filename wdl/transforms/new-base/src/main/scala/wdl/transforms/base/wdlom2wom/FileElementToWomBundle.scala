@@ -13,6 +13,7 @@ import common.validation.Validation._
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver.ImportResolver
 import wdl.model.draft3.elements._
+//import wdl.model.draft3.graph.ExpressionValueConsumer
 import wdl.transforms.base.wdlom2wom.StructEvaluation.StructEvaluationInputs
 import wdl.transforms.base.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
@@ -30,14 +31,12 @@ object FileElementToWomBundle {
     override def toWomBundle(a: FileElementToWomBundleInputs): Checked[WomBundle] = {
 
       def toWorkflowInner(imports: Vector[WomBundle], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
-        val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
-        val taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition] = taskDefinitionElementToWomTaskDefinition
 
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
         val localTasksValidation: ErrorOr[Map[String, Callable]] = {
           tasks.traverse { taskDefinition =>
-            taskConverter
+            a.taskConverter
               .run(TaskDefinitionElementToWomInputs(taskDefinition, structs))
               .map(t => t.name -> t).toValidated
           }.map(_.toMap)
@@ -49,7 +48,7 @@ object FileElementToWomBundle {
             a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
               val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
-              workflowConverter.run(convertInputs).toValidated
+              a.workflowConverter.run(convertInputs).toValidated
             }
           }
 
@@ -132,4 +131,7 @@ object FileElementToWomBundle {
 final case class FileElementToWomBundleInputs(fileElement: FileElement,
                                               workflowOptionsJson: WorkflowOptionsJson,
                                               importResolvers: List[ImportResolver],
-                                              languageFactories: List[LanguageFactory])
+                                              languageFactories: List[LanguageFactory],
+                                              workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition],
+                                              taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition]
+                                             )

@@ -422,6 +422,11 @@ object Dependencies {
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
   ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies
 
+  val wes2cromwellDependencies = List(
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-stream" % akkaV
+  ) ++ akkaHttpDependencies ++ coreDependencies
+
   val backendDependencies = List(
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "co.fs2" %% "fs2-io" % fs2V % Test

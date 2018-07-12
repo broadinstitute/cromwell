@@ -15,6 +15,7 @@ produces:
 paths:
   '/api/workflows/{version}':
     post:
+      operationId: submit
       summary: Submit a workflow for execution
       description: Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited number of input files via workflowInputs_N but swagger needs them to be explicitly defined so we have provided 5 as an example.
       consumes:
@@ -91,6 +92,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/batch':
     post:
+      operationId: submitBatch
       summary: Submit a batch of workflows for execution
       description: In instances where you want to run the same workflow multiple times with varying inputs you may submit a workflow batch. This endpoint is fundamentally the same as the standard submission endpoint with the exception that the inputs JSON will be an array of objects instead of a single object.
       consumes:
@@ -144,6 +146,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/labels':
     get:
+      operationId: labels
       summary: Retrieves the current labels for a workflow
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -162,6 +165,7 @@ paths:
         '500':
           $ref: '#/responses/ServerError'
     patch:
+      operationId: updateLabels
       summary: Update labels for a workflow
       description: Update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.
       parameters:
@@ -196,6 +200,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/abort':
     post:
+      operationId: abort
       summary: Abort a running workflow
       description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will make a best effort attempt to immediately halt any currently running jobs from this workflow.
       parameters:
@@ -216,6 +221,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/releaseHold':
     post:
+      operationId: releaseHold
       summary: Switch a workflow from 'On Hold' to 'Submitted' status
       description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
       parameters:
@@ -236,6 +242,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/status':
     get:
+      operationId: status
       summary: Retrieves the current state for a workflow
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -253,6 +260,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/outputs':
     get:
+      operationId: outputs
       summary: Get the outputs for a workflow
       description: Retrieve the outputs for the specified workflow. Cromwell will return any outputs which currently exist even if a workflow has not successfully completed.
       parameters:
@@ -271,6 +279,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/logs':
     get:
+      operationId: logs
       summary: Get the logs for a workflow
       description: Returns paths to the standard out and standard error files that were generated during the execution of all calls in a workflow. A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
       parameters:
@@ -289,6 +298,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/query':
     get:
+      operationId: query
       summary: Get workflows matching some criteria
       description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
@@ -437,6 +447,7 @@ paths:
         '500':
           $ref: '#/responses/ServerError'
     post:
+      operationId: query
       summary: Get workflows matching some criteria
       description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
@@ -464,6 +475,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/timing':
     get:
+      operationId: timing
       summary: Get a visual diagram of a running workflow
       description: Returns a javascript file which will render a Gantt chart for the requested workflow. The bars in the chart represent start and end times for individual task invocations. This javascript is intended to be embedded into another web page.
       parameters:
@@ -482,6 +494,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/metadata':
     get:
+      operationId: metadata
       summary: Get workflow and call-level metadata for a specified workflow
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -528,6 +541,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/callcaching/diff':
     get:
+      operationId: callCacheDiff
       summary: Explain hashing differences for 2 calls
       description: This endpoint returns the hash differences between 2 completed (successfully or not) calls.
       parameters:
@@ -575,6 +589,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/backends':
     get:
+      operationId: backends
       summary: List the supported backends
       description: Returns the backends supported by this Cromwell server, as well as the default backend.
       parameters:
@@ -588,6 +603,7 @@ paths:
             $ref: '#/definitions/BackendResponse'
   '/engine/{version}/stats':
     get:
+      operationId: stats
       summary: Returns basic statistics from this Cromwell server.
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -600,6 +616,7 @@ paths:
             $ref: '#/definitions/StatsResponse'
   '/engine/{version}/version':
     get:
+      operationId: version
       summary: Return the version of this Cromwell server
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -612,6 +629,7 @@ paths:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
     get:
+      operationId: status
       summary: Return the current health status of any monitored subsystems
       parameters:
         - $ref: '#/parameters/versionParam'

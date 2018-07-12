@@ -3,9 +3,7 @@ package cromwell.webservice
 import _root_.io.circe.yaml
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, Multipart}
-import akka.http.scaladsl.server.Directives.{as, entity}
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.model.HttpRequest
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.data.NonEmptyList
@@ -24,7 +22,9 @@ import spray.json.{JsObject, JsValue, _}
 import wom.core._
 import cats.instances.list._
 import cats.syntax.traverse._
+import common.validation.ErrorOr
 
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 final case class PartialWorkflowSources(workflowSource: WorkflowSource,
@@ -91,12 +91,30 @@ object PartialWorkflowSources {
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
       val workflowSource = getStringValue(WorkflowSourceKey)
-//      val workflowUrl = getStringValue(WorkflowUrlKey)
 
-      val httpResponse = Http().singleRequest(HttpRequest(uri = "https://github.com/broadinstitute/cromwell/blob/develop/wom/src/test/resources/three_step/test.wdl"))
+      //REMOVE THIS LATER
+      val workflowUrl: ErrorOr[String] = getStringValue(WorkflowUrlKey) match {
+        case Some(url) => url.validNel //validateUrl(url)
+        case None => {
+          val url = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/three_step/test.wdl"
+          validateWorkflowUrl(url)
+        }
+      }
+
+
+      println(s"--------- $workflowUrl --------")
+
+      val httpResponse = Http().singleRequest(HttpRequest(uri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/tree_step/test.wdl"))
 
       httpResponse.onComplete {
-        case Success(res) => println(s"-----------RESPONSE ${entity(as[String])}")
+        case Success(res) => {
+          println(res.status)
+          val a = res.entity.toStrict(300.millis).map(_.data.utf8String)
+          a map { body =>
+            println(s"-----------RESPONSE $body")
+          }
+//          println(s"-----------RESPONSE $a")
+        }
         case Failure(e) => println(e.printStackTrace)
       }
 
@@ -181,6 +199,10 @@ object PartialWorkflowSources {
       case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
       case Left(error) => s"Input file is not valid yaml nor json: ${error.getMessage}".invalidNel
     }
+  }
+
+  private def validateWorkflowUrl(url: String): ErrorOr[WorkflowUrl] = {
+    "url".validNel
   }
 
   private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources],

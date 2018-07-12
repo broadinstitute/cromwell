@@ -27,6 +27,11 @@ paths:
           required: true
           type: file
           in: formData
+        - name: workflowUrl
+          description: URL which points to workflow.
+          required: false
+          type: string
+          in: formdata
         - name: workflowOnHold
           description: Put workflow on hold upon submission. By default, it is taken as false.
           required: false
@@ -104,6 +109,11 @@ paths:
           required: true
           type: file
           in: formData
+        - name: workflowUrl
+          description: URL which points to workflow.
+          required: false
+          type: string
+          in: formdata
         - name: workflowOnHold
           description: Put workflow on hold upon submission. By default, it is taken as false.
           required: false

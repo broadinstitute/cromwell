@@ -22,6 +22,7 @@ import cats.syntax.traverse._
 import scala.util.{Failure, Success, Try}
 
 final case class PartialWorkflowSources(workflowSource: WorkflowSource,
+                                        workflowUrl: Option[WorkflowUrl] = None,
                                         workflowRoot: Option[String] = None,
                                         workflowType: Option[WorkflowType] = None,
                                         workflowTypeVersion: Option[WorkflowTypeVersion] = None,
@@ -39,6 +40,7 @@ object PartialWorkflowSources {
   val WdlSourceKey = "wdlSource"
   val WorkflowRootKey = "workflowRoot"
   val WorkflowSourceKey = "workflowSource"
+  val WorkflowUrlKey = "workflowUrl"
   val WorkflowTypeKey = "workflowType"
   val WorkflowTypeVersionKey = "workflowTypeVersion"
   val WorkflowInputsKey = "workflowInputs"
@@ -49,7 +51,7 @@ object PartialWorkflowSources {
   val WorkflowDependenciesKey = "workflowDependencies"
   val workflowOnHoldKey = "workflowOnHold"
 
-  val allKeys = List(WdlSourceKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
+  val allKeys = List(WdlSourceKey, WorkflowUrlKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
     WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey, workflowOnHoldKey)
 
   val allPrefixes = List(WorkflowInputsAuxPrefix)
@@ -78,6 +80,7 @@ object PartialWorkflowSources {
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
       val workflowSource = getStringValue(WorkflowSourceKey)
+      val workflowUrl = getStringValue(WorkflowUrlKey)
 
       def deprecationWarning(out: String, in: String)(actual: String): String = {
         if (actual == out) {

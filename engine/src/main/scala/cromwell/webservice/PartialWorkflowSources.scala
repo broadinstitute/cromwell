@@ -1,6 +1,12 @@
 package cromwell.webservice
 
 import _root_.io.circe.yaml
+import akka.actor.ActorSystem
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpRequest, Multipart}
+import akka.http.scaladsl.server.Directives.{as, entity}
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
@@ -35,6 +41,11 @@ final case class PartialWorkflowSources(workflowSource: WorkflowSource,
                                         workflowOnHold: Boolean)
 
 object PartialWorkflowSources {
+  implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
+  implicit val executionContext = system.dispatcher
+
+
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
   
   val WdlSourceKey = "wdlSource"
@@ -80,7 +91,14 @@ object PartialWorkflowSources {
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
       val workflowSource = getStringValue(WorkflowSourceKey)
-      val workflowUrl = getStringValue(WorkflowUrlKey)
+//      val workflowUrl = getStringValue(WorkflowUrlKey)
+
+      val httpResponse = Http().singleRequest(HttpRequest(uri = "https://github.com/broadinstitute/cromwell/blob/develop/wom/src/test/resources/three_step/test.wdl"))
+
+      httpResponse.onComplete {
+        case Success(res) => println(s"-----------RESPONSE ${entity(as[String])}")
+        case Failure(e) => println(e.printStackTrace)
+      }
 
       def deprecationWarning(out: String, in: String)(actual: String): String = {
         if (actual == out) {

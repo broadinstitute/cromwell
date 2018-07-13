@@ -37,3 +37,18 @@ $ sbt server/docker
 ```
 
 This will build and tag a Docker image with a name like `broadinstitute/cromwell:<VERSION>-SNAP`.
+
+###IntelliJ gotchas
+
+If you develop Cromwell using IntelliJ IDEA, you may see the following error message in IntelliJ:
+
+```
+Error occurred during initialization of VM
+Initial heap size set to a larger value than the maximum heap size
+```
+
+This is caused by IntelliJ overriding the `Xmx` (max heap) option in our custom `.sbtopts` file to a value that's below 
+our `Xms` (initial heap) value.  We cannot tell IntelliJ not to do this, but we can set it to a compatible value.
+Go to **Preferences** -> **Build, Execution, Deployment** -> **sbt** -> **JVM** and increase the value of `Maximum heap size, MB` above 
+our `Xms` value of 2 GB.  A `Maximum heap size` value of `2100 MB` will be sufficient.
+

@@ -14,7 +14,7 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
   
   it should "inject project flag when request fails because of requester pays" in {
     val path = GcsPath(any[Path], any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], "my-project")
-    val recovered = recoverRequesterPaysError(path) { flag =>
+    val recovered = retryFailedCopyErrorWithProjectFlag(path) { flag =>
       s"flag is $flag"
     }
     

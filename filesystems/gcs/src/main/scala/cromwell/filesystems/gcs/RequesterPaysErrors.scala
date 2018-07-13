@@ -9,6 +9,12 @@ object RequesterPaysErrors {
   val DoesNotHaveServiceUsePermissionErrorCode = 403
   val DoesNotHaveServiceUsePermissionErrorMessage = "does not have serviceusage.services.use"
 
+  def retryWithBillingProject(storageException: StorageException) = isProjectNotProvidedError || isServiceUsageNotProvided
+
+  def retryWithBillingProject(googleJsonError: GoogleJsonError) = isProjectNotProvidedError || isServiceUsageNotProvided
+
+  def retryWithBillingProject(googleJsonError: GoogleJsonResponseException) = isProjectNotProvidedError || isServiceUsageNotProvided
+
   def isProjectNotProvidedError(storageException: StorageException) = 
     storageException.getCode == BucketIsRequesterPaysErrorCode &&
     storageException.getMessage == BucketIsRequesterPaysErrorMessage
@@ -20,4 +26,16 @@ object RequesterPaysErrors {
   def isProjectNotProvidedError(googleJsonError: GoogleJsonResponseException) =
     googleJsonError.getStatusCode == BucketIsRequesterPaysErrorCode &&
       googleJsonError.getContent == BucketIsRequesterPaysErrorMessage
+
+  def isServiceUsageNotProvided(storageException: StorageException) =
+    storageException.getCode == DoesNotHaveServiceUsePermissionErrorCode &&
+      storageException.getMessage == DoesNotHaveServiceUsePermissionErrorMessage
+
+  def isServiceUsageNotProvided(googleJsonError: GoogleJsonError) =
+    googleJsonError.getCode == DoesNotHaveServiceUsePermissionErrorCode &&
+      googleJsonError.getMessage == DoesNotHaveServiceUsePermissionErrorMessage
+
+  def isServiceUsageNotProvided(googleJsonError: GoogleJsonResponseException) =
+    googleJsonError.getStatusCode == DoesNotHaveServiceUsePermissionErrorCode &&
+      googleJsonError.getContent == DoesNotHaveServiceUsePermissionErrorMessage
 }

@@ -6,7 +6,7 @@ import akka.http.scaladsl.model.StatusCodes
 import cats.effect.IO
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.StorageException
-import cromwell.filesystems.gcs.RequesterPaysErrors.isProjectNotProvidedError
+import cromwell.filesystems.gcs.RequesterPaysErrors.retryWithBillingProject
 
 object GcsEnhancedRequest {
 
@@ -14,12 +14,12 @@ object GcsEnhancedRequest {
   def recoverFromProjectNotProvided[A](path: GcsPath, f: Boolean => A) = {
     IO(f(false)).handleErrorWith({
         // Only retry with the the project if the error is right
-        case error: StorageException if isProjectNotProvidedError(error) =>
+        case error: StorageException if retryWithBillingProject(error) =>
           IO(f(true))
         // Use NoSuchFileException for better error reporting
         case e: StorageException if e.getCode == StatusCodes.NotFound.intValue =>
           IO.raiseError(new FileNotFoundException(s"File not found: ${path.pathAsString}"))
-        case e: GoogleJsonResponseException if isProjectNotProvidedError(e) => 
+        case e: GoogleJsonResponseException if retryWithBillingProject(e) =>
           IO(f(true))
         case e: GoogleJsonResponseException if e.getStatusCode == StatusCodes.NotFound.intValue =>
           IO.raiseError(new FileNotFoundException(s"File not found: ${path.pathAsString}"))

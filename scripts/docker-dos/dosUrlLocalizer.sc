@@ -22,7 +22,6 @@ import com.google.cloud.ReadChannel
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.lang.Long
 import java.nio.file.Files
 import java.nio.file.Paths
 import org.http4s.client.blaze._
@@ -36,26 +35,34 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import scala.util.{Try, Success, Failure}
 
-
-case class MarthaResponse(dos: String, sa: String)
-
 object MarthaResponseJsonSupport extends DefaultJsonProtocol {
-  implicit val responseFormat = jsonFormat2(MarthaResponse)
+  implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
+  implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat1(DosDataObject)
+  implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
+  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
 }
+
+case class Url(url: String)
+
+case class DosDataObject(urls: Array[Url])
+
+case class DosObject(data_object: DosDataObject)
+
+case class MarthaResponse(dos: DosObject, googleServiceAccount: JsObject)
 
 
 @main
 def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
   val dosResloverObj = for {
     marthaResObj <- resolveDosThroughMartha(dosUrl)
-    _ <- downloadFileFromGcs(marthaResObj.dos, marthaResObj.sa, downloadLoc)
+    _ <- downloadFileFromGcs(marthaResObj.dos.data_object.urls(0).url, marthaResObj.googleServiceAccount.toString, downloadLoc)
   } yield()
 
   dosResloverObj match {
     case Success(_) =>
     case Failure(e) => {
-      println("Error:")
-      println(e.printStackTrace)
+      Console.err.println(s"Error: $e")
+      e.printStackTrace(Console.err)
       System.exit(1)
     }
   }
@@ -65,42 +72,42 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
 def resolveDosThroughMartha(dosUrl: String) : Try[MarthaResponse] = {
   import MarthaResponseJsonSupport._
 
-  // if using fake Martha request, insert actual service account json here
-  // if using actual Martha remove this variable entirely
-  val serviceAccount = raw"""{}"""
+  val requestBody = json"""{"url":$dosUrl}"""
 
-  val requestBody = json"""{"dosUrl":$dosUrl}"""
+  val credentials = GoogleCredentials.getApplicationDefault()
+  credentials.refreshAccessToken()
+  val accessToken = credentials.getAccessToken()
 
-  Try {
-    val httpClient = Http1Client[IO]().unsafeRunSync
+  val marthaResponseIo: IO[MarthaResponse] = for {
+    httpClient <- Http1Client[IO]()
     //request to fake Martha
-    val postRequest = Request[IO](
+    postRequest <- Request[IO](
       method = Method.POST,
-      uri = Uri.uri("https://us-central1-broad-dsde-cromwell-dev.cloudfunctions.net/helloWorld"))
+      uri = Uri.uri("http://us-central1-dvoet-mock-marthav2.cloudfunctions.net/martha_v2"),
+      headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
-    val httpResponse = httpClient.expect[String](postRequest).unsafeRunSync
-    val marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
+    httpResponse <- httpClient.expect[String](postRequest)
+    marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
+  } yield marthaResObj
 
-    //reconstructing the marthaResObj to replace sa details
-    MarthaResponse(dos = marthaResObj.dos, sa = serviceAccount)
-  }
+  Try(marthaResponseIo.unsafeRunSync())
 }
 
 
 def downloadFileFromGcs(gcsUrl: String, serviceAccount: String, downloadLoc: String) : Try[Unit] = {
-  val gcsUrlArray = gcsUrl.split("/")
-  val fileToBeLocalized = gcsUrlArray(3)
-  val gcsBucket = gcsUrlArray(2)
+  val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
+  val fileToBeLocalized = gcsUrlArray(1)
+  val gcsBucket = gcsUrlArray(0)
 
-  for {
-    credentials <- Try(GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
-      .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform")))
-    storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
-    blob <- Try(storage.get(gcsBucket, fileToBeLocalized))
-    readChannel <- Try(blob.reader())
-    _ <- Try(Files.createDirectories(Paths.get(downloadLoc).getParent))
-    fileOuputStream = new FileOutputStream(downloadLoc)
-    _ <- Try(fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MAX_VALUE))
-    _ <- Try(fileOuputStream.close())
-  } yield()
+  Try {
+    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
+      .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
+    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
+    val blob = storage.get(gcsBucket, fileToBeLocalized)
+    val readChannel = blob.reader()
+    Files.createDirectories(Paths.get(downloadLoc).getParent)
+    val fileOuputStream = new FileOutputStream(downloadLoc)
+    fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MaxValue)
+    fileOuputStream.close()
+  }
 }

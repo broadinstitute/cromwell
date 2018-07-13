@@ -14,7 +14,7 @@ groups:
     author_approval:
       ignored: true
     teams:
-        - redteam
+        - wb-batch
     conditions:
       files:
         exclude:
@@ -27,7 +27,7 @@ groups:
     author_approval:
       ignored: true
     teams:
-        - redteam
+        - wb-batch
     conditions:
       files:
         include:

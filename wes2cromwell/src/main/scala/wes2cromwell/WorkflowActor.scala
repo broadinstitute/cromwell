@@ -18,7 +18,6 @@ final case class ErrorResponse(
 
 object WorkflowActor {
   final case object GetWorkflows
-  final case class PostWorkflow(wesSubmission: WesSubmission)
   final case class GetWorkflow(workflowId: String)
   final case class DeleteWorkflow(workflowId: String)
   final case class GetWorkflowStatus(workflowId: String)
@@ -33,8 +32,6 @@ class WorkflowActor extends Actor with ActorLogging {
   def receive: Receive = {
     case GetWorkflows =>
       transmogriphy.getWorkflows(sender())
-    case PostWorkflow(workflowRequest) =>
-      transmogriphy.postWorkflow(sender(), workflowRequest)
     case GetWorkflow(workflowId) =>
       transmogriphy.getWorkflow(sender(), workflowId)
     case DeleteWorkflow(workflowId) =>

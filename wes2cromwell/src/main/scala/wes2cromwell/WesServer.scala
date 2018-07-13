@@ -1,6 +1,6 @@
 package wes2cromwell
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration.Duration
 import akka.actor.{ActorRef, ActorSystem}
 import akka.event.Logging
@@ -10,7 +10,6 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromiam.cromwell.CromwellClient
 import net.ceedubs.ficus.Ficus._
-
 
 // MAIN
 object WesServer extends App with WesWorkflowRoutes {
@@ -22,7 +21,7 @@ object WesServer extends App with WesWorkflowRoutes {
   // set up ActorSystem and other dependencies here
   implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
-
+  implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
   val workflowActor: ActorRef = system.actorOf(WorkflowActor.props, "workflowRegistryActor")
 
   override val log = Logging(system, getClass)

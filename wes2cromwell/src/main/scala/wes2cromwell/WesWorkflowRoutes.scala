@@ -1,7 +1,7 @@
 package wes2cromwell
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.event.{Logging, LoggingAdapter}
+import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
@@ -14,7 +14,6 @@ import com.typesafe.config.ConfigFactory
 import cromiam.cromwell.CromwellClient
 import wes2cromwell.WorkflowActor._
 import net.ceedubs.ficus.Ficus._
-import spray.json.JsObject
 import cromiam.webservice.RequestSupport
 
 import scala.concurrent.Future
@@ -80,15 +79,15 @@ trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
     }
 
   def extractSubmission(): Directive1[WesSubmission] = {
-   formFields(
+   formFields((
       "workflow_params",
       "workflow_type",
       "workflow_type_version",
       "tags".?,
       "workflow_engine_parameters".?,
       "workflow_url",
-      "workflow_attachment".*
-    ).as(WesSubmission)
+      "workflow_attachment".as[String].*
+    )).as(WesSubmission)
   }
 
   // Common handler for some Wes Responses

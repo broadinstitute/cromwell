@@ -4,7 +4,6 @@ import akka.http.scaladsl.model.{HttpEntity, MediaTypes, MessageEntity, Multipar
 import cromiam.auth.Collection.LabelsKey
 import cromiam.webservice.SubmissionSupport._
 
-
 final case class WesSubmission(
                                 workflowParams: String,
                                 workflowType: String,
@@ -39,7 +38,7 @@ final case class WesSubmission(
     val optionsPart = workflowEngineParameters map { o => Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o)) }
     val labelsPart = tags map { t => Multipart.FormData.BodyPart(LabelsKey, HttpEntity(MediaTypes.`application/json`, t)) }
 
-    val parts = List(sourcePart, urlPart, Option(typePart), Option(typeVersionPart), Option(inputsPart), optionsPart, labelsPart).flatten
+    val parts = List(sourcePart, Option(urlPart), Option(typePart), Option(typeVersionPart), Option(inputsPart), optionsPart, labelsPart).flatten
 
     Multipart.FormData(parts: _*).toEntity()
   }

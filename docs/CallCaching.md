@@ -63,10 +63,10 @@ Cromwell provides two methods to lookup a Docker hash from a Docker tag:
     
 **Runtime Attributes**
 
-Call caching considers three [runtime attributes](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/) of a given task when determining if a cache hit exists:
+As well as call inputs and the command to run, call caching considers the following [runtime attributes](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/) of a given task when determining whether to call cache:
 
 * [`ContinueOnReturnCode`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#continueonreturncode)
 * [`Docker`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#docker)
 * [`FailOnStderr`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#failonstderr)
 
-If any of these options change from the previous iteration of the same task, the `call` will be executed as normal. All other runtime attributes, including [`memory`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#memory), [`cpu`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpu), and [`disks`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#disks), will not be considered in call caching's evaluation and therefore may be changed without preventing cached tasks from being used. 
+If any of these attributes have changed from a previous instance of the same task, that instance will not be call-cached from. Other runtime attributes, including [`memory`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#memory), [`cpu`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpu), and [`disks`](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#disks), are not considered by call caching and therefore may be changed without preventing a cached result from being used. 

@@ -1,7 +1,7 @@
 package wes2cromwell
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.event.Logging
+import akka.event.{Logging, LoggingAdapter}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
@@ -11,10 +11,12 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import cromiam.cromwell.CromwellClient
 import wes2cromwell.WorkflowActor._
 import net.ceedubs.ficus.Ficus._
 import spray.json.JsObject
 import cromiam.webservice.RequestSupport
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -24,10 +26,12 @@ trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
   // we leave these abstract, since they will be provided by the App
   implicit def system: ActorSystem
 
-  lazy val log = Logging(system, classOf[WesWorkflowRoutes])
+  val log: LoggingAdapter
 
   // other dependencies that Routes use
   def workflowActor: ActorRef
+
+  def cromwellClient: CromwellClient
 
   // Make this configurable
   implicit val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
@@ -46,9 +50,7 @@ trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
             post {
               extractStrictRequest { request =>
                 extractSubmission() { submission =>
-
-//                  val futureWes: Future[Any] = workflowActor.ask(PostWorkflow(submission))
-//                  handleWesResponse(futureWes)
+                  complete { cromwellClient.forwardToCromwell(request.withEntity(submission.entity)) }
                 }
               }
             }
@@ -79,7 +81,7 @@ trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
 
   def extractSubmission(): Directive1[WesSubmission] = {
    formFields(
-      "workflow_params".?,
+      "workflow_params",
       "workflow_type",
       "workflow_type_version",
       "tags".?,

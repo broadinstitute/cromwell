@@ -140,4 +140,5 @@ object SubmissionSupport {
   val WorkflowOptionsKey = "workflowOptions"
   val WorkflowDependenciesKey = "workflowDependencies"
   val WorkflowOnHoldKey = "workflowOnHold"
+  val WorkflowUrlKey = "workflowUrl"
 }

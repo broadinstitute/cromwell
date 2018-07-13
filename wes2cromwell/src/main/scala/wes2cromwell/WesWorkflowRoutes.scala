@@ -2,6 +2,7 @@ package wes2cromwell
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
+import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
@@ -11,7 +12,6 @@ import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.pattern.ask
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import cromiam.cromwell.CromwellClient
 import wes2cromwell.WorkflowActor._
 import net.ceedubs.ficus.Ficus._
 import cromiam.webservice.RequestSupport
@@ -30,7 +30,7 @@ trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
   // other dependencies that Routes use
   def workflowActor: ActorRef
 
-  def cromwellClient: CromwellClient
+  def cromwellPath: String
 
   // Make this configurable
   implicit val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
@@ -49,7 +49,16 @@ trait WesWorkflowRoutes extends JsonSupport with RequestSupport {
             post {
               extractStrictRequest { request =>
                 extractSubmission() { submission =>
-                  complete { cromwellClient.forwardToCromwell(request.withEntity(submission.entity)) }
+                  complete {
+                    /*
+                     There's overlap between this and cromiam's cromwellClient but not yet enough to go all in.
+                     In particular we're currently getting those stupid Timeout-access warnings which it handles
+                      */
+                    val cromwellRequest = request
+                        .copy(uri=cromwellPath)
+                        .withEntity(submission.entity)
+                    Http().singleRequest(cromwellRequest)
+                  }
                 }
               }
             }

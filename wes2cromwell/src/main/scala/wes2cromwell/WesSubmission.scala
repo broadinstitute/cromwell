@@ -19,7 +19,7 @@ final case class WesSubmission(
 
       Super oversimplification going on here as Cromwell's API is expected to normalize w/ WES a bit over the course
       of the quarter and it's not worth doing it here and throwing it out later (there's close to a 0% chance this will
-      be used between now and then.
+      be used between now and then)
 
       At the moment, just taking the head of workflowAttachment (if it exists) and dropping that into the workflow source,
       and we're ignoring the possible existence of a zip bundle. Eventually the way this will work is that there'll be

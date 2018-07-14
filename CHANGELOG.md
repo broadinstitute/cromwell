@@ -9,8 +9,13 @@ More details on how to use it can be found [here](http://cromwell.readthedocs.io
 
 ### Languages
 
-- Added an opt-in namespace cache for the WDL Draft 2 language factory. Please see the Cromwell example configuration for details. NOTE: if upgrading from a hotfix version of Cromwell
-  that relied upon this cache, the cache is now opt-in and must be turned on explicitly in config.
+Added an opt-in namespace cache for the WDL Draft 2 language factory. Please see the Cromwell example configuration for details. NOTE: if upgrading from a hotfix version of Cromwell
+that relied upon this cache, the cache is now opt-in and must be turned on explicitly in config.
+
+### HTTP Workflow Inputs for Shared File System and Google Pipelines API Version 2 Backends
+
+`http` and `https` workflow inputs are now supported for shared filesystem and Google Pipelines API (PAPI) version 2
+backends. Configuration details are described [here](http://cromwell.readthedocs.io/en/develop/filesystems/HTTP).
 
 ### Bug Fixes
 

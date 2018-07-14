@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorContext}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
@@ -11,6 +11,9 @@ trait SharedFileSystemJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
 
   lazy val sharedFileSystem = new SharedFileSystem {
+
+    override implicit def actorContext: ActorContext = context
+
     override lazy val pathBuilders: List[PathBuilder] = standardInitializationData.workflowPaths.pathBuilders
 
     override lazy val sharedFileSystemConfig: Config = {

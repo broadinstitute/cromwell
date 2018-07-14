@@ -1,5 +1,6 @@
 package cromwell.backend.sfs
 
+import akka.actor.ActorContext
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendSpec
 import cromwell.core.CromwellFatalExceptionMarker
@@ -38,6 +39,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val sharedFS = new SharedFileSystem {
       override val pathBuilders = localPathBuilder
       override val sharedFileSystemConfig = config
+      override implicit def actorContext: ActorContext = null
     }
     val localizedinputs = Map(inputs.head._1 -> WomSingleFile(dest.pathAsString))
     val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
@@ -85,6 +87,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val sharedFS = new SharedFileSystem {
       override val pathBuilders = localPathBuilder
       override val sharedFileSystemConfig = defaultLocalization
+      override implicit def actorContext: ActorContext = null
     }
     val result = sharedFS.localizeInputs(callDir, docker = false)(inputs)
     result.isFailure shouldBe true

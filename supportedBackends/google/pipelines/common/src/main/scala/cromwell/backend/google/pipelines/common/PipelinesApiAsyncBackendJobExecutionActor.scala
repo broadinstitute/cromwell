@@ -31,6 +31,7 @@ import cromwell.filesystems.demo.dos.DemoDosPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.filesystems.sra.SraPath
+import cromwell.filesystems.http.HttpPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
@@ -659,14 +660,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    womFile.mapFile(value =>
+    womFile.mapFile { value =>
       (getPath(value), asAdHocFile(womFile)) match {
         case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
           // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
           // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
-        case (Success(gcsPath: GcsPath), _) =>
-          workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case (Success(path @ ( _: GcsPath | _: HttpPath)), _) =>
+          workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
         case (Success(demoDosPath: DemoDosPath), _) =>
           val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
           workingDisk.mountPoint.resolve(filePath).pathAsString
@@ -674,7 +675,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           workingDisk.mountPoint.resolve(s"sra-${sraPath.accession}/${sraPath.pathWithoutScheme}").pathAsString
         case _ => value
       }
-    )
+    }
   }
 
   override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {

@@ -99,7 +99,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   override lazy val ioActor = standardParams.ioActor
 
-  /** Backend initialization data created by the a factory initializer. */
+  /** Backend initialization data created by the factory initializer. */
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
     standardParams.backendInitializationDataOption
 

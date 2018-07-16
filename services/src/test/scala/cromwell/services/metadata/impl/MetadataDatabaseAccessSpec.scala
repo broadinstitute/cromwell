@@ -266,7 +266,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          withClue("Filter by label using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
+          withClue("Filter by exclude label using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
         }
         // Filter by multiple exclude labels using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(

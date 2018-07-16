@@ -162,6 +162,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
+        case Success(demoDosPath: DemoDosPath) =>
+          demoDosResolver.getContainerRelativePath(demoDosPath)
         case Success(path) => path.pathWithoutScheme
         case _ => value
       }
@@ -171,6 +173,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
+        case Success(demoDosPath: DemoDosPath) =>
+          DefaultPathBuilder.get(demoDosResolver.getContainerRelativePath(demoDosPath)).name
         case Success(path) => path.name
         case _ => value
       }
@@ -634,7 +638,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         case (Success(gcsPath: GcsPath), _) =>
           workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
         case (Success(demoDosPath: DemoDosPath), _) =>
-          workingDisk.mountPoint.resolve(demoDosPath.pathWithoutScheme).pathAsString
+          val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
+          workingDisk.mountPoint.resolve(filePath).pathAsString
         case _ => value
       }
     )
@@ -645,7 +650,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
         case Success(demoDosPath: DemoDosPath) =>
-          workingDisk.mountPoint.resolve(demoDosPath.pathWithoutScheme).pathAsString
+          val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
+          workingDisk.mountPoint.resolve(filePath).pathAsString
         case _ => value
       }
     )

@@ -14,8 +14,8 @@ import cwl.CwlDecoder
 import cwl.preprocessor.CwlPreProcessor
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
-import wdl.draft3.transforms.wdlom2wom.{FileElementToWomBundleInputs, fileElementToWomBundle}
-import wdl.draft3.transforms.ast2wdlom.astToFileElement
+import wdl.transforms.base.wdlom2wom.{FileElementToWomBundleInputs, fileElementToWomBundle}
+import wdl.draft3.transforms.ast2wdlom.{astToFileElement, wrapAst}
 import wdl.draft3.transforms.parsing.fileToAst
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wom.callable.WorkflowDefinition
@@ -187,7 +187,7 @@ object WomGraph {
       firstLine.startsWith("version draft-3") || firstLine.startsWith("version 1.0")
     }
     val womBundle: Checked[WomBundle] = if (version1) {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty)) andThen fileElementToWomBundle
       converter.run(File(filePath))
     } else {
 

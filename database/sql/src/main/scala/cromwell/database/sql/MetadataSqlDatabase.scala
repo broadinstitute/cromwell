@@ -85,6 +85,7 @@ trait MetadataSqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             includeSubworkflows: Boolean,
                              page: Option[Int],
                              pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
@@ -97,6 +98,7 @@ trait MetadataSqlDatabase {
                              excludeLabelOrValues: Set[(String,String)],
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
-                             endTimestampOption: Option[Timestamp])
+                             endTimestampOption: Option[Timestamp],
+                             includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 }

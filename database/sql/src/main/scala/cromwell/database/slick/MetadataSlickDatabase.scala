@@ -203,11 +203,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
+                                      includeSubworkflows: Boolean,
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, page, pageSize).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize).result
     runTransaction(action)
   }
 
@@ -220,10 +221,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       excludeLabelOrValues: Set[(String,String)],
                                       submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
-                                      endTimestampOption: Option[Timestamp])
+                                      endTimestampOption: Option[Timestamp],
+                                      includeSubworkflows: Boolean)
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows).result
     runTransaction(action)
   }
 }

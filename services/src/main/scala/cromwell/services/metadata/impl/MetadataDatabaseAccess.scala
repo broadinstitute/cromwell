@@ -193,6 +193,7 @@ trait MetadataDatabaseAccess {
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.includeSubworkflows,
       queryParameters.page,
       queryParameters.pageSize
     )
@@ -207,18 +208,19 @@ trait MetadataDatabaseAccess {
       excludeLabelsOrToQuery,
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
-      queryParameters.endDate.map(_.toSystemTimestamp)
+      queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.includeSubworkflows
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
       queryParameters.page.as(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
     }
 
-    def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[List[Option[MetadataService.WorkflowQueryResult]]] = {
+    def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[List[MetadataService.WorkflowQueryResult]] = {
       workflows.toList.traverse(summaryToQueryResult)
     }
 
-    def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[Option[MetadataService.WorkflowQueryResult]] = {
+    def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
 
       def queryResult(labels: Map[String, String], parentId: Option[String]): MetadataService.WorkflowQueryResult = {
         MetadataService.WorkflowQueryResult(
@@ -252,26 +254,20 @@ trait MetadataDatabaseAccess {
           .fold(keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId), Future.successful(None))
       }
 
-      def formQueryResult(labels: Map[String, String], parentId: Option[String]): Option[MetadataService.WorkflowQueryResult] = {
-        (queryParameters.includeSubworkflows, parentId) match {
-          case ((true, _) | (false, None)) => Option(queryResult(labels, parentId))
-          case (false, Some(_)) => None
-        }
-      }
+      def formQueryResult(labels: Map[String, String], parentId: Option[String]): MetadataService.WorkflowQueryResult = queryResult(labels, parentId)
+
 
       for {
         labels <- getWorkflowLabels
         parentWorkflowId <- getParentWorkflowId
       } yield formQueryResult(labels, parentWorkflowId)
-
     }
 
     for {
       count <- workflowSummaryCount
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
-    } yield (WorkflowQueryResponse(queryResults.flatten, count), queryMetadata(count))
+    } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
 
   }
 }
-

@@ -94,6 +94,7 @@ lazy val ossFileSystem = (project in file("filesystems/oss"))
 
 lazy val databaseSql = (project in file("database/sql"))
   .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
+  .dependsOn(core)
 
 lazy val databaseMigration = (project in file("database/migration"))
   .withLibrarySettings("cromwell-database-migration", databaseMigrationDependencies)

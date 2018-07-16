@@ -165,7 +165,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
         // refresh the metadata
         _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
-          max should be > 0L
+          withClue("max") { max should be > 0L }
         }
 
         // Query with no filters
@@ -185,7 +185,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsByName = response.results groupBy {
             _.name
           }
-          resultsByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+          withClue("Filter by name") { resultsByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
         }
         // Filter by multiple names
         _ <- dataAccess.queryWorkflowSummaries(
@@ -195,7 +195,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsByName = response.results groupBy {
             _.name
           }
-          resultsByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+          withClue("Filter by multiple names") { resultsByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name)) }
         }
         // Filter by workflow id
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -203,7 +203,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsById = response.results groupBy {
             _.name
           }
-          resultsById.keys.toSet.flatten should equal(Set(Workflow1Name))
+          withClue("Filter by workflow ID") { resultsById.keys.toSet.flatten should equal(Set(Workflow1Name)) }
         }
         // Filter by multiple workflow ids
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -211,7 +211,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsById = response.results groupBy {
             _.name
           }
-          resultsById.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+          withClue("Filter by multiple workflow IDs") { resultsById.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name)) }
         }
         // Filter by workflow id within random Ids
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -219,26 +219,26 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           val resultsById = response.results groupBy {
             _.name
           }
-          resultsById.keys.toSet.flatten should equal(Set(Workflow1Name))
+          withClue("Filter by workflow ID within random IDs") { resultsById.keys.toSet.flatten should equal(Set(Workflow1Name)) }
         }
         // Filter by status
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.Status.name -> "Submitted"))) map { case (response, _) =>
           val resultsByStatus = response.results groupBy (_.status)
-          resultsByStatus.keys.toSet.flatten should equal(Set("Submitted"))
+          withClue("Filter by status") { resultsByStatus.keys.toSet.flatten should equal(Set("Submitted")) }
         }
         // Filter by multiple statuses
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.Status.name -> "Submitted",
           WorkflowQueryKey.Status.name -> "Succeeded"))) map { case (response, _) =>
           val resultsByStatus = response.results groupBy (_.status)
-          resultsByStatus.keys.toSet.flatten should equal(Set("Submitted", "Succeeded"))
+          withClue("Filter by multiple statuses") { resultsByStatus.keys.toSet.flatten should equal(Set("Submitted", "Succeeded")) }
         }
         // Filter by label using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.LabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+          withClue("Filter by label using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name)) }
         }
         // Filter by multiple labels using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -246,13 +246,13 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             .map(label => WorkflowQueryKey.LabelAndKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow2Name))
+          withClue("Filter by multiple labels using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow2Name)) }
         }
         // Filter by label using OR
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.LabelOrKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+          withClue("Filter by label using OR") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name)) }
         }
         // Filter by multiple labels using OR
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -260,13 +260,13 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             .map(label => WorkflowQueryKey.LabelOrKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name))
+          withClue("Filter by multiple label using OR") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name, Workflow2Name)) }
         }
         // Filter by exclude label using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+          withClue("Filter by label using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
         }
         // Filter by multiple exclude labels using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -274,7 +274,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             .map(label => WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) => {
             val resultByName = response.results groupBy (_.name)
-            resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+            withClue("Filter by multiple exclude labels using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
             response.totalResultsCount match {
               case 3 => //good
               case ct => fail(s"totalResultsCount for multiple exclude labels using AND query is expected to be 3 but is actually $ct. " +
@@ -286,7 +286,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+          withClue("Filter to exclude label using OR") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
         }
         // Filter by multiple exclude labels using OR
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -294,7 +294,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             .map(label => WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          resultByName.keys.toSet.flatten should equal(Set(Workflow1Name))
+          withClue("Filter by multiple exclude labels using OR") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
           response.totalResultsCount match {
             case 2 => //good
             case ct => fail(s"totalResultsCount is for multiple exclude labels using OR query is expected to be 2 but is actually $ct. " +

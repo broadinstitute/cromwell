@@ -2,7 +2,6 @@ package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.core.WorkflowMetadataKeys
 import cromwell.database.sql.tables.WorkflowMetadataSummaryEntry
 
 trait WorkflowMetadataSummaryEntryComponent {
@@ -57,7 +56,9 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
-  def filterWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
+  def filterWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
+                                           workflowStatuses: Set[String],
+                                           workflowNames: Set[String],
                                            workflowExecutionUuids: Set[String],
                                            labelAndKeyValues: Set[(String, String)],
                                            labelOrKeyValues: Set[(String, String)],
@@ -97,7 +98,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       val labelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, labelOrKeyValues, _ || _)
       val excludeLabelsAndFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, excludeLabelAndValues, _ && _).map(v => !v)
       val excludeLabelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, excludeLabelOrValues, _ || _).map(v => !v)
-      val notASubworkflowFilter: Option[Rep[Boolean]] = if (includeSubworkflows) None else Some(!isASubworkflow(workflowMetadataSummaryEntry))
+      val notASubworkflowFilter: Option[Rep[Boolean]] =
+        if (includeSubworkflows) None else Some(metadataEntryExistsForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid, parentIdWorkflowMetadataKey))
 
       // Put all the optional filters above together in one place.
       val optionalFilters: List[Option[Rep[Boolean]]] = List(
@@ -137,14 +139,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       .reduceLeftOption(op)
   }
 
-  /**
-    * Determines whether a workflow is a subworkflow by checking whether it has metadata for a parent.
-    */
-  private def isASubworkflow(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntries): Rep[Boolean] = {
-    metadataEntryExistsForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid, WorkflowMetadataKeys.ParentWorkflowId)
-  }
-
-  def countWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
+  def countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
+                                          workflowStatuses: Set[String], workflowNames: Set[String],
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
@@ -155,6 +151,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           endTimestampOption: Option[Timestamp],
                                           includeSubworkflows: Boolean) = {
     val filter = filterWorkflowMetadataSummaryEntries(
+      parentIdWorkflowMetadataKey,
       workflowStatuses,
       workflowNames,
       workflowExecutionUuids,
@@ -173,7 +170,8 @@ trait WorkflowMetadataSummaryEntryComponent {
   /**
     * Query workflow execution using the filter criteria encapsulated by the `WorkflowExecutionQueryParameters`.
     */
-  def queryWorkflowMetadataSummaryEntries(workflowStatuses: Set[String], workflowNames: Set[String],
+  def queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
+                                          workflowStatuses: Set[String], workflowNames: Set[String],
                                           workflowExecutionUuids: Set[String],
                                           labelAndKeyLabelValues: Set[(String,String)],
                                           labelOrKeyLabelValues: Set[(String,String)],
@@ -186,6 +184,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           page: Option[Int],
                                           pageSize: Option[Int]) = {
     val filter = filterWorkflowMetadataSummaryEntries(
+      parentIdWorkflowMetadataKey,
       workflowStatuses,
       workflowNames,
       workflowExecutionUuids,

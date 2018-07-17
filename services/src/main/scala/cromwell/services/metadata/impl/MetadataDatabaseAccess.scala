@@ -183,6 +183,7 @@ trait MetadataDatabaseAccess {
     val excludeLabelsOrToQuery = queryParameters.excludeLabelsOr.map(label => (label.key, label.value))
 
     val workflowSummaries = metadataDatabaseInterface.queryWorkflowSummaries(
+      WorkflowMetadataKeys.ParentWorkflowId,
       queryParameters.statuses,
       queryParameters.names,
       queryParameters.ids.map(_.toString),
@@ -199,6 +200,7 @@ trait MetadataDatabaseAccess {
     )
 
     val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
+      WorkflowMetadataKeys.ParentWorkflowId,
       queryParameters.statuses,
       queryParameters.names,
       queryParameters.ids.map(_.toString),
@@ -213,7 +215,12 @@ trait MetadataDatabaseAccess {
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
-      queryParameters.page.as(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
+      (queryParameters.page, queryParameters.pageSize) match {
+        case (None, None) => None
+        case (Some(_), None) => None // Page without pagesize returns everything
+        case (None, Some(ps)) => Option(QueryMetadata(Option(1), queryParameters.pageSize, Option(count)))
+        case _ => Option(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
+      }
     }
 
     def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[List[MetadataService.WorkflowQueryResult]] = {

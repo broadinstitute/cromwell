@@ -345,7 +345,7 @@ trait CromwellApiService extends HttpInstrumentation {
 
     onComplete(response) {
       case Success(w: WorkflowQuerySuccess) =>
-        val headers = WorkflowQueryPagination.generateLinkHeaders(uri, w.meta)
+        val headers = List.empty
         respondWithHeaders(headers) {
           complete(ToResponseMarshallable(w.response))
         }

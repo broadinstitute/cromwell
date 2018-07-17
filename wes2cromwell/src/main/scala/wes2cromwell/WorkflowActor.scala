@@ -1,19 +1,8 @@
 package wes2cromwell
 
-import akka.actor.{ Actor, ActorLogging, Props }
-import spray.json.JsObject
+import akka.actor.{Actor, ActorLogging, Props}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
-final case class WorkflowRequest(
-  workflow_descriptor: Option[String],
-  workflow_params: Option[JsObject],
-  workflow_type: String,
-  workflow_type_version: String,
-  tags: Option[JsObject],
-  workflow_engine_parameters: Option[JsObject],
-  workflow_url: Option[String]
-)
 
 final case class WorkflowDescription(
   workflow_id: String,
@@ -29,7 +18,6 @@ final case class ErrorResponse(
 
 object WorkflowActor {
   final case object GetWorkflows
-  final case class PostWorkflow(workflowRequest: WorkflowRequest)
   final case class GetWorkflow(workflowId: String)
   final case class DeleteWorkflow(workflowId: String)
   final case class GetWorkflowStatus(workflowId: String)
@@ -44,8 +32,6 @@ class WorkflowActor extends Actor with ActorLogging {
   def receive: Receive = {
     case GetWorkflows =>
       transmogriphy.getWorkflows(sender())
-    case PostWorkflow(workflowRequest) =>
-      transmogriphy.postWorkflow(sender(), workflowRequest)
     case GetWorkflow(workflowId) =>
       transmogriphy.getWorkflow(sender(), workflowId)
     case DeleteWorkflow(workflowId) =>

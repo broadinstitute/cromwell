@@ -2,6 +2,11 @@
 
 ## 34 Release Notes
 
+### Query API
+
+* Fixes a bug which stopped `includeSubworkflow=false` from paging correctly and subworkflows from being discounted correctly from `totalResultsCount`.
+* Query results will now be returned in reverse chronological order, with the most-recently submitted workflows returned first.
+
 ### Requester Pays on GCS
 
 Access of Google Cloud Storage buckets with Requester Pays enabled is now supported.

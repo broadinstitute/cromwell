@@ -126,12 +126,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def preProcessWomFile(womFile: WomFile): WomFile = womFile
   
   /** @see [[Command.instantiate]] */
-  final lazy val commandLinePreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = {
-    inputs =>
-      TryUtil.sequenceMap(inputs mapValues WomFileMapper.mapWomFiles(preProcessWomFile, inputsToNotLocalize)).
-        recoverWith {
-          case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
-        }
+  final def commandLinePreProcessor(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
+    val map = inputs map { case (k, v) => k -> WomFileMapper.mapWomFiles(preProcessWomFile, inputsToNotLocalize)(v) }
+    TryUtil.sequenceMap(map).
+      recoverWith {
+        case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
+      }
   }
   
   final lazy val localizedInputs: Try[WomEvaluatedCallInputs] = commandLinePreProcessor(jobDescriptor.evaluatedTaskInputs)

@@ -273,15 +273,16 @@ class DemoDosPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matcher
   )
 
   private def badPaths = Seq(
-    BadPath("an empty path", "", " does not have a gcs scheme"),
-    BadPath("an bucketless path", "dos://", "The specified GCS path 'dos://' does not parse as a URI.\nExpected authority at index 5: dos://"),
-    BadPath("a bucket named .", "dos://./hello/world", "The path 'dos://./hello/world' does not seem to be a valid GCS path. Please check that it starts with dos:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."),
+    BadPath("an empty path", "", " does not have a dos scheme"),
+    BadPath("a GCS path", s"gs://$bucket/hello/world", "gs://mymadeupbucket/hello/world does not have a dos scheme"),
+    BadPath("an bucketless path", "dos://", "The specified DOS path 'dos://' does not parse as a URI.\nExpected authority at index 5: dos://"),
+    BadPath("a bucket named .", "dos://./hello/world", "The path 'dos://./hello/world' does not seem to be a valid DOS path. Please check that it starts with dos:// and that the bucket and object follow DOS naming guidelines at https://cloud.google.com/storage/docs/naming."),
     BadPath("a non ascii bucket name", "dos://nonasciibucket£€/hello/world",
-      "The path 'dos://nonasciibucket£€/hello/world' does not seem to be a valid GCS path. Please check that it starts with dos:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."),
-    BadPath("a https path", "https://hello/world", "Cloud Storage URIs must have 'gs' scheme: https://hello/world"),
-    BadPath("a file uri path", "file:///hello/world", "Cloud Storage URIs must have 'gs' scheme: file:///hello/world"),
-    BadPath("a relative file path", "hello/world", "hello/world does not have a gcs scheme"),
-    BadPath("an absolute file path", "/hello/world", "/hello/world does not have a gcs scheme")
+      "The path 'dos://nonasciibucket£€/hello/world' does not seem to be a valid DOS path. Please check that it starts with dos:// and that the bucket and object follow DOS naming guidelines at https://cloud.google.com/storage/docs/naming."),
+    BadPath("a https path", "https://hello/world", "https://hello/world does not have a dos scheme"),
+    BadPath("a file uri path", "file:///hello/world", "file:///hello/world does not have a dos scheme"),
+    BadPath("a relative file path", "hello/world", "hello/world does not have a dos scheme"),
+    BadPath("an absolute file path", "/hello/world", "/hello/world does not have a dos scheme")
   )
 
   private lazy val pathBuilder = new DemoDosPathBuilder()

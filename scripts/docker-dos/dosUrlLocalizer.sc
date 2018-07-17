@@ -55,7 +55,8 @@ case class MarthaResponse(dos: DosObject, googleServiceAccount: JsObject)
 def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
   val dosResloverObj = for {
     marthaResObj <- resolveDosThroughMartha(dosUrl)
-    _ <- downloadFileFromGcs(marthaResObj.dos.data_object.urls(0).url, marthaResObj.googleServiceAccount.toString, downloadLoc)
+    gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
+    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.toString, downloadLoc)
   } yield()
 
   dosResloverObj match {
@@ -91,6 +92,16 @@ def resolveDosThroughMartha(dosUrl: String) : Try[MarthaResponse] = {
   } yield marthaResObj
 
   Try(marthaResponseIo.unsafeRunSync())
+}
+
+
+def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
+  val urlObjOption = urlArray.find(urlObj => urlObj.url.startsWith("gs://"))
+
+  urlObjOption match {
+    case Some(urlObj) => Success(urlObj.url)
+    case None => Failure(new Exception("No resolved url starting with 'gs://' found from Martha response!"))
+  }
 }
 
 

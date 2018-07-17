@@ -30,7 +30,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
     val ioActor = system.actorOf(Props.empty)
     val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
 
-    initializationData.jesConfiguration returns jesWorkflowInfo
+    initializationData.papiConfiguration returns jesWorkflowInfo
 
     val parent = TestProbe()
     val deathwatch = TestProbe()
@@ -62,7 +62,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
     val ioActor = system.actorOf(Props.empty)
     val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
 
-    initializationData.jesConfiguration returns jesWorkflowInfo
+    initializationData.papiConfiguration returns jesWorkflowInfo
 
     val parent = TestProbe()
     val deathwatch = TestProbe()

@@ -148,7 +148,7 @@ object PipelinesApiAttributes {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
-          override val exceptionContext = "Jes Configuration is not valid: Errors"
+          override val exceptionContext = "Google Pipelines API configuration is not valid: Errors"
           override val errorMessages = f.toList
         }
     }

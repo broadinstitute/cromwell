@@ -9,9 +9,9 @@ cromwell::build::setup_common_environment
 
 cromwell::build::setup_conformance_environment
 
-cromwell::build::assemble_jars
-
 cromwell::build::setup_secure_resources
+
+cromwell::build::assemble_jars
 
 CENTAUR_CWL_RUNNER_MODE="papi"
 GOOGLE_AUTH_MODE="service-account"

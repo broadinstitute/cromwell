@@ -10,7 +10,7 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 
 class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
 
-  behavior of "JesConfigurationSpec"
+  behavior of "PipelinesApiConfigurationSpec"
 
   val mockFile = DefaultPathBuilder.createTempFile()
 
@@ -123,7 +123,6 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
   it should "have correct docker" in {
     val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, jesAttributes).dockerCredentials
     dockerConf shouldBe defined
-    dockerConf.get.account shouldBe "dockerAccount"
     dockerConf.get.token shouldBe "dockerToken"
   }
 

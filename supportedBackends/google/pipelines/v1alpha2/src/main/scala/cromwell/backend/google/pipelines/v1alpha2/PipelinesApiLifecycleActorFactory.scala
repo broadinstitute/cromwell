@@ -8,10 +8,10 @@ import cromwell.backend.standard.{StandardFinalizationActor, StandardInitializat
 
 class PipelinesApiLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
   extends PipelinesApiBackendLifecycleActorFactory(name, configurationDescriptor) {
-  private val genomicsFactory = GenomicsFactory(googleConfig.applicationName, jesAttributes.auths.genomics, jesAttributes.endpointUrl)
-  override protected val jesConfiguration = PipelinesApiConfiguration(configurationDescriptor, genomicsFactory, googleConfig, jesAttributes)
+  private val genomicsFactory = GenomicsFactory(googleConfig.applicationName, papiAttributes.auths.genomics, papiAttributes.endpointUrl)
+  override protected val jesConfiguration = new PipelinesApiConfiguration(configurationDescriptor, genomicsFactory, googleConfig, papiAttributes)
   override def requiredBackendSingletonActor(serviceRegistryActor: ActorRef) = {
-    implicit val batchHandler = new RequestHandler(googleConfig.applicationName, jesAttributes.endpointUrl)
+    implicit val batchHandler = new RequestHandler(googleConfig.applicationName, papiAttributes.endpointUrl)
     PipelinesApiBackendSingletonActor.props(jesConfiguration.qps, jesConfiguration.papiRequestWorkers, serviceRegistryActor)
   }
 

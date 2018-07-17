@@ -8,6 +8,8 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
+import common.exception.MessageAggregation
+import common.validation.ErrorOr._
 import cromwell.CommandLineArguments.ValidSubmission
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
@@ -17,8 +19,6 @@ import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDepe
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
-import common.exception.MessageAggregation
-import common.validation.ErrorOr._
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
@@ -91,8 +91,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
       new CromwellSystem {}
     } recoverWith {
       case t: Throwable =>
-        Log.error("Failed to instantiate Cromwell System. Shutting down Cromwell.")
-        Log.error(t.getMessage)
+        Log.error(s"Failed to instantiate Cromwell System. Shutting down Cromwell.", t)
         System.exit(1)
         Failure(t)
     } get

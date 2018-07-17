@@ -14,7 +14,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.{CreatePipelineParameters, DetritusInputParameters, DetritusOutputParameters, InputOutputParameters}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
@@ -360,6 +360,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private val DockerMonitoringLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
+  private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
@@ -390,21 +391,34 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters): CreatePipelineParameters = {
-    CreatePipelineParameters(
-      jobDescriptor = jobDescriptor,
-      runtimeAttributes = runtimeAttributes,
-      dockerImage = jobDockerImage,
-      cloudWorkflowRoot = workflowPaths.workflowRoot,
-      cloudCallRoot = callRootPath,
-      commandScriptContainerPath = cmdInput.containerPath,
-      logGcsPath = jesLogPath,
-      inputOutputParameters,
-      googleProject(jobDescriptor.workflowDescriptor),
-      computeServiceAccount(jobDescriptor.workflowDescriptor),
-      backendLabels,
-      preemptible,
-      pipelinesConfiguration.jobShell
-    )
+    standardParams.backendInitializationDataOption match {
+      case Some(data: PipelinesApiBackendInitializationData) =>
+        val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
+          key <- data.privateDockerEncryptionKeyName
+          token <- data.privateDockerEncryptedToken
+        } yield CreatePipelineDockerKeyAndToken(key, token)
+
+        CreatePipelineParameters(
+          jobDescriptor = jobDescriptor,
+          runtimeAttributes = runtimeAttributes,
+          dockerImage = jobDockerImage,
+          cloudWorkflowRoot = workflowPaths.workflowRoot,
+          cloudCallRoot = callRootPath,
+          commandScriptContainerPath = cmdInput.containerPath,
+          logGcsPath = jesLogPath,
+          inputOutputParameters,
+          googleProject(jobDescriptor.workflowDescriptor),
+          computeServiceAccount(jobDescriptor.workflowDescriptor),
+          backendLabels,
+          preemptible,
+          pipelinesConfiguration.jobShell,
+          dockerKeyAndToken
+        )
+      case Some(other) =>
+        throw new RuntimeException(s"Unexpected initialization data: $other")
+      case None =>
+        throw new RuntimeException("No pipelines API backend initialization data found?")
+    }
   }
 
   override def isFatal(throwable: Throwable): Boolean = super.isFatal(throwable) || isFatalJesException(throwable)
@@ -469,6 +483,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
+      _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
     } yield runId
 
@@ -545,12 +560,26 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def handleExecutionFailure(runStatus: RunStatus,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
+
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
+
+      lazy val prettyError = runStatus.prettyPrintedError
+      def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
+
       (runStatus.errorCode, runStatus.jesCode) match {
         case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+        case _ if isDockerPullFailure =>
+          val unable = s"Unable to pull Docker image '$jobDockerImage' "
+          val details = if (hasDockerCredentials)
+            "but Docker credentials are present; is this Docker account authorized to pull the image? " else
+            "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
+            "Please check your private Docker configuration and/or the pull access for this image. "
+          val message = unable + details + runStatus.prettyPrintedError
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
         case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
           runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
       }

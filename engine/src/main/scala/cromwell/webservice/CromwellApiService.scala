@@ -344,11 +344,7 @@ trait CromwellApiService extends HttpInstrumentation {
     val response = serviceRegistryActor.ask(WorkflowQuery(parameters)).mapTo[MetadataQueryResponse]
 
     onComplete(response) {
-      case Success(w: WorkflowQuerySuccess) =>
-        val headers = List.empty
-        respondWithHeaders(headers) {
-          complete(ToResponseMarshallable(w.response))
-        }
+      case Success(w: WorkflowQuerySuccess) => complete(ToResponseMarshallable(w.response))
       case Success(w: WorkflowQueryFailure) => w.reason.failRequest(StatusCodes.BadRequest)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)

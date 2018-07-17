@@ -28,6 +28,7 @@ object MetadataDatabaseAccessSpec {
   val ParentWorkflowName = "test_parentWorkflow"
   val ParentWorkflow2Name = "test_parentWorkflow_2"
   val SubworkflowName = "test_subworkflow"
+  val Subworkflow2Name = "test_subworkflow_2"
 }
 
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
@@ -392,19 +393,24 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       }
 
       (for {
-        parentWorkflowId <- baseWorkflowMetadata(ParentWorkflowName)
-        parentWorkflow2Id <- baseWorkflowMetadata(ParentWorkflowName)
-        _ <- changeParentToRunningState(parentWorkflowId)
-        // associate subworkflow to parent
-        _ <- subworkflowMetadata(parentWorkflowId, SubworkflowName)
+        parentWorkflow1 <- baseWorkflowMetadata(ParentWorkflowName)
+        parentWorkflow2 <- baseWorkflowMetadata(ParentWorkflow2Name)
+
+        _ <- changeParentToRunningState(parentWorkflow1)
+        // associate subworkflow 1 to parent
+        _ <- subworkflowMetadata(parentWorkflow1, SubworkflowName)
         // Add in parent workflow 2
-        _ <- changeParentToRunningState(parentWorkflow2Id)
+        _ <- changeParentToRunningState(parentWorkflow2)
+        // associate subworkflow 2 to parent
+        _ <- subworkflowMetadata(parentWorkflow2, Subworkflow2Name)
         // refresh metadata
         _ <- dataAccess.refreshWorkflowMetadataSummaries()
         // include subworkflows
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.IncludeSubworkflows.name -> true.toString))) map { case (resp, _) =>
           val resultByName = resp.results groupBy (_.name)
-          withClue("include metadata:") { resultByName.keys.toSet.flatten should be(Set(ParentWorkflowName, SubworkflowName, ParentWorkflow2Name)) }
+          withClue("include subworkflows:") {
+            List(ParentWorkflowName, SubworkflowName, ParentWorkflow2Name, Subworkflow2Name).foreach { n => resultByName.keys.toSet.flatten should contain(n) }
+          }
         }
         // exclude subworkflows - make sure we get 2 results in the right order:
         excludeSubworkflowQueryParams1 = Seq(
@@ -413,29 +419,38 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(excludeSubworkflowQueryParams1)) map {
           case (resp, _) =>
             val resultByName = resp.results groupBy (_.name)
-            withClue("exclude metadata (no page size):") { resultByName.keys.flatten should be(Seq(ParentWorkflowName, ParentWorkflow2Name)) }
+            withClue("exclude subworkflows (no page size):") {
+              List(ParentWorkflowName, ParentWorkflow2Name).foreach { n =>
+                resultByName.keys.toSet.flatten should contain(n)
+              }
+              List(SubworkflowName, Subworkflow2Name).foreach { n =>
+                resultByName.keys.toSet.flatten should not contain n
+              }
+            }
         }
 
         // exclude subworkflows (page size 2 to make sure pagination works as expected
         excludeSubworkflowQueryParams2 = Seq(
           WorkflowQueryKey.IncludeSubworkflows.name -> false.toString,
-          WorkflowQueryKey.PageSize.name -> 2.toString
+          WorkflowQueryKey.PageSize.name -> 2.toString,
+          WorkflowQueryKey.Page.name -> 1.toString
         )
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(excludeSubworkflowQueryParams2)) map {
           case (resp, _) =>
             val resultByName = resp.results groupBy (_.name)
-            withClue("include metadata and assert page size:") { resultByName.keys.flatten should be(Seq(ParentWorkflowName, ParentWorkflow2Name)) }
+            // This time we can do a strict equality check rather than 'contains', because we know these two should be the most recent (non-sub-) workflows:
+            withClue("exclude subworkflows and assert page size:") { resultByName.keys.flatten should be(Set(ParentWorkflowName, ParentWorkflow2Name)) }
         }
 
 
-        // check for parentWorkflowId in query response
+        // check for parentWorkflow1 in query response
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.AdditionalQueryResultFields.name -> "parentWorkflowId",
           WorkflowQueryKey.Name.name -> SubworkflowName))) map {
           case (response, _) =>
             response.results partition { r => r.parentWorkflowId.isDefined} match {
               case (y, n) if y.nonEmpty && n.isEmpty => //good
-              case (y, n) => fail(s"parentWorkflowId should be populated for a subworkflow. It was populated correctly for ${y.size} " +
+              case (y, n) => fail(s"parentWorkflow1 should be populated for a subworkflow. It was populated correctly for ${y.size} " +
                 s"and was missing in ${n.size} subworkflow(s). Something went horribly wrong!")
             }
         }

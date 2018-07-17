@@ -99,7 +99,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       val excludeLabelsAndFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, excludeLabelAndValues, _ && _).map(v => !v)
       val excludeLabelsOrFilter = existsWorkflowLabels(workflowMetadataSummaryEntry, excludeLabelOrValues, _ || _).map(v => !v)
       val notASubworkflowFilter: Option[Rep[Boolean]] =
-        if (includeSubworkflows) None else Some(metadataEntryExistsForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid, parentIdWorkflowMetadataKey))
+        if (includeSubworkflows) None else Some(!metadataEntryExistsForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid, parentIdWorkflowMetadataKey))
 
       // Put all the optional filters above together in one place.
       val optionalFilters: List[Option[Rep[Boolean]]] = List(
@@ -199,7 +199,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     )
     val query = workflowMetadataSummaryEntries.filter(filter)
     (page, pageSize) match {
-      case (Some(p), Some(ps)) => query.drop((p - 1) * ps).take(ps)
+      case (Some(p), Some(ps)) => query.sortBy(_.workflowMetadataSummaryEntryId.desc).drop((p - 1) * ps).take(ps)
       case (None, Some(ps)) => query.take(ps)
       case _ => query
     }

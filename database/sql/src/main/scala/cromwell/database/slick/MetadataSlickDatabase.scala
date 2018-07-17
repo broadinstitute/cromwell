@@ -208,7 +208,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize)
+      .sortBy(_.workflowMetadataSummaryEntryId.desc)
+      .result
     runTransaction(action)
   }
 

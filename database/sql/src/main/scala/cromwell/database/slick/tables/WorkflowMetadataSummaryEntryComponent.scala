@@ -201,6 +201,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     val query = workflowMetadataSummaryEntries.filter(filter)
     (page, pageSize) match {
       case (Some(p), Some(ps)) => query.drop((p - 1) * ps).take(ps)
+      case (None, Some(ps)) => query.take(ps)
       case _ => query
     }
   }

@@ -34,8 +34,8 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
-import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._

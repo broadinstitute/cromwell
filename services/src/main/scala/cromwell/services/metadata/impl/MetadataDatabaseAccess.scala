@@ -4,8 +4,6 @@ import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
-import cats.instances.option._
-import cats.syntax.functor._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
 import cromwell.core._
@@ -218,7 +216,7 @@ trait MetadataDatabaseAccess {
       (queryParameters.page, queryParameters.pageSize) match {
         case (None, None) => None
         case (Some(_), None) => None // Page without pagesize returns everything
-        case (None, Some(ps)) => Option(QueryMetadata(Option(1), queryParameters.pageSize, Option(count)))
+        case (None, Some(_)) => Option(QueryMetadata(Option(1), queryParameters.pageSize, Option(count)))
         case _ => Option(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
       }
     }

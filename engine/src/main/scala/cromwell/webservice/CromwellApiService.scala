@@ -267,6 +267,24 @@ trait CromwellApiService extends HttpInstrumentation {
       bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
+    // ********************* HERE ARE THE CHANGES ************************
+
+    def getSource(parts: Map[String, ByteString]): Future[String] = {
+      // check for exactly one of source or URL. if this is not right return a failed future.
+      val hasUrl = true
+      def downloadUrl: Future[String] = ???
+      val source: String = ???
+      if (hasUrl) downloadUrl else Future.successful(source)
+    }
+
+    val sourceContent: Future[(Map[String, ByteString], String)] = for {
+      parts <- allParts
+      // should only have url xor source
+      source <- getSource(parts)
+    } yield (parts, source)
+
+    // ********************* HERE ARE THE CHANGES ************************
+
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
         WorkflowOnHold
@@ -292,9 +310,10 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     }
 
-    onComplete(allParts) {
-      case Success(data) =>
-        PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
+    // ****************** SMALL CHANGE BELOW
+    onComplete(sourceContent) {
+      case Success((parts, sources)) =>
+        PartialWorkflowSources.fromSubmitRoute(parts, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
               val warnings = workflowSourceFiles.flatMap(_.warnings)
               askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))

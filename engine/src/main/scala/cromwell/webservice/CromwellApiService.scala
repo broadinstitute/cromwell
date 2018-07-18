@@ -2,13 +2,15 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
+import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.{ToEntityMarshaller, ToResponseMarshallable}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.{AskTimeoutException, ask}
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
@@ -47,6 +49,7 @@ trait CromwellApiService extends HttpInstrumentation {
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val materializer: ActorMaterializer
+  implicit val actorSystem: ActorSystem
   implicit val ec: ExecutionContext
 
   val workflowStoreActor: ActorRef
@@ -267,23 +270,29 @@ trait CromwellApiService extends HttpInstrumentation {
       bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
-    // ********************* HERE ARE THE CHANGES ************************
-
-    def getSource(parts: Map[String, ByteString]): Future[String] = {
-      // check for exactly one of source or URL. if this is not right return a failed future.
-      val hasUrl = true
-      def downloadUrl: Future[String] = ???
-      val source: String = ???
-      if (hasUrl) downloadUrl else Future.successful(source)
-    }
-
-    val sourceContent: Future[(Map[String, ByteString], String)] = for {
+    val formPartsAndSourceFromUrl: Future[(Map[String, ByteString], Option[String])] = for {
       parts <- allParts
-      // should only have url xor source
-      source <- getSource(parts)
-    } yield (parts, source)
+      workflowSourceFromUrl <- getContentFromWorkflowUrl(parts)
+    } yield (parts, workflowSourceFromUrl)
 
-    // ********************* HERE ARE THE CHANGES ************************
+
+    def getContentFromWorkflowUrl(formData: Map[String, ByteString]): Future[Option[String]]  = {
+
+      def downloadContentFromUrl(url: String) = {
+        for {
+          httpResponse <- Http().singleRequest(HttpRequest(uri = url))
+          source <- httpResponse.status match {
+            case StatusCodes.OK => Unmarshal(httpResponse.entity).to[String]
+              //res.entity.toStrict(300.millis).map(_.data.utf8String)
+            case _ => Future.failed(new IllegalArgumentException(s"Workflow can't be obtained from workflowUrl: $url. Reason: ${httpResponse.status}"))
+          }
+        } yield Option(source)
+      }
+
+      val workflowUrl = formData.get("workflowUrl").map(_.utf8String) //Option("https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/three_step/test.wdl")
+
+      if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get) else Future.successful(None)
+    }
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
@@ -310,13 +319,12 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     }
 
-    // ****************** SMALL CHANGE BELOW
-    onComplete(sourceContent) {
-      case Success((parts, sources)) =>
-        PartialWorkflowSources.fromSubmitRoute(parts, allowNoInputs = isSingleSubmission) match {
+    onComplete(formPartsAndSourceFromUrl) {
+      case Success((parts, workflowSourceFromUrl)) => {
+        PartialWorkflowSources.fromSubmitRoute(parts, workflowSourceFromUrl, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
-              val warnings = workflowSourceFiles.flatMap(_.warnings)
-              askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
+            val warnings = workflowSourceFiles.flatMap(_.warnings)
+            askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
           // Catches the case where someone has gone through the single submission endpoint w/ more than one workflow
           case Success(workflowSourceFiles) if isSingleSubmission =>
             val warnings = workflowSourceFiles.flatMap(_.warnings)
@@ -329,6 +337,8 @@ trait CromwellApiService extends HttpInstrumentation {
               warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
+      }
+      case Failure(e: IllegalArgumentException) => e.failRequest(StatusCodes.BadRequest)
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
     }

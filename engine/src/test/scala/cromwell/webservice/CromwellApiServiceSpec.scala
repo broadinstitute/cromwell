@@ -704,6 +704,7 @@ object CromwellApiServiceSpec {
     override def actorRefFactory = system
 
     override val materializer = ActorMaterializer()
+    override val actorSystem = null
     override val ec = system.dispatcher
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
     override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))

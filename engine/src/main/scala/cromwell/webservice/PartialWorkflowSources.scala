@@ -2,33 +2,28 @@ package cromwell.webservice
 
 import _root_.io.circe.yaml
 import akka.actor.ActorSystem
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpRequest, StatusCode, StatusCodes}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
+import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.functor._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.core.labels.Label
-import wdl.draft2.model.WorkflowJson
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue, _}
+import wdl.draft2.model.WorkflowJson
 import wom.core._
-import cats.instances.list._
-import cats.syntax.traverse._
-import common.validation.ErrorOr
 
-import scala.concurrent.Future
-import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] = None,
+final case class PartialWorkflowSources(workflowSource: WorkflowSource,
                                         workflowUrl: Option[WorkflowUrl] = None,
                                         workflowRoot: Option[String] = None,
                                         workflowType: Option[WorkflowType] = None,
@@ -69,6 +64,7 @@ object PartialWorkflowSources {
   val allPrefixes = List(WorkflowInputsAuxPrefix)
 
   def fromSubmitRoute(formData: Map[String, ByteString],
+                      workflowSourceFromUrl: Option[String],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
     import cats.instances.list._
     import cats.syntax.apply._
@@ -91,31 +87,8 @@ object PartialWorkflowSources {
 
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
-      val workflowSource = Option(None) //getStringValue(WorkflowSourceKey) //****************** CHANGE IT *******************
-      val workflowUrl = Option("https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/tree_step/test.wdl") //getStringValue(WorkflowUrlKey) ****************** CHANGE IT *******************
-
-      //REMOVE THIS LATER
-//      val workflowUrl: ErrorOr[String] = getStringValue(WorkflowUrlKey) match {
-//        case Some(url) => url.validNel //validateUrl(url)
-//        case None => {
-//          val url = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/three_step/test.wdl"
-//          validateWorkflowUrl(url)
-//        }
-//      }
-
-//      val httpResponse = Http().singleRequest(HttpRequest(uri = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/tree_step/test.wdl"))
-//
-//      httpResponse.onComplete {
-//        case Success(res) => {
-//          println(res.status)
-//          val a = res.entity.toStrict(300.millis).map(_.data.utf8String)
-//          a map { body =>
-//            println(s"-----------RESPONSE $body")
-//          }
-////          println(s"-----------RESPONSE $a")
-//        }
-//        case Failure(e) => println(e.printStackTrace)
-//      }
+      val workflowSource = getStringValue(WdlSourceKey) //****************** CHANGE IT *******************
+      val workflowUrl = getStringValue(WorkflowUrlKey)
 
       def deprecationWarning(out: String, in: String)(actual: String): String = {
         if (actual == out) {
@@ -134,11 +107,12 @@ object PartialWorkflowSources {
 
       val workflowSourceFinal: ErrorOr[String] = (wdlSource, workflowSource, workflowUrl) match {
         case (Some(source), None, None) => source.validNel
-//        case (None, Some(source), None) => source.validNel //******************* UNCOMMENT THIS LATER ******************
-        case (None, None, Some(source)) => source.validNel
+        case (None, Some(source), None) => source.validNel
+        case (None, None, Some(_)) => workflowSourceFromUrl.get.validNel
         case (Some(_), Some(_), None) => s"$WdlSourceKey and $WorkflowSourceKey can't both be supplied".invalidNel
         case (None, Some(_), Some(_)) => s"$WorkflowSourceKey and $WorkflowUrlKey can't both be supplied".invalidNel
         case (Some(_), None, Some(_)) => s"$WdlSourceKey and $WorkflowUrlKey can't both be supplied".invalidNel
+        case (Some(_), Some(_), Some(_)) => s"$WdlSourceKey, $WorkflowSourceKey and $WorkflowUrlKey all 3 can't be supplied".invalidNel
         case (None, None, None) => s"$WorkflowSourceKey or $WorkflowUrlKey needs to be supplied".invalidNel
       }
 
@@ -171,7 +145,7 @@ object PartialWorkflowSources {
 
       (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal, onHold) mapN {
         case (_, source, inputs, aux, dep, onHold) => PartialWorkflowSources(
-          workflowSource = Option(source),
+          workflowSource = source,
           workflowRoot = getStringValue(WorkflowRootKey),
           workflowType = getStringValue(WorkflowTypeKey),
           workflowTypeVersion = getStringValue(WorkflowTypeVersionKey),
@@ -201,55 +175,6 @@ object PartialWorkflowSources {
       case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
       case Left(error) => s"Input file is not valid yaml nor json: ${error.getMessage}".invalidNel
     }
-  }
-
-
-  private def validateWorkflowUrl(url: String) = {
-    val httpResponse = Http().singleRequest(HttpRequest(uri = url))
-
-    httpResponse.onComplete {
-      case Success(res) => {
-        res.status match {
-          case StatusCodes.OK => {
-            println("*************************")
-            println(res.entity)
-            val a = res.entity.toStrict(300.millis).map(_.data.utf8String)
-            a map { body =>
-              println(s"-----------RESPONSE $body")
-              body.validNel
-            }
-          }
-          case _ => s"Workflow can't be obtained from workflow url: $url. Error: ${res.status}".invalidNel
-        }
-
-
-
-//        println(res.status)
-//        val a = res.entity.toStrict(300.millis).map(_.data.utf8String)
-//        a map { body =>
-//          println(s"-----------RESPONSE $body")
-//        }
-        //          println(s"-----------RESPONSE $a")
-      }
-      case Failure(e) => s"Error while fetching content from workflow url. Error: ${e.printStackTrace}".invalidNel
-    }
-
-//    httpResponse.map { res =>
-//      res.status match {
-//        case StatusCodes.OK => {
-//          println("*************************")
-//          println(res.entity)
-//          val a = res.entity.toStrict(300.millis).map(_.data.utf8String)
-//          a map { body =>
-//            println(s"-----------RESPONSE $body")
-//            body.validNel
-//          }
-//        }
-//        case _ => s"Workflow can't be obtained from workflow url: ${res.status}".invalidNel
-//      }
-//    }.recover{
-//      case e: Throwable => s"Error while fetching content from workflow url: ${e.printStackTrace}".invalidNel
-//    }
   }
 
   private def partialSourcesToSourceCollections(partialSources: ErrorOr[PartialWorkflowSources],
@@ -285,13 +210,6 @@ object PartialWorkflowSources {
       }
     }
 
-    def getWorkflowSourceInput(workflowSource: Option[WorkflowSource], workflowUrl: Option[WorkflowUrl]): ErrorOr[WorkflowSource] = {
-      (workflowSource, workflowUrl) match {
-        case (Some(source), None) => source.validNel
-        case (None, Some(url)) =>
-      }
-    }
-
     partialSources match {
       case Valid(partialSource) =>
         (validateInputs(partialSource),
@@ -299,7 +217,7 @@ object PartialWorkflowSources {
           validateLabels(partialSource.customLabels.getOrElse("{}"))) mapN {
           case (wfInputs, wfOptions, workflowLabels) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
-              workflowSource = partialSource.workflowSource.getOrElse("remove"), //*************** CHANGE IT LATER *************
+              workflowSource = partialSource.workflowSource,
               workflowRoot = partialSource.workflowRoot,
               workflowType = partialSource.workflowType,
               workflowTypeVersion = partialSource.workflowTypeVersion,

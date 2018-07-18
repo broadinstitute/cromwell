@@ -1,5 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.values
 
+import cats.data.NonEmptyList
 import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
@@ -21,7 +22,9 @@ object BiscayneValueEvaluators {
         case WomArray(WomArrayType(WomPairType(_: WomPrimitiveType, _)), values) =>
           val validPairs: ErrorOr[List[(WomValue, WomValue)]] = values.toList traverse {
             case WomPair(l, r) => (l, r).validNel
-            case other => s"Unexpected array element ${other.toWomString}".invalidNel
+            case other => s"Unexpected array elements. Expected a Pair[X, Y] but array contained ${other.toWomString}]".invalidNel
+          } leftMap {
+            errors => NonEmptyList.fromListUnsafe(errors.toList.distinct)
           }
           validPairs flatMap { pairs =>
             val grouped = pairs.groupBy(_._1)

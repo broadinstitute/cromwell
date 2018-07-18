@@ -13,7 +13,6 @@ import common.validation.Validation._
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver.ImportResolver
 import wdl.model.draft3.elements._
-//import wdl.model.draft3.graph.ExpressionValueConsumer
 import wdl.transforms.base.wdlom2wom.StructEvaluation.StructEvaluationInputs
 import wdl.transforms.base.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs

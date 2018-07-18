@@ -24,14 +24,20 @@ class DemoDosPathBuilder extends PathBuilder {
   override def name: String = "Demo Dos"
 
   override def build(pathAsString: String): Try[Path] = {
-    gcsPathBuilder.build(pathAsString.swapPrefix("dos", "gs")).transform(
-      gcsPath => Success(DemoDosPath(gcsPath, this)),
-      gcsException => {
-        val dosMessage = gcsException.getMessage.replaceAll("gs://", "dos://")
-        val dosException = new RuntimeException(dosMessage, gcsException)
-        Failure(dosException)
-      }
-    )
+    if (pathAsString.startsWith("dos://")) {
+      gcsPathBuilder.build(pathAsString.swapPrefix("dos", "gs")).transform(
+        gcsPath => Success(DemoDosPath(gcsPath, this)),
+        gcsException => {
+          val dosMessage = gcsException.getMessage
+            .replaceAll("gs://", "dos://")
+            .replaceAll("GCS", "DOS")
+          val dosException = new RuntimeException(dosMessage, gcsException)
+          Failure(dosException)
+        }
+      )
+    } else {
+      Failure(new IllegalArgumentException(s"$pathAsString does not have a dos scheme"))
+    }
   }
 }
 

@@ -75,7 +75,8 @@ trait MetadataSqlDatabase {
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
 
-  def queryWorkflowSummaries(workflowStatuses: Set[String],
+  def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
+                             workflowStatuses: Set[String],
                              workflowNames: Set[String],
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
@@ -85,11 +86,13 @@ trait MetadataSqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             includeSubworkflows: Boolean,
                              page: Option[Int],
                              pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
-  def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
+  def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,
+                             workflowStatuses: Set[String], workflowNames: Set[String],
                              workflowExecutionUuids: Set[String],
                              labelAndKeyLabelValues: Set[(String,String)],
                              labelOrKeyLabelValues: Set[(String,String)],
@@ -97,6 +100,7 @@ trait MetadataSqlDatabase {
                              excludeLabelOrValues: Set[(String,String)],
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
-                             endTimestampOption: Option[Timestamp])
+                             endTimestampOption: Option[Timestamp],
+                             includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 }

@@ -75,6 +75,14 @@ trait MetadataEntryComponent {
     } yield metadataEntry).exists
   )
 
+  def metadataEntryExistsForWorkflowExecutionUuid(workflowId: Rep[String], key: Rep[String]): Rep[Boolean] = {
+    metadataEntries.filter( metadataEntry =>
+      metadataEntry.workflowExecutionUuid === workflowId &&
+      metadataEntry.metadataKey === key &&
+      metadataEntry.metadataValue.isDefined
+    ).exists
+  }
+
   val metadataEntriesForWorkflowExecutionUuidAndMetadataKey = Compiled(
     (workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) => (for {
       metadataEntry <- metadataEntries

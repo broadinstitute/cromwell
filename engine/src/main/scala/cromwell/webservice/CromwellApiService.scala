@@ -34,8 +34,8 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
-import cromwell.webservice.metadata.{MetadataBuilderActor, WorkflowQueryPagination}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -344,11 +344,7 @@ trait CromwellApiService extends HttpInstrumentation {
     val response = serviceRegistryActor.ask(WorkflowQuery(parameters)).mapTo[MetadataQueryResponse]
 
     onComplete(response) {
-      case Success(w: WorkflowQuerySuccess) =>
-        val headers = WorkflowQueryPagination.generateLinkHeaders(uri, w.meta)
-        respondWithHeaders(headers) {
-          complete(ToResponseMarshallable(w.response))
-        }
+      case Success(w: WorkflowQuerySuccess) => complete(ToResponseMarshallable(w.response))
       case Success(w: WorkflowQueryFailure) => w.reason.failRequest(StatusCodes.BadRequest)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)

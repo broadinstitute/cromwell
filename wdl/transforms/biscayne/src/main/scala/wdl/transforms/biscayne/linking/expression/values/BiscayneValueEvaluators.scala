@@ -22,7 +22,7 @@ object BiscayneValueEvaluators {
         case WomArray(WomArrayType(WomPairType(_: WomPrimitiveType, _)), values) =>
           val validPairs: ErrorOr[List[(WomValue, WomValue)]] = values.toList traverse {
             case WomPair(l, r) => (l, r).validNel
-            case other => s"Unexpected array elements. Expected a Pair[X, Y] but array contained ${other.toWomString}]".invalidNel
+            case other => s"Unexpected array element. Expected a Pair[X, Y] but array contained ${other.toWomString}]".invalidNel
           } leftMap {
             errors => NonEmptyList.fromListUnsafe(errors.toList.distinct)
           }
@@ -69,7 +69,7 @@ object BiscayneValueEvaluators {
         case WomArray(WomArrayType(WomPairType(_: WomPrimitiveType, _)), values) =>
           val validPairs: ErrorOr[List[(WomValue, WomValue)]] = values.toList traverse {
             case WomPair(l, r) => (l, r).validNel
-            case other => s"Unexpected array element ${other.toWomString}".invalidNel
+            case other => s"Unexpected array element. Expected a Pair[X, Y] but array contained ${other.toWomString}]".invalidNel
           }
           validPairs flatMap { kvpairs =>
             val grouped: Map[WomValue, WomArray] = kvpairs.groupBy(_._1).mapValues(v => WomArray(v.map(_._2)))

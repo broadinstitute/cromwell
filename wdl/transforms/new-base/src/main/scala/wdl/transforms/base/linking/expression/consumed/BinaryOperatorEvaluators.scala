@@ -1,5 +1,6 @@
 package wdl.transforms.base.linking.expression.consumed
 
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.UnlinkedConsumedValueHook
 import wdl.model.draft3.graph.ExpressionValueConsumer
@@ -21,7 +22,8 @@ object BinaryOperatorEvaluators {
   implicit val remainderEvaluator: ExpressionValueConsumer[Remainder] = forOperation
 
   private def forOperation[A <: BinaryOperation] = new ExpressionValueConsumer[A] {
-    override def expressionConsumedValueHooks(a: A): Set[UnlinkedConsumedValueHook] = {
+    override def expressionConsumedValueHooks(a: A)
+                                             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
       a.left.expressionConsumedValueHooks ++ a.right.expressionConsumedValueHooks
     }
   }

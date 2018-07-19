@@ -11,18 +11,18 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.biscayne.parser.WdlParser
 import wdl.biscayne.parser.WdlParser.{ParseTree, SyntaxErrorFormatter}
 import wdl.model.draft3.elements._
-import wdl.model.draft3.elements.ExpressionElement.{Add, MapLiteral, PrimitiveLiteralExpressionElement}
+import wdl.model.draft3.elements.ExpressionElement._
 import wdl.transforms.base.ast2wdlom.GenericAstNode
 import wdl.transforms.biscayne.parsing.WdlBiscayneSyntaxErrorFormatter
 import wdl.transforms.biscayne.ast2wdlom._
 import wom.callable.MetaValueElement.MetaValueElementInteger
 import wom.types.WomIntegerType
 import wom.values.WomInteger
+import wdl.transforms.biscayne.Ast2WdlomSpec._
 
 import scala.collection.JavaConverters._
 
-class Ast2WdlomSpec extends FlatSpec with Matchers {
-
+object Ast2WdlomSpec {
   val parser = new WdlParser()
 
   def fromString[A](expression: String,
@@ -33,6 +33,11 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
     val parseTree = parseFunction(tokens, WdlBiscayneSyntaxErrorFormatter(terminalMap))
     (wrapAstNode andThen converter).run(parseTree.toAst)
   }
+}
+
+class Ast2WdlomSpec extends FlatSpec with Matchers {
+
+
 
   it should "parse a simple expression" in {
     val str = "3 + 3"
@@ -61,4 +66,21 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
     )
   }
 
+  it should "parse the new as_map function" in {
+    val str = "as_map(some_pairs)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid(AsMap(IdentifierLookup("some_pairs")))
+  }
+
+  it should "parse the new as_pairs function" in {
+    val str = "as_pairs(some_map)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid(AsPairs(IdentifierLookup("some_map")))
+  }
+
+  it should "parse the new collect_by_key function" in {
+    val str = "collect_by_key(some_map)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid(CollectByKey(IdentifierLookup("some_map")))
+  }
 }

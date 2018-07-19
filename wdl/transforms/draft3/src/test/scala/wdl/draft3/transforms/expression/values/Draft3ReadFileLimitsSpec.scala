@@ -3,6 +3,7 @@ package wdl.draft3.transforms.expression.values
 import org.scalatest._
 import wdl.draft3.transforms.expression.values.Draft3ReadFileLimitsSpec._
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators._
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.EmptyIoFunctionSet

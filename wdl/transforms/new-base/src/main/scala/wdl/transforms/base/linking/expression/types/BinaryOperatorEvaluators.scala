@@ -2,8 +2,8 @@ package wdl.transforms.base.linking.expression.types
 
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
-
 import common.validation.Validation._
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wdl.model.draft3.graph.expression.TypeEvaluator
@@ -28,7 +28,8 @@ object BinaryOperatorEvaluators {
   implicit val remainderEvaluator: TypeEvaluator[Remainder] = forOperation(_.mod(_))
 
   private def forOperation[A <: BinaryOperation](op: (WomType, WomType) => Try[WomType]) = new TypeEvaluator[A] {
-    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
+    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       (a.left.evaluateType(linkedValues),
         a.right.evaluateType(linkedValues)) flatMapN { (left, right) => op(left, right).toErrorOr }
     }

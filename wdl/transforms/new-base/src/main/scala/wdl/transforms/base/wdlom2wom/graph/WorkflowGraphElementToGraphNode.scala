@@ -8,7 +8,8 @@ import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.transforms.base.linking.typemakers._
 import wdl.transforms.base.linking.expression._
 import wdl.model.draft3.elements._
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
+import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
@@ -19,7 +20,11 @@ import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
 
 object WorkflowGraphElementToGraphNode {
-  def convert(a: GraphNodeMakerInputs): ErrorOr[Set[GraphNode]] = a.node match {
+  def convert(a: GraphNodeMakerInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = a.node match {
     case ie: InputDeclarationElement =>
       val inputNodeMakerInputs = GraphInputNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName)
       InputDeclarationElementToGraphNode.convert(inputNodeMakerInputs)

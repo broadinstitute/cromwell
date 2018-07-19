@@ -10,7 +10,6 @@ import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
-import wdl.transforms.base.linking.expression.consumed._
 import wdl.transforms.base.linking.typemakers._
 import wdl.model.draft3.elements.{DeclarationElement, _}
 import wdl.model.draft3.graph._
@@ -66,7 +65,10 @@ package object graph {
   }
 
   implicit val graphElementUnlinkedValueConsumer: GraphElementValueConsumer[WorkflowGraphElement] = new GraphElementValueConsumer[WorkflowGraphElement] {
-    override def graphElementConsumedValueHooks(a: WorkflowGraphElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = a match {
+    override def graphElementConsumedValueHooks(a: WorkflowGraphElement,
+                                                typeAliases: Map[String, WomType],
+                                                callables: Map[String, Callable])
+                                               (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]] = a match {
       case InputDeclarationElement(_, _, None) => Set.empty[UnlinkedConsumedValueHook].validNel
       case DeclarationElement(_, _, Some(expr)) => expr.expressionConsumedValueHooks.validNel
       case a: ScatterElement => a.graphElementConsumedValueHooks(typeAliases, callables)
@@ -78,7 +80,11 @@ package object graph {
   }
 
   implicit val callElementUnlinkedValueConsumer: GraphElementValueConsumer[CallElement] = new GraphElementValueConsumer[CallElement] {
-    override def graphElementConsumedValueHooks(a: CallElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+    override def graphElementConsumedValueHooks(a: CallElement,
+                                                typeAliases: Map[String, WomType],
+                                                callables: Map[String, Callable])
+                                               (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+      import wdl.transforms.base.linking.expression.consumed.LiteralEvaluators.kvPairUnlinkedValueConsumer
       a.body match {
         case Some(callBodyElement: CallBodyElement) => callBodyElement.inputs.flatMap(_.expressionConsumedValueHooks).toSet.validNel
         case None => Set.empty[UnlinkedConsumedValueHook].valid
@@ -87,7 +93,10 @@ package object graph {
   }
 
   implicit val scatterElementUnlinkedValueConsumer: GraphElementValueConsumer[ScatterElement] = new GraphElementValueConsumer[ScatterElement] {
-    override def graphElementConsumedValueHooks(a: ScatterElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+    override def graphElementConsumedValueHooks(a: ScatterElement,
+                                                typeAliases: Map[String, WomType],
+                                                callables: Map[String, Callable])
+                                               (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       val bodyConsumedValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.graphElements.toList.traverse(_.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
       val scatterExpressionHooks: Set[UnlinkedConsumedValueHook] = a.scatterExpression.expressionConsumedValueHooks
 
@@ -106,7 +115,10 @@ package object graph {
   }
 
   implicit val ifElementUnlinkedValueConsumer: GraphElementValueConsumer[IfElement] = new GraphElementValueConsumer[IfElement] {
-    override def graphElementConsumedValueHooks(a: IfElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
+    override def graphElementConsumedValueHooks(a: IfElement,
+                                                typeAliases: Map[String, WomType],
+                                                callables: Map[String, Callable])
+                                               (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       val bodyConsumedValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.graphElements.toList.traverse(_.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
       val scatterExpressionHooks: Set[UnlinkedConsumedValueHook] = a.conditionExpression.expressionConsumedValueHooks
 

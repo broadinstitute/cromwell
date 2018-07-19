@@ -4,6 +4,7 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wdl.model.draft3.graph.expression.TypeEvaluator
@@ -12,7 +13,8 @@ import wom.types.{WomBooleanType, WomType}
 
 object TernaryIfEvaluator {
   implicit val ternaryIfEvaluator: TypeEvaluator[TernaryIf] = new TypeEvaluator[TernaryIf] {
-    override def evaluateType(a: TernaryIf, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
+    override def evaluateType(a: TernaryIf, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.condition.evaluateType(linkedValues) flatMap {
         case WomBooleanType =>
           (a.ifTrue.evaluateType(linkedValues): ErrorOr[WomType],

@@ -18,6 +18,7 @@ import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
+import wdl.transforms.biscayne.wdlom2wom._
 
 class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
 
@@ -46,7 +47,7 @@ class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends 
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => standardConfig.enabledCheck map(_ => x))
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories)) andThen fileElementToWomBundle
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))
   }
 

@@ -13,6 +13,7 @@ import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft3.transforms.ast2wdlom._
 import wdl.draft3.transforms.parsing._
 import wdl.transforms.base.wdlom2wom._
+import wdl.draft3.transforms.wdlom2wom._
 import wdl.transforms.base.wdlom2wom.WomBundleToWomExecutable._
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
@@ -46,7 +47,7 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => standardConfig.enabledCheck map(_ => x))
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories)) andThen fileElementToWomBundle
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))
   }
 

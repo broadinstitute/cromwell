@@ -2,6 +2,7 @@ package wdl.transforms.base.linking.expression.values
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
@@ -13,7 +14,8 @@ object TernaryIfEvaluator {
     override def evaluateValue(a: TernaryIf,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       a.condition.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap {
         case EvaluatedValue(WomBoolean(true), conditionSideEffectFiles) =>

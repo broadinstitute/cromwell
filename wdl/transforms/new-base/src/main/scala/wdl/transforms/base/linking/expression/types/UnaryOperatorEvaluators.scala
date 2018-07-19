@@ -3,6 +3,7 @@ package wdl.transforms.base.linking.expression.types
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wdl.model.draft3.graph.expression.TypeEvaluator
@@ -18,7 +19,8 @@ object UnaryOperatorEvaluators {
   implicit val logicalNotEvaluator: TypeEvaluator[LogicalNot] = forOperation(_.not)
 
   private def forOperation[A <: UnaryOperation](op: WomType => Try[WomType]) = new TypeEvaluator[A] {
-    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomType] = {
+    override def evaluateType(a: A, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.argument.evaluateType(linkedValues) flatMap { op(_).toErrorOr }
     }
   }

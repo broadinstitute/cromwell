@@ -4,9 +4,9 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
-import wdl.model.draft3.elements.{CommandPartElement, PlaceholderAttributeSet}
-import wdl.model.draft3.graph.GeneratedValueHandle
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions}
+import wdl.model.draft3.elements.{CommandPartElement, ExpressionElement, PlaceholderAttributeSet}
+import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle}
+import wdl.model.draft3.graph.expression._
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.RuntimeEnvironment
@@ -15,7 +15,6 @@ import wom.graph.LocalName
 import wom.types.{WomArrayType, WomPrimitiveType, WomType}
 import wom.values.{WomArray, WomBoolean, WomOptionalValue, WomPrimitive, WomValue}
 import wom.{CommandPart, InstantiatedCommand}
-import wdl.transforms.base.linking.expression.consumed._
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
 import wdl.transforms.base.linking.expression._
@@ -23,7 +22,13 @@ import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
 
 object CommandPartElementToWomCommandPart {
-  def convert(commandPart: CommandPartElement, typeAliases: Map[String, WomType], availableHandles: Set[GeneratedValueHandle]): ErrorOr[CommandPart] = commandPart match {
+  def convert(commandPart: CommandPartElement,
+              typeAliases: Map[String, WomType],
+              availableHandles: Set[GeneratedValueHandle])
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[CommandPart] = commandPart match {
     case s: StringCommandPartElement => WdlomWomStringCommandPart(s).validNel
     case p: PlaceholderCommandPartElement => {
       val attributes = p.attributes

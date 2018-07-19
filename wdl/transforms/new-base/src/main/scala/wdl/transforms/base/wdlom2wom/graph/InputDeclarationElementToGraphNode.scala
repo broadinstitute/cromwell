@@ -9,6 +9,7 @@ import wdl.transforms.base.linking.expression._
 import wdl.transforms.base.wdlom2wom.graph.WorkflowGraphElementToGraphNode.validateAssignmentType
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
@@ -17,7 +18,11 @@ import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
 
 object InputDeclarationElementToGraphNode {
-  def convert(a: GraphInputNodeMakerInputs): ErrorOr[Set[GraphNode]] = a.node match {
+  def convert(a: GraphInputNodeMakerInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = a.node match {
     case InputDeclarationElement(typeElement, name, None) =>
       val nameInInputSet = s"${a.workflowName}.$name"
       typeElement.determineWomType(a.availableTypeAliases) map {

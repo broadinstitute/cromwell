@@ -8,7 +8,7 @@ import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType}
 import wom.values.WomSingleFile
-import wdl.transforms.base.linking.expression.files._
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 
 class FileEvaluatorSpec extends FlatSpec with Matchers {
 

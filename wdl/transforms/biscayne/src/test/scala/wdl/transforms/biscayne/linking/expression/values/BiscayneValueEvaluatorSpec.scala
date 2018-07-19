@@ -93,7 +93,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: as_map() keys can only appear once but "x" appeared 2 times.""")
+        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times.""")
       }
       ()
     }

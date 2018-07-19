@@ -29,14 +29,13 @@ object BiscayneValueEvaluators {
           validPairs flatMap { pairs =>
             val grouped = pairs.groupBy(_._1)
             val tooManyKeyErrors = grouped collect {
-              case (name, list) if list.length != 1 => s"as_map() keys can only appear once but ${name.toWomString} appeared ${list.size} times."
+              case (name, list) if list.length != 1 => s"keys can only appear once but ${name.toWomString} appeared ${list.size} times."
             }
             if (tooManyKeyErrors.isEmpty) {
               val pairs = grouped map { case (key, value) => (key -> value.head._2) }
 
               EvaluatedValue(WomMap(pairs), Seq.empty).validNel
             } else {
-
               s"Cannot evaluate 'as_map' with duplicated keys: ${tooManyKeyErrors.mkString(", ")}".invalidNel
             }
           }

@@ -29,7 +29,7 @@ object BiscayneValueEvaluators {
           validPairs flatMap { pairs =>
             val grouped = pairs.groupBy(_._1)
             val tooManyKeyErrors = grouped collect {
-              case (name, list) if list.length != 1 => s"${name.toWomString} appeared ${list.size} times"
+              case (name, list) if list.length != 1 => s"as_map() keys can only appear once but ${name.toWomString} appeared ${list.size} times."
             }
             if (tooManyKeyErrors.isEmpty) {
               val pairs = grouped map { case (key, value) => (key -> value.head._2) }
@@ -57,7 +57,7 @@ object BiscayneValueEvaluators {
           }
           EvaluatedValue(WomArray(WomArrayType(WomPairType(keyType, valueType)), validPairs), Seq.empty).validNel
 
-        case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.toDisplayString}' (expected Array[Pair[X, Y]])".invalidNel
+        case other => s"Invalid call of 'as_pairs' on parameter of type '${other.womType.toDisplayString}' (expected Array[Pair[X, Y]])".invalidNel
       }
     }
   }

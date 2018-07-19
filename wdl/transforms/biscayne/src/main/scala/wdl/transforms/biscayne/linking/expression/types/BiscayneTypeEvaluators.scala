@@ -36,7 +36,7 @@ object BiscayneTypeEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
         case WomArrayType(WomPairType(x: WomPrimitiveType, y)) => WomMapType(x, WomArrayType(y)).validNel
-        case other@WomArrayType(WomPairType(x, _)) => s"Cannot invoke 'as_map' on type ${other.toDisplayString}. Map keys must be primitive but got '${x.toDisplayString}'".invalidNel
+        case other@WomArrayType(WomPairType(x, _)) => s"Cannot invoke 'collect_by_key' on type ${other.toDisplayString}. Map keys must be primitive but got '${x.toDisplayString}'".invalidNel
         case other => s"Cannot invoke 'as_map' on type '${other.toDisplayString}'. Expected an array of pairs".invalidNel
       }
     }

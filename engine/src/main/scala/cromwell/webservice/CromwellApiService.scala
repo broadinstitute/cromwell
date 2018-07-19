@@ -10,7 +10,6 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.{AskTimeoutException, ask}
 import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
@@ -270,11 +269,6 @@ trait CromwellApiService extends HttpInstrumentation {
       bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
-    val formPartsAndSourceFromUrl: Future[(Map[String, ByteString], Option[String])] = for {
-      parts <- allParts
-      workflowSourceFromUrl <- getContentFromWorkflowUrl(parts)
-    } yield (parts, workflowSourceFromUrl)
-
 
     def getContentFromWorkflowUrl(formData: Map[String, ByteString]): Future[Option[String]]  = {
 
@@ -282,17 +276,26 @@ trait CromwellApiService extends HttpInstrumentation {
         for {
           httpResponse <- Http().singleRequest(HttpRequest(uri = url))
           source <- httpResponse.status match {
-            case StatusCodes.OK => Unmarshal(httpResponse.entity).to[String]
+            case StatusCodes.OK => httpResponse.entity.toStrict(duration).map(_.data.utf8String)
+            //Unmarshal(httpResponse.entity).to[String]
               //res.entity.toStrict(300.millis).map(_.data.utf8String)
-            case _ => Future.failed(new IllegalArgumentException(s"Workflow can't be obtained from workflowUrl: $url. Reason: ${httpResponse.status}"))
+            case _ => Future.failed(new IllegalArgumentException(httpResponse.status.toString))
           }
         } yield Option(source)
       }
 
-      val workflowUrl = formData.get("workflowUrl").map(_.utf8String) //Option("https://raw.githubusercontent.com/broadinstitute/cromwell/develop/wom/src/test/resources/three_step/test.wdl")
+      val workflowUrl = formData.get("workflowUrl").map(_.utf8String)
 
-      if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get) else Future.successful(None)
+      if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get).recoverWith{
+        case e => Future.failed(new IllegalArgumentException(s"Bad workflowUrl: ${workflowUrl.get}. Error: ${e.getMessage}"))
+      }
+      else Future.successful(None)
     }
+
+    val formPartsAndSourceFromUrl: Future[(Map[String, ByteString], Option[String])] = for {
+      parts <- allParts
+      workflowSourceFromUrl <- getContentFromWorkflowUrl(parts)
+    } yield (parts, workflowSourceFromUrl)
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)

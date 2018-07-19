@@ -34,6 +34,8 @@ trait WorkflowStoreEntryComponent {
 
     def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
 
+    def workflowUrl = column[Option[String]]("WORKFLOW_URL", O.Length(255))
+
     def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
 
     def workflowOptions = column[Option[Clob]]("WORKFLOW_OPTIONS")
@@ -50,7 +52,7 @@ trait WorkflowStoreEntryComponent {
 
     def heartbeatTimestamp = column[Option[Timestamp]]("HEARTBEAT_TIMESTAMP")
 
-    override def * = (workflowExecutionUuid, workflowDefinition, workflowRoot, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
+    override def * = (workflowExecutionUuid, workflowDefinition, workflowUrl, workflowRoot, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
       submissionTime, importsZip, customLabels, cromwellId, heartbeatTimestamp, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)

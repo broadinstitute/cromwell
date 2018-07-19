@@ -74,6 +74,7 @@ object SubmissionSupport {
       extractCollection(user) &
       formFields((
         WorkflowSourceKey,
+        WorkflowUrlKey.?,
         WorkflowTypeKey.?,
         WorkflowTypeVersionKey.?,
         WorkflowInputsKey.?,
@@ -96,6 +97,7 @@ object SubmissionSupport {
   // FIXME: Much like CromwellClient see if there are ways of unifying this a bit w/ the mothership
   final case class WorkflowSubmission(collection: Collection,
                                       workflowSource: String,
+                                      workflowUrl: Option[String],
                                       workflowType: Option[String],
                                       workflowTypeVersion: Option[String],
                                       workflowInputs: Option[String],
@@ -113,6 +115,7 @@ object SubmissionSupport {
 
     val entity: MessageEntity = {
       val sourcePart = Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, workflowSource))
+      val urlPart = workflowUrl map { u => Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u))}
       val typePart = workflowType map { t => Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, t)) }
       val typeVersionPart = workflowTypeVersion map { v => Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v)) }
       val inputsPart = workflowInputs map { i => Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, i)) }
@@ -120,7 +123,7 @@ object SubmissionSupport {
       val importsPart = workflowDependencies map { d => Multipart.FormData.BodyPart(WorkflowDependenciesKey, HttpEntity(MediaTypes.`application/octet-stream`, d)) }
       val onHoldPart = workflowOnHold map { h => Multipart.FormData.BodyPart(WorkflowOnHoldKey, HttpEntity(h.toString)) }
       val labelsPart = Multipart.FormData.BodyPart(LabelsKey, HttpEntity(MediaTypes.`application/json`, labels))
-      val parts = List(Option(sourcePart), typePart, typeVersionPart, inputsPart, optionsPart, importsPart, onHoldPart, Option(labelsPart)).flatten ++ auxParts
+      val parts = List(Option(sourcePart), urlPart, typePart, typeVersionPart, inputsPart, optionsPart, importsPart, onHoldPart, Option(labelsPart)).flatten ++ auxParts
 
       Multipart.FormData(parts: _*).toEntity()
     }
@@ -133,6 +136,7 @@ object SubmissionSupport {
   // FIXME: Unify these w/ Cromwell.PartialWorkflowSources (via common?)
   val CollectionNameKey = "collectionName"
   val WorkflowSourceKey = "workflowSource"
+  val WorkflowUrlKey = "workflowUrl"
   val WorkflowTypeKey = "workflowType"
   val WorkflowTypeVersionKey = "workflowTypeVersion"
   val WorkflowInputsKey = "workflowInputs"

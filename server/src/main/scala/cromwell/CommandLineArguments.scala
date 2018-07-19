@@ -23,6 +23,7 @@ object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
   case class ValidSubmission(
                               workflowSource: String,
+                              workflowUrl: Option[String],
                               workflowRoot: Option[String],
                               worflowInputs: String,
                               workflowOptions: String,
@@ -32,6 +33,7 @@ object CommandLineArguments {
 
 case class CommandLineArguments(command: Option[Command] = None,
                                 workflowSource: Option[Path] = None,
+                                workflowUrl: Option[String] = None,
                                 workflowRoot: Option[String] = None,
                                 workflowInputs: Option[Path] = None,
                                 workflowOptions: Option[Path] = None,
@@ -83,9 +85,11 @@ case class CommandLineArguments(command: Option[Command] = None,
     val optionsJson = readJson("Workflow options", workflowOptions)
     val labelsJson = readJson("Workflow labels", workflowLabels)
 
+    // TODO: Saloni-Make workflowSource not mandatory. Also check if only 1 of workflowSource and workflowUrl is provided
+
     (workflowAndDependencies, inputsJson, optionsJson, labelsJson) mapN {
       case ((w, z, r), i, o, l) =>
-        ValidSubmission(w, r, i, o, l, z)
+        ValidSubmission(w, workflowUrl, r, i, o, l, z)
     }
   }
 

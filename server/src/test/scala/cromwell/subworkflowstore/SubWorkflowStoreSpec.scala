@@ -50,6 +50,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
 
       workflowStoreService ! SubmitWorkflow(WorkflowSourceFilesWithoutImports(
         workflowSource = "",
+        workflowUrl = None,
         workflowRoot = None,
         workflowType = Option("WDL"),
         workflowTypeVersion = None,

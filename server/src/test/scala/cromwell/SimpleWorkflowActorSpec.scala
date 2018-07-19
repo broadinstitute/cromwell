@@ -38,6 +38,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
                                  matchers: Matcher*): TestableWorkflowActorAndMetadataPromise = {
     val workflowSources = WorkflowSourceFilesWithoutImports(
       workflowSource = sampleWdl.workflowSource(),
+      workflowUrl = None,
       workflowRoot = None,
       workflowType = Option("WDL"),
       workflowTypeVersion = None,

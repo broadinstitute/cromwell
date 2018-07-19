@@ -4,6 +4,7 @@ import better.files.File
 
 sealed trait WorkflowSubmission {
   val workflowSource: String
+  val workflowUrl: Option[String]
   val workflowRoot: Option[String]
   val workflowType: Option[String]
   val workflowTypeVersion: Option[String]
@@ -14,6 +15,7 @@ sealed trait WorkflowSubmission {
 }
 
 final case class WorkflowSingleSubmission(workflowSource: String,
+                                          workflowUrl: Option[String],
                                           workflowRoot: Option[String],
                                           workflowType: Option[String],
                                           workflowTypeVersion: Option[String],
@@ -23,6 +25,7 @@ final case class WorkflowSingleSubmission(workflowSource: String,
                                           zippedImports: Option[File]) extends WorkflowSubmission
 
 final case class WorkflowBatchSubmission(workflowSource: String,
+                                         workflowUrl: Option[String],
                                          workflowRoot: Option[String],
                                          workflowType: Option[String],
                                          workflowTypeVersion: Option[String],

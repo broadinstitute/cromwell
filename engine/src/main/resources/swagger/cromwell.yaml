@@ -24,14 +24,14 @@ paths:
         - $ref: '#/parameters/versionParam'
         - name: workflowSource
           description: The workflow source file to submit for execution.
-          required: true
+          required: false
           type: file
           in: formData
         - name: workflowUrl
-          description: URL which points to workflow.
+          description: URL which points to the workflow.
           required: false
           type: string
-          in: formdata
+          in: formData
         - name: workflowOnHold
           description: Put workflow on hold upon submission. By default, it is taken as false.
           required: false
@@ -110,10 +110,10 @@ paths:
           type: file
           in: formData
         - name: workflowUrl
-          description: URL which points to workflow.
+          description: URL which points to the workflow.
           required: false
           type: string
-          in: formdata
+          in: formData
         - name: workflowOnHold
           description: Put workflow on hold upon submission. By default, it is taken as false.
           required: false

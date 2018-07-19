@@ -14,6 +14,7 @@ import spray.json._
 
 
 case class WorkflowData(workflowContent: String,
+                        workflowUrl: Option[String],
                         workflowRoot: Option[String],
                         workflowType: Option[String],
                         workflowTypeVersion: Option[String],
@@ -66,10 +67,12 @@ object WorkflowData {
     val workflowType = fullConfig.get[Option[String]]("workflowType").value
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
     val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
+    val workflowUrl = fullConfig.get[Option[String]]("workflowUrl").value
 
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
       workflowContent = workflowPath.slurp,
+      workflowUrl = workflowUrl,
       workflowRoot = workflowRoot,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,

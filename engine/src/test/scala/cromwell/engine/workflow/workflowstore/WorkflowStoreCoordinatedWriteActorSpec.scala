@@ -46,6 +46,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
   it should "fetchStartableWorkflows" in {
     val collection = WorkflowSourceFilesCollection(
       workflowSource = "sample",
+      workflowUrl = None,
       workflowRoot = None,
       workflowType = None,
       workflowTypeVersion = None,

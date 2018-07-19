@@ -313,6 +313,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     val rootActor = buildCromwellRootActor(config)
     val sources = WorkflowSourceFilesWithoutImports(
       workflowSource = sampleWdl.workflowSource(runtime),
+      workflowUrl = None,
       workflowRoot = None,
       workflowType = Option("WDL"),
       workflowTypeVersion = None,

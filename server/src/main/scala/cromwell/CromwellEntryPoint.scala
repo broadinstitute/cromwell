@@ -57,6 +57,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val cromwellSystem = buildCromwellSystem(Run)
     implicit val actorSystem = cromwellSystem.actorSystem
 
+    // TODO: Saloni-CommandLine: Download content from URL and put in workflowSource. Use for comp for Future
     val sources = validateRunArguments(args)
     val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
 
@@ -175,9 +176,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, r, i, o, l, z) =>
+      case ValidSubmission(w, u, r, i, o, l, z) =>
         WorkflowSingleSubmission(
           workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -192,10 +194,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(w, r, i, o, l, Some(z)), _) =>
+      case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -205,10 +208,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
           importsZip = z.loadBytes,
           warnings = Vector.empty,
           workflowOnHold = false)
-      case (ValidSubmission(w, r, i, o, l, None), _) =>
+      case (ValidSubmission(w, u, r, i, o, l, None), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,

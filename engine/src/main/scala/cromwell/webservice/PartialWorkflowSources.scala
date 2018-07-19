@@ -87,7 +87,7 @@ object PartialWorkflowSources {
 
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
-      val workflowSource = getStringValue(WdlSourceKey) //****************** CHANGE IT *******************
+      val workflowSource = getStringValue(WorkflowSourceKey)
       val workflowUrl = getStringValue(WorkflowUrlKey)
 
       def deprecationWarning(out: String, in: String)(actual: String): String = {
@@ -146,6 +146,7 @@ object PartialWorkflowSources {
       (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal, onHold) mapN {
         case (_, source, inputs, aux, dep, onHold) => PartialWorkflowSources(
           workflowSource = source,
+          workflowUrl = workflowUrl,
           workflowRoot = getStringValue(WorkflowRootKey),
           workflowType = getStringValue(WorkflowTypeKey),
           workflowTypeVersion = getStringValue(WorkflowTypeVersionKey),
@@ -218,6 +219,7 @@ object PartialWorkflowSources {
           case (wfInputs, wfOptions, workflowLabels) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
+              workflowUrl = partialSource.workflowUrl,
               workflowRoot = partialSource.workflowRoot,
               workflowType = partialSource.workflowType,
               workflowTypeVersion = partialSource.workflowTypeVersion,

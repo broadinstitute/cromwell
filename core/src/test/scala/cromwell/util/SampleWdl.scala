@@ -21,6 +21,7 @@ trait SampleWdl extends TestFileUtil {
                         workflowOnHold: Boolean = false) = {
     WorkflowSourceFilesWithoutImports(
       workflowSource = workflowSource(runtime),
+      workflowUrl = None,
       workflowRoot = None,
       inputsJson = workflowJson,
       workflowOptionsJson = workflowOptions,

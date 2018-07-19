@@ -1,10 +1,12 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import akka.http.scaladsl.model.ContentTypes
-import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Gsutil.ContentTypeTextHeader
+import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag.ActionFlag
+import cromwell.docker.DockerImageIdentifier
+import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import mouse.all._
 
 import scala.collection.JavaConverters._
@@ -25,6 +27,7 @@ object ActionBuilder {
       val UserAction = "UserAction"
       val Localization = "Localization"
       val Delocalization = "Delocalization"
+      val Background = "Background"
     }
   }
 
@@ -48,28 +51,31 @@ object ActionBuilder {
   def withImage(image: String) = new Action()
     .setImageUri(image)
 
-  def userAction(docker: String, scriptContainerPath: String, mounts: List[Mount], jobShell: String): Action = {
+  def userAction(docker: String,
+                 scriptContainerPath: String,
+                 mounts: List[Mount],
+                 jobShell: String,
+                 privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken]): Action = {
+
+    val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
+
+    val secret = for {
+      imageId <- dockerImageIdentifier.toOption
+      if DockerHub.isValidDockerHubHost(imageId.host) // This token only works for Docker Hub and not other repositories.
+      keyAndToken <- privateDockerKeyAndToken
+      s = new Secret().setKeyName(keyAndToken.key).setCipherText(keyAndToken.encryptedToken)
+    } yield s
+
     new Action()
       .setImageUri(docker)
       .setCommands(List(jobShell, scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
       .setEntrypoint("")
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
+      .setCredentials(secret.orNull)
   }
 
-  def gsutilAsText(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {
-    gsutil(List("-h", ContentTypeTextHeader) ++ command.toList: _*)(mounts, flags)
-  }
-
-  def gsutil(command: String*)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = {
-    cloudSdkAction
-      .setCommands((List("gsutil") ++ command.toList).asJava)
-      .withFlags(flags)
-      .setMounts(mounts.asJava)
-      .setLabels(labels.asJava)
-  }
-
-  def cloudSdkBashAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action = 
+  def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action =
     cloudSdkAction
       .withCommand("/bin/sh", "-c", shellCommand)
       .withFlags(flags)

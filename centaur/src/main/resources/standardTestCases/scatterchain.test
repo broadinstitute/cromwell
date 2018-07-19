@@ -1,5 +1,6 @@
 name: scatterchain
 testFormat: workflowsuccess
+tags: [upgrade]
 
 files {
   workflow: scatter_chain/scatter_chain.wdl

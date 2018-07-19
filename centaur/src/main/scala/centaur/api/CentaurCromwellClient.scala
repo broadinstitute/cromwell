@@ -8,18 +8,19 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
+import cats.effect.IO
 import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CromwellBackends, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, CromwellBackends, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.util.{Failure, Try}
-import net.ceedubs.ficus.Ficus._
+import scala.util.Try
 
 object CentaurCromwellClient {
   val LogFailures = ConfigFactory.load().as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
@@ -27,7 +28,7 @@ object CentaurCromwellClient {
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
   final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
-    Executors.newCachedThreadPool(DaemonizedDefaultThreadFactory))
+    Executors.newFixedThreadPool(100, DaemonizedDefaultThreadFactory))
 
   // Akka HTTP needs both the actor system and a materializer
   final implicit val system = ActorSystem("centaur-acting-like-a-system")
@@ -35,20 +36,24 @@ object CentaurCromwellClient {
   final val apiVersion = "v1"
   val cromwellClient = new CromwellClient(CentaurConfig.cromwellUrl, apiVersion)
 
-  def submit(workflow: Workflow): Try[SubmittedWorkflow] = {
+  def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
     sendReceiveFutureCompletion(() => cromwellClient.submit(workflow.toWorkflowSubmission(refreshToken = CentaurConfig.optionalToken)))
   }
 
-  def status(workflow: SubmittedWorkflow): Try[WorkflowStatus] = {
+  def status(workflow: SubmittedWorkflow): IO[WorkflowStatus] = {
     sendReceiveFutureCompletion(() => cromwellClient.status(workflow.id))
   }
 
-  def abort(workflow: SubmittedWorkflow): Try[WorkflowStatus] = {
+  def abort(workflow: SubmittedWorkflow): IO[WorkflowStatus] = {
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
   }
 
-  def outputs(workflow: SubmittedWorkflow): Try[WorkflowOutputs] = {
+  def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] = {
     sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
+  }
+
+  def callCacheDiff(workflowA: SubmittedWorkflow, callA: String, workflowB: SubmittedWorkflow, callB: String): IO[CallCacheDiff] = {
+    sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
   /*
@@ -61,58 +66,39 @@ object CentaurCromwellClient {
     Try(Await.result(request, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
-  def metadata(workflow: SubmittedWorkflow): Try[WorkflowMetadata] = metadata(workflow.id)
+  def metadata(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = metadata(workflow.id)
 
-  def metadata(id: WorkflowId): Try[WorkflowMetadata] = {
+  def metadata(id: WorkflowId): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id)) map { m =>
       WorkflowMetadata.fromMetadataJson(m.value).toOption.get
     }
   }
 
-  lazy val backends: Try[CromwellBackends] = sendReceiveFutureCompletion(() => cromwellClient.backends)
+  lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))
 
-  // The total time waiting for a Future, including network hiccups, must be longer than the time for a restart.
-  private val awaitTotalTimeout: FiniteDuration = CromwellManager.timeout * 2
-  private val awaitSleep: FiniteDuration = 5.seconds
-  private val awaitMaxAttempts: Long = awaitTotalTimeout.toSeconds / awaitSleep.toSeconds
+  def retryRequest[T](x: () => Future[T], timeout: FiniteDuration): IO[T] = {
+    // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail 
+    val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit
 
-  /**
-    * Ensure that the Future completes within the specified timeout. If it does not, or if the Future fails,
-    * will return a Failure, otherwise a Success
-    */
-  def awaitFutureCompletion[T](x: () => Future[T], timeout: FiniteDuration, attempt: Int = 1): Try[T] = {
-    def sleepAndRetry(throwable: Throwable): Try[T] = {
-      if (LogFailures) Console.err.println(s"Failed to execute request to Cromwell, retrying: ${throwable.getMessage}")
-      Thread.sleep(awaitSleep.toMillis)
-      awaitFutureCompletion(x, timeout, attempt + 1)
-    }
-
-    // We can't recover the future itself with a "recoverWith retry pattern" because it'll timeout anyway from the Await.result
-    // We want to keep timing out to catch cases where Cromwell becomes unresponsive
-    Try(Await.result(x(), timeout)) recoverWith {
-      case throwable if attempt >= awaitMaxAttempts => Failure(throwable)
-      case throwable@(_: TimeoutException |
-                      _: StreamTcpException |
-                      _: IOException |
-                      _: UnsupportedContentTypeException) =>
-        sleepAndRetry(throwable)
-      case unsuccessful: UnsuccessfulRequestException if unsuccessful.httpResponse.status == StatusCodes.NotFound =>
-        sleepAndRetry(unsuccessful)
-      case unexpected: RuntimeException
-        if unexpected.getMessage.contains("The http server closed the connection unexpectedly") =>
-        // https://github.com/akka/akka-http/issues/768
-        sleepAndRetry(unexpected)
-      case exception@BufferOverflowException(message) if message.contains("Please retry the request later.") =>
-        // http://doc.akka.io/docs/akka-http/current/scala/http/client-side/pool-overflow.html
-        sleepAndRetry(exception)
-    }
+    ioDelay.flatMap( _ =>
+      // Could probably use IO to do the retrying too. For now use a copyport of Retry from cromwell core. Retry 5 times,
+      // wait 5 seconds between retries. Timeout the whole thing using the IO timeout.
+      IO.fromFuture(IO(Retry.withRetry(x, Option(5), 5.seconds, isTransient = isTransient)).timeout(timeout))
+    )
   }
 
   def sendReceiveFutureCompletion[T](x: () => Future[T]) = {
-    awaitFutureCompletion(x, CentaurConfig.sendReceiveTimeout)
+    retryRequest(x, CentaurConfig.sendReceiveTimeout)
   }
 
-  def maxWorkflowLengthCompletion[T](x: () => Future[T]) = {
-    awaitFutureCompletion(x, CentaurConfig.maxWorkflowLength)
+  private def isTransient(f: Throwable) = f match {
+    case _: TimeoutException |
+                    _: StreamTcpException |
+                    _: IOException |
+                    _: UnsupportedContentTypeException => true
+    case BufferOverflowException(message) => message.contains("Please retry the request later.")
+    case unsuccessful: UnsuccessfulRequestException => unsuccessful.httpResponse.status == StatusCodes.NotFound
+    case unexpected: RuntimeException => unexpected.getMessage.contains("The http server closed the connection unexpectedly") 
+    case _ => false
   }
 }

@@ -1,0 +1,20 @@
+version: '2'
+services:
+  cromwell-test:
+    build:
+      context: cromwell-test
+    command: src/ci/bin/test.sh
+    environment:
+      - JENKINS
+      - JENKINS_BUILD_TYPE
+    working_dir: ${PWD}
+    volumes:
+      - ${PWD}:${PWD}
+    links:
+      - mysql-db
+  mysql-db:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_DATABASE=cromwell_test

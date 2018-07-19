@@ -16,7 +16,7 @@ object Outputs {
 
   //When the string returned is not valid JSON, it is effectively an exception as CWL runner expects JSON to be returned
   def handleOutput(submittedWorkflow: SubmittedWorkflow, pathBuilder: PathBuilder): String = {
-    val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).get.value
+    val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).unsafeRunSync().value
 
     // Wrapper function to provide the right signature for `intersectWith` below.
     def outputResolver(schemaOption: Option[Schema])(jsValue: JsValue, mot: MyriadOutputType): Json = {
@@ -37,7 +37,7 @@ object Outputs {
         parseCwl.value.attempt.unsafeRunSync() match {
           case Right(Right(cwl)) =>
 
-            CentaurCromwellClient.outputs(submittedWorkflow).get.outputs match {
+            CentaurCromwellClient.outputs(submittedWorkflow).unsafeRunSync().outputs match {
               case JsObject(map) =>
                 val typeMap: Map[String, MyriadOutputType] = cwl.fold(CwlOutputsFold)
                 val mungeTypeMap = typeMap.mapKeys(stripTypeMapKey)

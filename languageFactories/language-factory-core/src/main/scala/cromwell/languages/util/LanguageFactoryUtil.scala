@@ -82,4 +82,13 @@ object LanguageFactoryUtil {
       case None => Right(())
     }
   }
+
+  def simpleLooksParseable(startsWithOptions: List[String], commentIndicators: List[String])(content: String): Boolean = {
+    val trimStart = content.lines.dropWhile { l =>
+      l.forall(_.isWhitespace) || commentIndicators.exists(l.dropWhile(_.isWhitespace).startsWith(_))
+    }
+    val start = trimStart.next.dropWhile(_.isWhitespace)
+    startsWithOptions.exists(start.startsWith)
+
+  }
 }

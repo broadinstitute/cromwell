@@ -50,24 +50,16 @@ import scala.util.matching.Regex
  */
 
 object AwsBatchVolume {
-  val Identifier = "[a-zA-Z0-9-_]{1,255}"
-  val Directory = """/[^\s]+"""
-  val WorkingDiskPattern: Regex = s"""${AwsBatchWorkingDisk.Name}\\s+($Identifier)""".r
-  val MountedDiskPattern: Regex = s"""($Directory)\\s+($Identifier)""".r
+  val Directory = "^\\/.+"
+  val MountedDiskPattern: Regex = s"""($Directory)""".r
   val LocalDiskPattern: Regex = s"""local-disk""".r
 
   def parse(s: String): Try[AwsBatchVolume] = {
 
-    // TODO: This is probably significantly messed up and needs to be straightened
-    // See BCS documentation here - we need volumes and mounts in a textual format
-    // similar to what's defined: https://cromwell.readthedocs.io/en/develop/backends/BCS/
-    // Thought: follow whatever format for the short form CLI version. Though
-    // I'm not a fan of that format, it's at least consistent
     val validation: ErrorOr[AwsBatchVolume] = s match {
       case LocalDiskPattern() => Valid(AwsBatchWorkingDisk())
-      case WorkingDiskPattern() => Valid(AwsBatchWorkingDisk())
       case MountedDiskPattern(mountPoint) => Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
-      case _ => s"Disk strings should be of the format 'local-disk' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
+      case _ => s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
     }
 
     Try(validation match {
@@ -84,11 +76,11 @@ object AwsBatchVolume {
 trait AwsBatchVolume {
   def name: String
   def mountPoint: Path
-  def toVolume: Volume = {
+  def toVolume(id: String): Volume = {
     Volume
       .builder
       .name(name)
-      .host(Host.builder.sourcePath(mountPoint.toAbsolutePath.pathAsString).build)
+      .host(Host.builder.sourcePath(mountPoint.toAbsolutePath.pathAsString + "/" + id).build)
       .build
   }
   def toMountPoint: MountPoint = {

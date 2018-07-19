@@ -198,4 +198,11 @@ object ExpressionElement {
     * @param index The index expression
     */
   final case class IndexAccess(expressionElement: ExpressionElement, index: ExpressionElement) extends ExpressionElement
+
+  /**
+    * Synthetic element - never constructed from parsing an actual WDL.
+    *
+    * Functions as a passthrough to represent programmatically-generated WDL expressions.
+    */
+  final case class ExpressionLiteralElement(expression: String) extends ExpressionElement
 }

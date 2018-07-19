@@ -1,0 +1,16 @@
+name: requester_pays_engine_functions
+testFormat: workflowsuccess
+backends: [Papiv2RequesterPays]
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: requester_pays_gcs/engine_functions.wdl
+  options: requester_pays_gcs/engine_functions.options
+}
+
+metadata {
+  workflowName: requester_pays_engine_functions
+  status: Succeeded
+}

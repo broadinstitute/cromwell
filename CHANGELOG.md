@@ -1,5 +1,29 @@
 # Cromwell Change Log
 
+## 34 Release Notes
+
+### Query API
+
+* Fixes a bug which stopped `includeSubworkflow=false` from paging correctly and subworkflows from being discounted correctly from `totalResultsCount`.
+* Query results will now be returned in reverse chronological order, with the most-recently submitted workflows returned first.
+
+### Requester Pays on GCS
+
+Access of Google Cloud Storage buckets with Requester Pays enabled is now supported.
+Please read the [relevant documentation](http://cromwell.readthedocs.io/en/develop/filesystems/GoogleCloudStorage#requester-pays) for information on how to enable it and the consequences.
+
+### Private Docker Support on Pipelines API v2
+
+Support for private Docker Hub images is now included in the Google Pipelines API v2 backend. PAPI v2 private Docker support is
+equivalent to that in PAPI v1 but the configuration differs, please see
+[Docker configuration](http://cromwell.readthedocs.io/en/develop/filesystems/Google#Docker) for more details.
+
+### Updated MySQL client with 8.0 support
+
+Updated the MySQL connector client from `5.1.42` to `5.1.46` which adds support for connecting to MySQL 8.0. See the
+documentation on [Changes in MySQL Connector/J](https://dev.mysql.com/doc/relnotes/connector-j/5.1/en/news-5-1.html) for
+more information.
+
 ## 33 Release Notes
 
 ### Query endpoint

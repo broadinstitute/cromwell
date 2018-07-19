@@ -105,31 +105,11 @@ A [JSON key file for the service account](../wf_options/Google.md) must be passe
 
 In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `jes_gcs_root` workflow option should be set appropriately.
 
+For information on the interaction of `user_service_account_json` with private Docker images please see the `Docker` section below.  
 
 **Docker**
 
-It is possible to reference private docker images in DockerHub to be run on Pipelines API.
-However, in order for the image to be pulled, the docker credentials with access to this image must be provided in the configuration file.
-
-
-```
-backend {
-  default = "JES"
-  providers {
-    JES {
-      actor-factory = "cromwell.backend.impl.local.LocalBackendLifecycleActorFactory"
-      config {
-        dockerhub {
-          account = "mydockeraccount@mail.com"
-          token = "mydockertoken"
-        }
-      }
-    }
-  }
-}
-```
-
-It is now possible to reference an image only this account has access to:
+It's possible to reference private Docker images to which only particular Docker Hub accounts have access:
 
 ```
 task mytask {
@@ -145,7 +125,83 @@ task mytask {
 }
 ```
 
-Note that if the docker image to be used is public there is no need to add this configuration.
+In order for a private image to be used the appropriate Docker configuration must be provided. If the Docker images being used
+are public there is no need to add this configuration.
+
+For Pipelines API (PAPI) version 1:
+```
+backend {
+  default = "PAPIv1"
+  providers {
+    PAPIv1 {
+      actor-factory = "cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-docker-hub-username:password"
+        }
+      }
+    }
+  }
+}
+```
+
+`token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
+
+For PAPI version 2:
+
+```
+backend {
+  default = "PAPIv2"
+  providers {
+    PAPIv2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-docker-hub-username:password"
+          key-name = "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token"
+          auth = "reference-to-the-auth-cromwell-should-use-for-kms-encryption"
+        }
+      }
+    }
+  }
+}
+```
+
+`key-name` is the name of the Google KMS key Cromwell should use for encrypting the Docker `token` before including it
+in the PAPI job execution request. This `key-name` will also be included in the PAPI job execution
+request and will be used by PAPI to decrypt the Docker token used by `docker login` to enable access to the private Docker image.
+ 
+`auth` is a reference to the name of an authorization in the `auths` block of Cromwell's `google` config.
+Cromwell will use this authorization for encrypting the Google KMS key.
+
+The equivalents of `key-name`, `token` and `auth` can also be specified in workflow options which take
+precedence over values specified in configuration. The corresponding workflow options are named `docker_credentials_key_name`,
+`docker_credentials_token`, and `user_service_account_json`. While the config value `auth` refers to an auth defined in the 
+`google.auths` stanza elsewhere in Cromwell's
+configuration, `user_service_account_json` is expected to be a literal escaped Google service account auth JSON.
+See the `User Service Account` section above for more information on using user service accounts.
+If the key, token or auth value is provided in workflow options then the corresponding private Docker configuration value
+is not required, and vice versa. Also note that for the `user_service_account_json` workflow option to work an auth of type `user_service_account`
+must be defined in Cromwell's `google.auths` stanza; more details in the `User Service Account` section above.
+
+Example PAPI v2 workflow options for private Docker configuration:
+
+```
+{
+  "docker_credentials_key_name": "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token",
+  "docker_credentials_token": "base64_username:password",
+  "user_service_account_json": "<properly escaped user service account JSON file>"
+}
+```
+
+Important
+
+If any of the three private Docker configuration values of key name, auth, or Docker token are missing, PAPI v2 will not perform a `docker login`.
+If the Docker image to be pulled is not public the `docker pull` will fail which will cause the overall job to fail.
+
+If using any of these private Docker workflow options it is advisable to add
+them to the `workflow-options.encrypted-fields` list in Cromwell configuration.
+
 
 **Monitoring**
 

@@ -14,7 +14,8 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
 
   import BackendSpec._
   import PipelinesApiTestConfig._
-
+  import cromwell.filesystems.gcs.MockGcsPathBuilder._
+  
   behavior of "JesCallPaths"
 
   it should "map the correct filenames" in {

@@ -5,6 +5,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.stream.ActorMaterializer
+import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 import cromwell.webservice.{CromwellApiService, SwaggerService}
@@ -51,7 +52,11 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
   CromwellShutdown.registerUnbindTask(actorSystem, serverBinding)
 
   serverBinding onComplete {
-    case Success(_) => actorSystem.log.info("Cromwell service started...")
+    case Success(serverBindingActual) =>
+      val version = VersionUtil.getVersion("cromwell-engine")
+      val host = serverBindingActual.localAddress.getHostString
+      val port = serverBindingActual.localAddress.getPort
+      actorSystem.log.info(s"Cromwell {} service started on {}:{}...", version, host, port)
     case Failure(e) =>
       /*
         TODO:

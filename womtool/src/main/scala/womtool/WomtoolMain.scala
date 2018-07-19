@@ -3,9 +3,12 @@ package womtool
 import java.nio.file.Paths
 
 import common.validation.Validation._
-import cromwell.core.path.Path
-import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.{AstTools, WdlNamespace}
+import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.fileElementWriter
+import womtool.wom2wdlom.WomToWdlom.womBundleToFileElement
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
 import womtool.graph.{GraphPrint, WomGraph}
@@ -13,7 +16,7 @@ import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
 import womtool.validate.Validate
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object WomtoolMain extends App {
   sealed trait Termination {
@@ -47,7 +50,7 @@ object WomtoolMain extends App {
     case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
-    case u: WomtoolWdlV1UpgradeCommandLine => v1upgrade(u.workflowSource.pathAsString)
+    case u: WomtoolWdlUpgradeCommandLine => upgrade(u.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 
@@ -71,21 +74,27 @@ object WomtoolMain extends App {
     SuccessfulTermination(AstTools.getAst(Paths.get(workflowSourcePath)).toPrettyString)
   }
 
-  def v1upgrade(workflowSourcePath: String): Termination = {
-    import cats.implicits._
-    import common.Checked
-    import wdl.draft3.transforms.ast2wdlom.astToFileElement
-    import wdl.draft3.transforms.parsing.fileToAst
-    import wdl.draft3.transforms.wdlom2wdl.WdlWriter.ops._
-    import wdl.draft3.transforms.wdlom2wdl.WdlWriterImpl.fileElementWriter
-    import wdl.model.draft3.elements.FileElement
+  def upgrade(workflowSourcePath: String): Termination = {
+    val maybeWdl: Try[Path] = DefaultPathBuilder.build(workflowSourcePath)
 
-    val loader = fileToAst andThen astToFileElement
-    val model: Checked[FileElement] = loader.run(Paths.get(workflowSourcePath))
+    maybeWdl match {
+      case Success(wdl) =>
+        val maybeWomBundle = WomGraphMaker.getBundle(wdl)
 
-    model match {
-      case Right(wdlModel) => SuccessfulTermination(wdlModel.toWdlV1)
-      case Left(errorList) => UnsuccessfulTermination(errorList.toList.mkString("[", ",", "]"))
+        maybeWomBundle match {
+          case Right(womBundle) =>
+            val maybeFileElement = womBundleToFileElement.run(womBundle)
+            maybeFileElement match {
+              case Right(fileElement) =>
+                SuccessfulTermination(fileElement.toWdlV1)
+              case Left(errors) =>
+                UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
+            }
+          case Left(errors) =>
+            UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
+        }
+      case Failure(throwable) =>
+        UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
     }
   }
 

@@ -12,8 +12,8 @@ import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft3.transforms.ast2wdlom._
 import wdl.draft3.transforms.parsing._
-import wdl.draft3.transforms.wdlom2wom._
-import wdl.draft3.transforms.wdlom2wom.WomBundleToWomExecutable._
+import wdl.transforms.base.wdlom2wom._
+import wdl.transforms.base.wdlom2wom.WomBundleToWomExecutable._
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
@@ -46,7 +46,7 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => standardConfig.enabledCheck map(_ => x))
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories)) andThen fileElementToWomBundle
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))
   }
 
@@ -58,10 +58,5 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
     } yield validated
   }
 
-  override def looksParsable(content: String): Boolean = {
-    val trimStart = content.lines.dropWhile { l =>
-      l.forall(_.isWhitespace) || l.dropWhile(_.isWhitespace).startsWith("#")
-    }
-    trimStart.next.dropWhile(_.isWhitespace).startsWith("version 1.0")
-  }
+  override def looksParsable(content: String): Boolean = LanguageFactoryUtil.simpleLooksParseable(List("version 1.0", "version draft-3"), List("#"))(content)
 }

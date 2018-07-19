@@ -19,7 +19,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   // the information (client Id/Secrets + refresh token) that will be uploaded to Gcs before the workflow start
   private[pipelines] lazy val refreshTokenAuth: Option[PipelinesApiAuthObject] = {
     for {
-      clientSecrets <- List(jesConfiguration.jesAttributes.auths.gcs) collectFirst { case s: ClientSecrets => s }
+      clientSecrets <- List(pipelinesConfiguration.jesAttributes.auths.gcs) collectFirst { case s: ClientSecrets => s }
       token <- workflowDescriptor.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption
     } yield GcsLocalizing(clientSecrets, token)
   }
@@ -34,7 +34,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
         workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
         Future.successful(())
       case false =>
-        writeAuthenticationFile(paths, jesConfiguration.jesAttributes.restrictMetadataAccess, jesConfiguration.dockerCredentials) recoverWith {
+        writeAuthenticationFile(paths, pipelinesConfiguration.jesAttributes.restrictMetadataAccess, pipelinesConfiguration.dockerCredentials) recoverWith {
           case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
         }
     } recoverWith {
@@ -43,7 +43,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
 
     for {
       paths <- workflowPaths
-      _ <- if (jesConfiguration.needAuthFileUpload) fileUpload(paths) else Future.successful(())
+      _ <- if (pipelinesConfiguration.needAuthFileUpload) fileUpload(paths) else Future.successful(())
       data <- super.beforeAll()
     } yield data
   }

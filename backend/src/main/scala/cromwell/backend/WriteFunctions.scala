@@ -19,7 +19,7 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     * True if the writeDirectory will be mounted onto a docker container
     */
   def isDocker: Boolean
-  
+
   /**
     * Directory that will be used to write files.
     */
@@ -34,10 +34,12 @@ trait WriteFunctions extends PathFactory with IoFunctionSet with AsyncIoFunction
     asyncIo.writeAsync(tempDirHiddenFile, "", OpenOptions.default) as { tempDirPath.pathAsString }
   }
 
+  protected def writeAsync(file: Path, content: String) = asyncIo.writeAsync(file, content, OpenOptions.default)
+
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {
     val file = _writeDirectory / path
     asyncIo.existsAsync(file) flatMap {
-      case false => asyncIo.writeAsync(file, content, OpenOptions.default) as { WomSingleFile(file.pathAsString) }
+      case false => writeAsync(file, content) as { WomSingleFile(file.pathAsString) }
       case true => Future.successful(WomSingleFile(file.pathAsString))
     }
   }

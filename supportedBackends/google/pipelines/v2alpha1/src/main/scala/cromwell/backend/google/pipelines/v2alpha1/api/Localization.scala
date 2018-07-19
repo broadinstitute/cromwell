@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import com.google.api.services.genomics.v2alpha1.model.Mount
+import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
@@ -9,7 +10,7 @@ import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
 import scala.collection.JavaConverters._
 
 trait Localization {
-  def localizeActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]) = {
+  def localizeActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) = {
     val containerRoot = PipelinesApiWorkingDisk.MountPoint.pathAsString
 
     // As opposed to V1, the container root does not have a 777 umask, which can cause issues for docker running as non root
@@ -21,7 +22,7 @@ trait Localization {
       )
       .setMounts(mounts.asJava)
 
-    val jobInputLocalization = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts, createPipelineParameters.projectId).toList)
+    val jobInputLocalization = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts).toList)
     
     List(containerRootSetup) ++ jobInputLocalization
   }

@@ -1,6 +1,6 @@
 name: nested_lookups
 testFormat: workflowsuccess
-tags: [ conditionals ]
+tags: [ conditionals, upgrade ]
 
 files {
   workflow: conditionals_tests/nested_lookups/nested_lookups.wdl

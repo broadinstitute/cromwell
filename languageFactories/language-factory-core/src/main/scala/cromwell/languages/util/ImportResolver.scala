@@ -15,8 +15,8 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.core.path.Path
 import wom.core.WorkflowSource
-import scala.concurrent.duration._
 
+import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.util.Try
 
@@ -27,10 +27,10 @@ object ImportResolver {
     directoryResolver(LanguageFactoryUtil.validateImportsDirectory(zippedImports).toEither)
   }
 
-  def directoryResolver(directory: Path): ImportResolver = CheckedAtoB.fromErrorOr { path =>
+  def directoryResolver(directory: Path, allowEscapingDirectory: Boolean = false): ImportResolver = CheckedAtoB.fromErrorOr { path =>
     Try(Paths.get(directory.resolve(path).toFile.getCanonicalPath)).toErrorOr flatMap { absolutePathToFile =>
       val absolutePathToImports = Paths.get(directory.toJava.getCanonicalPath)
-      if (absolutePathToFile.startsWith(absolutePathToImports)) {
+      if (allowEscapingDirectory || absolutePathToFile.startsWith(absolutePathToImports)) {
         val file = File(absolutePathToFile)
         if (file.exists) {
           File(absolutePathToFile).contentAsString.validNel

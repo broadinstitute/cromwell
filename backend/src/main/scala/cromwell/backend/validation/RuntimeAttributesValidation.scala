@@ -75,7 +75,7 @@ object RuntimeAttributesValidation {
   }
 
   def parseMemoryString(k: String, s: WomString): ErrorOr[Information] = {
-    MemoryValidation.validateMemoryString(k, s)
+    InformationValidation.validateString(k, s)
   }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],

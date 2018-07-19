@@ -13,12 +13,10 @@ Cromwell remembers everything it knows!
 
 ### Let's get started!
 
-- Pull the MySQL docker image from dockerhub:
-`docker pull mysql:5.5`
 - Start the MySQL docker container with the following line:
 
 ```bash
-docker run -p 3306:3306 --name NameOfTheContainer -e MYSQL_ROOT_PASSWORD=YourPassword -e MYSQL_DATABASE=DatabaseName -e MYSQL_USER=ChooseAName -e MYSQL_PASSWORD=YourOtherPassword -d mysql/mysql-server:latest
+docker run -p 3306:3306 --name NameOfTheContainer -e MYSQL_ROOT_PASSWORD=YourPassword -e MYSQL_DATABASE=DatabaseName -e MYSQL_USER=ChooseAName -e MYSQL_PASSWORD=YourOtherPassword -d mysql/mysql-server:5.5
 ```
 
 - Update your `application.conf` file.
@@ -28,7 +26,7 @@ database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
     driver = "com.mysql.jdbc.Driver"
-    url = "jdbc:mysql://localhost/DatabaseName?useSSL=false"
+    url = "jdbc:mysql://localhost/DatabaseName?rewriteBatchedStatements=true&useSSL=false"
     user = "ChooseAName"
     password = "YourOtherPassword"
     connectionTimeout = 5000

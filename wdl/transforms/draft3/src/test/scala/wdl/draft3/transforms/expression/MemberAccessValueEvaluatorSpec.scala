@@ -8,7 +8,7 @@ import wom.values.{WomInteger, WomObject, WomPair, WomString}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.elements.ExpressionElement
 import wom.expression.NoIoFunctionSet
-import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import wdl.transforms.base.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.graph.expression.EvaluatedValue
 
 class MemberAccessValueEvaluatorSpec extends FlatSpec with Matchers{

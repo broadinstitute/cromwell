@@ -55,10 +55,13 @@ object PipelinesApiRequestFactory {
     lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
     lazy val fileOutputParameters: List[PipelinesApiOutput] = jobOutputParameters ++ detritusOutputParameters.all
   }
+
+  case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
   
   case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: PipelinesApiRuntimeAttributes,
                                       dockerImage: String,
+                                      cloudWorkflowRoot: Path,
                                       cloudCallRoot: Path,
                                       commandScriptContainerPath: Path,
                                       logGcsPath: Path,
@@ -67,7 +70,8 @@ object PipelinesApiRequestFactory {
                                       computeServiceAccount: String,
                                       labels: Labels,
                                       preemptible: Boolean,
-                                      jobShell: String) {
+                                      jobShell: String,
+                                      privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

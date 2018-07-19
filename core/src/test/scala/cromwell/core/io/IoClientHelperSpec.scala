@@ -39,7 +39,7 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     delegateProbe.expectMsg(response)
     
     // And nothing else, meaning the timeout timer has been cancelled
-    delegateProbe.expectNoMsg()
+    delegateProbe.expectNoMessage()
 
     // timeouts map should be empty
     testActor.underlyingActor.timeouts.isEmpty shouldBe true
@@ -72,7 +72,7 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     }
 
     // And nothing else, meaning the timeout timer has been cancelled
-    delegateProbe.expectNoMsg()
+    delegateProbe.expectNoMessage()
 
     // timeouts map should be empty
     testActor.underlyingActor.timeouts.isEmpty shouldBe true

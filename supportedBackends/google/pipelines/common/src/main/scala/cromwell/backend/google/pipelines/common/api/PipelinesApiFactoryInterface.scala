@@ -9,6 +9,7 @@ object PipelinesApiFactoryInterface {
   val GenomicsScope = "https://www.googleapis.com/auth/genomics"
   val ComputeScope = "https://www.googleapis.com/auth/compute"
   val StorageFullControlScope = "https://www.googleapis.com/auth/devstorage.full_control"
+  val KmsScope = "https://www.googleapis.com/auth/cloudkms"
 }
 
 /**
@@ -31,4 +32,6 @@ abstract class PipelinesApiFactoryInterface {
   final def fromCredentials(credentials: Credentials): PipelinesApiRequestFactory = build(credentials |> httpRequestInitializerFromCredentials)
   
   protected def build(httpRequestInitializer: HttpRequestInitializer): PipelinesApiRequestFactory
+
+  def usesEncryptedDocker: Boolean
 }

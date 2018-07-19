@@ -87,4 +87,6 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       }
     }
   }
+
+  override def usesEncryptedDocker: Boolean = false
 }

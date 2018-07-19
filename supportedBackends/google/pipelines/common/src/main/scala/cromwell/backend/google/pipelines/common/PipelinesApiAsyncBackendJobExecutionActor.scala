@@ -4,6 +4,7 @@ import java.net.SocketTimeoutException
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
+import akka.http.scaladsl.model.ContentTypes
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -13,7 +14,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.{CreatePipelineParameters, DetritusInputParameters, DetritusOutputParameters, InputOutputParameters}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
@@ -26,6 +27,7 @@ import cromwell.core._
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.filesystems.demo.dos.DemoDosPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.google.pipelines.common.PreviousRetryReasons
@@ -105,7 +107,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
-  
+
   override lazy val runtimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, PipelinesApiWorkingDisk.MountPoint, PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
   }
@@ -160,6 +162,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
+        case Success(demoDosPath: DemoDosPath) =>
+          demoDosResolver.getContainerRelativePath(demoDosPath)
         case Success(path) => path.pathWithoutScheme
         case _ => value
       }
@@ -169,6 +173,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
+        case Success(demoDosPath: DemoDosPath) =>
+          DefaultPathBuilder.get(demoDosResolver.getContainerRelativePath(demoDosPath)).name
         case Success(path) => path.name
         case _ => value
       }
@@ -199,7 +205,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         }
     }
   }
-  
+
   protected def localizationPath(f: CommandSetupSideEffectFile) = {
     val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
     f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
@@ -354,6 +360,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private val DockerMonitoringLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
+  private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
@@ -384,20 +391,34 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters): CreatePipelineParameters = {
-    CreatePipelineParameters(
-      jobDescriptor = jobDescriptor,
-      runtimeAttributes = runtimeAttributes,
-      dockerImage = jobDockerImage,
-      cloudCallRoot = callRootPath,
-      commandScriptContainerPath = cmdInput.containerPath,
-      logGcsPath = jesLogPath,
-      inputOutputParameters,
-      googleProject(jobDescriptor.workflowDescriptor),
-      computeServiceAccount(jobDescriptor.workflowDescriptor),
-      backendLabels,
-      preemptible,
-      pipelinesConfiguration.jobShell
-    )
+    standardParams.backendInitializationDataOption match {
+      case Some(data: PipelinesApiBackendInitializationData) =>
+        val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
+          key <- data.privateDockerEncryptionKeyName
+          token <- data.privateDockerEncryptedToken
+        } yield CreatePipelineDockerKeyAndToken(key, token)
+
+        CreatePipelineParameters(
+          jobDescriptor = jobDescriptor,
+          runtimeAttributes = runtimeAttributes,
+          dockerImage = jobDockerImage,
+          cloudWorkflowRoot = workflowPaths.workflowRoot,
+          cloudCallRoot = callRootPath,
+          commandScriptContainerPath = cmdInput.containerPath,
+          logGcsPath = jesLogPath,
+          inputOutputParameters,
+          googleProject(jobDescriptor.workflowDescriptor),
+          computeServiceAccount(jobDescriptor.workflowDescriptor),
+          backendLabels,
+          preemptible,
+          pipelinesConfiguration.jobShell,
+          dockerKeyAndToken
+        )
+      case Some(other) =>
+        throw new RuntimeException(s"Unexpected initialization data: $other")
+      case None =>
+        throw new RuntimeException("No pipelines API backend initialization data found?")
+    }
   }
 
   override def isFatal(throwable: Throwable): Boolean = super.isFatal(throwable) || isFatalJesException(throwable)
@@ -434,7 +455,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         StandardStream("stdout", _.output),
         StandardStream("stderr", _.error)
       ) map { s =>
-        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename), workingDisk, optional = false, secondary = false)
+        PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename),
+          workingDisk, optional = false, secondary = false, uploadPeriod = jesAttributes.logFlushPeriod, contentType = Option(ContentTypes.`text/plain(UTF-8)`))
       }
 
       InputOutputParameters(
@@ -461,6 +483,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters)
+      _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
     } yield runId
 
@@ -501,7 +524,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFileToGcsPath(generateOutputs(jobDescriptor))(womFile)
   }
 
-  private[pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
+  protected [pipelines] def womFileToGcsPath(jesOutputs: Set[PipelinesApiOutput])(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
       jesOutputs collectFirst {
         case jesOutput if jesOutput.name == makeSafeReferenceName(path) => jesOutput.cloudPath.pathAsString
@@ -537,12 +560,26 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def handleExecutionFailure(runStatus: RunStatus,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
+
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
+
+      lazy val prettyError = runStatus.prettyPrintedError
+      def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
+
       (runStatus.errorCode, runStatus.jesCode) match {
         case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+        case _ if isDockerPullFailure =>
+          val unable = s"Unable to pull Docker image '$jobDockerImage' "
+          val details = if (hasDockerCredentials)
+            "but Docker credentials are present; is this Docker account authorized to pull the image? " else
+            "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
+            "Please check your private Docker configuration and/or the pull access for this image. "
+          val message = unable + details + runStatus.prettyPrintedError
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
         case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
           runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
       }
@@ -623,12 +660,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       (getPath(value), asAdHocFile(womFile)) match {
-        case (Success(gcsPath: GcsPath), Some(adHocFile)) => 
+        case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
           // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
           // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
-        case (Success(gcsPath: GcsPath), _) => 
+        case (Success(gcsPath: GcsPath), _) =>
           workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case (Success(demoDosPath: DemoDosPath), _) =>
+          val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
+          workingDisk.mountPoint.resolve(filePath).pathAsString
         case _ => value
       }
     )
@@ -638,11 +678,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
+        case Success(demoDosPath: DemoDosPath) =>
+          val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
+          workingDisk.mountPoint.resolve(filePath).pathAsString
         case _ => value
       }
     )
   }
-  
+
   // No need for Cromwell-performed localization in the PAPI backend, ad hoc values are localized directly from GCS to the VM by PAPI.
   override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = _.map(Coproduct[StandardAdHocValue](_)).validNel
 }

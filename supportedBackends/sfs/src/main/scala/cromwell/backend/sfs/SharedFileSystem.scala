@@ -210,7 +210,7 @@ trait SharedFileSystem extends PathFactory {
     * @param womFile WomFile to localize
     * @return localized WomFile
     */
-  private def localizeWomFile(toDestPath: (WomFile => String => Try[PairOfFiles]), strategies: Stream[DuplicationStrategy], docker: Boolean)
+  private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles], strategies: Stream[DuplicationStrategy], docker: Boolean)
                              (womFile: WomFile): WomFile = {
     val localized = womFile mapWomFile { file =>
       val result = toDestPath(file)(file.value) flatMap {

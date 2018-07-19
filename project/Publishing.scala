@@ -13,7 +13,7 @@ object Publishing {
   }
 
   private val artifactoryCredentials: Seq[Credentials] = {
-    val credentialsFile = file("src/bin/ci/resources/artifactory_credentials.properties").getAbsoluteFile
+    val credentialsFile = file("src/ci/resources/artifactory_credentials.properties").getAbsoluteFile
     if (credentialsFile.exists)
       List(Credentials(credentialsFile))
     else

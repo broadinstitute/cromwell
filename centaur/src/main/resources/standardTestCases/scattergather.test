@@ -1,5 +1,6 @@
 name: scattergather
 testFormat: workflowsuccess
+tags: [upgrade]
 
 files {
   workflow: scattergather/scattergather.wdl

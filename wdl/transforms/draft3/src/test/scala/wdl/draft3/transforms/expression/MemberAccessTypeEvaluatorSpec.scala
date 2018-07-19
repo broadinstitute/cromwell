@@ -3,7 +3,7 @@ package wdl.draft3.transforms.expression
 import cats.data.NonEmptyList
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
+import wdl.transforms.base.linking.expression.types.expressionTypeEvaluator
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph._

@@ -1,5 +1,7 @@
 package cromwell.backend.google.pipelines.v1alpha2.api
 
+import java.net.URL
+
 import akka.actor.ActorRef
 import akka.testkit.{TestActorRef, TestProbe}
 import com.google.api.client.googleapis.batch.BatchRequest
@@ -25,7 +27,7 @@ class PipelinesApiRequestWorkerV1Spec extends PipelinesApiRequestWorkerSpec[Oper
 }
 
 class TestPipelinesApiBatchHandlerV1(pollingManager: ActorRef) extends TestPipelinesApiBatchHandler[Operation] {
-  val delegate = new RequestHandler("cromwell-test-app") {
+  val delegate = new RequestHandler("cromwell-test-app", new URL("https://genomics.googleapis.com/")) {
     override def interpretOperationStatus(operation: Operation) = {
       mockStatusInterpreter(operation)
     }

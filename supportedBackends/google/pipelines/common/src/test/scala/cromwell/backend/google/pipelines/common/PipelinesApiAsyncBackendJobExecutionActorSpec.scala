@@ -6,11 +6,8 @@ import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
-import com.google.api.gax.retrying.RetrySettings
 import com.google.cloud.NoCredentials
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
-import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
-import wdl.transforms.draft2.wdlom2wom._
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
@@ -21,14 +18,13 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunSta
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
-import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.Tags.PostWomTest
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
@@ -38,6 +34,8 @@ import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import spray.json._
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.WomFileMapper
 import wom.expression.NoIoFunctionSet
 import wom.graph.CommandCallNode
@@ -53,9 +51,8 @@ import scala.util.Success
 
 class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
-  val mockPathBuilder: GcsPathBuilder = GcsPathBuilder.fromCredentials(NoCredentials.getInstance(),
-    "test-cromwell", RetrySettings.newBuilder().build(), GcsStorage.DefaultCloudStorageConfiguration, WorkflowOptions.empty, Option("default_project") )
-
+  val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
+  import MockGcsPathBuilder._
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
   def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
@@ -111,7 +108,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       override def getRequest(job: StandardAsyncJob) = null
       override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = null
     }
-    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory)
+    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory, None, None)
   }
 
   class TestablePipelinesApiJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: PipelinesApiExpressionFunctions)

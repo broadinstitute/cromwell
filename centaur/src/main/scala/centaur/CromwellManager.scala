@@ -66,19 +66,25 @@ object CromwellManager {
       else {
         println("Timeout waiting for cromwell server - failing test run")
         println(logFile.contentAsString)
-        stopCromwell()
+        stopCromwell("Timed out waiting for server")
         System.exit(timeoutExitStatus)
       }
     }
   }
 
-  def stopCromwell() = {
+  def stopCromwell(reason: String) = {
     _ready = false
-    println("Stopping Cromwell...")
-    cromwellProcess foreach { process =>
-      process.getOutputStream.flush()
-      process.destroy()
-      process.waitFor()
+    println(s"Stopping Cromwell... ($reason)")
+    try {
+      cromwellProcess foreach { process =>
+        process.getOutputStream.flush()
+        process.destroy()
+        process.waitFor()
+      }
+    } catch {
+      case e: Exception => 
+        println("Caught exception while stopping Cromwell")
+        e.printStackTrace()
     }
     
     cromwellProcess = None

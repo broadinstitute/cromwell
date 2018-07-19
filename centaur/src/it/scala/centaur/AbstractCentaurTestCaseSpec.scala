@@ -6,10 +6,14 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
-import org.scalatest.{DoNotDiscover, FlatSpec, Matchers, Tag}
+import cromwell.core.path
+import cromwell.core.path.DefaultPathBuilder
+import org.scalatest._
+
+import scala.concurrent.Future
 
 @DoNotDiscover
-abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends FlatSpec with Matchers {
+abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends AsyncFlatSpec with Matchers {
 
   private def testCases(basePath: Path): List[CentaurTestCase] = {
     val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }
@@ -29,9 +33,8 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
-    def runTest(): Unit = {
-      testCase.testFunction.run.get
-      ()
+    def runTest() = {
+      testCase.testFunction.run.unsafeToFuture().map(_ => assert(true))
     }
 
     // Make tags, but enforce lowercase:
@@ -41,7 +44,24 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
-  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Any): Unit = {
+  def executeUpgradeTest(testCase: CentaurTestCase): Unit =
+    executeStandardTest(upgradeTestWdl(testCase))
+
+  private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
+    import womtool.WomtoolMain
+
+    // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
+    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
+    val upgradeResult = WomtoolMain.upgrade(tempFile.pathAsString)
+
+    testCase.copy(
+      workflow = testCase.workflow.copy(
+        testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
+        data = testCase.workflow.data.copy(
+          workflowContent = upgradeResult.stdout.get)))
+  }
+
+  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {
 
     val itShould: ItVerbString = it should testName
 
@@ -52,7 +72,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     }
   }
 
-  private def runOrDont(itVerbString: ItVerbString, ignore: Boolean, runTest: => Any): Unit = {
+  private def runOrDont(itVerbString: ItVerbString, ignore: Boolean, runTest: => Future[Assertion]): Unit = {
     if (ignore) {
       itVerbString ignore runTest
     } else {
@@ -60,7 +80,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     }
   }
 
-  private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs, ignore: Boolean, runTest: => Any): Unit = {
+  private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs, ignore: Boolean, runTest: => Future[Assertion]): Unit = {
     if (ignore) {
       itVerbStringTaggedAs ignore runTest
     } else {

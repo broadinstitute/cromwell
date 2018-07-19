@@ -1,5 +1,6 @@
 name: write_lines
 testFormat: workflowsuccess
+tags: [upgrade]
 
 files {
   workflow: write_lines/write_lines.wdl

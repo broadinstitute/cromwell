@@ -11,7 +11,7 @@ import common.validation.Checked._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
 import cromwell.languages.LanguageFactory
-import cromwell.languages.util.ImportResolver.ImportResolver
+import cromwell.languages.util.ImportResolver.ImportResolver2
 import wdl.model.draft3.elements._
 import wdl.transforms.base.wdlom2wom.StructEvaluation.StructEvaluationInputs
 import wdl.transforms.base.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
@@ -80,13 +80,14 @@ object FileElementToWomBundle {
 
   private def importWomBundle(importElement: ImportElement,
                               optionsJson: WorkflowOptionsJson,
-                              importResolvers: List[ImportResolver],
+                              importResolvers: List[ImportResolver2],
                               languageFactories: List[LanguageFactory]): ErrorOr[WomBundle] = {
-    val compoundImportResolver: CheckedAtoB[String, WorkflowSource] = CheckedAtoB.firstSuccess(importResolvers, s"resolve import '${importElement.importUrl}'")
+    val compoundImportResolver: CheckedAtoB[String, WorkflowSource] = CheckedAtoB.firstSuccess(importResolvers.map(_.resolver), s"resolve import '${importElement.importUrl}'")
 
     val languageFactoryKleislis: List[CheckedAtoB[WorkflowSource, WomBundle]] = languageFactories map { factory =>
       CheckedAtoB.fromCheck { source: WorkflowSource =>
-        factory.getWomBundle(source, optionsJson, importResolvers, languageFactories)
+        val updatedResolvers = importResolvers.map(_.updateForNewRoot(importElement.importUrl))
+        factory.getWomBundle(source, optionsJson, updatedResolvers, languageFactories)
       }
     }
     val compoundLanguageFactory: CheckedAtoB[WorkflowSource, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")
@@ -129,7 +130,7 @@ object FileElementToWomBundle {
 
 final case class FileElementToWomBundleInputs(fileElement: FileElement,
                                               workflowOptionsJson: WorkflowOptionsJson,
-                                              importResolvers: List[ImportResolver],
+                                              importResolvers: List[ImportResolver2],
                                               languageFactories: List[LanguageFactory],
                                               workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition],
                                               taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition]

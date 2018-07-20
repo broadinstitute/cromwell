@@ -6,9 +6,10 @@ import cats.effect.IO
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
+import common.validation.Checked._
 import cromwell.core._
 import cromwell.languages.util.ImportResolver._
-import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
+import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.transforms.biscayne.ast2wdlom._
 import wdl.transforms.biscayne.parsing._
@@ -32,20 +33,26 @@ class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends 
                                     ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
-    val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
-    val importResolvers: List[ImportResolver] = source.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
+    val localFilesystemResolvers = if (importLocalFilesystem) List(AnyLocalFileResolver2) else List.empty
 
-    val errorOr: Checked[ValidatedWomNamespace] = for {
+    val zippedResolverCheck: Checked[Option[ImportResolver2]] = source.importsZipFileOption match {
+      case None => None.validNelCheck
+      case Some(zipContent) => zippedImportResolver2(zipContent).toEither.map(Option.apply)
+    }
+
+    val checked: Checked[ValidatedWomNamespace] = for {
       _ <- standardConfig.enabledCheck
+      zippedImportResolver <- zippedResolverCheck
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver2(None, Map.empty)
       bundle <- getWomBundle(source.workflowSource, source.workflowOptionsJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 
-    fromEither[IO](errorOr)
+    fromEither[IO](checked)
 
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
+  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver2], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => standardConfig.enabledCheck map(_ => x))
     val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))

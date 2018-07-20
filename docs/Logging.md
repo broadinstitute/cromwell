@@ -45,7 +45,10 @@ java -DLOG_LEVEL=DEBUG -jar cromwell.jar server
 
 While a workflow is running, Cromwell generates a log file specifically for the workflow. After the workflow completes, to clear up local disk space, Cromwell deletes the local copy of this log file. See the [Configuration](Configuring#workflow-log-directory) section on logs for more information on preventing cromwell from deleting each workflow log.
 
-Before Cromwell deletes the files and before the workflow completes, you can configure Cromwell to copy the workflow logs to various locations. Normally, you'll want to copy the log to a remote bucket or directory. To specify the remote directory to copy the logs to use the separate [Workflow Option](wf_options/Overview#output-copying) `final_workflow_log_dir`. Workflow logs may also be copied via [Sentry](https://docs.sentry.io) by setting the [Configuration](Configuring#workflow-log-directory) value `sentry.dsn`.
+Before Cromwell deletes the files and before the workflow completes, you can configure Cromwell to copy the workflow
+logs to various locations. Normally, you'll want to copy the log to a remote bucket or directory. To specify the remote
+directory to copy the logs to, use the separate [Workflow Option](wf_options/Overview#output-copying)
+`final_workflow_log_dir`.
 
 ## Call Logs
 

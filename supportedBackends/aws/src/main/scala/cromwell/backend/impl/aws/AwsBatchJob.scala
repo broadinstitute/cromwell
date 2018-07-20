@@ -175,6 +175,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     |"
     |cat ${dockerStderr}
     |echo "--${boundary}--"
+    |sleep 2 # Provide sidecar opportunity to delocalize - not sure this is needed
+    |exit $$(cat ${dockerRc})
     """).stripMargin
   }
   def submitJob(): Try[SubmitJobResponse] = Try {

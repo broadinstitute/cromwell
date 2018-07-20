@@ -179,22 +179,23 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
   }
   def submitJob(): Try[SubmitJobResponse] = Try {
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
+    val workflow = jobDescriptor.workflowDescriptor
+    val uniquePath = workflow.callable.name + "/" +
+                     jobDescriptor.taskCall.callable.name + "/" +
+                     workflow.id + "/" +
+                     jobDescriptor.key.index + "/" +
+                     jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
     Log.info(s"""commandLine: $commandLine""")
     Log.info(s"""reconfiguredScript: $reconfiguredScript""")
     Log.info(s"""taskId: $taskId""")
-    // Log.info(s"""logFileName: $logFileName""")
-
-    // runtimeAttributes
-    // dockerImage ceomse from the WDL task definition
-    // commandList
-    lazy val workflow = jobDescriptor.workflowDescriptor
+    Log.info(s"""hostpath root: $uniquePath""")
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
-    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", taskId)
+    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath)
 
     val job = client.submitJob(SubmitJobRequest.builder()
                 .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))

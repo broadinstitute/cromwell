@@ -346,10 +346,10 @@ workflow-options {
 
 Cromwell supports [Sentry](https://docs.sentry.io) which is a service that can be used to monitor exceptions reported in an application’s logs.
 
-To enable Sentry monitoring in Cromwell, enter your DSN URL into the configuration value:
+To enable Sentry monitoring in Cromwell, enter your DSN URL using the system property:
 
-```hocon
-sentry.dsn = DSN_URL
+```properties
+sentry.dsn=DSN_URL
 ```
 
 

@@ -62,7 +62,6 @@ object Dependencies {
   private val protoGoogleCommonProtosV = "0.1.21"
   private val protoGoogleIamV1V = "0.1.21"
   private val protobufJavaV = "3.3.1"
-  private val ravenLogbackV = "8.0.3"
   private val reactiveStreamsV = "1.0.1"
   private val refinedV = "0.8.3"
   private val rhinoV = "1.7.8"
@@ -77,6 +76,7 @@ object Dependencies {
   private val scalatestV = "3.0.2"
   private val scalazV = "7.2.17"
   private val scoptV = "3.6.0"
+  private val sentryLogbackV = "1.7.5"
   private val shapelessV = "2.3.3"
   private val simulacrumV = "0.12.0"
   private val slf4jV = "1.7.24"
@@ -175,7 +175,7 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
-    "com.getsentry.raven" % "raven-logback" % ravenLogbackV,
+    "io.sentry" % "sentry-logback" % sentryLogbackV,
     "org.codehaus.janino" % "janino" % janinoV
   )
 

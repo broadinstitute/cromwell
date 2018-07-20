@@ -19,6 +19,10 @@ import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDepe
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
+import io.sentry.Sentry
+import io.sentry.config.Lookup
+import io.sentry.dsn.Dsn
+import io.sentry.util.Util
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
@@ -133,6 +137,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
     Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
      */
     ConfigFactory.invalidateCaches()
+
+    // Quiet warnings about missing sentry DSNs by just providing the default.
+    val dsn = Option(Lookup.lookup("dsn")).filterNot(Util.isNullOrEmpty).getOrElse(
+      Dsn.DEFAULT_DSN + "&stacktrace.app.packages=quieted_with_any_value_because_empty_was_not_working")
+    Sentry.init(dsn)
+    ()
   }
 
   protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]) = {
@@ -183,6 +193,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
       case (ValidSubmission(w, r, i, o, l, Some(z)), _) =>
+        //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
           workflowRoot = r,
@@ -195,6 +206,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           warnings = Vector.empty,
           workflowOnHold = false)
       case (ValidSubmission(w, r, i, o, l, None), _) =>
+        //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
           workflowRoot = r,

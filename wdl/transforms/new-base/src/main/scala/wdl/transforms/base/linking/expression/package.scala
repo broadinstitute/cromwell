@@ -28,7 +28,7 @@ package object expression {
         case missing => s"Could not create WOM expression for '$a': Found no generated value for consumed value $missing".invalidNel
       }
 
-      neededLinkedValues map { lookup => WdlomWomExpression(a, lookup.toMap) }
+      neededLinkedValues flatMap { lookup => WdlomWomExpression.make(a, lookup.toMap) }
 
     }
   }

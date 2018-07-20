@@ -1,0 +1,3 @@
+Failed to process task definition 'string_member_access_output' (reason 1 of 1): Failed to process expression '"~{s}".tbi' (reason 1 of 1): No such field 'tbi' on type String
+Failed to process task definition 'string_member_access_output_runtime' (reason 1 of 1): Failed to process expression '"~{s}".latest' (reason 1 of 1): No such field 'latest' on type String
+Failed to process task definition 'x' (reason 1 of 1): Failed to process expression '"~{x}".xyz' (reason 1 of 1): No such field 'xyz' on type String

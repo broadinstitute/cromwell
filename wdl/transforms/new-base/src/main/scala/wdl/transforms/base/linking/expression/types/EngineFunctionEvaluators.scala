@@ -17,6 +17,20 @@ import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object EngineFunctionEvaluators {
 
+  implicit val stdoutFunctionEvaluator: TypeEvaluator[StdoutElement.type] = new TypeEvaluator[ExpressionElement.StdoutElement.type] {
+    override def evaluateType(a: ExpressionElement.StdoutElement.type, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
+      WomSingleFileType.validNel
+    }
+  }
+
+  implicit val stderrFunctionEvaluator: TypeEvaluator[StderrElement.type] = new TypeEvaluator[ExpressionElement.StderrElement.type] {
+    override def evaluateType(a: ExpressionElement.StderrElement.type, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
+      WomSingleFileType.validNel
+    }
+  }
+
   implicit val readLinesFunctionEvaluator: TypeEvaluator[ReadLines] = new TypeEvaluator[ReadLines] {
     override def evaluateType(a: ReadLines, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
@@ -220,7 +234,7 @@ object EngineFunctionEvaluators {
 
   implicit val sizeFunctionEvaluator: TypeEvaluator[Size] = new TypeEvaluator[Size] {
     private def suitableSizeType(womType: WomType): Boolean = womType match {
-      case WomSingleFileType => true
+      case t if WomSingleFileType.isCoerceableFrom(t) => true
       case WomOptionalType(inner) => suitableSizeType(inner)
       case WomArrayType(inner) => suitableSizeType(inner)
       case _ => false

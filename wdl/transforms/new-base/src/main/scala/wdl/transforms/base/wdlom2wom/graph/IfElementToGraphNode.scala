@@ -31,8 +31,9 @@ object IfElementToGraphNode {
     val conditionExpression = a.node.conditionExpression
     val graphElements = a.node.graphElements
 
-    val conditionWomExpression: WdlomWomExpression = WdlomWomExpression(conditionExpression, a.linkableValues)
-    val conditionExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier("if_condition"), conditionWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    val conditionWomExpressionV: ErrorOr[WdlomWomExpression] = WdlomWomExpression.make(conditionExpression, a.linkableValues)
+    val conditionExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = conditionWomExpressionV flatMap { conditionWomExpression =>
+      AnonymousExpressionNode.fromInputMapping(WomIdentifier("if_condition"), conditionWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply) }
 
     val conditionVariableTypeValidation: ErrorOr[Unit] = conditionExpression.evaluateType(a.linkableValues) flatMap {
       case WomBooleanType | WomAnyType => ().validNel

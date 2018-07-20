@@ -240,19 +240,19 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       }
   }
 
-  it should "return 500 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
+  it should "return 404 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
     val id = UnrecognizedWorkflowId
     Post(s"/workflows/$version/$id/releaseHold") ~>
       akkaHttpService.workflowRoutes ~>
       check {
         assertResult(
           s"""{
-             |  "status": "error",
+             |  "status": "fail",
              |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }
-        assertResult(StatusCodes.InternalServerError) {
+        assertResult(StatusCodes.NotFound) {
           status
         }
         headers should be(Seq.empty)

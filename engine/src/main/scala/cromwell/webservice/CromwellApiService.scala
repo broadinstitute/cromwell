@@ -250,6 +250,7 @@ trait CromwellApiService extends HttpInstrumentation {
           case Success(WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure(_, e: NotInOnHoldStateException)) => e.errorRequest(StatusCodes.Forbidden)
           case Success(WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedFailure(_, e)) => e.errorRequest(StatusCodes.InternalServerError)
           case Success(r: WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedSuccess) => completeResponse(StatusCodes.OK, toResponse(r.workflowId, WorkflowSubmitted), Seq.empty)
+          case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
           case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
         }
       }

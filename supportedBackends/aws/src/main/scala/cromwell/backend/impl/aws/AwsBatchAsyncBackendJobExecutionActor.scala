@@ -134,7 +134,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                   instantiatedCommand.commandString,
                                   script.toString,
                                   rcPath.toString, executionStdout, executionStderr,
-                                  Seq.empty[AwsBatchParameter])
+                                  jobPaths.callExecutionRoot, Seq.empty[AwsBatchParameter])
   }
   /* Tries to abort the job in flight
    *

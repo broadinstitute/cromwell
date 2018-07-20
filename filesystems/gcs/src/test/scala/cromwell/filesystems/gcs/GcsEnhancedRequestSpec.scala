@@ -15,29 +15,50 @@ class GcsEnhancedRequestSpec extends FlatSpec with Matchers with Mockito with Mo
   behavior of "GcsEnhancedRequest"
 
   val path = GcsPath(CloudStorageFileSystem.forBucket("bucket").getPath("test"), any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], anyString)
-  val requesterPaysException = new StorageException(BucketIsRequesterPaysErrorCode, BucketIsRequesterPaysErrorMessage)
-  
+  val requesterPaysBucketException = new StorageException(BucketIsRequesterPaysErrorCode, BucketIsRequesterPaysErrorMessage)
+  val requesterPaysServiceUsageException = new StorageException(DoesNotHaveServiceUsePermissionErrorCode, DoesNotHaveServiceUsePermissionErrorMessage)
+
   it should "attempt first without project, and not retry if the requests succeeds" in {
     val testFunction = mockFunction[Boolean, String]
     testFunction.expects(false).returns("hello").once()
     GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync() shouldBe "hello"
   }
 
-  it should "retry requests with project if the error matches and succeed" in {
+  it should "retry requests with project if the bucket error matches and succeed" in {
     val testFunction = mockFunction[Boolean, String]
 
     // First time, throw a requester pays exception
-    testFunction.expects(false).throws(requesterPaysException)
+    testFunction.expects(false).throws(requesterPaysBucketException)
     // We expect it to be called a second time with withProject = true this time
     testFunction.expects(true).returns("hello")
     GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync() shouldBe "hello"
   }
 
-  it should "retry requests with project if the error matches and fail" in {
+  it should "retry requests with project if the bucket error matches and fail" in {
     val testFunction = mockFunction[Boolean, String]
 
     // First time, throw a requester pays exception
-    testFunction.expects(false).throws(requesterPaysException)
+    testFunction.expects(false).throws(requesterPaysBucketException)
+    // We expect it to be called a second time with withProject = true this time, and fail for another reason
+    testFunction.expects(true).throws(new RuntimeException("it really doesn't work"))
+    a[RuntimeException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()
+  }
+
+  it should "retry requests with project if the service usage permission matches and succeed" in {
+    val testFunction = mockFunction[Boolean, String]
+
+    // First time, throw a requester pays exception
+    testFunction.expects(false).throws(requesterPaysServiceUsageException)
+    // We expect it to be called a second time with withProject = true this time
+    testFunction.expects(true).returns("hello")
+    GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync() shouldBe "hello"
+  }
+
+  it should "retry requests with project if the service usage permission matches and fail" in {
+    val testFunction = mockFunction[Boolean, String]
+
+    // First time, throw a requester pays exception
+    testFunction.expects(false).throws(requesterPaysServiceUsageException)
     // We expect it to be called a second time with withProject = true this time, and fail for another reason
     testFunction.expects(true).throws(new RuntimeException("it really doesn't work"))
     a[RuntimeException] should be thrownBy GcsEnhancedRequest.recoverFromProjectNotProvided(path, testFunction).unsafeRunSync()

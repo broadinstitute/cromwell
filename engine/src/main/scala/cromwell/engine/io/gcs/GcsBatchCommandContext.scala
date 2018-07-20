@@ -95,7 +95,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * On failure callback. Fail the promise with a StorageException
     */
   private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
-    if (isProjectNotProvidedError(googleJsonError)) {
+    if (retryWithBillingProject(googleJsonError)) {
       // Returning an Either.Right here means that the operation is not complete and that we need to do another request
       handleSuccessOrNextRequest(Right(request.withUserProject))
     } else {

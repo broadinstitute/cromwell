@@ -81,7 +81,7 @@ trait Delocalization {
          * We can't use the gsutil -I flag here because it would lose the directory structure once it gets copied to the bucket
          * sh -c 'gsutil cp % $(echo % | sed -e "s/^\///")'
          */
-        s""" | xargs -I % sh -c '${recoverRequesterPaysError(cloudCallRoot)(gsutilCommand)}'"""
+        s""" | xargs -I % sh -c '${retryFailedCopyErrorWithProjectFlag(cloudCallRoot)(gsutilCommand)}'"""
     
     ActionBuilder.cloudSdkShellAction(command)(mounts)
   }

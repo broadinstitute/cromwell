@@ -9,7 +9,7 @@ import common.validation.Checked._
 import common.validation.Parse.{Parse, errorOrParse, goParse, tryParse}
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip}
-import cromwell.languages.util.ImportResolver.ImportResolver2
+import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.CwlDecoder
@@ -60,7 +60,7 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
     } yield validatedWomNamespace
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver2], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
+  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
     standardConfig.enabledCheck flatMap { _ => "No getWomBundle method implemented in CWL v1".invalidNelCheck }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =

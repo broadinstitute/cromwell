@@ -1,5 +1,7 @@
 package languages.wdl.draft3
 
+import java.nio.file.Paths
+
 import cats.instances.either._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
@@ -8,6 +10,7 @@ import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
 import common.validation.Checked._
 import cromwell.core._
+import cromwell.core.path.DefaultPath
 import cromwell.languages.util.ImportResolver._
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
@@ -33,17 +36,17 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
                                     ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
-    val localFilesystemResolvers = if (importLocalFilesystem) List(AnyLocalFileResolver2) else List.empty
+    val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
 
-    val zippedResolverCheck: Checked[Option[ImportResolver2]] = source.importsZipFileOption match {
+    val zippedResolverCheck: Checked[Option[ImportResolver]] = source.importsZipFileOption match {
       case None => None.validNelCheck
-      case Some(zipContent) => zippedImportResolver2(zipContent).toEither.map(Option.apply)
+      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
     }
 
     val checked: Checked[ValidatedWomNamespace] = for {
       _ <- standardConfig.enabledCheck
       zippedImportResolver <- zippedResolverCheck
-      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver2(None, Map.empty)
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       bundle <- getWomBundle(source.workflowSource, source.workflowOptionsJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
@@ -52,7 +55,7 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
 
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver2], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
+  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => standardConfig.enabledCheck map(_ => x))
     val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))

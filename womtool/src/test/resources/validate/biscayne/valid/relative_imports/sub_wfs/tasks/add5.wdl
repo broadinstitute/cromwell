@@ -7,7 +7,7 @@ task add5 {
     MyStruct x
   }
   command <<<
-    echo $((5 + ~{x}))
+    echo $((5 + ~{x.a}))
   >>>
   output {
     MyStruct five_added = object { a: read_int(stdout()) }

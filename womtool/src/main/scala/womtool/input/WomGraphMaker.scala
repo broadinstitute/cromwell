@@ -26,15 +26,15 @@ object WomGraphMaker {
     // Resolves for:
     // - Where we run from
     // - Where the file is
-    lazy val importResolvers: List[ImportResolver2] = List(
-      DirectoryResolver2(
+    lazy val importResolvers: List[ImportResolver] = List(
+      DirectoryResolver(
         DefaultPathBuilder.build(Paths.get(".")),
         allowEscapingDirectory = false),
-      DirectoryResolver2(
+      DirectoryResolver(
         DefaultPathBuilder.build(Paths.get(mainFile.toAbsolutePath.toFile.getParent)),
         allowEscapingDirectory = true
       ),
-      HttpResolver2()
+      HttpResolver()
     )
 
     readFile(mainFile.toAbsolutePath.pathAsString) flatMap { mainFileContents =>

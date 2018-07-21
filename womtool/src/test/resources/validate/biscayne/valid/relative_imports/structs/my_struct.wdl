@@ -1,4 +1,4 @@
-version 1.0
+version biscayne
 
 struct MyStruct {
   Int a

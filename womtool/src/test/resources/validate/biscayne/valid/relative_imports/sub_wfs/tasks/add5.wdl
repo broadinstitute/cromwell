@@ -1,4 +1,4 @@
-version 1.0
+version biscayne
 
 import "../../structs/my_struct.wdl"
 

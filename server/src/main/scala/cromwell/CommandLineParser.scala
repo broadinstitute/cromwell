@@ -36,7 +36,7 @@ object CommandLineParser {
 class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -jar /path/to/cromwell.jar") {
   
   private def commonSubmissionArguments = List(
-    arg[String]("workflow-source").text("Workflow source file.").required().
+    arg[String]("workflow-source").text("Workflow source file.").
       action((s, c) => c.copy(workflowSource = Option(DefaultPathBuilder.get(s)))),
     opt[String]("workflow-url").text("Workflow source url.").
       action((s, c) =>

@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -56,9 +56,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
   def runSingle(args: CommandLineArguments): Unit = {
     val cromwellSystem = buildCromwellSystem(Run)
     implicit val actorSystem = cromwellSystem.actorSystem
+    implicit val materializer = cromwellSystem.materializer
+    implicit val ec = actorSystem.dispatcher
 
     // TODO: Saloni-CommandLine: Download content from URL and put in workflowSource. Use for comp for Future
-    val sources = validateRunArguments(args)
+    val sources = validateRunArguments(args)(ec, materializer, actorSystem)
     val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
@@ -171,11 +173,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
     waitAndExit(() => runner(workflowManagerSystem), () => workflowManagerSystem.shutdownActorSystem())
   }
 
-  def validateSubmitArguments(args: CommandLineArguments): WorkflowSingleSubmission = {
+  def validateSubmitArguments(args: CommandLineArguments)
+                             (implicit ec: ExecutionContext, materializer: ActorMaterializer, actorSystem: ActorSystem): WorkflowSingleSubmission = {
     import LabelsJsonFormatter._
     import spray.json._
 
-    val validation = args.validateSubmission(EntryPointLogger) map {
+    val validation = args.validateSubmission(EntryPointLogger)(ec, materializer, actorSystem) map {
       case ValidSubmission(w, u, r, i, o, l, z) =>
         WorkflowSingleSubmission(
           workflowSource = w,
@@ -192,8 +195,9 @@ object CromwellEntryPoint extends GracefulStopSupport {
     validOrFailSubmission(validation)
   }
 
-  def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
-    val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
+  def validateRunArguments(args: CommandLineArguments)
+                          (implicit ec: ExecutionContext, materializer: ActorMaterializer, actorSystem: ActorSystem): WorkflowSourceFilesCollection = {
+    val sourceFileCollection = (args.validateSubmission(EntryPointLogger)(ec, materializer, actorSystem), writeableMetadataPath(args.metadataOutput)) mapN {
       case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
@@ -223,12 +227,29 @@ object CromwellEntryPoint extends GracefulStopSupport {
           workflowOnHold = false)
     }
 
+//    val validatedSubmission = args.abc(EntryPointLogger)
     val sourceFiles = for {
       sources <- sourceFileCollection
       _ <- writeableMetadataPath(args.metadataOutput)
     } yield sources
 
     validOrFailSubmission(sourceFiles)
+
+//    sourceFiles.onComplete{
+//      val sourceFilesCollection = {
+//        case Success(workflowSourceFiles) => workflowSourceFiles
+//        case Failure(e) => e.getMessage.invalidNel
+//      }
+//      validOrFailSubmission(sourceFilesCollection)
+//    }
+
+//    sourceFiles map {
+//      val sourceFilesCollection = {
+//                case Success(workflowSourceFiles) => workflowSourceFiles
+//                case Failure(e) => e.getMessage.invalidNel
+//              }
+//              validOrFailSubmission(sourceFilesCollection)
+//    }
   }
 
   def validOrFailSubmission[A](validation: ErrorOr[A]): A = {

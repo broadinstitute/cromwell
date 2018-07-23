@@ -269,19 +269,10 @@ trait CromwellApiService extends HttpInstrumentation {
       bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
-
-    def getContentFromWorkflowUrl(formData: Map[String, ByteString]): Future[Option[String]]  = {
-      val workflowUrl = formData.get("workflowUrl").map(_.utf8String)
-
-      if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get).recoverWith{
-        case e => Future.failed(new IllegalArgumentException(s"Bad workflowUrl: ${workflowUrl.get}. Error: ${e.getMessage}"))
-      }
-      else Future.successful(None)
-    }
-
     val formPartsAndSourceFromUrl: Future[(Map[String, ByteString], Option[String])] = for {
       parts <- allParts
-      workflowSourceFromUrl <- getContentFromWorkflowUrl(parts)
+      workflowUrl = parts.get("workflowUrl").map(_.utf8String)
+      workflowSourceFromUrl <- getContentFromWorkflowUrl(workflowUrl)
     } yield (parts, workflowSourceFromUrl)
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
@@ -407,7 +398,16 @@ object CromwellApiService {
     complete((statusCode, warningHeaders, value))
   }
 
-  def downloadContentFromUrl(url: String): Future[Option[String]] = {
+  def getContentFromWorkflowUrl(workflowUrl: Option[String])
+                               (implicit ec: ExecutionContext, materializer: ActorMaterializer, actorSystem: ActorSystem): Future[Option[String]]  = {
+    if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get).recoverWith{
+      case e => Future.failed(new IllegalArgumentException(s"Bad workflowUrl: ${workflowUrl.get}. Error: ${e.getMessage}"))
+    }
+    else Future.successful(None)
+  }
+
+  def downloadContentFromUrl(url: String)
+                            (implicit ec: ExecutionContext, materializer: ActorMaterializer, actorSystem: ActorSystem): Future[Option[String]] = {
     for {
       httpResponse <- Http().singleRequest(HttpRequest(uri = url))
       source <- httpResponse.status match {

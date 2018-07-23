@@ -1,5 +1,7 @@
 package wes2cromwell
 
+import java.net.URL
+
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import akka.actor.{ActorRef, ActorSystem}
@@ -11,7 +13,7 @@ import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 
 // MAIN
-object WesServer extends App with WesWorkflowRoutes {
+object WesServer extends App with WesRunRoutes {
   val config = ConfigFactory.load()
 
   val port = config.as[Int]("wes2cromwell.port")
@@ -27,10 +29,12 @@ object WesServer extends App with WesWorkflowRoutes {
   lazy val cromwellScheme = config.as[String]("cromwell.scheme")
   lazy val cromwellInterface = config.as[String]("cromwell.interface")
   lazy val cromwellPort = config.as[Int]("cromwell.port")
-  override lazy val cromwellPath = s"$cromwellScheme://$cromwellInterface:$cromwellPort/api/workflows/v1"
+
+  override lazy val cromwellUrl = new URL(s"$cromwellScheme://$cromwellInterface:$cromwellPort")
+  override val cromwellApiVersion = "v1"
 
   // from the UserRoutes trait
-  val routes: Route = workflowRoutes
+  val routes: Route = runRoutes
 
   Http().bindAndHandle(routes, interface, port)
 

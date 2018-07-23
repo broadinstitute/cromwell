@@ -45,7 +45,7 @@ object CromwellMetadata {
   import DefaultJsonProtocol._
   implicit val cromwellMetadataFormat: JsonFormat[CromwellMetadata] = jsonFormat8(CromwellMetadata.apply)
 
-  def toCromwellMetadata(json: String): CromwellMetadata = {
+  def fromJson(json: String): CromwellMetadata = {
     val jsonAst = JsonParser(json)
     jsonAst.convertTo[CromwellMetadata]
   }

@@ -2,7 +2,9 @@ package wes2cromwell
 
 import spray.json.{ DefaultJsonProtocol, JsonFormat, JsonParser }
 
-case class CromwellStatusResponse(id: String, status: String)
+case class CromwellStatusResponse(id: String, status: String) {
+  def toWesRunStatus: WesRunStatus = WesRunStatus(id, NewWesRunState.fromCromwellState(status))
+}
 
 object CromwellStatusResponse {
   import DefaultJsonProtocol._

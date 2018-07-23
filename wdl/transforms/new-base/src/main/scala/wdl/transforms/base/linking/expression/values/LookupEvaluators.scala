@@ -1,6 +1,6 @@
 package wdl.transforms.base.linking.expression.values
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
@@ -11,6 +11,8 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
 
 
 object LookupEvaluators {
@@ -76,19 +78,19 @@ object LookupEvaluators {
             if (array.value.length > index)
               array.value(index).validNel
             else
-              s"Bad array access $a: Array size ${array.value.length} does not have an index value '$index'".invalidNel
+              s"Bad array access ${a.toWdlV1}: Array size ${array.value.length} does not have an index value '$index'".invalidNel
           case (WomObject(values, _), WomString(index)) =>
             if(values.contains(index))
               values(index).validNel
             else
-              s"Bad Object access $a: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
+              s"Bad Object access ${a.toWdlV1}: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
           case (WomMap(mapType, values), index) =>
             if(values.contains(index))
               values(index).validNel
             else
-              s"Bad Map access $a: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
+              s"Bad Map access ${a.toWdlV1}: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
           case (otherCollection, otherKey) =>
-            s"Bad index access $a: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
+            s"Bad index access ${a.toWdlV1}: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
         }
 
         value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }
@@ -119,6 +121,11 @@ object LookupEvaluators {
       case WomObject(_, _) => s"'Object'-type value did not contain the field '$key' at runtime".invalidNel
       case p: WomPair if key == "left" => p.left.validNel
       case p: WomPair if key == "right" => p.right.validNel
+      case WomMap(_, value) => Validated.fromOption(
+        o = value.collectFirst {
+          case (k, v) if k.valueString == key => v
+        },
+        ifNone = NonEmptyList(s"Requested key '$key' not found in the Map. Available keys were: ${value.keySet.mkString("[ ", ",", "]")}", Nil))
       case _ => s"No such field '$key' on type ${womValue.womType.toDisplayString}. Report this bug! Static validation failed.".invalidNel
     }
 

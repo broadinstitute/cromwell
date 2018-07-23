@@ -12,11 +12,11 @@ import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.webservice.CromwellApiService
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
 import scala.util.Try
-
 import scala.util.Success
 
 object CommandLineArguments {
@@ -69,23 +69,34 @@ case class CommandLineArguments(command: Option[Command] = None,
       lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, None)
 
       imports match {
-        case Some(explicitImports) => readContent("Workflow source", workflowSource.get).map((_, Option(File(explicitImports.pathAsString)), workflowRoot))
+        case Some(explicitImports) => readOptionContent("Workflow source", workflowSource).map((_, Option(File(explicitImports.pathAsString)), workflowRoot))
         case None => Try(preProcessedCwl.map((_, None, None)).value.unsafeRunSync())
           .toChecked
           .flatMap(identity)
           .toValidated
       }
-    } else readContent("Workflow source", workflowSource.get).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
+    } else readOptionContent("Workflow source", workflowSource).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
 
     val inputsJson: ErrorOr[String] = if (isCwl) {
       logger.info("Pre Processing Inputs...")
-      workflowInputs.map(preProcessCwlInputFile).getOrElse(readJson("Workflow inputs", workflowInputs))
-    } else readJson("Workflow inputs", workflowInputs)
+      workflowInputs.map(preProcessCwlInputFile).getOrElse(readOptionContent("Workflow inputs", workflowInputs))
+    } else readOptionContent("Workflow inputs", workflowInputs)
 
-    val optionsJson = readJson("Workflow options", workflowOptions)
-    val labelsJson = readJson("Workflow labels", workflowLabels)
+    val optionsJson = readOptionContent("Workflow options", workflowOptions)
+    val labelsJson = readOptionContent("Workflow labels", workflowLabels)
+
+    val workflowSourceFinal = (workflowSource, workflowUrl) match {
+      case (Some(path), None) => readContent("Workflow source", path)
+      case (_, Some(url)) => "check".validNel //TODO: Saloni
+      case (Some(_), Some(_)) => "Workflow source and Workflow url can't both be supplied".invalidNel
+      case (None, None) => "Workflow source and Workflow url needs to be supplied".invalidNel
+    }
 
     // TODO: Saloni-Make workflowSource not mandatory. Also check if only 1 of workflowSource and workflowUrl is provided
+
+//    for {
+//      _ <- CromwellApiService.downloadContentFromUrl(workflowUrl)
+//    } yield ()
 
     (workflowAndDependencies, inputsJson, optionsJson, labelsJson) mapN {
       case ((w, z, r), i, o, l) =>
@@ -103,7 +114,7 @@ case class CommandLineArguments(command: Option[Command] = None,
   }
 
   /** Read the path to a string, unless the path is None, in which case returns "{}". */
-  private def readJson(inputDescription: String, pathOption: Option[Path]): ErrorOr[String] = {
+  private def readOptionContent(inputDescription: String, pathOption: Option[Path]): ErrorOr[String] = {
     pathOption match {
       case Some(path) => readContent(inputDescription, path)
       case None => "{}".validNel

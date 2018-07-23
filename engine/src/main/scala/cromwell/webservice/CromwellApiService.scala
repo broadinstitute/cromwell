@@ -271,19 +271,6 @@ trait CromwellApiService extends HttpInstrumentation {
 
 
     def getContentFromWorkflowUrl(formData: Map[String, ByteString]): Future[Option[String]]  = {
-
-      def downloadContentFromUrl(url: String) = {
-        for {
-          httpResponse <- Http().singleRequest(HttpRequest(uri = url))
-          source <- httpResponse.status match {
-            case StatusCodes.OK => httpResponse.entity.toStrict(duration).map(_.data.utf8String)
-            //Unmarshal(httpResponse.entity).to[String]
-              //res.entity.toStrict(300.millis).map(_.data.utf8String)
-            case _ => Future.failed(new IllegalArgumentException(httpResponse.status.toString))
-          }
-        } yield Option(source)
-      }
-
       val workflowUrl = formData.get("workflowUrl").map(_.utf8String)
 
       if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get).recoverWith{
@@ -390,6 +377,8 @@ trait CromwellApiService extends HttpInstrumentation {
 object CromwellApiService {
   import spray.json._
 
+  implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
+
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
     def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
       completeResponse(statusCode, APIResponse.fail(e).toJson.prettyPrint, warnings)
@@ -416,6 +405,18 @@ object CromwellApiService {
     }
 
     complete((statusCode, warningHeaders, value))
+  }
+
+  def downloadContentFromUrl(url: String): Future[Option[String]] = {
+    for {
+      httpResponse <- Http().singleRequest(HttpRequest(uri = url))
+      source <- httpResponse.status match {
+        case StatusCodes.OK => httpResponse.entity.toStrict(duration).map(_.data.utf8String)
+        //Unmarshal(httpResponse.entity).to[String]
+        //res.entity.toStrict(300.millis).map(_.data.utf8String)
+        case _ => Future.failed(new IllegalArgumentException(httpResponse.status.toString))
+      }
+    } yield Option(source)
   }
 
   final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)

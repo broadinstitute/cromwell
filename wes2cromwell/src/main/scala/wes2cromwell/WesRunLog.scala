@@ -1,25 +1,40 @@
 package wes2cromwell
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import spray.json.{DefaultJsonProtocol, JsObject, JsonFormat}
+import spray.json.{DefaultJsonProtocol, JsObject, JsonFormat, JsonParser}
 
-final case class WesLog(
-  name: Option[String],
-  cmd: Option[Seq[String]],
-  start_time: Option[String],
-  end_time: Option[String],
-  stdout: Option[String],
-  stderr: Option[String],
-  exit_code: Option[Int]
-)
+final case class WesLog(name: Option[String],
+                        cmd: Option[Seq[String]],
+                        start_time: Option[String],
+                        end_time: Option[String],
+                        stdout: Option[String],
+                        stderr: Option[String],
+                        exit_code: Option[Int]
+                       )
+
+final case class WesRunRequest(workflow_params: Option[JsObject],
+                               workflow_type: String,
+                               workflow_type_version: String,
+                               tags: Option[JsObject],
+                               workflow_engine_parameters: Option[JsObject],
+                               workflow_url: Option[String]
+                              )
 
 final case class WesRunLog(run_id: String,
-                           state: WesRunState,
+                           request: WesRunRequest,
+                           state: NewWesRunState,
                            run_log: Option[WesLog],
-                           task_logs: Option[Seq[WesLog]],
+                           task_logs: Option[List[WesLog]],
                            outputs: Option[JsObject])
 
+object WesRunLog {
+  def fromJson(json: String): WesRunLog = CromwellMetadata.fromJson(json).wesRunLog
+}
+
 object WorkflowLogJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
-  implicit val workflowLogEntryFormat: JsonFormat[WesLog] = jsonFormat7(WesLog)
-  implicit val workflowLogFormat: JsonFormat[WesRunLog] = jsonFormat5(WesRunLog)
+  import NewWesRunStateJsonSupport._
+
+  implicit val logFormat: JsonFormat[WesLog] = jsonFormat7(WesLog)
+  implicit val runRequestFormat: JsonFormat[WesRunRequest] = jsonFormat6(WesRunRequest)
+  implicit val runLogFormat: JsonFormat[WesRunLog] = jsonFormat6(WesRunLog.apply)
 }

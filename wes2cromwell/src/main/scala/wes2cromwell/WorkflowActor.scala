@@ -6,17 +6,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-final case class WorkflowDescription(
-  workflow_id: String,
-  state: WesRunState
-)
-
-final case class WorkflowTypeVersion(workflow_type_version: Seq[String])
-
-final case class ErrorResponse(
-  msg: String,
-  status_code: Int
-)
+// FIXME: remove all of this
 
 object WorkflowActor {
   final case object GetWorkflows
@@ -32,8 +22,5 @@ class WorkflowActor extends Actor with ActorLogging {
   def receive: Receive = {
     case GetWorkflows =>
       transmogriphy.getWorkflows(sender())
-    case GetWorkflow(workflowId) =>
-      transmogriphy.getWorkflow(sender(), workflowId)
-
   }
 }

@@ -4,7 +4,7 @@ import java.net.URL
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{HttpHeader, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.http.scaladsl.server.directives.MethodDirectives.post
@@ -14,9 +14,8 @@ import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 import cromiam.webservice.RequestSupport
 import wes2cromwell.WesResponseJsonSupport._
-// import akka.pattern.ask
+import WesRunRoutes.extractAuthorizationHeader
 
-//import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -43,56 +42,59 @@ trait WesRunRoutes extends JsonSupport with RequestSupport {
   lazy val wes2CromwellInterface = new Wes2CromwellInterface(cromwellPath)
 
   lazy val runRoutes: Route =
-    // TODO: factor the top of this into a path prefix in WesServer
-    pathPrefix("ga4gh" / "wes" / "v1" / "runs") {
-      concat(
-        pathEnd {
-          concat(
-            get {
-              //val futureWes: Future[Any] = workflowActor.ask(GetWorkflows)
-              //handleWesResponse(futureWes)
-              complete("HI")
-            },
-            post {
-              extractStrictRequest { request =>
-                extractSubmission() { submission =>
-                  onComplete(wes2CromwellInterface.submit(submission, request)) {
+    optionalHeaderValue(extractAuthorizationHeader) { authHeader =>
+      val cromwellRequestHeaders = authHeader.toList
+
+      pathPrefix("ga4gh" / "wes" / "v1" / "runs") {
+        concat(
+          pathEnd {
+            concat(
+              get {
+                parameters("page_size".as[Int].?, "page_token".?) { (pageSize, pageToken) =>
+                  onComplete(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders)) {
                     case Success(a) => complete(a)
                     case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
                   }
                 }
+              },
+              post {
+                extractStrictRequest { request =>
+                  extractSubmission() { submission =>
+                    onComplete(wes2CromwellInterface.runWorkflow(submission, cromwellRequestHeaders)) {
+                      case Success(a) => complete(a)
+                      case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
+                    }
+                  }
+                }
               }
-            }
-          )
-        },
-        path(Segment) { workflowId =>
-          concat(
-            get {
-              //val maybeWorkflow: Future[Any] = workflowActor.ask(GetWorkflow(workflowId))
-              //handleWesResponse(maybeWorkflow)
-              complete("HI")
-            },
-            delete {
-              extractRequest { request =>
-                onComplete(wes2CromwellInterface.abort(workflowId, request)) {
+            )
+          },
+          path(Segment) { workflowId =>
+            concat(
+              get {
+                onComplete(wes2CromwellInterface.runLog(workflowId, cromwellRequestHeaders)) {
+                  case Success(a) => complete(a)
+                  case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
+                }
+              },
+              delete {
+                onComplete(wes2CromwellInterface.cancelRun(workflowId, cromwellRequestHeaders)) {
                   case Success(a) => complete(a)
                   case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
                 }
               }
-            }
-          )
-        },
-        path(Segment / "status") { workflowId =>
-          get {
-            extractRequest { request =>
-              onComplete(wes2CromwellInterface.status(workflowId, request)) {
+            )
+          },
+          path(Segment / "status") { workflowId =>
+            get {
+              onComplete(wes2CromwellInterface.runStatus(workflowId, cromwellRequestHeaders)) {
                 case Success(a) => complete(a)
                 case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
               }
             }
           }
-        }
-      )
+        )
+      }
     }
 
   def extractSubmission(): Directive1[WesSubmission] = {
@@ -135,4 +137,11 @@ trait WesRunRoutes extends JsonSupport with RequestSupport {
 //      }
 //    }
  // }
+}
+
+object WesRunRoutes {
+    def extractAuthorizationHeader: HttpHeader => Option[HttpHeader] = {
+      case h: HttpHeader if h.name() == "Authorization" => Option(h)
+      case _ => None
+    }
 }

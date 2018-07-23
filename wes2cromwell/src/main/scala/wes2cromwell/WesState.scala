@@ -37,42 +37,42 @@ object NewWesRunStateJsonSupport extends SprayJsonSupport with DefaultJsonProtoc
   }
 }
 
-sealed trait WesRunState
+sealed trait WesState // FIXME: remove & rename above
 
 // FIXME
-object WesRunState {
+object WesState {
   lazy val RunStateValues = Seq(UNKNOWN, QUEUED, INITIALIZING, RUNNING, PAUSED, COMPLETE, EXECUTOR_ERROR, SYSTEM_ERROR, CANCELED)
 
-  implicit object RunStateFormat extends RootJsonFormat[WesRunState] {
-    def write(obj: WesRunState): JsValue = JsString(obj.toString)
-    def read(json: JsValue): WesRunState = throw new UnsupportedOperationException("Reading WES RunState unsupported")
+  implicit object RunStateFormat extends RootJsonFormat[WesState] {
+    def write(obj: WesState): JsValue = JsString(obj.toString)
+    def read(json: JsValue): WesState = throw new UnsupportedOperationException("Reading WES RunState unsupported")
   }
 
-  case object UNKNOWN extends WesRunState {
+  case object UNKNOWN extends WesState {
     override val toString: String = "UNKNOWN"
   }
-  case object QUEUED extends WesRunState {
+  case object QUEUED extends WesState {
     override val toString: String = "QUEUED"
   }
-  case object INITIALIZING extends WesRunState {
+  case object INITIALIZING extends WesState {
     override val toString: String = "INITIALIZING"
   }
-  case object RUNNING extends WesRunState {
+  case object RUNNING extends WesState {
     override val toString = "RUNNING"
   }
-  case object PAUSED extends WesRunState {
+  case object PAUSED extends WesState {
     override val toString = "PAUSED"
   }
-  case object COMPLETE extends WesRunState {
+  case object COMPLETE extends WesState {
     override val toString = "COMPLETE"
   }
-  case object EXECUTOR_ERROR extends WesRunState {
+  case object EXECUTOR_ERROR extends WesState {
     override val toString = "EXECUTOR_ERROR"
   }
-  case object SYSTEM_ERROR extends WesRunState {
+  case object SYSTEM_ERROR extends WesState {
     override val toString = "SYSTEM_ERROR"
   }
-  case object CANCELED extends WesRunState {
+  case object CANCELED extends WesState {
     override val toString = "CANCELED"
   }
 }

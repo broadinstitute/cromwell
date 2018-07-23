@@ -75,25 +75,43 @@ object WomtoolMain extends App {
   }
 
   def upgrade(workflowSourcePath: String): Termination = {
+    import wdl.model.draft3.elements.ImportElement
+    import wdl.draft2.model.Import
+    import languages.wdl.draft2.WdlDraft2LanguageFactory.httpResolver
+
+    // Get imports directly from WdlNamespace, because they are erased during WOMification
+    val maybeWdlNamespace: Try[WdlNamespace] =
+      // TODO: do we need directory resolver also? Not clear how to reference it.
+      WdlNamespace.loadUsingPath(Paths.get(workflowSourcePath), None, Some(List(WdlNamespace.fileResolver, httpResolver)))
+
+    def upgradeImport(draft2Import: Import): ImportElement = {
+      if (draft2Import.namespaceName.nonEmpty)
+        ImportElement(draft2Import.uri, Some(draft2Import.namespaceName), Map())
+      else
+        ImportElement(draft2Import.uri, None, Map())
+    }
+
     val maybeWdl: Try[Path] = DefaultPathBuilder.build(workflowSourcePath)
 
-    maybeWdl match {
-      case Success(wdl) =>
+    (maybeWdl, maybeWdlNamespace) match {
+      case (Success(wdl), Success(wdlNamespace)) =>
         val maybeWomBundle = WomGraphMaker.getBundle(wdl)
-
         maybeWomBundle match {
           case Right(womBundle) =>
             val maybeFileElement = womBundleToFileElement.run(womBundle)
             maybeFileElement match {
               case Right(fileElement) =>
-                SuccessfulTermination(fileElement.toWdlV1)
+                SuccessfulTermination(
+                  fileElement.copy(imports = wdlNamespace.imports.map(upgradeImport)).toWdlV1)
               case Left(errors) =>
                 UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
             }
           case Left(errors) =>
             UnsuccessfulTermination(s"WDL parsing succeeded but could not create WOM: ${errors.toList.mkString("[", ",", "]")}")
         }
-      case Failure(throwable) =>
+      case (Failure(throwable), _) =>
+        UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
+      case (_, Failure(throwable)) =>
         UnsuccessfulTermination(s"Failed to load WDL source: ${throwable.getMessage}")
     }
   }

@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 35 Release Notes
+
+### Bug Fixes
+
+The `releaseHold` endpoint will now return `404 Not Found` for an unrecognized workflow ID and `400 Bad Request` for a malformed or invalid workflow ID.
+
 ## 34 Release Notes
 
 ### Query API

@@ -54,7 +54,8 @@ case class MarthaResponse(dos: DosObject, googleServiceAccount: JsObject)
 @main
 def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
   val dosResloverObj = for {
-    marthaResObj <- resolveDosThroughMartha(dosUrl)
+    marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
+    marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
     _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.toString, downloadLoc)
   } yield()
@@ -70,7 +71,7 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
 }
 
 
-def resolveDosThroughMartha(dosUrl: String) : Try[MarthaResponse] = {
+def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse] = {
   import MarthaResponseJsonSupport._
 
   val requestBody = json"""{"url":$dosUrl}"""
@@ -84,7 +85,7 @@ def resolveDosThroughMartha(dosUrl: String) : Try[MarthaResponse] = {
     //request to fake Martha
     postRequest <- Request[IO](
       method = Method.POST,
-      uri = Uri.uri("http://us-central1-dvoet-mock-marthav2.cloudfunctions.net/martha_v2"),
+      uri = marthaUrl,
       headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)

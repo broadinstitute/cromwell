@@ -86,6 +86,7 @@ object WomtoolMain extends App {
 
     def upgradeImport(draft2Import: Import): ImportElement = {
       if (draft2Import.namespaceName.nonEmpty)
+        // TODO: figure out what structRenames are
         ImportElement(draft2Import.uri, Some(draft2Import.namespaceName), Map())
       else
         ImportElement(draft2Import.uri, None, Map())

@@ -32,8 +32,7 @@ object WesState {
 object WesStateJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit object WesStateFormat extends RootJsonFormat[WesState] {
     def write(obj: WesState): JsValue = JsString(obj.toString)
+
     def read(json: JsValue): WesState = throw new UnsupportedOperationException("Reading WesState unsupported")
   }
 }
-
-

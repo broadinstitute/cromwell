@@ -1,6 +1,6 @@
 package wes2cromwell
 
-import spray.json.{JsonFormat, JsonParser }
+import spray.json.{JsonFormat, JsonParser}
 
 case class RunListResponse(runs: List[WesRunStatus], next_page_token: String)
 

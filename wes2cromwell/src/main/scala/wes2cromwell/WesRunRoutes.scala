@@ -61,19 +61,25 @@ trait WesRunRoutes extends RequestSupport {
           },
           path(Segment) { workflowId =>
             concat(
-              get { completeCromwellResponse(wes2CromwellInterface.runLog(workflowId, cromwellRequestHeaders)) },
-              delete { completeCromwellResponse(wes2CromwellInterface.cancelRun(workflowId, cromwellRequestHeaders)) }
+              get {
+                completeCromwellResponse(wes2CromwellInterface.runLog(workflowId, cromwellRequestHeaders))
+              },
+              delete {
+                completeCromwellResponse(wes2CromwellInterface.cancelRun(workflowId, cromwellRequestHeaders))
+              }
             )
           },
           path(Segment / "status") { workflowId =>
-            get { completeCromwellResponse(wes2CromwellInterface.runStatus(workflowId, cromwellRequestHeaders)) }
+            get {
+              completeCromwellResponse(wes2CromwellInterface.runStatus(workflowId, cromwellRequestHeaders))
+            }
           }
         )
       }
     }
 
   def extractSubmission(): Directive1[WesSubmission] = {
-   formFields((
+    formFields((
       "workflow_params",
       "workflow_type",
       "workflow_type_version",
@@ -86,10 +92,10 @@ trait WesRunRoutes extends RequestSupport {
 }
 
 object WesRunRoutes {
-    def extractAuthorizationHeader: HttpHeader => Option[HttpHeader] = {
-      case h: HttpHeader if h.name() == "Authorization" => Option(h)
-      case _ => None
-    }
+  def extractAuthorizationHeader: HttpHeader => Option[HttpHeader] = {
+    case h: HttpHeader if h.name() == "Authorization" => Option(h)
+    case _ => None
+  }
 
   def completeCromwellResponse(future: ⇒ Future[WesResponse]): Route = {
     onComplete(future) {

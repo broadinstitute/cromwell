@@ -2,13 +2,12 @@ package wes2cromwell
 
 import spray.json.{DefaultJsonProtocol, JsObject, JsonFormat, JsonParser}
 
-final case class CromwellCallsMetadata(
-                                        shardIndex: Option[Int],
-                                        returnCode: Option[Int],
-                                        start: Option[String],
-                                        end: Option[String],
-                                        stdout: Option[String],
-                                        stderr: Option[String]
+final case class CromwellCallsMetadata(shardIndex: Option[Int],
+                                       returnCode: Option[Int],
+                                       start: Option[String],
+                                       end: Option[String],
+                                       stdout: Option[String],
+                                       stderr: Option[String]
                                       )
 
 object CromwellCallsMetadata {

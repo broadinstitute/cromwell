@@ -57,28 +57,40 @@ object ImportResolver {
         }
       }
 
-      def fetchAbsolutePath(absolutePathToFile: NioPath): ErrorOr[String] = {
-        if (dontEscapeFrom.forall(absolutePathToFile.startsWith)) {
+      def fetchContentFromAbsolutePath(absolutePathToFile: NioPath): ErrorOr[String] = {
+        checkLocation(absolutePathToFile, path) flatMap { _ =>
           val file = File(absolutePathToFile)
           if (file.exists) {
             File(absolutePathToFile).contentAsString.validNel
           } else {
             s"Import file not found: $path".invalidNel
           }
-        } else {
-          s"$path is not a valid import".invalidNel
         }
       }
 
       val errorOr = for {
-        resolvedPath <- Try(directory.resolve(path)).toErrorOr
-        absolutePathToFile <- Try(Paths.get(resolvedPath.toFile.getCanonicalPath)).toErrorOr
-        fileContents <- fetchAbsolutePath(absolutePathToFile)
+        resolvedPath <- resolvePath(path)
+        absolutePathToFile <- makeAbsolute(resolvedPath)
+        fileContents <- fetchContentFromAbsolutePath(absolutePathToFile)
         updatedResolvers = updatedResolverSet(directory, resolvedPath.parent, currentResolvers)
       } yield ResolvedImportBundle(fileContents, updatedResolvers)
 
       errorOr.toEither
     }
+
+    private def resolvePath(path: String): ErrorOr[Path] = Try(directory.resolve(path)).toErrorOr
+    private def makeAbsolute(resolvedPath: Path): ErrorOr[NioPath] = Try(Paths.get(resolvedPath.toFile.getCanonicalPath)).toErrorOr
+    private def checkLocation(absoluteNioPath: NioPath, reportedPathIfBad: String): ErrorOr[Unit] =
+      if (dontEscapeFrom.forall(absoluteNioPath.startsWith))
+        ().validNel
+      else
+        s"$reportedPathIfBad is not an allowed import path".invalidNel
+
+    def resolveAndMakeAbsolute(path: String): ErrorOr[NioPath] = for {
+      resolved <- resolvePath(path)
+      abs <- makeAbsolute(resolved)
+      _ <- checkLocation(abs, path)
+    } yield abs
 
     override def name: String = s"relative to directory $absolutePathToDirectory (without escaping $dontEscapeFrom)"
   }

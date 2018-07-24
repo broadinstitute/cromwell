@@ -1,7 +1,10 @@
 package cromwell.languages.util
 
+import java.nio.file.Paths
+
 import common.assertion.ErrorOrAssertions._
-import cromwell.languages.util.ImportResolver.HttpResolver
+import cromwell.core.path.DefaultPath
+import cromwell.languages.util.ImportResolver.{DirectoryResolver, HttpResolver}
 import org.scalatest.{FlatSpec, Matchers}
 
 class ImportResolverSpec extends FlatSpec with Matchers {
@@ -38,27 +41,68 @@ class ImportResolverSpec extends FlatSpec with Matchers {
 
   behavior of "HttpResolver with a 'relativeTo' value"
 
+  val relativeHttpResolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"))
+
   it should "resolve an abolute path from a different initial root" in {
-    val resolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"))
-    val toResolve = resolver.pathToLookup("http://def.org:8080/blah3.wdl")
-    toResolve shouldBeValid "http://def.org:8080/blah3.wdl"
+    val pathToLookup = relativeHttpResolver.pathToLookup("http://def.org:8080/blah3.wdl")
+    pathToLookup shouldBeValid "http://def.org:8080/blah3.wdl"
   }
 
   it should "resolve a relative path" in {
-    val resolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"))
-    val toResolve = resolver.pathToLookup("tools/cool_tool.wdl")
-    toResolve shouldBeValid "http://abc.com:8000/blah1/blah2/tools/cool_tool.wdl"
+    val pathToLookup = relativeHttpResolver.pathToLookup("tools/cool_tool.wdl")
+    pathToLookup shouldBeValid "http://abc.com:8000/blah1/blah2/tools/cool_tool.wdl"
   }
 
   it should "resolve a backtracking relative path" in {
-    val resolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"))
-    val toResolve = resolver.pathToLookup("../tools/cool_tool.wdl")
-    toResolve shouldBeValid "http://abc.com:8000/blah1/tools/cool_tool.wdl"
+    val pathToLookup = relativeHttpResolver.pathToLookup("../tools/cool_tool.wdl")
+    pathToLookup shouldBeValid "http://abc.com:8000/blah1/tools/cool_tool.wdl"
   }
 
   it should "resolve from '/'" in {
-    val resolver = HttpResolver(relativeTo = Some("http://abc.com:8000/blah1/blah2/"))
-    val toResolve = resolver.pathToLookup("/tools/cool_tool.wdl")
-    toResolve shouldBeValid "http://abc.com:8000/tools/cool_tool.wdl"
+    val pathToLookup = relativeHttpResolver.pathToLookup("/tools/cool_tool.wdl")
+    pathToLookup shouldBeValid "http://abc.com:8000/tools/cool_tool.wdl"
   }
+
+  behavior of "directory resolver from root"
+
+  val rootDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/")))
+
+  it should "resolve a random path" in {
+    val pathToLookup = rootDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
+    pathToLookup shouldBeValid Paths.get("/path/to/file.wdl")
+  }
+
+  behavior of "unprotected relative directory resolver"
+
+  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")))
+
+  it should "resolve an absolute path" in {
+    val pathToLookup = relativeDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
+    pathToLookup shouldBeValid Paths.get("/path/to/file.wdl")
+  }
+
+  it should "resolve a relative path" in {
+    val pathToLookup = relativeDirectoryResolver.resolveAndMakeAbsolute("path/to/file.wdl")
+    pathToLookup shouldBeValid Paths.get("/path/to/imports/path/to/file.wdl")
+  }
+
+  behavior of "protected relative directory resolver"
+
+  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), Some("/path/to/imports/"))
+
+  it should "resolve a good relative path" in {
+    val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("path/to/file.wdl")
+    pathToLookup shouldBeValid Paths.get("/path/to/imports/path/to/file.wdl")
+  }
+
+  it should "not resolve an absolute path" in {
+    val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
+    pathToLookup shouldBeInvalid "/path/to/file.wdl is not an allowed import path"
+  }
+
+  it should "not resolve outside of its protected directory" in {
+    val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("../file.wdl")
+    pathToLookup shouldBeInvalid "../file.wdl is not an allowed import path"
+  }
+
 }

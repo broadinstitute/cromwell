@@ -31,6 +31,8 @@ trait PipelinesParameterConversions {
 
       if (fileInput.cloudPath.pathAsString.startsWith("dos://")) {
         import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
+        import collection.JavaConverters._
+
         val config = ConfigFactory.load
         val demoDosDockerImage = config.getString("demo.dos.localization.docker-image")
         val demoDosCommandTemplate = config.getString("demo.dos.localization.command-template")
@@ -38,11 +40,12 @@ trait PipelinesParameterConversions {
         val demoDosCommand = demoDosCommandTemplate
           .replace(s"$${dosPath}", fileInput.cloudPath.escape)
           .replace(s"$${containerPath}", fileInput.containerPath.escape)
-          .replace(s"$${marthaUrl}", demoDosMarthaUrl)
+        val marthaEnv = Map("MARTHA_URL" -> demoDosMarthaUrl)
         ActionBuilder
           .withImage(demoDosDockerImage)
           .withCommand("/bin/sh", "-c", demoDosCommand)
           .withMounts(mounts)
+          .setEnvironment(marthaEnv.asJava)
           .withLabels(labels)
           .setEntrypoint("")
       } else {

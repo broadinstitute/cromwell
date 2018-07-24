@@ -4,7 +4,7 @@ import java.net.URL
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
@@ -12,17 +12,14 @@ import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 
-// MAIN
 object WesServer extends App with WesRunRoutes {
   val config = ConfigFactory.load()
 
   val port = config.as[Int]("wes2cromwell.port")
   val interface = config.as[String]("wes2cromwell.interface")
 
-  // set up ActorSystem and other dependencies here
-  implicit val system: ActorSystem = ActorSystem("helloAkkaHttpServer")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
-  val workflowActor: ActorRef = system.actorOf(WorkflowActor.props, "workflowRegistryActor")
+  override implicit val system: ActorSystem = ActorSystem("wes2cromwell")
+  override implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override val log = Logging(system, getClass)
 
@@ -33,7 +30,6 @@ object WesServer extends App with WesRunRoutes {
   override lazy val cromwellUrl = new URL(s"$cromwellScheme://$cromwellInterface:$cromwellPort")
   override val cromwellApiVersion = "v1"
 
-  // from the UserRoutes trait
   val routes: Route = runRoutes
 
   Http().bindAndHandle(routes, interface, port)

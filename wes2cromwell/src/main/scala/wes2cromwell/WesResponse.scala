@@ -6,11 +6,14 @@ import spray.json.{DefaultJsonProtocol, JsonParser, RootJsonFormat}
 sealed trait WesResponse extends Product with Serializable
 final case class WesErrorResponse(msg: String, status_code: Int) extends WesResponse
 final case class WesRunId(run_id: String) extends WesResponse
-final case class WesRunStatus(run_id: String, state: NewWesRunState) extends WesResponse
+final case class WesRunStatus(run_id: String, state: String) extends WesResponse
 final case class WesResponseRunList(runs: List[WesRunStatus]) extends WesResponse
 final case class WesResponseWorkflowMetadata(workflowLog: WesRunLog) extends WesResponse
 
 object WesRunStatus {
+  // FIXME: Why is this one a little different and can i change that?
+  import WesResponseJsonSupport._
+
   def fromJson(json: String): WesRunStatus = {
     val jsonAst = JsonParser(json)
     jsonAst.convertTo[WesRunStatus]
@@ -19,7 +22,6 @@ object WesRunStatus {
 
 object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   import WorkflowLogJsonSupport._
-  import NewWesRunStateJsonSupport._
 
   implicit val WesResponseErrorFormat = jsonFormat2(WesErrorResponse)
   implicit val WesResponseRunIdFormat = jsonFormat1(WesRunId)
@@ -41,6 +43,13 @@ object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol 
     }
 
     def read(value: JsValue) = throw new UnsupportedOperationException("Reading WesResponse objects from JSON is not supported")
+  }
+
+  implicit object WesRunStatusFormat extends RootJsonFormat[WesRunStatus] {
+    import spray.json._
+
+    def write(r: WesRunStatus) = r.toJson
+    def read(value: JsValue) = throw new UnsupportedOperationException("Reading WesRunStatus objects from JSON is not supported")
   }
 }
 

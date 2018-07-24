@@ -1,7 +1,6 @@
 package wes2cromwell
 
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
-import spray.json.{DefaultJsonProtocol, JsObject, JsonFormat, JsonParser}
+import spray.json.{JsObject, JsonFormat}
 
 final case class WesLog(name: Option[String],
                         cmd: Option[Seq[String]],
@@ -22,17 +21,18 @@ final case class WesRunRequest(workflow_params: Option[JsObject],
 
 final case class WesRunLog(run_id: String,
                            request: WesRunRequest,
-                           state: NewWesRunState,
+                           state: WesState,
                            run_log: Option[WesLog],
                            task_logs: Option[List[WesLog]],
-                           outputs: Option[JsObject])
+                           outputs: Option[JsObject]
+                          )
 
 object WesRunLog {
   def fromJson(json: String): WesRunLog = CromwellMetadata.fromJson(json).wesRunLog
 }
 
-object WorkflowLogJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
-  import NewWesRunStateJsonSupport._
+object WorkflowLogJsonSupport {
+  import WesStateJsonSupport._
 
   implicit val logFormat: JsonFormat[WesLog] = jsonFormat7(WesLog)
   implicit val runRequestFormat: JsonFormat[WesRunRequest] = jsonFormat6(WesRunRequest)

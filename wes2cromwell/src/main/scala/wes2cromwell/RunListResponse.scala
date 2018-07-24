@@ -1,12 +1,11 @@
 package wes2cromwell
 
-import spray.json.{ DefaultJsonProtocol, JsonFormat, JsonParser }
+import spray.json.{JsonFormat, JsonParser }
 
 case class RunListResponse(runs: List[WesRunStatus], next_page_token: String)
 
 object RunListResponse {
-  import DefaultJsonProtocol._
-  implicit val cromwellQueryResponseFormat: JsonFormat[RunListResponse] = jsonFormat2(RunListResponse.apply)
+  import RunListResponseJsonSupport._
 
   def toCromwellQueryResponse(json: String): RunListResponse = {
     val jsonAst = JsonParser(json)
@@ -14,3 +13,8 @@ object RunListResponse {
   }
 }
 
+object RunListResponseJsonSupport {
+  import WesResponseJsonSupport._
+
+  implicit val cromwellQueryResponseFormat: JsonFormat[RunListResponse] = jsonFormat2(RunListResponse.apply)
+}

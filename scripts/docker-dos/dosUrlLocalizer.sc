@@ -82,7 +82,6 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
 
   val marthaResponseIo: IO[MarthaResponse] = for {
     httpClient <- Http1Client[IO]()
-    //request to fake Martha
     postRequest <- Request[IO](
       method = Method.POST,
       uri = marthaUrl,

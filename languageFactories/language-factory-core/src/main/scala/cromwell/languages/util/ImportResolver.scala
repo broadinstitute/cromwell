@@ -90,42 +90,31 @@ object ImportResolver {
   }
 
   case class HttpResolver(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty) extends ImportResolver {
+    import HttpResolver._
+
     override def name: String = {
       s"http importer${relativeTo map { r => s" (relative to $r)" } getOrElse ""}"
     }
 
+    def newResolverList(newRoot: String): List[ImportResolver] = {
+      val rootWithoutFilename = newRoot.split('/').init.mkString("", "/", "/")
+      List(
+        HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers)
+      )
+    }
+
+    def pathToLookup(str: String): Checked[String] = relativeTo match {
+      case Some(relativeToValue) =>
+        if (str.startsWith("http")) canonicalize(str).validNelCheck
+        else if (str.startsWith("/")) canonicalize(s"${root(relativeToValue).stripSuffix("/")}/$str").validNelCheck
+        else canonicalize(s"${relativeToValue.stripSuffix("/")}/$str").validNelCheck
+      case None =>
+        if (str.startsWith("http")) canonicalize(str).validNelCheck
+        else s"Cannot import '$str' relative to nothing".invalidNelCheck
+    }
+
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
-
-      def newResolverList(newRoot: String): List[ImportResolver] = {
-        val rootWithoutFilename = newRoot.split('/').init.mkString("", "/", "/")
-        List(
-          HttpResolver(relativeTo = Some(canonicalize(rootWithoutFilename)), headers)
-        )
-      }
-
-      def canonicalize(str: String): String = {
-        val url = new URL(str)
-        val uri = new URI(url.getProtocol, url.getUserInfo, url.getHost, url.getPort, url.getPath, url.getQuery, url.getRef)
-        uri.toString
-      }
-
-      def root(str: String): String = {
-        val url = new URL(str)
-        val uri = new URI(url.getProtocol, url.getUserInfo, url.getHost, url.getPort, "", "", "")
-        uri.toString
-      }
-
-      val toLookupCheck: Checked[String] = relativeTo match {
-        case Some(r) =>
-          if (str.startsWith("http")) canonicalize(str).validNelCheck
-          else if (str.startsWith("/")) canonicalize(s"${root(str).stripSuffix("/")}/$str").validNelCheck
-          else canonicalize(s"${r.stripSuffix("/")}/$str").validNelCheck
-        case None =>
-          if (str.startsWith("http")) canonicalize(str).validNelCheck
-          else s"Cannot import '$str' relative to nothing".invalidNelCheck
-      }
-
-      toLookupCheck flatMap { toLookup =>
+      pathToLookup(str) flatMap { toLookup =>
         (Try {
           implicit val sttpBackend = AsyncHttpClientCatsBackend[IO]()
           val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
@@ -142,6 +131,20 @@ object ImportResolver {
           case Failure(e) => s"HTTP resolver with headers had an unexpected error (${e.getMessage})".invalidNelCheck
         }).contextualizeErrors(s"download $toLookup")
       }
+    }
+  }
+
+  object HttpResolver {
+    def canonicalize(str: String): String = {
+      val url = new URL(str)
+      val uri = url.toURI.normalize
+      uri.toString
+    }
+
+    def root(str: String): String = {
+      val url = new URL(str)
+      val uri = new URI(url.getProtocol, url.getUserInfo, url.getHost, url.getPort, null, null, null).normalize()
+      uri.toString
     }
   }
 

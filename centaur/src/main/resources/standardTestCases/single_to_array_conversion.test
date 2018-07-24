@@ -1,9 +1,9 @@
 # Tests that we can pass a single element in to an array as an input
-name: single_to_array_coercion
+name: single_to_array_conversion
 testFormat: workflowsuccess
 
 files {
-  workflow: single_to_array_coercion/single_to_array_coercion.wdl
+  workflow: single_to_array_conversion/single_to_array_conversion.wdl
 }
 
 metadata {

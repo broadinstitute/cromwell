@@ -34,9 +34,11 @@ trait PipelinesParameterConversions {
         val config = ConfigFactory.load
         val demoDosDockerImage = config.getString("demo.dos.localization.docker-image")
         val demoDosCommandTemplate = config.getString("demo.dos.localization.command-template")
+        val demoDosMarthaUrl = config.getString("demo.dos.martha.url")
         val demoDosCommand = demoDosCommandTemplate
           .replace(s"$${dosPath}", fileInput.cloudPath.escape)
           .replace(s"$${containerPath}", fileInput.containerPath.escape)
+          .replace(s"$${marthaUrl}", demoDosMarthaUrl)
         ActionBuilder
           .withImage(demoDosDockerImage)
           .withCommand("/bin/sh", "-c", demoDosCommand)

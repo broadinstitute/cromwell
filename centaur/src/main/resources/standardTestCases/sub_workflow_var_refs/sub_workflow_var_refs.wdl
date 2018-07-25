@@ -7,13 +7,13 @@ workflow top_level_workflow {
   Array[String] pieces = ["hello", "lowly", "subject!"]
 
   scatter (i in is) {
-    call subworkflow.subhello as subhello {
+    call subworkflow.subhello as subhello_call_alias {
       input: greeting_pieces = pieces
     }
   }
 
   output {
-    Array[Int] sal_len_inner = subhello.sal_len
-    Int sal_len_outer = length(subhello.hello_out[0])
+    Array[Int] sal_len_inner = subhello_call_alias.sal_len
+    Int sal_len_outer = length(subhello_call_alias.hello_out[0])
   }
 }

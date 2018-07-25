@@ -391,7 +391,7 @@ object WomToWdlom {
         None
 
       CallElement(
-        call.callable.name,
+        callableName,
         maybeAlias,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       ).validNelCheck

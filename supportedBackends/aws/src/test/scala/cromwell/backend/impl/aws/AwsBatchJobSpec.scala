@@ -91,6 +91,8 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     |"
     |cat /cromwell_root/hello-stderr.log
     |echo "--${boundary}--"
+    |sleep 2 # Provide sidecar opportunity to delocalize - not sure this is needed
+    |exit $$(cat /cromwell_root/hello-rc.txt)
     """).stripMargin
     val job = AwsBatchJob(null, null, "commandLine", script,
       "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchParameter])

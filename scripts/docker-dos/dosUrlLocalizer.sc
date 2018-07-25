@@ -77,15 +77,17 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
 def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse] = {
   import MarthaResponseJsonSupport._
 
-  val userAccessToken = sys.env("USER_ACCESS_TOKEN")
   val requestBody = json"""{"url":$dosUrl}"""
+
+  val credentials = GoogleCredentials.getApplicationDefault()
+  val accessToken = credentials.refreshAccessToken().getTokenValue()
 
   val marthaResponseIo: IO[MarthaResponse] = for {
     httpClient <- Http1Client[IO]()
     postRequest <- Request[IO](method = Method.POST,
-      uri = marthaUrl,
-      headers = Headers(Header("Authorization", s"bearer $userAccessToken")))
-      .withBody(requestBody)
+                               uri = marthaUrl,
+                               headers = Headers(Header("Authorization", s"bearer $accessToken")))
+                              .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
   } yield marthaResObj

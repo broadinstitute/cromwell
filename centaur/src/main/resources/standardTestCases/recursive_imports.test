@@ -1,5 +1,6 @@
 name: recursive_imports
 testFormat: workflowsuccess
+tags: [upgrade] # Because `recursive_imports.wdl` calls task `join` in `forkjoin.wdl`
 
 files {
   workflow: recursive_imports/recursive_imports.wdl

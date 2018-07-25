@@ -36,7 +36,7 @@ case object WomObjectType extends WomObjectTypeLike {
   }
 
   override protected def coercion = {
-    case o: WomObject => WomObject(o.values)
+    case o: WomObjectLike => WomObject(o.values)
     case m: WomMap if isMapCoercable(m) =>
       val coercedMap = m.value map {
         case (k, v) => toWomString(k) -> toWomString(v)
@@ -61,7 +61,7 @@ case object WomObjectType extends WomObjectTypeLike {
   private def toWomString(v: WomValue) = WomStringType.coerceRawValue(v).map(_.asInstanceOf[WomString])
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType) = otherType match {
-    case WomObjectType => true
+    case _: WomObjectTypeLike => true
     case t: WomMapType if isMapTypeCoercable(t) => true
     case _ => false
   }

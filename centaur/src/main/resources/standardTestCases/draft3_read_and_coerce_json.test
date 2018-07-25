@@ -1,0 +1,16 @@
+name: draft3_read_and_coerce_json
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_read_and_coerce_json/draft3_read_and_coerce_json.wdl
+}
+
+metadata {
+  workflowName: draft3_read_and_coerce_json
+  status: Succeeded
+  "outputs.draft3_read_and_coerce_json.from_coerced_map": "value1"
+  "outputs.draft3_read_and_coerce_json.from_coerced_foo": "value2"
+}

@@ -39,6 +39,7 @@ object MarthaResponseJsonSupport extends DefaultJsonProtocol {
   implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
   implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat1(DosDataObject)
   implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
+  implicit val googleServiceAccountFormat: JsonFormat[GoogleServiceAccount] = jsonFormat1(GoogleServiceAccount)
   implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
 }
 
@@ -48,7 +49,9 @@ case class DosDataObject(urls: Array[Url])
 
 case class DosObject(data_object: DosDataObject)
 
-case class MarthaResponse(dos: DosObject, googleServiceAccount: JsObject)
+case class GoogleServiceAccount(data: JsObject)
+
+case class MarthaResponse(dos: DosObject, googleServiceAccount: GoogleServiceAccount)
 
 
 @main
@@ -57,7 +60,7 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
     marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
-    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.toString, downloadLoc)
+    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
   } yield()
 
   dosResloverObj match {
@@ -74,18 +77,14 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
 def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse] = {
   import MarthaResponseJsonSupport._
 
+  val userAccessToken = sys.env("USER_ACCESS_TOKEN")
   val requestBody = json"""{"url":$dosUrl}"""
-
-  val credentials = GoogleCredentials.getApplicationDefault()
-  credentials.refreshAccessToken()
-  val accessToken = credentials.getAccessToken()
 
   val marthaResponseIo: IO[MarthaResponse] = for {
     httpClient <- Http1Client[IO]()
-    postRequest <- Request[IO](
-      method = Method.POST,
+    postRequest <- Request[IO](method = Method.POST,
       uri = marthaUrl,
-      headers = Headers(Header("Authorization", s"bearer $accessToken")))
+      headers = Headers(Header("Authorization", s"bearer $userAccessToken")))
       .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]

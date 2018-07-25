@@ -256,6 +256,7 @@ lazy val languageFactoryRoot = Path("languageFactories")
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
   .withLibrarySettings("language-factory-core", languageFactoryDependencies)
   .dependsOn(core)
+  .dependsOn(common % "test->test")
 
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
   .withLibrarySettings("wdl-draft2", draft2LanguageFactoryDependencies)

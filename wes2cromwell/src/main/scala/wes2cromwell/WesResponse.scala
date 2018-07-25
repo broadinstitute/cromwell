@@ -11,7 +11,6 @@ final case class WesResponseRunList(runs: List[WesRunStatus]) extends WesRespons
 final case class WesResponseWorkflowMetadata(workflowLog: WesRunLog) extends WesResponse
 
 object WesRunStatus {
-  // FIXME: Why is this one a little different and can i change that?
   import WesResponseJsonSupport._
 
   def fromJson(json: String): WesRunStatus = {

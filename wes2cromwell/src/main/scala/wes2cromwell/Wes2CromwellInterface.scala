@@ -13,6 +13,7 @@ import wes2cromwell.Wes2CromwellInterface._
 
 final class Wes2CromwellInterface(cromwellPath: URL)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) {
   def runWorkflow(submission: WesSubmission, headers: List[HttpHeader]): Future[WesResponse] = {
+    // FIXME - Should be able to get away with these fromJsons by implementing the proper marshalling
     handleCromwellResponse(cromwellPath.toString, headers, (s: String) => WesRunId(WesRunStatus.fromJson(s).run_id))
   }
 

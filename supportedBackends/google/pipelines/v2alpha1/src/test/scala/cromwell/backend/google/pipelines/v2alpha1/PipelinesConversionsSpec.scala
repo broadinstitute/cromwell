@@ -26,7 +26,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     val action = actions.head
 
     action.keySet.asScala should contain theSameElementsAs
-      List("commands", "entrypoint", "mounts", "imageUri", "labels")
+      Set("commands", "entrypoint", "environment", "imageUri", "labels", "mounts")
 
     action.get("commands") should be(a[java.util.List[_]])
     action.get("commands").asInstanceOf[java.util.List[_]] should contain(

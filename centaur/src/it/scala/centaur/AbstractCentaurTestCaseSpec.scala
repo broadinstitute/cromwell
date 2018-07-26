@@ -49,10 +49,21 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
     import womtool.WomtoolMain
+    import better.files.File
+
+    val workingDir: File = File.newTemporaryDirectory()
+    val rootWorkflowFile = File.newTemporaryFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
+
+    rootWorkflowFile.copyTo(workingDir)
+
+    testCase.workflow.data.zippedImports match {
+      case Some(zippedImports: File) =>
+        zippedImports.unzipTo(workingDir)
+      case None => ()
+    }
 
     // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
-    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
-    val upgradeResult = WomtoolMain.upgrade(tempFile.pathAsString)
+    val upgradeResult = WomtoolMain.upgrade(rootWorkflowFile.pathAsString)
 
     testCase.copy(
       workflow = testCase.workflow.copy(

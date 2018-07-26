@@ -6,6 +6,7 @@ workflow cwl_conformance_test {
         String test_result_output
         String centaur_cwl_runner
         String conformance_expected_failures
+        Int timeout
     }
 
     call get_test_count {
@@ -19,7 +20,8 @@ workflow cwl_conformance_test {
             input:
                 cwl_dir = cwl_dir,
                 centaur_cwl_runner = centaur_cwl_runner,
-                test_index = test_index
+                test_index = test_index,
+                timeout = timeout
         }
     }
 
@@ -58,12 +60,13 @@ task run_test_index {
         String centaur_cwl_runner
         Int test_index
         Int test_number = test_index + 1
+        Int timeout
     }
 
     command {
         (
             cd ~{cwl_dir}
-            ./run_test.sh RUNNER="~{centaur_cwl_runner}" -n~{test_number} 2>&1
+            ./run_test.sh --timeout=~{timeout} RUNNER="~{centaur_cwl_runner}" -n~{test_number} 2>&1
         )
         echo $? > test_result_code
     }

@@ -56,8 +56,8 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     rootWorkflowFile.copyTo(workingDir)
 
     testCase.workflow.data.zippedImports match {
-      case Some(zippedImports: File) =>
-        zippedImports.unzipTo(workingDir)
+      case Some(importsZip: File) =>
+        importsZip.unzipTo(workingDir)
       case None => ()
     }
 

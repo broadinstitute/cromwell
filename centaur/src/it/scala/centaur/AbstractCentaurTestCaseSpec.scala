@@ -6,8 +6,6 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import centaur.test.standard.CentaurTestCase
-import cromwell.core.path
-import cromwell.core.path.DefaultPathBuilder
 import org.scalatest._
 
 import scala.concurrent.Future

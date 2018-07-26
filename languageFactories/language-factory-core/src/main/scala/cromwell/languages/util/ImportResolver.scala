@@ -91,6 +91,8 @@ object ImportResolver {
     // starting in on async-ifying the entire WdlNamespace flow
     val result: Checked[String] = Await.result(responseIO.unsafeToFuture, 15.seconds).body.leftMap(NonEmptyList(_, List.empty))
 
+    sttpBackend.close()
+
     result
   }
 

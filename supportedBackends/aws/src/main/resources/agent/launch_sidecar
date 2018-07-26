@@ -1,0 +1,103 @@
+#!/bin/sh
+# Copyright 2018 Amazon.com, Inc. or its affiliates.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are met:
+#
+#  1. Redistributions of source code must retain the above copyright notice,
+#  this list of conditions and the following disclaimer.
+#
+#  2. Redistributions in binary form must reproduce the above copyright
+#  notice, this list of conditions and the following disclaimer in the
+#  documentation and/or other materials provided with the distribution.
+#
+#  3. Neither the name of the copyright holder nor the names of its
+#  contributors may be used to endorse or promote products derived from
+#  this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+#  BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+#  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+#  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+#  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+
+environmentVariable() {
+  query=".[0].Config.Env[] | select(startswith(\"${1}\"))"
+  echo "$containerInfo" |jq -r "$query" | cut -d= -f2
+}
+
+# $1 is passed in by spawnoninput, which originally will come from a single
+# line from the docker event stream (endpoint /events)
+line=$1
+
+# These commands are for "start", "create", "attach"
+# While jq is functionally preferred, cut should be slightly faster. We're
+# somewhat against the clock here as the container is going to do some work
+dockerid=$(echo "$line" | cut -d: -f3 | cut -d\" -f2)
+# If we need jq, this is the command: dockerid=$(echo "$1" | jq -r '.id')
+echo 'pausing id: ' "$dockerid"
+docker pause "$dockerid"
+# Docker pause can happen based on the "create" event from docker
+#
+# The infrastructure around this seems to take between 10 and 20ms in my tests.
+# This is likely due to the processing time needed for jq to parse the json.
+#
+# It is possible, though unlikely, that some dependent work starts happening
+# within that time. If so, we may need a sleep 0.02 in the script preamble
+# to accomodate this scenario and/or find something more performant than jq.
+# Because of this, we are using cut above rather than jq, which should be slightly faster
+containerInfo=$(docker inspect "$dockerid")
+
+if [ -z "$(environmentVariable "AWS_CRMWLL_PROCESS_MONITOR_MARKER")" ]; then
+ echo "Container does not match target profile, exiting"
+ docker unpause "$dockerid"
+ exit 0
+fi
+
+dockerRootedRcFile=$(environmentVariable "AWS_CROMWELL_RC_FILE")
+cromwellPath=$(environmentVariable "AWS_CROMWELL_PATH")
+localdisk=$(environmentVariable "AWS_CROMWELL_LOCAL_DISK")
+callRoot=$(environmentVariable "AWS_CROMWELL_CALL_ROOT")
+# Container credentials may be empty. The others should be there
+containerCredentials=$(environmentVariable "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
+if [ ! -z "$containerCredentials" ]; then
+  containerCredentials="-e AWS_CONTAINER_CREDENTIALS_RELATIVE_URI=${containerCredentials}"
+fi
+removeContainer="--rm"
+containerDebugLevel=""
+if [ ! -z "$AWS_CROMWELL_AGENT_DEBUG_LEVEL" ]; then
+  removeContainer=""
+  containerDebugLevel="-e AWS_CROMWELL_AGENT_DEBUG_LEVEL=${AWS_CROMWELL_AGENT_DEBUG_LEVEL}"
+fi
+# Copy inputs from S3 into place
+echo "RC File location (inside container):" "$dockerRootedRcFile"
+echo "Call Root:" "$callRoot"
+echo "Local disk:" "$localdisk"
+echo "Cromwell path:" "$cromwellPath"
+
+set -x
+docker run -d \
+  $removeContainer \
+  --volumes-from "$dockerid" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e AWS_CROMWELL_TASK_DOCKER_ID="$dockerid" \
+  -e AWS_CROMWELL_RC_FILE="$dockerRootedRcFile" \
+  -e AWS_CROMWELL_PATH="$cromwellPath" \
+  -e AWS_CROMWELL_LOCAL_DISK="$localdisk" \
+  -e AWS_CROMWELL_CALL_ROOT="$callRoot" \
+  -e AWS_CROMWELL_WORKFLOW_ROOT="$(environmentVariable "AWS_CROMWELL_WORKFLOW_ROOT")" \
+  $containerCredentials \
+  $containerDebugLevel \
+  --name sidecar-"$dockerid" \
+  batch-cromwell-sidecar:latest
+rc=$?
+set +x
+
+echo "Return from docker: $rc"

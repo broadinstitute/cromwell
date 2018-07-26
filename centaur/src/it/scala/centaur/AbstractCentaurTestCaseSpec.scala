@@ -53,7 +53,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     val rootWorkflowFile = File.newTemporaryFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
     val workingDir: File = File.newTemporaryDirectory()
 
-    rootWorkflowFile.copyTo(workingDir, overwrite = true) // TODO: why is overwrite necessary?
+    rootWorkflowFile.copyTo(workingDir)
 
     testCase.workflow.data.zippedImports match {
       case Some(importsZip: File) =>

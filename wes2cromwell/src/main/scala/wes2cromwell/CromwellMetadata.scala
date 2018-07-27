@@ -3,6 +3,7 @@ package wes2cromwell
 import spray.json.{DefaultJsonProtocol, JsObject, JsonFormat, JsonParser}
 
 final case class CromwellCallsMetadata(shardIndex: Option[Int],
+                                       commandLine: Option[String],
                                        returnCode: Option[Int],
                                        start: Option[String],
                                        end: Option[String],
@@ -13,7 +14,7 @@ final case class CromwellCallsMetadata(shardIndex: Option[Int],
 object CromwellCallsMetadata {
   import DefaultJsonProtocol._
 
-  implicit val cromwellCallsMetadataFormat: JsonFormat[CromwellCallsMetadata] = jsonFormat6(CromwellCallsMetadata.apply)
+  implicit val cromwellCallsMetadataFormat: JsonFormat[CromwellCallsMetadata] = jsonFormat7(CromwellCallsMetadata.apply)
 }
 
 final case class CromwellSubmittedFiles(workflow: Option[String],
@@ -53,6 +54,7 @@ final case class CromwellMetadata(workflowName: Option[String],
       workflow_engine_parameters = workflowEngineParams,
       workflow_url = None
     )
+
     val workflowLogData = WesLog(name = workflowName,
       cmd = None,
       start_time = start,
@@ -61,6 +63,7 @@ final case class CromwellMetadata(workflowName: Option[String],
       stderr = None,
       exit_code = None
     )
+
     val taskLogs = for {
       callsArray <- calls.toList
       (taskName, metadataEntries) <- callsArray
@@ -97,7 +100,7 @@ object CromwellMetadata {
 
     WesLog(
       name = Option(newTaskName),
-      cmd = None, // FIXME: shouldn't always be None
+      cmd = callsMetadata.commandLine.map(c => List(c)),
       start_time = callsMetadata.start,
       end_time = callsMetadata.end,
       stdout = callsMetadata.stdout,

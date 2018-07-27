@@ -299,6 +299,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
     jobLogger.info(s"`${instantiatedCommand.commandString}`")
+    tellMetadata(Map(CallMetadataKeys.CommandLine -> instantiatedCommand.commandString))
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)

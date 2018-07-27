@@ -82,7 +82,7 @@ object ImportResolver {
     */
   def httpResolverWithHeaders(headers: Map[String,String]): ImportResolver = CheckedAtoB.fromCheck { str: String =>
 
-    implicit val sttpBackend = AsyncHttpClientCatsBackend[IO]()
+    implicit val sttpBackend = HttpResolver.sttpBackend
 
     val responseIO : IO[Response[String]] =
       sttp.get(uri"$str").headers(headers).send()
@@ -92,6 +92,10 @@ object ImportResolver {
     val result: Checked[String] = Await.result(responseIO.unsafeToFuture, 15.seconds).body.leftMap(NonEmptyList(_, List.empty))
 
     result
+  }
+
+  object HttpResolver {
+    lazy val sttpBackend = AsyncHttpClientCatsBackend[IO]()
   }
 
 }

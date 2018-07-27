@@ -217,5 +217,13 @@ object CromwellShutdown extends GracefulStopSupport {
       logger.info("Stream materializer shut down")
       Future.successful(Done)
     }
+
+    // 7) Close out the backend used for WDL HTTP import resolution
+    // http://sttp.readthedocs.io/en/latest/backends/start_stop.html
+    coordinatedShutdown.addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "wdlHttpImportResolverBackend") { () =>
+      cromwell.languages.util.ImportResolver.HttpResolver.sttpBackend.close()
+      logger.info("WDL HTTP import resolver closed")
+      Future.successful(Done)
+    }
   }
 }

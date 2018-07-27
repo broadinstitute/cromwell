@@ -8,6 +8,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
 import languages.cwl.CwlV1_0LanguageFactory
+import languages.wdl.biscayne.WdlBiscayneLanguageFactory
 import languages.wdl.draft2.WdlDraft2LanguageFactory
 import languages.wdl.draft3.WdlDraft3LanguageFactory
 import wom.executable.WomBundle
@@ -25,26 +26,25 @@ object WomGraphMaker {
     // Resolves for:
     // - Where we run from
     // - Where the file is
-    lazy val importResolvers = List(
-      directoryResolver(DefaultPathBuilder.build(
-        Paths.get(".")),
-        allowEscapingDirectory = true
-      ),
-      directoryResolver(
+    lazy val importResolvers: List[ImportResolver] = List(
+      DirectoryResolver(
+        DefaultPathBuilder.build(Paths.get(".")),
+        allowEscapingDirectory = false),
+      DirectoryResolver(
         DefaultPathBuilder.build(Paths.get(mainFile.toAbsolutePath.toFile.getParent)),
         allowEscapingDirectory = true
       ),
-      httpResolver
+      HttpResolver()
     )
 
     readFile(mainFile.toAbsolutePath.pathAsString) flatMap { mainFileContents =>
-      val languageFactory = if (mainFile.name.toLowerCase().endsWith("wdl")) {
-        if (mainFileContents.startsWith("version 1.0") || mainFileContents.startsWith("version draft-3")) {
-          new WdlDraft3LanguageFactory(Map.empty)
-        } else {
-          new WdlDraft2LanguageFactory(Map.empty)
-        }
-      } else new CwlV1_0LanguageFactory(Map.empty)
+      val languageFactory =
+        List(
+          new WdlDraft3LanguageFactory(Map.empty),
+          new WdlBiscayneLanguageFactory(Map.empty),
+          new CwlV1_0LanguageFactory(Map.empty))
+          .find(_.looksParsable(mainFileContents))
+          .getOrElse(new WdlDraft2LanguageFactory(Map.empty))
 
       val bundle = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory))
       // Return the pair with the languageFactory

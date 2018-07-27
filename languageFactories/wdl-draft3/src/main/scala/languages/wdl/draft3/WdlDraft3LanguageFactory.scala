@@ -1,14 +1,18 @@
 package languages.wdl.draft3
 
+import java.nio.file.Paths
+
 import cats.instances.either._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
+import common.validation.Checked._
 import cromwell.core._
+import cromwell.core.path.DefaultPath
 import cromwell.languages.util.ImportResolver._
-import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
+import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft3.transforms.ast2wdlom._
 import wdl.draft3.transforms.parsing._
@@ -32,16 +36,22 @@ class WdlDraft3LanguageFactory(override val config: Map[String, Any]) extends La
                                     ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
-    val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
-    val importResolvers: List[ImportResolver] = source.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
+    val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
 
-    val errorOr: Checked[ValidatedWomNamespace] = for {
+    val zippedResolverCheck: Checked[Option[ImportResolver]] = source.importsZipFileOption match {
+      case None => None.validNelCheck
+      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
+    }
+
+    val checked: Checked[ValidatedWomNamespace] = for {
       _ <- standardConfig.enabledCheck
+      zippedImportResolver <- zippedResolverCheck
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       bundle <- getWomBundle(source.workflowSource, source.workflowOptionsJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 
-    fromEither[IO](errorOr)
+    fromEither[IO](checked)
 
   }
 

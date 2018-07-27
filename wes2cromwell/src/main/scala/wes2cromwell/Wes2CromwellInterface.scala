@@ -36,7 +36,7 @@ final class Wes2CromwellInterface(cromwellPath: URL)(implicit system: ActorSyste
     // FIXME: to handle - page_size, page_token
     // FIXME: How to handle next_page_token in response?
     val cromwellUrl = s"$cromwellPath/query"
-    handleCromwellResponse(cromwellUrl, headers, (s: String) => WesResponseRunList(RunListResponse.toCromwellQueryResponse(s).runs))
+    handleCromwellResponse(cromwellUrl, headers, (s: String) => WesResponseRunList(RunListResponse.fromJson(s).runs))
   }
 }
 

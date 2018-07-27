@@ -32,7 +32,7 @@ trait WesRunRoutes extends RequestSupport {
   def cromwellApiVersion: String
   def cromwellPath: URL = new URL(cromwellUrl.toString + s"/api/workflows/$cromwellApiVersion")
 
-  implicit val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
+  implicit lazy val duration: FiniteDuration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit lazy val timeout: Timeout = duration
 
   lazy val wes2CromwellInterface = new Wes2CromwellInterface(cromwellPath)

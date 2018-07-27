@@ -7,7 +7,7 @@ case class RunListResponse(runs: List[WesRunStatus], next_page_token: String)
 object RunListResponse {
   import RunListResponseJsonSupport._
 
-  def toCromwellQueryResponse(json: String): RunListResponse = {
+  def fromJson(json: String): RunListResponse = {
     val jsonAst = JsonParser(json)
     jsonAst.convertTo[RunListResponse]
   }

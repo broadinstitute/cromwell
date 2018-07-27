@@ -8,6 +8,7 @@ import cats.Monad
 import cats.data.EitherT._
 import cats.data.{EitherT, NonEmptyList}
 import cats.data.Validated.{Invalid, Valid}
+import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.either._
@@ -243,23 +244,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       (workflowSource, workflowUrl) match {
         case (Some(source), None) => (source, resolvers).validNelCheck
         case (None, Some(url)) =>{
-          val compoundImportResolver: CheckedAtoB[String, (WorkflowSource, List[ImportResolver])] = CheckedAtoB.firstSuccess(resolvers, s"resolve workflowUrl '$url'")
-          val wfSource: Checked[WorkflowSource] = compoundImportResolver.run(url) //TODO: Saloni- Once rebased from Chris' PR, this func will return set of new resolvers which should be returned from parent func
+          val compoundImportResolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.firstSuccess(resolvers.map(_.resolver), s"resolve workflowUrl '$url'")
+          val wfSourceAndResolvers: Checked[ResolvedImportBundle] = compoundImportResolver.run(ImportResolutionRequest(url, resolvers))
 
-          wfSource map { (_, resolvers) }
+          wfSourceAndResolvers map {v => (v.source, v.newResolvers) }
         }
         case (Some(_), Some(_)) => "Both workflow source and url can't be supplied".invalidNelCheck
         case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
       }
-
-//      if(workflowUrl.isDefined){
-//        val compoundImportResolver: CheckedAtoB[String, WorkflowSource] = CheckedAtoB.firstSuccess(resolvers, s"resolve workflowUrl '$url'")
-//        val wfSource: Checked[WorkflowSource] = compoundImportResolver.run(url) //TODO: Saloni- Once rebased from Chris' PR, this func will return set of new resolvers which should be returned from parent func
-//
-//        wfSource map { (_, resolvers) }
-//      } else {
-//        (source, resolvers).validNelCheck
-//      }
     }
 
     def buildValidatedNamespace(workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): EitherT[IO, NonEmptyList[String], ValidatedWomNamespace] = {
@@ -287,6 +279,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowSource, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions, importResolvers))
     }
 
+    def workflowSourceAndResolvers(resolvers: List[ImportResolver]): Parse[(WorkflowSource, List[ImportResolver])] = fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, resolvers))
+
+
     val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
 
     val zippedResolverCheck: Checked[Option[ImportResolver]] = sourceFiles.importsZipFileOption match {
@@ -294,19 +289,14 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
     }
 
-//    val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
-//    val importResolvers: List[ImportResolver] = sourceFiles.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
-
-//    val workflowSourceAndResolvers: Parse[(WorkflowSource, List[ImportResolver])] =  fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
-
     val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
     for {
       _ <- publishLabelsToMetadata(id, labels)
-//      sourceAndResolvers <- workflowSourceAndResolvers
       zippedImportResolver <- zippedResolverCheck
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
-      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
+//      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
+      sourceAndResolvers <- workflowSourceAndResolvers(importResolvers)
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
       validatedNamespace <- buildValidatedNamespace(sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)

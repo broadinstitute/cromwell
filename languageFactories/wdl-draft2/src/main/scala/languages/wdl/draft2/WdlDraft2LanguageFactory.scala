@@ -54,12 +54,6 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
       list.sequence[Checked, Unit].void
     }
 
-    lazy val baseResolvers: List[String => WorkflowSource] = if (importLocalFilesystem) {
-      List(WdlNamespace.fileResolver, httpResolver)
-    } else {
-      List(httpResolver)
-    }
-
     import common.validation.Validation._
 
     lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = source match {
@@ -67,13 +61,11 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
         for {
           importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
           betterFilesImportsDir = better.files.File(importsDir.pathAsString)
-          directoryResolver = WdlNamespace.directoryResolver(betterFilesImportsDir): String => WorkflowSource
-          resolvers = directoryResolver +: baseResolvers
-          wf <- WdlNamespaceWithWorkflow.load(workflowSource, resolvers).toErrorOr //TODO: Saloni-which resolver to use here?
+          wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr //TODO: Saloni-which resolver to use here?
           _ = importsDir.delete(swallowIOExceptions = true)
         } yield wf
       case _: WorkflowSourceFilesWithoutImports =>
-        WdlNamespaceWithWorkflow.load(workflowSource, baseResolvers).toErrorOr //TODO: Saloni-which resolver to use here?
+        WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr //TODO: Saloni-which resolver to use here?
     }
 
     def evaluateImports(wdlNamespace: WdlNamespace): Map[String, String] = {

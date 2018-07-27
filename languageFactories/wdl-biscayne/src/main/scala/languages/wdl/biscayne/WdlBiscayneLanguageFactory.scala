@@ -1,28 +1,24 @@
 package languages.wdl.biscayne
 
-import java.nio.file.Paths
-
-import cats.instances.either._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
+import cats.instances.either._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
-import common.validation.Checked._
 import cromwell.core._
-import cromwell.core.path.DefaultPath
 import cromwell.languages.util.ImportResolver._
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import wdl.transforms.base.wdlom2wom.WomBundleToWomExecutable._
+import wdl.transforms.base.wdlom2wom._
 import wdl.transforms.biscayne.ast2wdlom._
 import wdl.transforms.biscayne.parsing._
-import wdl.transforms.base.wdlom2wom._
-import wdl.transforms.base.wdlom2wom.WomBundleToWomExecutable._
+import wdl.transforms.biscayne.wdlom2wom._
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
-import wdl.transforms.biscayne.wdlom2wom._
 
 class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
 

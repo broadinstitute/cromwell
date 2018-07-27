@@ -25,7 +25,7 @@ class WorkflowStoreSlickSpec extends FlatSpec with Matchers with ScalaFutures wi
 
   def testWith(configPath: String): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection("sample", None, None, None, None, "input", "option", "string", None, workflowOnHold = true, Seq.empty))
+    val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", "option", "string", None, workflowOnHold = true, Seq.empty))
 
     it should "honor the onHold flag" taggedAs DbmsTest in {
       val workflowStore: WorkflowStore = SqlWorkflowStore(new EngineSlickDatabase(databaseConfig)

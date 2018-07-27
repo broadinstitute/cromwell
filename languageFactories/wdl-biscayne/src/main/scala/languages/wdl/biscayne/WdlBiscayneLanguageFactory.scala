@@ -30,24 +30,18 @@ class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends 
   override val languageVersionName: String = "Biscayne"
 
   override def validateNamespace(source: WorkflowSourceFilesCollection,
-                                    workflowOptions: WorkflowOptions,
-                                    importLocalFilesystem: Boolean,
-                                    workflowIdForLogging: WorkflowId,
-                                    ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
+                                 workflowSource: WorkflowSource,
+                                 workflowOptions: WorkflowOptions,
+                                 importLocalFilesystem: Boolean,
+                                 workflowIdForLogging: WorkflowId,
+                                 ioFunctions: IoFunctionSet,
+                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
-    val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
-
-    val zippedResolverCheck: Checked[Option[ImportResolver]] = source.importsZipFileOption match {
-      case None => None.validNelCheck
-      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
-    }
 
     val checked: Checked[ValidatedWomNamespace] = for {
       _ <- enabledCheck
-      zippedImportResolver <- zippedResolverCheck
-      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
-      bundle <- getWomBundle(source.workflowSource, source.workflowOptionsJson, importResolvers, factories)
+      bundle <- getWomBundle(workflowSource, source.workflowOptionsJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 

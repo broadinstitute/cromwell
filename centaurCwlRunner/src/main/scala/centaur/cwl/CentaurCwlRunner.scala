@@ -154,7 +154,7 @@ object CentaurCwlRunner extends StrictLogging {
     val submitResponseOption = None
 
     val workflowData = WorkflowData(
-      workflowContents, None, None, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
+      Option(workflowContents), None, None, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
     val workflow = Workflow(testName, workflowData, workflowMetadata, notInMetadata, directoryContentCounts, backends)
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 

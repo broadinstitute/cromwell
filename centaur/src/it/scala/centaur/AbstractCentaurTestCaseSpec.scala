@@ -51,14 +51,14 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     import womtool.WomtoolMain
 
     // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
-    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
+    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent.get) //TODO: Saloni-What about this?
     val upgradeResult = WomtoolMain.upgrade(tempFile.pathAsString)
 
     testCase.copy(
       workflow = testCase.workflow.copy(
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
-          workflowContent = upgradeResult.stdout.get)))
+          workflowContent = Option(upgradeResult.stdout.get)))) ////TODO: Saloni-What about this?
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {

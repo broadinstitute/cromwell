@@ -1,10 +1,12 @@
 package cromwell.engine.workflow.lifecycle.materialization
 
+import java.nio.file.Paths
+
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
 import cats.data.EitherT._
-import cats.data.NonEmptyList
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.syntax.apply._
@@ -12,9 +14,12 @@ import cats.syntax.either._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
+import common.Checked
 import common.exception.{AggregatedMessageException, MessageAggregation}
+import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import common.validation.Parse._
+import common.validation.Checked._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
@@ -23,18 +28,21 @@ import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.{DefaultPath, PathBuilder}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.language.CromwellLanguages
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.languages.util.ImportResolver
+import cromwell.languages.util.ImportResolver._
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import net.ceedubs.ficus.Ficus._
 import spray.json._
+import wom.core.{WorkflowSource, WorkflowUrl}
 import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
@@ -143,6 +151,17 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case Valid((workflowOptions, pathBuilders)) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
+//            val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
+//            val importResolvers: List[ImportResolver] = workflowSourceFiles.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
+//
+//            for {
+//              (s, i) <- findWorkflowSource(workflowSourceFiles.workflowSource, workflowSourceFiles.workflowUrl, importResolvers)
+//              e <- buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions, s, i).
+//                value.
+//                unsafeToFuture().
+//                map(_.toValidated)
+//            } yield e
+
             buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
               value.
               unsafeToFuture().
@@ -217,39 +236,87 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
-    def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(sourceFiles.workflowSource))
 
-    val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
-      case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
-        val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
-        sourceFiles.workflowTypeVersion match {
-          case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
-          case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
-          case _ => chooseFactory(language.allVersions.values.toList).getOrElse(language.default).valid
+    def findWorkflowSource(workflowSource: Option[WorkflowSource],
+                           workflowUrl: Option[WorkflowUrl],
+                           resolvers: List[ImportResolver]): Checked[(WorkflowSource, List[ImportResolver])] = {
+      (workflowSource, workflowUrl) match {
+        case (Some(source), None) => (source, resolvers).validNelCheck
+        case (None, Some(url)) =>{
+          val compoundImportResolver: CheckedAtoB[String, (WorkflowSource, List[ImportResolver])] = CheckedAtoB.firstSuccess(resolvers, s"resolve workflowUrl '$url'")
+          val wfSource: Checked[WorkflowSource] = compoundImportResolver.run(url) //TODO: Saloni- Once rebased from Chris' PR, this func will return set of new resolvers which should be returned from parent func
+
+          wfSource map { (_, resolvers) }
         }
-      case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
-      case None =>
-        val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
-        chooseFactory(allFactories.toList).getOrElse(CromwellLanguages.instance.default.default).validNel
+        case (Some(_), Some(_)) => "Both workflow source and url can't be supplied".invalidNelCheck
+        case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
+      }
+
+//      if(workflowUrl.isDefined){
+//        val compoundImportResolver: CheckedAtoB[String, WorkflowSource] = CheckedAtoB.firstSuccess(resolvers, s"resolve workflowUrl '$url'")
+//        val wfSource: Checked[WorkflowSource] = compoundImportResolver.run(url) //TODO: Saloni- Once rebased from Chris' PR, this func will return set of new resolvers which should be returned from parent func
+//
+//        wfSource map { (_, resolvers) }
+//      } else {
+//        (source, resolvers).validNelCheck
+//      }
     }
 
-    factory foreach { validFactory =>
-      workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
-      pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
+    def buildValidatedNamespace(workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): EitherT[IO, NonEmptyList[String], ValidatedWomNamespace] = {
+      def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(workflowSource))
+
+      val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
+        case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
+          val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
+          sourceFiles.workflowTypeVersion match {
+            case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
+            case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
+            case _ => chooseFactory(language.allVersions.values.toList).getOrElse(language.default).valid
+          }
+        case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
+        case None =>
+          val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
+          chooseFactory(allFactories.toList).getOrElse(CromwellLanguages.instance.default.default).validNel
+      }
+
+      factory foreach { validFactory =>
+        workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
+        pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
+      }
+
+      errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowSource, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions, importResolvers))
     }
 
-    val namespaceValidation: Parse[ValidatedWomNamespace] =
-      errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions))
+    val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
+
+    val zippedResolverCheck: Checked[Option[ImportResolver]] = sourceFiles.importsZipFileOption match {
+      case None => None.validNelCheck
+      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
+    }
+
+//    val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
+//    val importResolvers: List[ImportResolver] = sourceFiles.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
+
+//    val workflowSourceAndResolvers: Parse[(WorkflowSource, List[ImportResolver])] =  fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
 
     val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
     for {
       _ <- publishLabelsToMetadata(id, labels)
-
-      validatedNamespace <- namespaceValidation
+//      sourceAndResolvers <- workflowSourceAndResolvers
+      zippedImportResolver <- zippedResolverCheck
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
+      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
+      _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
+      validatedNamespace <- buildValidatedNamespace(sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)
-      ewd <- fromEither[IO](buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
+      ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
     } yield ewd
+  }
+
+  private def publishWorkflowSourceToMetadata(id: WorkflowId, workflowSource: WorkflowSource): Unit = {
+    val event = MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(workflowSource))
+    serviceRegistryActor ! PutMetadataAction(event)
   }
 
   private def pushNamespaceMetadata(validatedNamespace: ValidatedWomNamespace): Unit = {
@@ -320,7 +387,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
-                                      sourceFiles: WorkflowSourceFilesCollection,
                                       womNamespace: ValidatedWomNamespace,
                                       workflowOptions: WorkflowOptions,
                                       labels: Labels,

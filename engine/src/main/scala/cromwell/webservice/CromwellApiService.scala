@@ -2,8 +2,7 @@ package cromwell.webservice
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorRefFactory, ActorSystem}
-import akka.http.scaladsl.Http
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.{ToEntityMarshaller, ToResponseMarshallable}
 import akka.http.scaladsl.model._
@@ -48,7 +47,6 @@ trait CromwellApiService extends HttpInstrumentation {
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val materializer: ActorMaterializer
-  implicit val actorSystem: ActorSystem
   implicit val ec: ExecutionContext
 
   val workflowStoreActor: ActorRef
@@ -269,12 +267,6 @@ trait CromwellApiService extends HttpInstrumentation {
       bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
     }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
-    val formPartsAndSourceFromUrl: Future[(Map[String, ByteString], Option[String])] = for {
-      parts <- allParts
-      workflowUrl = parts.get("workflowUrl").map(_.utf8String)
-      workflowSourceFromUrl <- getContentFromWorkflowUrl(workflowUrl)
-    } yield (parts, workflowSourceFromUrl)
-
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
         WorkflowOnHold
@@ -300,9 +292,9 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     }
 
-    onComplete(formPartsAndSourceFromUrl) {
-      case Success((parts, workflowSourceFromUrl)) => {
-        PartialWorkflowSources.fromSubmitRoute(parts, workflowSourceFromUrl, allowNoInputs = isSingleSubmission) match {
+    onComplete(allParts) {
+      case Success(data) => {
+        PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
             val warnings = workflowSourceFiles.flatMap(_.warnings)
             askSubmit(WorkflowStoreActor.SubmitWorkflow(workflowSourceFiles.head), warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
@@ -319,7 +311,6 @@ trait CromwellApiService extends HttpInstrumentation {
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
       }
-      case Failure(e: IllegalArgumentException) => e.failRequest(StatusCodes.BadRequest)
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
     }
@@ -368,8 +359,6 @@ trait CromwellApiService extends HttpInstrumentation {
 object CromwellApiService {
   import spray.json._
 
-  implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
-
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
     def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
       completeResponse(statusCode, APIResponse.fail(e).toJson.prettyPrint, warnings)
@@ -396,27 +385,6 @@ object CromwellApiService {
     }
 
     complete((statusCode, warningHeaders, value))
-  }
-
-  def getContentFromWorkflowUrl(workflowUrl: Option[String])
-                               (implicit ec: ExecutionContext, materializer: ActorMaterializer, actorSystem: ActorSystem): Future[Option[String]]  = {
-    if (workflowUrl.isDefined) downloadContentFromUrl(workflowUrl.get).recoverWith{
-      case e => Future.failed(new IllegalArgumentException(s"Bad workflowUrl: ${workflowUrl.get}. Error: ${e.getMessage}"))
-    }
-    else Future.successful(None)
-  }
-
-  def downloadContentFromUrl(url: String)
-                            (implicit ec: ExecutionContext, materializer: ActorMaterializer, actorSystem: ActorSystem): Future[Option[String]] = {
-    for {
-      httpResponse <- Http().singleRequest(HttpRequest(uri = url))
-      source <- httpResponse.status match {
-        case StatusCodes.OK => httpResponse.entity.toStrict(duration).map(_.data.utf8String)
-        //Unmarshal(httpResponse.entity).to[String]
-        //res.entity.toStrict(300.millis).map(_.data.utf8String)
-        case _ => Future.failed(new IllegalArgumentException(httpResponse.status.toString))
-      }
-    } yield Option(source)
   }
 
   final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)

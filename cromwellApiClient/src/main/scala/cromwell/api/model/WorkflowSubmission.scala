@@ -3,7 +3,7 @@ package cromwell.api.model
 import better.files.File
 
 sealed trait WorkflowSubmission {
-  val workflowSource: String
+  val workflowSource: Option[String]
   val workflowUrl: Option[String]
   val workflowRoot: Option[String]
   val workflowType: Option[String]
@@ -14,7 +14,7 @@ sealed trait WorkflowSubmission {
   val zippedImports: Option[File]
 }
 
-final case class WorkflowSingleSubmission(workflowSource: String,
+final case class WorkflowSingleSubmission(workflowSource: Option[String],
                                           workflowUrl: Option[String],
                                           workflowRoot: Option[String],
                                           workflowType: Option[String],
@@ -24,7 +24,7 @@ final case class WorkflowSingleSubmission(workflowSource: String,
                                           labels: Option[List[Label]],
                                           zippedImports: Option[File]) extends WorkflowSubmission
 
-final case class WorkflowBatchSubmission(workflowSource: String,
+final case class WorkflowBatchSubmission(workflowSource: Option[String],
                                          workflowUrl: Option[String],
                                          workflowRoot: Option[String],
                                          workflowType: Option[String],

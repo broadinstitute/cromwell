@@ -60,20 +60,20 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
     ("description", "workflowSubmission", "expectedJsons", "expectedFiles"),
 
     ("submit a wdl",
-      WorkflowSingleSubmission("wdl", None, None, None, None, None, None, None, None),
+      WorkflowSingleSubmission(Option("wdl"), None, None, None, None, None, None, None, None),
       Map("workflowSource" -> "wdl"),
       Map()
     ),
 
     ("batch submit a wdl",
-      WorkflowBatchSubmission("wdl", None, None, None, None, List(), None, None, None),
+      WorkflowBatchSubmission(Option("wdl"), None, None, None, None, List(), None, None, None),
       Map("workflowSource" -> "wdl", "workflowInputs" -> "[]"),
       Map()
     ),
 
     ("submit a wdl with data",
       WorkflowSingleSubmission(
-        "wdl",
+        Option("wdl"),
         None,
         None,
         Option("wfType"),
@@ -96,7 +96,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
 
     ("batch submit a wdl with data",
       WorkflowBatchSubmission(
-        "wdl",
+        Option("wdl"),
         None,
         None,
         Option("wfType"),

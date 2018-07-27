@@ -7,7 +7,7 @@ import wom.core._
   */
 
 sealed trait WorkflowSourceFilesCollection {
-  def workflowSource: WorkflowSource
+  def workflowSource: Option[WorkflowSource]
   def workflowUrl: Option[WorkflowUrl]
   def workflowRoot: Option[String]
   def inputsJson: WorkflowJson
@@ -31,7 +31,7 @@ sealed trait WorkflowSourceFilesCollection {
 }
 
 object WorkflowSourceFilesCollection {
-  def apply(workflowSource: WorkflowSource,
+  def apply(workflowSource: Option[WorkflowSource],
             workflowUrl: Option[WorkflowUrl],
             workflowRoot: Option[String],
             workflowType: Option[WorkflowType],
@@ -70,7 +70,7 @@ object WorkflowSourceFilesCollection {
   }
 }
 
-final case class WorkflowSourceFilesWithoutImports(workflowSource: WorkflowSource,
+final case class WorkflowSourceFilesWithoutImports(workflowSource: Option[WorkflowSource],
                                                    workflowUrl: Option[WorkflowUrl],
                                                    workflowRoot: Option[String],
                                                    workflowType: Option[WorkflowType],
@@ -81,7 +81,7 @@ final case class WorkflowSourceFilesWithoutImports(workflowSource: WorkflowSourc
                                                    workflowOnHold: Boolean = false,
                                                    warnings: Seq[String]) extends WorkflowSourceFilesCollection
 
-final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: WorkflowSource,
+final case class WorkflowSourceFilesWithDependenciesZip(workflowSource: Option[WorkflowSource],
                                                         workflowUrl: Option[WorkflowUrl],
                                                         workflowRoot: Option[String],
                                                         workflowType: Option[WorkflowType],

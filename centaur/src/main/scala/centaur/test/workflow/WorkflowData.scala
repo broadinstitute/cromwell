@@ -13,7 +13,7 @@ import net.ceedubs.ficus.Ficus._
 import spray.json._
 
 
-case class WorkflowData(workflowContent: String,
+case class WorkflowData(workflowContent: Option[String],
                         workflowUrl: Option[String],
                         workflowRoot: Option[String],
                         workflowType: Option[String],
@@ -27,7 +27,7 @@ object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: Path): ErrorOr[WorkflowData] = {
     filesConfig.as[Option[String]]("workflow") match {
       case Some(workflow) => Valid(WorkflowData(
-        workflowPath = basePath.resolve(workflow),
+        workflowPath = Option(basePath.resolve(workflow)), //TODO: Saloni-What about this?
         filesConfig = filesConfig,
         fullConfig = fullConfig,
         basePath = basePath))
@@ -35,7 +35,7 @@ object WorkflowData {
     }
   }
 
-  def apply(workflowPath: Path, filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
+  def apply(workflowPath: Option[Path], filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
     def getOptionalPath(name: String) = filesConfig.get[Option[Path]](name) valueOrElse None map basePath.resolve
 
     def getImports = filesConfig.get[List[Path]]("imports") match {
@@ -47,7 +47,7 @@ object WorkflowData {
       val zippedDir = imports match {
         case Nil => None
         case _ =>
-          val importsDirName = workflowPath.getFileName.toString.replaceAll("\\.[^.]*$", "")
+          val importsDirName = workflowPath.get.getFileName.toString.replaceAll("\\.[^.]*$", "") //TODO: Saloni-What about this?
           val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.toAbsolutePath.toString)
@@ -71,7 +71,7 @@ object WorkflowData {
 
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
-      workflowContent = workflowPath.slurp,
+      workflowContent = Option((workflowPath.get).slurp), ////TODO: Saloni-What about this?
       workflowUrl = workflowUrl,
       workflowRoot = workflowRoot,
       workflowType = workflowType,

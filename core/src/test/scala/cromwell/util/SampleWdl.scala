@@ -20,7 +20,7 @@ trait SampleWdl extends TestFileUtil {
                         workflowTypeVersion: Option[String] = None,
                         workflowOnHold: Boolean = false) = {
     WorkflowSourceFilesWithoutImports(
-      workflowSource = workflowSource(runtime),
+      workflowSource = Option(workflowSource(runtime)),
       workflowUrl = None,
       workflowRoot = None,
       inputsJson = workflowJson,

@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.stores
 
 import common.collections.Table
+import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.ExecutionStatus._
@@ -134,7 +135,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   */
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
-  lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
+  lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
   def keyForNode(node: GraphNode): Option[JobKey] = {

@@ -67,11 +67,11 @@ object ExpressionEvaluator {
     } else {
       parameterContext.expressionLib.mkString("", ";", s";$expr")
     }
-    val (rawValues, mapValues) = paramValues(parameterContext)
+    val (rawVals, mapVals) = paramValues(parameterContext)
     EcmaScriptUtil.evalStructish(
       script,
-      rawValues,
-      mapValues,
+      rawVals,
+      mapVals,
       new EcmaScriptEncoder(parameterContext.ioFunctionSet),
       cwlJsDecoder
     )

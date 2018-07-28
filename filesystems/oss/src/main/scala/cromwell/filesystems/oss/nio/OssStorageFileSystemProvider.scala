@@ -94,7 +94,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
       throw new IllegalArgumentException(s"Port is not permitted")
     }
 
-    OssStorageFileSystem(this, bucket, OssStorageConfiguration.parseMap(env.asScala.mapValues(_.asInstanceOf[Any]).toMap))
+    OssStorageFileSystem(this, bucket, OssStorageConfiguration.parseMap(env.asScala.toMap))
   }
 
   override def getFileSystem(uri: URI): OssStorageFileSystem = {

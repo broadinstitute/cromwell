@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
 import com.google.cloud.NoCredentials
+import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.TestKitSuite
@@ -21,7 +22,7 @@ class PipelinesApiWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with 
 
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders)
     workflowPaths.executionRoot.pathAsString should be("gs://my-cromwell-workflows-bucket/")

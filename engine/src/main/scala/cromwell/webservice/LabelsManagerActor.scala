@@ -1,6 +1,7 @@
 package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import common.collections.EnhancedCollections._
 import cromwell.core._
 import cromwell.core.labels.Labels
 import cromwell.services.metadata.MetadataEvent
@@ -26,7 +27,7 @@ object LabelsManagerActor {
   def processLabelsResponse(workflowId: WorkflowId, labels: Map[String, String]): JsObject = {
     JsObject(Map(
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
-      WorkflowMetadataKeys.Labels -> JsObject(labels mapValues JsString.apply)
+      WorkflowMetadataKeys.Labels -> JsObject(labels safeMapValues JsString.apply)
     ))
   }
 

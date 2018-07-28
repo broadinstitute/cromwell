@@ -34,6 +34,7 @@ package cromwell.backend.impl.aws
 import java.net.SocketTimeoutException
 
 import cats.data.Validated.Valid
+import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.Validation._
 import cromwell.backend._
@@ -193,7 +194,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
     // Collect all WomFiles from inputs to the call.
-    val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
+    val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs safeMapValues {
       womFile =>
         val arrays: Seq[WomArray] = womFile collectAsSeq {
           case womFile: WomFile =>
@@ -206,7 +207,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         arrays.flatMap(_.value).collect {
           case womFile: WomFile => womFile
         }
-    } map identity // <-- unlazy the mapValues
+    }
 
     val callInputInputs = callInputFiles flatMap {
       case (name, files) => inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)

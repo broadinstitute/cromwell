@@ -1,5 +1,6 @@
 package wom.values
 
+import common.collections.EnhancedCollections._
 import wom.expression.ValueAsAnExpression
 import wom.types.WomType
 import wom.{OptionalNotSuppliedException, WomExpressionException}
@@ -62,7 +63,7 @@ trait WomValue {
 
   def computeHash(implicit hasher: FileHasher): SymbolHash = {
     this match {
-      case w: WomObject => symbolHash(w.values mapValues { _.computeHash(hasher) })
+      case w: WomObject => symbolHash(w.values safeMapValues { _.computeHash(hasher) })
       case w: WomMap => symbolHash(w.value map { case (k, v) => k.computeHash(hasher) -> v.computeHash(hasher) })
       case w: WomArray => symbolHash(w.value map { _.computeHash(hasher) } mkString "")
       case w: WomFile => hasher(w)

@@ -175,10 +175,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, r, i, o, l, z) =>
+      case ValidSubmission(w, u, r, i, o, l, z) =>
         WorkflowSingleSubmission(
           workflowSource = w,
-          workflowUrl = None,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -193,11 +193,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(w, r, i, o, l, Some(z)), _) =>
+      case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
-          workflowUrl = None,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -207,11 +207,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
           importsZip = z.loadBytes,
           warnings = Vector.empty,
           workflowOnHold = false)
-      case (ValidSubmission(w, r, i, o, l, None), _) =>
+      case (ValidSubmission(w, u, r, i, o, l, None), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
-          workflowUrl = None,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -222,29 +222,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
           workflowOnHold = false)
     }
 
-//    val validatedSubmission = args.abc(EntryPointLogger)
     val sourceFiles = for {
       sources <- sourceFileCollection
       _ <- writeableMetadataPath(args.metadataOutput)
     } yield sources
 
     validOrFailSubmission(sourceFiles)
-
-//    sourceFiles.onComplete{
-//      val sourceFilesCollection = {
-//        case Success(workflowSourceFiles) => workflowSourceFiles
-//        case Failure(e) => e.getMessage.invalidNel
-//      }
-//      validOrFailSubmission(sourceFilesCollection)
-//    }
-
-//    sourceFiles map {
-//      val sourceFilesCollection = {
-//                case Success(workflowSourceFiles) => workflowSourceFiles
-//                case Failure(e) => e.getMessage.invalidNel
-//              }
-//              validOrFailSubmission(sourceFilesCollection)
-//    }
   }
 
   def validOrFailSubmission[A](validation: ErrorOr[A]): A = {

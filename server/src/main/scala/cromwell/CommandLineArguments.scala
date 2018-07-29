@@ -12,6 +12,7 @@ import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.webservice.PartialWorkflowSources
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
@@ -19,8 +20,8 @@ import scala.util.{Success, Try}
 
 object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
-  case class ValidSubmission(
-                              workflowSource: Option[String],
+  case class ValidSubmission(workflowSource: Option[String],
+                             workflowUrl: Option[String],
                               workflowRoot: Option[String],
                               worflowInputs: String,
                               workflowOptions: String,
@@ -30,6 +31,7 @@ object CommandLineArguments {
 
 case class CommandLineArguments(command: Option[Command] = None,
                                 workflowSource: Option[Path] = None,
+                                workflowUrl: Option[String] = None,
                                 workflowRoot: Option[String] = None,
                                 workflowInputs: Option[Path] = None,
                                 workflowOptions: Option[Path] = None,
@@ -58,33 +60,41 @@ case class CommandLineArguments(command: Option[Command] = None,
   }
 
   def validateSubmission(logger: Logger): ErrorOr[ValidSubmission] = {
-    val workflowPath = File(workflowSource.get.pathAsString)
+    val workflowPath = File(workflowSource.get.pathAsString) //TODO: Saloni-this will throw an error
 
-      val workflowAndDependencies: ErrorOr[(String, Option[File], Option[String])] = if (isCwl) {
-        logger.info("Pre Processing Workflow...")
-        lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, None)
+    //TODO: Saloni-how does this change with workflowUrl?
+    val workflowAndDependencies: ErrorOr[(String, Option[File], Option[String])] = if (isCwl) {
+      logger.info("Pre Processing Workflow...")
+      lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, None)
 
-        imports match {
-          case Some(explicitImports) => readOptionContent("Workflow source", workflowSource).map((_, Option(File(explicitImports.pathAsString)), workflowRoot))
-          case None => Try(preProcessedCwl.map((_, None, None)).value.unsafeRunSync())
-            .toChecked
-            .flatMap(identity)
-            .toValidated
-        }
-      } else readOptionContent("Workflow source", workflowSource).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
-
-      val inputsJson: ErrorOr[String] = if (isCwl) {
-        logger.info("Pre Processing Inputs...")
-        workflowInputs.map(preProcessCwlInputFile).getOrElse(readOptionContent("Workflow inputs", workflowInputs))
-      } else readOptionContent("Workflow inputs", workflowInputs)
-
-      val optionsJson = readOptionContent("Workflow options", workflowOptions)
-      val labelsJson = readOptionContent("Workflow labels", workflowLabels)
-
-      (workflowAndDependencies, inputsJson, optionsJson, labelsJson) mapN {
-        case ((w, z, r), i, o, l) =>
-          ValidSubmission(Option(w), r, i, o, l, z)
+      imports match {
+        case Some(explicitImports) => readOptionContent("Workflow source", workflowSource).map((_, Option(File(explicitImports.pathAsString)), workflowRoot))
+        case None => Try(preProcessedCwl.map((_, None, None)).value.unsafeRunSync())
+          .toChecked
+          .flatMap(identity)
+          .toValidated
       }
+    } else readOptionContent("Workflow source", workflowSource).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
+
+    val workflowSourceFinal: ErrorOr[String] = (workflowSource, workflowUrl) match {
+      case (Some(path), None) => readContent("Workflow source", path)
+      case (None, Some(url)) => PartialWorkflowSources.convertUrlToUri(url)
+      case (Some(_), Some(_)) => "Both Workflow source and Workflow url can't be supplied".invalidNel
+      case (None, None) => "Workflow source and Workflow url needs to be supplied".invalidNel
+    }
+
+    val inputsJson: ErrorOr[String] = if (isCwl) {
+      logger.info("Pre Processing Inputs...")
+      workflowInputs.map(preProcessCwlInputFile).getOrElse(readOptionContent("Workflow inputs", workflowInputs))
+    } else readOptionContent("Workflow inputs", workflowInputs)
+
+    val optionsJson = readOptionContent("Workflow options", workflowOptions)
+    val labelsJson = readOptionContent("Workflow labels", workflowLabels)
+
+    (workflowAndDependencies, inputsJson, optionsJson, labelsJson, workflowSourceFinal) mapN {
+      case ((w, z, r), i, o, l, _) =>
+        ValidSubmission(Option(w), workflowUrl, r, i, o, l, z)
+    }
   }
 
   /** Read the path to a string. */

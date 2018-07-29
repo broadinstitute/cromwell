@@ -279,15 +279,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowSource, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions, importResolvers))
     }
 
-    def workflowSourceAndResolvers(resolvers: List[ImportResolver]): Parse[(WorkflowSource, List[ImportResolver])] = fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, resolvers))
-
-
     val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
 
-    val zippedResolverCheck: Checked[Option[ImportResolver]] = sourceFiles.importsZipFileOption match {
+    val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck
       case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
-    }
+    })
 
     val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
@@ -295,8 +292,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ <- publishLabelsToMetadata(id, labels)
       zippedImportResolver <- zippedResolverCheck
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
-//      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
-      sourceAndResolvers <- workflowSourceAndResolvers(importResolvers)
+      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
       validatedNamespace <- buildValidatedNamespace(sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)

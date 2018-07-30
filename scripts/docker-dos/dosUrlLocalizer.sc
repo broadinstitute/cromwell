@@ -36,6 +36,10 @@ import spray.json._
 import spray.json.DefaultJsonProtocol._
 import scala.util.{Try, Success, Failure}
 
+import scala.concurrent.duration._
+import org.http4s.client._
+
+
 object MarthaResponseJsonSupport extends DefaultJsonProtocol {
   implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
   implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat1(DosDataObject)
@@ -90,12 +94,21 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
   println(s"scopedCredentials: $scopedCredentials")
   println(s"accessToken: $accessToken")
 
+  println(s"marthaUrl: $marthaUrl")
+
+  val longTimeoutConfig =
+    BlazeClientConfig
+      .defaultConfig
+      .copy(idleTimeout = 5.minutes)
+
   val marthaResponseIo: IO[MarthaResponse] = for {
-    httpClient <- Http1Client[IO]()
+    httpClient <- Http1Client[IO](config = longTimeoutConfig)
     postRequest <- Request[IO](method = Method.POST,
       uri = marthaUrl,
       headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
+    _ = println(s"httpRequest: $postRequest")
+    _ = println(s"httpRequest Body: ${requestBody}")
     httpResponse <- httpClient.expect[String](postRequest)
     _ = println(s"httpResponse: $httpResponse")
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]

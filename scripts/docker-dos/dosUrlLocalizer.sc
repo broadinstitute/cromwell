@@ -24,6 +24,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.ArrayList
 import org.http4s.client.blaze._
 import cats.effect._
 import org.http4s.dsl.io._
@@ -39,6 +40,7 @@ object MarthaResponseJsonSupport extends DefaultJsonProtocol {
   implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
   implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat1(DosDataObject)
   implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
+  implicit val googleServiceAccountFormat: JsonFormat[GoogleServiceAccount] = jsonFormat1(GoogleServiceAccount)
   implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
 }
 
@@ -48,7 +50,9 @@ case class DosDataObject(urls: Array[Url])
 
 case class DosObject(data_object: DosDataObject)
 
-case class MarthaResponse(dos: DosObject, googleServiceAccount: JsObject)
+case class GoogleServiceAccount(data: JsObject)
+
+case class MarthaResponse(dos: DosObject, googleServiceAccount: GoogleServiceAccount)
 
 
 @main
@@ -57,7 +61,7 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
     marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
-    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.toString, downloadLoc)
+    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
   } yield()
 
   dosResloverObj match {
@@ -75,20 +79,25 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
   import MarthaResponseJsonSupport._
 
   val requestBody = json"""{"url":$dosUrl}"""
+  val scopes = Lists.newArrayList("https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile")
 
   val credentials = GoogleCredentials.getApplicationDefault()
-  credentials.refreshAccessToken()
-  val accessToken = credentials.getAccessToken()
+  val scopedCredentials = credentials.createScoped(scopes)
+  val accessToken = scopedCredentials.refreshAccessToken().getTokenValue()
+
+  println(s"credentials: $credentials")
+  println(s"scopedCredentials: $scopedCredentials")
+  println(s"accessToken: $accessToken")
 
   val marthaResponseIo: IO[MarthaResponse] = for {
     httpClient <- Http1Client[IO]()
-    //request to fake Martha
-    postRequest <- Request[IO](
-      method = Method.POST,
+    postRequest <- Request[IO](method = Method.POST,
       uri = marthaUrl,
       headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)
+    _ = println(s"httpResponse: $httpResponse")
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
   } yield marthaResObj
 

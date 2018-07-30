@@ -25,17 +25,28 @@ case class WorkflowData(workflowContent: Option[String],
 
 object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: Path): ErrorOr[WorkflowData] = {
-    filesConfig.as[Option[String]]("workflow") match {
-      case Some(workflow) => Valid(WorkflowData(
-        workflowPath = Option(basePath.resolve(workflow)), //TODO: Saloni-What about this?
+    val workflowUrl = filesConfig.as[Option[String]]("workflowUrl")
+    val workflowSourcePath = filesConfig.as[Option[String]]("workflow")
+
+    (workflowSourcePath, workflowUrl) match {
+      case (Some(workflowPath), None) => Valid(WorkflowData(
+        workflowPath = Option(basePath.resolve(workflowPath)),
+        workflowUrl = None,
         filesConfig = filesConfig,
         fullConfig = fullConfig,
         basePath = basePath))
-      case None => invalidNel(s"No 'workflow' path provided.")
+      case (None, Some(_)) => Valid(WorkflowData(
+        workflowPath = None,
+        workflowUrl = workflowUrl,
+        filesConfig = filesConfig,
+        fullConfig = fullConfig,
+        basePath = basePath))
+      case (Some(_), Some(_)) => invalidNel(s"Both 'workflow' path or 'workflowUrl' can't be provided.")
+      case (None, None) => invalidNel(s"No 'workflow' path or 'workflowUrl' provided.")
     }
   }
 
-  def apply(workflowPath: Option[Path], filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
+  def apply(workflowPath: Option[Path], workflowUrl: Option[String], filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
     def getOptionalPath(name: String) = filesConfig.get[Option[Path]](name) valueOrElse None map basePath.resolve
 
     def getImports = filesConfig.get[List[Path]]("imports") match {
@@ -64,14 +75,14 @@ object WorkflowData {
       getOptionalPath("labels") map { _.slurp.parseJson.convertTo[List[Label]] } getOrElse List.empty
     }
 
+    val workflowSource = if (workflowPath.isDefined) Option(workflowPath.get.slurp) else None
     val workflowType = fullConfig.get[Option[String]]("workflowType").value
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
     val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
-    val workflowUrl = fullConfig.get[Option[String]]("workflowUrl").value
 
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
-      workflowContent = Option((workflowPath.get).slurp), ////TODO: Saloni-What about this?
+      workflowContent = workflowSource,
       workflowUrl = workflowUrl,
       workflowRoot = workflowRoot,
       workflowType = workflowType,

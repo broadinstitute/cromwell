@@ -152,17 +152,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case Valid((workflowOptions, pathBuilders)) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
-//            val localFilesystemResolvers = if (importLocalFilesystem) List(localFileResolver) else List.empty
-//            val importResolvers: List[ImportResolver] = workflowSourceFiles.importsZipFileOption.map(zippedImportsResolver).toList ++ localFilesystemResolvers :+ ImportResolver.httpResolver
-//
-//            for {
-//              (s, i) <- findWorkflowSource(workflowSourceFiles.workflowSource, workflowSourceFiles.workflowUrl, importResolvers)
-//              e <- buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions, s, i).
-//                value.
-//                unsafeToFuture().
-//                map(_.toValidated)
-//            } yield e
-
             buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
               value.
               unsafeToFuture().

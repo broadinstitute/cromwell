@@ -229,7 +229,8 @@ object CromwellClient {
     import cromwell.api.model.LabelsJsonFormatter._
 
     val sourceBodyParts = Map(
-      "workflowSource" -> Option(workflowSubmission.workflowSource),
+      "workflowSource" -> workflowSubmission.workflowSource,
+      "workflowUrl" -> workflowSubmission.workflowUrl,
       "workflowRoot" -> workflowSubmission.workflowRoot,
       "workflowType" -> workflowSubmission.workflowType,
       "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,

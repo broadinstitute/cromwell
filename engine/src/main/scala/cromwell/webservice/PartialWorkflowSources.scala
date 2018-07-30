@@ -211,9 +211,17 @@ object PartialWorkflowSources {
       }
     }
 
-    def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[String] = {
+    def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[Option[String]] = {
+      def convertUrlToUri(workflowUrl: String): ErrorOr[Option[String]] = {
+        Try(Uri(workflowUrl)) match {
+          case Success(_) => Some(workflowUrl).validNel
+          case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
+          case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
+        }
+      }
+
       workflowUrl match {
-        case None => "Valid".validNel
+        case None => None.validNel
         case Some(url) => convertUrlToUri(url)
       }
     }
@@ -227,7 +235,7 @@ object PartialWorkflowSources {
           case (wfInputs, wfOptions, workflowLabels, wfUrl) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
-              workflowUrl = Option(wfUrl),
+              workflowUrl = wfUrl,
               workflowRoot = partialSource.workflowRoot,
               workflowType = partialSource.workflowType,
               workflowTypeVersion = partialSource.workflowTypeVersion,
@@ -256,14 +264,6 @@ object PartialWorkflowSources {
           throw new RuntimeException(s"Submitted inputs couldn't be processed, please check for syntactical errors")
       }
       case None => Map.empty
-    }
-  }
-
-  def convertUrlToUri(workflowUrl: String): ErrorOr[String] = {
-    Try(Uri(workflowUrl)) match {
-      case Success(_) => workflowUrl.validNel
-      case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
-      case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
     }
   }
 }

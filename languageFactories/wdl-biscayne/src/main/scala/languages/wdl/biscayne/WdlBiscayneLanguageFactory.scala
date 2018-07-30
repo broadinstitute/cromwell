@@ -44,7 +44,7 @@ class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends 
     }
 
     val checked: Checked[ValidatedWomNamespace] = for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       zippedImportResolver <- zippedResolverCheck
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       bundle <- getWomBundle(source.workflowSource, source.workflowOptionsJson, importResolvers, factories)

@@ -4,6 +4,7 @@ import cats.instances.list._
 import cats.instances.map._
 import cats.syntax.foldable._
 import cats.{Monoid, Semigroup}
+import common.collections.EnhancedCollections._
 import cromwell.core._
 import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.services.metadata._
@@ -42,7 +43,7 @@ object MetadataComponent {
 
   implicit val metadataComponentJsonWriter: JsonWriter[MetadataComponent] = JsonWriter.func2Writer[MetadataComponent] {
     case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this.metadataComponentJsonWriter) })
-    case MetadataObject(values) => JsObject(values.mapValues(_.toJson(this.metadataComponentJsonWriter)))
+    case MetadataObject(values) => JsObject(values.safeMapValues(_.toJson(this.metadataComponentJsonWriter)))
     case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
     case MetadataEmptyComponent => JsObject.empty
     case MetadataNullComponent => JsNull

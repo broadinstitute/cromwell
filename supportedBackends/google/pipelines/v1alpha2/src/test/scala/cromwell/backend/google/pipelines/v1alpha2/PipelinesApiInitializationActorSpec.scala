@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
+import common.collections.EnhancedCollections._
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorSpec._
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.genomicsFactory
 import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiAuthObject}
@@ -89,7 +90,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val workflowOptions = WorkflowOptions.fromMap(Map("refresh_token" -> "mytoken")).get
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint),
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint),
       options = workflowOptions
     )
     val calls = workflowDescriptor.callable.taskCallNodes

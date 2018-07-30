@@ -5,6 +5,7 @@ import java.io.FileNotFoundException
 import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.exceptions.{ClientException, ServerException}
+import common.collections.EnhancedCollections._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
@@ -96,7 +97,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     }
 
     // Collect all WomFiles from inputs to the call.
-    val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs mapValues {
+    val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.fullyQualifiedInputs safeMapValues {
       _.collectAsSeq { case w: WomFile => w }
     }
 

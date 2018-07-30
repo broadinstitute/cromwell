@@ -1,5 +1,6 @@
 package wdl.values
 
+import common.collections.EnhancedCollections._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl.SampleWdl
@@ -171,7 +172,7 @@ class WdlValueSpec extends FlatSpec with Matchers {
   private def describe(womValue: WomValue): String = {
     womValue match {
       case WdlCallOutputsObject(call, outputs) =>
-        s"WdlCallOutputsObject(${call.unqualifiedName}, ${outputs.mapValues(_.toWomString)})"
+        s"WdlCallOutputsObject(${call.unqualifiedName}, ${outputs.safeMapValues(_.toWomString)})"
       case _ => womValue.toWomString
     }
   }

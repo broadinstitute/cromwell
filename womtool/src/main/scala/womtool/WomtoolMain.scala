@@ -82,12 +82,12 @@ object WomtoolMain extends App {
     // Get imports directly from WdlNamespace, because they are erased during WOMification
     val maybeWdlNamespace: Try[WdlNamespace] =
       // TODO: do we need directory resolver also? Not clear how to reference it.
-      WdlNamespace.loadUsingPath(Paths.get(workflowSourcePath), None, Some(List(WdlNamespace.fileResolver, httpResolver)))
+      WdlNamespace.loadUsingPath(Paths.get(workflowSourcePath), None, Option(List(WdlNamespace.fileResolver, httpResolver)))
 
     def upgradeImport(draft2Import: Import): ImportElement = {
       if (draft2Import.namespaceName.nonEmpty)
         // draft-2 does not have structs, so the source WDL will not have any for us to rename
-        ImportElement(draft2Import.uri, Some(draft2Import.namespaceName), Map())
+        ImportElement(draft2Import.uri, Option(draft2Import.namespaceName), Map())
       else
         ImportElement(draft2Import.uri, None, Map())
     }

@@ -64,15 +64,12 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
     // Upgrade the imports and copy to main working dir (precludes transitive imports; no recursion yet)
     workingDir.list.toList.map { file: File =>
-      println(s"Upgrading import ${file.pathAsString}")
       val upgradedWdl = WomtoolMain.upgrade(file.pathAsString).stdout.get
       upgradedImportsDir.createChild(file.name).append(upgradedWdl)
     }
 
     // Copy to working directory after we operate on the imports that are in it
     rootWorkflowFile.copyTo(rootWorkflowFilepath)
-
-    println(s"Upgrading $rootWorkflowFilepath...")
 
     val upgradeResult = WomtoolMain.upgrade(rootWorkflowFilepath.pathAsString)
 
@@ -81,16 +78,18 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
       case _ => ()
     }
 
-//    rootWorkflowFile.delete(true)
-//    importsDir.delete(true)
-//    workingDir.delete(true)
-
-    testCase.copy(
+    val newCase = testCase.copy(
       workflow = testCase.workflow.copy(
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
           workflowContent = upgradeResult.stdout.get,
-          zippedImports = Option(upgradedImportsDir.zip()))))
+          zippedImports = Option(upgradedImportsDir.zip())))) // An empty zip appears to be completely harmless, so no special handling
+
+    rootWorkflowFile.delete(true)
+    upgradedImportsDir.delete(true)
+    workingDir.delete(true)
+
+    newCase
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {

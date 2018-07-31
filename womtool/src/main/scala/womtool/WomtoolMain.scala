@@ -2,6 +2,7 @@ package womtool
 
 import java.nio.file.Paths
 
+import better.files.File
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.{AstTools, WdlNamespace}
@@ -77,12 +78,18 @@ object WomtoolMain extends App {
   def upgrade(workflowSourcePath: String): Termination = {
     import wdl.model.draft3.elements.ImportElement
     import wdl.draft2.model.Import
-    import languages.wdl.draft2.WdlDraft2LanguageFactory.httpResolver
 
     // Get imports directly from WdlNamespace, because they are erased during WOMification
     val maybeWdlNamespace: Try[WdlNamespace] =
       // TODO: do we need directory resolver also? Not clear how to reference it.
-      WdlNamespace.loadUsingPath(Paths.get(workflowSourcePath), None, Option(List(WdlNamespace.fileResolver, httpResolver)))
+      WdlNamespace.loadUsingPath(
+        Paths.get(workflowSourcePath),
+        None,
+        Option(List(
+          WdlNamespace.directoryResolver(File(workflowSourcePath).parent),
+          WdlNamespace.fileResolver
+        ))
+      )
 
     def upgradeImport(draft2Import: Import): ImportElement = {
       if (draft2Import.namespaceName.nonEmpty)

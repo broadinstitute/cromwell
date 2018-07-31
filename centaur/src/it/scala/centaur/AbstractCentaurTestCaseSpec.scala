@@ -50,7 +50,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     import better.files.File
 
     // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
-    val rootWorkflowFile = File.newTemporaryFile(suffix = "wdl").append(testCase.workflow.data.workflowContent)
+    val rootWorkflowFile = File.newTemporaryFile(suffix = ".wdl").append(testCase.workflow.data.workflowContent)
     val workingDir = File.newTemporaryDirectory()
     val rootWorkflowFilepath = workingDir / rootWorkflowFile.name
 
@@ -62,12 +62,17 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
       case None => ()
     }
 
+    println(s"Upgrading $rootWorkflowFilepath...")
+
     val upgradeResult = WomtoolMain.upgrade(rootWorkflowFilepath.pathAsString)
 
     upgradeResult.stderr match {
       case Some(stderr) => println(stderr)
       case _ => ()
     }
+
+    rootWorkflowFile.delete(true)
+    workingDir.delete(true)
 
     testCase.copy(
       workflow = testCase.workflow.copy(

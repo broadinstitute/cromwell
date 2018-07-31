@@ -50,7 +50,7 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
 
     import cwl.AcceptAllRequirements
     for {
-      _ <- fromEither[IO](standardConfig.enabledCheck)
+      _ <- fromEither[IO](enabledCheck)
       cwlFile <- writeCwlFileToNewTempDir()
       _ <- unzipDependencies(cwlFile)
       cwl <- CwlDecoder.decodeCwlFile(cwlFile, source.workflowRoot)
@@ -61,10 +61,10 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
   }
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
-    standardConfig.enabledCheck flatMap { _ => "No getWomBundle method implemented in CWL v1".invalidNelCheck }
+    enabledCheck flatMap { _ => "No getWomBundle method implemented in CWL v1".invalidNelCheck }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
-    standardConfig.enabledCheck flatMap { _ => "No createExecutable method implemented in CWL v1".invalidNelCheck }
+    enabledCheck flatMap { _ => "No createExecutable method implemented in CWL v1".invalidNelCheck }
 
   override def looksParsable(content: String): Boolean = content.lines.exists { l =>
     val trimmed = l.trim.stripSuffix(",")

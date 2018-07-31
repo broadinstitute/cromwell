@@ -12,7 +12,7 @@ import common.validation.Checked._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Parse.Parse
 import cromwell.core._
-import cromwell.languages.util.ImportResolver.ImportResolver
+import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
@@ -90,7 +90,7 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
     }
 
     val checked: Checked[ValidatedWomNamespace] = for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
@@ -115,14 +115,14 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked
       womBundle <- namespace.toWomBundle
     } yield womBundle
   }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
-    _ <- standardConfig.enabledCheck
+    _ <- enabledCheck
     executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, standardConfig.strictValidation)
     validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
   } yield validatedNamespace
@@ -132,11 +132,11 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
 }
 
 object WdlDraft2LanguageFactory {
-  private def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.run(str) match {
-    case Right(imported) => imported
+  private def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.resolver.run(ImportResolutionRequest(str, List.empty)) match {
+    case Right(imported) => imported.source
     case Left(errors) => throw new RuntimeException(s"Bad import $str: ${errors.toList.mkString(System.lineSeparator)}")
   }
 
-  val httpResolver = resolverConverter(ImportResolver.httpResolver)
-  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.httpResolverWithHeaders(headers))
+  val httpResolver = resolverConverter(ImportResolver.HttpResolver())
+  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.HttpResolver(headers = headers))
 }

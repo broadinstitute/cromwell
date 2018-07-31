@@ -3,6 +3,7 @@ package common.util
 import java.io.{PrintWriter, StringWriter}
 
 import common.exception.AggregatedException
+import common.collections.EnhancedCollections._
 
 import scala.util.{Failure, Success, Try}
 
@@ -42,7 +43,7 @@ object TryUtil {
   }
 
   def sequenceMap[T, U](tries: Map[T, Try[U]], prefixErrorMessage: String = ""): Try[Map[T, U]] = {
-    def unbox = tries mapValues { _.get }
+    def unbox = tries safeMapValues { _.get }
     sequenceIterable(tries.values, unbox _, prefixErrorMessage)
   }
 

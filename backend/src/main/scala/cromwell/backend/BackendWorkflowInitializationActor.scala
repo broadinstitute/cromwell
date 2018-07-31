@@ -6,6 +6,7 @@ import cats.data.Validated.{Invalid, Valid, _}
 import cats.data.{NonEmptyList, ValidatedNel}
 import cats.instances.list._
 import cats.syntax.traverse._
+import common.collections.EnhancedCollections._
 import common.validation.Validation._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
@@ -77,7 +78,7 @@ object BackendWorkflowInitializationActor {
                                  ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
 
       //This map append will overwrite default key/values with runtime settings upon key collisions
-      val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
+      val lookups = defaultRuntimeAttributes.safeMapValues(_.asWomExpression) ++ runtimeAttributes
 
       runtimeAttributeValidators.toList.traverse{
         case (attributeName, validator) =>

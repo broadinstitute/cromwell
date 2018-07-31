@@ -46,6 +46,7 @@ import software.amazon.awssdk.services.batch.model.
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest
 import cromwell.backend.BackendJobDescriptor
+import cromwell.core.path.Path
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -132,11 +133,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
                              dockerRc: String,                              // Calculated from StandardAsyncExecutionActor
                              dockerStdout: String,                          // Calculated from StandardAsyncExecutionActor
                              dockerStderr: String,                          // Calculated from StandardAsyncExecutionActor
+                             callExecutionRoot: Path,                    // Based on config, calculated in Job Paths, key to all things outside container
                              parameters: Seq[AwsBatchParameter]
                              ) {
 
   val Log = LoggerFactory.getLogger(AwsBatchJob.getClass)
-
   // TODO: Auth, endpoint
   lazy val client = BatchClient.builder()
                    // .credentialsProvider(...)
@@ -181,22 +182,24 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
   }
   def submitJob(): Try[SubmitJobResponse] = Try {
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
+    val workflow = jobDescriptor.workflowDescriptor
+    val uniquePath = workflow.callable.name + "/" +
+                     jobDescriptor.taskCall.callable.name + "/" +
+                     workflow.id + "/" +
+                     jobDescriptor.key.index + "/" +
+                     jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
     Log.info(s"""commandLine: $commandLine""")
     Log.info(s"""reconfiguredScript: $reconfiguredScript""")
     Log.info(s"""taskId: $taskId""")
-    // Log.info(s"""logFileName: $logFileName""")
-
-    // runtimeAttributes
-    // dockerImage ceomse from the WDL task definition
-    // commandList
-    lazy val workflow = jobDescriptor.workflowDescriptor
+    Log.info(s"""hostpath root: $uniquePath""")
+    Log.info(s"""callExecutionRoot: $callExecutionRoot""")
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
-    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", taskId)
+    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath)
 
     val job = client.submitJob(SubmitJobRequest.builder()
                 .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
@@ -219,7 +222,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
    */
   private def createDefinition(name: String, taskId: String): String = {
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
-    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes, runtimeAttributes.dockerImage, taskId)
+    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes,
+                                                   runtimeAttributes.dockerImage, taskId, dockerRc, jobDescriptor, callExecutionRoot)
 
     // See:
     //

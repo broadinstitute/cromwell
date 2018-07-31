@@ -41,6 +41,7 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration} // TestProbe
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import common.collections.EnhancedCollections._
 // import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
@@ -442,7 +443,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, exceptions = Set.empty)(womValue).get
         }
 
-        val mappedInputs = jobDescriptor.localInputs mapValues pathToLocal
+        val mappedInputs = jobDescriptor.localInputs safeMapValues pathToLocal
 
         mappedInputs(stringKey) match {
           case WomString(v) => assert(v.equalsIgnoreCase(stringVal.value))

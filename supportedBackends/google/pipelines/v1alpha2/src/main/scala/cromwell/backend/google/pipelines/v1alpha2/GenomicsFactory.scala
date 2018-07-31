@@ -5,6 +5,7 @@ import java.net.URL
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.services.genomics.Genomics
 import com.google.api.services.genomics.model._
+import common.collections.EnhancedCollections._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput}
@@ -65,8 +66,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           ).asJava)
         val rpargs = new RunPipelineArgs().setProjectId(createPipelineParameters.projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
 
-        rpargs.setInputs((inputParameters.mapValues(_.toGoogleRunParameter) ++ literalInputRunParameters).asJava)
-        rpargs.setOutputs(outputParameters.mapValues(_.toGoogleRunParameter).asJava)
+        rpargs.setInputs((inputParameters.safeMapValues(_.toGoogleRunParameter) ++ literalInputRunParameters).asJava)
+        rpargs.setOutputs(outputParameters.safeMapValues(_.toGoogleRunParameter).asJava)
 
         rpargs.setLabels(createPipelineParameters.labels.asJavaMap)
 

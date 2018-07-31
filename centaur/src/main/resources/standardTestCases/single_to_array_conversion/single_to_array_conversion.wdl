@@ -21,5 +21,5 @@ task listFiles {
 
 workflow oneToMany {
   call singleFile
-  call listFiles { input: manyIn = singleFile.out }
+  call listFiles { input: manyIn = [ singleFile.out ] }
 }

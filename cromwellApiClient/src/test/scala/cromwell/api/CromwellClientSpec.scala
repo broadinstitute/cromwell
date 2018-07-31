@@ -94,6 +94,25 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
       Map("workflowDependencies" -> tempFile)
     ),
 
+    ("submit a wdl using workflow url",
+      WorkflowSingleSubmission(
+        None,
+        Option("https://link-to-url"),
+        None,
+        None,
+        None,
+        None,
+        None,
+        Option(List(Label("labelKey", "labelValue"))),
+        None
+      ),
+      Map(
+        "workflowUrl" -> "https://link-to-url",
+        "labels" -> """{"labelKey":"labelValue"}"""
+      ),
+      Map("workflowDependencies" -> None)
+    ),
+
     ("batch submit a wdl with data",
       WorkflowBatchSubmission(
         Option("wdl"),

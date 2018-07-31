@@ -1,9 +1,7 @@
 package cromwell.webservice
 
 import _root_.io.circe.yaml
-import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{IllegalUriException, Uri}
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
@@ -38,11 +36,6 @@ final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] =
                                         workflowOnHold: Boolean)
 
 object PartialWorkflowSources {
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
-  implicit val executionContext = system.dispatcher
-
-
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
 
   val WdlSourceKey = "wdlSource"

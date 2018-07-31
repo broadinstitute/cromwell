@@ -58,7 +58,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
       workflow = testCase.workflow.copy(
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
-          workflowContent = Option(upgradeResult.stdout.get)))) ////TODO: Saloni-What about this?
+          workflowContent = Option(upgradeResult.stdout.get))))
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {

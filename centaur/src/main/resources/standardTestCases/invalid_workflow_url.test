@@ -1,0 +1,13 @@
+name: invalid_workflow_url
+testFormat: workflowfailure
+tags: [ upgrade ]
+
+files {
+  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist"
+}
+
+metadata {
+  status: Failed
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Failed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist' using resolver: 'relative to directory / (without escaping None)' (reason 1 of 1): Import file not found: https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist"
+}

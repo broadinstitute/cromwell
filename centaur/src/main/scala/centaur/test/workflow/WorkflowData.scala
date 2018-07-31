@@ -54,20 +54,30 @@ object WorkflowData {
       case Failure(_) => None
     }
 
+    def getImportsDirName(workflowPath: Option[Path], workflowUrl: Option[String]): String = {
+      if (workflowPath.isDefined)
+        workflowPath.get.getFileName.toString.replaceAll("\\.[^.]*$", "")
+      else {// workflow url is defined
+        val fileName = workflowUrl.get.split("/").last
+        fileName.replaceAll("\\.[^.]*$", "")
+      }
+    }
+
     def zipImports(imports: List[Path]): Option[File] = {
-      val zippedDir = imports match {
+      imports match {
         case Nil => None
-        case _ =>
-          val importsDirName = workflowPath.get.getFileName.toString.replaceAll("\\.[^.]*$", "") //TODO: Saloni-What about this?
+        case _ => {
+          val importsDirName = getImportsDirName(workflowPath, workflowUrl)
           val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.toAbsolutePath.toString)
             val destFile = importsDir / srcFile.name
-            srcFile.copyTo(destFile, overwrite = true) }
+            srcFile.copyTo(destFile, overwrite = true)
+          }
 
           Option(importsDir.zip())
+        }
       }
-      zippedDir
     }
 
     def getLabels: List[Label] = {

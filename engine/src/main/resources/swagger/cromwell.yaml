@@ -106,7 +106,7 @@ paths:
         - $ref: '#/parameters/versionParam'
         - name: workflowSource
           description: The workflow source file to submit for execution.
-          required: true
+          required: false
           type: file
           in: formData
         - name: workflowUrl

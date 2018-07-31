@@ -60,12 +60,11 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
       case w: WorkflowSourceFilesWithDependenciesZip =>
         for {
           importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
-          betterFilesImportsDir = better.files.File(importsDir.pathAsString)
-          wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr //TODO: Saloni-which resolver to use here?
+          wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
           _ = importsDir.delete(swallowIOExceptions = true)
         } yield wf
       case _: WorkflowSourceFilesWithoutImports =>
-        WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr //TODO: Saloni-which resolver to use here?
+        WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
     }
 
     def evaluateImports(wdlNamespace: WdlNamespace): Map[String, String] = {

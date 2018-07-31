@@ -15,6 +15,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.core.labels.Label
+import eu.timepit.refined.string.Url
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue, _}
 import wdl.draft2.model.WorkflowJson
@@ -206,7 +207,7 @@ object PartialWorkflowSources {
 
     def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[Option[String]] = {
       def convertUrlToUri(workflowUrl: String): ErrorOr[Option[String]] = {
-        Try(Uri(workflowUrl)) match {
+        Try(Uri(workflowUrl)) match { //TODO: Saloni- Can this validation be made better?
           case Success(_) => Some(workflowUrl).validNel
           case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
           case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel

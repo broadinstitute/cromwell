@@ -52,15 +52,25 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
     val rootWorkflowFile = File.newTemporaryFile(suffix = ".wdl").append(testCase.workflow.data.workflowContent)
     val workingDir = File.newTemporaryDirectory()
+    val upgradedImportsDir = File.newTemporaryDirectory()
     val rootWorkflowFilepath = workingDir / rootWorkflowFile.name
 
-    rootWorkflowFile.copyTo(rootWorkflowFilepath)
-
+    // Un-upgraded imports go into the working directory
     testCase.workflow.data.zippedImports match {
       case Some(importsZip: File) =>
         importsZip.unzipTo(workingDir)
       case None => ()
     }
+
+    // Upgrade the imports and copy to main working dir (precludes transitive imports; no recursion yet)
+    workingDir.list.toList.map { file: File =>
+      println(s"Upgrading import ${file.pathAsString}")
+      val upgradedWdl = WomtoolMain.upgrade(file.pathAsString).stdout.get
+      upgradedImportsDir.createChild(file.name).append(upgradedWdl)
+    }
+
+    // Copy to working directory after we operate on the imports that are in it
+    rootWorkflowFile.copyTo(rootWorkflowFilepath)
 
     println(s"Upgrading $rootWorkflowFilepath...")
 
@@ -71,14 +81,16 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
       case _ => ()
     }
 
-    rootWorkflowFile.delete(true)
-    workingDir.delete(true)
+//    rootWorkflowFile.delete(true)
+//    importsDir.delete(true)
+//    workingDir.delete(true)
 
     testCase.copy(
       workflow = testCase.workflow.copy(
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
-          workflowContent = upgradeResult.stdout.get)))
+          workflowContent = upgradeResult.stdout.get,
+          zippedImports = Option(upgradedImportsDir.zip()))))
   }
 
   private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {

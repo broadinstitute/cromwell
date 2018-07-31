@@ -1,15 +1,6 @@
 package cromwell.languages
 
-import common.validation.Checked._
-import common.Checked
-
-final case class StandardLanguageFactoryConfig(strictValidation: Boolean, enabled: Boolean, unusedKeys: Map[String, Any]) {
-  def enabledCheck: Checked[Unit] = if (enabled) {
-    ().validNelCheck
-  } else {
-    "WDL draft 3 is not enabled".invalidNelCheck
-  }
-}
+final case class StandardLanguageFactoryConfig(strictValidation: Boolean, enabled: Boolean, unusedKeys: Map[String, Any])
 
 object StandardLanguageFactoryConfig {
   def parse(values: Map[String, Any], allowExtras: Boolean): StandardLanguageFactoryConfig = {

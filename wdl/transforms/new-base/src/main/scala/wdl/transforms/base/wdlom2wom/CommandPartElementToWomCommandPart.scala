@@ -78,7 +78,7 @@ case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, e
     case WomOptionalValue(_, Some(v)) => instantiateFromValue(value.copy(value = v), valueMapper)
     case WomOptionalValue(_, None) => attributes.defaultAttribute match {
       case Some(default) => InstantiatedCommand(commandString = default, createdFiles = value.sideEffectFiles.toList).validNel
-      case None => "Optional value was not set and no 'default' attribute was provided".invalidNel
+      case None => InstantiatedCommand(commandString = "", createdFiles = value.sideEffectFiles.toList).validNel
     }
     case WomArray(WomArrayType(_ : WomPrimitiveType), arrayValue) => attributes.sepAttribute match {
       case Some(separator) => InstantiatedCommand(commandString = arrayValue.map(valueMapper(_).valueString).mkString(separator), createdFiles = value.sideEffectFiles.toList).validNel

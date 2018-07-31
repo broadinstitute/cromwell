@@ -1,10 +1,14 @@
 package common.util
 
-import org.scalatest.{FlatSpec, Matchers}
 import common.util.IntrospectableLazy._
 
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
+import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.concurrent.Futures
+import scala.concurrent.duration._
 
-class IntrospectableLazySpec extends FlatSpec with Matchers {
+class IntrospectableLazySpec extends FlatSpec with Matchers with Futures {
 
   behavior of "IntrospectableLazy"
 
@@ -21,9 +25,16 @@ class IntrospectableLazySpec extends FlatSpec with Matchers {
     assert(lazyInstantiations == 0)
     assert(!myLazy.exists)
 
-    assert(myLazy() == 4)
-    assert(myLazy() == 4)
-    assert(myLazy() == 4)
+    Await.result(Future.sequence(
+      Seq(
+        Future {
+          myLazy() shouldBe 4
+        },
+        Future {
+          myLazy() shouldBe 4
+        }
+      )
+    ), 1.seconds)
 
     assert(lazyInstantiations == 1)
     assert(myLazy.exists)

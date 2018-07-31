@@ -156,7 +156,7 @@ class S3PathBuilder(client: S3Client,
 
 case class S3Path private[s3](nioPath: NioPath,
                                bucket: String,
-                               client: S3Client,
+                               client: S3Client
                                ) extends Path {
   override protected def newPath(nioPath: NioPath): S3Path = S3Path(nioPath, bucket, client)
 

@@ -1,0 +1,117 @@
+#!/bin/sh
+# Copyright 2018 Amazon.com, Inc. or its affiliates.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions are met:
+#
+#  1. Redistributions of source code must retain the above copyright notice,
+#  this list of conditions and the following disclaimer.
+#
+#  2. Redistributions in binary form must reproduce the above copyright
+#  notice, this list of conditions and the following disclaimer in the
+#  documentation and/or other materials provided with the distribution.
+#
+#  3. Neither the name of the copyright holder nor the names of its
+#  contributors may be used to endorse or promote products derived from
+#  this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+#  BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+#  THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+#  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+#  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+
+# We expect the following environment variables:
+#
+# AWS_CROMWELL_TASK_DOCKER_ID
+# AWS_CROMWELL_RC_FILE
+# AWS_CROMWELL_PATH
+# AWS_CROMWELL_LOCAL_DISK
+# AWS_CROMWELL_CALL_ROOT
+
+waitfor() {
+  echo Watching "$1". Will return when "$2" is found
+  inotifywait -r -e close_write,moved_to,moved_from,delete -m "$1" | while read -r path action file; do
+    if [ "$file" = "$2" ]; then
+      echo Target file found - killing inotifywait and returning
+      killall inotifywait # inotifywait will simply hang out with a return like this
+      return
+    fi
+    localDiskRelativePath=${path#"${AWS_CROMWELL_LOCAL_DISK}/"}
+    if [ "$action" = "MOVED_TO" ] || [ "$action" = "CLOSE_WRITE,CLOSE" ]; then
+      case $path in
+        ${AWS_CROMWELL_LOCAL_DISK}/${exclude}*)
+          echo skipping change in excluded directory
+          ;;
+        *)
+          aws s3 cp "${path}${file}" "$AWS_CROMWELL_CALL_ROOT/${localDiskRelativePath}${file}"
+      esac
+    elif [ "$action" = "MOVED_FROM" ]; then
+      case $path in
+        ${AWS_CROMWELL_LOCAL_DISK}/${exclude}*)
+          echo skipping change in excluded directory
+          ;;
+        *)
+          # The file was removed from the local disk, so we'll remove it
+          # from s3 as well.
+          aws s3 rm "$AWS_CROMWELL_CALL_ROOT/${localDiskRelativePath}${file}"
+      esac
+    fi
+  done
+}
+
+###########################################################################
+# The general plan is to do a sync of all workflow files into the container
+# We share the same volumes/mount points of the original, so we can go to
+# town here. Generally, we assume all *inputs* come from
+# AWS_CROMWELL_WORKFLOW_ROOT
+# All *outputs* will eventually end up in AWS_CROMWELL_CALL_ROOT.
+# However, within the container, this root is effectively AWS_CROMWELL_LOCAL_DISK
+#
+# The trick here is that the inputs are also landed inside
+# AWS_CROMWELL_LOCAL_DISK. So we need to exclude the inputs from being
+# synced (both real time and in batch at the end), so we do some fancy
+# stuff for that
+###########################################################################
+# call root example: s3://cromwell-aws/cromwell-execution/...
+# localRoot example: /cromwell_root/cromwell-aws/cromwell-execution...
+# AWS_CROMWELL_PATH example: ...
+localCallRoot="$AWS_CROMWELL_LOCAL_DISK"/"${AWS_CROMWELL_CALL_ROOT#"s3://"}"
+localWorkflowRoot="$AWS_CROMWELL_LOCAL_DISK"/"${AWS_CROMWELL_WORKFLOW_ROOT#"s3://"}"
+suffix="/*"
+exclude=${AWS_CROMWELL_CALL_ROOT#"s3://"}
+exclude=${exclude%%$suffix}
+echo "syncing files from s3"
+echo "source ${AWS_CROMWELL_WORKFLOW_ROOT}, dest $localWorkflowRoot"
+aws s3 sync "$AWS_CROMWELL_WORKFLOW_ROOT" "$localWorkflowRoot"
+echo "Resuming container"
+docker unpause "$AWS_CROMWELL_TASK_DOCKER_ID"
+# Place watch for the rc file
+waitfor "$AWS_CROMWELL_LOCAL_DISK" "${AWS_CROMWELL_RC_FILE#"${AWS_CROMWELL_LOCAL_DISK}/"}"
+
+# We'll pause the task container while we do our work. This will prevent
+# the container from exiting before files are out on S3. Also, the ecs agent
+# has some cleanup, and we don't want a race condition with that process
+docker pause "$AWS_CROMWELL_TASK_DOCKER_ID"
+
+###########################################################################
+# Now we will do the final sync. If we've done the job right, this sync
+# should only copy the rc file in place to s3, since all the other files
+# should have been caught during the task run with our inotifywatch magic(tm)
+###########################################################################
+echo "syncing files with s3"
+echo aws s3 sync "$AWS_CROMWELL_LOCAL_DISK" "$AWS_CROMWELL_CALL_ROOT" --exclude "${exclude}/*"
+aws s3 sync "$AWS_CROMWELL_LOCAL_DISK" "$AWS_CROMWELL_CALL_ROOT" --exclude "${exclude}/*"
+
+# We'll resume the container, which should have no work left but a final exit
+echo "Resuming container"
+docker unpause "$AWS_CROMWELL_TASK_DOCKER_ID"
+echo "Done - exiting"
+exit $?

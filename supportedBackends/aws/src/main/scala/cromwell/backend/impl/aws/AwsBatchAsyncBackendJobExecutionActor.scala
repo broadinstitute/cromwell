@@ -135,7 +135,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                   instantiatedCommand.commandString,
                                   script.toString,
                                   rcPath.toString, executionStdout, executionStderr,
-                                  jobPaths.callExecutionRoot, Seq.empty[AwsBatchParameter])
+                                  jobPaths, Seq.empty[AwsBatchParameter])
   }
   /* Tries to abort the job in flight
    *
@@ -425,7 +425,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
-        case Success(path: S3Path) => workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
+        case Success(path: S3Path) => workingDisk.mountPoint.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
         case _ => value
       }
     )

@@ -51,7 +51,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     import womtool.WomtoolMain
 
     // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
-    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent.get) //TODO: Saloni-What about this?
+    val tempFile: path.Path = DefaultPathBuilder.createTempFile(suffix = "wdl").append(testCase.workflow.data.workflowContent.get)
     val upgradeResult = WomtoolMain.upgrade(tempFile.pathAsString)
 
     testCase.copy(

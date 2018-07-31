@@ -1,6 +1,5 @@
 name: invalid_workflow_url
 testFormat: workflowfailure
-tags: [ upgrade ]
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist"

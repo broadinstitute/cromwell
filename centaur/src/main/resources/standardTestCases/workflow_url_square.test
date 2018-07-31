@@ -1,6 +1,5 @@
 name: workflow_url_square
 testFormat: workflowsuccess
-tags: [ upgrade ]
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/square/square.wdl"

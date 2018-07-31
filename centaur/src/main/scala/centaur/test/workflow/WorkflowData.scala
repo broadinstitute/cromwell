@@ -55,11 +55,11 @@ object WorkflowData {
     }
 
     def getImportsDirName(workflowPath: Option[Path], workflowUrl: Option[String]): String = {
-      if (workflowPath.isDefined)
-        workflowPath.get.getFileName.toString.replaceAll("\\.[^.]*$", "")
-      else {// workflow url is defined
-        val fileName = workflowUrl.get.split("/").last
-        fileName.replaceAll("\\.[^.]*$", "")
+      workflowPath match {
+        case Some(path) => path.getFileName.toString.replaceAll("\\.[^.]*$", "")
+        case None => // workflow url is defined
+          val fileName = workflowUrl.get.split("/").last
+          fileName.replaceAll("\\.[^.]*$", "")
       }
     }
 

@@ -1,7 +1,9 @@
 package cromwell.webservice
 
+import java.net.URL
+
 import _root_.io.circe.yaml
-import akka.http.scaladsl.model.{IllegalUriException, Uri}
+import akka.http.scaladsl.model.IllegalUriException
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
@@ -15,7 +17,6 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.core.labels.Label
-import eu.timepit.refined.string.Url
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue, _}
 import wdl.draft2.model.WorkflowJson
@@ -205,19 +206,16 @@ object PartialWorkflowSources {
       }
     }
 
-    def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[Option[String]] = {
-      def convertUrlToUri(workflowUrl: String): ErrorOr[Option[String]] = {
-        Try(Uri(workflowUrl)) match { //TODO: Saloni- Can this validation be made better?
-          case Success(_) => Some(workflowUrl).validNel
+    def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[Option[WorkflowUrl]] = {
+      def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
+        Try(new URL(workflowUrl)) match {
+          case Success(_) => workflowUrl.validNel
           case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
           case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
         }
       }
 
-      workflowUrl match {
-        case None => None.validNel
-        case Some(url) => convertUrlToUri(url)
-      }
+      workflowUrl.traverse(convertStringToUrl)
     }
 
     partialSources match {

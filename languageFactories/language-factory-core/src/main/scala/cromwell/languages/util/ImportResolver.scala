@@ -150,7 +150,7 @@ object ImportResolver {
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
 
-    val sttpBackend: IntrospectableLazy[AsyncHttpClientCatsBackend[IO]] = lazily { new AsyncHttpClientCatsBackend[IO]() }
+    val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily { AsyncHttpClientCatsBackend[IO]() }
 
     def closeBackendIfNecessary() = if (sttpBackend.exists) sttpBackend.close()
 

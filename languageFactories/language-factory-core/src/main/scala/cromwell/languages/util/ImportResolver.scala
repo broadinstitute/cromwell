@@ -128,7 +128,7 @@ object ImportResolver {
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
       pathToLookup(str) flatMap { toLookup =>
         (Try {
-          implicit val sttpBackend = HttpResolver.sttpBackend
+          implicit val sttpBackend = HttpResolver.sttpBackend.create()
           val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
 
           // temporary situation to get functionality working before
@@ -147,8 +147,12 @@ object ImportResolver {
   }
 
   object HttpResolver {
+    import common.util.IntrospectableLazy
+    import common.util.IntrospectableLazy._
 
-    lazy val sttpBackend = AsyncHttpClientCatsBackend[IO]()
+    val sttpBackend: IntrospectableLazy[AsyncHttpClientCatsBackend[IO]] = lazily { new AsyncHttpClientCatsBackend[IO]() }
+
+    def closeBackendIfNecessary() = if (sttpBackend.exists) sttpBackend.close()
 
     def canonicalize(str: String): String = {
       val url = new URL(str)

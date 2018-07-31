@@ -141,7 +141,7 @@ object WomtoolMain extends App {
   termination.stdout foreach Console.out.println
   termination.stderr foreach Console.err.println
 
-  HttpResolver.sttpBackend.close()
+  HttpResolver.closeBackendIfNecessary()
 
   System.exit(termination.returnCode)
 

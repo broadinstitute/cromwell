@@ -4,9 +4,6 @@ tags: [subworkflow]
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/sub_workflow_hello_world/sub_workflow_hello_world.wdl"
-  imports: [
-    sub_workflow_hello_world/sub_workflow_hello_world_import.wdl
-  ]
 }
 
 metadata {

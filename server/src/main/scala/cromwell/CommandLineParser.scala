@@ -38,7 +38,7 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -
   private def commonSubmissionArguments = List(
     arg[String]("workflow-source").text("Workflow source file.").
       action((s, c) => c.copy(workflowSource = Option(DefaultPathBuilder.get(s)))),
-    opt[String]("workflow-url").text("Workflow source url.").
+    opt[String]('u',"workflow-url").text("Workflow source url.").
       action((s, c) =>
         c.copy(workflowUrl = Option(s))),
     opt[String]("workflow-root").text("Workflow root.").

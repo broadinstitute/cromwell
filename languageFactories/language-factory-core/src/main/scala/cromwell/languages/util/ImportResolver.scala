@@ -128,7 +128,7 @@ object ImportResolver {
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
       pathToLookup(str) flatMap { toLookup =>
         (Try {
-          implicit val sttpBackend = HttpResolver.sttpBackend.create()
+          implicit val sttpBackend = HttpResolver.sttpBackend()
           val responseIO: IO[Response[String]] = sttp.get(uri"$toLookup").headers(headers).send()
 
           // temporary situation to get functionality working before

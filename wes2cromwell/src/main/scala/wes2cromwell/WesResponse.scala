@@ -1,6 +1,7 @@
 package wes2cromwell
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import cromwell.api.model.CromwellStatus
 import spray.json.{DefaultJsonProtocol, JsonParser, RootJsonFormat}
 
 sealed trait WesResponse extends Product with Serializable
@@ -11,11 +12,11 @@ final case class WesResponseRunList(runs: List[WesRunStatus]) extends WesRespons
 final case class WesResponseWorkflowMetadata(workflowLog: WesRunLog) extends WesResponse
 
 object WesRunStatus {
-  import WesResponseJsonSupport._
-
   def fromJson(json: String): WesRunStatus = {
+    import cromwell.api.model.CromwellStatusJsonSupport._
     val jsonAst = JsonParser(json)
-    jsonAst.convertTo[WesRunStatus]
+    val cromwellStatus = jsonAst.convertTo[CromwellStatus]
+    WesRunStatus(cromwellStatus.id, cromwellStatus.status)
   }
 }
 

@@ -1,20 +1,17 @@
 package wes2cromwell
 
-import spray.json.{JsonFormat, JsonParser}
+import cromwell.api.model.CromwellQueryResults
+import spray.json.JsonParser
 
 case class RunListResponse(runs: List[WesRunStatus], next_page_token: String)
 
 object RunListResponse {
-  import RunListResponseJsonSupport._
-
   def fromJson(json: String): RunListResponse = {
+    import cromwell.api.model.CromwellQueryResultJsonFormatter._
+
     val jsonAst = JsonParser(json)
-    jsonAst.convertTo[RunListResponse]
+    val queryResults = jsonAst.convertTo[CromwellQueryResults]
+    val runs = queryResults.results.toList.map(q => WesRunStatus(q.id.toString, q.status.toString))
+    RunListResponse(runs, "Not Yet Implemented") // FIXME: paging is still a known sore spot
   }
-}
-
-object RunListResponseJsonSupport {
-  import WesResponseJsonSupport._
-
-  implicit val cromwellQueryResponseFormat: JsonFormat[RunListResponse] = jsonFormat2(RunListResponse.apply)
 }

@@ -14,44 +14,50 @@ import wes2cromwell.Wes2CromwellInterface._
 final class Wes2CromwellInterface(cromwellPath: URL)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) {
   def runWorkflow(submission: WesSubmission, headers: List[HttpHeader]): Future[WesResponse] = {
     // FIXME - Should be able to get away with these fromJsons by implementing the proper marshalling
-    handleCromwellResponse(cromwellPath.toString, headers, (s: String) => WesRunId(WesRunStatus.fromJson(s).run_id))
+    // Because this request has the entity, it's not going through the standard forwardToCromwell method
+    val cromwellRequest = HttpRequest(method = HttpMethods.POST, uri = cromwellPath.toString, headers = headers, entity=submission.entity)
+    handleCromwellResponse(Http().singleRequest(cromwellRequest), (s: String) => WesRunId(WesRunStatus.fromJson(s).run_id))
   }
 
   def cancelRun(workflowId: String, headers: List[HttpHeader]): Future[WesResponse] = {
     val cromwellUrl = s"$cromwellPath/$workflowId/abort"
-    handleCromwellResponse(cromwellUrl, headers, (s: String) => WesRunId(WesRunStatus.fromJson(s).run_id))
+    forwardToCromwell(cromwellUrl, headers, HttpMethods.POST, (s: String) => WesRunId(WesRunStatus.fromJson(s).run_id))
   }
 
   def runStatus(workflowId: String, headers: List[HttpHeader]): Future[WesResponse] = {
     val cromwellUrl = s"$cromwellPath/$workflowId/status"
-    handleCromwellResponse(cromwellUrl, headers, (s: String) => WesRunStatus.fromJson(s))
+    forwardToCromwell(cromwellUrl, headers, HttpMethods.GET, (s: String) => WesRunStatus.fromJson(s))
   }
 
   def runLog(workflowId: String, headers: List[HttpHeader]): Future[WesResponse] = {
     val cromwellUrl = s"$cromwellPath/$workflowId/metadata"
-    handleCromwellResponse(cromwellUrl, headers, (s: String) => WesResponseWorkflowMetadata(WesRunLog.fromJson(s)))
+    forwardToCromwell(cromwellUrl, headers, HttpMethods.GET, (s: String) => WesResponseWorkflowMetadata(WesRunLog.fromJson(s)))
   }
 
   def listRuns(pageSize: Option[Int], pageToken: Option[String], headers: List[HttpHeader]): Future[WesResponse] = {
     // FIXME: to handle - page_size, page_token
     // FIXME: How to handle next_page_token in response?
     val cromwellUrl = s"$cromwellPath/query"
-    handleCromwellResponse(cromwellUrl, headers, (s: String) => WesResponseRunList(RunListResponse.fromJson(s).runs))
+    forwardToCromwell(cromwellUrl, headers, HttpMethods.GET , (s: String) => WesResponseRunList(RunListResponse.fromJson(s).runs))
   }
 }
 
 object Wes2CromwellInterface {
-  def handleCromwellResponse(url: String, headers: List[HttpHeader],
-                             f: String => WesResponse)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[WesResponse] = {
-    val cromwellRequest = HttpRequest(method = HttpMethods.POST, uri = url, headers = headers)
-    Http().singleRequest(cromwellRequest).flatMap({ cr =>
+  def forwardToCromwell(url: String, headers: List[HttpHeader], method: HttpMethod,
+                        f: String => WesResponse)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[WesResponse] = {
+    val cromwellRequest = HttpRequest(method = method, uri = url, headers = headers)
+    handleCromwellResponse(Http().singleRequest(cromwellRequest), f)
+  }
+
+  def handleCromwellResponse(response: Future[HttpResponse], f: String => WesResponse)(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[WesResponse] = {
+    response.flatMap({ cr =>
       cr.status match {
         /*
           Strictly speaking, this is a larger list than what Cromwell typically returns for most endpoints, however
           leaving it here as things like Unauthorized/Forbidden start showing up a lot more in CromIAM which might
           be underneath these requests instead of OG Cromwell
          */
-        case StatusCodes.OK => Unmarshal(cr.entity).to[String].map(s => f(s))
+        case StatusCodes.OK | StatusCodes.Created => Unmarshal(cr.entity).to[String].map(s => f(s))
         case StatusCodes.BadRequest => Future.successful(NotFoundError) // WES doesn't differentiate between not found & malformed like Cromwell does
         case StatusCodes.Unauthorized => Future.successful(UnauthorizedError)
         case StatusCodes.NotFound => Future.successful(NotFoundError)

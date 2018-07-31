@@ -33,7 +33,6 @@ final case class WesSubmission(workflowParams: String,
     // FIXME: Saloni's work on handling workflow URLs is not yet done
     //val urlPart = Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, workflowUrl))
 
-
     val typePart = Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, workflowType))
     val typeVersionPart = Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, workflowTypeVersion))
     val inputsPart = Multipart.FormData.BodyPart(WorkflowInputsKey, HttpEntity(MediaTypes.`application/json`, workflowParams))

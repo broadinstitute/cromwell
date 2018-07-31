@@ -17,8 +17,8 @@ object CromwellCallsMetadata {
 }
 
 final case class CromwellSubmittedFiles(workflow: Option[String],
-                                        workflowType: String,
-                                        workflowTypeVersion: String,
+                                        workflowType: Option[String],
+                                        workflowTypeVersion: Option[String],
                                         options: Option[String],
                                         inputs: Option[String],
                                         labels: Option[String]
@@ -47,13 +47,12 @@ final case class CromwellMetadata(workflowName: Option[String],
     val workflowEngineParams = submittedFiles.options.map(JsonParser(_).asJsObject)
 
     val workflowRequest = WesRunRequest(workflow_params = workflowParams,
-      workflow_type = submittedFiles.workflowType,
-      workflow_type_version = submittedFiles.workflowTypeVersion,
+      workflow_type = submittedFiles.workflowType.getOrElse("Unable to find workflow type"),
+      workflow_type_version = submittedFiles.workflowTypeVersion.getOrElse("Unable to find workflow version"),
       tags = workflowTags,
       workflow_engine_parameters = workflowEngineParams,
       workflow_url = None
     )
-
     val workflowLogData = WesLog(name = workflowName,
       cmd = None,
       start_time = start,
@@ -62,14 +61,12 @@ final case class CromwellMetadata(workflowName: Option[String],
       stderr = None,
       exit_code = None
     )
-
     val taskLogs = for {
       callsArray <- calls.toList
       (taskName, metadataEntries) <- callsArray
       metadataEntry <- metadataEntries
       logEntry = cromwellCallsMetadataEntryToLogEntry(taskName, metadataEntry)
     } yield logEntry
-
 
     WesRunLog(
       run_id = id,

@@ -34,21 +34,21 @@ package cromwell.backend.impl.aws
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
+import common.validation.ErrorOr._
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
-import common.validation.ErrorOr._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import squants.information.Information
 import wom.RuntimeAttributesKeys
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
 
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                 zones: Vector[String],
-                                memory: Information,
+                                memory: MemorySize,
                                 disks: Seq[AwsBatchVolume],
                                 dockerImage: String,
                                 queueArn: String,
@@ -89,14 +89,14 @@ object AwsBatchRuntimeAttributes {
   private def zonesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[String]] = ZonesValidation
     .withDefault(ZonesValidation.configDefaultWomValue(runtimeConfig) getOrElse ZonesDefaultValue)
 
-  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Information] = {
+  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
   }
 
 
-  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Information] = {
+  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryMinKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, runtimeConfig) getOrElse MemoryDefaultValue)
@@ -129,7 +129,7 @@ object AwsBatchRuntimeAttributes {
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): AwsBatchRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
-    val memory: Information = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[AwsBatchVolume] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val queueArn: String = RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)

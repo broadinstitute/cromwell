@@ -12,7 +12,8 @@ import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
-import squants.information.{Gigabytes, Megabytes}
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -25,7 +26,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
   }
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    Megabytes(2048), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    MemorySize(2.048, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {
@@ -214,7 +215,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Gigabytes(1))
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize.parse("1 GB").get)
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 

@@ -5,7 +5,8 @@ import cromwell.backend.impl.sfs.config.ConfigConstants.{MemoryRuntimeAttribute,
 import cromwell.backend.validation.ValidatedRuntimeAttributes
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
-import squants.information.Gigabytes
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.values.{WomFloat, WomInteger}
 
 class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
@@ -87,7 +88,7 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
       val memoryDeclarationValidation = new MemoryDeclarationValidation(runtimeDeclaration,
         memoryKey, memoryPrefix)
       val attributes = runtimeAmount
-        .map(amount => memoryKey -> Gigabytes(amount.toDouble))
+        .map(amount => memoryKey -> MemorySize(amount.toDouble, MemoryUnit.GB))
         .toMap
       val validatedRuntimeAttributes = ValidatedRuntimeAttributes(attributes)
 
@@ -95,7 +96,7 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
       val extracted = memoryDeclarationValidation.extractWdlValueOption(validatedRuntimeAttributes)
 
       val expectedDefault = expectedDefaultAmount
-        .map(amount => WomInteger(Gigabytes(amount.toDouble).toBytes.toInt))
+        .map(amount => WomInteger(MemorySize(amount.toDouble, MemoryUnit.GB).bytes.toInt))
 
       MemoryDeclarationValidation.isMemoryDeclaration(runtimeDeclaration.unqualifiedName,
         memoryKey, memoryPrefix) should be(true)

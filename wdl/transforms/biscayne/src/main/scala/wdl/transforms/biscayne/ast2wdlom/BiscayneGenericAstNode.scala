@@ -17,6 +17,8 @@ case class BiscayneGenericTerminal(terminal: Terminal) extends GenericTerminal {
   override def getTerminalStr: String = terminal.getTerminalStr
   override def getLine: Int = terminal.getLine
   override def getColumn: Int = terminal.getColumn
+
+  override def toString: String = s"BiscayneGenericTerminal($getTerminalStr: $getSourceString)"
 }
 
 case class BiscayneGenericAstList(astList: AstList) extends GenericAstList {

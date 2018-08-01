@@ -12,6 +12,7 @@ import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.webservice.PartialWorkflowSources
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
@@ -59,9 +60,8 @@ case class CommandLineArguments(command: Option[Command] = None,
   }
 
   def validateSubmission(logger: Logger): ErrorOr[ValidSubmission] = {
-    val workflowPath = File(workflowSource.get.pathAsString) //TODO: Saloni-this will throw an error
+    val workflowPath = File(workflowSource.get.pathAsString)
 
-    //TODO: Saloni-how does this change with workflowUrl?
     val workflowAndDependencies: ErrorOr[(String, Option[File], Option[String])] = if (isCwl) {
       logger.info("Pre Processing Workflow...")
       lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, None)
@@ -77,7 +77,7 @@ case class CommandLineArguments(command: Option[Command] = None,
 
     val workflowSourceFinal: ErrorOr[String] = (workflowSource, workflowUrl) match {
       case (Some(path), None) => readContent("Workflow source", path)
-      case (None, Some(_)) => "Valid Url for now".validNel //TODO: Saloni-what now?
+      case (None, Some(url)) =>  PartialWorkflowSources.convertStringToUrl(url)
       case (Some(_), Some(_)) => "Both Workflow source and Workflow url can't be supplied".invalidNel
       case (None, None) => "Workflow source and Workflow url needs to be supplied".invalidNel
     }

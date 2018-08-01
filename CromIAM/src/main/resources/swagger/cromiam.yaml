@@ -76,9 +76,14 @@ paths:
           in: path
           default: v1
         - name: workflowSource
-          description: WDL Source
-          required: true
+          description: WDL Source. Either workflow source or workflow url is required.
+          required: false
           type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
           in: formData
         - name: workflowInputs
           description: WDL Inputs JSON, 1
@@ -159,9 +164,14 @@ paths:
           in: path
           default: v1
         - name: workflowSource
-          description: WDL Source
-          required: true
+          description: WDL Source. Either workflow source or workflow url is required.
+          required: false
           type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
           in: formData
         - name: workflowOnHold
           description: Put workflow on hold upon submission. By default, it is taken as false.

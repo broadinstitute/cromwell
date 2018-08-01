@@ -207,14 +207,6 @@ object PartialWorkflowSources {
     }
 
     def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[Option[WorkflowUrl]] = {
-      def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
-        Try(new URL(workflowUrl)) match {
-          case Success(_) => workflowUrl.validNel
-          case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
-          case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
-        }
-      }
-
       workflowUrl.traverse(convertStringToUrl)
     }
 
@@ -245,6 +237,14 @@ object PartialWorkflowSources {
   def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {
     val convertToMap = allInputs.map(x => toMap(x))
     JsObject(convertToMap reduce (_ ++ _))
+  }
+
+  def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
+    Try(new URL(workflowUrl)) match {
+      case Success(_) => workflowUrl.validNel
+      case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
+      case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
+    }
   }
 
   private def toMap(someInput: Option[String]): Map[String, JsValue] = {

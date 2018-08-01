@@ -199,6 +199,48 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "return 201 for a successful workflow submission using workflowUrl" in {
+    val workflowUrl = Multipart.FormData.BodyPart("workflowUrl", HttpEntity("https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
+    val formData = Multipart.FormData(workflowUrl).toEntity()
+
+    Post(s"/workflows/$version", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+             |  "status": "Submitted"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.Created) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
+  it should "return 400 for a workflow submission using workflowUrl with invalid protocol" in {
+    val workflowUrl = Multipart.FormData.BodyPart("workflowUrl", HttpEntity("htpps://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
+    val formData = Multipart.FormData(workflowUrl).toEntity()
+
+    Post(s"/workflows/$version", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "status": "fail",
+             |  "message": "Error(s): Error while validating workflow url: unknown protocol: htpps"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
   it should "return 201 for a successful workflow submission with onHold = true" in {
     val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
     val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString()))

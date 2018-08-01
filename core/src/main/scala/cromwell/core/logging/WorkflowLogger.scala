@@ -43,7 +43,7 @@ object WorkflowLogger {
   https://github.com/qos-ch/logback/commit/77128a003a7fd7e8bd7a6ddb12da7a65cf296593#diff-f8cd32379a53986c2e70e2abe86fa0faR145
    */
   private def makeSynchronizedFileLogger(path: Path, level: Level, ctx: LoggerContext, name: String): Logger =
-  synchronized {
+  ctx.synchronized {
     Option(ctx.exists(name)) match {
       case Some(existingLogger) => existingLogger
       case None =>
@@ -115,7 +115,15 @@ class WorkflowLogger(loggerName: String,
   def close(andDelete: Boolean = false) = Try {
     workflowLogPath foreach { path =>
       if (andDelete) path.delete()
-      if (fileLogger != NOPLogger.NOP_LOGGER) fileLogger.asInstanceOf[classic.Logger].detachAndStopAllAppenders()
+      if (fileLogger != NOPLogger.NOP_LOGGER) {
+        val logger = fileLogger.asInstanceOf[classic.Logger]
+        // The Java Map that lives in the current version of Logback's FA_FILENAME_COLLISION_MAP value is a
+        // java.util.HashMap which can't handle concurrent modifications. This map is mutated both here and
+        // at workflow log creation time so synchronize on the logging context.
+        logger.getLoggerContext.synchronized {
+          logger.detachAndStopAllAppenders()
+        }
+      }
     }
   }
 

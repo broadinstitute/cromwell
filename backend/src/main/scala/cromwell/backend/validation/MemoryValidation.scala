@@ -1,8 +1,9 @@
 package cromwell.backend.validation
 
 import com.typesafe.config.Config
-import squants.information.{Bytes, Information}
+import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
+import wom.format.MemorySize
 import wom.values.{WomInteger, WomString}
 
 import scala.util.{Failure, Success}
@@ -22,18 +23,18 @@ import scala.util.{Failure, Success}
   * `withDefaultMemory` can be used to create a memory validation that defaults to a particular memory size.
   */
 object MemoryValidation {
-  def instance(attributeName: String = RuntimeAttributesKeys.MemoryKey): RuntimeAttributesValidation[Information] =
+  def instance(attributeName: String = RuntimeAttributesKeys.MemoryKey): RuntimeAttributesValidation[MemorySize] =
     new MemoryValidation(attributeName)
-  def optional(attributeName: String = RuntimeAttributesKeys.MemoryKey): OptionalRuntimeAttributesValidation[Information] =
+  def optional(attributeName: String = RuntimeAttributesKeys.MemoryKey): OptionalRuntimeAttributesValidation[MemorySize] =
     instance(attributeName).optional
   def configDefaultString(attributeName: String = RuntimeAttributesKeys.MemoryKey, config: Option[Config]): Option[String] =
     instance(attributeName).configDefaultValue(config)
-  def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String): RuntimeAttributesValidation[Information] = {
-    Information(memorySize) match {
-      case Success(memory) => instance(attributeName).withDefault(WomInteger(memory.toBytes.toInt))
+  def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String): RuntimeAttributesValidation[MemorySize] = {
+    MemorySize.parse(memorySize) match {
+      case Success(memory) => instance(attributeName).withDefault(WomInteger(memory.bytes.toInt))
       case Failure(_) => instance(attributeName).withDefault(BadDefaultAttribute(WomString(memorySize.toString)))
     }
   }
 }
 
-class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends InformationValidation(attributeName, Bytes)
+class MemoryValidation(attributeName: String = RuntimeAttributesKeys.MemoryKey) extends InformationValidation(attributeName, MemoryUnit.Bytes)

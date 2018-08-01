@@ -12,8 +12,9 @@ import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import net.ceedubs.ficus.Ficus._
-import squants.information.{Bytes, Information, Mebibytes}
+import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -33,7 +34,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                zones: Vector[String],
                                                preemptible: Int,
                                                bootDiskSize: Int,
-                                               memory: Information,
+                                               memory: MemorySize,
                                                disks: Seq[PipelinesApiAttachedDisk],
                                                dockerImage: String,
                                                failOnStderr: Boolean,
@@ -87,13 +88,13 @@ object PipelinesApiRuntimeAttributes {
   private def preemptibleValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = preemptibleValidationInstance
     .withDefault(preemptibleValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse PreemptibleDefaultValue)
 
-  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Information] = {
+  private def memoryValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
   }
 
-  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Information] = {
+  private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
     MemoryValidation.withDefaultMemory(
       RuntimeAttributesKeys.MemoryMinKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, runtimeConfig) getOrElse MemoryDefaultValue)
@@ -107,12 +108,12 @@ object PipelinesApiRuntimeAttributes {
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
-  private val outDirMinValidation: OptionalRuntimeAttributesValidation[Information] = {
-    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, Mebibytes)
+  private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MiB)
   }
 
-  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[Information] = {
-    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, Mebibytes)
+  private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MiB)
   }
 
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {
@@ -153,21 +154,22 @@ object PipelinesApiRuntimeAttributes {
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val preemptible: Int = RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val bootDiskSize: Int = RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val memory: Information = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[PipelinesApiAttachedDisk] = RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
-    val outDirMin: Option[Information] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
-    val tmpDirMin: Option[Information] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
+    val outDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
+    val tmpDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
 
-    val totalExecutionDiskSize = List(outDirMin, tmpDirMin).flatten.fold(Bytes(0))(_ + _)
+    val totalExecutionDiskSizeBytes = List(outDirMin.map(_.bytes), tmpDirMin.map(_.bytes)).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
+    val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
 
     val adjustedDisks = disks.map({
-      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < totalExecutionDiskSize.toGigabytes =>
-        disk.copy(sizeGb = totalExecutionDiskSize.toGigabytes.intValue())
+      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < totalExecutionDiskSize.to(MemoryUnit.GB).amount.toInt =>
+        disk.copy(sizeGb = totalExecutionDiskSize.to(MemoryUnit.GB).amount.toInt)
       case other => other
     })
 

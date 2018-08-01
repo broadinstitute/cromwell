@@ -71,9 +71,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             PipelinesApiFactoryInterface.GenomicsScope,
             PipelinesApiFactoryInterface.ComputeScope,
             PipelinesApiFactoryInterface.StorageFullControlScope,
-            PipelinesApiFactoryInterface.KmsScope,
-            PipelinesApiFactoryInterface.EmailScope,
-            PipelinesApiFactoryInterface.ProfileScope
+            PipelinesApiFactoryInterface.KmsScope
           ).asJava
         )
 

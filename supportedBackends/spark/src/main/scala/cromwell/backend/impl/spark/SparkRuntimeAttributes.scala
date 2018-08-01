@@ -8,8 +8,8 @@ import common.validation.ErrorOr._
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import cromwell.core._
-import squants.information.Information
 import wom.RuntimeAttributesKeys._
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -87,5 +87,5 @@ object SparkRuntimeAttributes {
   }
 }
 
-case class SparkRuntimeAttributes(executorCores: Int, executorMemory: Information, numberOfExecutors: Option[Int],
+case class SparkRuntimeAttributes(executorCores: Int, executorMemory: MemorySize, numberOfExecutors: Option[Int],
                                   appMainClass: Option[String], additionalArgs: Option[String], failOnStderr: Boolean)

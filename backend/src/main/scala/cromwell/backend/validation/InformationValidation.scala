@@ -25,55 +25,6 @@ import scala.util.{Failure, Success}
   * `withDefault` can be used to create a validation that defaults to a particular size.
   */
 object InformationValidation {
-//  def instance(attributeName: String, defaultUnit: InformationUnit): RuntimeAttributesValidation[Information] =
-//    new InformationValidation(attributeName, defaultUnit)
-//  def optional(attributeName: String, defaultUnit: InformationUnit): OptionalRuntimeAttributesValidation[Information] =
-//    instance(attributeName, defaultUnit).optional
-//  def configDefaultString(attributeName: String, config: Option[Config], defaultUnit: InformationUnit): Option[String] =
-//    instance(attributeName, defaultUnit).configDefaultValue(config)
-//  def withDefault(attributeName: String, default: String, defaultUnit: InformationUnit): RuntimeAttributesValidation[Information] = {
-//    Information(default) match {
-//      case Success(information) => instance(attributeName, defaultUnit).withDefault(WomInteger(information.toBytes.toInt))
-//      case Failure(_) => instance(attributeName, defaultUnit).withDefault(BadDefaultAttribute(WomString(default.toString)))
-//    }
-//  }
-//
-//  private[validation] val wrongAmountFormat =
-//    "Expecting %s runtime attribute value greater than 0 but got %s"
-//  private[validation] val wrongTypeFormat =
-//    "Expecting %s runtime attribute to be an Integer or String with format '8 GB'." +
-//      " Exception: %s"
-//
-//  private[validation] def validateString(attributeName: String, wdlString: WomString): ErrorOr[Information] =
-//    validateString(attributeName, wdlString.value)
-//
-//  private[validation] def validateString(attributeName: String, value: String): ErrorOr[Information] = {
-//    Information(value) match {
-//      case scala.util.Success(information: Information) if information.value > 0D =>
-//        information.validNel
-//      case scala.util.Success(information: Information) =>
-//        wrongAmountFormat.format(attributeName, information.value).invalidNel
-//      case scala.util.Failure(_: QuantityParseException) =>
-//        wrongTypeFormat.format(attributeName, s"$value should be of the form 'X Unit' where X is a number, e.g. 8 GB").invalidNel
-//      case scala.util.Failure(throwable) =>
-//        wrongTypeFormat.format(attributeName, throwable.getMessage).invalidNel
-//    }
-//  }
-//
-//  private[validation] def validateInteger(attributeName: String, value: Int, defaultUnit: InformationUnit): ErrorOr[Information] = {
-//    if (value <= 0)
-//      wrongAmountFormat.format(attributeName, value).invalidNel
-//    else
-//      defaultUnit(value.toDouble).validNel
-//  }
-//
-//  def validateLong(attributeName: String, value: Long, defaultUnit: InformationUnit): ErrorOr[Information] = {
-//    if (value <= 0)
-//      wrongAmountFormat.format(attributeName, value).invalidNel
-//    else
-//      defaultUnit(value.toDouble).validNel
-//  }
-
   def instance(attributeName: String = RuntimeAttributesKeys.MemoryKey, defaultUnit: MemoryUnit): RuntimeAttributesValidation[MemorySize] =
     new InformationValidation(attributeName, defaultUnit)
   def optional(attributeName: String = RuntimeAttributesKeys.MemoryKey, defaultUnit: MemoryUnit): OptionalRuntimeAttributesValidation[MemorySize] =

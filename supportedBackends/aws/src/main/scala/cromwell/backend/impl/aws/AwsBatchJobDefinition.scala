@@ -34,13 +34,8 @@ package cromwell.backend.impl.aws
 import scala.language.postfixOps
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.path.Path
-import software.amazon.awssdk.services.batch.model.{
-                                        KeyValuePair,
-                                        ContainerProperties //,
-                                        // MountPoint,
-                                        // Ulimit,
-                                        // Volume,
-                                      }
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, KeyValuePair}
+import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 
@@ -98,7 +93,7 @@ trait AwsBatchJobDefinitionBuilder {
     environment.append(buildKVPair("AWS_CRMWLL_PROCESS_MONITOR_MARKER","aws_batch_cromwell_process_monitor_marker"))
 
     builder
-      .memory(runtimeAttributes.memory.toMegabytes.toInt)
+      .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(runtimeAttributes.cpu##)
       .volumes(runtimeAttributes.disks.map(_.toVolume(uniquePath)).asJava)
       .mountPoints(runtimeAttributes.disks.map(_.toMountPoint).asJava)

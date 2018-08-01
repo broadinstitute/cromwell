@@ -5,6 +5,7 @@ import java.nio.file.Paths
 import better.files.File
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.languages.util.ImportResolver.HttpResolver
 import languages.wdl.draft2.WdlDraft2LanguageFactory
 import wdl.draft2.model.{AstTools, WdlNamespace}
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
@@ -166,6 +167,9 @@ object WomtoolMain extends App {
   val termination = runWomtool(args)
   termination.stdout foreach Console.out.println
   termination.stderr foreach Console.err.println
+
+  HttpResolver.closeBackendIfNecessary()
+
   System.exit(termination.returnCode)
 
 }

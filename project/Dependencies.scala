@@ -85,7 +85,6 @@ object Dependencies {
   private val snakeyamlV = "1.17"
   private val specs2MockV = "3.8.9" // 3.9.X doesn't enjoy the spark backend or refined
   private val sprayJsonV = "1.3.3"
-  private val squantV = "1.3.0"
   private val sttpV = "1.1.12"
   private val swaggerParserV = "1.0.22"
   private val swaggerUiV = "3.2.2"
@@ -384,7 +383,6 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.typelevel"  %% "squants"  % squantV,
     "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     betterFilesDependencies ++

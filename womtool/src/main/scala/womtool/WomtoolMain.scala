@@ -5,6 +5,7 @@ import java.nio.file.Paths
 import better.files.File
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import languages.wdl.draft2.WdlDraft2LanguageFactory
 import wdl.draft2.model.{AstTools, WdlNamespace}
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter, SyntaxHighlighter}
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
@@ -81,13 +82,13 @@ object WomtoolMain extends App {
 
     // Get imports directly from WdlNamespace, because they are erased during WOMification
     val maybeWdlNamespace: Try[WdlNamespace] =
-      // TODO: do we need directory resolver also? Not clear how to reference it.
       WdlNamespace.loadUsingPath(
         Paths.get(workflowSourcePath),
         None,
         Option(List(
           WdlNamespace.directoryResolver(File(workflowSourcePath).parent),
-          WdlNamespace.fileResolver
+          WdlNamespace.fileResolver,
+          WdlDraft2LanguageFactory.httpResolver
         ))
       )
 

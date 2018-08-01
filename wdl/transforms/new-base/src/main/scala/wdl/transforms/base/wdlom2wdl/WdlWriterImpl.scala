@@ -462,8 +462,8 @@ object WdlWriterImpl {
       "version 1.0" + System.lineSeparator +
         combine(a.imports.map(_.toWdlV1)) +
         combine(a.structs.map(_.toWdlV1)) +
-        combine(a.tasks.map(_.toWdlV1)) +
-        combine(a.workflows.map(_.toWdlV1))
+        combine(a.workflows.map(_.toWdlV1)) +
+        combine(a.tasks.map(_.toWdlV1))
     }
   }
 

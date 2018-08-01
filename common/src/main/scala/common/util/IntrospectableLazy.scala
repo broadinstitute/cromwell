@@ -2,6 +2,15 @@ package common.util
 
 import scala.language.implicitConversions
 
+// Designed to hold resources that may or may not be initialized during the lifetime
+// of the application, much like lazy.
+//
+// The difference is that e.g. a shutdown routine can check whether an IntrospectableLazy
+// actually exists() and skip cleaning it up if it doesn't.
+//
+// Otherwise, the routine may actually be the first reference to the resource, causing
+// it to be initialized immediately before cleaning it up.
+
 // Adapted from https://stackoverflow.com/a/17057490/818054
 
 object IntrospectableLazy {

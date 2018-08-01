@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import cats.data.NonEmptyList
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
-import cromwell.backend.{RuntimeAttributeDefinition}
+import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
@@ -42,7 +42,8 @@ import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
-import squants.information.Gigabytes
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -56,7 +57,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
 
   val expectedDefaults = new AwsBatchRuntimeAttributes(refineMV[Positive](1), Vector("us-east-1a", "us-east-1b"),
 
-    Gigabytes(2), Vector(AwsBatchWorkingDisk()), "ubuntu:latest", "arn::::", false,
+    MemorySize(2, MemoryUnit.GB), Vector(AwsBatchWorkingDisk()), "ubuntu:latest", "arn::::", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "AwsBatchRuntimeAttributes" should {
@@ -195,7 +196,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Gigabytes(1))
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize(1, MemoryUnit.GB))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 

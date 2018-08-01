@@ -1,6 +1,7 @@
 package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigFactory
+import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.backend.BackendSpec.{buildWdlWorkflowDescriptor}
 import cromwell.backend.validation.ContinueOnReturnCodeSet
@@ -122,7 +123,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val mockPathBuilders = List(mockPathBuiler)
   lazy val workflowDescriptor =  buildWdlWorkflowDescriptor(
     SampleWdl.HelloWorld.workflowSource(),
-    inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+    inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
   )
   lazy val jobKey = {
     val call = workflowDescriptor.callable.taskCallNodes.head

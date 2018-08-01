@@ -32,6 +32,7 @@
 package cromwell.backend.impl.aws
 
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 import cromwell.backend.io.JobPathsSpecHelper._
 // import cromwell.cloudsupport.gcp.auth.AwsBatchAuthModeSpec
@@ -54,7 +55,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
 
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
@@ -73,7 +74,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
 
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
@@ -96,7 +97,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
 
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)

@@ -4,6 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import cromwell.backend.RuntimeAttributeDefinition
 import eu.timepit.refined.api.Refined
@@ -134,7 +135,7 @@ object RuntimeAttributesValidation {
     * @return The keys and extracted values.
     */
   def toMetadataStrings(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Map[String, String] = {
-    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.mapValues(unpackOption)
+    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.safeMapValues(unpackOption)
 
     val attributes: Map[String, String] = attributeOptions collect {
       case (name, Some(values: Traversable[_])) => (name, values.mkString(","))

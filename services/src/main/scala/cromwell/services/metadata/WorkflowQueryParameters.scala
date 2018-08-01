@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
+import common.collections.EnhancedCollections._
 import cromwell.core.WorkflowId
 import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
@@ -45,7 +46,7 @@ object WorkflowQueryParameters {
     // The values are the keys capitalized as actually given to the API, which is what will be used in any
     // error messages.
     val keysByCanonicalCapitalization: Map[String, Set[String]] =
-      rawParameters map { _._1 } groupBy { _.toLowerCase.capitalize } mapValues { _.toSet }
+      rawParameters map { _._1 } groupBy { _.toLowerCase.capitalize } safeMapValues { _.toSet }
 
     keysByCanonicalCapitalization.keys.toSet -- WorkflowQueryKey.ValidKeys match {
       case set if set.nonEmpty =>

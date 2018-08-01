@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
@@ -57,7 +58,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
-    .mapValues {
+    .safeMapValues {
       _.collectAsSeq { case w: WomFile => w }
     }
 

@@ -6,6 +6,7 @@ import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
+import common.collections.EnhancedCollections._
 import cromwell.backend.io.JobPaths
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
@@ -163,7 +164,7 @@ trait SharedFileSystem extends PathFactory {
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
-      inputs mapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker), Set.empty),
+      inputs safeMapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker), Set.empty),
       "Failures during localization"
     ) recoverWith {
       case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)

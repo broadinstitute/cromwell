@@ -1,5 +1,6 @@
 package cwl.internal
 
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import org.mozilla.javascript._
@@ -103,7 +104,7 @@ object EcmaScriptUtil {
       val field = writeValue(jsValue)(context, scope)
       ScriptableObject.putProperty(scope, key, field)
 
-      val jsMap = mapValues.mapValues{ _.mapValues(encoder.encode) }
+      val jsMap = mapValues.safeMapValues{ _.safeMapValues(encoder.encode) }
 
       jsMap foreach {
         case (scopeId, nestedMap) =>

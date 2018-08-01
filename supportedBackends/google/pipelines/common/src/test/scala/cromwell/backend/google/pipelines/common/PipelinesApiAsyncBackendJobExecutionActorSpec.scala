@@ -7,6 +7,7 @@ import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
 import com.google.cloud.NoCredentials
+import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
@@ -420,7 +421,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, Set.empty)(womValue).get
         }
 
-        val mappedInputs = jobDescriptor.localInputs mapValues gcsPathToLocal
+        val mappedInputs = jobDescriptor.localInputs safeMapValues gcsPathToLocal
 
         mappedInputs(stringKey) match {
           case WomString(v) => assert(v.equalsIgnoreCase(stringVal.value))
@@ -874,7 +875,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
     val jesBackend = testActorRef.underlyingActor
 
-    val actual = jesBackend.startMetadataKeyValues.mapValues(_.toString)
+    val actual = jesBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
         "backendLabels:cromwell-workflow-id" -> s"cromwell-$workflowId",

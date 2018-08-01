@@ -3,7 +3,7 @@ package common.collections
 import scala.annotation.tailrec
 import scala.collection.TraversableLike
 import scala.collection.generic.CanBuildFrom
-import scala.collection.immutable.Queue
+import scala.collection.immutable.{MapLike, Queue}
 import scala.reflect.ClassTag
 
 object EnhancedCollections {
@@ -91,5 +91,13 @@ object EnhancedCollections {
         DeQueued(head, tail)
       }
     }
+  }
+
+  implicit class EnhancedMapLike[A, +B, +This <: MapLike[A, B, This] with Map[A, B]](val mapLike: MapLike[A, B, This]) {
+    /**
+      * 'safe' in that unlike the implementation hiding behind `MapLike#mapValues` this is strict. i.e. this will only
+      * evaluate the supplied function once on each value and at the time this method is called.
+      */
+    def safeMapValues[C](f: B => C): Map[A, C] = mapLike map { case (k, v) => k -> f(v) }
   }
 }

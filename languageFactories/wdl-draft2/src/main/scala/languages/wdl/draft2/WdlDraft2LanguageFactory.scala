@@ -90,7 +90,7 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
     }
 
     val checked: Checked[ValidatedWomNamespace] = for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
@@ -115,14 +115,14 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked
       womBundle <- namespace.toWomBundle
     } yield womBundle
   }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
-    _ <- standardConfig.enabledCheck
+    _ <- enabledCheck
     executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, standardConfig.strictValidation)
     validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
   } yield validatedNamespace

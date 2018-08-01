@@ -32,6 +32,8 @@
 package cromwell.backend.impl.aws
 
 import scala.language.postfixOps
+import cromwell.backend.BackendJobDescriptor
+import cromwell.core.path.Path
 import software.amazon.awssdk.services.batch.model.{
                                         KeyValuePair,
                                         ContainerProperties //,
@@ -68,22 +70,50 @@ trait AwsBatchJobDefinitionBuilder {
   def builder(commandLine: String, dockerImage: String): ContainerProperties.Builder =
     ContainerProperties.builder().command("/bin/bash", "-c", commandLine).image(dockerImage)
 
-  def buildResources(builder: ContainerProperties.Builder, runtimeAttributes: AwsBatchRuntimeAttributes, taskId: String): ContainerProperties.Builder = {
+  def buildKVPair(key: String, value: String): KeyValuePair =
+    KeyValuePair.builder.name(key).value(value).build
+
+  def buildResources(builder: ContainerProperties.Builder,
+                     runtimeAttributes: AwsBatchRuntimeAttributes,
+                     uniquePath: String,
+                     rcPath: String,
+                     jobDescriptor: BackendJobDescriptor,
+                     callExecutionRoot: Path): ContainerProperties.Builder = {
+    // The initial buffer should only contain one item - the hostpath of the
+    // local disk mount point, which will be needed by the docker container
+    // that copies data around
+    val environment =
+      runtimeAttributes.disks.collect{
+        case d if d.name == "local-disk" =>
+          buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString)
+      }.toBuffer
+    environment.append(buildKVPair("AWS_CROMWELL_PATH",uniquePath))
+    environment.append(buildKVPair("AWS_CROMWELL_RC_FILE",rcPath))
+    environment.append(buildKVPair("AWS_CROMWELL_CALL_ROOT",callExecutionRoot.toString))
+    // We want a marker for the process monitor to know for certain this container is from
+    // Cromwell. Rather than relying on some of the other environment variables, we're using
+    // a unique marker variable that doesn't mean much to anything else (and therefore has
+    // no reason to be passed on. Also, by mispelling "CROMWELL" as "CRMWLL" unlike the other variables,
+    // any process scanning for all "AWS_CROMWELL" will skip by this particular one.
+    environment.append(buildKVPair("AWS_CRMWLL_PROCESS_MONITOR_MARKER","aws_batch_cromwell_process_monitor_marker"))
+
     builder
       .memory(runtimeAttributes.memory.toMegabytes.toInt)
       .vcpus(runtimeAttributes.cpu##)
-      .volumes(runtimeAttributes.disks.map(_.toVolume(taskId)).asJava)
+      .volumes(runtimeAttributes.disks.map(_.toVolume(uniquePath)).asJava)
       .mountPoints(runtimeAttributes.disks.map(_.toMountPoint).asJava)
-      .environment(KeyValuePair.builder.name("AWS_CROMWELL_TASK_ID").value(taskId).build)
+      .environment(environment.asJava)
   }
 
-  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes, docker: String, taskId: String): AwsBatchJobDefinition
+  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes,
+            docker: String, uniquePath: String, rcPath: String, jobDescriptor: BackendJobDescriptor, callExecutionRoot: Path): AwsBatchJobDefinition
 }
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
-  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes, dockerImage: String, taskId: String): AwsBatchJobDefinition = {
+  def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes,
+            dockerImage: String, uniquePath: String, rcPath: String, jobDescriptor: BackendJobDescriptor, callExecutionRoot: Path): AwsBatchJobDefinition = {
     val builderInst = builder(commandLine, dockerImage)
-    buildResources(builderInst, runtimeAttributes, taskId)
+    buildResources(builderInst, runtimeAttributes, uniquePath, rcPath, jobDescriptor, callExecutionRoot)
     new StandardAwsBatchJobDefinitionBuilder(builderInst.build)
   }
 }

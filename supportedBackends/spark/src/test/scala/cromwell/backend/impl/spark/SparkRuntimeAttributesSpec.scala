@@ -1,5 +1,6 @@
 package cromwell.backend.impl.spark
 
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.labels.Labels
@@ -148,7 +149,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
         val staticValues = workflowDescriptor.knownValues.map {
           case (outputPort, resolvedInput) => outputPort.name -> resolvedInput
         }
-        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
+        val ra = call.callable.runtimeAttributes.attributes safeMapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
         ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
     }
   }

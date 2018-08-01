@@ -31,6 +31,7 @@
 
 package cromwell.backend.impl.aws
 
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.TestKitSuite
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.specs2.mock.Mockito
@@ -95,7 +96,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     |exit $$(cat /cromwell_root/hello-rc.txt)
     """).stripMargin
     val job = AwsBatchJob(null, null, "commandLine", script,
-      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchParameter])
+      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", DefaultPathBuilder.get("/"), Seq.empty[AwsBatchParameter])
 
     job.reconfiguredScript should be(expectedscript)
   }

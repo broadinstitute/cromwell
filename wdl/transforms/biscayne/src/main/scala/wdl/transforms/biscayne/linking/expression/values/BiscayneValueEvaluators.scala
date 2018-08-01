@@ -5,6 +5,7 @@ import cats.syntax.validated._
 import cats.syntax.traverse._
 import cats.instances.list._
 import common.validation.ErrorOr._
+import common.collections.EnhancedCollections._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey}
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
@@ -71,7 +72,7 @@ object BiscayneValueEvaluators {
             case other => s"Unexpected array element. Expected a Pair[X, Y] but array contained ${other.toWomString}]".invalidNel
           }
           validPairs flatMap { kvpairs =>
-            val grouped: Map[WomValue, WomArray] = kvpairs.groupBy(_._1).mapValues(v => WomArray(v.map(_._2)))
+            val grouped: Map[WomValue, WomArray] = kvpairs.groupBy(_._1).safeMapValues(v => WomArray(v.map(_._2)))
             EvaluatedValue(WomMap(grouped), Seq.empty).validNel
 
           }

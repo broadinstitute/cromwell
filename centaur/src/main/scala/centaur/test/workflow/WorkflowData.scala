@@ -13,7 +13,8 @@ import net.ceedubs.ficus.Ficus._
 import spray.json._
 
 
-case class WorkflowData(workflowContent: String,
+case class WorkflowData(workflowContent: Option[String],
+                        workflowUrl: Option[String],
                         workflowRoot: Option[String],
                         workflowType: Option[String],
                         workflowTypeVersion: Option[String],
@@ -24,17 +25,28 @@ case class WorkflowData(workflowContent: String,
 
 object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: Path): ErrorOr[WorkflowData] = {
-    filesConfig.as[Option[String]]("workflow") match {
-      case Some(workflow) => Valid(WorkflowData(
-        workflowPath = basePath.resolve(workflow),
+    val workflowUrl = filesConfig.as[Option[String]]("workflowUrl")
+    val workflowSourcePath = filesConfig.as[Option[String]]("workflow")
+
+    (workflowSourcePath, workflowUrl) match {
+      case (Some(workflowPath), None) => Valid(WorkflowData(
+        workflowPath = Option(basePath.resolve(workflowPath)),
+        workflowUrl = None,
         filesConfig = filesConfig,
         fullConfig = fullConfig,
         basePath = basePath))
-      case None => invalidNel(s"No 'workflow' path provided.")
+      case (None, Some(_)) => Valid(WorkflowData(
+        workflowPath = None,
+        workflowUrl = workflowUrl,
+        filesConfig = filesConfig,
+        fullConfig = fullConfig,
+        basePath = basePath))
+      case (Some(_), Some(_)) => invalidNel(s"Both 'workflow' path or 'workflowUrl' can't be provided.")
+      case (None, None) => invalidNel(s"No 'workflow' path or 'workflowUrl' provided.")
     }
   }
 
-  def apply(workflowPath: Path, filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
+  def apply(workflowPath: Option[Path], workflowUrl: Option[String], filesConfig: Config, fullConfig: Config, basePath: Path): WorkflowData = {
     def getOptionalPath(name: String) = filesConfig.get[Option[Path]](name) valueOrElse None map basePath.resolve
 
     def getImports = filesConfig.get[List[Path]]("imports") match {
@@ -42,20 +54,30 @@ object WorkflowData {
       case Failure(_) => None
     }
 
+    def getImportsDirName(workflowPath: Option[Path], workflowUrl: Option[String]): String = {
+      workflowPath match {
+        case Some(path) => path.getFileName.toString.replaceAll("\\.[^.]*$", "")
+        case None => // workflow url is defined
+          val fileName = workflowUrl.get.split("/").last
+          fileName.replaceAll("\\.[^.]*$", "")
+      }
+    }
+
     def zipImports(imports: List[Path]): Option[File] = {
-      val zippedDir = imports match {
+      imports match {
         case Nil => None
-        case _ =>
-          val importsDirName = workflowPath.getFileName.toString.replaceAll("\\.[^.]*$", "")
+        case _ => {
+          val importsDirName = getImportsDirName(workflowPath, workflowUrl)
           val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.toAbsolutePath.toString)
             val destFile = importsDir / srcFile.name
-            srcFile.copyTo(destFile, overwrite = true) }
+            srcFile.copyTo(destFile, overwrite = true)
+          }
 
           Option(importsDir.zip())
+        }
       }
-      zippedDir
     }
 
     def getLabels: List[Label] = {
@@ -63,13 +85,15 @@ object WorkflowData {
       getOptionalPath("labels") map { _.slurp.parseJson.convertTo[List[Label]] } getOrElse List.empty
     }
 
+    val workflowSource = if (workflowPath.isDefined) Option(workflowPath.get.slurp) else None
     val workflowType = fullConfig.get[Option[String]]("workflowType").value
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
     val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
 
     // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
-      workflowContent = workflowPath.slurp,
+      workflowContent = workflowSource,
+      workflowUrl = workflowUrl,
       workflowRoot = workflowRoot,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,

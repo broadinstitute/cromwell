@@ -45,7 +45,8 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
 
   it should "fetchStartableWorkflows" in {
     val collection = WorkflowSourceFilesCollection(
-      workflowSource = "sample",
+      workflowSource = Option("sample"),
+      workflowUrl = None,
       workflowRoot = None,
       workflowType = None,
       workflowTypeVersion = None,
@@ -65,6 +66,35 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
     val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows success", 1.second)
+    implicit val timeout: Timeout = Timeout(2.seconds.dilated)
+    actor.ask(request).mapTo[List[WorkflowToStart]] map { actual =>
+      actual should be(expected)
+    }
+  }
+
+  it should "fetchStartableWorkflows with workflow url" in {
+    val collection = WorkflowSourceFilesCollection(
+      workflowSource = None,
+      workflowUrl = Option("https://link-to-url"),
+      workflowRoot = None,
+      workflowType = None,
+      workflowTypeVersion = None,
+      inputsJson = "",
+      workflowOptionsJson = "",
+      labelsJson = "",
+      importsFile = None,
+      workflowOnHold = false,
+      warnings = Seq.empty
+    )
+    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), collection, Submitted))
+    val workflowStore = new InMemoryWorkflowStore {
+      override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+                                          (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+        Future.successful(expected)
+      }
+    }
+    val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
+    val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows with workflow url success", 1.second)
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[List[WorkflowToStart]] map { actual =>
       actual should be(expected)

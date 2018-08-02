@@ -73,6 +73,7 @@
     <include file="changesets/workflow_store_restarted_column.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_store_workflow_root_column.xml" relativeToChangelogFile="true" />
     <include file="changesets/workflow_store_horizontal_db.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_workflow_url_in_workflow_store_entry.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

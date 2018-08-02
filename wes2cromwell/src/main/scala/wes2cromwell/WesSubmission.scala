@@ -4,14 +4,13 @@ import akka.http.scaladsl.model.{HttpEntity, MediaTypes, MessageEntity, Multipar
 import cromiam.auth.Collection.LabelsKey
 import cromiam.webservice.SubmissionSupport._
 
-final case class WesSubmission(
-                                workflowParams: String,
-                                workflowType: String,
-                                workflowTypeVersion: String,
-                                tags: Option[String],
-                                workflowEngineParameters: Option[String],
-                                workflowUrl: String,
-                                workflowAttachment: Iterable[String]
+final case class WesSubmission(workflowParams: String,
+                               workflowType: String,
+                               workflowTypeVersion: String,
+                               tags: Option[String],
+                               workflowEngineParameters: Option[String],
+                               workflowUrl: String,
+                               workflowAttachment: Iterable[String]
                               ) {
   val entity: MessageEntity = {
     /*
@@ -33,7 +32,6 @@ final case class WesSubmission(
 
     // FIXME: Saloni's work on handling workflow URLs is not yet done
     //val urlPart = Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, workflowUrl))
-
 
     val typePart = Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, workflowType))
     val typeVersionPart = Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, workflowTypeVersion))

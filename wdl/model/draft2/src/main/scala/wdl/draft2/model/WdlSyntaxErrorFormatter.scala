@@ -13,6 +13,14 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
   // To approximate, just use Java's case-class-ignorant implementation (hash functions are allowed to be imperfect)
   override def hashCode(): Int = System.identityHashCode(this)
 
+  override def equals(other: Any): Boolean = {
+    other match {
+      case otherFormatter: WdlSyntaxErrorFormatter =>
+        this.terminalMap == otherFormatter.terminalMap
+      case _ => false
+    }
+  }
+
   private def pointToSource(t: Terminal): String = s"${line(t)}\n${" " * (t.getColumn - 1)}^"
   private def getTerminal(t: Terminal) = t match {
     case interpolated: InterpolatedTerminal => terminalMap.get(interpolated.rootTerminal)

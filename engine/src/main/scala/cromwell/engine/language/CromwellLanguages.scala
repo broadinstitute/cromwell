@@ -1,5 +1,6 @@
 package cromwell.engine.language
 
+import com.typesafe.config.Config
 import cromwell.engine.language.CromwellLanguages._
 import cromwell.languages.LanguageFactory
 
@@ -18,9 +19,9 @@ final case class CromwellLanguages private(languageConfig: LanguagesConfiguratio
     lc.name.toUpperCase -> LanguageVersions(versions, default)
   }).toMap
 
-  private def makeLanguageFactory(className: String, config: Map[String, Any]) = {
+  private def makeLanguageFactory(className: String, config: Config) = {
     Class.forName(className)
-      .getConstructor(classOf[Map[String, Any]])
+      .getConstructor(classOf[Config])
       .newInstance(config)
       .asInstanceOf[LanguageFactory]
   }

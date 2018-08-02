@@ -2,14 +2,14 @@ package cromwell.engine.language
 
 import java.util.Map.Entry
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.engine.language.CromwellLanguages.{CromwellLanguageName, CromwellLanguageVersion}
 
 import scala.collection.JavaConverters._
 
 final case class LanguagesConfiguration(languages: List[LanguageVersionConfigurationEntry], default: Option[String])
-final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageVersionConfigurationEntryFields], default: Option[String])
-final case class LanguageVersionConfigurationEntryFields(className: String, config: Map[String, Any])
+final case class LanguageVersionConfigurationEntry(name: CromwellLanguageName, versions: Map[CromwellLanguageVersion, LanguageVersionConfig], default: Option[String])
+final case class LanguageVersionConfig(className: String, config: Config)
 
 object LanguageConfiguration {
   private val LanguagesConfig = ConfigFactory.load.getConfig("languages")
@@ -28,8 +28,8 @@ object LanguageConfiguration {
       val versions = (languageVersionNames.toList map { languageVersionName =>
         val configEntry = versionSet.getConfig(s""""$languageVersionName"""")
         val className: String = configEntry.getString("language-factory")
-        val factoryConfig: Map[String, Any] = if (configEntry.hasPath("config")) { configEntry.getObject("config").unwrapped().asScala.toMap } else Map.empty[String, Any]
-        val fields = LanguageVersionConfigurationEntryFields(className, factoryConfig)
+        val factoryConfig: Config = if (configEntry.hasPath("config")) configEntry.getConfig("config") else ConfigFactory.empty()
+        val fields = LanguageVersionConfig(className, factoryConfig)
         languageVersionName -> fields
       }).toMap
 

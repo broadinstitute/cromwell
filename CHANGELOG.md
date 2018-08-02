@@ -7,6 +7,11 @@
 Cromwell now allows for a user to submit the URL pointing to workflow file to run a workflow using `workflowUrl` parameter. Currently, this is only supported in `Server` mode.
 More details on how to use it can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
 
+### Languages
+
+- Added an opt-in namespace cache for the WDL Draft 2 language factory. Please see the Cromwell example configuration for details. NOTE: if upgrading from a hotfix version of Cromwell
+  that relied upon this cache, the cache is now opt-in and must be turned on explicitly in config.
+
 ### Bug Fixes
 
 #### API
@@ -14,7 +19,11 @@ More details on how to use it can be found [here](http://cromwell.readthedocs.io
 
 #### Languages
 
-- Fixed a bug that allowed values to be "auto-boxed" into a single-element `Array` of that type, which is not allowed in the WDL spec (Closes [#3478](https://github.com/broadinstitute/cromwell/issues/3478)). 
+- Fixed a bug that allowed values to be "auto-boxed" into a single-element `Array` of that type, which is not allowed in the WDL spec (Closes [#3478](https://github.com/broadinstitute/cromwell/issues/3478)).
+
+#### PAPI version 1
+
+- Restored standard output and error streaming for jobs.
 
 ## 34 Release Notes
 

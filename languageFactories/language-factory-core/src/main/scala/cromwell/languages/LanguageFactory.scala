@@ -1,5 +1,6 @@
 package cromwell.languages
 
+import com.typesafe.config.Config
 import common.Checked
 import common.validation.Parse.Parse
 import common.validation.Checked._
@@ -15,16 +16,16 @@ trait LanguageFactory {
   def languageVersionName: String
 
   // Passed in by the constructor:
-  def config: Map[String, Any]
+  def config: Config
 
-  def enabledCheck: Checked[Unit] = if (standardConfig.enabled) {
-    ().validNelCheck
-  } else {
+  import net.ceedubs.ficus.Ficus._
+
+  lazy val enabled = !config.as[Option[Boolean]]("enabled").contains(false)
+  lazy val enabledCheck: Checked[Unit] = if (enabled) ().validNelCheck else
     s"The language factory for $languageName ($languageVersionName) is not currently enabled in this Cromwell".invalidNelCheck
-  }
 
-  // Override if you want to accumulate extra options instead of throwing an exception:
-  lazy val standardConfig: StandardLanguageFactoryConfig = StandardLanguageFactoryConfig.parse(config, allowExtras = false)
+
+  lazy val strictValidation: Boolean = !config.as[Option[Boolean]]("strict-validation").contains(false)
 
   def getWomBundle(workflowSource: WorkflowSource,
                    workflowOptionsJson: WorkflowOptionsJson,

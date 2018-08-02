@@ -4,6 +4,7 @@ import better.files.File
 import cats.Monad
 import cats.data.EitherT.fromEither
 import cats.effect.IO
+import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
 import common.validation.Parse.{Parse, errorOrParse, goParse, tryParse}
@@ -17,7 +18,7 @@ import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 
-class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
+class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactory {
 
   override val languageName: String = "CWL"
   override val languageVersionName: String = "v1.0"
@@ -56,7 +57,7 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
       cwlFile <- writeCwlFileToNewTempDir()
       _ <- unzipDependencies(cwlFile)
       cwl <- CwlDecoder.decodeCwlFile(cwlFile, source.workflowRoot)
-      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson), ioFunctions, standardConfig.strictValidation))
+      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson), ioFunctions, strictValidation))
       validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions))
       _ <- CwlDecoder.todoDeleteCwlFileParentDirectory(cwlFile.parent)
     } yield validatedWomNamespace

@@ -34,10 +34,12 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
   override val languageVersionName: String = "draft-2"
 
   override def validateNamespace(source: WorkflowSourceFilesCollection,
-                                    workflowOptions: WorkflowOptions,
-                                    importLocalFilesystem: Boolean,
-                                    workflowIdForLogging: WorkflowId,
-                                    ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
+                                 workflowSource: WorkflowSource,
+                                 workflowOptions: WorkflowOptions,
+                                 importLocalFilesystem: Boolean,
+                                 workflowIdForLogging: WorkflowId,
+                                 ioFunctions: IoFunctionSet,
+                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
@@ -52,26 +54,17 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
       list.sequence[Checked, Unit].void
     }
 
-    lazy val baseResolvers: List[String => WorkflowSource] = if (importLocalFilesystem) {
-      List(WdlNamespace.fileResolver, httpResolver)
-    } else {
-      List(httpResolver)
-    }
-
     import common.validation.Validation._
 
     lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = source match {
       case w: WorkflowSourceFilesWithDependenciesZip =>
         for {
           importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
-          betterFilesImportsDir = better.files.File(importsDir.pathAsString)
-          directoryResolver = WdlNamespace.directoryResolver(betterFilesImportsDir): String => WorkflowSource
-          resolvers = directoryResolver +: baseResolvers
-          wf <- WdlNamespaceWithWorkflow.load(w.workflowSource, resolvers).toErrorOr
+          wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
           _ = importsDir.delete(swallowIOExceptions = true)
         } yield wf
-      case w: WorkflowSourceFilesWithoutImports =>
-        WdlNamespaceWithWorkflow.load(w.workflowSource, baseResolvers).toErrorOr
+      case _: WorkflowSourceFilesWithoutImports =>
+        WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
     }
 
     def evaluateImports(wdlNamespace: WdlNamespace): Map[String, String] = {

@@ -23,16 +23,18 @@ class CwlV1_0LanguageFactory(override val config: Map[String, Any]) extends Lang
   override val languageVersionName: String = "v1.0"
 
   override def validateNamespace(source: WorkflowSourceFilesCollection,
+                                 workflowSource: WorkflowSource,
                                  workflowOptions: WorkflowOptions,
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
-                                 ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
+                                 ioFunctions: IoFunctionSet,
+                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
     // TODO WOM: CwlDecoder takes a file so write it to disk for now
 
     def writeCwlFileToNewTempDir(): Parse[File] = {
       goParse {
         val tempDir = File.newTemporaryDirectory(prefix = s"$workflowIdForLogging.temp.")
-        val cwlFile: File = tempDir./(s"$workflowIdForLogging.cwl").write(source.workflowSource)
+        val cwlFile: File = tempDir./(s"$workflowIdForLogging.cwl").write(workflowSource)
         cwlFile
       }
     }

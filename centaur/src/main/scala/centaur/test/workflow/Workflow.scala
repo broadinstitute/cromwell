@@ -23,6 +23,7 @@ final case class Workflow private(testName: String,
                                   backends: BackendsRequirement) {
   def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
+    workflowUrl = data.workflowUrl,
     workflowRoot = data.workflowRoot,
     workflowType = data.workflowType,
     workflowTypeVersion = data.workflowTypeVersion,

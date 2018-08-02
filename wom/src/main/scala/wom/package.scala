@@ -49,6 +49,7 @@ package object core {
   type WorkflowOptionsJson = String
   type WorkflowType = String
   type WorkflowSource = String
+  type WorkflowUrl = String
   type WorkflowTypeVersion = String
   type HostInputs = Map[String, WomValue]
   type EvaluatedRuntimeAttributes = Map[String, WomValue]

@@ -1,0 +1,11 @@
+name: workflow_url_biscayne_sub_wfs
+testFormat: workflowsuccess
+
+files {
+  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/biscayne/valid/relative_imports/sub_wfs/foo.wdl"
+}
+
+metadata {
+  status: Succeeded
+  "outputs.foo_wf.unpacked": 105
+}

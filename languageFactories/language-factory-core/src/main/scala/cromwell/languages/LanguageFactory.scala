@@ -36,10 +36,12 @@ trait LanguageFactory {
                        ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace]
 
   def validateNamespace(source: WorkflowSourceFilesCollection,
+                        workflowSource: WorkflowSource,
                         workflowOptions: WorkflowOptions,
                         importLocalFilesystem: Boolean,
                         workflowIdForLogging: WorkflowId,
-                        ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace]
+                        ioFunctions: IoFunctionSet,
+                        importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace]
 
   /**
     * In case no version is specified: does this language factory feel like it might be suitable for this file?

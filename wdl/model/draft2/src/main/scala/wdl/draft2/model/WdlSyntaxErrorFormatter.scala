@@ -10,8 +10,8 @@ import scala.collection.JavaConverters._
 case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) extends SyntaxErrorFormatter {
 
   // Hashing the terminalMap is very expensive because we re-hash the entire workflow once for every terminal in it (exponential with size of workflow)
-  // To approximate, let's just say that two workflows with the same number of terminals are likely identical (hash functions are allowed to be imperfect)
-  override def hashCode(): Int = terminalMap.size
+  // To approximate, just use Java's case-class-ignorant implementation (hash functions are allowed to be imperfect)
+  override def hashCode(): Int = System.identityHashCode(this)
 
   private def pointToSource(t: Terminal): String = s"${line(t)}\n${" " * (t.getColumn - 1)}^"
   private def getTerminal(t: Terminal) = t match {

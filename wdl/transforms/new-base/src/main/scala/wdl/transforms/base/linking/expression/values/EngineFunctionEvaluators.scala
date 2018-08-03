@@ -311,12 +311,12 @@ object EngineFunctionEvaluators {
       val functionName = "write_objects"
       processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
         val tryResult = for {
-          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
+          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomArray(List(WomObject(Map.empty))))
           written <- writeContent(functionName, ioFunctionSet, serialized)
         } yield written
 
         tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
-      } (coercer = WomArrayType(WomArrayType(WomObjectType)))
+      } (coercer = WomArrayType(WomObjectType))
     }
   }
 

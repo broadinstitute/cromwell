@@ -13,7 +13,7 @@ object WdlDraft2WomWorkflowDefinitionMaker extends WomWorkflowDefinitionMaker[Wd
 
     (wdlWorkflow: Scope).toWomGraph(Set.empty, Map.empty, preserveIndexForOuterLookups = true, isASubworkflow: Boolean) map { wg =>
       WorkflowDefinition(
-        wdlWorkflow.unqualifiedName,
+        wdlWorkflow.fullyQualifiedName,
         wg,
         wdlWorkflow.meta,
         wdlWorkflow.parameterMeta)

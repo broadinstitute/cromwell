@@ -7,7 +7,7 @@ workflow top_level_workflow {
   Array[String] pieces = ["hello", "lowly", "subject!"]
 
   scatter (i in is) {
-    call subworkflow.subhello as subhello {
+     call subworkflow.subhello as subhello {
       input: greeting_pieces = pieces
     }
   }

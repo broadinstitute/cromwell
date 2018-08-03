@@ -82,7 +82,7 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
 
   cmd("upgrade")
     .action((_, c) => c.copy(command = Option(Upgrade)))
-    .text("(Experimental) Automatically upgrade the WDL to the latest stable version and output the result." + System.lineSeparator)
+    .text("Automatically upgrade the WDL to version 1.0 and output the result." + System.lineSeparator)
 
   cmd("womgraph")
     .action((_, c) => c.copy(command = Option(WomGraph)))

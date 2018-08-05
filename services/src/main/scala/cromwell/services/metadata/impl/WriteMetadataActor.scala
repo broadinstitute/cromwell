@@ -32,6 +32,8 @@ class WriteMetadataActor(override val batchSize: Int,
         (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
     })
     val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
+    val z = allPutEvents.toList.filter(z => z.key.key == "commandLine")
+    if (z.size > 0) println("WE HAVE COMMAND LINE")
     val dbAction = addMetadataEvents(allPutEvents)
 
     dbAction onComplete {

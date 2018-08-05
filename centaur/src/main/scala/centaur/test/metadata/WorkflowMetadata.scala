@@ -73,7 +73,7 @@ object WorkflowMetadata {
 
   def fromMetadataJson(json: String): ErrorOr[WorkflowMetadata] = {
     import DefaultJsonProtocol._
-
+    println("WTF: " + json)
     Try(json.parseJson.asJsObject.flatten().convertTo[Map[String, JsValue]]) match {
       case Success(m) => Valid(WorkflowMetadata(m))
       case Failure(e) => invalidNel(s"Unable to create Metadata from JSON: ${e.getMessage}")

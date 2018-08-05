@@ -19,10 +19,13 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
   def diff(actual: WorkflowMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {
     // If the test fails in initialization there wouldn't be workflow root metadata, and if that's the expectation
     // then that's ok.
-    println("EXPECTED: " + value)
-    println("ACTUAL: " + actual)
     val workflowRoot = actual.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key: $k" }
+    if (missingErrors.size > 0) {
+      println("MISSING")
+      println("ACTUAL: " + actual)
+      println("EXPECTED: " + value)
+    }
     val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k), actual.value(k),
       workflowID, workflowRoot, cacheHitUUID)}
 
@@ -73,7 +76,6 @@ object WorkflowMetadata {
 
   def fromMetadataJson(json: String): ErrorOr[WorkflowMetadata] = {
     import DefaultJsonProtocol._
-    println("WTF: " + json)
     Try(json.parseJson.asJsObject.flatten().convertTo[Map[String, JsValue]]) match {
       case Success(m) => Valid(WorkflowMetadata(m))
       case Failure(e) => invalidNel(s"Unable to create Metadata from JSON: ${e.getMessage}")

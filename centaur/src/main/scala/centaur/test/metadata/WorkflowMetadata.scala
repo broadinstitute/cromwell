@@ -20,7 +20,7 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
     // If the test fails in initialization there wouldn't be workflow root metadata, and if that's the expectation
     // then that's ok.
     val workflowRoot = actual.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
-    val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key: $k" }
+    val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key in worflow $workflowID: $k" }
     val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k), actual.value(k),
       workflowID, workflowRoot, cacheHitUUID)}
 

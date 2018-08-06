@@ -278,6 +278,8 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
                                        eventsList: Seq[MetadataEvent],
                                        includeCallsIfEmpty: Boolean,
                                        expandedValues: Map[String, JsValue]): JsObject = {
-    JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty, expandedValues)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+    val z = JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty, expandedValues)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+    println("Workflow " + workflowId + " returning this JSON: " + z)
+    z
   }
 }

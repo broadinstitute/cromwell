@@ -1,0 +1,2 @@
+Failed to process task definition 'make_directory' (reason 1 of 1): No struct definition for 'Directory' found in available structs: []
+Failed to process task definition 'read_from_directory' (reason 1 of 1): No struct definition for 'Directory' found in available structs: []

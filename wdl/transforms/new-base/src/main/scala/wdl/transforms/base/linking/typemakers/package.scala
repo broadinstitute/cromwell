@@ -10,7 +10,6 @@ import wdl.model.draft3.graph.expression.WomTypeMaker
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wom.types._
 
-// TODO 2.11: IntelliJ has good suggestions to reduce the boilerplate here. Scala 2.11 has other ideas...
 package object typemakers {
   implicit val primitiveTypeElementConverter: WomTypeMaker[PrimitiveTypeElement] = new WomTypeMaker[PrimitiveTypeElement] {
     override def determineWomType(a: PrimitiveTypeElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
@@ -55,7 +54,7 @@ package object typemakers {
 
   implicit val structTypeElementConverter: WomTypeMaker[TypeAliasElement] = new WomTypeMaker[TypeAliasElement] {
     override def determineWomType(a: TypeAliasElement, availableAliases: Map[String, WomType]): ErrorOr[WomType] = {
-      availableAliases.get(a.alias).toErrorOr(s"No type definition available for type '${a.alias}' in [${availableAliases.values.mkString(", ")}]")
+      availableAliases.get(a.alias).toErrorOr(s"No struct definition for '${a.alias}' found in available structs: [${availableAliases.values.mkString(", ")}]")
     }
   }
 

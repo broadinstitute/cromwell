@@ -9,4 +9,5 @@ metadata {
   workflowName: prefix
   status: Succeeded
   "outputs.prefix.out": "-e k1=v1 -e k2=v2 -e k3=v3"
+  "calls.prefix.pfx.commandLine": "echo \"-e k1=v1 -e k2=v2 -e k3=v3\""
 }

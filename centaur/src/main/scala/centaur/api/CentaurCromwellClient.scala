@@ -70,8 +70,6 @@ object CentaurCromwellClient {
 
   def metadata(id: WorkflowId): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id)) map { m =>
-      println(id + " HAS SHARD INDEX: " + m.value.contains("shardIndex"))
-      println(id + "HAS COMMAND LINE: " + m.value.contains("commandLine"))
       WorkflowMetadata.fromMetadataJson(m.value).toOption.get
     }
   }

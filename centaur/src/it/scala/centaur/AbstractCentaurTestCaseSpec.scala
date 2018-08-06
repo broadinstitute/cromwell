@@ -9,12 +9,14 @@ import centaur.test.standard.CentaurTestCase
 import org.scalatest._
 
 import scala.concurrent.Future
+import scala.util.Random
 
 @DoNotDiscover
 abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends AsyncFlatSpec with Matchers {
 
   private def testCases(basePath: Path): List[CentaurTestCase] = {
-    val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }
+    val files = Random.shuffle(basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath })
+
     val testCases = files.traverse(CentaurTestCase.fromPath)
 
     testCases match {

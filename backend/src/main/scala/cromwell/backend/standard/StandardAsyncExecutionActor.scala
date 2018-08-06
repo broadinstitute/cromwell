@@ -322,6 +322,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) => s"""export $k="$v"""" } mkString("", "\n", "\n")
 
     val home = jobDescriptor.taskCall.callable.homeOverride.map { _ (runtimeEnvironment) }.getOrElse("$HOME")
+    val shortId = jobDescriptor.workflowDescriptor.id.shortString
+    // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
+    val (out, err) = (s"out$shortId", s"err$shortId")
 
     val dockerOutputDir = jobDescriptor.taskCall.callable.dockerOutputDirectory map { d =>
       s"ln -s $cwd $d"
@@ -329,7 +332,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     // Only adjust the temporary directory permissions if this is executing under Docker.
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
-    
+
+    // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
+    // stdout and stderr for PAPI to periodically upload to cloud storage.
+    // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
     s"""|#!$jobShell
         |DOCKER_OUTPUT_DIR_LINK
@@ -343,11 +349,16 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |cd $cwd
         |SCRIPT_PREAMBLE
         |)
+        |$out="$${tmpDir}/out.$$$$" $err="$${tmpDir}/err.$$$$"
+        |mkfifo "$$$out" "$$$err"
+        |trap 'rm "$$$out" "$$$err"' EXIT
+        |tee $stdoutRedirection < "$$$out" &
+        |tee $stderrRedirection < "$$$err" >&2 &
         |(
         |cd $cwd
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
-        |) $stdinRedirection > $stdoutRedirection 2> $stderrRedirection
+        |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
         |(
         |# add a .file in every empty directory to facilitate directory delocalization on the cloud

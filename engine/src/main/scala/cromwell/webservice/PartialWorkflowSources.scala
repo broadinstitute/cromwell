@@ -3,7 +3,6 @@ package cromwell.webservice
 import java.net.URL
 
 import _root_.io.circe.yaml
-import akka.http.scaladsl.model.IllegalUriException
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
@@ -242,7 +241,6 @@ object PartialWorkflowSources {
   def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
     Try(new URL(workflowUrl)) match {
       case Success(_) => workflowUrl.validNel
-      case Failure(e: IllegalUriException) => s"Invalid workflow url: ${e.getMessage}".invalidNel
       case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
     }
   }

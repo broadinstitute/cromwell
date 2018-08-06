@@ -47,15 +47,75 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
   //  }
 
   it should "run single when supplying wdl and inputs" in {
-    val optionsLast = parser.parse(Array("run", "3step.wdl", "--inputs", "3step.inputs"), CommandLineArguments()).get
+    val threeStep = WdlAndInputs(ThreeStep)
+    val optionsLast = parser.parse(Array("run", threeStep.wdl, "--inputs", threeStep.inputs), CommandLineArguments()).get
     optionsLast.command shouldBe Some(Run)
-    optionsLast.workflowSource.get shouldBe "3step.wdl"
-    optionsLast.workflowInputs.get.pathAsString shouldBe "3step.inputs"
+    optionsLast.workflowSource.get shouldBe threeStep.wdl
+    optionsLast.workflowInputs.get.pathAsString shouldBe threeStep.inputs
 
-    val optionsFirst = parser.parse(Array("run", "--inputs", "3step.inputs", "3step.wdl"), CommandLineArguments()).get
+    val optionsFirst = parser.parse(Array("run", "--inputs", threeStep.inputs, threeStep.wdl), CommandLineArguments()).get
     optionsFirst.command shouldBe Some(Run)
-    optionsFirst.workflowSource.get shouldBe "3step.wdl"
-    optionsFirst.workflowInputs.get.pathAsString shouldBe "3step.inputs"
+    optionsFirst.workflowSource.get shouldBe threeStep.wdl
+    optionsFirst.workflowInputs.get.pathAsString shouldBe threeStep.inputs
+
+    val validation = Try(CromwellEntryPoint.validateRunArguments(optionsFirst))
+    validation.isSuccess shouldBe true
+    validation.get.workflowSource shouldBe None
+    validation.get.workflowUrl shouldBe Some(threeStep.wdl)
+  }
+
+  it should "run single when supplying workflow using url" in {
+    val url = "https://path_to_url"
+    val command = parser.parse(Array("run", url), CommandLineArguments()).get
+
+    command.command shouldBe Some(Run)
+    command.workflowSource.get shouldBe url
+
+    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
+    validation.isSuccess shouldBe true
+    validation.get.workflowSource shouldBe None
+    validation.get.workflowUrl shouldBe Option(url)
+  }
+
+  it should "run single when supplying workflow using url with inputs" in {
+    val threeStep = WdlAndInputs(ThreeStep)
+    val url = "https://path_to_url"
+    val command = parser.parse(Array("run", url, "--inputs", threeStep.inputs), CommandLineArguments()).get
+
+    command.command shouldBe Some(Run)
+    command.workflowSource.get shouldBe url
+    command.workflowInputs.get.pathAsString shouldBe threeStep.inputs
+
+    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
+    validation.isSuccess shouldBe true
+    validation.get.workflowSource shouldBe None
+    validation.get.workflowUrl shouldBe Option(url)
+  }
+
+  it should "run single when supplying cwl workflow" in {
+    val source = raw"""{"cwlVersion":"v1.0","class":"CommandLineTool","requirements":[{"class":"InlineJavascriptRequirement"}],"hints":[{"dockerPull":"debian:stretch-slim","class":"DockerRequirement"}],"inputs":[],"baseCommand":["touch","z","y","x","w","c","b","a"],"outputs":[{"type":"string","outputBinding":{"glob":"?","outputEval":"$${ return self.sort(function(a,b) { return a.location > b.location ? 1 : (a.location < b.location ? -1 : 0) }).map(f => f.basename).join(\" \") }\n"},"id":"file:///Users/sshah/Documents/GitHub/cromwell/server/src/test/resources/cwl_glob_sort.cwl#letters"}],"id":"file:///Users/sshah/Documents/GitHub/cromwell/server/src/test/resources/cwl_glob_sort.cwl"}"""
+    val command = parser.parse(Array("run", "server/src/test/resources/cwl_glob_sort.cwl", "--type", "CWL"), CommandLineArguments()).get
+
+    command.command shouldBe Some(Run)
+    command.workflowSource.get shouldBe "server/src/test/resources/cwl_glob_sort.cwl"
+
+    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
+    validation.isSuccess shouldBe true
+    validation.get.workflowSource shouldBe Option(source)
+    validation.get.workflowUrl shouldBe None
+  }
+
+  it should "run single when supplying cwl workflow using url" in {
+    val url = "https://path_to_url"
+    val command = parser.parse(Array("run", url, "--type", "CWL"), CommandLineArguments()).get
+
+    command.command shouldBe Some(Run)
+    command.workflowSource.get shouldBe url
+
+    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
+    validation.isSuccess shouldBe true
+    validation.get.workflowSource shouldBe None
+    validation.get.workflowUrl shouldBe Option(url)
   }
 
   it should "run single when supplying wdl and inputs and options" in {
@@ -72,12 +132,20 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
     optionsFirst.workflowOptions.get.pathAsString shouldBe "3step.options"
   }
 
+  it should "fail if workflow url is invalid" in {
+    val command = parser.parse(Array("run", "htpps://url_with_invalid_protocol"), CommandLineArguments()).get
+    val validation = Try(CromwellEntryPoint.validateRunArguments(command))
+
+    validation.isFailure shouldBe true
+    validation.failed.get.getMessage should include("Error while validating workflow url")
+  }
+
   it should "fail if input files do not exist" in {
     val parsedArgs = parser.parse(Array("run", "xyzshouldnotexist.wdl", "--inputs", "xyzshouldnotexist.inputs", "--options", "xyzshouldnotexist.options"), CommandLineArguments()).get
     val validation = Try(CromwellEntryPoint.validateRunArguments(parsedArgs))
 
     validation.isFailure shouldBe true
-    validation.failed.get.getMessage should include("Workflow source does not exist")
+    validation.failed.get.getMessage should include("Workflow source path does not exist")
     validation.failed.get.getMessage should include("Workflow inputs does not exist")
     validation.failed.get.getMessage should include("Workflow options does not exist")
   }

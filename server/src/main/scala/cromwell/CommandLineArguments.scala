@@ -1,6 +1,7 @@
 package cromwell
 
 import java.net.URL
+import java.nio.file.InvalidPathException
 
 import better.files.File
 import cats.syntax.apply._
@@ -16,7 +17,7 @@ import cromwell.webservice.PartialWorkflowSources
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
-import scala.util.{Success, Try, Failure}
+import scala.util.{Failure, Success, Try}
 
 object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
@@ -74,11 +75,17 @@ case class CommandLineArguments(command: Option[Command] = None,
       }
     }
 
+    def getWorkflowSourceFromPath(workflowPath: Path): ErrorOr[(Option[String], Option[String])] = {
+      if (isCwl) preProcessCwlWorkflowSource(workflowPath).map(src => (Option(src), None))
+      else (None, Option(workflowPath.pathAsString)).validNel
+    }
+
     val workflowSourceAndUrl: ErrorOr[(Option[String], Option[String])] = DefaultPathBuilder.build(workflowSource.get) match {
       case Success(workflowPath) => {
-        if (isCwl) preProcessCwlWorkflowSource(workflowPath).map(src => (Option(src), None))
-        else (None, Option(workflowPath.pathAsString)).validNel
+        if (workflowPath.exists) getWorkflowSourceFromPath(workflowPath)
+        else s"Workflow source path does not exist: $workflowPath".invalidNel
       }
+      case Failure(e: InvalidPathException) => s"Invalid file path. Error: ${e.getMessage}".invalidNel
       case Failure(_) => PartialWorkflowSources.convertStringToUrl(workflowSource.get).map(validUrl => (None, Option(validUrl)))
     }
 

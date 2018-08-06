@@ -49,25 +49,25 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
   it should "run single when supplying wdl and inputs" in {
     val optionsLast = parser.parse(Array("run", "3step.wdl", "--inputs", "3step.inputs"), CommandLineArguments()).get
     optionsLast.command shouldBe Some(Run)
-    optionsLast.workflowSource.get.pathAsString shouldBe "3step.wdl"
+    optionsLast.workflowSource.get shouldBe "3step.wdl"
     optionsLast.workflowInputs.get.pathAsString shouldBe "3step.inputs"
 
     val optionsFirst = parser.parse(Array("run", "--inputs", "3step.inputs", "3step.wdl"), CommandLineArguments()).get
     optionsFirst.command shouldBe Some(Run)
-    optionsFirst.workflowSource.get.pathAsString shouldBe "3step.wdl"
+    optionsFirst.workflowSource.get shouldBe "3step.wdl"
     optionsFirst.workflowInputs.get.pathAsString shouldBe "3step.inputs"
   }
 
   it should "run single when supplying wdl and inputs and options" in {
     val optionsLast = parser.parse(Array("run", "3step.wdl", "--inputs", "3step.inputs", "--options", "3step.options"), CommandLineArguments()).get
     optionsLast.command shouldBe Some(Run)
-    optionsLast.workflowSource.get.pathAsString shouldBe "3step.wdl"
+    optionsLast.workflowSource.get shouldBe "3step.wdl"
     optionsLast.workflowInputs.get.pathAsString shouldBe "3step.inputs"
     optionsLast.workflowOptions.get.pathAsString shouldBe "3step.options"
 
     val optionsFirst = parser.parse(Array("run", "--inputs", "3step.inputs", "--options", "3step.options", "3step.wdl"), CommandLineArguments()).get
     optionsFirst.command shouldBe Some(Run)
-    optionsFirst.workflowSource.get.pathAsString shouldBe "3step.wdl"
+    optionsFirst.workflowSource.get shouldBe "3step.wdl"
     optionsFirst.workflowInputs.get.pathAsString shouldBe "3step.inputs"
     optionsFirst.workflowOptions.get.pathAsString shouldBe "3step.options"
   }

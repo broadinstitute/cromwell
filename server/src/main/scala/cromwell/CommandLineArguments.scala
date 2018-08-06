@@ -16,7 +16,7 @@ import cromwell.webservice.PartialWorkflowSources
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
-import scala.util.{Success, Try}
+import scala.util.{Success, Try, Failure}
 
 object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
@@ -30,8 +30,7 @@ object CommandLineArguments {
 }
 
 case class CommandLineArguments(command: Option[Command] = None,
-                                workflowSource: Option[Path] = None,
-                                workflowUrl: Option[String] = None,
+                                workflowSource: Option[String] = None,
                                 workflowRoot: Option[String] = None,
                                 workflowInputs: Option[Path] = None,
                                 workflowOptions: Option[Path] = None,
@@ -75,19 +74,13 @@ case class CommandLineArguments(command: Option[Command] = None,
       }
     }
 
-    val workflowSourceAndUrl: ErrorOr[(Option[String], Option[String])] = (workflowSource, workflowUrl) match {
-      case(Some(workflowPath), None) => {
+    val workflowSourceAndUrl: ErrorOr[(Option[String], Option[String])] = DefaultPathBuilder.build(workflowSource.get) match {
+      case Success(workflowPath) => {
         if (isCwl) preProcessCwlWorkflowSource(workflowPath).map(src => (Option(src), None))
         else (None, Option(workflowPath.pathAsString)).validNel
       }
-      case (None, Some(url)) => PartialWorkflowSources.convertStringToUrl(url).map(validUrl => (None, Option(validUrl)))
-      case (Some(_), Some(_)) => "Both Workflow source and Workflow url can't be supplied".invalidNel
-      case (None, None) => "Workflow source and Workflow url needs to be supplied".invalidNel
+      case Failure(_) => PartialWorkflowSources.convertStringToUrl(workflowSource.get).map(validUrl => (None, Option(validUrl)))
     }
-
-    val importsJson: ErrorOr[Option[File]] = imports.map(p => File(p.pathAsString)).validNel
-
-    val root: ErrorOr[Option[String]] = workflowRoot.validNel
 
     val inputsJson: ErrorOr[String] = if (isCwl) {
       logger.info("Pre Processing Inputs...")
@@ -97,9 +90,11 @@ case class CommandLineArguments(command: Option[Command] = None,
     val optionsJson = readOptionContent("Workflow options", workflowOptions)
     val labelsJson = readOptionContent("Workflow labels", workflowLabels)
 
-    (workflowSourceAndUrl, inputsJson, optionsJson, labelsJson, importsJson, root) mapN {
-      case ((w, u), i, o, l, z, r) =>
-        ValidSubmission(w, u, r, i, o, l, z)
+    val workflowImports: Option[File] = imports.map(p => File(p.pathAsString))
+
+    (workflowSourceAndUrl, inputsJson, optionsJson, labelsJson) mapN {
+      case ((w, u), i, o, l) =>
+        ValidSubmission(w, u, workflowRoot, i, o, l, workflowImports)
     }
   }
 

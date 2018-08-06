@@ -1,7 +1,0 @@
-name: write_tsv
-testFormat: workflowsuccess
-
-files {
-  workflow: write_tsv/write_tsv.wdl
-  metadata: write_tsv/write_tsv.metadata
-}

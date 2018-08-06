@@ -18,7 +18,7 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
       s"flag is $flag"
     }
     
-    recovered shouldBe "flag is  2> gsutil_output.txt; RC_GSUTIL=$?; if [[ \"$RC_GSUTIL\" -eq 1 ]]; then\n grep \"Bucket is requester pays bucket but no user project provided.\" gsutil_output.txt && echo \"Retrying with user project\" && flag is -u my-project; fi "
+    recovered shouldBe "flag is  2> gsutil_output.txt; RC_GSUTIL=$?; if [[ \"$RC_GSUTIL\" -eq 1 && grep -q \"Bucket is requester pays bucket but no user project provided.\" gsutil_output.txt ]]; then\n echo \"Retrying with user project my-project\" && flag is -u my-project; fi "
   }
   
   it should "use LocalizationConfiguration to set the number of localization retries" in {

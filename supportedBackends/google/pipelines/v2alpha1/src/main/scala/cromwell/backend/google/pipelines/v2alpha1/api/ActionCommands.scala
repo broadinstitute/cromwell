@@ -92,9 +92,10 @@ object ActionCommands {
   
   def recoverRequesterPaysError(path: Path)(f: String => String) = {
     val withoutProject = ""
-    val withProject = s"-u ${path.projectId}"
+    val project = path.projectId
+    val withProject = s"-u $project"
 
-    s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 1 ]]; then
-       | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt && echo "Retrying with user project" && ${f(withProject)}; fi """.stripMargin
+    s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 1 && grep -q "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt ]]; then
+       | echo "Retrying with user project $project" && ${f(withProject)}; fi """.stripMargin
   }
 }

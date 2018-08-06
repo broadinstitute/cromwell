@@ -36,7 +36,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
 
   implicit def default = RouteTestTimeout(5.seconds)
 
-  "REST ENGINE /stats endpoint" should "return 200 for stats" in {
+  "REST ENGINE /stats endpoint" should "return 200 for stats" ignore {
     Get(s"/engine/$version/stats") ~>
       akkaHttpService.engineRoutes ~>
       check {

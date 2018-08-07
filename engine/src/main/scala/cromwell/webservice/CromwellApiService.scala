@@ -24,7 +24,6 @@ import cromwell.core.{path => _, _}
 import cromwell.database.slick.WorkflowStoreSlickDatabase.NotInOnHoldStateException
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, WorkflowNotFoundException}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
@@ -60,11 +59,7 @@ trait CromwellApiService extends HttpInstrumentation {
   val engineRoutes = concat(
     path("engine" / Segment / "stats") { _ =>
       get {
-        onComplete(workflowManagerActor.ask(WorkflowManagerActor.EngineStatsCommand).mapTo[EngineStatsActor.EngineStats]) {
-          case Success(stats) => complete(ToResponseMarshallable(stats))
-          case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-          case Failure(_) => new RuntimeException("Unable to gather engine stats").failRequest(StatusCodes.InternalServerError)
-        }
+        completeResponse(StatusCodes.Forbidden, APIResponse.fail(new RuntimeException("The /stats endpoint is currently disabled.")), warnings = Seq.empty)
       }
     },
     path("engine" / Segment / "version") { _ =>

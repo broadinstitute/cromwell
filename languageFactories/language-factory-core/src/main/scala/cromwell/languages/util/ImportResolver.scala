@@ -139,7 +139,7 @@ object ImportResolver {
 
     override def name: String = relativeTo match {
       case Some(relativeToPath) => s"http importer (relative to $relativeToPath)"
-      case None => "http importer (no relative paths)"
+      case None => "http importer (no 'relative-to' origin)"
 
     }
 
@@ -157,7 +157,7 @@ object ImportResolver {
         else canonicalize(s"${relativeToValue.stripSuffix("/")}/$str").validNelCheck
       case None =>
         if (str.startsWith("http")) canonicalize(str).validNelCheck
-        else "Relative path not supported".invalidNelCheck
+        else "Relative path".invalidNelCheck
     }
 
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {

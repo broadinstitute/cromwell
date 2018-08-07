@@ -86,7 +86,7 @@ case class CommandLineArguments(command: Option[Command] = None,
         else s"Workflow source path does not exist: $workflowPath".invalidNel
       }
       case Failure(e: InvalidPathException) => s"Invalid file path. Error: ${e.getMessage}".invalidNel
-      case Failure(_) => PartialWorkflowSources.convertStringToUrl(workflowSource.get).map(validUrl => (None, Option(validUrl)))
+      case Failure(_) => PartialWorkflowSources.validateWorkflowUrl(workflowSource.get).map(validUrl => (None, Option(validUrl)))
     }
 
     val inputsJson: ErrorOr[String] = if (isCwl) {

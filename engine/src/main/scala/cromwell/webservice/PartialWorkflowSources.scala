@@ -205,16 +205,12 @@ object PartialWorkflowSources {
       }
     }
 
-    def validateWorkflowUrl(workflowUrl: Option[String]): ErrorOr[Option[WorkflowUrl]] = {
-      workflowUrl.traverse(convertStringToUrl)
-    }
-
     partialSources match {
       case Valid(partialSource) =>
         (validateInputs(partialSource),
           validateOptions(partialSource.workflowOptions),
           validateLabels(partialSource.customLabels.getOrElse("{}")),
-          validateWorkflowUrl(partialSource.workflowUrl)) mapN {
+          partialSource.workflowUrl.traverse(validateWorkflowUrl)) mapN {
           case (wfInputs, wfOptions, workflowLabels, wfUrl) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
@@ -238,10 +234,17 @@ object PartialWorkflowSources {
     JsObject(convertToMap reduce (_ ++ _))
   }
 
-  def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
-    Try(new URL(workflowUrl)) match {
-      case Success(_) => workflowUrl.validNel
-      case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
+  def validateWorkflowUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
+    def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
+      Try(new URL(workflowUrl)) match {
+        case Success(_) => workflowUrl.validNel
+        case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
+      }
+    }
+
+    workflowUrl.length match {
+      case l if l > 2000 => s"Invalid workflow url. Length of the url:$l is more than 2000 characters".invalidNel
+      case _ => convertStringToUrl(workflowUrl)
     }
   }
 

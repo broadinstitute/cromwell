@@ -213,8 +213,7 @@ cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
     CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
     CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_ROOT_DIRECTORY}/cwl_conformance_test.out.txt"
-    CROMWELL_BUILD_CWL_TEST_COMMIT=e7ae597e79d426feca3d4faa474806070c3fa7d5 # use known git hash to avoid tests changes
-    CROMWELL_BUILD_CWL_TEST_TIMEOUT_PATCH_COMMIT=2b295864bc81b59b0698af8076474465afcf48d8 # patch to allow for specifying non-default cwltest timeout
+    CROMWELL_BUILD_CWL_TEST_COMMIT=eb73b5e70e65ab9303a814bd1c230b927018da8f # use known git hash to avoid tests changes
     CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
 
     export CROMWELL_BUILD_CWL_TEST_RUNNER
@@ -295,9 +294,6 @@ cromwell::private::checkout_pinned_cwl() {
         (
             cd "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" || exit 1
             git checkout "${CROMWELL_BUILD_CWL_TEST_COMMIT}"
-            # temporarily required to allow for use of the --timeout option to run_test.sh
-            # until we update our pinned conformance hash to include this commit on the checkout.
-            git cherry-pick -m 1 "${CROMWELL_BUILD_CWL_TEST_TIMEOUT_PATCH_COMMIT}"
         )
     fi
 }

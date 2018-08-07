@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.materialization
 
-import java.nio.file.Paths
-
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
@@ -29,7 +27,7 @@ import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.{DefaultPath, PathBuilder}
+import cromwell.core.path.PathBuilder
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.language.CromwellLanguages

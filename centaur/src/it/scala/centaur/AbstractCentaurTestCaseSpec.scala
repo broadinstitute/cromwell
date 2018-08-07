@@ -16,7 +16,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   private def testCases(basePath: Path): List[CentaurTestCase] = {
     val files = Random.shuffle(basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath })
-
+    println("FILES: " + files)
     val testCases = files.traverse(CentaurTestCase.fromPath)
 
     testCases match {

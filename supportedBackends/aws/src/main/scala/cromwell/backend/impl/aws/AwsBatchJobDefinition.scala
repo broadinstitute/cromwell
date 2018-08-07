@@ -32,13 +32,8 @@
 package cromwell.backend.impl.aws
 
 import scala.language.postfixOps
-import software.amazon.awssdk.services.batch.model.{
-                                        KeyValuePair,
-                                        ContainerProperties //,
-                                        // MountPoint,
-                                        // Ulimit,
-                                        // Volume,
-                                      }
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, KeyValuePair}
+import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 
@@ -70,7 +65,7 @@ trait AwsBatchJobDefinitionBuilder {
 
   def buildResources(builder: ContainerProperties.Builder, runtimeAttributes: AwsBatchRuntimeAttributes, taskId: String): ContainerProperties.Builder = {
     builder
-      .memory(runtimeAttributes.memory.toMegabytes.toInt)
+      .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(runtimeAttributes.cpu##)
       .volumes(runtimeAttributes.disks.map(_.toVolume(taskId)).asJava)
       .mountPoints(runtimeAttributes.disks.map(_.toMountPoint).asJava)

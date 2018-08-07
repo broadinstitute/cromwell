@@ -93,7 +93,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
   }
 
   it should "run single when supplying cwl workflow" in {
-    val source = raw"""{"cwlVersion":"v1.0","class":"CommandLineTool","requirements":[{"class":"InlineJavascriptRequirement"}],"hints":[{"dockerPull":"debian:stretch-slim","class":"DockerRequirement"}],"inputs":[],"baseCommand":["touch","z","y","x","w","c","b","a"],"outputs":[{"type":"string","outputBinding":{"glob":"?","outputEval":"$${ return self.sort(function(a,b) { return a.location > b.location ? 1 : (a.location < b.location ? -1 : 0) }).map(f => f.basename).join(\" \") }\n"},"id":"file:///Users/sshah/Documents/GitHub/cromwell/server/src/test/resources/cwl_glob_sort.cwl#letters"}],"id":"file:///Users/sshah/Documents/GitHub/cromwell/server/src/test/resources/cwl_glob_sort.cwl"}"""
+    val source = raw"""{"cwlVersion":"v1.0","class":"CommandLineTool","requirements":[{"class":"InlineJavascriptRequirement"}],"hints":[{"dockerPull":"debian:stretch-slim","class":"DockerRequirement"}],"inputs":[],"baseCommand":["touch","z","y","x","w","c","b","a"],"outputs":[{"type":"string","outputBinding":{"glob":"?","outputEval":"$${ return self.sort(function(a,b) { return a.location > b.location ? 1 : (a.location < b.location ? -1 : 0) }).map(f => f.basename).join(\" \") }\n""""
     val command = parser.parse(Array("run", "server/src/test/resources/cwl_glob_sort.cwl", "--type", "CWL"), CommandLineArguments()).get
 
     command.command shouldBe Some(Run)
@@ -101,7 +101,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
 
     val validation = Try(CromwellEntryPoint.validateRunArguments(command))
     validation.isSuccess shouldBe true
-    validation.get.workflowSource shouldBe Option(source)
+    validation.get.workflowSource.get should include(source)
     validation.get.workflowUrl shouldBe None
   }
 

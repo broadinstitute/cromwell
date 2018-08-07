@@ -72,8 +72,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             PipelinesApiFactoryInterface.ComputeScope,
             PipelinesApiFactoryInterface.StorageFullControlScope,
             PipelinesApiFactoryInterface.KmsScope,
-            // Added the Email and Profile scope since the
-            // VM credentials are used to reach out to Martha
+            // Profile and Email scopes are requirements for interacting with Martha v2
             PipelinesApiFactoryInterface.EmailScope,
             PipelinesApiFactoryInterface.ProfileScope
           ).asJava

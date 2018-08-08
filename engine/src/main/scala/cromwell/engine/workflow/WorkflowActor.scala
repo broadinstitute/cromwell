@@ -243,6 +243,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
+      System.out.println(s"Starting MaterializeWorkflowDescriptorActor with serverMode=$serverMode...")
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)

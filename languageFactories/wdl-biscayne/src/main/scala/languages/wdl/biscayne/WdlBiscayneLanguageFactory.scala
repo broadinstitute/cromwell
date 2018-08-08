@@ -3,6 +3,7 @@ package languages.wdl.biscayne
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.instances.either._
+import com.typesafe.config.Config
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Parse.Parse
@@ -20,7 +21,7 @@ import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
 
-class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
+class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFactory {
 
   override val languageName: String = "WDL"
   override val languageVersionName: String = "Biscayne"
@@ -54,7 +55,7 @@ class WdlBiscayneLanguageFactory(override val config: Map[String, Any]) extends 
   override def createExecutable(womBundle: WomBundle, inputsJson: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
     for {
       _ <- enabledCheck
-      executable <- womBundle.toWomExecutable(Option(inputsJson), ioFunctions, standardConfig.strictValidation)
+      executable <- womBundle.toWomExecutable(Option(inputsJson), ioFunctions, strictValidation)
       validated <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
     } yield validated
   }

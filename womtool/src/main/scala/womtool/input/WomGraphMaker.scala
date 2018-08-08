@@ -2,6 +2,7 @@ package womtool.input
 
 import java.nio.file.{Files, Paths}
 
+import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -40,11 +41,11 @@ object WomGraphMaker {
     readFile(mainFile.toAbsolutePath.pathAsString) flatMap { mainFileContents =>
       val languageFactory =
         List(
-          new WdlDraft3LanguageFactory(Map.empty),
-          new WdlBiscayneLanguageFactory(Map.empty),
-          new CwlV1_0LanguageFactory(Map.empty))
+          new WdlDraft3LanguageFactory(ConfigFactory.empty()),
+          new WdlBiscayneLanguageFactory(ConfigFactory.empty()),
+          new CwlV1_0LanguageFactory(ConfigFactory.empty()))
           .find(_.looksParsable(mainFileContents))
-          .getOrElse(new WdlDraft2LanguageFactory(Map.empty))
+          .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))
 
       val bundle = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory))
       // Return the pair with the languageFactory

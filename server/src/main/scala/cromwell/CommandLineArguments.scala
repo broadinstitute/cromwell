@@ -82,8 +82,9 @@ case class CommandLineArguments(command: Option[Command] = None,
 
     val workflowSourceAndUrl: ErrorOr[(Option[String], Option[String])] = DefaultPathBuilder.build(workflowSource.get) match {
       case Success(workflowPath) => {
-        if (workflowPath.exists) getWorkflowSourceFromPath(workflowPath)
-        else s"Workflow source path does not exist: $workflowPath".invalidNel
+        if (!workflowPath.exists) s"Workflow source path does not exist: $workflowPath".invalidNel
+        else if(!workflowPath.isReadable) s"Workflow source path is not readable: $workflowPath".invalidNel
+        else getWorkflowSourceFromPath(workflowPath)
       }
       case Failure(e: InvalidPathException) => s"Invalid file path. Error: ${e.getMessage}".invalidNel
       case Failure(_) => PartialWorkflowSources.validateWorkflowUrl(workflowSource.get).map(validUrl => (None, Option(validUrl)))

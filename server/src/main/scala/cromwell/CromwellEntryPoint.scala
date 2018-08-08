@@ -14,7 +14,7 @@ import cromwell.CommandLineArguments.ValidSubmission
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
@@ -175,10 +175,16 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, u, r, i, o, l, z) =>
+      case ValidSubmission(w, u, r, i, o, l, z) =>{
+        val finalWorkflowSourceAndUrl: (Option[String], Option[String]) = {
+          if (w.isDefined) (w,u)
+          else if (u.get.startsWith("http")) (w, u)
+          else (Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL file
+        }
+
         WorkflowSingleSubmission(
-          workflowSource = w,
-          workflowUrl = u,
+          workflowSource = finalWorkflowSourceAndUrl._1,
+          workflowUrl = finalWorkflowSourceAndUrl._2,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -186,6 +192,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           options = Option(o),
           labels = Option(l.parseJson.convertTo[List[Label]]),
           zippedImports = z)
+      }
     }
 
     validOrFailSubmission(validation)

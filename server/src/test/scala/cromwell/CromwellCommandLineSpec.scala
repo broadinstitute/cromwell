@@ -1,6 +1,6 @@
 package cromwell
 
-import cromwell.CromwellApp.{Run, Server}
+import cromwell.CromwellApp.{Run, Server, Submit}
 import cromwell.CromwellCommandLineSpec.WdlAndInputs
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.util.SampleWdl
@@ -194,6 +194,19 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
     ccl.isFailure shouldBe false
 
     zippedDir.delete(swallowIOExceptions = true)
+  }
+
+  it should "send content of WDL source file in Submit mode" in {
+    val threeStep = WdlAndInputs(ThreeStep)
+    val command = parser.parse(Array("submit", threeStep.wdl, "--inputs", threeStep.inputs), CommandLineArguments()).get
+    command.command shouldBe Some(Submit)
+    command.workflowSource.get shouldBe threeStep.wdl
+    command.workflowInputs.get.pathAsString shouldBe threeStep.inputs
+
+    val validation = Try(CromwellEntryPoint.validateSubmitArguments(command))
+    validation.isSuccess shouldBe true
+    validation.get.workflowSource shouldBe Option(threeStep.wdlFile.contentAsString)
+    validation.get.workflowUrl shouldBe None
   }
 }
 

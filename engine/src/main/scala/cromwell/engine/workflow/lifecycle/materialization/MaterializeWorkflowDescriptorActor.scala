@@ -134,8 +134,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
-
-  System.out.println(s"Starting MaterializeWorkflowDescriptorActor with importLocalFilesystem=$importLocalFilesystem...")
   val tag = self.path.name
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")

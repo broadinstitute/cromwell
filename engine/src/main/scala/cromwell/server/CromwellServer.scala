@@ -32,8 +32,6 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
   override implicit val ec = context.dispatcher
   override def actorRefFactory: ActorContext = context
 
-  System.out.println(s"Creating a CromwellServerActor in serverMode=$serverMode")
-
   val webserviceConf = cromwellSystem.conf.getConfig("webservice")
   val interface = webserviceConf.getString("interface")
   val port = webserviceConf.getInt("port")

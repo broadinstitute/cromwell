@@ -65,8 +65,6 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
   logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
 
-  System.out.println(s"Creating a CromwellRootActor in serverMode=$serverMode")
-
   lazy val systemConfig = config.getConfig("system")
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
   lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)

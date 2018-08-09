@@ -28,6 +28,8 @@ object CommandLineArguments {
                               workflowOptions: String,
                               workflowLabels: String,
                               dependencies: Option[File])
+
+  case class WorkflowSourceOrUrl(source: Option[String], url: Option[String])
 }
 
 case class CommandLineArguments(command: Option[Command] = None,
@@ -66,28 +68,27 @@ case class CommandLineArguments(command: Option[Command] = None,
       logger.info("Pre Processing Workflow...")
       lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, None)
 
-      imports match {
-        case Some(_) => readContent("Workflow source", workflowSourcePath)
-        case None => Try(preProcessedCwl.value.unsafeRunSync())
-          .toChecked
-          .flatMap(identity)
-          .toValidated
+      Try(preProcessedCwl.value.unsafeRunSync())
+        .toChecked
+        .flatMap(identity)
+        .toValidated
+    }
+
+    def getWorkflowSourceFromPath(workflowPath: Path): ErrorOr[WorkflowSourceOrUrl] = {
+      (isCwl, imports) match {
+        case (true, None) => preProcessCwlWorkflowSource(workflowPath).map(src => WorkflowSourceOrUrl(Option(src), None))
+        case (true, Some(_)) | (false, _) => WorkflowSourceOrUrl(None, Option(workflowPath.pathAsString)).validNel
       }
     }
 
-    def getWorkflowSourceFromPath(workflowPath: Path): ErrorOr[(Option[String], Option[String])] = {
-      if (isCwl) preProcessCwlWorkflowSource(workflowPath).map(src => (Option(src), None))
-      else (None, Option(workflowPath.pathAsString)).validNel
-    }
-
-    val workflowSourceAndUrl: ErrorOr[(Option[String], Option[String])] = DefaultPathBuilder.build(workflowSource.get) match {
+    val workflowSourceAndUrl: ErrorOr[WorkflowSourceOrUrl] = DefaultPathBuilder.build(workflowSource.get) match {
       case Success(workflowPath) => {
         if (!workflowPath.exists) s"Workflow source path does not exist: $workflowPath".invalidNel
         else if(!workflowPath.isReadable) s"Workflow source path is not readable: $workflowPath".invalidNel
         else getWorkflowSourceFromPath(workflowPath)
       }
       case Failure(e: InvalidPathException) => s"Invalid file path. Error: ${e.getMessage}".invalidNel
-      case Failure(_) => PartialWorkflowSources.validateWorkflowUrl(workflowSource.get).map(validUrl => (None, Option(validUrl)))
+      case Failure(_) => PartialWorkflowSources.validateWorkflowUrl(workflowSource.get).map(validUrl => WorkflowSourceOrUrl(None, Option(validUrl)))
     }
 
     val inputsJson: ErrorOr[String] = if (isCwl) {
@@ -101,8 +102,8 @@ case class CommandLineArguments(command: Option[Command] = None,
     val workflowImports: Option[File] = imports.map(p => File(p.pathAsString))
 
     (workflowSourceAndUrl, inputsJson, optionsJson, labelsJson) mapN {
-      case ((w, u), i, o, l) =>
-        ValidSubmission(w, u, workflowRoot, i, o, l, workflowImports)
+      case (srcOrUrl, i, o, l) =>
+        ValidSubmission(srcOrUrl.source, srcOrUrl.url, workflowRoot, i, o, l, workflowImports)
     }
   }
 

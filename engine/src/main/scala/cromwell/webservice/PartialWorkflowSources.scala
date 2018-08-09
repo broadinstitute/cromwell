@@ -58,6 +58,8 @@ object PartialWorkflowSources {
 
   val allPrefixes = List(WorkflowInputsAuxPrefix)
 
+  val MaxWorkflowUrlLength = 2000
+
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
     import cats.instances.list._
@@ -243,7 +245,7 @@ object PartialWorkflowSources {
     }
 
     workflowUrl.length match {
-      case l if l > 2000 => s"Invalid workflow url. Length of the url:$l is more than 2000 characters".invalidNel
+      case l if l > MaxWorkflowUrlLength => s"Invalid workflow url: url has length $l, longer than the maximum allowed $MaxWorkflowUrlLength characters".invalidNel
       case _ => convertStringToUrl(workflowUrl)
     }
   }

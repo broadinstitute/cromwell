@@ -11,6 +11,7 @@ import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.CommandLineArguments.ValidSubmission
+import cromwell.CommandLineArguments.WorkflowSourceOrUrl
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
@@ -58,6 +59,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = cromwellSystem.actorSystem
 
     val sources = validateRunArguments(args)
+
+    println(s"submit, source: ${sources.workflowSource}")
+    println(s"submit, url: ${sources.workflowUrl}")
+
     val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
@@ -77,6 +82,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val cromwellClient = new CromwellClient(args.host, "v2")
 
     val singleSubmission = validateSubmitArguments(args)
+
+    println(s"submit, source: ${singleSubmission.workflowSource}")
+    println(s"submit, url: ${singleSubmission.workflowUrl}")
+
     val submissionFuture = () => cromwellClient.submit(singleSubmission).andThen({
       case Success(submitted) =>
         Log.info(s"Workflow ${submitted.id} submitted to ${args.host}")
@@ -176,15 +185,15 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     val validation = args.validateSubmission(EntryPointLogger) map {
       case ValidSubmission(w, u, r, i, o, l, z) =>{
-        val finalWorkflowSourceAndUrl: (Option[String], Option[String]) = {
-          if (w.isDefined) (w,u)
-          else if (u.get.startsWith("http")) (w, u)
-          else (Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL file
+        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = {
+          if (w.isDefined) WorkflowSourceOrUrl(w,u)  // submission has CWL workflow file path and no imports
+          else if (u.get.startsWith("http")) WorkflowSourceOrUrl(w, u)
+          else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL/CWL file
         }
 
         WorkflowSingleSubmission(
-          workflowSource = finalWorkflowSourceAndUrl._1,
-          workflowUrl = finalWorkflowSourceAndUrl._2,
+          workflowSource = finalWorkflowSourceAndUrl.source,
+          workflowUrl = finalWorkflowSourceAndUrl.url,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,

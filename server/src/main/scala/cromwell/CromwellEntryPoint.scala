@@ -59,10 +59,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = cromwellSystem.actorSystem
 
     val sources = validateRunArguments(args)
-
-    println(s"submit, source: ${sources.workflowSource}")
-    println(s"submit, url: ${sources.workflowUrl}")
-
     val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
@@ -82,10 +78,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val cromwellClient = new CromwellClient(args.host, "v2")
 
     val singleSubmission = validateSubmitArguments(args)
-
-    println(s"submit, source: ${singleSubmission.workflowSource}")
-    println(s"submit, url: ${singleSubmission.workflowUrl}")
-
     val submissionFuture = () => cromwellClient.submit(singleSubmission).andThen({
       case Success(submitted) =>
         Log.info(s"Workflow ${submitted.id} submitted to ${args.host}")

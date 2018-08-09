@@ -279,7 +279,7 @@ cromwell::private::install_cwltool() {
     # TODO: No clue why these are needed for cwltool. If you know please update this comment.
     sudo apt-get install procps || true
     sudo -H pip install 'requests[security]'
-    sudo -H pip install --ignore-installed cwltool
+    sudo -H pip install --ignore-installed cwltool==1.0.20180711112827
 }
 
 cromwell::private::install_cwltest() {

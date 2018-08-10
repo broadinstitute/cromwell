@@ -58,13 +58,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
     val conditionOutputPort = node.conditionExpression.singleOutputPort
     data.valueStore.get(conditionOutputPort, index) match {
       case Some(b: WomBoolean) =>
-        val conditionalStatus = if (b.value) {
-          workflowLogger.info(s"Condition met: '${node.conditionExpression.womExpression.sourceString}'. Running conditional section")
-          ExecutionStatus.Done
-        } else {
-          workflowLogger.info(s"Condition NOT met: '${node.conditionExpression.womExpression.sourceString}'. Bypassing conditional section")
-          ExecutionStatus.Bypassed
-        }
+        val conditionalStatus = if (b.value) ExecutionStatus.Done else ExecutionStatus.Bypassed
 
         val valueStoreAdditions: Map[ValueKey, WomValue] = if (!b.value) {
           node.conditionalOutputPorts.map(op => ValueKey(op, index) -> op.womType.none).toMap

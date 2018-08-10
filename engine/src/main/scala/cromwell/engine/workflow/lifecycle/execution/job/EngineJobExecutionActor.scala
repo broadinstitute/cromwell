@@ -217,7 +217,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(CachedOutputLookupFailed(_, error), data: ResponsePendingData) =>
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
       runJob(data)
-    case Event(JobFailedNonRetryableResponse(_, error, rc), data: ResponsePendingData) =>
+    case Event(JobFailedNonRetryableResponse(_, error, _), data: ResponsePendingData) =>
       // Similar to CachedOutputLookupFailed, some BackendCacheHitCopyingActors send this message when a copy fails:
       log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
       runJob(data)

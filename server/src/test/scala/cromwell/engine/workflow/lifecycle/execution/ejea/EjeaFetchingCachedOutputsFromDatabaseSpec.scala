@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
+import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.WorkflowId
 import cromwell.core.callcaching.{CallCachingActivity, ReadAndWriteCache}
 import cromwell.core.simpleton.WomValueSimpleton
@@ -51,30 +52,32 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
       }
 
       RestartOrExecuteCommandTuples foreach { case RestartOrExecuteCommandTuple(operationName, restarting, expectedMessage) =>
-        s"Correctly receive $name then $operationName the job when it gets a result-fetch failure" in {
-          ejea = ejeaInFetchingCachedOutputsFromDatabaseState(restarting)
-          // Send the response from the EJHA (if there was one!):
-          ejhaResponse foreach {
-            ejea ! _
+        // Send the response from the "Fetch" actor
+        val failureReason = new Exception("You can't handle the truth!")
+        List(CachedOutputLookupFailed(CallCachingEntryId(90210), failureReason), JobFailedNonRetryableResponse(null, failureReason, None)) foreach { msg =>
+          s"Correctly receive $name then $operationName the job when it gets a ${msg.getClass.getSimpleName} result-fetch failure" in {
+            ejea = ejeaInFetchingCachedOutputsFromDatabaseState(restarting)
+            // Send the response from the EJHA (if there was one!):
+            ejhaResponse foreach {
+              ejea ! _
+            }
+
+            ejea ! msg
+
+            helper.bjeaProbe.expectMsg(awaitTimeout, expectedMessage)
+
+            // Check we end up in the right state:
+            ejea.stateName should be(RunningJob)
+            // Check we end up with the right data:
+            val expectedData = initialData.copy(hashes = ejhaResponse map {
+              case SuccessfulCallCacheHashes => Success(SuccessfulCallCacheHashes)
+              case HashError(t) => Failure(t)
+              case _ => fail(s"Bad test wiring. We didn't expect $ejhaResponse here")
+            },
+              backendJobActor = Option(helper.bjeaProbe.ref)
+            )
+            ejea.stateData should be(expectedData)
           }
-
-          // Send the response from the "Fetch" actor
-          val failureReason = new Exception("You can't handle the truth!")
-
-          ejea ! CachedOutputLookupFailed(CallCachingEntryId(90210), failureReason)
-          helper.bjeaProbe.expectMsg(awaitTimeout, expectedMessage)
-
-          // Check we end up in the right state:
-          ejea.stateName should be(RunningJob)
-          // Check we end up with the right data:
-          val expectedData = initialData.copy(hashes = ejhaResponse map {
-            case SuccessfulCallCacheHashes => Success(SuccessfulCallCacheHashes)
-            case HashError(t) => Failure(t)
-            case _ => fail(s"Bad test wiring. We didn't expect $ejhaResponse here")
-          },
-            backendJobActor = Option(helper.bjeaProbe.ref)
-          )
-          ejea.stateData should be(expectedData)
         }
       }
     }

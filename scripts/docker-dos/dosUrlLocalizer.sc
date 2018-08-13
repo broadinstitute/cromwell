@@ -68,6 +68,8 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
   } yield()
 
+  println(s"done! with download...")
+
   dosResloverObj match {
     case Success(_) =>
     case Failure(e) => {
@@ -123,6 +125,8 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
 def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
   val urlObjOption = urlArray.find(urlObj => urlObj.url.startsWith("gs://"))
 
+  println(s"GS URL: ${urlObjOption}")
+
   urlObjOption match {
     case Some(urlObj) => Success(urlObj.url)
     case None => Failure(new Exception("No resolved url starting with 'gs://' found from Martha response!"))
@@ -135,14 +139,22 @@ def downloadFileFromGcs(gcsUrl: String, serviceAccount: String, downloadLoc: Str
   val fileToBeLocalized = gcsUrlArray(1)
   val gcsBucket = gcsUrlArray(0)
 
+  println(s"fileToBeLocalized: ${fileToBeLocalized}")
+  println(s"gcsBucket: ${gcsBucket}")
+
   Try {
     val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
       .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
+    _ = println(s"download credentials: $credentials")
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
+    _ = println(s"storage: $storage")
     val blob = storage.get(gcsBucket, fileToBeLocalized)
+    _ = println(s"blob: $blob")
     val readChannel = blob.reader()
+    _ = println(s"readChannel: $readChannel")
     Files.createDirectories(Paths.get(downloadLoc).getParent)
     val fileOuputStream = new FileOutputStream(downloadLoc)
+    _ = println(s"fileOutputStream: ${fileOuputStream}")
     fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MaxValue)
     fileOuputStream.close()
   }

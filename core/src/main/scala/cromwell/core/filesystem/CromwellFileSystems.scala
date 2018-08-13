@@ -9,12 +9,14 @@ import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import common.Checked
 import common.validation.Checked._
+import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import net.ceedubs.ficus.Ficus._
 import shapeless.syntax.typeable._
 
 import scala.collection.JavaConverters._
+import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 /**
@@ -25,7 +27,7 @@ class CromwellFileSystems(globalConfig: Config) {
   private [filesystem] val factoryBuilders: Map[String, Constructor[_]] = if (globalConfig.hasPath("filesystems")) {
     val rawConfigSet = globalConfig.getObject("filesystems").entrySet.asScala
     val configMap = rawConfigSet.toList.map({ entry => entry.getKey -> entry.getValue })
-    val constructorMap = configMap.traverse({
+    val constructorMap = configMap.traverse[ErrorOr, (String, Constructor[_])]({
       case (key, fsConfig: ConfigObject) => createConstructor(key, fsConfig).toValidated
       case (key, _) => s"Invalid filesystem configuration for $key".invalidNel
     }).map(_.toMap)
@@ -85,12 +87,25 @@ class CromwellFileSystems(globalConfig: Config) {
       // Iterate over the config entries under the "filesystems" config
       val rawConfigSet = filesystemsConfig.getObject("filesystems").entrySet().asScala
       val configMap = rawConfigSet.toList.map({ entry => entry.getKey -> entry.getValue })
+      import net.ceedubs.ficus.Ficus._
 
-      configMap.traverse({
-        // build the factory for each entry
-        case (key, config: ConfigObject) => buildFactory(key, config.toConfig).toValidated.map(key -> _)
+      def isFilesystemEnabled(configObject: ConfigObject): Boolean = {
+        // There may be an "enabled" key on this filesystem. If there is and its value is set to "false" (case insensitive)
+        // then ignore this filesystem entry. Otherwise this filesystem is enabled.
+        val maybeEnabled = configObject.toConfig.as[Option[String]]("enabled")
+        !maybeEnabled.exists(_.equalsIgnoreCase("false"))
+      }
+
+      configMap.flatTraverse[ErrorOr, (String, PathBuilderFactory)] {
+        // Build the factory for each entry.
+        case (key, config: ConfigObject) if isFilesystemEnabled(config) =>
+          // This filesystem is enabled, wrap in a List.
+          buildFactory(key, config.toConfig).toValidated map { pbf => List(key -> pbf) }
+        case (_, _: ConfigObject) =>
+          // This filesystem is not enabled, return an empty List.
+          List.empty.validNel
         case (key, _) => s"Invalid filesystem backend configuration for $key".invalidNel
-      }).map(_.toMap).toEither
+      } map { _.toMap } toEither
     } else Map.empty[String, PathBuilderFactory].validNelCheck
   }
 }

@@ -103,7 +103,7 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
   // So it can be overridden in tests
   private [backend] lazy val cromwellFileSystems = CromwellFileSystems.instance
 
-  private [backend] lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
+  lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
     cromwellFileSystems.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
   }
 

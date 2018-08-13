@@ -1,0 +1,14 @@
+name: http_inputs
+backends: [Local, Papiv2]
+testFormat: workflowsuccess
+
+files {
+  workflow: http_inputs/http_inputs.wdl
+  inputs: http_inputs/http_inputs.inputs
+}
+
+metadata {
+  workflowName: http_inputs
+  status: Succeeded
+  "outputs.http_inputs.sum.sum": "6cb875b80d51f9a26eb05db7f9779011"
+}

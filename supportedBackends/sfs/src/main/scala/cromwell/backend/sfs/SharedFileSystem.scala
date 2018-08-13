@@ -2,19 +2,24 @@ package cromwell.backend.sfs
 
 import java.io.{FileNotFoundException, IOException}
 
+import akka.actor.ActorContext
+import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.collections.EnhancedCollections._
+import common.util.TryUtil
 import cromwell.backend.io.JobPaths
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
-import common.util.TryUtil
+import cromwell.filesystems.http.HttpPathBuilder
 import wom.WomFileMapper
 import wom.values._
 
 import scala.collection.JavaConverters._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -94,11 +99,13 @@ trait SharedFileSystem extends PathFactory {
 
   def sharedFileSystemConfig: Config
 
+  implicit def actorContext: ActorContext
+
   lazy val DefaultStrategies = Seq("hard-link", "soft-link", "copy")
 
-  lazy val LocalizationStrategies: Seq[String] = getConfigStrategies("localization")
-  lazy val Localizers: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategies, docker = false)
-  lazy val DockerLocalizers: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategies, docker = true)
+  lazy val LocalizationStrategyNames: Seq[String] = getConfigStrategies("localization")
+  lazy val LocalizationStrategies: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategyNames, docker = false)
+  lazy val DockerLocalizationStrategies: Seq[DuplicationStrategy] = createStrategies(LocalizationStrategyNames, docker = true)
 
   lazy val CachingStrategies: Seq[String] = getConfigStrategies("caching.duplication-strategy")
   lazy val Cachers: Seq[DuplicationStrategy] = createStrategies(CachingStrategies, docker = false)
@@ -172,7 +179,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def localizeWomFile(inputsRoot: Path, docker: Boolean)(value: WomFile): WomFile = {
-    val strategies = if (docker) DockerLocalizers else Localizers
+    val strategies = if (docker) DockerLocalizationStrategies else LocalizationStrategies
 
     // Strip the protocol scheme
     def stripProtocolScheme(path: Path): Path = DefaultPathBuilder.get(path.pathWithoutScheme)
@@ -199,8 +206,21 @@ trait SharedFileSystem extends PathFactory {
       PairOfFiles(src, dest)
     }
 
+    // A possibly staged version of the input file suitable for downstream processing, or just the original input
+    // file if no staging was required.
+    val staged: WomFile = value.mapFile { input =>
+      pathBuilders.collectFirst({ case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h }) match {
+        case Some(httpPathBuilder) =>
+          implicit val materializer = ActorMaterializer()
+          implicit val ec = actorContext.dispatcher
+
+          Await.result(httpPathBuilder.content(input).map { _.toString }, Duration.Inf)
+        case _ => input
+      }
+    }
+
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    localizeWomFile(toCallPath _, strategies.toStream, docker)(value)
+    localizeWomFile(toCallPath _, strategies.toStream, docker)(staged)
   }
 
   /**

@@ -99,7 +99,9 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
   val longTimeoutConfig =
     BlazeClientConfig
       .defaultConfig
-      .copy(idleTimeout = 5.minutes)
+      .copy(idleTimeout = 5.minutes,
+        responseHeaderTimeout = 5.minutes,
+        requestTimeout = 5.minutes)
 
   val marthaResponseIo: IO[MarthaResponse] = for {
     httpClient <- Http1Client[IO](config = longTimeoutConfig)

@@ -2,14 +2,14 @@ package cromwell.backend
 
 import _root_.wdl.draft2.model._
 import akka.actor.ActorSystem
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.Validation._
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.labels.Labels
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
-import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
+import cromwell.core.{CallKey, OptionNotFoundException, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
@@ -17,7 +17,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomArray.WomArrayLike
 import wom.values._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
@@ -84,6 +84,18 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
 
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
   val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)
+  lazy val hogGroup = {
+    val config = ConfigFactory.load
+    if (config.hasPath("system.hog-safety.workflow-option")) {
+      val hogGroupField = config.getString("system.hog-safety.workflow-option")
+      workflowOptions.get(hogGroupField) match {
+        case Success(hg) => hg
+        case Failure(_) => rootWorkflowId.shortString
+      }
+    } else {
+      rootWorkflowId.shortString
+    }
+  }
 
   override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${callable.name}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption

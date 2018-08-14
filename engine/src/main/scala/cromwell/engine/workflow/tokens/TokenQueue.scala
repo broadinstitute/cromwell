@@ -36,7 +36,10 @@ final case class TokenQueue(queue: Queue[ActorRef], private [tokens] val pool: T
   }
 
   /**
-    * Returns a DequeuedActor if there's an element available, None otherwise.
+    * Returns Some(DequeuedActor(...)) if there's:
+    *  - an actor to dequeue
+    *  - a token available for it
+    *  Returns None otherwise.
     */
   def dequeueOption: Option[DequeuedActor] = {
     for {

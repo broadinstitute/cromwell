@@ -1,24 +1,41 @@
 package cromwell.engine.workflow.tokens
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 import akka.actor.ActorRef
 import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.TokenQueue.{DequeuedActor, LeasedActor}
+import cromwell.engine.workflow.tokens.TokenQueue.{DequeuedActor, LeasedActor, TokenQueuePlaceholder}
 import io.github.andrebeat.pool.Lease
 
 import scala.collection.immutable.Queue
 
 object TokenQueue {
-  case class DequeuedActor(leasedActor: LeasedActor, tokenQueue: TokenQueue)
-  case class LeasedActor(actor: ActorRef, lease: Lease[JobExecutionToken])
+  final case class DequeuedActor(leasedActor: LeasedActor, tokenQueue: TokenQueue)
+  final case class LeasedActor(actor: ActorRef, lease: Lease[JobExecutionToken])
   def apply(tokenType: JobExecutionTokenType) = new TokenQueue(Queue.empty, TokenPool(tokenType))
+  final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
+  final case class TokenQueueState(queue: Queue[TokenQueuePlaceholder], hogCounts: Map[String, Int])
+
+  final case class TokenHoggingLease(lease: Lease[JobExecutionToken]) extends Lease[JobExecutionToken] {
+    private[this] val dirty = new AtomicBoolean(false)
+    override protected[this] def a: JobExecutionToken = lease.get
+
+    override protected[this] def handleRelease(): Unit = {
+      if (dirty.compareAndSet(expect = false, update = true)) {
+
+      }
+      lease.release()
+    }
+    override protected[this] def handleInvalidate(): Unit = lease.invalidate()
+  }
 }
 
 /**
   * A queue assigned to a pool.
   * Elements can be dequeued if the queue is not empty and there are tokens in the pool
   */
-final case class TokenQueue(queue: Queue[ActorRef], private [tokens] val pool: TokenPool) {
+final case class TokenQueue(queue: Queue[TokenQueuePlaceholder], hogIndex: Int, private [tokens] val pool: TokenPool) {
   val tokenType = pool.tokenType
 
   /**
@@ -31,8 +48,8 @@ final case class TokenQueue(queue: Queue[ActorRef], private [tokens] val pool: T
     *
     * @return the new token queue
     */
-  def enqueue(actor: ActorRef): TokenQueue = {
-    copy(queue = queue.enqueue(actor))
+  def enqueue(placeholder: TokenQueuePlaceholder): TokenQueue = {
+    copy(queue = queue.enqueue(placeholder))
   }
 
   /**
@@ -44,9 +61,13 @@ final case class TokenQueue(queue: Queue[ActorRef], private [tokens] val pool: T
   def dequeueOption: Option[DequeuedActor] = {
     for {
       actorAndNewQueue <- queue.dequeueOption
-      (actor, newQueue) = actorAndNewQueue
-      lease <- pool.tryAcquire()
-    } yield DequeuedActor(LeasedActor(actor, lease), copy(queue = newQueue))
+      (queuePlaceholder, newQueue) = actorAndNewQueue
+      lease <- acquireLease(queuePlaceholder.hogGroup, pool)
+    } yield DequeuedActor(LeasedActor(queuePlaceholder.actor, lease), copy(queue = newQueue))
+  }
+
+  def acquireLease(hogGroup: String, pool: TokenPool): Option[Lease[JobExecutionToken]] = {
+    pool.tryAcquire()
   }
 
   /**
@@ -54,3 +75,4 @@ final case class TokenQueue(queue: Queue[ActorRef], private [tokens] val pool: T
     */
   def available: Boolean = queue.nonEmpty && pool.leased() < pool.capacity
 }
+

@@ -55,7 +55,8 @@ trait BackendLifecycleActorFactory {
 
   lazy val jobExecutionTokenType: JobExecutionTokenType = {
     val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
-    JobExecutionTokenType(name, concurrentJobLimit)
+    val hogFactor = configurationDescriptor.globalConfig.getInt("system.hog-safety.hog-factor")
+    JobExecutionTokenType(name, concurrentJobLimit, hogFactor)
   }
 
   /* ****************************** */

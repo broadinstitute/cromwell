@@ -146,7 +146,7 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
     val validation = Try(CromwellEntryPoint.validateRunArguments(command))
 
     validation.isFailure shouldBe true
-    validation.failed.get.getMessage should include("Invalid workflow url. Length of the url:2305 is more than 2000 characters")
+    validation.failed.get.getMessage should include("Invalid workflow url: url has length 2305, longer than the maximum allowed 2000 characters")
   }
 
   it should "fail if input files do not exist" in {

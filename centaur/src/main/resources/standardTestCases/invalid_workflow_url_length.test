@@ -9,6 +9,6 @@ submit {
   statusCode: 400
   message: """{
   "status": "fail",
-  "message": "Error(s): Invalid workflow url. Length of the url:2305 is more than 2000 characters"
+  "message": "Error(s): Invalid workflow url: url has length 2305, longer than the maximum allowed 2000 characters"
 }"""
 }

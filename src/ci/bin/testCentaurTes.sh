@@ -48,6 +48,7 @@ FUNNEL_PID=$!
 centaur/test_cromwell.sh \
     -j "${CROMWELL_BUILD_JAR}" \
     -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/tes_application.conf" \
+    -n "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf" \
     -g \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \

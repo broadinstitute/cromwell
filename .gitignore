@@ -23,16 +23,18 @@ native
 scripts/docker-compose-mysql/compose/mysql/data
 /logs/
 /common-workflow-language/
+# Vault rendered resources
+artifactory_credentials.properties
 bcs_application.conf
-cromwell-service-account.json
-cromwell-centaur-service-account.json
+centaur_application_sentry_config.inc.conf
 cromwell-centaur-requester-pays-service-account.json
+cromwell-centaur-service-account.json
+cromwell-service-account.json
 cwl_conformance_test.inputs.json
+dockerhub_auth.inc.sh
 dockerhub_provider_config_v1.inc.conf
 dockerhub_provider_config_v2.inc.conf
 github_private_deploy_key
 papi_application.inc.conf
 papi_refresh_token.txt
-artifactory_credentials.properties
-dockerhub_auth.inc.sh
-src/ci/resources/private_docker_papi_v2_usa.options
+private_docker_papi_v2_usa.options

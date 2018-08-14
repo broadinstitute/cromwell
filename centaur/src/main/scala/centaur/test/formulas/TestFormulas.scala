@@ -29,16 +29,16 @@ object TestFormulas {
   private def runFailingWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Failed)
 
   def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow): Test[SubmitResponse] = for {
-    w <- runSuccessfulWorkflow(workflowDefinition)
-    _ <- validateMetadata(w, workflowDefinition)
-    _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-  } yield SubmitResponse(w)
+    submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
+    metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+    _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+  } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow): Test[SubmitResponse] = for {
-    w <- runFailingWorkflow(workflowDefinition)
-    _ <- validateMetadata(w, workflowDefinition)
-    _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-  } yield SubmitResponse(w)
+    submittedWorkflow <- runFailingWorkflow(workflowDefinition)
+    metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+    _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+  } yield SubmitResponse(submittedWorkflow)
 
   def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow): Test[SubmitResponse] = {
     for {
@@ -46,8 +46,8 @@ object TestFormulas {
       secondWf <- runSuccessfulWorkflow(workflowDefinition)
       _ <- printHashDifferential(firstWF, secondWf)
       metadata <- validateMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
-      _ <- validateNoCacheMisses(metadata, workflowDefinition.testName)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf)
+      _ <- validateNoCacheMisses(secondWf, metadata, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf, metadata)
     } yield SubmitResponse(secondWf)
   }
 
@@ -56,8 +56,8 @@ object TestFormulas {
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
       testWf <- runSuccessfulWorkflow(workflowDefinition)
       metadata <- validateMetadata(testWf, workflowDefinition)
-      _ <- validateNoCacheHits(metadata, workflowDefinition.testName)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
+      _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf, metadata)
     } yield SubmitResponse(testWf)
   }
 
@@ -66,35 +66,45 @@ object TestFormulas {
       _ <- runFailingWorkflow(workflowDefinition) // Build caches
       testWf <- runFailingWorkflow(workflowDefinition)
       metadata <- validateMetadata(testWf, workflowDefinition)
-      _ <- validateNoCacheHits(metadata, workflowDefinition.testName)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf)
+      _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, testWf, metadata)
     } yield SubmitResponse(testWf)
   }
   
-  private def cromwellRestart(workflowDefinition: Workflow, callMarker: CallMarker, testRecover: Boolean, finalStatus: TerminalStatus): Test[SubmitResponse] = CentaurConfig.runMode match {
-    case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
-      for {
-        w <- submitWorkflow(workflowDefinition)
-        jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
-        _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
-        _ = CromwellManager.startCromwell(postRestart)
-        _ <- pollUntilStatus(w, workflowDefinition, finalStatus)
-        _ <- validateMetadata(w, workflowDefinition)
-        _ <- if(testRecover) validateRecovered(w, callMarker.callKey, jobId) else Test.successful(())
-        _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-      } yield SubmitResponse(w)
-    case _ if finalStatus == Succeeded => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
-    case _ if finalStatus == Failed => runFailingWorkflowAndVerifyMetadata(workflowDefinition)
-    case _ => Test.failed(new Exception("This test can only run successful or failed workflow"))
+  private def cromwellRestart(workflowDefinition: Workflow,
+                              callMarker: CallMarker,
+                              testRecover: Boolean,
+                              finalStatus: TerminalStatus): Test[SubmitResponse] = {
+    CentaurConfig.runMode match {
+      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+        for {
+          submittedWorkflow <- submitWorkflow(workflowDefinition)
+          jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
+          _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
+          _ = CromwellManager.startCromwell(postRestart)
+          _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
+          metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+          _ <- if (testRecover) {
+            validateRecovered(workflowDefinition, submittedWorkflow, metadata, callMarker.callKey, jobId)
+          }
+          else {
+            Test.successful(())
+          }
+          _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+        } yield SubmitResponse(submittedWorkflow)
+      case _ if finalStatus == Succeeded => runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition)
+      case _ if finalStatus == Failed => runFailingWorkflowAndVerifyMetadata(workflowDefinition)
+      case _ => Test.invalidTestDefinition("This test can only run successful or failed workflow", workflowDefinition)
+    }
   }
 
   def instantAbort(workflowDefinition: Workflow): Test[SubmitResponse] = for {
-    w <- submitWorkflow(workflowDefinition)
-    _ <- abortWorkflow(w)
-    _ <- pollUntilStatus(w, workflowDefinition, Aborted)
-    _ <- validateMetadata(w, workflowDefinition)
-    _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-  } yield SubmitResponse(w)
+    submittedWorkflow <- submitWorkflow(workflowDefinition)
+    _ <- abortWorkflow(submittedWorkflow)
+    _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
+    metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+    _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+  } yield SubmitResponse(submittedWorkflow)
 
   def scheduledAbort(workflowDefinition: Workflow, callMarker: CallMarker, restart: Boolean): Test[SubmitResponse] = {
     def withRestart() = CentaurConfig.runMode match {
@@ -105,19 +115,19 @@ object TestFormulas {
     }
     
     for {
-      w <- submitWorkflow(workflowDefinition)
-      jobId <- pollUntilCallIsRunning(w, callMarker.callKey)
+      submittedWorkflow <- submitWorkflow(workflowDefinition)
+      jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
       // The Cromwell call status could be running but the backend job might not have started yet, give it some time
       _ <- waitFor(30.seconds)
-      _ <- abortWorkflow(w)
+      _ <- abortWorkflow(submittedWorkflow)
       _ = if(restart) withRestart()
-      _ <- pollUntilStatus(w, workflowDefinition, Aborted)
-      _ <- validatePAPIAborted(jobId, w)
+      _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
+      _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
       _ <- waitFor(30.seconds)
-      _ <- validateMetadata(w, workflowDefinition)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, w)
-    } yield SubmitResponse(w)
+      metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    } yield SubmitResponse(submittedWorkflow)
   }
 
   def workflowRestart(workflowDefinition: Workflow,

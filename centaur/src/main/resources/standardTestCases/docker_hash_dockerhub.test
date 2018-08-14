@@ -3,6 +3,8 @@ testFormat: workflowsuccess
 
 files {
   workflow: docker_hash/docker_hash_dockerhub.wdl
+  # https://github.com/broadinstitute/cromwell/issues/3998
+  options: docker_hash/docker_hash.options
 }
 
 metadata {

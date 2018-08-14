@@ -4,6 +4,7 @@ import java.lang.ProcessBuilder.Redirect
 
 import better.files.File
 import centaur.api.CentaurCromwellClient
+import com.typesafe.scalalogging.StrictLogging
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -11,7 +12,7 @@ import scala.language.postfixOps
 /**
   * This is not thread-safe, and hence only works if cromwell is started / stopped from only 1 thread at a time.
   */
-object CromwellManager {
+object CromwellManager extends StrictLogging {
   val ManagedCromwellPort = 8008
   val timeout = 120 seconds
   private val interval = 5 second
@@ -49,23 +50,23 @@ object CromwellManager {
         .redirectErrorStream(true)
         
       // Start the cromwell process
-      println("Starting Cromwell...")
+      logger.info("Starting Cromwell...")
       val process = processBuilder.start()
       cromwellProcess = Option(process)
 
       var waitedFor = Duration.Zero
 
       while (!isAlive && waitedFor < timeout) {
-        println("Waiting for Cromwell...")
+        logger.info("Waiting for Cromwell...")
         Thread.sleep(interval.toMillis)
         waitedFor = waitedFor + interval
       }
       
       _ready = true
-      if (isAlive) println("Cromwell is running")
+      if (isAlive) logger.info("Cromwell is running")
       else {
-        println("Timeout waiting for cromwell server - failing test run")
-        println(logFile.contentAsString)
+        logger.error("Timeout waiting for cromwell server - failing test run")
+        logger.error(logFile.contentAsString)
         stopCromwell("Timed out waiting for server")
         System.exit(timeoutExitStatus)
       }
@@ -74,7 +75,7 @@ object CromwellManager {
 
   def stopCromwell(reason: String) = {
     _ready = false
-    println(s"Stopping Cromwell... ($reason)")
+    logger.info(s"Stopping Cromwell... ($reason)")
     try {
       cromwellProcess foreach { process =>
         process.getOutputStream.flush()
@@ -83,7 +84,7 @@ object CromwellManager {
       }
     } catch {
       case e: Exception => 
-        println("Caught exception while stopping Cromwell")
+        logger.error("Caught exception while stopping Cromwell")
         e.printStackTrace()
     }
     

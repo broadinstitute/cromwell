@@ -72,6 +72,8 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
 
   dosResloverObj match {
     case Success(_) =>
+      val credentials = GoogleCredentials.getApplicationDefault()
+      println(s"final credentials: $credentials")
     case Failure(e) => {
       Console.err.println(s"Error: $e")
       e.printStackTrace(Console.err)

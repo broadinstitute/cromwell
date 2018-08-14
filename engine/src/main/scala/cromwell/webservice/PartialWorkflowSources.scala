@@ -244,10 +244,9 @@ object PartialWorkflowSources {
       }
     }
 
-    workflowUrl.length match {
-      case l if l > MaxWorkflowUrlLength => s"Invalid workflow url: url has length $l, longer than the maximum allowed $MaxWorkflowUrlLength characters".invalidNel
-      case _ => convertStringToUrl(workflowUrl)
-    }
+    val len = workflowUrl.length
+    if (len > MaxWorkflowUrlLength) s"Invalid workflow url: url has length $len, longer than the maximum allowed $MaxWorkflowUrlLength characters".invalidNel
+    else convertStringToUrl(workflowUrl)
   }
 
   private def toMap(someInput: Option[String]): Map[String, JsValue] = {

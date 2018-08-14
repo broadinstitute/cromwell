@@ -41,7 +41,7 @@ The Cromwell jar file can be built as described in [Building](Building).
 `run` mode executes a single workflow in Cromwell and then exits.
 
 * **`workflow-source`**  
-The single required argument. It can either be a workflow source file or a url pointing to the workflow.
+The single required argument. It can be either a local path or a remote URL pointing to the workflow source file.
  
 * **`--inputs`**  
 An optional file of workflow inputs.  Although optional, it is a best practice to use an inputs file to satisfy workflow

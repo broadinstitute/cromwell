@@ -176,7 +176,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, u, r, i, o, l, z) =>{
+      case ValidSubmission(w, u, r, i, o, l, z) =>
         val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = {
           if (w.isDefined) WorkflowSourceOrUrl(w,u)  // submission has CWL workflow file path and no imports
           else if (u.get.startsWith("http")) WorkflowSourceOrUrl(w, u)
@@ -193,7 +193,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
           options = Option(o),
           labels = Option(l.parseJson.convertTo[List[Label]]),
           zippedImports = z)
-      }
     }
 
     validOrFailSubmission(validation)

@@ -7,7 +7,9 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.typesafe.config.Config
 import io.sentry.dsn.Dsn
+import io.sentry.event.{Event, EventBuilder}
 import io.sentry.event.helper.ContextBuilderHelper
+import io.sentry.event.interfaces.ExceptionInterface
 import io.sentry.{DefaultSentryClientFactory, SentryClient}
 
 import scala.util.Try
@@ -40,7 +42,17 @@ class SentryReporter(override val name: String, config: Config) extends ErrorRep
       addTestEnvironment(sentryClient, testEnvironment)
       addCiEnvironment(sentryClient, ciEnvironment)
       addCentaurTestException(sentryClient, centaurTestException)
-      sentryClient.sendException(centaurTestException)
+
+      val eventBuilder: EventBuilder  = new EventBuilder().withMessage(centaurTestException.getMessage)
+        .withLevel(Event.Level.ERROR)
+        .withSentryInterface(new ExceptionInterface(centaurTestException))
+
+      if (centaurTestException.getMessage == "Unexpected terminal status Failed but was waiting for Succeeded") {
+        sentryClient.sendEvent(eventBuilder.withFingerprint(s"Unexpected terminal status Failed but was waiting for Succeeded: ${testEnvironment.testName}"))
+      }
+      else {
+        sentryClient.sendEvent(eventBuilder)
+      }
     }
   }
 

@@ -138,8 +138,10 @@ def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
 
 def downloadFileFromGcs(gcsUrl: String, serviceAccount: String, downloadLoc: String) : Try[Unit] = {
   val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
-  val fileToBeLocalized = gcsUrlArray(1)
-  val gcsBucket = gcsUrlArray(0)
+  //val fileToBeLocalized = gcsUrlArray(1)
+  //val gcsBucket = gcsUrlArray(0)
+  val fileToBeLocalized = "a.txt"
+  val gcsBucket = "rm-dev"
 
   println(s"fileToBeLocalized: ${fileToBeLocalized}")
   println(s"gcsBucket: ${gcsBucket}")

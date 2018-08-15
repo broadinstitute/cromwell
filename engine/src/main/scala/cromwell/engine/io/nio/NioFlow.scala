@@ -10,7 +10,7 @@ import cromwell.core.io._
 import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.IORetry
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.{IoCommandContext, IoAttempts}
+import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
@@ -77,13 +77,13 @@ class NioFlow(parallelism: Int,
   val flow = Flow[DefaultCommandContext[_]].mapAsyncUnordered[IoResult](parallelism)(processCommand.andThen(_.unsafeToFuture()))
 
   private def copy(copy: IoCopyCommand) = IO {
-    createDirectoriesForSFSPath(copy.destination)
+    createDirectories(copy.destination)
     copy.source.copyTo(copy.destination, copy.overwrite)
     ()
   }
 
   private def write(write: IoWriteCommand) = IO {
-    createDirectoriesForSFSPath(write.file)
+    createDirectories(write.file)
     write.file.writeContent(write.content)(write.openOptions, Codec.UTF8)
     ()
   }
@@ -133,8 +133,9 @@ class NioFlow(parallelism: Int,
     isDirectory.file.isDirectory
   }
 
-  private def createDirectoriesForSFSPath(path: Path) = path match {
+  private def createDirectories(path: Path) = path match {
     case _: DefaultPath => path.parent.createDirectories()
+    case _: FtpPath => path.parent.createDirectories()
     case _ =>
   }
 

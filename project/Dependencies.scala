@@ -1,6 +1,7 @@
 import sbt._
 
 object Dependencies {
+  private val apacheCommonNetV = "3.6"
   private val akkaHttpV = "10.1.3"
   private val akkaV = "2.5.13"
   private val alibabaCloudCoreV = "3.6.0"
@@ -26,6 +27,7 @@ object Dependencies {
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.1"
   private val fs2V = "0.10.2"
+  private val ftpFsV = "1.2.1"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.23.0"
   private val googleCloudCoreV = "1.34.0"
@@ -151,13 +153,42 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV
   )
 
+  private val googleApiClientDependencies = List(
+    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
+    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
+    // The exclusions prevent guava from colliding at assembly time.
+    "com.google.guava" % "guava" % guavaV,
+    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
+      exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
+      exclude("com.google.guava", "guava-jdk5")
+  )
+
+  val spiDependencies = List(
+    "com.iheart" %% "ficus" % ficusV,
+    "org.slf4j" % "slf4j-api" % slf4jV
+  ) ++ googleApiClientDependencies
+
+  val spiUtilDependencies = List(
+    "com.iheart" %% "ficus" % ficusV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.scalatest" %% "scalatest" % scalatestV % Test
+  )
+
+  val implFtpDependencies = List (
+    "commons-net" % "commons-net" % apacheCommonNetV,
+    "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
+    "com.google.guava" % "guava" % guavaV
+  )
+
   // Internal collections of dependencies
 
   private val betterFilesDependencies = List(
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  private val catsDependencies = List(
+  val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
     "org.typelevel" %% "alleycats-core" % catsV,
     "com.github.benhutchison" %% "mouse" % mouseV,
@@ -210,18 +241,6 @@ object Dependencies {
     "org.webjars" % "swagger-ui" % swaggerUiV,
     "io.swagger" % "swagger-parser" % swaggerParserV % Test,
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
-  )
-
-  private val googleApiClientDependencies = List(
-    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
-    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
-    // The exclusions prevent guava from colliding at assembly time.
-    "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5")
   )
 
   // The v1 dependency has been cloned in the broad artifactory so that we can have the 2 versions co-exist in the same jar
@@ -321,7 +340,7 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V
   ) ++ catsDependencies ++ configDependencies
-
+  
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,

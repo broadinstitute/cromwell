@@ -9,6 +9,7 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
+import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
@@ -16,7 +17,7 @@ import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wom.values.{WomFile, WomSingleFile}
+import wom.values.WomFile
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -63,7 +64,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     maxInterval = 30 seconds,
     multiplier = 1.1
   )
-  
+
   private lazy val realDockerImageUsed: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
@@ -71,20 +72,33 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
-  // Utility for converting a WomValue so that the path is localized to the
-  // container's filesystem.
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    womFile mapFile { path =>
-      val localPath = DefaultPathBuilder.get(path).toAbsolutePath
-      localPath match {
-        case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) => p.pathAsString
-        case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
-          tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
-        case p if p.startsWith(tesJobPaths.callRoot) =>
-          tesJobPaths.callDockerRoot.resolve(localPath.getFileName.pathAsString).pathAsString
-        case p => tesJobPaths.containerInput(p.pathAsString)
+    womFile.mapFile(value =>
+      (getPath(value), asAdHocFile(womFile)) match {
+        case (Success(path: Path), Some(adHocFile)) =>
+          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          tesJobPaths.containerExec(commandDirectory, adHocFile.alternativeName.getOrElse(path.name))
+        case _ => mapCommandLineJobInputWomFile(womFile).value
       }
-    }
+    )
+  }
+
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      getPath(value) match {
+        case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
+          path.pathAsString
+        case Success(path: Path) if path.startsWith(tesJobPaths.callExecutionRoot) =>
+          tesJobPaths.containerExec(commandDirectory, path.name)
+        case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
+          tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
+        case Success(path: Path) =>
+          tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
+        case _ =>
+          value
+      }
+    )
   }
 
   override lazy val commandDirectory: Path = {
@@ -106,14 +120,15 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           commandDirectory,
           _,
           instantiatedCommand,
-          realDockerImageUsed))
+          realDockerImageUsed,
+          mapCommandLineWomFile))
 
     task.map(task => Task(
       id = None,
       state = None,
       name = Option(task.name),
       description = Option(task.description),
-      inputs = Option(task.inputs(commandLineValueMapper)),
+      inputs = Option(task.inputs),
       outputs = Option(task.outputs),
       resources = Option(task.resources),
       executors = task.executors,
@@ -197,31 +212,30 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       case _ => false
     }
   }
-  
-  private val outputWomFiles: Seq[WomSingleFile] = {
-    Seq.empty
-    // TODO WOM: fix
-//    jobDescriptor.call.task
-//      .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-//      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
-  }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
     womFile mapFile { path =>
-      val absPath: Path = tesJobPaths.callExecutionRoot.resolve(path)
-      absPath match {
-        case _ if !absPath.exists && outputWomFiles.map(_.value).contains(path) =>
-          throw new FileNotFoundException("Could not process output, file not found: " +
-            s"${absPath.pathAsString}")
-        case _ => absPath.pathAsString
+      val absPath = getPath(path) match {
+        case Success(absoluteOutputPath) if absoluteOutputPath.isAbsolute => absoluteOutputPath
+        case _ => tesJobPaths.callExecutionRoot.resolve(path)
       }
+
+      if (!absPath.exists) {
+        throw new FileNotFoundException(s"Could not process output, file not found: ${absPath.pathAsString}")
+      } else absPath.pathAsString
     }
   }
 
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
     for {
       response <- Http().singleRequest(request)
-      data <- Unmarshal(response.entity).to[A]
+      data <- if (response.status.isFailure()) {
+        response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
+          Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))
+        }
+      } else {
+        Unmarshal(response.entity).to[A]
+      }
     } yield data
   }
 }

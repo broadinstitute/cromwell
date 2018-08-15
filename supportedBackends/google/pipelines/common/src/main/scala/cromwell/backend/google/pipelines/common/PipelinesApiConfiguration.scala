@@ -16,7 +16,7 @@ class PipelinesApiConfiguration(val configurationDescriptor: BackendConfiguratio
 
   val jesAuths = jesAttributes.auths
   val root = configurationDescriptor.backendConfig.getString("root")
-  val runtimeConfig = configurationDescriptor.backendRuntimeConfig
+  val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
   val jesComputeServiceAccount = jesAttributes.computeServiceAccount
 
   val dockerCredentials = {

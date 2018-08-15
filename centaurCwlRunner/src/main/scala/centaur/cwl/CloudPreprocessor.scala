@@ -13,11 +13,11 @@ import common.util.StringUtil._
 /**
   * Tools to pre-process the CWL workflows and inputs before feeding them to Cromwell so they can be executed on PAPI.
   */
-class PAPIPreprocessor(config: Config) {
+class CloudPreprocessor(config: Config, prefixConfigPath: String) {
   val cwlPreProcessor = new CwlPreProcessor()
   
-  // GCS directory where inputs for conformance tests are stored
-  private val gcsPrefix = config.as[String]("papi.default-input-gcs-prefix").ensureSlashed
+  // Cloud directory where inputs for conformance tests are stored
+  private val cloudPrefix = config.as[String](prefixConfigPath).ensureSlashed
 
   // Default docker pull image
   val DefaultDockerPull = "dockerPull" -> Json.fromString("ubuntu:latest")
@@ -49,9 +49,9 @@ class PAPIPreprocessor(config: Config) {
   private def processYaml(value: String)(f: Json => Json) =
     process(value, f, yaml.Printer.spaces2.copy(stringStyle = StringStyle.DoubleQuoted).pretty)
 
-  // Prefix the string at "key" with the gcs prefix
-  private def prefixLocationWithGcs(value: String): String = {
-    gcsPrefix + File(value.stripPrefix("file://")).name
+  // Prefix the string at "key" with the cloud prefix
+  private def prefixLocation(value: String): String = {
+    cloudPrefix + File(value.stripPrefix("file://")).name
   }
 
   // Function to check if the given json has the provided key / value pair
@@ -60,9 +60,9 @@ class PAPIPreprocessor(config: Config) {
   }
 
   /**
-    * Pre-process input file by prefixing all files and directories with the gcs prefix
+    * Pre-process input file by prefixing all files and directories with the cloud prefix
     */
-  def preProcessInput(input: String): Parse[String] = cwlPreProcessor.preProcessInputFiles(input, prefixLocationWithGcs)
+  def preProcessInput(input: String): Parse[String] = cwlPreProcessor.preProcessInputFiles(input, prefixLocation)
 
   // Check if the given path (as an array or object) has a DockerRequirement element
   def hasDocker(jsonPath: JsonPath)(json: Json): Boolean = {
@@ -92,7 +92,7 @@ class PAPIPreprocessor(config: Config) {
       .getOrElse(workflow.deepMerge(DefaultDockerHintList))
   } else workflow
   
-  private val prefixDefaultFilesInCwl = cwlPreProcessor.mapFilesAndDirectories(prefixLocationWithGcs) _
+  private val prefixDefaultFilesInCwl = cwlPreProcessor.mapFilesAndDirectories(prefixLocation) _
 
   /**
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one

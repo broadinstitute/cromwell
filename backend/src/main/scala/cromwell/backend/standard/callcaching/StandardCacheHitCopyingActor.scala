@@ -21,6 +21,8 @@ import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import wom.values.WomSingleFile
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -64,6 +66,8 @@ object StandardCacheHitCopyingActor {
   case object FailedState extends StandardCacheHitCopyingActorState
   case object WaitingForOnSuccessResponse extends StandardCacheHitCopyingActorState
 
+  val blacklistCache = new BlacklistCache(concurrency = 20, ttl = 20 minutes)
+
   // TODO: this mechanism here is very close to the one in CallCacheHashingJobActorData
   // Abstracting it might be valuable
   /**
@@ -96,7 +100,7 @@ object StandardCacheHitCopyingActor {
         val updatedSubset = currentSubset - command
         // This subset is done but there are other ones, remove it from commandsToWaitFor and return the next round of commands
         if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = otherSubsets), NextSubSet(otherSubsets.head))
-        // otherwise update the head susbset and keep waiting  
+        // otherwise update the head subset and keep waiting
         else (this.copy(commandsToWaitFor = List(updatedSubset) ++ otherSubsets), StillWaiting)
     }
   }
@@ -126,6 +130,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   def destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
   
   lazy val ioActor = standardParams.ioActor
+  val rootWorkflowId = jobDescriptor.workflowDescriptor.rootWorkflowId
 
   startWith(Idle, None)
 
@@ -134,7 +139,20 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
+  private def sourceBucket(command: CopyOutputsCommand): String = {
+    // TODO this is POC hackery. Knowledge of GCS buckets obviously does not belong here but no point gilding this
+    // TODO until we determine if it's worth keeping through load testing.
+    command.jobDetritusFiles.values.head.stripPrefix("gs://").takeWhile(_ != '/')
+  }
+
+  private def sourceIsBlacklisted(command: CopyOutputsCommand): Boolean = {
+    blacklistCache.isBlacklisted(rootWorkflowId, sourceBucket(command))
+  }
+
   when(Idle) {
+    case Event(command: CopyOutputsCommand, None) if sourceIsBlacklisted(command) =>
+      failAndStop(new IllegalArgumentException(s"Source bucket for cache hit copy in root workflow ${jobDescriptor.workflowDescriptor.rootWorkflowId} has been blacklisted: ${sourceBucket(command)}"))
+
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
 
       // Try to make a Path of the callRootPath from the detritus
@@ -184,6 +202,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           stay() using Option(newData)
       }
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
+      val pattern = ".*does not have storage.objects.get access to ([^/]+).*".r.pattern
+      val matcher = pattern.matcher(failure.getMessage)
+      if (matcher.matches()) {
+        val bucket = matcher.group(1)
+        blacklistCache.blacklist(rootWorkflowId, bucket)
+      }
+
       context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
       val (newData, commandState) = data.commandComplete(command)

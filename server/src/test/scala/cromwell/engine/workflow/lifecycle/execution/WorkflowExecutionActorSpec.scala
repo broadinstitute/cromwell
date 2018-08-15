@@ -82,7 +82,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
         callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection,
-        AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger(), None),
+        AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger(), fileHashCacheActor = None, blacklistCache = None),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)
 

@@ -33,7 +33,9 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
         WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
       }
   }
-  
+
+  override def extractBlacklistPrefix(path: String): Option[String] = Option(path.stripPrefix("gs://").takeWhile(_ != '/'))
+
   override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = cachingStrategy match {
     case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
     case UseOriginalCachedOutputs =>

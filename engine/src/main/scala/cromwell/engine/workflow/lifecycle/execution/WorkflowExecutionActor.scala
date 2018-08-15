@@ -16,6 +16,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
@@ -613,7 +614,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendName,
       workflowDescriptor.callCachingMode,
       command,
-      fileHashCacheActor = params.fileHashCacheActor
+      fileHashCacheActor = params.fileHashCacheActor,
+      blacklistCache = params.blacklistCache
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -650,7 +652,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.startState,
         params.rootConfig,
         params.totalJobsByRootWf,
-        fileHashCacheActor = params.fileHashCacheActor), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
+        fileHashCacheActor = params.fileHashCacheActor,
+        blacklistCache = params.blacklistCache), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
@@ -765,7 +768,8 @@ object WorkflowExecutionActor {
                                            startState: StartableState,
                                            rootConfig: Config,
                                            totalJobsByRootWf: AtomicInteger,
-                                           fileHashCacheActor: Option[ActorRef]
+                                           fileHashCacheActor: Option[ActorRef],
+                                           blacklistCache: Option[BlacklistCache]
                                          )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -782,7 +786,8 @@ object WorkflowExecutionActor {
             startState: StartableState,
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
-            fileHashCacheActor: Option[ActorRef]): Props = {
+            fileHashCacheActor: Option[ActorRef],
+            blacklistCache: Option[BlacklistCache]): Props = {
     Props(
       WorkflowExecutionActor(
         WorkflowExecutionActorParams(
@@ -800,7 +805,8 @@ object WorkflowExecutionActor {
           startState,
           rootConfig,
           totalJobsByRootWf,
-          fileHashCacheActor = fileHashCacheActor
+          fileHashCacheActor = fileHashCacheActor,
+          blacklistCache = blacklistCache
         )
       )
     ).withDispatcher(EngineDispatcher)

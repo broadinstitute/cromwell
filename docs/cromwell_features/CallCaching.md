@@ -18,6 +18,42 @@ Once enabled, Cromwell by default will search the call cache for every `call` st
 Cromwell offers the option to cache file hashes within the scope of a root workflow to prevent repeatedly requesting the hashes of the
 same files multiple times. File hash caching is off by default and can be turned on with the configuration option `system.file-hash-cache=true`.
 
+***Call cache copy authorization failure prefix blacklisting***
+
+Cromwell has the option to filter call cache hits based on authorization failures copying previous 
+call cache hits. In a multi-user environment user A might cache hit to one of user B's results
+but that doesn't necessarily mean user A is authorized to read user B's outputs from the filesystem. Call cache blacklisting
+allows Cromwell to record on a per-root-workflow level which file path prefixes were involved in cache result copy authorization failures.
+If Cromwell sees that the file paths for a candidate cache hit have a blacklisted prefix, Cromwell will quickly 
+fail the copy attempt without doing any potentially expensive I/O.
+
+Call cache blacklisting configuration looks like:
+
+```
+call-caching {
+
+  enabled = true
+
+  # In a multi-user environment this should be false so unauthorized users don't invalidate results for authorized users. 
+  invalidate-bad-cache-results = false
+
+  blacklist-cache {
+    # The call caching blacklist cache is off by default. This is used to blacklist cache hit paths based on the
+    # prefixes of cache hit paths that Cromwell previously failed to copy for authorization reasons.
+    enabled: true
+    # Guava cache concurrency.
+    concurrency: 10000
+    # How long entries in the cache should live from the time of their last access.
+    ttl: 20 minutes
+    # Maximum number of entries in the cache.
+    size: 1000
+  }
+}
+```
+
+Call cache blacklisting could be supported by any backend type though is currently implemented only for the Google Pipelines API (PAPI) backends.
+For PAPI backends the bucket is considered the prefix for blacklisting purposes.
+
 ***Call cache hit path prefixes***
  
 In a multi-user environment where access to job outputs may be restricted among different users, it can be useful to limit

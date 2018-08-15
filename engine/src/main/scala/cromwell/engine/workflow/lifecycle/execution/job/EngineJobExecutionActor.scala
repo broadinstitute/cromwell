@@ -7,6 +7,7 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.standard.StandardInitializationData
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
@@ -60,7 +61,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode,
                               command: BackendJobExecutionActorCommand,
-                              fileHashCachingActor: Option[ActorRef]) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
+                              fileHashCachingActor: Option[ActorRef],
+                              blacklistCache: Option[BlacklistCache]) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
   with WorkflowLogging with CallMetadataHelper with JobInstrumentation with TimedFSM[EngineJobExecutionActorState] {
 
   override val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
@@ -585,7 +587,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                                       cacheCopyAttempt: Int) = {
     factory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
-        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt)
+        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt, blacklistCache)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
         cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, returnCode)
         replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.evaluatedTaskInputs)
@@ -778,7 +780,8 @@ object EngineJobExecutionActor {
             backendName: String,
             callCachingMode: CallCachingMode,
             command: BackendJobExecutionActorCommand,
-            fileHashCacheActor: Option[ActorRef]) = {
+            fileHashCacheActor: Option[ActorRef],
+            blacklistCache: Option[BlacklistCache]) = {
     Props(new EngineJobExecutionActor(
       replyTo = replyTo,
       jobDescriptorKey = jobDescriptorKey,
@@ -797,7 +800,8 @@ object EngineJobExecutionActor {
       backendName = backendName: String,
       callCachingMode = callCachingMode,
       command = command,
-      fileHashCachingActor = fileHashCacheActor)).withDispatcher(EngineDispatcher)
+      fileHashCachingActor = fileHashCacheActor,
+      blacklistCache = blacklistCache)).withDispatcher(EngineDispatcher)
   }
 
   case class EJEACacheHit(hit: CacheHit, hitNumber: Int, details: Option[String])

@@ -1,0 +1,21 @@
+include required(classpath("application.conf"))
+include "build_application.inc.conf"
+include "tesk_application_ftp.conf"
+
+{{with $cromwellTesk := vault (printf "secret/dsde/cromwell/common/cromwell-tesk")}}
+backend {
+  default = "TES"
+  providers {
+    TES {
+      actor-factory = "cromwell.backend.impl.tes.TesBackendLifecycleActorFactory"
+      config {
+        root = "ftp://ftp.hexdump.org/cromwell-executions"
+        dockerRoot = "/cromwell-executions"
+        endpoint = "{{$cromwellTesk.Data.endpoint}}"
+        concurrent-job-limit = 5
+        glob-link-command = "ls -L GLOB_PATTERN 2> /dev/null | xargs -I ? ln -s ? GLOB_DIRECTORY"
+      }
+    }
+  }
+}
+{{end}}

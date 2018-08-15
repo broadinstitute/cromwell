@@ -76,7 +76,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
-  
+
   val SIGTERM = 143
   val SIGINT = 130
   val SIGKILL = 137
@@ -119,12 +119,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 
   lazy val temporaryDirectory = configurationDescriptor.backendConfig.getOrElse(
-      path = "temporary-directory",
-      default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
-    )
+    path = "temporary-directory",
+    default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
+  )
 
   def preProcessWomFile(womFile: WomFile): WomFile = womFile
-  
+
   /** @see [[Command.instantiate]] */
   final def commandLinePreProcessor(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     val map = inputs map { case (k, v) => k -> WomFileMapper.mapWomFiles(preProcessWomFile, inputsToNotLocalize)(v) }
@@ -133,7 +133,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
       }
   }
-  
+
   final lazy val localizedInputs: Try[WomEvaluatedCallInputs] = commandLinePreProcessor(jobDescriptor.evaluatedTaskInputs)
 
   /**
@@ -213,7 +213,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     globFiles map globScript mkString "\n"
 
   /**
-    * Returns the shell scripting for hard linking a glob results using ln.
+    * Returns the shell scripting for linking a glob results.
     *
     * @param globFile The glob.
     * @return The shell scripting.
@@ -224,6 +224,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val globDirectory = parentDirectory./(globDir)
     val globList = parentDirectory./(s"$globDir.list")
     val controlFileName = "cromwell_glob_control_file"
+    val absoluteGlobValue = commandDirectory.resolve(globFile.value).pathAsString
+    val globLinkCommand: String = configurationDescriptor.backendConfig.getAs[String]("glob-link-command")
+      .map("( " + _ + " )")
+      .getOrElse("( ln -L GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null ) || ( ln GLOB_PATTERN GLOB_DIRECTORY )")
+      .replaceAll("GLOB_PATTERN", absoluteGlobValue)
+      .replaceAll("GLOB_DIRECTORY", globDirectory.pathAsString)
+
     val controlFileContent =
       """This file is used by Cromwell to allow for globs that would not match any file.
         |By its presence it works around the limitation of some backends that do not allow empty globs.
@@ -236,8 +243,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |# create the glob control file that will allow for the globbing to succeed even if there is 0 match
         |echo "${controlFileContent.trim}" > $globDirectory/$controlFileName
         |
-        |# symlink all the files into the glob directory
-        |( ln -L ${globFile.value} $globDirectory 2> /dev/null ) || ( ln ${globFile.value} $globDirectory )
+        |# hardlink or symlink all the files into the glob directory
+        |$globLinkCommand
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
         |ls -1 $globDirectory | grep -v $controlFileName > $globList
@@ -394,10 +401,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * This way if running locally with docker they get mounted with the rest of the inputs in the container.
     * The PAPI backend overrides this to a noop since the localization happens on the VM directly, so there's no need
     * for this extra localization step.
-    * 
+    *
     * Maybe this should be the other way around: the default implementation is noop and SFS / TES override it ?
     */
-  lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = { adHocValues => 
+  lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = { adHocValues =>
     import cats.instances.future._
 
     // Localize an adhoc file to the callExecutionRoot as needed
@@ -411,7 +418,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         case true => Future.successful(LocalizedAdHocValue(adHocValue, finalPath))
       }
     }
-    
+
     adHocValues.traverse[ErrorOr, (AdHocValue, Path)]({ adHocValue =>
       // Build an actionable Path from the ad hoc file
       getPath(adHocValue.womValue.value).toErrorOr.map(adHocValue -> _)
@@ -424,7 +431,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       .map(_.map(Coproduct[StandardAdHocValue](_)))
       .toValidated
   }
-  
+
   def adHocValueToCommandSetupSideEffectFile(adHocValue: StandardAdHocValue) = adHocValue match {
     case AsAdHocValue(AdHocValue(womValue, alternativeName, _)) =>
       CommandSetupSideEffectFile(womValue, alternativeName)
@@ -456,7 +463,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         case (inputDefinition, value) => inputDefinition.localName.value -> tryCommandLineValueMapper(value)
       })
     ).toEither
-    
+
     val evaluateAndInitialize = (containerizedInputExpression: ContainerizedInputExpression) => for {
       mapped <- mappedInputs
       evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toEither
@@ -472,12 +479,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   lazy val localizedAdHocValues: ErrorOr[List[StandardAdHocValue]] = evaluatedAdHocFiles.toEither
     .flatMap(localizeAdHocValues.andThen(_.toEither))
     .toValidated
-  
+
   protected def asAdHocFile(womFile: WomFile) = evaluatedAdHocFiles map { _.find({
     case AdHocValue(file, _, _) => file.value == womFile.value
   })
   } getOrElse None
- 
+
   protected def isAdHocFile(womFile: WomFile) = asAdHocFile(womFile).isDefined
 
   /** The instantiated command. */
@@ -1044,47 +1051,47 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   def handleExecutionResult(status: StandardAsyncRunStatus,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
-      val stderr = jobPaths.standardPaths.error
-      lazy val stderrAsOption: Option[Path] = Option(stderr)
+    val stderr = jobPaths.standardPaths.error
+    lazy val stderrAsOption: Option[Path] = Option(stderr)
 
-      val stderrSizeAndReturnCode = for {
-        returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
-        // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
-        // may fail due to race conditions on quickly-executing jobs.
-        stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
-      } yield (stderrSize, returnCodeAsString)
+    val stderrSizeAndReturnCode = for {
+      returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
+      // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
+      // may fail due to race conditions on quickly-executing jobs.
+      stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
+    } yield (stderrSize, returnCodeAsString)
 
-      stderrSizeAndReturnCode flatMap {
-        case (stderrSize, returnCodeAsString) =>
-          val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+    stderrSizeAndReturnCode flatMap {
+      case (stderrSize, returnCodeAsString) =>
+        val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
 
-          if (isDone(status)) {
-            tryReturnCodeAsInt match {
-              case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
-                val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
-                retryElseFail(status, executionHandle)
-              case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
-                Future.successful(AbortedExecutionHandle)
-              case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-                val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
-                retryElseFail(status, executionHandle)
-              case Success(returnCodeAsInt) =>
-                handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
-              case Failure(_) =>
-                Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
-            }
-          } else {
-            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-            retryElseFail(status, failureStatus)
+        if (isDone(status)) {
+          tryReturnCodeAsInt match {
+            case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
+              retryElseFail(status, executionHandle)
+            case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
+              Future.successful(AbortedExecutionHandle)
+            case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
+              retryElseFail(status, executionHandle)
+            case Success(returnCodeAsInt) =>
+              handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
+            case Failure(_) =>
+              Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
           }
-      } recoverWith {
-        case exception =>
-          if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception))
-          else {
-            val failureStatus = handleExecutionFailure(status, None)
-            retryElseFail(status, failureStatus)
-          }
-      }
+        } else {
+          val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
+          retryElseFail(status, failureStatus)
+        }
+    } recoverWith {
+      case exception =>
+        if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception))
+        else {
+          val failureStatus = handleExecutionFailure(status, None)
+          retryElseFail(status, failureStatus)
+        }
+    }
   }
 
   /**

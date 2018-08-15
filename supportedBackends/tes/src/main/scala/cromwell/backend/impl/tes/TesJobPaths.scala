@@ -1,8 +1,8 @@
 package cromwell.backend.impl.tes
 
 import com.typesafe.config.Config
-import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
+import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path._
 
 object TesJobPaths {
@@ -33,10 +33,6 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
     callExecutionRoot.resolve(path).toString
   }
 
-  def containerInput(path: String): String = {
-    cleanContainerInputPath(callInputsDockerRoot, path)
-  }
-
   // Given an output path, return a path localized to the container file system
   def containerOutput(cwd: Path, path: String): String = containerExec(cwd, path)
 
@@ -46,17 +42,5 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
   // Given an file name, return a path localized to the container's execution directory
   def containerExec(cwd: Path, path: String): String = {
     cwd.resolve(path).toString
-  }
-
-  private def cleanContainerInputPath(inputDir: Path, path: String): String = {
-    path match {
-      case p if p.startsWith("gs:") =>
-        inputDir.resolve(p.replaceFirst("gs:/?/?", "")).pathAsString
-      case p if p.startsWith(callExecutionRoot.pathAsString) =>
-        val f = DefaultPathBuilder.get(p)
-        callExecutionDockerRoot.resolve(f.name).pathAsString
-      case p =>
-        inputDir.resolve(p).pathAsString
-    }
   }
 }

@@ -59,9 +59,9 @@ trait EvenBetterPathMethods {
     }
   }
 
-  final def createPermissionedDirectories(): this.type = {
+  def createPermissionedDirectories(): this.type = {
     if (!exists) {
-      parent.createPermissionedDirectories()
+      if (parent != null) parent.createPermissionedDirectories()
       try {
         createDirectories()
         // When using PosixFilePermissions/FileAttributes with createDirectories, the umask Cromwell happens to be using

@@ -458,7 +458,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def requestExecutionToken(): Unit = {
-    jobTokenDispenserActor ! JobExecutionTokenRequest(factory.jobExecutionTokenType)
+    jobTokenDispenserActor ! JobExecutionTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, factory.jobExecutionTokenType)
   }
 
   // Return the execution token (if we have one)

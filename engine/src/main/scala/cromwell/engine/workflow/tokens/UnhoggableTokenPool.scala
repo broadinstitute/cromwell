@@ -19,39 +19,49 @@ final case class UnhoggableTokenPool(tokenType: JobExecutionTokenType) extends S
   _dispose = Function.const(()),
   _healthCheck = Function.const(true)) {
 
-  lazy val hogLimitOption = tokenType.maxPoolSize map { limit => math.round(limit.floatValue() / tokenType.hogFactor.floatValue()) }
+  lazy val hogLimitOption: Option[Int] = tokenType match {
+    case JobExecutionTokenType(_, None, _) => None
+    case JobExecutionTokenType(_, _, 1) => None
+    case JobExecutionTokenType(_, Some(limit), hogFactor) => Some(math.max(1, math.round(limit.floatValue() / hogFactor.floatValue())))
+  }
 
   private[this] val hogGroupAssignments: mutable.Map[String, HashSet[JobExecutionToken]] = mutable.Map.empty
-  private[this] var hogGroupAssignmentCount = 0
 
   override def tryAcquire(): Option[Lease[JobExecutionToken]] = throw new UnsupportedOperationException("Use tryAcquire(hogGroup)")
+
+  def available(hogGroup: String): Boolean = {
+    hogLimitOption match {
+      case None => leased < capacity
+      case Some(hogLimit) =>
+        synchronized {
+          leased < capacity && hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit)
+        }
+    }
+  }
 
   def tryAcquire(hogGroup: String): UnhoggableTokenPoolResult = {
 
     hogLimitOption match {
       case Some(hogLimit) =>
-        if (hogGroupAssignmentCount + 1 > hogLimit) {
-          Oink
-        } else {
-          synchronized {
-            val thisHogSet = hogGroupAssignments.getOrElse(hogGroup, HashSet.empty)
-            if (thisHogSet.size + 1 < hogLimit) {
-              super.tryAcquire() match {
-                case Some(lease) =>
-                  val hoggingLease = TokenHoggingLease(lease, this)
-                  hogGroupAssignments += (hogGroup -> thisHogSet.+(hoggingLease.get))
-                  hoggingLease
-                case None => ComeBackLater
-              }
-            } else {
-              Oink
+        synchronized {
+          val thisHogSet = hogGroupAssignments.getOrElse(hogGroup, HashSet.empty)
+
+          if (thisHogSet.size + 1 <= hogLimit) {
+            super.tryAcquire() match {
+              case Some(lease) =>
+                val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)
+                hogGroupAssignments += (hogGroup -> thisHogSet.+(hoggingLease.get))
+                hoggingLease
+              case None => ComeBackLater
             }
+          } else {
+            Oink
           }
         }
       case None =>
         super.tryAcquire() match {
           case Some(lease) =>
-            val hoggingLease = TokenHoggingLease(lease, this)
+            val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)
             hoggingLease
           case None => ComeBackLater
         }
@@ -73,17 +83,20 @@ object UnhoggableTokenPool {
 
   trait UnhoggableTokenPoolResult
 
-  final case class TokenHoggingLease(lease: Lease[JobExecutionToken], pool: UnhoggableTokenPool) extends Lease[JobExecutionToken] with UnhoggableTokenPoolResult {
+  final class TokenHoggingLease(lease: Lease[JobExecutionToken], hogGroup: String, pool: UnhoggableTokenPool) extends Lease[JobExecutionToken] with UnhoggableTokenPoolResult {
     private[this] val dirty = new AtomicBoolean(false)
     override protected[this] def a: JobExecutionToken = lease.get
 
     override protected[this] def handleRelease(): Unit = {
       if (dirty.compareAndSet(false, true)) {
-
+        pool.unhog(hogGroup, lease)
       }
       lease.release()
     }
-    override protected[this] def handleInvalidate(): Unit = lease.invalidate()
+    override protected[this] def handleInvalidate(): Unit = {
+      handleRelease()
+      lease.invalidate()
+    }
   }
 
   /**

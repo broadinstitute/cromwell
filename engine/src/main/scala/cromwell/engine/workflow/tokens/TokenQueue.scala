@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor, ShuffledQueueAndLease, TokenQueuePlaceholder}
-import cromwell.engine.workflow.tokens.UnhoggableTokenPool.UnhoggableTokenPoolResult
+import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{ComeBackLater, Oink, TokenHoggingLease, UnhoggableTokenPoolResult}
 import io.github.andrebeat.pool.Lease
 
 import scala.collection.immutable.Queue
@@ -47,23 +47,28 @@ final case class TokenQueue(queue: Queue[TokenQueuePlaceholder], private [tokens
       case Some(actorAndNewQueue) =>
         val (placeholder, newQueue) = actorAndNewQueue
         val poolAcquisitionResult = pool.tryAcquire(placeholder.hogGroup)
-        shuffleQueueAndGetLease(poolAcquisitionResult, queue, newQueue) match {
-          case ShuffledQueueAndLease(lease, newQueue) => DequeueResult(newQueue, lease)
+        shuffleQueueAndGetLease(poolAcquisitionResult, placeholder, queue, newQueue) match {
+          case ShuffledQueueAndLease(Some(lease), nq) => DequeueResult(Option(LeasedActor(placeholder.actor, lease)), copy(queue = nq))
+          case ShuffledQueueAndLease(None, nq) => DequeueResult(None, copy(queue = nq))
         }
-
-
-        DequeueResult(Some(LeasedActor(placeholder.actor, shuffledQueueAndLease._1)), copy(queue = newQueue))
+      case None =>
+        DequeueResult(None, this)
     }
   }
 
-  def shuffleQueueAndGetLease(result: UnhoggableTokenPoolResult,
+  private def shuffleQueueAndGetLease(result: UnhoggableTokenPoolResult,
+                              thisPlaceholder: TokenQueuePlaceholder,
                               oldQueue: Queue[TokenQueuePlaceholder],
-                              newQueue: Queue[TokenQueuePlaceholder]): ShuffledQueueAndLease = {
-???
+                              newQueue: Queue[TokenQueuePlaceholder]): ShuffledQueueAndLease = result match {
+    case thl: TokenHoggingLease => ShuffledQueueAndLease(Some(thl), newQueue)
+    case ComeBackLater => ShuffledQueueAndLease(None, oldQueue)
+    // Hog response - move this placeholder to the end of the queue!
+    case Oink => ShuffledQueueAndLease(None, newQueue :+ thisPlaceholder )
   }
 
   /**
     * Returns true if there's at least on element that can be dequeued, false otherwise.
     */
-  def available: Boolean = queue.nonEmpty && pool.leased() < pool.capacity
+  def available: Boolean =
+    queue.nonEmpty && queue.map(_.hogGroup).iterator.exists(hg => pool.available(hg))
 }

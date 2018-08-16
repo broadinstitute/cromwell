@@ -264,7 +264,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
 
     val localFilesystemResolvers =
-      if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None) :+ HttpResolver(relativeTo = None)
+      if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
       else List.empty
 
     val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {

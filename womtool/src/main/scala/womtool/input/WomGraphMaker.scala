@@ -24,9 +24,6 @@ object WomGraphMaker {
   def getBundle(mainFile: Path): Checked[WomBundle] = getBundleAndFactory(mainFile).map(_._1)
 
   private def getBundleAndFactory(mainFile: Path): Checked[(WomBundle, LanguageFactory)] = {
-    // Resolves for:
-    // - Where we run from
-    // - Where the file is
     lazy val importResolvers: List[ImportResolver] =
       DirectoryResolver.localFilesystemResolvers(Some(mainFile)) :+ HttpResolver(relativeTo = None)
 

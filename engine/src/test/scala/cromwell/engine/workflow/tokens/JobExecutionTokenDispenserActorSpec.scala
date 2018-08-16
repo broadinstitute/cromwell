@@ -256,7 +256,7 @@ object JobExecutionTokenDispenserActorSpec {
     def indexedTimes(f: Int => Any) = 0 until n foreach { i => f(i) }
   }
 
-  val TestInfiniteTokenType = JobExecutionTokenType("infinite", maxPoolSize = None)
-  def limitedTokenType(limit: Int) = JobExecutionTokenType(s"$limit-limit", maxPoolSize = Option(limit))
+  val TestInfiniteTokenType = JobExecutionTokenType("infinite", maxPoolSize = None, hogFactor = 1)
+  def limitedTokenType(limit: Int) = JobExecutionTokenType(s"$limit-limit", maxPoolSize = Option(limit), hogFactor = 1)
   val LimitedTo5Tokens = limitedTokenType(5)
 }

@@ -9,7 +9,7 @@ import cromwell.core.callcaching.MaybeCallCachingEligible
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.labels.Labels
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
-import cromwell.core.{CallKey, OptionNotFoundException, WorkflowId, WorkflowOptions}
+import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode

@@ -8,9 +8,9 @@ import org.scalatest.{FlatSpecLike, Matchers}
 class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Matchers {
   behavior of "RoundRobinQueueIterator"
   
-  val InfiniteTokenType = JobExecutionTokenType("infinite", None)
-  val Pool1 = JobExecutionTokenType("pool1", Option(1))
-  val Pool2 = JobExecutionTokenType("pool2", Option(2))
+  val InfiniteTokenType = JobExecutionTokenType("infinite", None, 1)
+  val Pool1 = JobExecutionTokenType("pool1", Option(1), 1)
+  val Pool2 = JobExecutionTokenType("pool2", Option(2), 1)
   
   it should "be empty if there's no queue" in {
     RoundRobinQueueIterator(List.empty).hasNext shouldBe false

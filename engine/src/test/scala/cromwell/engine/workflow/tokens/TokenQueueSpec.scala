@@ -7,7 +7,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 
 class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
   behavior of "TokenQueue"
-  val tokenType = JobExecutionTokenType("pool1", Option(1))
+  val tokenType = JobExecutionTokenType("pool1", Option(1), 1)
   
   it should "enqueue" in {
     val probe = TestProbe().ref
@@ -23,7 +23,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
     val probe = TestProbe().ref
     val tq = TokenQueue(tokenType)
       .enqueue(probe)
-    val dequeued = tq.dequeueOption
+    val dequeued = tq.dequeue
     dequeued shouldBe defined
     dequeued.get.leasedActor.actor shouldBe probe
     dequeued.get.leasedActor.lease.get().jobExecutionTokenType shouldBe tokenType
@@ -44,7 +44,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
     val queueWith2 = queueWith1.enqueue(probe2)
     
-    val dequeued = queueWith2.dequeueOption.get
+    val dequeued = queueWith2.dequeue.get
     // probe 2 is still in there
     dequeued.tokenQueue.size shouldBe 1
     // pool is empty though so available should be false

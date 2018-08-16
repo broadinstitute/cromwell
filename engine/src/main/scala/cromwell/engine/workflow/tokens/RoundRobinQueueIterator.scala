@@ -33,7 +33,7 @@ case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends 
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
     ((pointer until numberOfQueues) ++ (0 until pointer))
       .toStream
-      .map(index => tokenQueues(index).dequeueOption -> index)
+      .map(index => tokenQueues(index).dequeue -> index)
       .collectFirst({
         case (Some(dequeuedActor), index) =>
           // Update the tokenQueues with the new queue

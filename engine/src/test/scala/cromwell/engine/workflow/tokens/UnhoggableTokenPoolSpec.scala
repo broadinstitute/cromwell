@@ -50,6 +50,7 @@ class UnhoggableTokenPoolSpec extends FlatSpec with Matchers {
   }
 
   it should "allow tokens to be returned" in {
+    // A pool distributing tokens with a hogLimit of 2:
     val hogLimit2Pool = UnhoggableTokenPool(JobExecutionTokenType("backend", Some(150), 75))
 
     // Use all the "group1" tokens:

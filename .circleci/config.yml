@@ -138,9 +138,7 @@ jobs:
             echo "1. Testing for install of sbt"
             echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt
-            echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt version"
-            docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt --version
-            echo "1. Testing sbt assembly for scala"
+            echo "1. Testing sbt assembly"
             echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly
       - run: *dockersave

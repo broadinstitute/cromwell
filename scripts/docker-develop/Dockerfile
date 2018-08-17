@@ -41,3 +41,4 @@ RUN useradd pigman && \
     mkdir -p /code
 
 WORKDIR /code
+ADD . /code/

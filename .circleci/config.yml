@@ -1,0 +1,178 @@
+# This is a continuous build CircleCI configuration for cromwell,
+# intended to bulid on CircleCI to spread out testing over Travis/Cricle.
+# The container is built and pushed to the CONTAINER_NAME variable
+# defined here or within the CircleCI settings. The following environment
+# variables are acceptable here or in these settings (for sensitive information)
+#
+# CONTAINER_NAME if not set, will use Github repo and organization name 
+# DOCKER_USER
+# DOCKER_EMAIL
+
+################################################################################
+# Functions
+################################################################################
+
+# Defaults
+
+defaults: &defaults
+  docker:
+    - image: docker:18.01.0-ce-git
+  working_directory: /tmp/src
+
+# Installation
+install: &install
+    name: Install parallel gzip, gettext, python3, and jq
+    command: apk add --no-cache pigz python3 gettext jq
+
+# Environment
+sourceenv: &sourceenv
+    name: Source environment variables from the BASH_ENV
+    command: source $BASH_ENV 
+
+
+# Docker
+
+dockerenv: &dockerenv
+    name: Define container and Docker names
+    command: |
+        # If not set, define DOCKER_TAG
+        if [ ! -n "${DOCKER_TAG:-}" ]; then
+            DOCKER_TAG=$(echo "${CIRCLE_SHA1}" | cut -c1-10)
+        fi
+        # If not set, define CONTAINER_NAME
+        if [ ! -n "${CONTAINER_NAME:-}" ]; then
+            CONTAINER_NAME="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+        fi
+        echo "Container name is ${CONTAINER_NAME}"
+        # If not set, define REPO_NAME
+        if [ ! -n "${REPO_NAME:-}" ]; then
+            LOCAL_REPO="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            REPO_NAME=/tmp/src
+            echo "Repository name (REPO_NAME) is not defined, will build ${LOCAL_REPO} in ${REPO_NAME}"
+        else
+            echo "Repository name found defined for build: ${REPO_NAME}"
+        fi
+        # export to bash environment
+        echo "export CONTAINER_NAME=${CONTAINER_NAME}" >> ${BASH_ENV}
+        echo "export DOCKER_TAG=${DOCKER_TAG}" >> ${BASH_ENV}
+        echo "export REPO_NAME=${REPO_NAME}" >> ${BASH_ENV}
+        cat ${BASH_ENV}
+
+
+dockerload: &dockerload
+    name: Load Docker container Image
+    no_output_timeout: 30m
+    command: | 
+      echo "Working directory is ${PWD}"
+      docker info
+      set +o pipefail
+      if [ -f /tmp/cache/container.tar.gz ]; then
+          apk update && apk add --no-cache pigz curl curl-dev
+          pigz -d --stdout /tmp/cache/container.tar.gz | docker load
+          docker images
+      fi
+
+
+dockersave: &dockersave
+    name: Docker Save
+    no_output_timeout: 40m
+    command: |
+        source ${BASH_ENV}
+        echo "Saving ${CONTAINER_NAME}:${DOCKER_TAG} to container.tar.gz"
+        mkdir -p /tmp/cache
+        docker save ${CONTAINER_NAME}:${DOCKER_TAG} \
+          | pigz -2 -p 3 > /tmp/cache/container.tar.gz
+
+
+dockerdeploy: &dockerdeploy
+    name: Deploy to Docker Hub
+    no_output_timeout: 40m
+    command: |
+      source ${BASH_ENV}
+      echo "Container name set to ${CONTAINER_NAME}:${DOCKER_TAG}"
+      if [[ -n "$DOCKER_PASS" ]]; then
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push ${CONTAINER_NAME}:${DOCKER_TAG}
+            echo "Tagging latest image..."
+            docker tag ${CONTAINER_NAME}:${DOCKER_TAG} ${CONTAINER_NAME}:latest
+            docker push ${CONTAINER_NAME}:latest
+      fi
+
+
+dockerbuild: &dockerbuild
+    name: Build cromwell development Docker container
+    command: |
+      docker build --cache-from=${CONTAINER_BUILD_NAME} -t ${CONTAINER_NAME}:${DOCKER_TAG} .
+
+
+
+
+################################################################################
+# Jobs
+################################################################################
+
+
+version: 2
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - docker-v1-{{ .Branch }}
+          paths:
+            - /tmp/cache/container.tar.gz
+      - restore_cache:
+          key: dependency-cache
+      - setup_remote_docker
+      - run: *dockerenv
+      - run: *install
+      - run: *dockerload
+      - run: *dockerbuild
+      - run:
+          name: Run tests
+          command: |
+            echo "What tests would you like, my dear McMuffins?"
+            docker run --it ${CONTAINER_NAME}:${DOCKER_TAG} which scala
+            docker run --it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt
+      - run: *dockersave
+
+  deploy:
+    <<: *defaults
+    steps:
+      - attach_workspace:
+          at: /tmp
+      - setup_remote_docker
+      - run: *dockerenv
+      - run: *dockerload
+      - run: *dockerdeploy
+
+
+################################################################################
+# Workflows
+################################################################################
+
+
+workflows:
+  version: 2
+  build_deploy:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: 
+                - gh-pages
+                - /docs?/.*/
+            tags:
+              only: /.*/
+
+      # Upload the container to Docker Hub
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /.*/

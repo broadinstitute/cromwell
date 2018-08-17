@@ -101,7 +101,8 @@ dockerdeploy: &dockerdeploy
 dockerbuild: &dockerbuild
     name: Build cromwell development Docker container
     command: |
-      docker build --cache-from=${CONTAINER_BUILD_NAME} -f scripts/docker-develop/Dockerfile -t ${CONTAINER_NAME}:${DOCKER_TAG} .
+      source ${BASH_ENV}
+      docker build -f scripts/docker-develop/Dockerfile -t ${CONTAINER_NAME}:${DOCKER_TAG} .
 
 
 

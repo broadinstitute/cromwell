@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/broadinstitute/cromwell.svg?branch=develop)](https://travis-ci.org/broadinstitute/cromwell?branch=develop)
 [![codecov](https://codecov.io/gh/broadinstitute/cromwell/branch/develop/graph/badge.svg)](https://codecov.io/gh/broadinstitute/cromwell)
+[![CircleCI](https://circleci.com/gh/vsoch/cromwell.svg?style=svg)](https://circleci.com/gh/vsoch/cromwell)
 
 ## Welcome to Cromwell
 

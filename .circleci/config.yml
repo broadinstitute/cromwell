@@ -135,10 +135,11 @@ jobs:
           command: |
             echo "What tests would you like, my dear McMuffins?"
             echo "1. Testing for install of sbt and scala"
-            docker run --it ${CONTAINER_NAME}:${DOCKER_TAG} which scala
-            docker run --it ${CONTAINER_NAME}:${DOCKER_TAG} scala --version
-            docker run --it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt
-            docker run --it ${CONTAINER_NAME}:${DOCKER_TAG} sbt --version
+            docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which scala
+            docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} scala --version
+            docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt
+            docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt --version
+            echo "1. Testing sbt assembly for scala"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly
       - run: *dockersave
 

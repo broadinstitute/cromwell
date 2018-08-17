@@ -139,8 +139,8 @@ jobs:
             echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt
             echo "1. Testing sbt assembly"
-            echo "docker run -it -v $PWD:/code ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly"
-            docker run -it -v $PWD:/code ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly
+            echo "docker run -v /tmp/src:/code ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly"
+            docker run -v $PWD:/code ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly
       - run: *dockersave
 
   deploy:

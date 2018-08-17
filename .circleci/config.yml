@@ -133,13 +133,19 @@ jobs:
       - run:
           name: Run tests
           command: |
+            source ${BASH_ENV}
             echo "What tests would you like, my dear McMuffins?"
             echo "1. Testing for install of sbt and scala"
+            echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which scala"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which scala
+            echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} scala --version"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} scala --version
+            echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} which sbt
+            echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt version"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt --version
             echo "1. Testing sbt assembly for scala"
+            echo "docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly"
             docker run -it ${CONTAINER_NAME}:${DOCKER_TAG} sbt assembly
       - run: *dockersave
 

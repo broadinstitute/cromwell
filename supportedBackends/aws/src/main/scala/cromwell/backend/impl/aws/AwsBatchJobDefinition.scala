@@ -73,7 +73,8 @@ trait AwsBatchJobDefinitionBuilder {
                      uniquePath: String,
                      rcPath: String,
                      jobDescriptor: BackendJobDescriptor,
-                     callExecutionRoot: Path): ContainerProperties.Builder = {
+                     callExecutionRoot: Path,
+                     workflowRoot: Path): ContainerProperties.Builder = {
     // The initial buffer should only contain one item - the hostpath of the
     // local disk mount point, which will be needed by the docker container
     // that copies data around
@@ -85,6 +86,7 @@ trait AwsBatchJobDefinitionBuilder {
     environment.append(buildKVPair("AWS_CROMWELL_PATH",uniquePath))
     environment.append(buildKVPair("AWS_CROMWELL_RC_FILE",rcPath))
     environment.append(buildKVPair("AWS_CROMWELL_CALL_ROOT",callExecutionRoot.toString))
+    environment.append(buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",workflowRoot.toString))
     // We want a marker for the process monitor to know for certain this container is from
     // Cromwell. Rather than relying on some of the other environment variables, we're using
     // a unique marker variable that doesn't mean much to anything else (and therefore has
@@ -101,14 +103,14 @@ trait AwsBatchJobDefinitionBuilder {
   }
 
   def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes,
-            docker: String, uniquePath: String, rcPath: String, jobDescriptor: BackendJobDescriptor, callExecutionRoot: Path): AwsBatchJobDefinition
+            docker: String, uniquePath: String, rcPath: String, jobDescriptor: BackendJobDescriptor, callExecutionRoot: Path, workflowRoot: Path): AwsBatchJobDefinition
 }
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
   def build(commandLine: String, runtimeAttributes: AwsBatchRuntimeAttributes,
-            dockerImage: String, uniquePath: String, rcPath: String, jobDescriptor: BackendJobDescriptor, callExecutionRoot: Path): AwsBatchJobDefinition = {
+            dockerImage: String, uniquePath: String, rcPath: String, jobDescriptor: BackendJobDescriptor, callExecutionRoot: Path, workflowRoot: Path): AwsBatchJobDefinition = {
     val builderInst = builder(commandLine, dockerImage)
-    buildResources(builderInst, runtimeAttributes, uniquePath, rcPath, jobDescriptor, callExecutionRoot)
+    buildResources(builderInst, runtimeAttributes, uniquePath, rcPath, jobDescriptor, callExecutionRoot, workflowRoot)
     new StandardAwsBatchJobDefinitionBuilder(builderInst.build)
   }
 }

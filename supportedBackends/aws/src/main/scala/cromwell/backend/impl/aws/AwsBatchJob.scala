@@ -46,7 +46,7 @@ import software.amazon.awssdk.services.batch.model.
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.path.Path
+import cromwell.backend.io.JobPaths
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -133,7 +133,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
                              dockerRc: String,                              // Calculated from StandardAsyncExecutionActor
                              dockerStdout: String,                          // Calculated from StandardAsyncExecutionActor
                              dockerStderr: String,                          // Calculated from StandardAsyncExecutionActor
-                             callExecutionRoot: Path,                    // Based on config, calculated in Job Paths, key to all things outside container
+                             jobPaths: JobPaths,                    // Based on config, calculated in Job Paths, key to all things outside container
                              parameters: Seq[AwsBatchParameter]
                              ) {
 
@@ -195,7 +195,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     Log.info(s"""reconfiguredScript: $reconfiguredScript""")
     Log.info(s"""taskId: $taskId""")
     Log.info(s"""hostpath root: $uniquePath""")
-    Log.info(s"""callExecutionRoot: $callExecutionRoot""")
+    Log.info(s"""jobPaths.callExecutionRoot: ${jobPaths.callExecutionRoot.toString}""")
+    Log.info(s"""jobPaths.workflowPaths.workflowRoot: ${jobPaths.workflowPaths.workflowRoot.toString}""")
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
@@ -223,7 +224,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
   private def createDefinition(name: String, taskId: String): String = {
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
     val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes,
-                                                   runtimeAttributes.dockerImage, taskId, dockerRc, jobDescriptor, callExecutionRoot)
+                                                   runtimeAttributes.dockerImage, taskId, dockerRc, jobDescriptor, jobPaths.callExecutionRoot, jobPaths.workflowPaths.workflowRoot)
 
     // See:
     //

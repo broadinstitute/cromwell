@@ -117,11 +117,11 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
   }
 
   it should "have correct root" in {
-    new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, jesAttributes).root shouldBe "gs://my-cromwell-workflows-bucket"
+    new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).root shouldBe "gs://my-cromwell-workflows-bucket"
   }
 
   it should "have correct docker" in {
-    val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, jesAttributes).dockerCredentials
+    val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
   }

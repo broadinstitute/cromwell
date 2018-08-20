@@ -44,14 +44,7 @@ sealed trait AwsBatchParameter {
 sealed trait AwsBatchInput extends AwsBatchParameter
 
 final case class AwsBatchFileInput(name: String, s3key: String, local: Path, mount: AwsBatchVolume) extends AwsBatchInput {
-  def toKeyValuePair = {
-    KeyValuePair.builder.name(name).value(s3key).build
-    // TODO: Implement
-    // new PipelineParameter().setName(name).setLocalCopy(
-    //   new LocalCopy().setDisk(mount.name).setPath(local.pathAsString)
-    // )
-  }
-
+  def toKeyValuePair = KeyValuePair.builder.name(name).value(s3key).build
   def toStringString = (name, s3key)
   def containerPath: Path = mount.mountPoint.resolve(local)
 }
@@ -62,12 +55,6 @@ final case class AwsBatchLiteralInput(name: String, value: String) extends AwsBa
 }
 
 final case class AwsBatchFileOutput(name: String, s3key: String, local: Path, mount: AwsBatchVolume) extends AwsBatchParameter {
-  def toKeyValuePair = {
-    KeyValuePair.builder.name(name).value(s3key).build
-    // TODO: Implement
-    // new PipelineParameter().setName(name).setLocalCopy(
-    //   new LocalCopy().setDisk(mount.name).setPath(local.pathAsString)
-    // )
-  }
+  def toKeyValuePair = KeyValuePair.builder.name(name).value(s3key).build
   def toStringString = (name, s3key)
 }

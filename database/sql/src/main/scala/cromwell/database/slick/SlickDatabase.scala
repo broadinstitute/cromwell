@@ -97,6 +97,11 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     database.run(action.transactionally)
   }
 
+  // Run in a single session for efficiency, but without transaction semantics
+  protected[this] def runInSession[R](action: DBIO[R]): Future[R] = {
+    database.run(action.withPinnedSession)
+  }
+
   /*
     * Upsert the provided values in batch.
     * Fails the query if one or more upsert failed.

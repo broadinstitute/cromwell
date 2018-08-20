@@ -76,12 +76,12 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     val optionNow = Option(now)
     // Return the count of heartbeats written. This could legitimately be less than the size of the `workflowExecutionUuids`
     // List if any of those workflows completed and their workflow store entries were removed.
+    val action = for {
+      counts <- DBIO.sequence(workflowExecutionUuids.toList map { i => dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow) })
+    } yield counts.sum
 
-    val transactions = workflowExecutionUuids.toList map { i: String =>
-      dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow)
-    }
-
-    database.run(DBIO.sequence(transactions).withPinnedSession).map(_.sum)
+    // Lock only one row at a time - cannot deadlock with another txn that updates multiple rows at once like fetchStartableWorkflows
+    runInSession(action)
   }
 
   override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {

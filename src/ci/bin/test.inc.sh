@@ -152,8 +152,6 @@ cromwell::private::create_build_variables() {
         JES_TOKEN="jes token is not set as an environment variable"
     fi
 
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
-
     CROMWELL_BUILD_RANDOM_256_BITS_BASE64="$(dd bs=1 count=32 if=/dev/urandom 2>/dev/null | base64 | tr -d '\n')"
 
     export CROMWELL_BUILD_BRANCH
@@ -161,7 +159,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_CENTAUR_STANDARD_RENDERED
     export CROMWELL_BUILD_CENTAUR_STANDARD_TESTS
     export CROMWELL_BUILD_CENTAUR_RESOURCES
-    export CROMWELL_BUILD_CWL_TOOL_VERSION
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
     export CROMWELL_BUILD_GIT_USER_EMAIL
@@ -242,6 +239,7 @@ cromwell::private::verify_cron_build() {
 }
 
 cromwell::private::export_conformance_variables() {
+    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
     CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20180601100346"
     CROMWELL_BUILD_CWL_TEST_COMMIT="eb73b5e70e65ab9303a814bd1c230b927018da8f" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
@@ -252,6 +250,7 @@ cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_ROOT_DIRECTORY}/cwl_conformance_test.out.txt"
     CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
 
+    export CROMWELL_BUILD_CWL_TOOL_VERSION
     export CROMWELL_BUILD_CWL_TEST_VERSION
     export CROMWELL_BUILD_CWL_TEST_COMMIT
     export CROMWELL_BUILD_CWL_TEST_RUNNER
@@ -312,14 +311,11 @@ cromwell::private::pull_common_docker_images() {
     docker pull ubuntu
 }
 
-cromwell::private::install_cwltool() {
+cromwell::private::install_cwltest() {
     # TODO: No clue why these are needed for cwltool. If you know please update this comment.
     sudo apt-get install procps || true
     sudo -H pip install 'requests[security]'
     sudo -H pip install --ignore-installed cwltool=="${CROMWELL_BUILD_CWL_TOOL_VERSION}"
-}
-
-cromwell::private::install_cwltest() {
     sudo -H pip install cwltest=="${CROMWELL_BUILD_CWL_TEST_VERSION}"
 }
 
@@ -580,7 +576,6 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::install_cwltool
             cromwell::private::pull_common_docker_images
             cromwell::private::create_mysql_cromwell_test
             ;;
@@ -588,7 +583,6 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::install_cwltool
             cromwell::private::create_mysql_cromwell_test
             ;;
         *)

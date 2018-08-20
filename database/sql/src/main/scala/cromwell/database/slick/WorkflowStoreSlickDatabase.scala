@@ -78,10 +78,10 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     // List if any of those workflows completed and their workflow store entries were removed.
 
     val transactions = workflowExecutionUuids.toList map { i: String =>
-      runTransaction(dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow))
+      dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow)
     }
 
-    Future.sequence(transactions).map(_.sum)
+    database.run(DBIO.sequence(transactions).withPinnedSession).map(_.sum)
   }
 
   override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {

@@ -79,7 +79,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     val action = for {
       counts <- DBIO.sequence(workflowExecutionUuids.toList map { i => dataAccess.heartbeatForWorkflowStoreEntry(i).update(optionNow) })
     } yield counts.sum
-    runTransaction(action)
+
+    // Lock only one row at a time - cannot deadlock with another txn that updates multiple rows at once like fetchStartableWorkflows
+    runInSession(action)
   }
 
   override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {

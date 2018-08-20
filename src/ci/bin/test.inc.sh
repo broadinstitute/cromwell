@@ -75,7 +75,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_IS_CRON=false
             CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${TRAVIS_BRANCH}"
+            CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
             CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
             CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
             CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
@@ -91,11 +91,12 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_CRON=true
             CROMWELL_BUILD_IS_SECURE=true
             CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${GIT_BRANCH}"
+            CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
             CROMWELL_BUILD_EVENT=""
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"

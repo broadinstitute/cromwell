@@ -1,3 +1,4 @@
 {
+  "read_from_cache": false,
   "workflowFailureMode": "NoNewCalls"
 }

@@ -35,6 +35,6 @@ export CROMWELL_VERSION_TAG=$(curl "http://metadata.google.internal/computeMetad
 export CROMWELL_PROJECT=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/cromwell_project" -H "Metadata-Flavor: Google")
 export CROMWELL_EXECUTION_ROOT=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/cromwell_bucket" -H "Metadata-Flavor: Google")
 export CROMWELL_GRAFANA_HOST=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/cromwell_grafana_host" -H "Metadata-Flavor: Google")
-export CROMWELL_GRAFANA_BUCKET=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/cromwell_grafana_bucket" -H "Metadata-Flavor: Google")
+export CROMWELL_GRAFANA_BUCKET=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/cromwell_grafana_port" -H "Metadata-Flavor: Google")
 
 docker-compose up -d

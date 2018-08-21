@@ -1,0 +1,61 @@
+version: '2.1'
+services:
+
+  cromwell:
+    image: "broadinstitute/cromwell:$CROMWELL_VERSION_TAG"
+    volumes:
+      - ./cromwell:/conf
+    environment:
+      - CROMWELL_PROJECT
+      - CROMWELL_EXECUTION_ROOT
+      - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf
+    command: ["server"]
+    ports:
+      - "8000:8000"
+    container_name: cromwell
+
+    #  TODO: consider using devops render ctmpl w/ vault, etc.  As this is looking to be a maintenance burden if we go our own way
+    #  sqlproxy:
+    #    image: broadinstitute/cloudsqlproxy:1.11_2018117
+    #    env_file:
+    #      - /app/sqlproxy.env
+    #    volumes:
+    #      - /app/sqlproxy-service-account.json:/etc/sqlproxy-service-account.json
+    #    restart: always
+    #
+    #  proxy:
+    #    image: broadinstitute/openidc-proxy:db_ldap_2_3_3
+    #    # hostname: {{if $instanceType  | contains "cromwell2"}}cromwell2{{else}}cromwell1{{end}}.{{$dnsDomain}}
+    #    log_driver: "syslog"
+    #    log_opt:
+    #      syslog-tag: "cromwell-proxy"
+    #    links:
+    #      - app:app
+    #    ports:
+    #      - "80:80"
+    #      - "443:443"
+    #      - "127.0.0.1:8888:8888"
+    #    volumes:
+    #      - /etc/localtime:/etc/localtime:ro
+    #      - /app/server.crt:/etc/ssl/certs/server.crt:ro
+    #      - /app/server.key:/etc/ssl/private/server.key:ro
+    #      - /app/ca-bundle.crt:/etc/ssl/certs/ca-bundle.crt:ro
+    #      - /app/site.conf:/etc/apache2/sites-enabled/site.conf
+    #      - /app/mpm_event.conf:/etc/apache2/conf-enabled/mpm_event.conf
+    #    environment:
+    #      CALLBACK_URI: https://{{if $instanceType  | contains "cromwell2"}}cromwell2{{else}}cromwell1{{end}}.{{$dnsDomain}}/oauth2callback
+    #      ENABLE_MODSECURITY: 'no'
+    #      LDAP_CACHE_TTL: 300
+    #      LOG_LEVEL: warn
+    #      PROXY_URL: http://app:8000/
+    #      PROXY_URL2: http://app:8000/api
+    #      SERVER_NAME: {{if $instanceType  | contains "cromwell2"}}cromwell2{{else}}cromwell1{{end}}.{{$dnsDomain}}
+    #      SERVER_NAME_INT: {{if $instanceType  | contains "cromwell2"}}cromwell2{{else}}cromwell1{{end}}-priv.{{$dnsDomain}}
+    #      AUTH_REQUIRE2: Require ldap-group cn=enabled-users,ou=groups,{{$ldapDc}}
+    #      AUTH_LDAP_URL2: 'AuthLDAPURL "ldaps://opendj-priv.{{$dnsDomain}}/ou=people,{{$ldapDc}}?uid?sub?(objectClass=*)"'
+    #      AUTH_LDAP_GROUP_ATTR2: 'AuthLDAPGroupAttribute member'
+    #      AUTH_LDAP_BIND_DN2: 'AuthLDAPBindDN "cn=proxy-ro,ou=people,{{$ldapDc}}"'
+    #      AUTH_LDAP_BIND_PASSWORD2: 'AuthLDAPBindPassword {{ $proxyLdap.Data.proxy_ldap_bind_password }}'
+    #      REMOTE_USER_CLAIM: sub
+    #      ENABLE_STACKDRIVER: 'yes'
+    #    restart: always

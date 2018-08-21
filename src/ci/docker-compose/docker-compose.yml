@@ -5,6 +5,10 @@ services:
       context: cromwell-test
     command: src/ci/bin/test.sh
     environment:
+      - BUILD_NUMBER
+      - BUILD_URL
+      - CI
+      - GIT_BRANCH
       - JENKINS
       - JENKINS_BUILD_TYPE
     working_dir: ${PWD}

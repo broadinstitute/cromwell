@@ -5,6 +5,8 @@ backends: [Papi]
 
 files {
   workflow: failures/restart_while_failing/restart_while_failing.wdl
+  # https://github.com/broadinstitute/cromwell/issues/4014
+  options: failures/restart_while_failing/restart_while_failing.options
 }
 
 metadata {

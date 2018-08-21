@@ -98,12 +98,12 @@ lazy val demoDosFileSystem = (project in file("filesystems/demo-dos"))
   .dependsOn(cloudSupport % "test->test")
 
 lazy val httpFileSystem = (project in file("filesystems/http"))
-  .withLibrarySettings("cromwell-httpFileSystem")
+  .withLibrarySettings("cromwell-httpFileSystem", httpFileSystemDependencies)
   .dependsOn(core)
   .dependsOn(core % "test->test")
 
 lazy val gcsFileSystem = (project in file("filesystems/gcs"))
-  .withLibrarySettings("cromwell-gcsfilesystem")
+  .withLibrarySettings("cromwell-gcsfilesystem", gcsFileSystemDependencies)
   .dependsOn(core)
   .dependsOn(cloudSupport)
   .dependsOn(core % "test->test")
@@ -129,7 +129,7 @@ lazy val databaseMigration = (project in file("database/migration"))
   .dependsOn(wdlTransformsDraft2)
 
 lazy val dockerHashing = project
-  .withLibrarySettings("cromwell-docker-hashing")
+  .withLibrarySettings("cromwell-docker-hashing", dockerHashingDependencies)
   .dependsOn(core)
   .dependsOn(core % "test->test")
 

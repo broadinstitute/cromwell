@@ -10,6 +10,7 @@ import cromwell.core.callcaching.HashResult
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.services.EnhancedThrottlerActor
+import com.newrelic.api.agent.Trace;
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -59,6 +60,7 @@ class CallCacheReadActor(cache: CallCache,
   }
 
   // EnhancedBatchActor overrides
+  @Trace(dispatcher = true)
   override def receive: Receive = enhancedReceive.orElse(super.receive)
   override protected def instrumentationPath = NonEmptyList.of("callcaching", "read")
   override protected def instrumentationPrefix = InstrumentationPrefixes.JobPrefix

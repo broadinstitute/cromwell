@@ -56,6 +56,7 @@ object Dependencies {
   private val mouseV = "0.10-MF"
   private val mysqlV = "5.1.46"
   private val nettyHandlerV = "4.1.22.Final"
+  private val newRelicV = "4.4.0"
   private val owlApiV = "5.1.4"
   private val paradiseV = "2.1.0"
   private val pegdownV = "1.6.0"
@@ -383,6 +384,8 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
+    "com.newrelic.agent.java" % "newrelic-agent" % newRelicV % "provided",
+    "com.newrelic.agent.java" % "newrelic-api" % newRelicV % "compile",
     "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     betterFilesDependencies ++

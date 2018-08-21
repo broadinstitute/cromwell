@@ -58,7 +58,7 @@ object Wes2CromwellInterface {
           be underneath these requests instead of OG Cromwell
          */
         case StatusCodes.OK | StatusCodes.Created => Unmarshal(cr.entity).to[String].map(s => f(s))
-        case StatusCodes.BadRequest => Future.successful(NotFoundError) // WES doesn't differentiate between not found & malformed like Cromwell does
+        case StatusCodes.BadRequest => Future.successful(BadRequestError) // In Cromwell, malformed workflow IDs also generate this and that's not supported in WES, but ....
         case StatusCodes.Unauthorized => Future.successful(UnauthorizedError)
         case StatusCodes.NotFound => Future.successful(NotFoundError)
         case StatusCodes.Forbidden => Future.successful(ForbiddenError)

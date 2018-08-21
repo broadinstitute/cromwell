@@ -20,7 +20,7 @@ mkdir /app
 cd /app
 
 # Download the docker-compose script and other needed files
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/docker_compose.yml .
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/docker-compose.yml .
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell-dashboard.json .
 mkdir cromwell
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf cromwell/

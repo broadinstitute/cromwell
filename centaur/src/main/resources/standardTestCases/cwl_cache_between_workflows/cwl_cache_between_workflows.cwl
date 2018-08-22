@@ -36,11 +36,11 @@ $graph:
 
   outputs:
     trapezoidalArea:
-      type: float
+      type: long
       outputBinding:
         glob: stdout.txt
         loadContents: true
-        outputEval: $(parseFloat(self[0].contents))
+        outputEval: $(parseLong(self[0].contents))
 
   arguments:
   - valueFrom: "echo $(inputs.baseAverage * inputs.height)"
@@ -63,7 +63,7 @@ $graph:
       type: float
       outputSource: step-average/baseAverage
     trapezoidalArea:
-      type: float
+      type: long
       outputSource: step-product/trapezoidalArea
 
   steps:

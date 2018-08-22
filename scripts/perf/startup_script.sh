@@ -30,7 +30,7 @@ gsutil cp gs://cromwell-perf-testing/cloud_sql.enc .
 # Decrypt it
 gcloud kms decrypt --location=global --keyring=cromwell-perf-testing --key=cloud-sql --ciphertext-file=cloud_sql.enc --plaintext-file=cloud_sql.json
 # Install jq to parse the json
-apt-get install jq
+apt-get --assume-yes install jq
 # Get user/password
 export CLOUD_SQL_DB_USER=$(jq -r '.user' cloud_sql.json)
 export CLOUD_SQL_DB_PASSWORD=$(jq -r '.password' cloud_sql.json)

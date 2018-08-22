@@ -94,4 +94,7 @@
   <logger name="com.zaxxer.hikari" level="ERROR"/>
   <logger name="HikariPool" level="ERROR"/>
   <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>
+  <logger name="akka" level="DEBUG" />
+  <logger name="cromwell" level="DEBUG" />
+
 </configuration>

@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
@@ -28,13 +30,14 @@ final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, Execut
 }
 
 object WorkflowExecutionActorData {
-  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo): WorkflowExecutionActorData = {
+  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo, totalJobsByRootWf: AtomicInteger, executionStore: ExecutionStore): WorkflowExecutionActorData = {
     WorkflowExecutionActorData(
       workflowDescriptor,
-      ExecutionStore(workflowDescriptor.callable),
+      executionStore,
       ValueStore.initialize(workflowDescriptor.knownValues),
       asyncIo,
-      ec
+      ec,
+      totalJobsByRootWf = totalJobsByRootWf
     )
   }
 
@@ -48,7 +51,8 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       ec: ExecutionContext,
                                       jobKeyActorMappings: Map[ActorRef, JobKey] = Map.empty,
                                       jobFailures: Map[JobKey, Throwable] = Map.empty,
-                                      downstreamExecutionMap: JobExecutionMap = Map.empty) {
+                                      downstreamExecutionMap: JobExecutionMap = Map.empty,
+                                      totalJobsByRootWf: AtomicInteger) {
 
   val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
 

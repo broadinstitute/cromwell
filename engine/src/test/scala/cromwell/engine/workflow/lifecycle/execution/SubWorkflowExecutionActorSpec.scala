@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
@@ -80,7 +81,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
-        startState
+        startState,
+        new AtomicInteger()
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref

@@ -1,11 +1,15 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
@@ -24,6 +28,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.D
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.keys._
+import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -36,6 +41,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -52,6 +58,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
+  private val DefaultTotalMaxJobsPerRootWf = 10000
+  private val config = ConfigFactory.load
+  private val TotalMaxJobsPerRootWf = config.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
+
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
       .traverse {
@@ -63,10 +73,24 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .valueOr(errors => throw AggregatedMessageException("Could not instantiate backend factories", errors.toList))
   }
 
-  startWith(
-    WorkflowExecutionPendingState,
-    WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder))
-  )
+
+  val executionStore: ErrorOr[ActiveExecutionStore] = ExecutionStore(workflowDescriptor.callable, params.totalJobsByRootWf)
+
+  //TODO: Saloni- update the below comment? Ask Thibault?
+  // This is done to avoid race condition. If executionStore returns a Failure, the WEA will fail by sending WorkflowExecutionFailedResponse
+  // to it's parent and goto WorkflowExecutionFailedState state directly.
+  executionStore match {
+    case Valid(validExecutionStore) => {
+      startWith(
+        WorkflowExecutionPendingState,
+        WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, validExecutionStore)
+      )
+    }
+    case Invalid(e) => {
+      context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception(s"Failed to initialize WorkflowExecutionActor. Error: $e"))
+      goto(WorkflowExecutionFailedState)
+    }
+  }
 
   private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
 
@@ -368,7 +392,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
      *
      * This guarantees that we'll try to reconnect to all potentially running jobs on restart.
     */
-    val newData = if (workflowDescriptor.failureMode.allowNewCallsAfterFailure || restarting) {
+    val newData = if (workflowDescriptor.failureMode.allowNewCallsAfterFailure || restarting) { //TODO: Saloni-Don't forget to add condition for when job is failed bcoz it exceeded TotalMaxJobsPerRoofWf
       dataWithFailure
     } else {
       dataWithFailure.sealExecutionStore
@@ -426,6 +450,29 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private def startRunnableNodes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     import keys._
 
+    def checkTotalJobsAndUpdateExecutionStore(diffs: List[WorkflowExecutionDiff], updatedData: WorkflowExecutionActorData): WorkflowExecutionActorData = {
+      println("------------------------ Diffs Validation -------------------")
+      println(s"diffs: $diffs")
+
+      //x => x._1.isInstanceOf[BackendJobDescriptorKey] && x._2.equals(ExecutionStatus.NotStarted)
+      val notStartedBackendJobs = diffs.flatMap(d => d.executionStoreChanges.collect{
+        case (key: BackendJobDescriptorKey, status: ExecutionStatus.NotStarted.type) => (key, status)
+      }.keys)
+      val notStartedBackendJobsCt = notStartedBackendJobs.size
+      if (notStartedBackendJobsCt > TotalMaxJobsPerRootWf || data.totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > TotalMaxJobsPerRootWf) {
+        notStartedBackendJobs.foreach(key =>
+          self ! JobFailedNonRetryableResponse(key, new Exception(s"Job $key failed to be created! Error: Root workflow tried creating ${data.totalJobsByRootWf.get} jobs, which is more than $TotalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow."), None)
+        )
+
+        val updatedDiffs = diffs.map(d => d.copy(executionStoreChanges = d.executionStoreChanges -- notStartedBackendJobs))
+
+        println(s"newDiffs: $updatedDiffs")
+
+        updatedData.mergeExecutionDiffs(updatedDiffs)
+      }
+      else updatedData.mergeExecutionDiffs(diffs)
+    }
+
     val DataStoreUpdate(runnableKeys, statusChanges, updatedData) = data.executionStoreUpdate
     val runnableCalls = runnableKeys.view
       .collect({ case k: BackendJobDescriptorKey => k })
@@ -452,14 +499,14 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
       case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
-      case key: ScatterKey => key.processRunnable(data)
+      case key: ScatterKey => key.processRunnable(data, self)
       case other =>
         workflowLogger.error(s"${other.tag} is not a runnable key")
         WorkflowExecutionDiff.empty.validNel
     })
 
     // Merge the execution diffs upon success
-    diffValidation.map(updatedData.mergeExecutionDiffs).valueOr(errors =>
+    diffValidation.map(diffs => checkTotalJobsAndUpdateExecutionStore(diffs, updatedData)).valueOr(errors =>
       throw AggregatedMessageException("Workflow execution failure", errors.toList)
     )
   }
@@ -589,7 +636,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         jobTokenDispenserActor = params.jobTokenDispenserActor,
         params.backendSingletonCollection,
         params.initializationData,
-        params.startState), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
+        params.startState,
+        params.totalJobsByRootWf), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
@@ -701,7 +749,8 @@ object WorkflowExecutionActor {
                                            jobTokenDispenserActor: ActorRef,
                                            backendSingletonCollection: BackendSingletonCollection,
                                            initializationData: AllBackendInitializationData,
-                                           startState: StartableState
+                                           startState: StartableState,
+                                           totalJobsByRootWf: AtomicInteger
                                          )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -715,7 +764,8 @@ object WorkflowExecutionActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
-            startState: StartableState): Props = {
+            startState: StartableState,
+            totalJobsByRootWf: AtomicInteger): Props = {
     Props(
       WorkflowExecutionActor(
         WorkflowExecutionActorParams(
@@ -730,7 +780,8 @@ object WorkflowExecutionActor {
           jobTokenDispenserActor = jobTokenDispenserActor,
           backendSingletonCollection,
           initializationData,
-          startState
+          startState,
+          totalJobsByRootWf
         )
       )
     ).withDispatcher(EngineDispatcher)

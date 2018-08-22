@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
@@ -37,7 +39,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
-                                startState: StartableState) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                startState: StartableState,
+                                totalJobsByRootWf: AtomicInteger) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -190,7 +193,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        startState
+        startState,
+        totalJobsByRootWf
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
@@ -300,7 +304,8 @@ object SubWorkflowExecutionActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
-            startState: StartableState) = {
+            startState: StartableState,
+            totalJobsByRootWf: AtomicInteger) = {
     Props(new SubWorkflowExecutionActor(
       key,
       parentWorkflow,
@@ -316,7 +321,8 @@ object SubWorkflowExecutionActor {
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
-      startState)
+      startState,
+      totalJobsByRootWf)
     ).withDispatcher(EngineDispatcher)
   }
 }

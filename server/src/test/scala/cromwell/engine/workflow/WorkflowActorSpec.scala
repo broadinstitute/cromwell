@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -20,6 +22,7 @@ import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, Workfl
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
+
 import scala.concurrent.duration._
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
@@ -43,6 +46,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
   val finalizationProbe = TestProbe()
   var copyWorkflowLogsProbe: TestProbe = _
   val AwaitAlmostNothing = 100.milliseconds
+  val initialJobCtByRootWf = new AtomicInteger()
 
   before {
     currentWorkflowId = WorkflowId.randomId()
@@ -70,7 +74,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
         jobTokenDispenserActor = TestProbe().ref,
         workflowStoreActor = system.actorOf(Props.empty),
-        workflowHeartbeatConfig = workflowHeartbeatConfig
+        workflowHeartbeatConfig = workflowHeartbeatConfig,
+        totalJobsByRootWf = initialJobCtByRootWf
       ),
       supervisor = supervisorProbe.ref)
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
@@ -191,7 +196,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         dockerHashActor: ActorRef,
                         jobTokenDispenserActor: ActorRef,
                         workflowStoreActor: ActorRef,
-                        workflowHeartbeatConfig: WorkflowHeartbeatConfig) extends WorkflowActor(
+                        workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+                        totalJobsByRootWf: AtomicInteger) extends WorkflowActor(
   workflowId = workflowId,
   initialStartableState = startState,
   workflowSourceFilesCollection = workflowSources,
@@ -208,7 +214,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
   backendSingletonCollection = BackendSingletonCollection(Map.empty),
   workflowStoreActor = workflowStoreActor,
   serverMode = true,
-  workflowHeartbeatConfig = workflowHeartbeatConfig) {
+  workflowHeartbeatConfig = workflowHeartbeatConfig,
+  totalJobsByRootWf = totalJobsByRootWf) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

@@ -11,7 +11,6 @@ import cromwell.core.path.Path
 import spray.json.{JsObject, JsTrue}
 
 import scala.concurrent.Future
-import scala.util.{Failure, Success}
 
 class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializationActorParams)
   extends cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor(pipelinesParams) {

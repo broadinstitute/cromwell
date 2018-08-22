@@ -237,7 +237,7 @@ lazy val engine = project
   .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
   .dependsOn(sraFileSystem)
-  .dependsOn(ftpFileSystem)
+  .dependsOn(`cloud-nio-spi`)
   .dependsOn(languageFactoryCore)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")

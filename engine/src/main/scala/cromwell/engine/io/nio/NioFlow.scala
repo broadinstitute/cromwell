@@ -6,11 +6,10 @@ import java.nio.charset.StandardCharsets
 import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.scaladsl.Flow
 import cromwell.core.io._
-import cromwell.core.path.{DefaultPath, Path}
+import cromwell.core.path.Path
 import cromwell.core.retry.Retry
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoCommandContext
-import cromwell.filesystems.ftp.FtpPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
@@ -119,11 +118,7 @@ class NioFlow(parallelism: Int,
     isDirectory.file.isDirectory
   }
 
-  private def createDirectories(path: Path) = path match {
-    case _: DefaultPath => path.parent.createDirectories()
-    case _: FtpPath => path.parent.createDirectories()
-    case _ =>
-  }
+  private def createDirectories(path: Path) = path.parent.createDirectories()
 
   /*
    * The input stream will be closed when this method returns, which means the f function

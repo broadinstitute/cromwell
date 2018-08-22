@@ -67,6 +67,11 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_CENTAUR_STANDARD_RENDERED="${CROMWELL_BUILD_CENTAUR_STANDARD_TESTS}/rendered"
     CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS="${CROMWELL_BUILD_CENTAUR_RESOURCES}/integrationTestCases"
 
+    CROMWELL_BUILD_WAIT_FOR_IT_FILENAME="wait-for-it.sh"
+    CROMWELL_BUILD_WAIT_FOR_IT_BRANCH="db049716e42767d39961e95dd9696103dca813f1"
+    CROMWELL_BUILD_WAIT_FOR_IT_URL="https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
+    CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT="${CROMWELL_BUILD_ROOT_DIRECTORY}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
+
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_ROOT_DIRECTORY}/cromwell_build_exit_functions.$$"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
@@ -190,6 +195,10 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_TYPE
     export CROMWELL_BUILD_URL
     export CROMWELL_BUILD_VAULT_TOKEN
+    export CROMWELL_BUILD_WAIT_FOR_IT_BRANCH
+    export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
+    export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
+    export CROMWELL_BUILD_WAIT_FOR_IT_URL
 }
 
 cromwell::private::echo_build_variables() {
@@ -291,10 +300,16 @@ cromwell::private::upgrade_pip() {
     sudo -H pip install --upgrade pip
 }
 
+cromwell::private::install_wait_for_it() {
+    curl -s "${CROMWELL_BUILD_WAIT_FOR_IT_URL}" > "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
+    chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
+}
+
 cromwell::private::create_mysql_cromwell_test() {
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::create_mysql_cromwell_test
     else
+        "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT" -t 120 "${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}"
         mysql \
             --host="${CROMWELL_BUILD_MYSQL_HOSTNAME}" \
             --port="${CROMWELL_BUILD_MYSQL_PORT}" \
@@ -578,12 +593,14 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::pull_common_docker_images
+            cromwell::private::install_wait_for_it
             cromwell::private::create_mysql_cromwell_test
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
+            cromwell::private::install_wait_for_it
             cromwell::private::create_mysql_cromwell_test
             ;;
         *)

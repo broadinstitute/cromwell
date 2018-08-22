@@ -8,21 +8,25 @@ services:
     environment:
       - CROMWELL_PROJECT
       - CROMWELL_EXECUTION_ROOT
+      - CROMWELL_STATSD_HOST
+      - CROMWELL_STATSD_PORT
+      - CROMWELL_STATSD_PREFIX
+      - CLOUD_SQL_DB_USER
+      - CLOUD_SQL_DB_PASSWORD
       - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf
     command: ["server"]
+    links:
+      - cloudsql-db
     ports:
       - "8000:8000"
     container_name: cromwell
 
-    #  TODO: consider using devops render ctmpl w/ vault, etc.  As this is looking to be a maintenance burden if we go our own way
-    #  sqlproxy:
-    #    image: broadinstitute/cloudsqlproxy:1.11_2018117
-    #    env_file:
-    #      - /app/sqlproxy.env
-    #    volumes:
-    #      - /app/sqlproxy-service-account.json:/etc/sqlproxy-service-account.json
-    #    restart: always
-    #
+  cloudsql-db:
+    image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
+    ports:
+      - "3306:3306"
+    container_name: cloudsql-db
+    command: ["/cloud_sql_proxy", "-instances=${CLOUD_SQL_INSTANCES}"]
     #  proxy:
     #    image: broadinstitute/openidc-proxy:db_ldap_2_3_3
     #    # hostname: {{if $instanceType  | contains "cromwell2"}}cromwell2{{else}}cromwell1{{end}}.{{$dnsDomain}}

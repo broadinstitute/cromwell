@@ -59,7 +59,7 @@ trait EvenBetterPathMethods {
     }
   }
 
-  def createPermissionedDirectories(): this.type = {
+  final def createPermissionedDirectories(): this.type = {
     if (!exists) {
       if (parent != null) parent.createPermissionedDirectories()
       try {

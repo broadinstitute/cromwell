@@ -1,15 +1,14 @@
 package cloud.nio.impl.ftp
 
 import cloud.nio.impl.ftp.FtpUtil.FtpOperation
+import com.typesafe.scalalogging.StrictLogging
 import io.github.andrebeat.pool.{ExpiringPool, ReferenceType}
 import org.apache.commons.net.ftp.FTPClient
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 
-object FtpClientPool {
+object FtpClientPool extends StrictLogging {
   case class DataConnectionToken(operation: FtpOperation)
-  val logger = LoggerFactory.getLogger("FtpClient")
   
   def dispose(ftpClient: FTPClient) = try {
     if (ftpClient.isConnected) {

@@ -167,7 +167,8 @@ object Dependencies {
 
   val spiDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.slf4j" % "slf4j-api" % slf4jV
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
   ) ++ googleApiClientDependencies
 
   val spiUtilDependencies = List(
@@ -188,7 +189,7 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val catsDependencies = List(
+  private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
     "org.typelevel" %% "alleycats-core" % catsV,
     "com.github.benhutchison" %% "mouse" % mouseV,

@@ -11,10 +11,7 @@ import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration._
 
 case class FtpConfiguration(ftpCredentials: FtpCredentials,
-                            cacheTTL: FiniteDuration) {
-
-}
-
+                            cacheTTL: FiniteDuration)
 object FtpConfiguration {
   lazy val Default = FtpConfiguration(FtpAnonymousCredentials, 24.hours)
   

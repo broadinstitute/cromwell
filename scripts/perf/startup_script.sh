@@ -1,7 +1,9 @@
 #! /bin/bash
 
+### /!\ This script assumes docker and docker compose are already installed on the host
+
 #TODO: remove when done testing
-export BRANCH=db_perf_scripts
+export BRANCH=db_perf_scripts_tj_update
 
 set -x
 
@@ -12,14 +14,15 @@ echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
 mkdir /app
 cd /app
 
-# Download the docker-compose script and other needed files
-wget https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/docker-compose.yml
-wget https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell-dashboard.json
+# Download the docker-compose script and cromwell configuration
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/docker-compose.yml -o docker-compose.yml
 mkdir cromwell
-wget https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf -P cromwell/
-mkdir mysql
-wget https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/mysql/init_user.sql -P mysql/
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf -o cromwell/cromwell.conf
 
+# Utility function to extract values from instance metadata
+extract_metadata() {
+  curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
+}
 
 # Utility function to extract values from instance metadata
 extract_metadata() {
@@ -29,6 +32,10 @@ extract_metadata() {
 # Get user/password
 export CLOUD_SQL_DB_USER=$(extract_metadata cromwell_db_user)
 export CLOUD_SQL_DB_PASSWORD=$(extract_metadata cromwell_db_pass)
+
+# Get user/password
+export CLOUD_SQL_DB_USER=$(jq -r '.user' cloud_sql.json)
+export CLOUD_SQL_DB_PASSWORD=$(jq -r '.password' cloud_sql.json)
 
 # Get custom attributes from instance metadata
 export CLOUD_SQL_INSTANCES=$(extract_metadata cloud_sql_instance)

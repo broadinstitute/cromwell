@@ -1,8 +1,7 @@
 version: '2.1'
 services:
-
   cromwell:
-    image: "broadinstitute/cromwell:$CROMWELL_VERSION_TAG"
+    image: "broadinstitute/cromwell:${CROMWELL_VERSION_TAG}"
     volumes:
       - ./cromwell:/conf
     environment:
@@ -20,13 +19,13 @@ services:
     ports:
       - "8000:8000"
     container_name: cromwell
-
   cloudsql-db:
     image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     container_name: cloudsql-db
     command: ["/cloud_sql_proxy", "-instances=${CLOUD_SQL_INSTANCES}"]
+
     #  proxy:
     #    image: broadinstitute/openidc-proxy:db_ldap_2_3_3
     #    # hostname: {{if $instanceType  | contains "cromwell2"}}cromwell2{{else}}cromwell1{{end}}.{{$dnsDomain}}

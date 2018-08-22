@@ -22,7 +22,7 @@ services:
   cloudsql-db:
     image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     container_name: cloudsql-db
     command: ["/cloud_sql_proxy", "-instances=${CLOUD_SQL_INSTANCES}"]
 

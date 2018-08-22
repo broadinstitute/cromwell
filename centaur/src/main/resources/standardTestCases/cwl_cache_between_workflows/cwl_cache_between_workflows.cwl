@@ -40,7 +40,7 @@ $graph:
       outputBinding:
         glob: stdout.txt
         loadContents: true
-        outputEval: $(parseLong(self[0].contents))
+        outputEval: $(parseFloat(self[0].contents))
 
   arguments:
   - valueFrom: "echo $(inputs.baseAverage * inputs.height)"

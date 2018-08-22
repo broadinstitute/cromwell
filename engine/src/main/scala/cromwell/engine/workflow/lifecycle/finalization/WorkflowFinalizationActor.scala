@@ -124,4 +124,9 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
 
   when(FinalizationSucceededState) { FSM.NullFunction }
   when(WorkflowFinalizationFailedState) { FSM.NullFunction }
+
+  onTransition {
+    case fromState -> toState =>
+      workflowLogger.info(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
+  }
 }

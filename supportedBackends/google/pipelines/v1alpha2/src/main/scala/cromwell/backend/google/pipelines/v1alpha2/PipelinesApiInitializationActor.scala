@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.v1alpha2
 import java.io.IOException
 
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
-import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiDockerCredentials, PipelinesApiAuthObject}
+import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiAuthObject, PipelinesApiDockerCredentials}
 import cromwell.backend.google.pipelines.common.{PipelinesApiInitializationActorParams, PipelinesApiWorkflowPaths}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesApiInitializationActor.AuthFileAlreadyExistsException
 import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
@@ -11,6 +11,7 @@ import cromwell.core.path.Path
 import spray.json.{JsObject, JsTrue}
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializationActorParams)
   extends cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor(pipelinesParams) {
@@ -26,19 +27,22 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
 
   // V1 needs to upload the auth file at the beginning of the workflow, so override the default beforeAll
   override def beforeAll() = {
-    def fileUpload(paths: PipelinesApiWorkflowPaths) = asyncIo.existsAsync(paths.gcsAuthFilePath) flatMap {
-      // if we aren't restarting then something is definitely wrong
-      case true if !pipelinesParams.restarting =>
-        Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
-      case true =>
-        workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
-        Future.successful(())
-      case false =>
-        writeAuthenticationFile(paths, pipelinesConfiguration.jesAttributes.restrictMetadataAccess, pipelinesConfiguration.dockerCredentials) recoverWith {
-          case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
-        }
-    } recoverWith {
-      case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
+    def fileUpload(paths: PipelinesApiWorkflowPaths) = {
+      workflowLogger.info("[DEBUG LOGGING] Checking for auth file existence")
+      asyncIo.existsAsync(paths.gcsAuthFilePath) flatMap {
+        // if we aren't restarting then something is definitely wrong
+        case true if !pipelinesParams.restarting =>
+          Future.failed(AuthFileAlreadyExistsException(paths.gcsAuthFilePath))
+        case true =>
+          workflowLogger.debug(s"Authentication file already exists but this is a restart, proceeding.")
+          Future.successful(())
+        case false =>
+          writeAuthenticationFile(paths, pipelinesConfiguration.jesAttributes.restrictMetadataAccess, pipelinesConfiguration.dockerCredentials) recoverWith {
+            case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
+          }
+      } recoverWith {
+        case failure => Future.failed(new IOException(s"Failed to upload authentication file", failure))
+      }
     }
 
     for {

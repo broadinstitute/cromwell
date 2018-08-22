@@ -13,7 +13,7 @@ trait StopAndLogSupervisor { this: Actor =>
         onFailure(sender(), e)
         Stop
     }
-    OneForOneStrategy(loggingEnabled = false)(stoppingDecider)
+    OneForOneStrategy(loggingEnabled = true)(stoppingDecider)
   }
 
   override final val supervisorStrategy = stopAndLogStrategy

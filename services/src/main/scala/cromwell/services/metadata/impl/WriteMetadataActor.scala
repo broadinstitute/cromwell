@@ -9,6 +9,8 @@ import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 
+import better.files._
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -21,6 +23,7 @@ class WriteMetadataActor(override val batchSize: Int,
     with ActorLogging
     with MetadataDatabaseAccess
     with MetadataServicesStore {
+  val debugFile = File("/var/log/cromwell/metadata_debug.log")
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
@@ -38,6 +41,10 @@ class WriteMetadataActor(override val batchSize: Int,
       case Success(_) =>
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
       case Failure(regerts) =>
+        val metadataThatFailedToBeWritten = allPutEvents.map({ event =>
+          s"${event.offsetDateTime.toString} - ${event.key}"
+        })
+        debugFile.appendLines(metadataThatFailedToBeWritten.toList: _*)
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
     }
 

@@ -224,18 +224,23 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
     case exception if stateName == MaterializingWorkflowDescriptorState =>
+      workflowLogger.error(s"Child ${sender().path.name} of WorkflowActor died during Materialization")
       self ! MaterializeWorkflowDescriptorFailureResponse(exception)
       Stop
     case exception if stateName == InitializingWorkflowState =>
+      workflowLogger.error(s"Child ${sender().path.name} of WorkflowActor died during Initialization")
       self ! WorkflowInitializationFailedResponse(List(exception))
       Stop
     case exception if stateName == ExecutingWorkflowState =>
+      workflowLogger.error(s"Child ${sender().path.name} of WorkflowActor died during Execution")
       self ! WorkflowExecutionFailedResponse(Map.empty, exception)
       Stop
     case exception if stateName == FinalizingWorkflowState =>
+      workflowLogger.error(s"Child ${sender().path.name} of WorkflowActor died during Finalization")
       self ! WorkflowFinalizationFailedResponse(List(exception))
       Stop
     case exception =>
+      workflowLogger.error(s"Child ${sender().path.name} of WorkflowActor died during $stateName")
       context.parent ! WorkflowFailedResponse(workflowId, stateData.lastStateReached.state, List(exception))
       context stop self
       Stop
@@ -437,7 +442,7 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   onTransition {
     case fromState -> toState =>
-      workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
+      workflowLogger.info(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
       // This updates the workflow status
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)

@@ -10,7 +10,9 @@ import wom.values._
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
-case class MetadataKey private (workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String)
+case class MetadataKey private (workflowId: WorkflowId, jobKey: Option[MetadataJobKey], key: String) {
+  override def toString = s"$workflowId:${jobKey.getOrElse("N/A")}:$key"
+}
 
 object MetadataKey {
 

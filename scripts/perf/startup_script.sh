@@ -45,4 +45,4 @@ export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
 export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
 # Use the instance name as statsd prefix to avoid metrics collisions
 export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
-docker-compose up -d
+docker-compose up # -d TODO DEBUGGING

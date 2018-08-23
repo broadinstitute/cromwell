@@ -65,7 +65,7 @@ class ImportResolverSpec extends FlatSpec with Matchers {
 
   behavior of "directory resolver from root"
 
-  val rootDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/")))
+  val rootDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/")), customName = None)
 
   it should "resolve a random path" in {
     val pathToLookup = rootDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
@@ -74,7 +74,7 @@ class ImportResolverSpec extends FlatSpec with Matchers {
 
   behavior of "unprotected relative directory resolver"
 
-  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")))
+  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), customName = None)
 
   it should "resolve an absolute path" in {
     val pathToLookup = relativeDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
@@ -88,7 +88,7 @@ class ImportResolverSpec extends FlatSpec with Matchers {
 
   behavior of "protected relative directory resolver"
 
-  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), Some("/path/to/imports/"))
+  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), Some("/path/to/imports/"), customName = None)
 
   it should "resolve a good relative path" in {
     val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("path/to/file.wdl")

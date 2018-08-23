@@ -52,7 +52,7 @@ import scala.util.{Failure, Success, Try}
   * READ THIS: If you add a "system-level" actor here, make sure to consider what should be its
   * position in the shutdown process and modify CromwellShutdown accordingly.
   */
-abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer) extends Actor with ActorLogging with GracefulShutdownHelper {
+abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean, val serverMode: Boolean)(implicit materializer: ActorMaterializer) extends Actor with ActorLogging with GracefulShutdownHelper {
   import CromwellRootActor._
   
   // Make sure the filesystems are initialized at startup
@@ -64,8 +64,6 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
   logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
-
-  val serverMode: Boolean
 
   lazy val systemConfig = config.getConfig("system")
   lazy val serviceRegistryActor: ActorRef = context.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")

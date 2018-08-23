@@ -78,7 +78,7 @@ object Validation {
   implicit class ValidationChecked[A](val e: Checked[A]) extends AnyVal {
     def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
 
-    def contextualizeErrors(s: String): Checked[A] = e.leftMap { errors =>
+    def contextualizeErrors(s: => String): Checked[A] = e.leftMap { errors =>
       val total = errors.size
       errors.zipWithIndex map { case (err, i) => s"Failed to $s (reason ${i + 1} of $total): $err" }
     }

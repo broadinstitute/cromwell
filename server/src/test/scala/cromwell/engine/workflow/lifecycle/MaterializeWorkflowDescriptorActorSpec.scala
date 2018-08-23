@@ -275,7 +275,10 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       within(Timeout) {
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nFailed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow' using resolver: 'http importer' (reason 1 of 1): Failed to download https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow (reason 1 of 1): 404: Not Found")
+            reason.getMessage should startWith(
+              """Workflow input processing failed:
+                |Failed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow (reason 1 of 1): 404: Not Found"""
+                .stripMargin)
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")

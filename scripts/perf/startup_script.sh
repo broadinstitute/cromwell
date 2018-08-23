@@ -15,8 +15,8 @@ export BRANCH=db_perf_scripts
 export BUILD_ID=$(extract_metadata build_id)
 
 # Get user/password
-export CLOUD_SQL_DB_USER=$(extract_metadata cromwell_db_user)
-export CLOUD_SQL_DB_PASSWORD=$(extract_metadata cromwell_db_pass)
+export CLOUD_SQL_DB_USER=$(extract_metadata CROMWELL_DB_USER)
+export CLOUD_SQL_DB_PASSWORD=$(extract_metadata CROMWELL_DB_PASS)
 
 gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base cromwell-perf-testing-$BUILD_ID
 gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-perf-testing-db-$BUILD_ID --password=$CLOUD_SQL_DB_PASSWORD

@@ -33,10 +33,6 @@ extract_metadata() {
 export CLOUD_SQL_DB_USER=$(extract_metadata cromwell_db_user)
 export CLOUD_SQL_DB_PASSWORD=$(extract_metadata cromwell_db_pass)
 
-# Get user/password
-export CLOUD_SQL_DB_USER=$(jq -r '.user' cloud_sql.json)
-export CLOUD_SQL_DB_PASSWORD=$(jq -r '.password' cloud_sql.json)
-
 # Get custom attributes from instance metadata
 export CLOUD_SQL_INSTANCES=$(extract_metadata cloud_sql_instance)
 export CROMWELL_VERSION_TAG=$(extract_metadata cromwell_version)

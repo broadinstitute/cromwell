@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 VAULT_TOKEN=$(cat /etc/vault-token-dsde)
-DB_PASS=docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
-	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.db_pass'
+DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
+	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.db_pass'`
 
 gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base cromwell-perf-testing-$BUILD_NUMBER
 gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-perf-testing-db-$BUILD_NUMBER --password=$DB_PASS

@@ -63,10 +63,13 @@ task run_test_index {
         Int timeout
     }
 
+    # Weird -n/--timeout format is because ./run_test.sh doesn't pass through the timeout parameter to cwltest.
+    # Test 55 often runs over 10 minutes in Travis/PapiV2 and requires a longer timeout.
+    # So, we use the fact that run_test.sh conveniently doesn't sanitize -n to wire the --timeout _inside_ the -n arg.
     command {
         (
             cd ~{cwl_dir}
-            ./run_test.sh --timeout=~{timeout} RUNNER="~{centaur_cwl_runner}" -n~{test_number} 2>&1
+            ./run_test.sh RUNNER="~{centaur_cwl_runner}" -n"~{test_number} --timeout=~{timeout}" 2>&1
         )
         echo $? > test_result_code
     }

@@ -3,6 +3,7 @@ testFormat: workflowfailure
 
 files {
   workflow: no_new_calls/no_new_calls.wdl
+  # https://github.com/broadinstitute/cromwell/issues/4014
   options: no_new_calls/no_new_calls.options
 }
 

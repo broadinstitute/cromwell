@@ -15,7 +15,8 @@ Command: server
 Starts a web server on port 8000.  See the web server documentation for more details about the API endpoints.
 Command: run [options] workflow-source
 Run the workflow and print out the outputs in JSON format.
-  workflow-source          Workflow source file.
+  workflow-source          Workflow source file or workflow url .
+  --workflow-root <value>  Workflow root
   -i, --inputs <value>     Workflow inputs file.
   -o, --options <value>    Workflow options file.
   -t, --type <value>       Workflow type.
@@ -40,7 +41,7 @@ The Cromwell jar file can be built as described in [Building](Building).
 `run` mode executes a single workflow in Cromwell and then exits.
 
 * **`workflow-source`**  
-The single required argument for the workflow source file.
+The single required argument. It can be either a local path or a remote URL pointing to the workflow source file.
  
 * **`--inputs`**  
 An optional file of workflow inputs.  Although optional, it is a best practice to use an inputs file to satisfy workflow

@@ -4,6 +4,8 @@ backends: [Papi]
 
 files {
   workflow: wdl_draft3/custom_mount_point/custom_mount_point.wdl
+  # https://github.com/broadinstitute/cromwell/issues/3998
+  options: wdl_draft3/custom_mount_point/custom_mount_point.options
 }
 
 metadata {

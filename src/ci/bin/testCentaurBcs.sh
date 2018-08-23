@@ -6,6 +6,7 @@
 exit 0
 
 set -e
+export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
@@ -60,6 +61,7 @@ exclude_glob_tests=( \
 centaur/test_cromwell.sh \
     -j "${CROMWELL_JAR}" \
     -c "${CROMWELL_CI_RESOURCES_DIRECTORY}/bcs_application.conf" \
+    -n "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf" \
     -p 100 \
     -t 1m \
     -g \

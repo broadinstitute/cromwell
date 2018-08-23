@@ -1,10 +1,14 @@
 package centaur
 
-import java.nio.file.Path
-
+import better.files._
 import cats.data.Validated.{Invalid, Valid}
+import cats.effect.IO
 import cats.instances.list._
+import cats.syntax.flatMap._
+import cats.syntax.functor._
 import cats.syntax.traverse._
+import centaur.reporting.{ErrorReporters, TestEnvironment}
+import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import org.scalatest._
 
@@ -13,27 +17,33 @@ import scala.concurrent.Future
 @DoNotDiscover
 abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends AsyncFlatSpec with Matchers {
 
-  private def testCases(basePath: Path): List[CentaurTestCase] = {
-    val files = basePath.toFile.listFiles.toList collect { case x if x.isFile => x.toPath }
-    val testCases = files.traverse(CentaurTestCase.fromPath)
+  /*
+  NOTE: We need to statically initialize the object so that the exceptions appear here in the class constructor.
+  Otherwise instead of seeing 'java.lang.ExceptionInInitializerError' with a stack trace, there will be no tests
+  generated, and no errors, resulting in 'Total number of tests run: 0' and 'No tests were executed.'
+   */
+  ErrorReporters.getClass
+
+  private def testCases(baseFile: File): List[CentaurTestCase] = {
+    val files = baseFile.list.filter(_.isRegularFile).toList
+    val testCases = files.traverse(CentaurTestCase.fromFile)
 
     testCases match {
       case Valid(l) => l
       case Invalid(e) => throw new IllegalStateException("\n" + e.toList.mkString("\n") + "\n")
     }
   }
-  
+
   def allTestCases: List[CentaurTestCase] = {
-    val optionalTestCases = CentaurConfig.optionalTestPath map testCases getOrElse List.empty
+    val optionalTestCases = CentaurConfig.optionalTestPath map (File(_)) map testCases getOrElse List.empty
     val standardTestCases = testCases(CentaurConfig.standardTestCasePath)
     optionalTestCases ++ standardTestCases
   }
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
-    def runTest() = {
-      testCase.testFunction.run.unsafeToFuture().map(_ => assert(true))
-    }
+
+    def runTest(): IO[Unit] = testCase.testFunction.run.void
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
@@ -46,8 +56,8 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     executeStandardTest(upgradeTestWdl(testCase))
 
   private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
-    import womtool.WomtoolMain
     import better.files.File
+    import womtool.WomtoolMain
 
     // The suffix matters because WomGraphMaker.getBundle() uses it to choose the language factory
     val rootWorkflowFile = File.newTemporaryFile(suffix = ".wdl").append(testCase.workflow.data.workflowContent.get)
@@ -92,31 +102,68 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     newCase
   }
 
-  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => Future[Assertion]): Unit = {
+  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => IO[Unit]): Unit = {
 
     val itShould: ItVerbString = it should testName
 
     tags match {
-      case Nil => runOrDont(itShould, ignore, runTest)
-      case head :: Nil => runOrDont(itShould taggedAs head, ignore, runTest)
-      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, runTest)
+      case Nil => runOrDont(itShould, ignore, testName, runTest)
+      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testName, runTest)
+      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testName, runTest)
     }
   }
 
-  private def runOrDont(itVerbString: ItVerbString, ignore: Boolean, runTest: => Future[Assertion]): Unit = {
+  private def runOrDont(itVerbString: ItVerbString,
+                        ignore: Boolean,
+                        testName: String,
+                        runTest: => IO[Unit]): Unit = {
     if (ignore) {
-      itVerbString ignore runTest
+      itVerbString ignore Future.successful(succeed)
     } else {
-      itVerbString in runTest
+      itVerbString in tryTryAgain(testName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
     }
   }
 
-  private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs, ignore: Boolean, runTest: => Future[Assertion]): Unit = {
+  private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs,
+                        ignore: Boolean,
+                        testName: String,
+                        runTest: => IO[Unit]): Unit = {
     if (ignore) {
-      itVerbStringTaggedAs ignore runTest
+      itVerbStringTaggedAs ignore Future.successful(succeed)
     } else {
-      itVerbStringTaggedAs in runTest
+      itVerbStringTaggedAs in
+        tryTryAgain(testName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
     }
   }
-  
+
+  /**
+    * Returns an IO effect that will recursively try to run a test.
+    *
+    * @param testName Name of the ScalaTest.
+    * @param runTest Thunk to run the test.
+    * @param retries Total number of attempts to retry.
+    * @param attempt Current zero based attempt.
+    * @return IO effect that will run the test, possibly retrying.
+    */
+  private def tryTryAgain(testName: String, runTest: => IO[Unit], retries: Int, attempt: Int = 0): IO[Unit] = {
+    def maybeRetry(centaurTestException: CentaurTestException): IO[Unit] = {
+      val testEnvironment = TestEnvironment(testName, retries, attempt)
+      for {
+        _ <- ErrorReporters.logCentaurFailure(testEnvironment, centaurTestException)
+        _ <- if (attempt < retries) {
+          tryTryAgain(testName, runTest, retries, attempt + 1)
+        } else {
+          IO.raiseError(centaurTestException)
+        }
+      } yield ()
+    }
+
+    val runTestIo = IO(runTest).flatten
+
+    runTestIo handleErrorWith {
+      case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
+      case _ => runTestIo
+    }
+  }
+
 }

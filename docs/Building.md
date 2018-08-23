@@ -8,6 +8,13 @@ features or fixes, the following are required to build Cromwell from source:
 * [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
 * [Git](https://git-scm.com/)
 
+You can also use the [development image](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-develop), and build a development container to work inside:
+
+```bash
+$ docker build -t cromwell-dev Dockerfile
+$ docker run -it cromwell-dev bash
+```
+
 First start by cloning the Cromwell repository from GitHub:
 
 ```bash

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
@@ -8,8 +9,6 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 cromwell::build::setup_common_environment
 
 cromwell::build::setup_conformance_environment
-
-cromwell::build::setup_secure_resources
 
 cromwell::build::assemble_jars
 
@@ -58,7 +57,7 @@ cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 900
+    "cwl_conformance_test.timeout": 1200
 }
 JSON
 

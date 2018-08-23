@@ -1,0 +1,15 @@
+<configuration>
+    <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date %X{sourceThread} %-5level - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="STANDARD_APPENDER" />
+    </root>
+
+    <logger name="com.zaxxer.hikari" level="ERROR"/>
+    <logger name="HikariPool" level="ERROR"/>
+    <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>
+</configuration>

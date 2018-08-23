@@ -28,7 +28,6 @@ object Dependencies {
   private val fs2V = "0.10.2"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.23.0"
-  private val googleCloudComputeV = "0.26.0-alpha"
   private val googleCloudCoreV = "1.34.0"
   private val googleCloudKmsV = "v1-rev26-1.23.0"
   private val googleCloudNioV = "0.52.0-alpha"
@@ -40,6 +39,7 @@ object Dependencies {
   private val googleOauthClientV = googleApiClientV
   private val grpcV = "1.12.0"
   private val guavaV = "22.0"
+  private val heterodonV = "1.0.0-beta1"
   private val hsqldbV = "2.3.4"
   private val jacksonV = "2.9.4"
   private val janinoV = "3.0.7"
@@ -193,6 +193,7 @@ object Dependencies {
 
   private val akkaHttpDependencies = List(
     "com.typesafe.akka" %% "akka-http" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test
   )
 
@@ -298,6 +299,10 @@ object Dependencies {
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
   )
 
+  val gcsFileSystemDependencies = akkaHttpDependencies
+
+  val httpFileSystemDependencies = akkaHttpDependencies
+
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
@@ -310,7 +315,7 @@ object Dependencies {
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "com.github.mpilquist" %% "simulacrum" % simulacrumV,
@@ -358,6 +363,7 @@ object Dependencies {
 
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
+    "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "io.circe" %% "circe-optics" % circeV,
@@ -391,11 +397,12 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
+  val dockerHashingDependencies = akkaHttpDependencies
+
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV
   ) ++ akkaHttpDependencies ++ betterFilesDependencies
 
@@ -425,7 +432,6 @@ object Dependencies {
   ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies
 
   val wes2cromwellDependencies = List(
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV
   ) ++ akkaHttpDependencies ++ coreDependencies
 

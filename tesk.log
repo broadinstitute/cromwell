@@ -1,0 +1,231 @@
+2018-08-23 11:51:43,168  INFO  - Running with database db.url = jdbc:mysql://localhost:3306/cromwell_test?useSSL=false&rewriteBatchedStatements=true
+2018-08-23 11:51:44,714  INFO  - Successfully acquired change log lock
+2018-08-23 11:51:46,613  INFO  - Reading from cromwell_test.DATABASECHANGELOG
+2018-08-23 11:51:46,832  INFO  - Successfully released change log lock
+2018-08-23 11:51:46,848  INFO  - Running with database db.url = jdbc:mysql://localhost:3306/cromwell_test?useSSL=false&rewriteBatchedStatements=true
+2018-08-23 11:51:46,953  INFO  - Successfully acquired change log lock
+2018-08-23 11:51:47,023  INFO  - Reading from cromwell_test.SQLMETADATADATABASECHANGELOG
+2018-08-23 11:51:47,044  INFO  - Successfully released change log lock
+2018-08-23 11:51:47,633  INFO  - Slf4jLogger started
+2018-08-23 11:51:48,080 cromwell-system-akka.dispatchers.engine-dispatcher-5 INFO  - Workflow heartbeat configuration:
+{
+  "cromwellId" : "cromid-2b6d75c",
+  "heartbeatInterval" : "2 minutes",
+  "ttl" : "10 minutes",
+  "writeBatchSize" : 10000,
+  "writeThreshold" : 10000
+}
+2018-08-23 11:51:48,128 cromwell-system-akka.dispatchers.service-dispatcher-11 INFO  - Metadata summary refreshing every 2 seconds.
+2018-08-23 11:51:48,209 cromwell-system-akka.dispatchers.service-dispatcher-10 INFO  - WriteMetadataActor configured to flush with batch size 200 and process rate 5 seconds.
+2018-08-23 11:51:48,210 cromwell-system-akka.dispatchers.engine-dispatcher-30 INFO  - JobStoreWriterActor configured to flush with batch size 1000 and process rate 1 second.
+2018-08-23 11:51:48,211 cromwell-system-akka.actor.default-dispatcher-25 INFO  - KvWriteActor configured to flush with batch size 200 and process rate 5 seconds.
+2018-08-23 11:51:48,212 cromwell-system-akka.dispatchers.engine-dispatcher-29 INFO  - CallCacheWriteActor configured to flush with batch size 100 and process rate 3 seconds.
+2018-08-23 11:51:49,087 cromwell-system-akka.dispatchers.engine-dispatcher-42 INFO  - JobExecutionTokenDispenser - Distribution rate: 50 per 1 seconds.
+2018-08-23 11:51:49,561 cromwell-system-akka.dispatchers.engine-dispatcher-5 INFO  - Cromwell 35-d12a743-SNAP service started on 0:0:0:0:0:0:0:0:8000...
+2018-08-23 11:53:02,735 cromwell-system-akka.dispatchers.api-dispatcher-84 INFO  - cwl (Unspecified version) workflow b73a1fbc-5829-4cc8-9d10-6108432d171f submitted
+2018-08-23 11:53:03,734 cromwell-system-akka.dispatchers.engine-dispatcher-8 INFO  - 1 new workflows fetched
+2018-08-23 11:53:03,736 cromwell-system-akka.dispatchers.engine-dispatcher-42 INFO  - WorkflowManagerActor Starting workflow UUID(b73a1fbc-5829-4cc8-9d10-6108432d171f)
+2018-08-23 11:53:03,741 cromwell-system-akka.dispatchers.engine-dispatcher-42 INFO  - WorkflowManagerActor Successfully started WorkflowActor-b73a1fbc-5829-4cc8-9d10-6108432d171f
+2018-08-23 11:53:03,742 cromwell-system-akka.dispatchers.engine-dispatcher-42 INFO  - Retrieved 1 workflows from the WorkflowStoreActor
+2018-08-23 11:53:03,754 cromwell-system-akka.dispatchers.engine-dispatcher-32 INFO  - WorkflowStoreHeartbeatWriteActor configured to flush with batch size 10000 and process rate 2 minutes.
+2018-08-23 11:53:03,979 cromwell-system-akka.dispatchers.engine-dispatcher-32 INFO  - MaterializeWorkflowDescriptorActor [UUID(b73a1fbc)]: Parsing workflow as CWL v1.0
+2018-08-23 11:53:04,679 cromwell-system-akka.dispatchers.engine-dispatcher-32 INFO  - MaterializeWorkflowDescriptorActor [UUID(b73a1fbc)]: Call-to-Backend assignments: dir4.cwl -> TES
+2018-08-23 11:53:07,653 cromwell-system-akka.dispatchers.engine-dispatcher-42 INFO  - WorkflowExecutionActor-b73a1fbc-5829-4cc8-9d10-6108432d171f [UUID(b73a1fbc)]: Starting dir4.cwl
+2018-08-23 11:53:13,020 cromwell-system-akka.dispatchers.backend-dispatcher-96 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: `'cd' '/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/inputs/centaur-cwl-conformance/cwl-inputs/xtestdir' && 'find' '.' | 'sort'`
+2018-08-23 11:53:13,068 cromwell-system-akka.dispatchers.backend-dispatcher-96 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: Calculated TES outputs (found 7): 
+Output(Some(rc),Some(dir4.cwl.rc),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/rc),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/rc,Some(FILE))
+Output(Some(stdout),Some(dir4.cwl.stdout),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/stdout),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/stdout,Some(FILE))
+Output(Some(stderr),Some(dir4.cwl.stderr),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/stderr),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/stderr,Some(FILE))
+Output(Some(commandScript),Some(dir4.cwl.commandScript),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/script),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/script,Some(FILE))
+Output(Some(dir4.cwl.output.0),Some(dir4.cwl.output.0),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/output.txt),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/output.txt,Some(FILE))
+Output(Some(globDir.1),Some(dir4.cwl.globDir.1),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe/),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe,Some(DIRECTORY))
+Output(Some(globList.1),Some(dir4.cwl.globList.1),Some(ftp://ftp.hexdump.org/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe.list),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe.list,Some(FILE))
+
+2018-08-23 11:53:13,077 cromwell-system-akka.dispatchers.backend-dispatcher-96 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: Calculated TES inputs (found 4): 
+Input(Some(dir4.cwl.inf.0),Some(dir4.cwl.dir4.cwl.inf.0),Some(ftp://ftp.hexdump.org/centaur-cwl-conformance/cwl-inputs/hello.tar),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/inputs/centaur-cwl-conformance/cwl-inputs/hello.tar,Some(FILE),None)
+Input(Some(dir4.cwl.inf.1),Some(dir4.cwl.dir4.cwl.inf.1),Some(ftp://ftp.hexdump.org/centaur-cwl-conformance/cwl-inputs/index.py),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/inputs/centaur-cwl-conformance/cwl-inputs/index.py,Some(FILE),None)
+Input(Some(dir4.cwl.inf.2),Some(dir4.cwl.dir4.cwl.inf.2),Some(ftp://ftp.hexdump.org/centaur-cwl-conformance/cwl-inputs/testdir),/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/inputs/centaur-cwl-conformance/cwl-inputs/testdir,Some(DIRECTORY),None)
+Input(Some(commandScript),Some(dir4.cwl.commandScript),None,/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/script,Some(FILE),Some(#!/bin/bash
+
+cd /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution
+tmpDir=$(mkdir -p "/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/tmp.9edaf213" && echo "/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/tmp.9edaf213")
+chmod 777 "$tmpDir"
+export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
+export TMPDIR="$tmpDir"
+export HOME="/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/execution"
+(
+cd /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution
+
+)
+outb73a1fbc="${tmpDir}/out.$$" errb73a1fbc="${tmpDir}/err.$$"
+mkfifo "$outb73a1fbc" "$errb73a1fbc"
+trap 'rm "$outb73a1fbc" "$errb73a1fbc"' EXIT
+tee '/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/output.txt' < "$outb73a1fbc" &
+tee '/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/stderr' < "$errb73a1fbc" >&2 &
+(
+cd /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution
+
+
+'cd' '/cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/inputs/centaur-cwl-conformance/cwl-inputs/xtestdir' && 'find' '.' | 'sort'
+)  > "$outb73a1fbc" 2> "$errb73a1fbc"
+echo $? > /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/rc.tmp
+(
+# add a .file in every empty directory to facilitate directory delocalization on the cloud
+cd /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution
+find . -type d -empty -print0 | xargs -0 -I % touch %/.file
+)
+(
+cd /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution
+sync
+# make the directory which will keep the matching files
+mkdir /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe
+
+# create the glob control file that will allow for the globbing to succeed even if there is 0 match
+echo "This file is used by Cromwell to allow for globs that would not match any file.
+By its presence it works around the limitation of some backends that do not allow empty globs.
+Regardless of the outcome of the glob, this file will not be part of the final list of globbed files." > /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe/cromwell_glob_control_file
+
+# hardlink or symlink all the files into the glob directory
+( ls -L /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/cwl.output.json 2> /dev/null | xargs -I ? ln -s ? /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe )
+
+# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
+ls -1 /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe | grep -v cromwell_glob_control_file > /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe.list
+
+
+)
+mv /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/rc.tmp /cromwell-executions/dir4.cwl/b73a1fbc-5829-4cc8-9d10-6108432d171f/call-dir4.cwl/execution/rc
+))
+
+2018-08-23 11:53:18,235 cromwell-system-akka.dispatchers.backend-dispatcher-96 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: job id: task-a87855ac
+2018-08-23 11:53:18,619 cromwell-system-akka.dispatchers.backend-dispatcher-95 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: Status change from - to Running
+2018-08-23 12:00:46,940 cromwell-system-akka.dispatchers.api-dispatcher-84 INFO  - cwl (Unspecified version) workflow fc92a399-ef0a-4747-8bba-f2ced89999cb submitted
+2018-08-23 12:00:47,880 cromwell-system-akka.dispatchers.engine-dispatcher-45 INFO  - 1 new workflows fetched
+2018-08-23 12:00:47,881 cromwell-system-akka.dispatchers.engine-dispatcher-40 INFO  - WorkflowManagerActor Starting workflow UUID(fc92a399-ef0a-4747-8bba-f2ced89999cb)
+2018-08-23 12:00:47,881 cromwell-system-akka.dispatchers.engine-dispatcher-40 INFO  - WorkflowManagerActor Successfully started WorkflowActor-fc92a399-ef0a-4747-8bba-f2ced89999cb
+2018-08-23 12:00:47,881 cromwell-system-akka.dispatchers.engine-dispatcher-40 INFO  - Retrieved 1 workflows from the WorkflowStoreActor
+2018-08-23 12:00:47,967 cromwell-system-akka.dispatchers.engine-dispatcher-46 INFO  - MaterializeWorkflowDescriptorActor [UUID(fc92a399)]: Parsing workflow as CWL v1.0
+2018-08-23 12:00:48,061 cromwell-system-akka.dispatchers.engine-dispatcher-46 INFO  - MaterializeWorkflowDescriptorActor [UUID(fc92a399)]: Call-to-Backend assignments: dir3.cwl -> TES
+2018-08-23 12:00:50,098 cromwell-system-akka.dispatchers.engine-dispatcher-45 INFO  - WorkflowExecutionActor-fc92a399-ef0a-4747-8bba-f2ced89999cb [UUID(fc92a399)]: Starting dir3.cwl
+2018-08-23 12:00:54,681 cromwell-system-akka.dispatchers.backend-dispatcher-123 INFO  - TesAsyncBackendJobExecutionActor [UUID(fc92a399)dir3.cwl:NA:1]: `'tar' 'xvf' '/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/inputs/centaur-cwl-conformance/cwl-inputs/hello.tar'`
+2018-08-23 12:00:54,685 cromwell-system-akka.dispatchers.backend-dispatcher-123 INFO  - TesAsyncBackendJobExecutionActor [UUID(fc92a399)dir3.cwl:NA:1]: Calculated TES outputs (found 8): 
+Output(Some(rc),Some(dir3.cwl.rc),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/rc),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/rc,Some(FILE))
+Output(Some(stdout),Some(dir3.cwl.stdout),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/stdout),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/stdout,Some(FILE))
+Output(Some(stderr),Some(dir3.cwl.stderr),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/stderr),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/stderr,Some(FILE))
+Output(Some(commandScript),Some(dir3.cwl.commandScript),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/script),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/script,Some(FILE))
+Output(Some(dirPath.0),Some(dir3.cwl.dirPath.0),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/./),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/.,Some(DIRECTORY))
+Output(Some(dirList.0),Some(dir3.cwl.dirList.0),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/..list),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/..list,Some(FILE))
+Output(Some(globDir.2),Some(dir3.cwl.globDir.2),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe/),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe,Some(DIRECTORY))
+Output(Some(globList.2),Some(dir3.cwl.globList.2),Some(ftp://ftp.hexdump.org/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe.list),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe.list,Some(FILE))
+
+2018-08-23 12:00:54,685 cromwell-system-akka.dispatchers.backend-dispatcher-123 INFO  - TesAsyncBackendJobExecutionActor [UUID(fc92a399)dir3.cwl:NA:1]: Calculated TES inputs (found 2): 
+Input(Some(dir3.cwl.inf.0),Some(dir3.cwl.dir3.cwl.inf.0),Some(ftp://ftp.hexdump.org/centaur-cwl-conformance/cwl-inputs/hello.tar),/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/inputs/centaur-cwl-conformance/cwl-inputs/hello.tar,Some(FILE),None)
+Input(Some(commandScript),Some(dir3.cwl.commandScript),None,/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/script,Some(FILE),Some(#!/bin/bash
+
+cd /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution
+tmpDir=$(mkdir -p "/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/tmp.27f77dac" && echo "/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/tmp.27f77dac")
+chmod 777 "$tmpDir"
+export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
+export TMPDIR="$tmpDir"
+export HOME="/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/execution"
+(
+cd /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution
+
+)
+outfc92a399="${tmpDir}/out.$$" errfc92a399="${tmpDir}/err.$$"
+mkfifo "$outfc92a399" "$errfc92a399"
+trap 'rm "$outfc92a399" "$errfc92a399"' EXIT
+tee '/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/stdout' < "$outfc92a399" &
+tee '/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/stderr' < "$errfc92a399" >&2 &
+(
+cd /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution
+
+
+'tar' 'xvf' '/cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/inputs/centaur-cwl-conformance/cwl-inputs/hello.tar'
+)  > "$outfc92a399" 2> "$errfc92a399"
+echo $? > /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/rc.tmp
+(
+# add a .file in every empty directory to facilitate directory delocalization on the cloud
+cd /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution
+find . -type d -empty -print0 | xargs -0 -I % touch %/.file
+)
+(
+cd /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution
+sync
+# make the directory which will keep the matching files
+mkdir /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe
+
+# create the glob control file that will allow for the globbing to succeed even if there is 0 match
+echo "This file is used by Cromwell to allow for globs that would not match any file.
+By its presence it works around the limitation of some backends that do not allow empty globs.
+Regardless of the outcome of the glob, this file will not be part of the final list of globbed files." > /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe/cromwell_glob_control_file
+
+# hardlink or symlink all the files into the glob directory
+( ls -L /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/cwl.output.json 2> /dev/null | xargs -I ? ln -s ? /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe )
+
+# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
+ls -1 /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe | grep -v cromwell_glob_control_file > /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/glob-b34dfc006a981a93d6da067cf50036fe.list
+
+# list all the files that match the directory into a file called directory.list
+find . -type f > ..list
+
+)
+mv /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/rc.tmp /cromwell-executions/dir3.cwl/fc92a399-ef0a-4747-8bba-f2ced89999cb/call-dir3.cwl/execution/rc
+))
+
+2018-08-23 12:00:58,212 cromwell-system-akka.dispatchers.backend-dispatcher-123 INFO  - TesAsyncBackendJobExecutionActor [UUID(fc92a399)dir3.cwl:NA:1]: job id: task-f90f7abc
+2018-08-23 12:00:58,480 cromwell-system-akka.dispatchers.backend-dispatcher-123 INFO  - TesAsyncBackendJobExecutionActor [UUID(fc92a399)dir3.cwl:NA:1]: Status change from - to Running
+2018-08-23 12:01:21,567 cromwell-system-akka.dispatchers.backend-dispatcher-129 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: TES reported an error for Job task-a87855ac: 'SYSTEM_ERROR'
+2018-08-23 12:01:21,568 cromwell-system-akka.dispatchers.backend-dispatcher-129 INFO  - TesAsyncBackendJobExecutionActor [UUID(b73a1fbc)dir4.cwl:NA:1]: Status change from Running to FailedOrError
+2018-08-23 12:01:22,399 cromwell-system-akka.dispatchers.engine-dispatcher-48 ERROR - WorkflowManagerActor Workflow b73a1fbc-5829-4cc8-9d10-6108432d171f failed (during ExecutingWorkflowState): java.lang.RuntimeException: Task dir4.cwl:NA:1 failed for unknown reason: FailedOrError
+	at cromwell.backend.standard.StandardAsyncExecutionActor.handleExecutionFailure(StandardAsyncExecutionActor.scala:899)
+	at cromwell.backend.standard.StandardAsyncExecutionActor.handleExecutionFailure$(StandardAsyncExecutionActor.scala:897)
+	at cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.handleExecutionFailure(TesAsyncBackendJobExecutionActor.scala:47)
+	at cromwell.backend.standard.StandardAsyncExecutionActor$$anonfun$handleExecutionResult$5.applyOrElse(StandardAsyncExecutionActor.scala:1091)
+	at cromwell.backend.standard.StandardAsyncExecutionActor$$anonfun$handleExecutionResult$5.applyOrElse(StandardAsyncExecutionActor.scala:1087)
+	at scala.concurrent.Future.$anonfun$recoverWith$1(Future.scala:413)
+	at scala.concurrent.impl.Promise.$anonfun$transformWith$1(Promise.scala:37)
+	at scala.concurrent.impl.CallbackRunnable.run$$$capture(Promise.scala:60)
+	at scala.concurrent.impl.CallbackRunnable.run(Promise.scala)
+	at akka.dispatch.BatchingExecutor$AbstractBatch.processBatch(BatchingExecutor.scala:55)
+	at akka.dispatch.BatchingExecutor$BlockableBatch.$anonfun$run$1(BatchingExecutor.scala:91)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:12)
+	at scala.concurrent.BlockContext$.withBlockContext(BlockContext.scala:81)
+	at akka.dispatch.BatchingExecutor$BlockableBatch.run(BatchingExecutor.scala:91)
+	at akka.dispatch.TaskInvocation.run(AbstractDispatcher.scala:40)
+	at akka.dispatch.ForkJoinExecutorConfigurator$AkkaForkJoinTask.exec(ForkJoinExecutorConfigurator.scala:44)
+	at akka.dispatch.forkjoin.ForkJoinTask.doExec(ForkJoinTask.java:260)
+	at akka.dispatch.forkjoin.ForkJoinPool$WorkQueue.runTask(ForkJoinPool.java:1339)
+	at akka.dispatch.forkjoin.ForkJoinPool.runWorker(ForkJoinPool.java:1979)
+	at akka.dispatch.forkjoin.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:107)
+
+2018-08-23 12:01:22,416 cromwell-system-akka.dispatchers.engine-dispatcher-48 INFO  - WorkflowManagerActor WorkflowActor-b73a1fbc-5829-4cc8-9d10-6108432d171f is in a terminal state: WorkflowFailedState
+2018-08-23 12:05:48,717  INFO  - Workflow polling stopped
+2018-08-23 12:05:48,722  INFO  - Http server unbound.
+2018-08-23 12:05:48,726  INFO  - Shutting down WorkflowStoreActor - Timeout = 5 seconds
+2018-08-23 12:05:48,729  INFO  - Shutting down WorkflowLogCopyRouter - Timeout = 5 seconds
+2018-08-23 12:05:48,731  INFO  - Shutting down JobExecutionTokenDispenser - Timeout = 5 seconds
+2018-08-23 12:05:48,731  INFO  - Shutting down WorkflowManagerActor - Timeout = 5 seconds
+2018-08-23 12:05:48,733  INFO  - JobExecutionTokenDispenser stopped
+2018-08-23 12:05:48,734  INFO  - WorkflowStoreActor stopped
+2018-08-23 12:05:48,786  INFO  - WorkflowManagerActor stopped
+2018-08-23 12:05:48,811  INFO  - WorkflowLogCopyRouter stopped
+2018-08-23 12:05:48,812  INFO  - Connection pools shut down
+2018-08-23 12:05:48,813  INFO  - Shutting down SubWorkflowStoreActor - Timeout = 1800 seconds
+2018-08-23 12:05:48,813  INFO  - Shutting down JobStoreActor - Timeout = 1800 seconds
+2018-08-23 12:05:48,813  INFO  - Shutting down CallCacheWriteActor - Timeout = 1800 seconds
+2018-08-23 12:05:48,813  INFO  - Shutting down ServiceRegistryActor - Timeout = 1800 seconds
+2018-08-23 12:05:48,813  INFO  - Shutting down DockerHashActor - Timeout = 1800 seconds
+2018-08-23 12:05:48,813  INFO  - Shutting down IoProxy - Timeout = 1800 seconds
+2018-08-23 12:05:48,813  INFO  - SubWorkflowStoreActor stopped
+2018-08-23 12:05:48,814  INFO  - CallCacheWriteActor Shutting down: 0 queued messages to process
+2018-08-23 12:05:48,814  INFO  - KvWriteActor Shutting down: 0 queued messages to process
+2018-08-23 12:05:48,814  INFO  - WriteMetadataActor Shutting down: 0 queued messages to process
+2018-08-23 12:05:48,814  INFO  - JobStoreWriterActor Shutting down: 0 queued messages to process
+2018-08-23 12:05:48,815  INFO  - CallCacheWriteActor stopped
+2018-08-23 12:05:48,815  INFO  - DockerHashActor stopped
+2018-08-23 12:05:48,815  INFO  - IoProxy stopped
+2018-08-23 12:05:48,815  INFO  - JobStoreActor stopped
+2018-08-23 12:05:48,817  INFO  - ServiceRegistryActor stopped
+2018-08-23 12:05:48,842  INFO  - Database closed
+2018-08-23 12:05:48,843  INFO  - Stream materializer shut down
+2018-08-23 12:05:48,853  INFO  - WDL HTTP import resolver closed

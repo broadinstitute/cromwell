@@ -6,8 +6,11 @@ import java.nio.file.attribute.FileAttribute
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
 import cloud.nio.spi.{CloudNioFileSystemProvider, CloudNioPath, CloudNioReadChannel, CloudNioRetry}
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 
-class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials) extends CloudNioFileSystemProvider {
+import scala.util.{Failure, Success, Try}
+
+class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials) extends CloudNioFileSystemProvider with StrictLogging {
   override def fileProvider = new FtpCloudNioFileProvider(this)
 
   override def isFatal(exception: Exception) = exception match {
@@ -30,8 +33,15 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
   }
 
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {
-    val cloudNioPath = CloudNioPath.checkPath(dir)
-    fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
+    Try {
+      val cloudNioPath = CloudNioPath.checkPath(dir)
+      fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
+    } match {
+      case Success(_) =>
+      case Failure(f) =>
+        logger.error(s"Failed to create directory for $dir", f)
+        throw f
+    }
   }
 
   override def usePseudoDirectories = false

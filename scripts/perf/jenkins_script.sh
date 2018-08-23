@@ -6,6 +6,7 @@ DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 
 gcloud \
     --project broad-dsde-cromwell-perf \
+    --zone us-central1-c \
     compute \
     instances \
     create perf-test-$BUILD_NUMBER \

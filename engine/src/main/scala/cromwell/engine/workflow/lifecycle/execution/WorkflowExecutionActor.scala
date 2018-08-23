@@ -76,9 +76,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   val executionStore: ErrorOr[ActiveExecutionStore] = ExecutionStore(workflowDescriptor.callable, params.totalJobsByRootWf)
 
-  //TODO: Saloni- update the below comment? Ask Thibault?
-  // This is done to avoid race condition. If executionStore returns a Failure, the WEA will fail by sending WorkflowExecutionFailedResponse
-  // to it's parent and goto WorkflowExecutionFailedState state directly.
+  // If executionStore returns a Failure about root workflow creating jobs more than total jobs per root workflow limit, the WEA will fail by sending WorkflowExecutionFailedResponse
+  // to it's parent and kill itself.
   executionStore match {
     case Valid(validExecutionStore) => {
       startWith(
@@ -88,7 +87,13 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     }
     case Invalid(e) => {
       context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception(s"Failed to initialize WorkflowExecutionActor. Error: $e"))
-      goto(WorkflowExecutionFailedState)
+
+      // The actor is started with some state before killing itself, otherwise FSM.goto throws NullPointerException as it doesn't find currentState
+      startWith(
+        WorkflowExecutionFailedState,
+        WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, ExecutionStore.empty)
+      )
+      context.stop(self)
     }
   }
 
@@ -392,7 +397,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
      *
      * This guarantees that we'll try to reconnect to all potentially running jobs on restart.
     */
-    val newData = if (workflowDescriptor.failureMode.allowNewCallsAfterFailure || restarting) { //TODO: Saloni-Don't forget to add condition for when job is failed bcoz it exceeded TotalMaxJobsPerRoofWf
+    val newData = if (workflowDescriptor.failureMode.allowNewCallsAfterFailure || restarting) {
       dataWithFailure
     } else {
       dataWithFailure.sealExecutionStore
@@ -450,24 +455,18 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private def startRunnableNodes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     import keys._
 
-    def checkTotalJobsAndUpdateExecutionStore(diffs: List[WorkflowExecutionDiff], updatedData: WorkflowExecutionActorData): WorkflowExecutionActorData = {
-      println("------------------------ Diffs Validation -------------------")
-      println(s"diffs: $diffs")
-
-      //x => x._1.isInstanceOf[BackendJobDescriptorKey] && x._2.equals(ExecutionStatus.NotStarted)
+    def updateExecutionStore(diffs: List[WorkflowExecutionDiff], updatedData: WorkflowExecutionActorData): WorkflowExecutionActorData = {
       val notStartedBackendJobs = diffs.flatMap(d => d.executionStoreChanges.collect{
         case (key: BackendJobDescriptorKey, status: ExecutionStatus.NotStarted.type) => (key, status)
       }.keys)
       val notStartedBackendJobsCt = notStartedBackendJobs.size
-      if (notStartedBackendJobsCt > TotalMaxJobsPerRootWf || data.totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > TotalMaxJobsPerRootWf) {
+
+      if (data.totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > TotalMaxJobsPerRootWf) {
+        val updatedDiffs = diffs.map(d => d.copy(executionStoreChanges = d.executionStoreChanges -- notStartedBackendJobs))
+
         notStartedBackendJobs.foreach(key =>
           self ! JobFailedNonRetryableResponse(key, new Exception(s"Job $key failed to be created! Error: Root workflow tried creating ${data.totalJobsByRootWf.get} jobs, which is more than $TotalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow."), None)
         )
-
-        val updatedDiffs = diffs.map(d => d.copy(executionStoreChanges = d.executionStoreChanges -- notStartedBackendJobs))
-
-        println(s"newDiffs: $updatedDiffs")
-
         updatedData.mergeExecutionDiffs(updatedDiffs)
       }
       else updatedData.mergeExecutionDiffs(diffs)
@@ -506,7 +505,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     })
 
     // Merge the execution diffs upon success
-    diffValidation.map(diffs => checkTotalJobsAndUpdateExecutionStore(diffs, updatedData)).valueOr(errors =>
+    diffValidation.map(diffs => updateExecutionStore(diffs, updatedData)).valueOr(errors =>
       throw AggregatedMessageException("Workflow execution failure", errors.toList)
     )
   }

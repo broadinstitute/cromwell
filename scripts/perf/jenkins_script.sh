@@ -8,6 +8,10 @@ VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.data.db_pass'`
 
+gcloud version
+gcloud auth list
+gcloud config list
+
 gcloud \
     --verbosity info \
     --project broad-dsde-cromwell-perf \

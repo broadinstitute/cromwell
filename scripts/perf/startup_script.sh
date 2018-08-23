@@ -36,12 +36,12 @@ extract_metadata() {
 
 
 # Get custom attributes from instance metadata
-export CLOUD_SQL_INSTANCES=$(extract_metadata cloud_sql_instance)
-export CROMWELL_VERSION_TAG=$(extract_metadata cromwell_version)
-export CROMWELL_PROJECT=$(extract_metadata cromwell_project)
-export CROMWELL_EXECUTION_ROOT=$(extract_metadata cromwell_bucket)
-export CROMWELL_STATSD_HOST=$(extract_metadata cromwell_statsd_host)
-export CROMWELL_STATSD_PORT=$(extract_metadata cromwell_statsd_port)
+export CLOUD_SQL_INSTANCES=$(extract_metadata CLOUD_SQL_INSTANCE)
+export CROMWELL_VERSION_TAG=$(extract_metadata CROMWELL_VERSION)
+export CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
+export CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
+export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
+export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
 # Use the instance name as statsd prefix to avoid metrics collisions
 export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
 docker-compose up -d

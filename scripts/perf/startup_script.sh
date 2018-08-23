@@ -2,6 +2,12 @@
 
 ### /!\ This script assumes docker and docker compose are already installed on the host
 
+# Utility function to extract values from instance metadata
+extract_metadata() {
+  curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
+}
+
+
 #TODO: remove when done testing
 export BRANCH=db_perf_scripts
 
@@ -28,11 +34,6 @@ cd /app
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/docker-compose.yml -o docker-compose.yml
 mkdir cromwell
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf -o cromwell/cromwell.conf
-
-# Utility function to extract values from instance metadata
-extract_metadata() {
-  curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
-}
 
 
 # Get custom attributes from instance metadata

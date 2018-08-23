@@ -154,6 +154,8 @@ final case class CallableTaskDefinition(name: String,
                                         dockerOutputDirectory: Option[String] = None
                                        ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
+
+  override def toString: String = s"CallableTaskDefinition $name"
 }
 
 /**

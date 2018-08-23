@@ -95,6 +95,8 @@
   <logger name="HikariPool" level="ERROR"/>
   <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>
   <logger name="akka" level="DEBUG" />
+  <logger name="akka.actor.TimerScheduler" level="OFF" />
   <logger name="cromwell" level="DEBUG" />
+  <logger name="cromwell.services.metadata.impl.MetadataSummaryRefreshActor" level="OFF" />
 
 </configuration>

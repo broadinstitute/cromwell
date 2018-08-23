@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+#debug
+gcloud version
+gcloud auth list
+gcloud config list
+
 #get startup script to run on new instance
 wget https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/scripts/perf/startup_script.sh
 

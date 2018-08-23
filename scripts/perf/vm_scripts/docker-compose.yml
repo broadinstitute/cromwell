@@ -24,7 +24,7 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     container_name: cloudsql-db
-    command: ["/cloud_sql_proxy", "-instances=${CLOUD_SQL_INSTANCES}"]
+    command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCES}"]
 
     #  proxy:
     #    image: broadinstitute/openidc-proxy:db_ldap_2_3_3

@@ -5,11 +5,11 @@ DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.data.db_pass'`
 
 gcloud \
-    --project broad-dsde-cromwell-perf \
-    --zone us-central1-c \
     compute \
     instances \
     create perf-test-$BUILD_NUMBER \
+    --project broad-dsde-cromwell-perf \
+    --zone us-central1-c \
     --source-instance-template cromwell-perf-template-update \
     --metadata-from-file startup-script=startup_script.sh \
     --metadata \

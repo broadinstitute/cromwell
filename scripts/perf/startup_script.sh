@@ -49,4 +49,4 @@ export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMet
 #debug
 echo "user $CLOUD_SQL_DB_USER"
 echo "pass $CLOUD_SQL_DB_PASSWORD"
-docker-compose up # -d TODO DEBUGGING
+docker-compose up -d

@@ -2,7 +2,7 @@
 set -e
 
 #get startup script to run on new instance
-wget -r https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/scripts/perf/startup_script.sh
+curl https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/scripts/perf/startup_script.sh > startup_script.sh
 
 VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \

@@ -54,6 +54,7 @@ object MetadataValue {
     Option(value).getOrElse("") match {
       case WomInteger(i) => new MetadataValue(i.toString, MetadataInt)
       case WomFloat(f) => new MetadataValue(f.toString, MetadataNumber)
+      case WomLong(f) => new MetadataValue(f.toString, MetadataNumber)
       case WomBoolean(b) => new MetadataValue(b.toString, MetadataBoolean)
       case WomOptionalValue(_, Some(o)) => apply(o)
       case WomOptionalValue(_, None) => new MetadataValue("", MetadataNull)

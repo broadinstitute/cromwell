@@ -5,6 +5,16 @@
 #TODO: remove when done testing
 export BRANCH=db_perf_scripts
 
+# Get Build ID
+export BUILD_ID=$(extract_metadata build_id)
+
+# Get user/password
+export CLOUD_SQL_DB_USER=$(extract_metadata cromwell_db_user)
+export CLOUD_SQL_DB_PASSWORD=$(extract_metadata cromwell_db_pass)
+
+gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base cromwell-perf-testing-$BUILD_ID
+gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-perf-testing-db-$BUILD_ID --password=$CLOUD_SQL_DB_PASSWORD
+
 set -x
 
 # Make sure ip forwarding is enabled by default
@@ -24,9 +34,6 @@ extract_metadata() {
   curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
 }
 
-# Get user/password
-export CLOUD_SQL_DB_USER=$(extract_metadata cromwell_db_user)
-export CLOUD_SQL_DB_PASSWORD=$(extract_metadata cromwell_db_pass)
 
 # Get custom attributes from instance metadata
 export CLOUD_SQL_INSTANCES=$(extract_metadata cloud_sql_instance)

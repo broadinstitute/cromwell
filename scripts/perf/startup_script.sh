@@ -24,11 +24,6 @@ extract_metadata() {
   curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
 }
 
-# Utility function to extract values from instance metadata
-extract_metadata() {
-  curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
-}
-
 # Get user/password
 export CLOUD_SQL_DB_USER=$(extract_metadata cromwell_db_user)
 export CLOUD_SQL_DB_PASSWORD=$(extract_metadata cromwell_db_pass)

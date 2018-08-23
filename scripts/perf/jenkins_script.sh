@@ -1,11 +1,6 @@
 #!/bin/bash
 set -e
 
-#debug
-gcloud version
-gcloud auth list
-gcloud config list
-
 #get startup script to run on new instance
 wget https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/scripts/perf/startup_script.sh
 
@@ -14,6 +9,7 @@ DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.data.db_pass'`
 
 gcloud \
+    --verbosity info
     --project broad-dsde-cromwell-perf \
     compute \
     instances \

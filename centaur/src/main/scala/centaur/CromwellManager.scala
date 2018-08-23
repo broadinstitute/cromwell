@@ -29,12 +29,22 @@ object CromwellManager extends StrictLogging {
   def isReady: Boolean = !_isManaged || _ready
   
   // Check that we have a cromwellProcess, that this process is alive, and that cromwell is ready to accept requests 
-  private def isAlive = cromwellProcess.exists(_.isAlive()) && CentaurCromwellClient.isAlive
+  private def isAlive(checkType: String): Boolean = {
+    val processAlive = cromwellProcess.exists(_.isAlive())
+    logger.info(s"Cromwell process alive $checkType = $processAlive")
+    if (processAlive) {
+      val serverAlive = CentaurCromwellClient.isAlive
+      logger.info(s"Cromwell server alive $checkType = $serverAlive")
+      serverAlive
+    } else {
+      false
+    }
+  }
 
   def startCromwell(cromwell: CromwellConfiguration): Unit = {
     _isManaged = true
-    
-    if (!isAlive) {
+
+    if (!isAlive("at start")) {
       val logFile: File = File(cromwell.logFile)
 
       val command = List(
@@ -48,22 +58,30 @@ object CromwellManager extends StrictLogging {
         .command(command: _*)
         .redirectOutput(Redirect.appendTo(logFile.toJava))
         .redirectErrorStream(true)
-        
+
       // Start the cromwell process
       logger.info("Starting Cromwell...")
       val process = processBuilder.start()
       cromwellProcess = Option(process)
 
       var waitedFor = Duration.Zero
+      var seenAlive = false
 
-      while (!isAlive && waitedFor < timeout) {
+      def wasOrIsAlive(): Boolean = {
+        if (!seenAlive && isAlive("while waiting")) {
+          seenAlive = true
+        }
+        seenAlive
+      }
+
+      while (!wasOrIsAlive() && waitedFor < timeout) {
         logger.info("Waiting for Cromwell...")
         Thread.sleep(interval.toMillis)
         waitedFor = waitedFor + interval
       }
-      
+
       _ready = true
-      if (isAlive) logger.info("Cromwell is running")
+      if (wasOrIsAlive()) logger.info("Cromwell is running")
       else {
         logger.error("Timeout waiting for cromwell server - failing test run")
         logger.error(logFile.contentAsString)

@@ -67,6 +67,11 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_CENTAUR_STANDARD_RENDERED="${CROMWELL_BUILD_CENTAUR_STANDARD_TESTS}/rendered"
     CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS="${CROMWELL_BUILD_CENTAUR_RESOURCES}/integrationTestCases"
 
+    CROMWELL_BUILD_WAIT_FOR_IT_FILENAME="wait-for-it.sh"
+    CROMWELL_BUILD_WAIT_FOR_IT_BRANCH="db049716e42767d39961e95dd9696103dca813f1"
+    CROMWELL_BUILD_WAIT_FOR_IT_URL="https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
+    CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT="${CROMWELL_BUILD_ROOT_DIRECTORY}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
+
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_ROOT_DIRECTORY}/cromwell_build_exit_functions.$$"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
@@ -75,7 +80,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_IS_CRON=false
             CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${TRAVIS_BRANCH}"
+            CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
             CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
             CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
             CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
@@ -91,11 +96,12 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_CRON=true
             CROMWELL_BUILD_IS_SECURE=true
             CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${GIT_BRANCH}"
+            CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
             CROMWELL_BUILD_EVENT=""
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
@@ -152,8 +158,6 @@ cromwell::private::create_build_variables() {
         JES_TOKEN="jes token is not set as an environment variable"
     fi
 
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
-
     CROMWELL_BUILD_RANDOM_256_BITS_BASE64="$(dd bs=1 count=32 if=/dev/urandom 2>/dev/null | base64 | tr -d '\n')"
 
     export CROMWELL_BUILD_BRANCH
@@ -161,7 +165,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_CENTAUR_STANDARD_RENDERED
     export CROMWELL_BUILD_CENTAUR_STANDARD_TESTS
     export CROMWELL_BUILD_CENTAUR_RESOURCES
-    export CROMWELL_BUILD_CWL_TOOL_VERSION
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
     export CROMWELL_BUILD_GIT_USER_EMAIL
@@ -192,6 +195,10 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_TYPE
     export CROMWELL_BUILD_URL
     export CROMWELL_BUILD_VAULT_TOKEN
+    export CROMWELL_BUILD_WAIT_FOR_IT_BRANCH
+    export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
+    export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
+    export CROMWELL_BUILD_WAIT_FOR_IT_URL
 }
 
 cromwell::private::echo_build_variables() {
@@ -242,6 +249,7 @@ cromwell::private::verify_cron_build() {
 }
 
 cromwell::private::export_conformance_variables() {
+    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
     CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20180601100346"
     CROMWELL_BUILD_CWL_TEST_COMMIT="eb73b5e70e65ab9303a814bd1c230b927018da8f" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
@@ -252,6 +260,7 @@ cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_ROOT_DIRECTORY}/cwl_conformance_test.out.txt"
     CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
 
+    export CROMWELL_BUILD_CWL_TOOL_VERSION
     export CROMWELL_BUILD_CWL_TEST_VERSION
     export CROMWELL_BUILD_CWL_TEST_COMMIT
     export CROMWELL_BUILD_CWL_TEST_RUNNER
@@ -291,10 +300,16 @@ cromwell::private::upgrade_pip() {
     sudo -H pip install --upgrade pip
 }
 
+cromwell::private::install_wait_for_it() {
+    curl -s "${CROMWELL_BUILD_WAIT_FOR_IT_URL}" > "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
+    chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
+}
+
 cromwell::private::create_mysql_cromwell_test() {
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::create_mysql_cromwell_test
     else
+        "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT" -t 120 "${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}"
         mysql \
             --host="${CROMWELL_BUILD_MYSQL_HOSTNAME}" \
             --port="${CROMWELL_BUILD_MYSQL_PORT}" \
@@ -312,14 +327,11 @@ cromwell::private::pull_common_docker_images() {
     docker pull ubuntu
 }
 
-cromwell::private::install_cwltool() {
+cromwell::private::install_cwltest() {
     # TODO: No clue why these are needed for cwltool. If you know please update this comment.
     sudo apt-get install procps || true
     sudo -H pip install 'requests[security]'
     sudo -H pip install --ignore-installed cwltool=="${CROMWELL_BUILD_CWL_TOOL_VERSION}"
-}
-
-cromwell::private::install_cwltest() {
     sudo -H pip install cwltest=="${CROMWELL_BUILD_CWL_TEST_VERSION}"
 }
 
@@ -580,15 +592,15 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::install_cwltool
             cromwell::private::pull_common_docker_images
+            cromwell::private::install_wait_for_it
             cromwell::private::create_mysql_cromwell_test
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::install_cwltool
+            cromwell::private::install_wait_for_it
             cromwell::private::create_mysql_cromwell_test
             ;;
         *)

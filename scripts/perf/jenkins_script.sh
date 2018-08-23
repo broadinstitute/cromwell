@@ -14,4 +14,4 @@ gcloud \
     --source-instance-template cromwell-perf-template-update \
     --metadata-from-file startup-script=startup_script.sh \
     --metadata \
-        CROMWELL_DB_USER=cromwell,CROMWELL_DB_PASSWORD=$DB_PASS,CLOUD_SQL_INSTANCE=cromwell-perf-testing-db-$BUILD_NUMBER,CROMWELL_VERSION=34,CROMWELL_PROJECT=broad-dsde-cromwell-perf,CROMWELL_BUCKET=gs://debtest3/,CROMWELL_STATSD_HOST=broad.io/batch-grafana,CROMWELL_STATSD_PORT=8125
+        CROMWELL_DB_USER=cromwell,CROMWELL_DB_PASS=$DB_PASS,CLOUD_SQL_INSTANCE=cromwell-perf-testing-db-$BUILD_NUMBER,CROMWELL_VERSION=34,CROMWELL_PROJECT=broad-dsde-cromwell-perf,CROMWELL_BUCKET=gs://debtest3/,CROMWELL_STATSD_HOST=broad.io/batch-grafana,CROMWELL_STATSD_PORT=8125

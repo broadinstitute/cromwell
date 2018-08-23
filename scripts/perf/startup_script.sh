@@ -3,7 +3,7 @@
 ### /!\ This script assumes docker and docker compose are already installed on the host
 
 #TODO: remove when done testing
-export BRANCH=db_perf_scripts_tj_update
+export BRANCH=db_perf_scripts
 
 set -x
 

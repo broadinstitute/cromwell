@@ -7,12 +7,12 @@ extract_metadata() {
   curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
 }
 
+# Get Build ID
+export BUILD_ID=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
+
 
 #TODO: remove when done testing
 export BRANCH=db_perf_scripts
-
-# Get Build ID
-export BUILD_ID=$(extract_metadata build_id)
 
 # Get user/password
 export CLOUD_SQL_DB_USER=$(extract_metadata CROMWELL_DB_USER)
@@ -45,4 +45,8 @@ export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
 export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
 # Use the instance name as statsd prefix to avoid metrics collisions
 export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
+
+#debug
+echo "user $CLOUD_SQL_DB_USER"
+echo "pass $CLOUD_SQL_DB_PASSWORD"
 docker-compose up # -d TODO DEBUGGING

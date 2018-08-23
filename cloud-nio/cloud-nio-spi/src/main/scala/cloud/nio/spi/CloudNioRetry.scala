@@ -1,14 +1,15 @@
 package cloud.nio.spi
 
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 import net.ceedubs.ficus.Ficus._
 
-class CloudNioRetry(config: Config) {
+class CloudNioRetry(config: Config) extends StrictLogging{
 
-  def defaultMaxRetries: Int = config.getAs[Int]("default-max-retries").getOrElse(0)
+  def defaultMaxRetries: Int = config.getAs[Int]("default-max-retries").getOrElse(10)
 
   def isFatal(exception: Exception): Boolean = !isTransient(exception)
 
@@ -29,6 +30,7 @@ class CloudNioRetry(config: Config) {
       case Failure(exception: Exception) if !isFatal(exception) =>
         val retriesLeft = if (isTransient(exception)) maxRetries else maxRetries map { _ - 1 }
         if (retriesLeft.forall(_ > 0)) {
+          logger.info("Retrying")
           Thread.sleep(delay)
           fromTry(f, retriesLeft, backoff.next)
         } else {

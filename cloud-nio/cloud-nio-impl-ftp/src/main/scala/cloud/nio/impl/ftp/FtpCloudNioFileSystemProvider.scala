@@ -26,13 +26,13 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
      * will try to get it using the fileProvider which will require a new client lease and can result in a  deadlock of the client pool, since
      * the read channel holds on to its lease until its closed.
      */
-    val preComputedFileSize = fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath).map(_.size())
+    val preComputedFileSize = retry.from(() => fileProvider.fileAttributes(cloudNioPath.cloudHost, cloudNioPath.cloudPath).map(_.size()))
     new CloudNioReadChannel(fileProvider, retry, cloudNioPath) {
       override def fileSize = preComputedFileSize
     }
   }
 
-  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {
+  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = retry.from(() => {
     Try {
       val cloudNioPath = CloudNioPath.checkPath(dir)
       fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
@@ -42,7 +42,7 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
         logger.error(s"Failed to create directory for $dir", f)
         throw f
     }
-  }
+  })
 
   override def usePseudoDirectories = false
 }

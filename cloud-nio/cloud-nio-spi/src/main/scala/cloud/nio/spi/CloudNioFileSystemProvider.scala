@@ -98,10 +98,10 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
   protected def cloudNioReadChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioReadChannel = new CloudNioReadChannel(fileProvider, retry, cloudNioPath)
   protected def cloudNioWriteChannel(retry: CloudNioRetry, cloudNioPath: CloudNioPath): CloudNioWriteChannel = new CloudNioWriteChannel(fileProvider, retry, cloudNioPath)
 
-  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {
+  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = retry.from(() => {
     val cloudNioPath = CloudNioPath.checkPath(dir)
     fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
-  }
+  })
 
   override def deleteIfExists(path: Path): Boolean = {
     val cloudNioPath = CloudNioPath.checkPath(path)

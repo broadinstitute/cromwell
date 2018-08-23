@@ -22,6 +22,7 @@ class FtpCloudNioFileSystem(provider: FtpCloudNioFileSystemProvider, host: Strin
   private [ftp] lazy val clientFactory = () => {
     val client = new FTPClient()
     client.enterLocalPassiveMode()
+    client.setPassiveNatWorkaroundStrategy()
     client.connect(host)
     credentials.login(client)
     client

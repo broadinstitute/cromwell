@@ -58,7 +58,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
-  private val DefaultTotalMaxJobsPerRootWf = 10000
+  private val DefaultTotalMaxJobsPerRootWf = 1000000
   private val TotalMaxJobsPerRootWf = ConfigFactory.load.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {

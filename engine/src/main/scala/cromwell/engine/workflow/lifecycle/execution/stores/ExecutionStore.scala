@@ -21,9 +21,8 @@ import wom.graph.expression.ExpressionNodeLike
 import net.ceedubs.ficus.Ficus._
 
 object ExecutionStore {
-  private val DefaultTotalMaxJobsPerRootWf = 10000
-  private val config = ConfigFactory.load
-  private val TotalMaxJobsPerRootWf = config.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
+  private val DefaultTotalMaxJobsPerRootWf = 1000000
+  private val TotalMaxJobsPerRootWf = ConfigFactory.load.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
 
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
 

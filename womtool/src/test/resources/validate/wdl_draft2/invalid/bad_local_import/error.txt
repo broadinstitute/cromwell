@@ -1,0 +1,5 @@
+Failed to import workflow not/a/workflow.wdl.:
+Bad import not/a/workflow.wdl: Failed to resolve 'not/a/workflow.wdl' using resolver: 'relative to directory [...]/cromwell (escaping allowed)' (reason 1 of 1): File not found: not/a/workflow.wdl
+Bad import not/a/workflow.wdl: Failed to resolve 'not/a/workflow.wdl' using resolver: 'entire local filesystem (relative to '/')' (reason 1 of 1): File not found: not/a/workflow.wdl
+Bad import not/a/workflow.wdl: Failed to resolve 'not/a/workflow.wdl' using resolver: 'relative to directory [...]/bad_local_import (escaping allowed)' (reason 1 of 1): File not found: not/a/workflow.wdl
+Bad import not/a/workflow.wdl: Failed to resolve 'not/a/workflow.wdl' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Relative path

@@ -232,8 +232,7 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false) {
-    override val serverMode = true
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false, serverMode = true) {
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
     def submitWorkflow(sources: WorkflowSourceFilesWithoutImports): WorkflowId = {

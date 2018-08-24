@@ -8,8 +8,7 @@ extract_metadata() {
 }
 
 # Get Build ID
-export BUILD_ID=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
-
+export BUILD_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
 
 #TODO: remove when done testing
 export BRANCH=db_perf_scripts
@@ -18,8 +17,8 @@ export BRANCH=db_perf_scripts
 export CLOUD_SQL_DB_USER=$(extract_metadata CROMWELL_DB_USER)
 export CLOUD_SQL_DB_PASSWORD=$(extract_metadata CROMWELL_DB_PASS)
 
-gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base cromwell-perf-testing-$BUILD_ID
-gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-perf-testing-db-$BUILD_ID --password=$CLOUD_SQL_DB_PASSWORD
+gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base cromwell-db-$BUILD_ID
+gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-db-$BUILD_ID --password=$CLOUD_SQL_DB_PASSWORD
 
 set -x
 
@@ -35,7 +34,6 @@ curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/script
 mkdir cromwell
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf -o cromwell/cromwell.conf
 
-
 # Get custom attributes from instance metadata
 export CLOUD_SQL_INSTANCES=$(extract_metadata CLOUD_SQL_INSTANCE)
 export CROMWELL_VERSION_TAG=$(extract_metadata CROMWELL_VERSION)
@@ -43,10 +41,8 @@ export CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
 export CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
 export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
 export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
+
 # Use the instance name as statsd prefix to avoid metrics collisions
 export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
 
-#debug
-echo "user $CLOUD_SQL_DB_USER"
-echo "pass $CLOUD_SQL_DB_PASSWORD"
 docker-compose up -d

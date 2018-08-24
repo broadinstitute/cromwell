@@ -1,4 +1,7 @@
-version: '2.1'
+version: '2'
+networks:
+   mysql_net:
+     driver: bridge
 services:
   cromwell:
     image: "broadinstitute/cromwell:${CROMWELL_VERSION_TAG}"
@@ -14,17 +17,21 @@ services:
       - CLOUD_SQL_DB_PASSWORD
       - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf
     command: ["server"]
-    links:
+    depends_on:
       - cloudsql-db
     ports:
       - "8000:8000"
+    networks:
+      mysql_net:
     container_name: cromwell
   cloudsql-db:
     image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
     ports:
       - "127.0.0.1:3306:3306"
     container_name: cloudsql-db
-    command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCES}"]
+    command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCES}=tcp:0.0.0.0:3306"]
+    networks:
+      mysql_net:
 
     #  proxy:
     #    image: broadinstitute/openidc-proxy:db_ldap_2_3_3

@@ -7,6 +7,7 @@ docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/service-accts/firecloud/terraform-dev \
     | jq '.data' > service-account.json
 
+#TODO: need this in the google cloud docker in order to auth
 #get startup script to run on new instance
 curl https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/scripts/perf/startup_script.sh > startup_script.sh
 

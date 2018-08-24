@@ -59,8 +59,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
   private val DefaultTotalMaxJobsPerRootWf = 10000
-  private val config = ConfigFactory.load
-  private val TotalMaxJobsPerRootWf = config.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
+  private val TotalMaxJobsPerRootWf = ConfigFactory.load.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
@@ -76,8 +75,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   val executionStore: ErrorOr[ActiveExecutionStore] = ExecutionStore(workflowDescriptor.callable, params.totalJobsByRootWf)
 
-  // If executionStore returns a Failure about root workflow creating jobs more than total jobs per root workflow limit, the WEA will fail by sending WorkflowExecutionFailedResponse
-  // to it's parent and kill itself.
+  // If executionStore returns a Failure about root workflow creating jobs more than total jobs per root workflow limit,
+  // the WEA will fail by sending WorkflowExecutionFailedResponse to it's parent and kill itself
   executionStore match {
     case Valid(validExecutionStore) => {
       startWith(
@@ -86,13 +85,18 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       )
     }
     case Invalid(e) => {
-      context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception(s"Failed to initialize WorkflowExecutionActor. Error: $e"))
+      val errorMsg = s"Failed to initialize WorkflowExecutionActor. Error: $e"
+      workflowLogger.error(errorMsg)
+      context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception(errorMsg))
 
-      // The actor is started with some state before killing itself, otherwise FSM.goto throws NullPointerException as it doesn't find currentState
+      // We start the actor with some state because if the actor is not started with a state before killing itself,
+      // it throws NullPointerException as FSM.goto can't find the currentState
       startWith(
         WorkflowExecutionFailedState,
         WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, ExecutionStore.empty)
       )
+
+      workflowLogger.debug("Actor failed to initialize. Stopping self.")
       context.stop(self)
     }
   }
@@ -461,12 +465,18 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       }.keys)
       val notStartedBackendJobsCt = notStartedBackendJobs.size
 
+      // this limits the total max jobs that can be created by a root workflow
       if (data.totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > TotalMaxJobsPerRootWf) {
+        // Since the root workflow tried creating jobs more than the total max jobs allowed per root workflow
+        // we fail all the BackendJobDescriptorKey which are in 'Not Started' state, and update the execution
+        // store with the status update of remaining keys
         val updatedDiffs = diffs.map(d => d.copy(executionStoreChanges = d.executionStoreChanges -- notStartedBackendJobs))
 
-        notStartedBackendJobs.foreach(key =>
-          self ! JobFailedNonRetryableResponse(key, new Exception(s"Job $key failed to be created! Error: Root workflow tried creating ${data.totalJobsByRootWf.get} jobs, which is more than $TotalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow."), None)
-        )
+        notStartedBackendJobs.foreach(key => {
+          val errorMsg = s"Job $key failed to be created! Error: Root workflow tried creating ${data.totalJobsByRootWf.get} jobs, which is more than $TotalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow"
+          workflowLogger.error(errorMsg)
+          self ! JobFailedNonRetryableResponse(key, new Exception(errorMsg), None)
+        })
         updatedData.mergeExecutionDiffs(updatedDiffs)
       }
       else updatedData.mergeExecutionDiffs(diffs)

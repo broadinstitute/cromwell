@@ -101,6 +101,7 @@ object ExecutionStore {
     val notStartedBackendJobs = notStartedKeys.collect { case key: BackendJobDescriptorKey => key }
     val notStartedBackendJobsCt = notStartedBackendJobs.size
 
+    // this limits the total max jobs that can be created by a root workflow
     if (totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > TotalMaxJobsPerRootWf)
       s"Root workflow tried creating ${totalJobsByRootWf.get} jobs, which is more than $TotalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow.".invalidNel
     else {

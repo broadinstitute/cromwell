@@ -1,13 +1,11 @@
 package cloud.nio.impl.ftp
 
-import java.io.{FileNotFoundException, IOException, InputStream, OutputStream}
+import java.io.{IOException, InputStream, OutputStream}
 import java.nio.channels.Channels
-import java.nio.file.attribute.FileTime
 
 import cloud.nio.impl.ftp.FtpCloudNioFileProvider._
-import cloud.nio.impl.ftp.FtpFileSystems._
 import cloud.nio.impl.ftp.FtpUtil._
-import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}
+import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioFileSystem, CloudNioRegularFileAttributes}
 import cloud.nio.util.TryWithResource._
 import io.github.andrebeat.pool.Lease
 import org.apache.commons.net.ftp.FTPClient
@@ -17,33 +15,41 @@ import scala.util.{Failure, Success}
 
 object FtpCloudNioFileProvider {
   implicit class EnhancedCloudPath(val cloudPath: String) extends AnyVal {
-    def ensureSlashPrefix = if (cloudPath.startsWith("/")) cloudPath else s"/$cloudPath"
+    def ensureSlashedPrefix = if (cloudPath.startsWith("/")) cloudPath else s"/$cloudPath"
+    def ensureSlashed = if (cloudPath.endsWith("/")) cloudPath else s"$cloudPath/"
   }
 }
 
 class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends CloudNioFileProvider {
   override def existsPath(cloudHost: String, cloudPath: String) = {
-    run(FtpOperation(cloudHost, cloudPath, "determine file existence"), acquireLease(cloudHost))(_.listFiles(cloudPath.ensureSlashPrefix)).nonEmpty
+    run(FtpOperation(cloudHost, cloudPath, "determine file existence"), acquireLease(cloudHost))(_.listFiles(cloudPath.ensureSlashedPrefix)).nonEmpty
   }
 
   override def existsPaths(cloudHost: String, cloudPathPrefix: String) = {
-    val maybeDirectory = run(FtpOperation(cloudHost, cloudPathPrefix, "determine files existence from prefix"), acquireLease(cloudHost))(_.listFiles(cloudPathPrefix.ensureSlashPrefix)).headOption
-    maybeDirectory.exists(_.isDirectory)
+    // We need to list the directories in the parent and see if any matches the name, hence the string manipulations
+    val parts = cloudPathPrefix.ensureSlashedPrefix.stripSuffix(CloudNioFileSystem.Separator).split(CloudNioFileSystem.Separator)
+    val parent = parts.init.mkString(CloudNioFileSystem.Separator)
+    val directoryName = parts.last
+
+    run(FtpOperation(cloudHost, cloudPathPrefix, "determine directory existence"), acquireLease(cloudHost))(_.listDirectories(parent))
+      .exists(_.getName == directoryName)
   }
 
   /**
     * Returns a listing of keys within a bucket starting with prefix. The returned keys should include the prefix. The
     * paths must be absolute, but the key should not begin with a slash.
     */
-  override def listObjects(cloudHost: String, cloudPathPrefix: String, markerOption: Option[String]) = {
+  override def listObjects(cloudHost: String, cloudPathPrefix: String, markerOption: Option[String]): CloudNioFileList = {
     val files = run(FtpOperation(cloudHost, cloudPathPrefix, "list objects"), acquireLease(cloudHost)) { client =>
-      client.listFiles(cloudPathPrefix.ensureSlashPrefix)
+      client.listFiles(cloudPathPrefix.ensureSlashedPrefix)
     }
 
-    CloudNioFileList(files.map(_.getName), markerOption)
+    CloudNioFileList(files.map(_.getName).map(cloudPathPrefix.stripPrefix("/").ensureSlashed + _), markerOption)
   }
 
   override def copy(sourceCloudHost: String, sourceCloudPath: String, targetCloudHost: String, targetCloudPath: String) = {
+    if (sourceCloudHost != targetCloudHost) throw new UnsupportedOperationException(s"Cannot copy files across different ftp servers: Source host: $sourceCloudHost, Target host: $targetCloudHost")
+
     val fileSystem = findFileSystem(sourceCloudHost)
 
     val (inputLease, outputLease) = fileSystem.leaseClientsPair
@@ -63,8 +69,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
   }
 
   override def deleteIfExists(cloudHost: String, cloudPath: String) = {
-    runBoolean(FtpOperation(cloudHost, cloudPath, "delete"), acquireLease(cloudHost))(_.deleteFile(cloudPath.ensureSlashPrefix))
-    true
+    runBoolean(FtpOperation(cloudHost, cloudPath, "delete"), acquireLease(cloudHost), failOnFalse = false)(_.deleteFile(cloudPath.ensureSlashedPrefix))
   }
 
   private def inputStream(cloudHost: String, cloudPath: String, offset: Long, lease: Lease[FTPClient]) = {
@@ -72,7 +77,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
 
     val stream: InputStream = run(operation, lease, autoRelease = false) { client =>
       client.setRestartOffset(offset)
-      client.retrieveFileStream(cloudPath.ensureSlashPrefix)
+      client.retrieveFileStream(cloudPath.ensureSlashedPrefix)
     }
 
     // Wrap the input stream in a LeasedInputStream so that the lease can be release when the stream is closed
@@ -86,7 +91,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
   private def outputStream(cloudHost: String, cloudPath: String, lease: Lease[FTPClient]) = {
     val operation = FtpOperation(cloudHost, cloudPath, "write")
 
-    val stream: OutputStream = run(operation, lease, autoRelease = false)(_.storeFileStream(cloudPath.ensureSlashPrefix))
+    val stream: OutputStream = run(operation, lease, autoRelease = false)(_.storeFileStream(cloudPath.ensureSlashedPrefix))
 
     // Wrap the input stream in a LeasedOutputStream so that the lease can be release when the stream is closed
     new LeasedOutputStream(cloudHost: String, cloudPath: String, stream, lease)
@@ -96,30 +101,18 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
     Channels.newChannel(outputStream(cloudHost: String, cloudPath: String, acquireLease(cloudHost)))
   }
 
-  override def fileAttributes(cloudHost: String, cloudPath: String) = {
-    val file = run(FtpOperation(cloudHost, cloudPath, "get file attributes"), acquireLease(cloudHost))(_.listFiles(cloudPath.ensureSlashPrefix)).headOption
-
-    Option {
-      new CloudNioRegularFileAttributes {
-        override def fileHash = None
-        override def lastModifiedTime() = {
-          file.map(_.getTimestamp.toInstant).map(FileTime.from).getOrElse({
-            throw new FileNotFoundException(s"ftp://$cloudHost/$cloudPath not found")
-          })
-        }
-        override def size() = file.map(_.getSize).getOrElse({
-          throw new FileNotFoundException(s"ftp://$cloudHost/$cloudPath not found")
-        })
-        override def fileKey() = cloudHost + cloudPath
-      }
+  override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] = {
+    run(FtpOperation(cloudHost, cloudPath, "get file attributes"), acquireLease(cloudHost))(_.listFiles(cloudPath.ensureSlashedPrefix)).headOption map { file =>
+      new FtpCloudNioRegularFileAttributes(file, cloudHost + cloudPath)
     }
   }
 
   override def createDirectory(cloudHost: String, cloudPath: String) = {
     runBoolean(FtpOperation(cloudHost, cloudPath, "create directory"), acquireLease(cloudHost))(_.makeDirectory(cloudPath))
+    ()
   }
 
-  private def findFileSystem(host: String) = getFileSystem(host, fsProvider)
+  private def findFileSystem(host: String) = fsProvider.newCloudNioFileSystemFromHost(host)
 
   private def acquireLease[A](host: String): Lease[FTPClient] = findFileSystem(host).leaseClient
 }

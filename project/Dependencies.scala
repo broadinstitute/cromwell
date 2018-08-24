@@ -54,6 +54,7 @@ object Dependencies {
   private val logbackV = "1.2.3"
   private val metrics3StatsdV = "4.2.0"
   private val metricsScalaV = "3.5.6"
+  private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "3.10.2"
   private val mongoJavaDriverV = "3.8.1"
   private val mouseV = "0.10-MF"
@@ -180,7 +181,9 @@ object Dependencies {
   val implFtpDependencies = List (
     "commons-net" % "commons-net" % apacheCommonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
-    "com.google.guava" % "guava" % guavaV
+    "com.google.guava" % "guava" % guavaV,
+    "org.scalamock" %% "scalamock" % scalamockV % Test,
+    "org.mockftpserver" % "MockFtpServer" % mockFtpServerV
   )
 
   // Internal collections of dependencies

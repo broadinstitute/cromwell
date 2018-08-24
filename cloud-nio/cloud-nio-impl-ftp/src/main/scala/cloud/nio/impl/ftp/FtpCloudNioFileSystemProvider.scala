@@ -1,7 +1,8 @@
 package cloud.nio.impl.ftp
 
-import java.nio.file.Path
+import java.io.IOException
 import java.nio.file.attribute.FileAttribute
+import java.nio.file.{FileAlreadyExistsException, Path}
 
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
 import cloud.nio.spi.{CloudNioFileSystemProvider, CloudNioPath, CloudNioReadChannel, CloudNioRetry}
@@ -15,7 +16,7 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
 
   override def isFatal(exception: Exception) = exception match {
     case ftpException: FtpIoException => ftpException.isFatal
-    case _ => false
+    case _ => true
   }
   override def isTransient(exception: Exception) = false
   override def getScheme = "ftp"
@@ -32,17 +33,30 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
     }
   }
 
-  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = retry.from(() => {
+  override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {
     Try {
-      val cloudNioPath = CloudNioPath.checkPath(dir)
-      fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
+      retry.from(() => {
+        val cloudNioPath = CloudNioPath.checkPath(dir)
+        fileProvider.createDirectory(cloudNioPath.cloudHost, cloudNioPath.cloudPath)
+      })
     } match {
       case Success(_) =>
-      case Failure(f) =>
-        logger.error(s"Failed to create directory for $dir", f)
+      case Failure(f: FileAlreadyExistsException) => throw f
+      // java.nio.files.Files.createDirectories swallows IOException, that are not FileAlreadyExistsException, so log them here so we can now what happened
+      case Failure(f: IOException) =>
+        logger.error(s"Failed to create directory at $dir", f)
         throw f
+      case Failure(f) => throw f
     }
-  })
+  }
 
   override def usePseudoDirectories = false
+
+  override def newCloudNioFileSystem(uriAsString: String, config: Config) = {
+    newCloudNioFileSystemFromHost(getHost(uriAsString))
+  }
+  
+  def newCloudNioFileSystemFromHost(host: String) = {
+    FtpFileSystems.getFileSystem(host, this)
+  }
 }

@@ -43,11 +43,13 @@ object FtpUtil {
     override def toString = s"$description at $fullPath"
   }
 
-  def runBoolean(operation: FtpOperation, lease: Lease[FTPClient], autoRelease: Boolean = true)(f: FTPClient => Boolean): Unit = {
+  def runBoolean(operation: FtpOperation, lease: Lease[FTPClient], autoRelease: Boolean = true, failOnFalse: Boolean = true)(f: FTPClient => Boolean): Boolean = {
     Try(f(lease.get())) match {
       // Operation didn't throw but the result is false which means it failed
-      case Success(false) => operation.fail(lease)
-      case Success(true) => if (autoRelease) lease.release()
+      case Success(false) if failOnFalse => operation.fail(lease)
+      case Success(other) =>
+        if (autoRelease) lease.release()
+        other
       case Failure(failure) => operation.fail(lease, Option(failure))
     }
   }

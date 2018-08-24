@@ -15,5 +15,6 @@ class LeasedOutputStream(cloudHost: String, cloudPath: String, outputStream: Out
     outputStream.close()
     // This will also release the lease once the completePendingCommand is done
     runBoolean(FtpOperation(cloudHost, cloudPath, "close input stream"), lease)(_.completePendingCommand())
+    ()
   }
 }

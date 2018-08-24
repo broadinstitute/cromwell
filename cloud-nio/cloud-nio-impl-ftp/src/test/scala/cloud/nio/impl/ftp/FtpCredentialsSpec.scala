@@ -1,5 +1,7 @@
 package cloud.nio.impl.ftp
 
+import java.io.IOException
+
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
@@ -31,6 +33,19 @@ class FtpCredentialsSpec extends FlatSpec with Matchers with Mockito {
     FtpAuthenticatedCredentials("user", "password", Option("account")).login(client)
     loggedInWithAccount shouldBe true
     loggedInWithoutAccount shouldBe false
+  }
+
+  it should "catch failed logins" in {
+    val client = mock[FTPClient]
+    client.login(anyString, anyString).responds(_ => false)
+
+    an[IOException] shouldBe thrownBy(FtpAuthenticatedCredentials("user", "password", None).login(client))
+    
+    val noooo = new Exception("I can't login !")
+    client.login(anyString, anyString).responds(_ => throw noooo)
+    
+    val loginException = the[IOException] thrownBy FtpAuthenticatedCredentials("user", "password", None).login(client)
+    loginException.getCause shouldBe noooo
   }
 
 }

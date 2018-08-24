@@ -16,6 +16,7 @@ class LeasedInputStream(cloudHost: String, cloudPath: String, inputStream: Input
     inputStream.close()
     // This will also release the lease once the completePendingCommand is done
     runBoolean(FtpOperation(cloudHost, cloudPath, "close input stream"), lease)(_.completePendingCommand())
+    ()
   }
   override def mark(readlimit: Int) = inputStream.mark(readlimit)
   override def reset() = inputStream.reset()

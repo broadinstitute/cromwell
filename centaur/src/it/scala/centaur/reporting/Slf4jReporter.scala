@@ -24,7 +24,8 @@ class Slf4jReporter(override val name: String, config: Config) extends ErrorRepo
           centaurTestException.workflowIdOption.map("with workflow id '" + _ + "' ").getOrElse("") +
           s"failed on attempt ${testEnvironment.attempt + 1} " +
           s"of ${testEnvironment.retries + 1}"
-      logger.error(message, centaurTestException)
+      val metadata = centaurTestException.metadataJsonOption.map(" with metadata:\n" + _).getOrElse("")
+      logger.error(message + metadata, centaurTestException)
     }
   }
 }

@@ -1,6 +1,7 @@
 package cromwell
 
 import java.net.URL
+import java.nio.file.InvalidPathException
 
 import better.files.File
 import cats.syntax.apply._
@@ -16,7 +17,7 @@ import cromwell.webservice.PartialWorkflowSources
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
@@ -27,11 +28,12 @@ object CommandLineArguments {
                               workflowOptions: String,
                               workflowLabels: String,
                               dependencies: Option[File])
+
+  case class WorkflowSourceOrUrl(source: Option[String], url: Option[String])
 }
 
 case class CommandLineArguments(command: Option[Command] = None,
-                                workflowSource: Option[Path] = None,
-                                workflowUrl: Option[String] = None,
+                                workflowSource: Option[String] = None,
                                 workflowRoot: Option[String] = None,
                                 workflowInputs: Option[Path] = None,
                                 workflowOptions: Option[Path] = None,
@@ -60,26 +62,33 @@ case class CommandLineArguments(command: Option[Command] = None,
   }
 
   def validateSubmission(logger: Logger): ErrorOr[ValidSubmission] = {
-    val workflowPath = File(workflowSource.get.pathAsString)
+    def preProcessCwlWorkflowSource(workflowSourcePath: Path): ErrorOr[String] = {
+      val workflowPath = File(workflowSourcePath.pathAsString)
 
-    val workflowAndDependencies: ErrorOr[(String, Option[File], Option[String])] = if (isCwl) {
       logger.info("Pre Processing Workflow...")
       lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, None)
 
-      imports match {
-        case Some(explicitImports) => readOptionContent("Workflow source", workflowSource).map((_, Option(File(explicitImports.pathAsString)), workflowRoot))
-        case None => Try(preProcessedCwl.map((_, None, None)).value.unsafeRunSync())
-          .toChecked
-          .flatMap(identity)
-          .toValidated
-      }
-    } else readOptionContent("Workflow source", workflowSource).map((_, imports.map(p => File(p.pathAsString)), workflowRoot))
+      Try(preProcessedCwl.value.unsafeRunSync())
+        .toChecked
+        .flatMap(identity)
+        .toValidated
+    }
 
-    val workflowSourceFinal: ErrorOr[String] = (workflowSource, workflowUrl) match {
-      case (Some(path), None) => readContent("Workflow source", path)
-      case (None, Some(url)) =>  PartialWorkflowSources.convertStringToUrl(url)
-      case (Some(_), Some(_)) => "Both Workflow source and Workflow url can't be supplied".invalidNel
-      case (None, None) => "Workflow source and Workflow url needs to be supplied".invalidNel
+    def getWorkflowSourceFromPath(workflowPath: Path): ErrorOr[WorkflowSourceOrUrl] = {
+      (isCwl, imports) match {
+        case (true, None) => preProcessCwlWorkflowSource(workflowPath).map(src => WorkflowSourceOrUrl(Option(src), None))
+        case (true, Some(_)) | (false, _) => WorkflowSourceOrUrl(None, Option(workflowPath.pathAsString)).validNel
+      }
+    }
+
+    val workflowSourceAndUrl: ErrorOr[WorkflowSourceOrUrl] = DefaultPathBuilder.build(workflowSource.get) match {
+      case Success(workflowPath) => {
+        if (!workflowPath.exists) s"Workflow source path does not exist: $workflowPath".invalidNel
+        else if(!workflowPath.isReadable) s"Workflow source path is not readable: $workflowPath".invalidNel
+        else getWorkflowSourceFromPath(workflowPath)
+      }
+      case Failure(e: InvalidPathException) => s"Invalid file path. Error: ${e.getMessage}".invalidNel
+      case Failure(_) => PartialWorkflowSources.validateWorkflowUrl(workflowSource.get).map(validUrl => WorkflowSourceOrUrl(None, Option(validUrl)))
     }
 
     val inputsJson: ErrorOr[String] = if (isCwl) {
@@ -90,9 +99,11 @@ case class CommandLineArguments(command: Option[Command] = None,
     val optionsJson = readOptionContent("Workflow options", workflowOptions)
     val labelsJson = readOptionContent("Workflow labels", workflowLabels)
 
-    (workflowAndDependencies, inputsJson, optionsJson, labelsJson, workflowSourceFinal) mapN {
-      case ((w, z, r), i, o, l, _) =>
-        ValidSubmission(Option(w), workflowUrl, r, i, o, l, z)
+    val workflowImports: Option[File] = imports.map(p => File(p.pathAsString))
+
+    (workflowSourceAndUrl, inputsJson, optionsJson, labelsJson) mapN {
+      case (srcOrUrl, i, o, l) =>
+        ValidSubmission(srcOrUrl.source, srcOrUrl.url, workflowRoot, i, o, l, workflowImports)
     }
   }
 

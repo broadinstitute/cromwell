@@ -34,7 +34,7 @@ trait WorkflowStoreEntryComponent {
 
     def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
 
-    def workflowUrl = column[Option[String]]("WORKFLOW_URL", O.Length(255))
+    def workflowUrl = column[Option[String]]("WORKFLOW_URL", O.Length(2000))
 
     def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
 

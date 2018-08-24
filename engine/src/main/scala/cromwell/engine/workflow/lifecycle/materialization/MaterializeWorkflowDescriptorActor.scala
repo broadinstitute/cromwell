@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.materialization
 
-import java.nio.file.Paths
-
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
@@ -29,7 +27,7 @@ import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.{DefaultPath, PathBuilder}
+import cromwell.core.path.PathBuilder
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.language.CromwellLanguages
@@ -136,7 +134,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
-
   val tag = self.path.name
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
@@ -232,12 +229,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                            resolvers: List[ImportResolver]): Checked[(WorkflowSource, List[ImportResolver])] = {
       (workflowSource, workflowUrl) match {
         case (Some(source), None) => (source, resolvers).validNelCheck
-        case (None, Some(url)) =>{
+        case (None, Some(url)) =>
           val compoundImportResolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.firstSuccess(resolvers.map(_.resolver), s"resolve workflowUrl '$url'")
           val wfSourceAndResolvers: Checked[ResolvedImportBundle] = compoundImportResolver.run(ImportResolutionRequest(url, resolvers))
-
-          wfSourceAndResolvers map {v => (v.source, v.newResolvers) }
-        }
+          wfSourceAndResolvers map { v => (v.source, v.newResolvers) }
         case (Some(_), Some(_)) => "Both workflow source and url can't be supplied".invalidNelCheck
         case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
       }
@@ -268,7 +263,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowSource, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions, importResolvers))
     }
 
-    val localFilesystemResolvers = if (importLocalFilesystem) List(DirectoryResolver(DefaultPath(Paths.get("/")))) else List.empty
+    val localFilesystemResolvers =
+      if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
+      else List.empty
 
     val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck

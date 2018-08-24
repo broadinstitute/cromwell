@@ -40,9 +40,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                 gracefulShutdown: Boolean,
                                 abortJobsOnTerminate: Boolean
                                 )(implicit materializer: ActorMaterializer)
-  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate) with LoggingFSM[RunnerState, SwraData] {
-
-  override val serverMode = false
+  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate, false) with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)

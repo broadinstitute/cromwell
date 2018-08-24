@@ -2,10 +2,12 @@
 
 ## 35 Release Notes
 
-### Submit workflow API
+### Submit workflow using URL
 
-Cromwell now allows for a user to submit the URL pointing to workflow file to run a workflow using `workflowUrl` parameter. Currently, this is only supported in `Server` mode.
-More details on how to use it can be found [here](http://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+Cromwell now allows for a user to submit the URL pointing to workflow file to run a workflow.
+More details on how to use it in: 
+- `Server` mode can be found [here](https://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+- `Run` mode can be found [here](https://cromwell.readthedocs.io/en/develop/CommandLine/#run).
 
 ### Languages
 

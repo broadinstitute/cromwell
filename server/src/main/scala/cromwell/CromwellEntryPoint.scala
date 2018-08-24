@@ -11,10 +11,11 @@ import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.CommandLineArguments.ValidSubmission
+import cromwell.CommandLineArguments.WorkflowSourceOrUrl
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
@@ -176,9 +177,15 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     val validation = args.validateSubmission(EntryPointLogger) map {
       case ValidSubmission(w, u, r, i, o, l, z) =>
+        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = {
+          if (w.isDefined) WorkflowSourceOrUrl(w,u)  // submission has CWL workflow file path and no imports
+          else if (u.get.startsWith("http")) WorkflowSourceOrUrl(w, u)
+          else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL/CWL file
+        }
+
         WorkflowSingleSubmission(
-          workflowSource = w,
-          workflowUrl = u,
+          workflowSource = finalWorkflowSourceAndUrl.source,
+          workflowUrl = finalWorkflowSourceAndUrl.url,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,

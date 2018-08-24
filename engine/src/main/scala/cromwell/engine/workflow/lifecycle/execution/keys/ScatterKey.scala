@@ -21,7 +21,7 @@ import wom.values.WomValue
 import scala.language.postfixOps
 
 private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
-  private val DefaultMaxScatterSize = 100000
+  private val DefaultMaxScatterSize = 1000000
   private val MaxScatterWidth = ConfigFactory.load.getConfig("system").as[Option[Int]]("max-scatter-width-per-scatter").getOrElse(DefaultMaxScatterSize)
 
   // When scatters are nested, this might become Some(_)

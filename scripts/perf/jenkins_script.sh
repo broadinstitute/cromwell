@@ -12,7 +12,7 @@ curl https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/s
 DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.data.db_pass'`
 
-docker run --name perf_gcloud_$BUILD_NUMBER -v mnt:/mnt  --rm -i -t google/cloud-sdk:slim /bin/bash -c "\
+docker run --name perf_gcloud_$BUILD_NUMBER -v mnt:/mnt --rm google/cloud-sdk:slim /bin/bash -c "\
     gcloud auth activate-service-account --key-file /mnt/sa.json;\
 gcloud \
     --verbosity info \

@@ -8,7 +8,7 @@ import org.apache.commons.net.ftp.FTPClient
 
 class LeasedInputStream(cloudHost: String, cloudPath: String, inputStream: InputStream, lease: Lease[FTPClient]) extends InputStream {
   override def read() = inputStream.read()
-  override def read(b: Array[Byte]) = inputStream.read(b, 0, b.length)
+  override def read(b: Array[Byte]) = inputStream.read(b)
   override def read(b: Array[Byte], off: Int, len: Int): Int = inputStream.read(b, off, len)
   override def skip(n: Long): Long = inputStream.skip(n)
   override def available = inputStream.available()

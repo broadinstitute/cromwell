@@ -5,6 +5,7 @@
 .idea/*
 .ensime_cache/*
 .config/*
+.local/*
 .ensime
 tags
 !/.idea/inspectionProfiles/

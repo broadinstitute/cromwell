@@ -1,10 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
+import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
@@ -17,6 +19,7 @@ import wom.values.WomValue
 import scala.language.postfixOps
 
 private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
+
   // When scatters are nested, this might become Some(_)
   override val index = None
   override val attempt = 1
@@ -52,7 +55,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
   }
 
-  def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+  def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef, maxScatterWidth: Int): ErrorOr[WorkflowExecutionDiff] = {
     import cats.instances.list._
     import cats.syntax.traverse._
 
@@ -89,17 +92,32 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       executionStoreChanges.toMap -> valueStoreChanges.toMap
     }
 
+    // Checks the scatter width of a scatter node and builds WorkflowExecutionDiff accordingly
+    // If scatter width is more than max allowed limit, it fails the ScatterNode key
+    def buildExecutionDiff(scatterSize: Int, arrays: List[ScatterVariableAndValue]): WorkflowExecutionDiff = {
+      if(scatterSize > maxScatterWidth) {
+        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow has scatter width $scatterSize, which is more than the max scatter width $maxScatterWidth allowed per scatter!"), None)
+
+        WorkflowExecutionDiff(Map(this -> ExecutionStatus.Failed))
+      }
+      else {
+        val (scatterVariablesExecutionChanges, valueStoreChanges) = buildExecutionChanges(arrays)
+        val executionStoreChanges = populate(
+          scatterSize,
+          node.scatterCollectionFunctionBuilder(arrays.map(_.arrayValue.size))
+        ) ++ scatterVariablesExecutionChanges ++ Map(this -> ExecutionStatus.Done)
+
+        WorkflowExecutionDiff(
+          executionStoreChanges = executionStoreChanges,
+          valueStoreAdditions = valueStoreChanges
+        )
+      }
+    }
+
+
     (for {
       arrays <- scatterArraysValuesCheck
       scatterSize <- node.scatterProcessingFunction(arrays)
-      (scatterVariablesExecutionChanges, valueStoreChanges) = buildExecutionChanges(arrays)
-      executionStoreChanges = populate(
-        scatterSize,
-        node.scatterCollectionFunctionBuilder(arrays.map(_.arrayValue.size))
-      ) ++ scatterVariablesExecutionChanges ++ Map(this -> ExecutionStatus.Done)
-    } yield WorkflowExecutionDiff(
-      executionStoreChanges = executionStoreChanges,
-      valueStoreAdditions = valueStoreChanges
-    )).toValidated
+    } yield buildExecutionDiff(scatterSize, arrays)).toValidated
   }
 }

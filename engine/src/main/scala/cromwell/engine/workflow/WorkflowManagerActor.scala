@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -292,7 +294,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       workflowStoreActor = params.workflowStore,
       backendSingletonCollection = params.backendSingletonCollection,
       serverMode = params.serverMode,
-      workflowHeartbeatConfig = params.workflowHeartbeatConfig)
+      workflowHeartbeatConfig = params.workflowHeartbeatConfig,
+      totalJobsByRootWf = new AtomicInteger())
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

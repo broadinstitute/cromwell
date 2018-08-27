@@ -1,9 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
@@ -60,7 +62,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
   val subWorkflowCall = WomMocks.mockWorkflowCall(WomIdentifier("workflow"), definition = subWorkflow)
   val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
-  
+  val rootConfig = ConfigFactory.load
+
   val awaitTimeout: FiniteDuration = 10 seconds
 
   def buildEWEA(startState: StartableState = Submitted) = {
@@ -80,7 +83,9 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
-        startState
+        startState,
+        rootConfig,
+        new AtomicInteger()
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref

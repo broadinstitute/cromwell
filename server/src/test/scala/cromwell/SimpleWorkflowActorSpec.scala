@@ -1,6 +1,7 @@
 package cromwell
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Props
 import akka.testkit._
@@ -17,6 +18,7 @@ import cromwell.engine.workflow.workflowstore.{Submitted, WorkflowHeartbeatConfi
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 import org.scalatest.BeforeAndAfter
+
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -65,7 +67,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true,
         workflowStoreActor = system.actorOf(Props.empty),
-        workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)),
+        workflowHeartbeatConfig = WorkflowHeartbeatConfig(config),
+        totalJobsByRootWf = new AtomicInteger()),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )

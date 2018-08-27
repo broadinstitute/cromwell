@@ -1,8 +1,9 @@
 package cromwell.core.retry
 
 import com.google.api.client.util.ExponentialBackOff.Builder
+import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
-
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 class BackoffSpec extends FlatSpec with Matchers {
@@ -46,6 +47,23 @@ class BackoffSpec extends FlatSpec with Matchers {
           .build()
       )
     }
+  }
+
+  it should "parse config" in {
+    val config = ConfigFactory.parseMap(
+      Map(
+        "min" -> "5 seconds",
+        "max" -> "30 seconds",
+        "multiplier" -> 6D,
+        "randomization-factor" -> 0D
+      ).asJava
+    )
+    
+    val backoff = SimpleExponentialBackoff(config)
+    backoff.googleBackoff.getCurrentIntervalMillis shouldBe 5.seconds.toMillis.toInt
+    backoff.googleBackoff.getMaxIntervalMillis shouldBe 30.seconds.toMillis.toInt
+    backoff.googleBackoff.getMultiplier shouldBe 6D
+    backoff.googleBackoff.getRandomizationFactor shouldBe 0D
   }
 
 }

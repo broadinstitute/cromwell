@@ -6,7 +6,7 @@ engine {
         username = {{$cromwellFtp.Data.username}}
         password = {{$cromwellFtp.Data.password}}
       }
-      connection-count-per-user = 1
+      connection-count-per-user = 4
     }
   }
 }
@@ -21,7 +21,7 @@ backend {
               username = {{$cromwellFtp.Data.username}}
               password = {{$cromwellFtp.Data.password}}
             }
-            connection-count-per-user = 1
+            connection-count-per-user = 4
           }
         }
       }

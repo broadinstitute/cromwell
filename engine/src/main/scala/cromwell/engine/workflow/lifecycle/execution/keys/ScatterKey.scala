@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
@@ -11,7 +10,6 @@ import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
-import net.ceedubs.ficus.Ficus._
 import wom.graph.ScatterNode.{ScatterCollectionFunction, ScatterVariableAndValue}
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, ExpressionNodeLike}
@@ -21,8 +19,6 @@ import wom.values.WomValue
 import scala.language.postfixOps
 
 private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
-  private val DefaultMaxScatterSize = 1000000
-  private val MaxScatterWidth = ConfigFactory.load.getConfig("system").as[Option[Int]]("max-scatter-width-per-scatter").getOrElse(DefaultMaxScatterSize)
 
   // When scatters are nested, this might become Some(_)
   override val index = None
@@ -59,7 +55,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
   }
 
-  def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef): ErrorOr[WorkflowExecutionDiff] = {
+  def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef, maxScatterWidth: Int): ErrorOr[WorkflowExecutionDiff] = {
     import cats.instances.list._
     import cats.syntax.traverse._
 
@@ -99,11 +95,10 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     // Checks the scatter width of a scatter node and builds WorkflowExecutionDiff accordingly
     // If scatter width is more than max allowed limit, it fails the ScatterNode key
     def buildExecutionDiff(scatterSize: Int, arrays: List[ScatterVariableAndValue]): WorkflowExecutionDiff = {
-      if(scatterSize > MaxScatterWidth) {
-        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow has scatter width $scatterSize, which is more than the max scatter width $MaxScatterWidth allowed per scatter!"), None)
+      if(scatterSize > maxScatterWidth) {
+        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow has scatter width $scatterSize, which is more than the max scatter width $maxScatterWidth allowed per scatter!"), None)
 
-        // even though the status is updated to Running, it will eventually be changed to Failed when WEA receives JobFailedNonRetryableResponse event
-        WorkflowExecutionDiff(Map(this -> ExecutionStatus.Running))
+        WorkflowExecutionDiff(Map(this -> ExecutionStatus.Failed))
       }
       else {
         val (scatterVariablesExecutionChanges, valueStoreChanges) = buildExecutionChanges(arrays)

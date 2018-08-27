@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution.stores
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
 import common.collections.Table
 import common.validation.ErrorOr.ErrorOr
@@ -18,11 +17,8 @@ import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNodeLike
-import net.ceedubs.ficus.Ficus._
 
 object ExecutionStore {
-  private val DefaultTotalMaxJobsPerRootWf = 1000000
-  private val TotalMaxJobsPerRootWf = ConfigFactory.load.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
 
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
 
@@ -87,7 +83,7 @@ object ExecutionStore {
 
   def empty = ActiveExecutionStore(Map.empty[JobKey, ExecutionStatus], needsUpdate = false)
 
-  def apply(callable: ExecutableCallable, totalJobsByRootWf: AtomicInteger): ErrorOr[ActiveExecutionStore] = {
+  def apply(callable: ExecutableCallable, totalJobsByRootWf: AtomicInteger, totalMaxJobsPerRootWf: Int): ErrorOr[ActiveExecutionStore] = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
       case call: CommandCallNode => BackendJobDescriptorKey(call, None, 1)
@@ -101,8 +97,8 @@ object ExecutionStore {
     val notStartedBackendJobsCt = notStartedBackendJobs.size
 
     // this limits the total max jobs that can be created by a root workflow
-    if (totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > TotalMaxJobsPerRootWf)
-      s"Root workflow tried creating ${totalJobsByRootWf.get} jobs, which is more than $TotalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow.".invalidNel
+    if (totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > totalMaxJobsPerRootWf)
+      s"Root workflow tried creating ${totalJobsByRootWf.get} jobs, which is more than $totalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow.".invalidNel
     else {
       // There are potentially resolved workflow inputs that are default WomExpressions.
       // For now assume that those are call inputs that will be evaluated in the CallPreparation.

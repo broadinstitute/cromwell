@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
+import com.typesafe.config.Config
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
@@ -40,6 +41,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
                                 startState: StartableState,
+                                rootConfig: Config,
                                 totalJobsByRootWf: AtomicInteger) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
@@ -194,6 +196,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         backendSingletonCollection,
         initializationData,
         startState,
+        rootConfig,
         totalJobsByRootWf
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
@@ -305,6 +308,7 @@ object SubWorkflowExecutionActor {
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             startState: StartableState,
+            rootConfig: Config,
             totalJobsByRootWf: AtomicInteger) = {
     Props(new SubWorkflowExecutionActor(
       key,
@@ -322,6 +326,7 @@ object SubWorkflowExecutionActor {
       backendSingletonCollection,
       initializationData,
       startState,
+      rootConfig,
       totalJobsByRootWf)
     ).withDispatcher(EngineDispatcher)
   }

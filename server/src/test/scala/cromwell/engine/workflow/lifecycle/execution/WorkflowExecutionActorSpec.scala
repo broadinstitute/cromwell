@@ -40,6 +40,8 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
 
   val serviceRegistry = TestProbe().ref
 
+  val rootConfig = ConfigFactory.load
+
   val runtimeSection =
     """
       |runtime {
@@ -79,7 +81,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted, new AtomicInteger()),
+        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger()),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)
 

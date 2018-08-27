@@ -9,7 +9,6 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
@@ -42,6 +41,7 @@ import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
 import net.ceedubs.ficus.Ficus._
+import com.typesafe.config.Config
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -59,7 +59,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
 
   private val DefaultTotalMaxJobsPerRootWf = 1000000
-  private val TotalMaxJobsPerRootWf = ConfigFactory.load.getConfig("system").as[Option[Int]]("total-max-jobs-per-root-workflow").getOrElse(DefaultTotalMaxJobsPerRootWf)
+  private val DefaultMaxScatterSize = 1000000
+  private val TotalMaxJobsPerRootWf = params.rootConfig.getOrElse("system.total-max-jobs-per-root-workflow", DefaultTotalMaxJobsPerRootWf)
+  private val MaxScatterWidth = params.rootConfig.getOrElse("system.max-scatter-width-per-scatter", DefaultMaxScatterSize)
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
@@ -73,10 +75,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
 
-  val executionStore: ErrorOr[ActiveExecutionStore] = ExecutionStore(workflowDescriptor.callable, params.totalJobsByRootWf)
+  val executionStore: ErrorOr[ActiveExecutionStore] = ExecutionStore(workflowDescriptor.callable, params.totalJobsByRootWf, TotalMaxJobsPerRootWf)
 
   // If executionStore returns a Failure about root workflow creating jobs more than total jobs per root workflow limit,
-  // the WEA will fail by sending WorkflowExecutionFailedResponse to it's parent and kill itself
+  // the WEA will fail by sending WorkflowExecutionFailedResponse to its parent and kill itself
   executionStore match {
     case Valid(validExecutionStore) => {
       startWith(
@@ -508,7 +510,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
       case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
-      case key: ScatterKey => key.processRunnable(data, self)
+      case key: ScatterKey => key.processRunnable(data, self, MaxScatterWidth)
       case other =>
         workflowLogger.error(s"${other.tag} is not a runnable key")
         WorkflowExecutionDiff.empty.validNel
@@ -646,6 +648,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.backendSingletonCollection,
         params.initializationData,
         params.startState,
+        params.rootConfig,
         params.totalJobsByRootWf), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
@@ -759,6 +762,7 @@ object WorkflowExecutionActor {
                                            backendSingletonCollection: BackendSingletonCollection,
                                            initializationData: AllBackendInitializationData,
                                            startState: StartableState,
+                                           rootConfig: Config,
                                            totalJobsByRootWf: AtomicInteger
                                          )
 
@@ -774,6 +778,7 @@ object WorkflowExecutionActor {
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
             startState: StartableState,
+            rootConfig: Config,
             totalJobsByRootWf: AtomicInteger): Props = {
     Props(
       WorkflowExecutionActor(
@@ -790,6 +795,7 @@ object WorkflowExecutionActor {
           backendSingletonCollection,
           initializationData,
           startState,
+          rootConfig,
           totalJobsByRootWf
         )
       )

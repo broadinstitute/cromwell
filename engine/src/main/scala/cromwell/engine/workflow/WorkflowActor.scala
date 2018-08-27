@@ -292,6 +292,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         backendSingletonCollection,
         initializationData,
         startState = data.effectiveStartableState,
+        rootConfig = conf,
         totalJobsByRootWf = totalJobsByRootWf), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand

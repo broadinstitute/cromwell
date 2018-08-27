@@ -1,7 +1,5 @@
 package cwl
 
-import ammonite.ops.ImplicitWd._
-import ammonite.ops._
 import better.files.{File => BFile}
 import cats.data.EitherT._
 import cats.data.NonEmptyList
@@ -20,18 +18,12 @@ object CwlDecoder {
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
   def saladCwlFile(path: BFile): Parse[String] = {
-    def resultToEither(cr: CommandResult) =
-      cr.exitCode match {
-        case 0 => Right(cr.out.string)
-        case error => Left(NonEmptyList.one(s"running CwlTool on file $path resulted in exit code $error and stderr ${cr.err.string}"))
-      }
-
     val cwlToolResult =
-      Try(%%("cwltool", "--quiet", "--print-pre", path.toString))
+      Try(CwltoolRunner.instance.salad(path))
         .toEither
         .leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
 
-    fromEither[IO](cwlToolResult flatMap resultToEither)
+    fromEither[IO](cwlToolResult)
   }
 
   private lazy val cwlPreProcessor = new CwlPreProcessor()

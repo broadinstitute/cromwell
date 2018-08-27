@@ -17,6 +17,7 @@ import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.core.retry.Retry._
 import wom.values.WomFile
 
 import scala.concurrent.Future
@@ -228,7 +229,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
     for {
-      response <- Http().singleRequest(request)
+      response <- withRetry(() => Http().singleRequest(request))
       data <- if (response.status.isFailure()) {
         response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
           Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))

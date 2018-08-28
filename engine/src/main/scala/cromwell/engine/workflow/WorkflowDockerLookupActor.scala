@@ -11,8 +11,6 @@ import cromwell.engine.workflow.WorkflowDockerLookupActor._
 import cromwell.services.EngineServicesStore
 import common.util.TryUtil
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 /**
@@ -43,12 +41,6 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
   extends LoggingFSM[WorkflowDockerLookupActorState, WorkflowDockerLookupActorData] with DockerClientHelper {
 
   implicit val ec = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
-
-  // Amount of time after which the docker request should be considered lost and sent again.
-  override protected def backpressureTimeout: FiniteDuration = 10 seconds
-  // A multiplier for the amount of time to wait when we get a Backpressure response before sending the request again.
-  // This effectively bounds the jitter.
-  override protected def backpressureRandomizerFactor: Double = 0.5D
 
   context.become(dockerReceive orElse receive)
 

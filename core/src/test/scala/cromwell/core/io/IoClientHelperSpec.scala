@@ -5,6 +5,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import cromwell.core.TestKitSuite
 import cromwell.core.io.DefaultIoCommand.DefaultIoSizeCommand
 import cromwell.core.path.Path
+import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -18,10 +19,10 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
   it should "intercept IoAcks and cancel timers" in {
     val ioActorProbe = TestProbe()
     val delegateProbe = TestProbe()
-    val backpressureTimeout = 1 second
+    val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2D, 0D)
     val noResponseTimeout = 3 seconds
     
-    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backpressureTimeout, noResponseTimeout)) 
+    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout)) 
     
     val command = DefaultIoSizeCommand(mock[Path])
     val response = IoSuccess(command, 5)
@@ -48,10 +49,10 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
   it should "intercept IoAcks and cancel timers for a command with context" in {
     val ioActorProbe = TestProbe()
     val delegateProbe = TestProbe()
-    val backpressureTimeout = 1 second
+    val backoff = SimpleExponentialBackoff(100 seconds, 10.hours, 2D, 0D)
     val noResponseTimeout = 3 seconds
 
-    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backpressureTimeout, noResponseTimeout))
+    val testActor = TestActorRef(new IoClientHelperTestActor(ioActorProbe.ref, delegateProbe.ref, backoff, noResponseTimeout))
 
     val commandContext = "context"
     val command = DefaultIoSizeCommand(mock[Path])
@@ -82,10 +83,12 @@ class IoClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers wi
   
   private class IoClientHelperTestActor(override val ioActor: ActorRef,
                                 delegateTo: ActorRef,
-                                override val backpressureTimeout: FiniteDuration,
+                                backoff: Backoff,
                                 noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with IoClientHelper {
 
     implicit val ioCommandBuilder = DefaultIoCommandBuilder
+
+    override protected def initialBackoff = backoff
     
     context.become(ioReceive orElse receive)
 

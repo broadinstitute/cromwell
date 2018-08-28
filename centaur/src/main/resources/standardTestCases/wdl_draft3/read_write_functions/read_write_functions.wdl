@@ -3,12 +3,14 @@ version 1.0
 struct FooStruct {
   String field1
   Int field2
+  String field3
 }
 
 workflow read_write_functions {
   FooStruct my_foo = object {
     field1: "1",
-    field2: 2
+    field2: 2,
+    field3: ""
   }
 
   call read_write_all { input: my_foo = my_foo }
@@ -16,6 +18,7 @@ workflow read_write_functions {
   output {
     Array[String] lines = read_write_all.lines
     Array[Array[String]] tsv = read_write_all.tsv
+    Array[Object] objects = read_write_all.objects
     FooStruct json = read_write_all.json
   }
 }
@@ -28,11 +31,13 @@ task read_write_all {
   String line3 = "line3"
 
   File written_lines = write_lines(["line1", "line2", "line3"])
-  File written_tsv = write_tsv( [object { line1: "line one", line2: "line two", line3: "line three" }] )
+  File written_objects = write_objects( [object { line1: "line one", line2: "line two", line3: "line three" }] )
+  File written_tsv = write_tsv( [[ "line1", "line one"], ["line2", "line two"], [ "line3", "line three" ]] )
   File written_json = write_json(my_foo)
 
   command <<<
     mv ~{written_lines} written_lines2
+    mv ~{written_objects} written_objects2
     mv ~{written_tsv} written_tsv2
     mv ~{written_json} written_json2
   >>>
@@ -40,6 +45,7 @@ task read_write_all {
   output {
     Array[String] lines = read_lines("written_lines2")
     Array[Array[String]] tsv = read_tsv("written_tsv2")
+    Array[Object] objects = read_objects("written_objects2")
     FooStruct json = read_json("written_json2")
   }
 

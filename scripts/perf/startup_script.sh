@@ -41,6 +41,7 @@ export CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
 export CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
 export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
 export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
+export CROMWELL_STATSD_PREFIX=$(extract_metadata CROMWELL_STATSD_PREFIX)
 
 # Use the instance name as statsd prefix to avoid metrics collisions
 export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")

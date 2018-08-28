@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+GCS_BUCKET=gs://debtest3/
+
 VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 
 docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
@@ -26,4 +28,4 @@ gcloud \
     --source-instance-template cromwell-perf-template-update \
     --metadata-from-file startup-script=startup_script.sh \
     --metadata \
-        CROMWELL_DB_USER=cromwell,CROMWELL_DB_PASS=$DB_PASS,CLOUD_SQL_INSTANCE=cromwell-db-$BUILD_NUMBER,CROMWELL_VERSION=34,CROMWELL_PROJECT=broad-dsde-cromwell-perf,CROMWELL_BUCKET=gs://debtest3/,CROMWELL_STATSD_HOST=broad.io/batch-grafana,CROMWELL_STATSD_PORT=8125"
+        CROMWELL_DB_USER=cromwell,CROMWELL_DB_PASS=$DB_PASS,CLOUD_SQL_INSTANCE=cromwell-db-$BUILD_NUMBER,CROMWELL_VERSION=34,CROMWELL_PROJECT=broad-dsde-cromwell-perf,CROMWELL_BUCKET=$GCS_BUCKET,CROMWELL_STATSD_HOST=35.194.33.189,CROMWELL_STATSD_PORT=8125"

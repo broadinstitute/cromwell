@@ -27,13 +27,15 @@ trait Delocalization {
 
   private def delocalizeLogsAction(gcsLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     cloudSdkShellAction(
-    delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, plainTextContentType)
+      localizationConfiguration.gcsLocalizationImage,
+      delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun))
   }
 
   // Used for the final copy of the logs to make sure we have the most up to date version before terminating the job
   private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     cloudSdkShellAction(
+      localizationConfiguration.gcsLocalizationImage,
       delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun))
   }
@@ -41,6 +43,7 @@ trait Delocalization {
   // Periodically copies the logs out to GCS
   private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     cloudSdkShellAction(
+      localizationConfiguration.gcsLocalizationImage,
       every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType) }
     )(flags = List(ActionFlag.RunInBackground))
   }
@@ -68,7 +71,7 @@ trait Delocalization {
       .withFlags(List(ActionFlag.DisableImagePrefetch))
   }
 
-  private def delocalizeOutputJsonFilesAction(cloudCallRoot: Path, inputFile: String, workflowRoot: String, mounts: List[Mount]): Action = {
+  private def delocalizeOutputJsonFilesAction(cloudCallRoot: Path, inputFile: String, workflowRoot: String, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     val sedStripSlashPrefix = "s/^\\///"
     val gsutilCommand: String => String = flag => s"""gsutil -m $flag cp -r % ${cloudCallRoot.pathAsString.ensureSlashed}$$(echo % | sed -e "$sedStripSlashPrefix")"""
     val command =
@@ -81,9 +84,9 @@ trait Delocalization {
          * We can't use the gsutil -I flag here because it would lose the directory structure once it gets copied to the bucket
          * sh -c 'gsutil cp % $(echo % | sed -e "s/^\///")'
          */
-        s""" | xargs -I % sh -c '${recoverRequesterPaysError(cloudCallRoot)(gsutilCommand)}'"""
+        s""" | xargs -I % sh -c '$gsutilCommand'"""
     
-    ActionBuilder.cloudSdkShellAction(command)(mounts)
+    ActionBuilder.cloudSdkShellAction(localizationConfiguration.gcsLocalizationImage, command)(mounts)
   }
 
   def deLocalizeActions(createPipelineParameters: CreatePipelineParameters,

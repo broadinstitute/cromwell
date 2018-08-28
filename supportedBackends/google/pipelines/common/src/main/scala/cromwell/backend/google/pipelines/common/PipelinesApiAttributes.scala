@@ -39,10 +39,9 @@ case class PipelinesApiAttributes(project: String,
 object PipelinesApiAttributes {
 
   /**
-    * @param localizationAttempts Also used for de-localization. This is the number of attempts, not retries,
-    *                             hence it is positive.
+    * @param gcsLocalizationImage docker image to use for localization and delocalization
     */
-  case class LocalizationConfiguration(localizationAttempts: Int Refined Positive)
+  case class LocalizationConfiguration(gcsLocalizationImage: String)
 
   lazy val Logger = LoggerFactory.getLogger("JesAttributes")
 
@@ -124,10 +123,8 @@ object PipelinesApiAttributes {
     }
 
     val localizationConfiguration: ErrorOr[LocalizationConfiguration] =
-      backendConfig.as[Option[Int]]("genomics.localization-attempts")
-        .map(attempts => validatePositiveInt(attempts, "genomics.localization-attempts"))
-        .map(_.map(LocalizationConfiguration.apply))
-        .getOrElse(LocalizationConfiguration(DefaultLocalizationAttempts).validNel)
+      backendConfig.as[Option[String]]("genomics.gcs-localization-image").getOrElse("us.gcr.io/broad-dsde-cromwell-dev/pipelines-io:latest").validNel
+        .map(LocalizationConfiguration.apply)
 
 
     def authGoogleConfigForJesAttributes(project: String,

@@ -56,10 +56,10 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
   }
 
   it should "parse localization-attempts" taggedAs IntegrationTest in {
-    val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
+    val backendConfig = ConfigFactory.parseString(configString(genomics = "gcs-localization-image = imaaaaage"))
 
     val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
-    pipelinesApiAttributes.localizationConfiguration.localizationAttempts.value should be(31380)
+    pipelinesApiAttributes.localizationConfiguration.gcsLocalizationImage should be("imaaaaage")
 
   }
 

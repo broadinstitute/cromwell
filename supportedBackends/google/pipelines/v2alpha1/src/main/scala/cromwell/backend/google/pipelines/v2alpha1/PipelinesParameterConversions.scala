@@ -26,7 +26,7 @@ import scala.language.implicitConversions
 
 trait PipelinesParameterConversions {
   implicit val fileInputToParameter = new ToParameter[PipelinesApiFileInput] {
-    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])(implicit retryPolicy: LocalizationConfiguration) = NonEmptyList.of {
+    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) = NonEmptyList.of {
       val labels = Map(
         Key.Tag -> Value.Localization,
         Key.InputName -> fileInput.name
@@ -84,21 +84,22 @@ trait PipelinesParameterConversions {
             .withMounts(mounts)
             .withLabels(labels)
             .setEntrypoint("")
-        case _ => cloudSdkShellAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
+        case _ => cloudSdkShellAction(localizationConfiguration.gcsLocalizationImage, localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
       }
     }
   }
 
   implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
-    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])(implicit retryPolicy: LocalizationConfiguration) =  NonEmptyList.of {
+    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) =  NonEmptyList.of {
       cloudSdkShellAction(
+        localizationConfiguration.gcsLocalizationImage,
         localizeDirectory(directoryInput.cloudPath, directoryInput.containerPath)
       )(mounts, labels =  Map(Key.Tag -> Value.Localization))
     }
   }
 
   implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
-    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])(implicit retryPolicy: LocalizationConfiguration) = {
+    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) = {
       // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
       // The fileOrDirectory method will generate a command that can cover both cases
       val copy = if (fileOutput.secondary)
@@ -111,6 +112,7 @@ trait PipelinesParameterConversions {
       val copyCommand = if (fileOutput.optional || fileOutput.secondary) copyOnlyIfExists else copy
       
       val delocalizationAction = cloudSdkShellAction(
+        localizationConfiguration.gcsLocalizationImage,
         copyCommand
       )(mounts = mounts, flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
 
@@ -119,6 +121,7 @@ trait PipelinesParameterConversions {
       fileOutput.uploadPeriod match {
         case Some(period) =>
           val periodic = cloudSdkShellAction(
+            localizationConfiguration.gcsLocalizationImage,
             every(period) { copyCommand }
           )(mounts = mounts, flags = List(ActionFlag.RunInBackground), labels = Map(Key.Tag -> Value.Background))
 
@@ -131,6 +134,7 @@ trait PipelinesParameterConversions {
   implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
     override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) = NonEmptyList.of {
       cloudSdkShellAction(
+        localizationConfiguration.gcsLocalizationImage,
         delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
       )(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization))
     }

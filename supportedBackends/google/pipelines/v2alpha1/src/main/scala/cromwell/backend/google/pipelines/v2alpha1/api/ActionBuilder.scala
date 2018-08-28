@@ -45,7 +45,7 @@ object ActionBuilder {
     val ContentTypeTextHeader = s"Content-Type: $contentTypeText"
   }
 
-  private val cloudSdkImage = "google/cloud-sdk:alpine"
+  private val cloudSdkImage = "us.gcr.io/broad-dsde-cromwell-dev/pipelines-io:latest"
   def cloudSdkAction: Action = new Action().setImageUri(cloudSdkImage)
 
   def withImage(image: String) = new Action()
@@ -75,8 +75,9 @@ object ActionBuilder {
       .setCredentials(secret.orNull)
   }
 
-  def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action =
-    cloudSdkAction
+  def cloudSdkShellAction(image: String, shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action =
+    new Action()
+      .setImageUri(image)
       .withCommand("/bin/sh", "-c", shellCommand)
       .withFlags(flags)
       .withMounts(mounts)

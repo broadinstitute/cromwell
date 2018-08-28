@@ -8,12 +8,11 @@ import cromwell.filesystems.demo.dos.DemoDosPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
-import eu.timepit.refined.refineMV
 
 class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
-  implicit val localizationConfiguration = LocalizationConfiguration(refineMV(1))
+  implicit val localizationConfiguration = LocalizationConfiguration("image")
 
   it should "create a Demo DOS input parameter" in {
     val demoDosPathBuilder = new DemoDosPathBuilder

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-GCS_BUCKET=gs://debtest3/
+GCS_BUCKET=gs://cromwell-perf-test/
 
 VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 

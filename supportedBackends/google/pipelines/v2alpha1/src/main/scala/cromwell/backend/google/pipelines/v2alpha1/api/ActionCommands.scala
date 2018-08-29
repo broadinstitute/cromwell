@@ -26,7 +26,14 @@ object ActionCommands {
     def escape = ESCAPE_XSI.translate(path.pathAsString)
   }
 
-  private def makeContentTypeFlag(contentType: Option[ContentType]) = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")
+  private def makeContentTypeFlag(contentType: Option[ContentType]) = {
+    def escaped(ct: ContentType) = 
+      ct.toString()
+        .replaceAll(" ",  "")
+        .replaceAll(";",  "\\;")
+
+    contentType.map(ct => s"""-h "Content-Type:${ct |> escaped}"""").getOrElse("")
+  }
 
   def makeContainerDirectory(containerPath: Path) = s"mkdir -p ${containerPath.escape}"
 

@@ -150,6 +150,10 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_SUPPORTS_CRON=false
     fi
 
+    if [ -z "${CROMWELL_BUILD_OPTIONAL_SECURE}" ]; then
+        CROMWELL_BUILD_OPTIONAL_SECURE=false
+    fi
+
     if [ -z "${CROMWELL_BUILD_REQUIRES_SECURE}" ]; then
         CROMWELL_BUILD_REQUIRES_SECURE=false
     fi
@@ -206,6 +210,7 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_IS_CRON='${CROMWELL_BUILD_IS_CRON}'"
     echo "CROMWELL_BUILD_IS_SECURE='${CROMWELL_BUILD_IS_SECURE}'"
     echo "CROMWELL_BUILD_REQUIRES_SECURE='${CROMWELL_BUILD_REQUIRES_SECURE}'"
+    echo "CROMWELL_BUILD_OPTIONAL_SECURE='${CROMWELL_BUILD_OPTIONAL_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
     echo "CROMWELL_BUILD_EVENT='${CROMWELL_BUILD_EVENT}'"
@@ -407,18 +412,20 @@ cromwell::private::render_secure_resources() {
 }
 
 cromwell::private::setup_secure_resources() {
-    case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            cromwell::private::vault_login
-            cromwell::private::render_secure_resources
-            cromwell::private::docker_login
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            ;;
-        *)
-            cromwell::private::render_secure_resources
-            ;;
-    esac
+    if [ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ] || [ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]; then
+        case "${CROMWELL_BUILD_PROVIDER}" in
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+                cromwell::private::vault_login
+                cromwell::private::render_secure_resources
+                cromwell::private::docker_login
+                ;;
+            "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+                ;;
+            *)
+                cromwell::private::render_secure_resources
+                ;;
+        esac
+    fi
 }
 
 cromwell::private::find_cromwell_jar() {

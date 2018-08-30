@@ -27,8 +27,6 @@ services:
       interval: 2s
       timeout: 30s
       retries: 15
-    ports:
-      - "3306:3306"
   lb:
     image: dockercloud/haproxy
     links:

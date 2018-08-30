@@ -1,7 +1,7 @@
 version: '2.1'
 services:
   cromwell:
-    image: "broadinstitute/cromwell:develop"
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     working_dir: /cromwell-working-dir
     volumes:
       - ./cromwell-executions:/cromwell-working-dir/cromwell-executions

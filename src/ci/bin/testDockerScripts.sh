@@ -20,3 +20,23 @@ docker run --rm "${docker_tag}" which sbt
 
 echo "2. Testing sbt assembly"
 docker run --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
+
+echo "Testing cloudwell docker compose"
+
+CROMWELL_TAG=develop
+export CROMWELL_TAG
+
+docker-compose -f scripts/docker-compose-mysql/docker-compose-cloudwell.yml up --scale cromwell=3 -d
+
+# Give them some time to be ready
+sleep 30
+
+# Set the test case
+CENTAUR_TEST_FILE=scripts/docker-compose-mysql/test/hello.test
+export CENTAUR_TEST_FILE
+
+# Call centaur with our custom test case
+sbt "project centaur" "it:testOnly *ExternalTestCaseSpec"
+
+# Tear everything down
+docker-compose -f scripts/docker-compose-mysql/docker-compose-cloudwell.yml down

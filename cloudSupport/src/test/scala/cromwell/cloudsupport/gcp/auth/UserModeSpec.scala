@@ -3,7 +3,6 @@ package cromwell.cloudsupport.gcp.auth
 import java.io.FileNotFoundException
 
 import better.files.File
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import org.scalatest.{FlatSpec, Matchers}
 
 class UserModeSpec extends FlatSpec with Matchers {
@@ -17,11 +16,9 @@ class UserModeSpec extends FlatSpec with Matchers {
       "user",
       "alice",
       secretsMockFile.pathAsString,
-      dataStoreMockDir.pathAsString,
-      GoogleConfiguration.GoogleScopes
+      dataStoreMockDir.pathAsString
     )
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[RuntimeException](userMode.credential(workflowOptions))
+    val exception = intercept[RuntimeException](userMode.credentials())
     exception.getMessage should startWith("Google credentials are invalid: ")
     secretsMockFile.delete(true)
     dataStoreMockDir.delete(true)
@@ -34,11 +31,9 @@ class UserModeSpec extends FlatSpec with Matchers {
       "user",
       "alice",
       secretsMockFile.pathAsString,
-      dataStoreMockDir.pathAsString,
-      GoogleConfiguration.GoogleScopes
+      dataStoreMockDir.pathAsString
     )
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[FileNotFoundException](userMode.credential(workflowOptions))
+    val exception = intercept[FileNotFoundException](userMode.credentials())
     exception.getMessage should fullyMatch regex "File .*/secrets..*.json does not exist or is not readable"
     dataStoreMockDir.delete(true)
   }
@@ -50,29 +45,11 @@ class UserModeSpec extends FlatSpec with Matchers {
       "user",
       "alice",
       secretsMockFile.pathAsString,
-      dataStoreMockDir.pathAsString,
-      GoogleConfiguration.GoogleScopes
+      dataStoreMockDir.pathAsString
     )
-    userMode.credentialValidation = _ => ()
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val credentials = userMode.credential(workflowOptions)
+    userMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
+    val credentials = userMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
-    secretsMockFile.delete(true)
-    dataStoreMockDir.delete(true)
-  }
-
-  it should "validate" in {
-    val secretsMockFile = File.newTemporaryFile("secrets.", ".json").write(GoogleAuthModeSpec.userCredentialsContents)
-    val dataStoreMockDir = File.newTemporaryDirectory("dataStore.")
-    val userMode = UserMode(
-      "user",
-      "alice",
-      secretsMockFile.pathAsString,
-      dataStoreMockDir.pathAsString,
-      GoogleConfiguration.GoogleScopes
-    )
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    userMode.validate(workflowOptions)
     secretsMockFile.delete(true)
     dataStoreMockDir.delete(true)
   }
@@ -84,8 +61,7 @@ class UserModeSpec extends FlatSpec with Matchers {
       "user",
       "alice",
       secretsMockFile.pathAsString,
-      dataStoreMockDir.pathAsString,
-      GoogleConfiguration.GoogleScopes
+      dataStoreMockDir.pathAsString
     )
     userMode.requiresAuthFile should be(false)
     secretsMockFile.delete(true)

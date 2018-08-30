@@ -38,7 +38,7 @@ object Validation {
       v fold(
         //Use f to turn the failure list into a Throwable, then fail a future with it.
         //Function composition lets us ignore the actual argument of the error list
-        (Future.failed _) compose f,
+        Future.failed _ compose f,
         Future.successful
       )
   }
@@ -71,7 +71,9 @@ object Validation {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
     }
-    
+
+    def unsafe: A = unsafe("Errors(s)")
+
     def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
   }
 

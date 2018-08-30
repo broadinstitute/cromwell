@@ -110,7 +110,9 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
 
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits(refreshTokenConfig)
     val actor = actorRef.underlyingActor
-    actor.refreshTokenAuth should be(Some(GcsLocalizing(RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret", GoogleConfiguration.GoogleScopes),  "mytoken")))
+    val expectedAuthMode = RefreshTokenMode("user-via-refresh", "secret_id", "secret_secret")
+    val expectedAuth = GcsLocalizing(expectedAuthMode,  "mytoken")
+    actor.refreshTokenAuth should be(Option(expectedAuth))
   }
 
   it should "generate the correct json content for no docker token and no refresh token" in {
@@ -119,9 +121,9 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
-    actor.generateAuthJson(flattenAuthOptions(None, None), false) should be(empty)
+    actor.generateAuthJson(flattenAuthOptions(None, None), restrictMetadataAccess = false) should be(empty)
 
-    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), false)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), restrictMetadataAccess = false)
     authJsonOption should be(empty)
 
     actorRef.stop()
@@ -133,7 +135,10 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val TestingBits(actorRef, jesConfiguration) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
-    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(jesConfiguration.dockerCredentials, None), false)
+    val authJsonOption = actor.generateAuthJson(
+      flattenAuthOptions(jesConfiguration.dockerCredentials, None),
+      restrictMetadataAccess = false
+    )
     authJsonOption shouldNot be(empty)
     // dXNlcm5hbWU6cGFzc3dvcmQ= is base64-encoded username:password
     authJsonOption.get should be(
@@ -159,7 +164,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
-    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, gcsUserAuth), false)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, gcsUserAuth), restrictMetadataAccess = false)
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(
@@ -186,7 +191,10 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
-    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(jesConfiguration.dockerCredentials, gcsUserAuth), false)
+    val authJsonOption = actor.generateAuthJson(
+      flattenAuthOptions(jesConfiguration.dockerCredentials, gcsUserAuth),
+      restrictMetadataAccess = false
+    )
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(
@@ -216,7 +224,10 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val actor = actorRef.underlyingActor
 
     val gcsUserAuth = Option(GcsLocalizing(SimpleClientSecrets("myclientid", "myclientsecret"), "mytoken"))
-    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(jesConfiguration.dockerCredentials, gcsUserAuth), true)
+    val authJsonOption = actor.generateAuthJson(
+      flattenAuthOptions(jesConfiguration.dockerCredentials, gcsUserAuth),
+      restrictMetadataAccess = true
+    )
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(
@@ -246,7 +257,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val TestingBits(actorRef, _) = buildJesInitializationTestingBits()
     val actor = actorRef.underlyingActor
 
-    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), true)
+    val authJsonOption = actor.generateAuthJson(flattenAuthOptions(None, None), restrictMetadataAccess = true)
     authJsonOption shouldNot be(empty)
     authJsonOption.get should be(
       normalize(

@@ -29,7 +29,7 @@ export GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS
 # pass integration directory to the inputs json otherwise remove it from the inputs file
 INTEGRATION_TESTS=()
 if [ "${CROMWELL_BUILD_IS_CRON}" = "true" ]; then
-    INTEGRATION_TESTS=(-i "${CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS}")
+    INTEGRATION_TESTS=(-d "${CROMWELL_BUILD_CENTAUR_INTEGRATION_TESTS}")
     # Increase concurrent job limit to get tests to finish under three hours.
     # Increase read_lines limit because of read_lines call on hg38.even.handcurated.20k.intervals.
     CENTAUR_READ_LINES_LIMIT=512000

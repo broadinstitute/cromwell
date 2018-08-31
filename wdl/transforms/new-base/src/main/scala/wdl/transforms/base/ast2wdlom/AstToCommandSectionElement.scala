@@ -1,6 +1,7 @@
 package wdl.transforms.base.ast2wdlom
 
 import common.transforms.CheckedAtoB
+import org.apache.commons.text.StringEscapeUtils
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.{CommandPartElement, CommandSectionElement, CommandSectionLine}
 
@@ -22,7 +23,9 @@ object AstToCommandSectionElement {
         case 1 =>
           distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min
         case _ => throw new Exception(
-          s"Cannot mix leading whitespace characters in command: [${distinctLeadingWhitespaceCharacters.map(_.toByte).mkString(", ")}]"
+          s"Cannot mix leading whitespace characters in command: [${distinctLeadingWhitespaceCharacters.map { c: Char =>
+            "\"" + StringEscapeUtils.escapeJava(c.toString) + "\""
+          }.mkString(", ")}]"
         )
       }
 

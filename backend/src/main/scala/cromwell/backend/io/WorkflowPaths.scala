@@ -22,6 +22,13 @@ trait WorkflowPaths extends PathFactory {
   protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse("cromwell-executions")
 
   /**
+    * Implementers of this trait might override this to provide an appropriate prefix corresponding to the execution root
+    * of the current workflow. This prefix would be prepended to the list of prefixes provided in workflow options for
+    * searching cache hits.
+    */
+  lazy val callCacheRootPrefix: Option[String] = None
+
+  /**
     * Path of the root directory Cromwell will use for ALL workflows.
     */
   lazy val executionRoot: Path = buildPath(executionRootString).toAbsolutePath

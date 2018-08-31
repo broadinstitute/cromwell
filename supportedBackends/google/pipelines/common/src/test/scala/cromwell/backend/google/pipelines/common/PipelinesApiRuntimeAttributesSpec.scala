@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.common.GpuResource.GpuType
-import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, jesAttributes, _}
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, papiAttributes, _}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.core.WorkflowOptions
@@ -283,7 +283,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
                                                            expectedRuntimeAttributes: PipelinesApiRuntimeAttributes,
                                                            workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                            defaultZones: NonEmptyList[String] = defaultZones,
-                                                           jesConfiguration: PipelinesApiConfiguration = jesConfiguration): Unit = {
+                                                           jesConfiguration: PipelinesApiConfiguration = papiConfiguration): Unit = {
     try {
       val actualRuntimeAttributes = toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
@@ -297,7 +297,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
                                                        exMsg: String,
                                                        workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
     try {
-      toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
+      toJesRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)
       fail(s"A RuntimeException was expected with message: $exMsg")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
@@ -317,7 +317,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   private val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
-  private val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, jesAttributes)
+  private val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.jesConfiguration).definitions.toSet
+    PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet
 }

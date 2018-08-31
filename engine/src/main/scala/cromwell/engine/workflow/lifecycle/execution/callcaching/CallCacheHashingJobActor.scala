@@ -5,6 +5,7 @@ import java.security.MessageDigest
 import javax.xml.bind.DatatypeConverter
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
+import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -16,6 +17,8 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
+import CallCache._
+
 
 /**
   * Actor responsible for calculating individual as well as aggregated hashes for a job.
@@ -37,8 +40,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                                backendName: String,
                                fileHashingActorProps: Props,
-                               writeToCache: Boolean,
-                               callCachingEligible: CallCachingEligible
+                               callCachingEligible: CallCachingEligible,
+                               callCachingActivity: CallCachingActivity
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor = makeFileHashingActor()
@@ -50,7 +53,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   initializeCCHJA()
 
   override def preStart(): Unit = {
-    if (callCacheReadingJobActor.isEmpty && !writeToCache) {
+    if (callCacheReadingJobActor.isEmpty && !callCachingActivity.writeToCache) {
       log.error("Programmer error ! There is no reason to have a hashing actor if both read and write to cache are off")
       context.parent ! CacheMiss
       context stop self
@@ -68,7 +71,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
           sendToCallCacheReadingJobActor(NoFileHashesResult, data)
           stopAndStay(Option(NoFileHashesResult))
       }
-    case Event(Terminated(_), data) if writeToCache =>
+    case Event(Terminated(_), data) if callCachingActivity.writeToCache =>
       self ! NextBatchOfFileHashesRequest
       stay() using data.copy(callCacheReadingJobActor = None)
   }
@@ -87,7 +90,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
         case (newData, None) =>
           stay() using newData
       }
-    case Event(Terminated(_), data) if writeToCache =>
+    case Event(Terminated(_), data) if callCachingActivity.writeToCache =>
       stay() using data.copy(callCacheReadingJobActor = None)
   }
 
@@ -137,7 +140,14 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor)
     startWith(WaitingForHashFileRequest, hashingJobActorData)
 
-    val initialHashingResult = InitialHashingResult(initialHashes, calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5")))
+    val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
+    val callCacheRootHint = for {
+      workflowOptionPrefixes <- callCachingActivity.options.workflowOptionCallCachePrefixes
+      d <- initializationData collect { case d: StandardInitializationData => d }
+      rootPrefix = d.workflowPaths.callCacheRootPrefix
+    } yield CallCachePathPrefixes(rootPrefix, workflowOptionPrefixes.toList)
+
+    val initialHashingResult = InitialHashingResult(initialHashes, aggregatedBaseHash, callCacheRootHint.toList)
 
     sendToCallCacheReadingJobActor(initialHashingResult, hashingJobActorData)
     context.parent ! initialHashingResult
@@ -192,8 +202,8 @@ object CallCacheHashingJobActor {
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
             fileHashingActorProps: Props,
-            writeToCache: Boolean,
-            callCachingEligible: CallCachingEligible
+            callCachingEligible: CallCachingEligible,
+            callCachingActivity: CallCachingActivity
            ) = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
@@ -201,8 +211,8 @@ object CallCacheHashingJobActor {
     runtimeAttributeDefinitions,
     backendName,
     fileHashingActorProps,
-    writeToCache,
-    callCachingEligible
+    callCachingEligible,
+    callCachingActivity
   )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState
@@ -281,7 +291,7 @@ object CallCacheHashingJobActor {
   case object NextBatchOfFileHashesRequest extends CCHJARequest
 
   sealed trait CCHJAResponse
-  case class InitialHashingResult(initialHashes: Set[HashResult], aggregatedBaseHash: String) extends CCHJAResponse
+  case class InitialHashingResult(initialHashes: Set[HashResult], aggregatedBaseHash: String, cacheHitHints: List[CacheHitHint] = List.empty) extends CCHJAResponse
 
   // File Hashing responses
   sealed trait CCHJAFileHashResponse extends CCHJAResponse

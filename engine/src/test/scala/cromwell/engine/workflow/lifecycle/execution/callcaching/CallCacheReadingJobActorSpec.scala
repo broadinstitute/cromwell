@@ -16,17 +16,17 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
   
   it should "try to match initial hashes against DB" in {
     val callCacheReadProbe = TestProbe()
-    val callCacheHasingActor = TestProbe()
+    val callCacheHashingActor = TestProbe()
     val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref))
     actorUnderTest.stateName shouldBe WaitingForInitialHash
 
     // The actual hashes don't matter here, we only care about the aggregated hash
     val aggregatedInitialhash: String = "AggregatedInitialHash"
-    callCacheHasingActor.send(actorUnderTest, InitialHashingResult(Set.empty, aggregatedInitialhash))
+    callCacheHashingActor.send(actorUnderTest, InitialHashingResult(Set.empty, aggregatedInitialhash))
     callCacheReadProbe.expectMsg(HasMatchingInitialHashLookup(aggregatedInitialhash))
     eventually {
       actorUnderTest.stateName shouldBe WaitingForHashCheck
-      actorUnderTest.stateData shouldBe CCRJAWithData(callCacheHasingActor.ref, aggregatedInitialhash, None, 1)
+      actorUnderTest.stateData shouldBe CCRJAWithData(callCacheHashingActor.ref, aggregatedInitialhash, None, 1)
     }
   }
 

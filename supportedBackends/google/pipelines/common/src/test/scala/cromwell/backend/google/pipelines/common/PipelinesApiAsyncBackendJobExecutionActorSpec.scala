@@ -147,7 +147,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   }
 
 
-  private val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
+  private val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(papiConfiguration)
   private val workingDisk = PipelinesApiWorkingDisk(DiskType.SSD, 200)
 
   val DockerAndDiskRuntime: String =
@@ -201,7 +201,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val run = Run(job)
     val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
-    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, jesConfiguration, jesSingletonActor = jesSingletonActor) {
+    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
         if(preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
@@ -222,7 +222,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     // TODO: Use this to check the new KV entries are there!
     //val kvProbe = TestProbe()
 
-    val backend = executionActor(jobDescriptor, JesBackendConfigurationDescriptor, promise, statusPoller.ref, expectPreemptible)
+    val backend = executionActor(jobDescriptor, PapiBackendConfigurationDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") {
       case _: PAPIStatusPollRequest => backend ! runStatus
@@ -235,7 +235,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, attempt - 1, 0)
     val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(),
-      jesConfiguration,
+      papiConfiguration,
       TestableJesExpressionFunctions,
       emptyActor,
       failIoActor))
@@ -412,7 +412,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -485,7 +485,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -533,7 +533,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration, functions))
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration, functions))
         TestActorRef[TestablePipelinesApiJobExecutionActor](props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
@@ -601,7 +601,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -636,7 +636,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val key = BackendJobDescriptorKey(job, None, 1)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
 
-        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+        val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
         val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
           props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -685,7 +685,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
     val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -719,7 +719,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val key = BackendJobDescriptorKey(job, None, 1)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
     val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -742,7 +742,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runtimeAttributes = makeRuntimeAttributes(job)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
     val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -765,7 +765,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
     val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -798,7 +798,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
     val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -869,7 +869,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val runtimeAttributes = makeRuntimeAttributes(call)
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, Map.empty)
 
-    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), jesConfiguration))
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
     val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 

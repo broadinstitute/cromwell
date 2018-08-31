@@ -25,7 +25,8 @@ case class WorkflowData(workflowContent: Option[String],
                         inputs: Option[() => String],
                         options: Option[() => String],
                         labels: List[Label],
-                        zippedImports: Option[File])
+                        zippedImports: Option[File],
+                        secondOptions: Option[() => String] = None)
 
 object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: File): ErrorOr[WorkflowData] = {
@@ -95,7 +96,6 @@ object WorkflowData {
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
     val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
 
-    // TODO: The slurps can throw - not a high priority but see #36
     WorkflowData(
       workflowContent = workflowSource,
       workflowUrl = workflowUrl,
@@ -104,6 +104,7 @@ object WorkflowData {
       workflowTypeVersion = workflowTypeVersion,
       inputs = getOptionalFile("inputs") map (file => () => file.contentAsString),
       options = getOptionalFile("options") map (file => () => file.contentAsString),
+      secondOptions = getOptionalFile(name = "second-options").orElse(getOptionalFile("options")) map (file => () => file.contentAsString),
       labels = getLabels,
       zippedImports = getImports
     )

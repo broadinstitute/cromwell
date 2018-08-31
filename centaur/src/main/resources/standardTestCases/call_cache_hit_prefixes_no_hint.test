@@ -1,0 +1,15 @@
+# This is really just a plain call caching test but it's useful for direct comparison to the other prefix hint tests.
+name: call_cache_hit_prefixes_no_hint
+testFormat: runtwiceexpectingcallcaching
+
+files {
+  workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl
+  inputs: call_cache_hit_prefixes/call_cache_hit_prefixes_no_hint.inputs
+}
+
+metadata {
+  workflowName: call_cache_hit_prefixes
+  status: Succeeded
+  "calls.call_cache_hit_prefixes.yo.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:call_cache_hit_prefixes.yo:-1"
+  "outputs.call_cache_hit_prefixes.sup": "sup no hint?"
+}

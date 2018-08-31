@@ -32,6 +32,10 @@ final case class Workflow private(testName: String,
     options = CromwellClient.replaceJson(data.options.map(_ ()), "refresh_token", refreshToken),
     labels = Option(data.labels),
     zippedImports = data.zippedImports)
+
+  def secondRun: Workflow = {
+    copy(data = data.copy(options = data.secondOptions))
+  }
 }
 
 object Workflow {

@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 object PipelinesApiTestConfig {
 
-  private val JesBackendConfigString =
+  private val PapiBackendConfigString =
     """
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
@@ -62,7 +62,7 @@ object PipelinesApiTestConfig {
       |}
       |""".stripMargin
 
-  private val JesGlobalConfigString =
+  private val PapiGlobalConfigString =
     s"""
        |google {
        |  application-name = "cromwell"
@@ -86,7 +86,7 @@ object PipelinesApiTestConfig {
        |    JES {
        |      actor-factory = "cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory"
        |      config {
-       |      $JesBackendConfigString
+       |      $PapiBackendConfigString
        |      }
        |    }
        |  }
@@ -94,13 +94,13 @@ object PipelinesApiTestConfig {
        |
        |""".stripMargin
 
-  val JesBackendConfig = ConfigFactory.parseString(JesBackendConfigString)
-  val JesGlobalConfig = ConfigFactory.parseString(JesGlobalConfigString)
-  val JesBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val JesBackendConfigurationDescriptor = new BackendConfigurationDescriptor(JesBackendConfig, JesGlobalConfig) {
-    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(JesGlobalConfig)
+  val PapiBackendConfig = ConfigFactory.parseString(PapiBackendConfigString)
+  val PapiGlobalConfig = ConfigFactory.parseString(PapiGlobalConfigString)
+  val PapiBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
+  val PapiBackendConfigurationDescriptor = new BackendConfigurationDescriptor(PapiBackendConfig, PapiGlobalConfig) {
+    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)
   }
-  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(JesBackendNoDefaultConfig, JesGlobalConfig)
+  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(PapiBackendNoDefaultConfig, PapiGlobalConfig)
   val genomicsFactory = new PipelinesApiFactoryInterface {
     override def build(httpRequestInitializer: HttpRequestInitializer) = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = ???
@@ -109,8 +109,8 @@ object PipelinesApiTestConfig {
     }
     override def usesEncryptedDocker: Boolean = false
   }
-  def pathBuilders()(implicit as: ActorSystem) = Await.result(JesBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
-  val googleConfiguration = GoogleConfiguration(JesGlobalConfig)
-  val jesAttributes = PipelinesApiAttributes(googleConfiguration, JesBackendConfig)
-  val jesConfiguration = new PipelinesApiConfiguration(JesBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, jesAttributes)
+  def pathBuilders()(implicit as: ActorSystem) = Await.result(PapiBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
+  val googleConfiguration = GoogleConfiguration(PapiGlobalConfig)
+  val papiAttributes = PipelinesApiAttributes(googleConfiguration, PapiBackendConfig)
+  val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
 }

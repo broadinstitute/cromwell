@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 
 set -e
-export CROMWELL_BUILD_SUPPORTS_CRON=true
-export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-if [ "${CROMWELL_BUILD_IS_CRON}" = "false" ]; then
+if [ "${CROMWELL_BUILD_EVENT}" != "cron" ]; then
     echo "TESK integration tests run only as a CRON JOB"
     exit 0
 fi
+
+export CROMWELL_BUILD_REQUIRES_SECURE=true
+export CROMWELL_BUILD_SUPPORTS_CRON=true
+export CROMWELL_BUILD_IS_CRON=true
 
 cromwell::build::setup_common_environment
 cromwell::build::setup_conformance_environment

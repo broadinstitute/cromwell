@@ -13,7 +13,7 @@ object AstToCommandSectionElement {
       val lines = makeLines(parts)
       val trimmed = trimStartAndEndBlankLines(lines)
 
-      // Commands support either tabs or spaces, but not a mix
+      // Commands support either tabs or spaces. For the undefined case of mixed tabs and spaces, Cromwell returns an error.
       // https://github.com/openwdl/wdl/blob/master/versions/1.0/SPEC.md#stripping-leading-whitespace
       val leadingWhitespaceMap = leadingWhitespace(trimmed)
       val distinctLeadingWhitespaceCharacters = leadingWhitespaceMap.mkString.distinct
@@ -22,7 +22,7 @@ object AstToCommandSectionElement {
         case 0 => ""
         case 1 =>
           distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min
-        case _ => throw new Exception(
+        case _ => throw new RuntimeException(
           s"Cannot mix leading whitespace characters in command: [${distinctLeadingWhitespaceCharacters.map { c: Char =>
             "\"" + StringEscapeUtils.escapeJava(c.toString) + "\""
           }.mkString(", ")}]"
@@ -82,7 +82,8 @@ object AstToCommandSectionElement {
       line.parts.headOption match {
         case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
           CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail)
-        case _ => ??? // TODO: Should be impossible. Can we make the function total by fixing the inputs?
+        case _ =>
+          throw new RuntimeException("Failed to strip common whitespace prefix from line.")
       }
     }
   }

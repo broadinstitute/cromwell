@@ -12,7 +12,7 @@ backend {
         root = "ftp://ftp.hexdump.org/cromwell-executions"
         dockerRoot = "/cromwell-executions"
         endpoint = "{{$cromwellTesk.Data.endpoint}}"
-        concurrent-job-limit = 10
+        concurrent-job-limit = 8
         glob-link-command = "ls -L GLOB_PATTERN 2> /dev/null | xargs -I ? ln -s ? GLOB_DIRECTORY"
       }
     }

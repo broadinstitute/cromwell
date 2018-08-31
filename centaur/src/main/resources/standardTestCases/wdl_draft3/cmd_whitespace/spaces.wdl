@@ -8,6 +8,8 @@ workflow Test {
 
 task Echo {
 
+  runtime { docker: "ubuntu:latest" }
+
   command {
     echo "I am prefixed with spaces"
   }

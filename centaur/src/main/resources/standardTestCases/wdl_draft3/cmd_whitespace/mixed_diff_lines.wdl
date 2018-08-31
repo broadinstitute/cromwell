@@ -8,6 +8,8 @@ workflow Test {
 
 task Echo {
 
+  runtime { docker: "ubuntu:latest" }
+
   # Deliberately different order (tabs then spaces) than same_line
 	command {
 		echo "I am prefixed with tabs"

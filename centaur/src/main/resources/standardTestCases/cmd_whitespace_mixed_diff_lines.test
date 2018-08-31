@@ -1,7 +1,5 @@
 name: cmd_whitespace_mixed_diff_lines
 testFormat: workflowfailure
-backends: [Local]
-tags: [localdockertest]
 
 files {
   workflow: wdl_draft3/cmd_whitespace/mixed_diff_lines.wdl

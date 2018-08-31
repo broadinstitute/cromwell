@@ -21,7 +21,7 @@ docker run --rm "${docker_tag}" which sbt
 echo "2. Testing sbt assembly"
 docker run --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
 
-echo "Testing cloudwell docker compose"
+echo "3. Testing cloudwell docker compose"
 
 CROMWELL_TAG=develop
 export CROMWELL_TAG

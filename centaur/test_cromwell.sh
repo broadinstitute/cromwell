@@ -13,7 +13,7 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-h] [-b branch] [-j jar path] [-g] [-r rundir] [-c cromwell config file] [-n centaur config file] [-t refresh token file] [-s service account json] [-e excludeTag] [-i testDirPath]
+$PROGNAME [-h] [-b branch] [-j jar path] [-g] [-r rundir] [-c cromwell config file] [-n centaur config file] [-t refresh token file] [-s service account json] [-i includeTag] [-e excludeTag] [-d testDirPath]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
@@ -26,10 +26,11 @@ Arguments:
     -c    If supplied, the config file to pass to Cromwell
     -n    If supplied, the config file to pass to Centaur
     -t    If supplied, the timeout for request-plus-response from Centaur to Cromwell
+    -i    If supplied, will include tests with this tag
     -e    If supplied, will exclude tests with this tag
     -s    If supplied, will run only the specified suite
     -p    If supplied, number of tests to be run in parallel. 16 is the default
-    -i    If supplied, will run the tests in this directory instead of the standard tests
+    -d    If supplied, will run the tests in this directory instead of the standard tests
 "
 
 INITIAL_DIR=$(pwd)
@@ -39,7 +40,7 @@ CENTAUR_SBT_COVERAGE=false
 CROMWELL_TIMEOUT=10s
 SUITE=""
 
-while getopts ":hb:r:c:n:p:j:gt:e:s:i:" option; do
+while getopts ":hb:r:c:n:p:j:gt:i:e:s:d:" option; do
     case "$option" in
         h) echo "$usage"
             exit
@@ -61,7 +62,9 @@ while getopts ":hb:r:c:n:p:j:gt:e:s:i:" option; do
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
-        i) TEST_CASE_DIR="${OPTARG}"
+        d) TEST_CASE_DIR="${OPTARG}"
+            ;;
+        i) INCLUDE_TAG+=("${OPTARG}")
             ;;
         e) EXCLUDE_TAG+=("${OPTARG}")
             ;;
@@ -151,6 +154,15 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
         EXCLUDE=" -l $val"${EXCLUDE}
     done
     TEST_COMMAND="${TEST_COMMAND}${EXCLUDE}"
+fi
+
+if [[ -n ${INCLUDE_TAG[*]} ]]; then
+    TEST_DESCRIPTION=${TEST_DESCRIPTION}" including ${INCLUDE_TAG[*]} tests"
+    INCLUDE=""
+    for val in "${INCLUDE_TAG[@]}"; do
+        INCLUDE=" -n $val"${INCLUDE}
+    done
+    TEST_COMMAND="${TEST_COMMAND}${INCLUDE}"
 fi
 
 if [[ -n "${SUITE}" ]]; then

@@ -4,3 +4,9 @@ testFormat: workflowfailure
 files {
   workflow: wdl_draft3/cmd_whitespace/mixed_diff_lines.wdl
 }
+
+metadata {
+    status: Failed
+    "failures.0.message": "Workflow input processing failed"
+    "failures.0.causedBy.0.message": "Cannot mix leading whitespace characters in command: [\"\\t\", \" \"]"
+}

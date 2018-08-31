@@ -8,8 +8,9 @@ workflow Test {
 
 task Echo {
 
+  # Deliberately different order (spaces then tabs) than diff_lines
 	command {
-	  echo "I am prefixed with tabs and spaces"
+  	echo "I am prefixed with two spaces then a tab"
 	}
 
 }

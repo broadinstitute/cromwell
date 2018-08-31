@@ -1,0 +1,6 @@
+name: cmd_whitespace_tabs
+testFormat: workflowsuccess
+
+files {
+  workflow: wdl_draft3/cmd_whitespace/tabs.wdl
+}

@@ -10,9 +10,21 @@ object AstToCommandSectionElement {
 
     ast.getAttributeAsVector[CommandPartElement]("parts") map { parts =>
       val lines = makeLines(parts)
-      val trimmed = trimStartAndEnd(lines)
-      val commonPrefixLength = minimumStartLength(trimmed)
-      val commonPrefix = " " * commonPrefixLength
+      val trimmed = trimStartAndEndBlankLines(lines)
+
+      // Commands support either tabs or spaces, but not a mix
+      // https://github.com/openwdl/wdl/blob/master/versions/1.0/SPEC.md#stripping-leading-whitespace
+      val leadingWhitespaceMap = leadingWhitespace(trimmed)
+      val distinctLeadingWhitespaceCharacters = leadingWhitespaceMap.mkString.distinct
+
+      val commonPrefix: String = distinctLeadingWhitespaceCharacters.length match {
+        case 0 => ""
+        case 1 =>
+          distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min
+        case _ => throw new Exception(
+          s"Cannot mix leading whitespace characters in command: [${distinctLeadingWhitespaceCharacters.map(_.toByte).mkString(", ")}]"
+        )
+      }
 
       CommandSectionElement(stripStarts(trimmed, commonPrefix))
     }
@@ -39,7 +51,7 @@ object AstToCommandSectionElement {
     finalAccumulator map dropEmpties
   }
 
-  private def trimStartAndEnd(elements: Vector[CommandSectionLine]): Vector[CommandSectionLine] = {
+  private def trimStartAndEndBlankLines(elements: Vector[CommandSectionLine]): Vector[CommandSectionLine] = {
     elements.dropWhile(allWhitespace).reverse.dropWhile(allWhitespace).reverse
   }
 
@@ -51,14 +63,15 @@ object AstToCommandSectionElement {
     CommandSectionLine(line.parts.filterNot(empty))
   }
 
-  private def minimumStartLength(lines: Vector[CommandSectionLine]): Int = {
+  private def leadingWhitespace(lines: Vector[CommandSectionLine]): Vector[String] = {
     val r = "^(\\s*)".r
-    def startLength(line: CommandSectionLine) = line.parts.headOption match {
-      case Some(StringCommandPartElement(str)) => r.findFirstIn(str).map(_.length).getOrElse(0)
-      case _ => 0
+
+    def leadingWhitespaceForLine(line: CommandSectionLine): Option[String] = line.parts.headOption match {
+      case Some(StringCommandPartElement(str)) => r.findFirstIn(str)
+      case _ => None
     }
 
-    if (lines.nonEmpty) lines.map(startLength).min else 0
+    lines.map(leadingWhitespaceForLine(_).getOrElse(""))
   }
 
   private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Vector[CommandSectionLine] = {

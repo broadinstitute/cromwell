@@ -1,5 +1,6 @@
 name: cmd_whitespace_spaces
 testFormat: workflowsuccess
+backends: [Local]
 
 files {
   workflow: wdl_draft3/cmd_whitespace/spaces.wdl

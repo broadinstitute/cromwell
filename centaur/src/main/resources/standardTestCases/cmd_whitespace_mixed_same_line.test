@@ -1,5 +1,6 @@
 name: cmd_whitespace_mixed_same_line
 testFormat: workflowfailure
+backends: [Local]
 
 files {
   workflow: wdl_draft3/cmd_whitespace/mixed_same_line.wdl

@@ -1,6 +1,7 @@
 name: cmd_whitespace_tabs
 testFormat: workflowsuccess
 backends: [Local]
+tags: [localdockertest]
 
 files {
   workflow: wdl_draft3/cmd_whitespace/tabs.wdl

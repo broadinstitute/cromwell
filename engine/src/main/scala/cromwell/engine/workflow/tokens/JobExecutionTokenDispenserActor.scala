@@ -67,15 +67,19 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
     val iterator = RoundRobinQueueIterator(tokenQueues.values.toList)
 
-    val nextTokens = iterator.take(n)
+    val nextTokens = iterator.take(n).toList
+
+    if (nextTokens.nonEmpty) { println(s"Distributing up to $n new leases, took ${nextTokens.size}") }
 
     nextTokens.foreach({
       case LeasedActor(actor, lease) if !tokenAssignments.contains(actor) =>
         tokenAssignments = tokenAssignments + (actor -> lease)
         incrementJob("Started")
         actor ! JobExecutionTokenDispensed
-      // Only one token per actor, if you've already got one, you don't get this token !
-      case LeasedActor(_, lease) => lease.release()
+      // Only one token per actor, so if you've already got one, we don't need to use this new one:
+      case LeasedActor(actor, lease) =>
+        actor ! JobExecutionTokenDispensed
+        lease.release()
     })
 
     tokenQueues = iterator.updatedQueues.map(queue => queue.tokenType -> queue).toMap

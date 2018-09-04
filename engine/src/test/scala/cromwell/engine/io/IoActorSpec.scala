@@ -150,7 +150,9 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     testActor ! readCommand
     expectMsgPF(5 seconds) {
       case _: IoSuccess[_] => fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
-      case response: IoFailure[_] => response.failure.getMessage shouldBe s"java.io.IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than 2 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+      case response: IoFailure[_] => 
+        response.failure.getMessage shouldBe s"Attempted 1 time(s)"
+        response.failure.getCause.getMessage shouldBe s"java.io.IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than 2 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
     }
 
     src.delete()

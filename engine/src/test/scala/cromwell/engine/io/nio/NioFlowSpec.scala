@@ -6,23 +6,22 @@ import java.util.UUID
 import akka.actor.ActorRef
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
+import cats.effect.IO
 import com.google.cloud.storage.StorageException
+import cromwell.core.{CromwellFatalException, TestKitSuite}
+import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.core.io._
 import cromwell.core.path.DefaultPathBuilder
-import cromwell.core.{CromwellFatalException, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
-import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.engine.io.IoCommandContext
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
-
-import scala.concurrent.Future
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
 
   behavior of "NioFlowSpec"
 
-  val flow = new NioFlow(1, system.scheduler)(system.dispatcher, system).flow
+  val flow = new NioFlow(1, system.scheduler)(system.dispatcher).flow
   
   implicit val materializer = ActorMaterializer()
   val replyTo = mock[ActorRef]
@@ -197,12 +196,14 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
     val testSource = Source.single(context)
 
-    val customFlow = new NioFlow(1, system.scheduler, NioFlow.NoopOnRetry, 3)(system.dispatcher, system) {
+    val customFlow = new NioFlow(1, system.scheduler, NioFlow.NoopOnRetry, 3)(system.dispatcher) {
       private var tries = 0
       override def handleSingleCommand(ioSingleCommand: IoCommand[_]) = {
-        tries += 1
-        if (tries < 3) Future.failed(new StorageException(500, "message"))
-        else Future.successful(IoSuccess(ioSingleCommand, "content"))
+        IO {
+          tries += 1
+          if (tries < 3) throw new StorageException(500, "message")
+          else IoSuccess(ioSingleCommand, "content")
+        }
        }
     }.flow
     

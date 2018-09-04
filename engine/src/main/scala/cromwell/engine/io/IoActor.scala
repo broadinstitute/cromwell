@@ -1,13 +1,14 @@
 package cromwell.engine.io
 
 import java.net.{SocketException, SocketTimeoutException}
-import javax.net.ssl.SSLException
 
+import javax.net.ssl.SSLException
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
+import cats.Show
 import com.google.cloud.storage.StorageException
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.IoDispatcher
@@ -38,8 +39,6 @@ final class IoActor(queueSize: Int,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
-  
-  implicit private val system = context.system
   implicit val ec = context.dispatcher
 
   /**
@@ -146,7 +145,7 @@ final class IoActor(queueSize: Int,
 trait IoCommandContext[T] extends StreamContext {
   def request: IoCommand[T]
   def replyTo: ActorRef
-  def fail(failure: Throwable): IoResult = (request.fail(failure), this)
+  def fail[S](failure: Throwable, state: S)(implicit show: Show[S]): IoResult = (request.fail(failure, state), this)
   def success(value: T): IoResult = (request.success(value), this)
 }
 

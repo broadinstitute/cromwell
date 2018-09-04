@@ -1,5 +1,8 @@
 package wdl.transforms.base.ast2wdlom
 
+import cats.instances.either._
+import cats.instances.list._
+import cats.syntax.traverse._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
@@ -30,8 +33,11 @@ object AstToCommandSectionElement {
           }.mkString(", ")}]".invalidNelCheck
       }
 
-      commonPrefix map { prefix =>
-        CommandSectionElement(stripStarts(trimmed, prefix))
+      for {
+        prefix <- commonPrefix
+        lines <- stripStarts(trimmed, prefix)
+      } yield {
+        CommandSectionElement(lines)
       }
     }
   }
@@ -80,15 +86,18 @@ object AstToCommandSectionElement {
     lines.map(leadingWhitespaceForLine(_).getOrElse(""))
   }
 
-  private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Vector[CommandSectionLine] = {
-    if (prefix.isEmpty) lines else lines map { line =>
-      line.parts.headOption match {
-        case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
-          CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail)
-        case _ =>
-          throw new RuntimeException("Failed to strip common whitespace prefix from line.")
-      }
-    }
+  private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Checked[List[CommandSectionLine]] = {
+    if (prefix.isEmpty)
+      lines.toList.validNelCheck
+    else
+      (lines map { line =>
+        line.parts.headOption match {
+          case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
+            CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail).validNelCheck
+          case _ =>
+            "Failed to strip common whitespace prefix from line.".invalidNelCheck
+        }
+      }).toList.sequence[Checked, CommandSectionLine]
   }
 
   private def allWhitespace(s: String): Boolean = s.forall(_.isWhitespace)

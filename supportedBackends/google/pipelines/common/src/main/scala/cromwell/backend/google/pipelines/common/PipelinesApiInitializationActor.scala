@@ -5,8 +5,8 @@ import com.google.auth.Credentials
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.Dispatcher
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
+import cromwell.core.Dispatcher
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -41,11 +41,11 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
 
   // Credentials object for the GCS API
   private lazy val gcsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.gcs.retryCredential(workflowOptions)
+    pipelinesConfiguration.jesAttributes.auths.gcs.retryPipelinesApiCredentials(workflowOptions)
 
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.genomics.retryCredential(workflowOptions)
+    pipelinesConfiguration.jesAttributes.auths.genomics.retryPipelinesApiCredentials(workflowOptions)
 
   // Genomics object to access the Genomics API
   private lazy val genomics: Future[PipelinesApiRequestFactory] = {

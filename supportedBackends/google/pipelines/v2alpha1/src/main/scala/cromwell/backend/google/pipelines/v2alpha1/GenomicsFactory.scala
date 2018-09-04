@@ -3,8 +3,11 @@ package cromwell.backend.google.pipelines.v2alpha1
 import java.net.URL
 
 import com.google.api.client.http.HttpRequestInitializer
-import com.google.api.services.genomics.v2alpha1.Genomics
+import com.google.api.services.compute.ComputeScopes
+import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.genomics.v2alpha1.model._
+import com.google.api.services.oauth2.Oauth2Scopes
+import com.google.api.services.storage.StorageScopes
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
@@ -68,13 +71,13 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setEmail(createPipelineParameters.computeServiceAccount)
         .setScopes(
           List(
-            PipelinesApiFactoryInterface.GenomicsScope,
-            PipelinesApiFactoryInterface.ComputeScope,
-            PipelinesApiFactoryInterface.StorageFullControlScope,
-            PipelinesApiFactoryInterface.KmsScope,
+            GenomicsScopes.GENOMICS,
+            ComputeScopes.COMPUTE,
+            StorageScopes.DEVSTORAGE_FULL_CONTROL,
+            GenomicsFactory.KmsScope,
             // Profile and Email scopes are requirements for interacting with Martha v2
-            PipelinesApiFactoryInterface.EmailScope,
-            PipelinesApiFactoryInterface.ProfileScope
+            Oauth2Scopes.USERINFO_EMAIL,
+            Oauth2Scopes.USERINFO_PROFILE
           ).asJava
         )
 
@@ -124,4 +127,16 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   }
 
   override def usesEncryptedDocker: Boolean = true
+}
+
+object GenomicsFactory {
+  /**
+    * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM
+    * Could use that scope to keep things simple, but docs say to use a more restricted scope:
+    *
+    *   https://cloud.google.com/kms/docs/accessing-the-api#google_compute_engine
+    *
+    * For some reason this scope isn't listed as a constant under CloudKMSScopes.
+    */
+  val KmsScope = "https://www.googleapis.com/auth/cloudkms"
 }

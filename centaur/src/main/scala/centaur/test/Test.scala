@@ -85,7 +85,9 @@ object Operations {
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
-  lazy val credentials: Credentials = configuration.auth(authName).toTry.get.credential(Map.empty)
+  lazy val credentials: Credentials = configuration.auth(authName)
+    .unsafe
+    .pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)
   lazy val credentialsProjectOption: Option[String] = {
     Option(credentials) collect {
       case serviceAccountCredentials: ServiceAccountCredentials => serviceAccountCredentials.getProjectId

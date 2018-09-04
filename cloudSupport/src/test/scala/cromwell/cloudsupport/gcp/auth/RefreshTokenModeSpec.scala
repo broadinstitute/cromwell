@@ -1,6 +1,5 @@
 package cromwell.cloudsupport.gcp.auth
 
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import org.scalatest.{FlatSpec, Matchers}
 
 class RefreshTokenModeSpec extends FlatSpec with Matchers {
@@ -11,10 +10,10 @@ class RefreshTokenModeSpec extends FlatSpec with Matchers {
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
-      "secret_secret",
-      GoogleConfiguration.GoogleScopes)
+      "secret_secret"
+    )
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
-    val exception = intercept[RuntimeException](refreshTokenMode.credential(workflowOptions))
+    val exception = intercept[RuntimeException](refreshTokenMode.credentials(workflowOptions))
     exception.getMessage should startWith("Google credentials are invalid: ")
   }
 
@@ -22,11 +21,11 @@ class RefreshTokenModeSpec extends FlatSpec with Matchers {
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
-      "secret_secret",
-      GoogleConfiguration.GoogleScopes)
+      "secret_secret"
+    )
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
-    refreshTokenMode.credentialValidation = _ => throw new IllegalArgumentException("no worries! this is expected")
-    val exception = intercept[RuntimeException](refreshTokenMode.credential(workflowOptions))
+    refreshTokenMode.credentialsValidation = _ => throw new IllegalArgumentException("no worries! this is expected")
+    val exception = intercept[RuntimeException](refreshTokenMode.credentials(workflowOptions))
     exception.getMessage should startWith("Google credentials are invalid: ")
   }
 
@@ -34,32 +33,21 @@ class RefreshTokenModeSpec extends FlatSpec with Matchers {
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
-      "secret_secret",
-      GoogleConfiguration.GoogleScopes)
-    refreshTokenMode.credentialValidation = _ => ()
+      "secret_secret"
+    )
+    refreshTokenMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
     val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
-    val credentials = refreshTokenMode.credential(workflowOptions)
+    val credentials = refreshTokenMode.credentials(workflowOptions)
     credentials.getAuthenticationType should be("OAuth2")
   }
 
-  it should "validate with a refresh_token workflow option" in {
+  it should "fail to generate without a refresh_token workflow option" in {
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
-      "secret_secret",
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.refreshTokenOptions
-    refreshTokenMode.validate(workflowOptions)
-  }
-
-  it should "fail validate without a refresh_token workflow option" in {
-    val refreshTokenMode = RefreshTokenMode(
-      "user-via-refresh",
-      "secret_id",
-      "secret_secret",
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[OptionLookupException](refreshTokenMode.validate(workflowOptions))
+      "secret_secret"
+    )
+    val exception = intercept[OptionLookupException](refreshTokenMode.credentials())
     exception.getMessage should be("refresh_token")
   }
 
@@ -67,8 +55,8 @@ class RefreshTokenModeSpec extends FlatSpec with Matchers {
     val refreshTokenMode = RefreshTokenMode(
       "user-via-refresh",
       "secret_id",
-      "secret_secret",
-      GoogleConfiguration.GoogleScopes)
+      "secret_secret"
+    )
     refreshTokenMode.requiresAuthFile should be(true)
   }
 

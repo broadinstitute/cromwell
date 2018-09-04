@@ -3,7 +3,8 @@ package cromwell.backend.google.pipelines.v1alpha2
 import java.net.URL
 
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
-import com.google.api.services.genomics.Genomics
+import com.google.api.services.compute.ComputeScopes
+import com.google.api.services.genomics.{Genomics, GenomicsScopes}
 import com.google.api.services.genomics.model._
 import common.collections.EnhancedCollections._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
@@ -61,8 +62,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
         val svcAccount = new ServiceAccount().setEmail(createPipelineParameters.computeServiceAccount)
           .setScopes(List(
-            PipelinesApiFactoryInterface.GenomicsScope,
-            PipelinesApiFactoryInterface.ComputeScope
+            GenomicsScopes.GENOMICS,
+            ComputeScopes.COMPUTE
           ).asJava)
         val rpargs = new RunPipelineArgs().setProjectId(createPipelineParameters.projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
 

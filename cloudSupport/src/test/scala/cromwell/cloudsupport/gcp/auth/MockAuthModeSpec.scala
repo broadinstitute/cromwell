@@ -8,15 +8,8 @@ class MockAuthModeSpec extends FlatSpec with Matchers {
 
   it should "generate a credential" in {
     val mockAuthMode = MockAuthMode
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val credentials = mockAuthMode.credential(workflowOptions)
+    val credentials = mockAuthMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
-  }
-
-  it should "validate" in {
-    val mockAuthMode = MockAuthMode
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    mockAuthMode.validate(workflowOptions)
   }
 
   it should "requiresAuthFile" in {

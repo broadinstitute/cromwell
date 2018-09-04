@@ -3,7 +3,6 @@ package cromwell.cloudsupport.gcp.auth
 import java.io.FileNotFoundException
 
 import better.files.File
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import org.scalatest.{FlatSpec, Matchers}
 
 class ServiceAccountModeSpec extends FlatSpec with Matchers {
@@ -16,10 +15,9 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       .write(GoogleAuthModeSpec.serviceAccountJsonContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
-      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[RuntimeException](serviceAccountMode.credential(workflowOptions))
+      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
+    )
+    val exception = intercept[RuntimeException](serviceAccountMode.credentials())
     exception.getMessage should startWith("Google credentials are invalid: ")
     jsonMockFile.delete(true)
   }
@@ -31,9 +29,8 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[RuntimeException](serviceAccountMode.credential(workflowOptions))
+    )
+    val exception = intercept[RuntimeException](serviceAccountMode.credentials())
     exception.getMessage should startWith("Google credentials are invalid: ")
     pemMockFile.delete(true)
   }
@@ -43,8 +40,8 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val exception = intercept[FileNotFoundException] {
       ServiceAccountMode(
         "service-account",
-        ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-        GoogleConfiguration.GoogleScopes)
+        ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
+      )
     }
     exception.getMessage should fullyMatch regex "File .*/service-account..*.json does not exist or is not readable"
   }
@@ -55,7 +52,7 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       ServiceAccountMode(
         "service-account",
         ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-        GoogleConfiguration.GoogleScopes)
+      )
     }
     exception.getMessage should fullyMatch regex "File .*/service-account..*.pem does not exist or is not readable"
   }
@@ -66,11 +63,10 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       .write(GoogleAuthModeSpec.serviceAccountJsonContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
-      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
-    serviceAccountMode.credentialValidation = _ => ()
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val credentials = serviceAccountMode.credential(workflowOptions)
+      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
+    )
+    serviceAccountMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
+    val credentials = serviceAccountMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
     jsonMockFile.delete(true)
   }
@@ -82,37 +78,10 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
       ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
-    serviceAccountMode.credentialValidation = _ => ()
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val credentials = serviceAccountMode.credential(workflowOptions)
+    )
+    serviceAccountMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
+    val credentials = serviceAccountMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
-    pemMockFile.delete(true)
-  }
-
-  it should "pass validate with a refresh_token workflow option from json" in {
-    val jsonMockFile = File
-      .newTemporaryFile("service-account.", ".json")
-      .write(GoogleAuthModeSpec.serviceAccountJsonContents)
-    val serviceAccountMode = ServiceAccountMode(
-      "service-account",
-      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    serviceAccountMode.validate(workflowOptions)
-    jsonMockFile.delete(true)
-  }
-
-  it should "pass validate with a refresh_token workflow option from a pem" in {
-    val pemMockFile = File
-      .newTemporaryFile("service-account.", ".pem")
-      .write(GoogleAuthModeSpec.serviceAccountPemContents)
-    val serviceAccountMode = ServiceAccountMode(
-      "service-account",
-      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    serviceAccountMode.validate(workflowOptions)
     pemMockFile.delete(true)
   }
 
@@ -122,8 +91,8 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       .write(GoogleAuthModeSpec.serviceAccountJsonContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
-      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
+    )
     serviceAccountMode.requiresAuthFile should be(false)
     jsonMockFile.delete(true)
   }
@@ -134,8 +103,8 @@ class ServiceAccountModeSpec extends FlatSpec with Matchers {
       .write(GoogleAuthModeSpec.serviceAccountPemContents)
     val serviceAccountMode = ServiceAccountMode(
       "service-account",
-      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString),
-      GoogleConfiguration.GoogleScopes)
+      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString)
+    )
     serviceAccountMode.requiresAuthFile should be(false)
     pemMockFile.delete(true)
   }

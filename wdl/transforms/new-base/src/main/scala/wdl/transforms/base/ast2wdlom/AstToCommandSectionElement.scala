@@ -1,6 +1,8 @@
 package wdl.transforms.base.ast2wdlom
 
+import common.Checked
 import common.transforms.CheckedAtoB
+import common.validation.Checked._
 import org.apache.commons.text.StringEscapeUtils
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.{CommandPartElement, CommandSectionElement, CommandSectionLine}
@@ -9,7 +11,7 @@ object AstToCommandSectionElement {
   def astToCommandSectionElement(implicit astNodeToCommandPartElement: CheckedAtoB[GenericAstNode, CommandPartElement]
                                 ): CheckedAtoB[GenericAst, CommandSectionElement] = CheckedAtoB.fromCheck { ast: GenericAst =>
 
-    ast.getAttributeAsVector[CommandPartElement]("parts") map { parts =>
+    ast.getAttributeAsVector[CommandPartElement]("parts") flatMap { parts =>
       val lines = makeLines(parts)
       val trimmed = trimStartAndEndBlankLines(lines)
 
@@ -18,18 +20,19 @@ object AstToCommandSectionElement {
       val leadingWhitespaceMap = leadingWhitespace(trimmed)
       val distinctLeadingWhitespaceCharacters = leadingWhitespaceMap.mkString.distinct
 
-      val commonPrefix: String = distinctLeadingWhitespaceCharacters.length match {
-        case 0 => ""
+      val commonPrefix: Checked[String] = distinctLeadingWhitespaceCharacters.length match {
+        case 0 => "".validNelCheck
         case 1 =>
-          distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min
-        case _ => throw new RuntimeException(
+          (distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min).validNelCheck
+        case _ =>
           s"Cannot mix leading whitespace characters in command: [${distinctLeadingWhitespaceCharacters.map { c: Char =>
             "\"" + StringEscapeUtils.escapeJava(c.toString) + "\""
-          }.mkString(", ")}]"
-        )
+          }.mkString(", ")}]".invalidNelCheck
       }
 
-      CommandSectionElement(stripStarts(trimmed, commonPrefix))
+      commonPrefix map { prefix =>
+        CommandSectionElement(stripStarts(trimmed, prefix))
+      }
     }
   }
 

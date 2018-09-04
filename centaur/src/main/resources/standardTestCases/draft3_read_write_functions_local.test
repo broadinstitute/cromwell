@@ -1,10 +1,8 @@
-name: draft3_read_write_functions
+name: draft3_read_write_functions_local
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: [localdockertest, "wdl_1.0"]
-backendsMode: "only"
-backends: [Local, LocalNoDocker, Papi]
 
 files {
   workflow: wdl_draft3/read_write_functions/read_write_functions.wdl
@@ -13,11 +11,16 @@ files {
 metadata {
   workflowName: read_write_functions
   status: Succeeded
-  "outputs.read_write_functions.tsv.0": "[\"line1\",\"line2\",\"line3\"]"
-  "outputs.read_write_functions.tsv.1": "[\"line one\",\"line two\",\"line three\"]"
+  "outputs.read_write_functions.tsv.0": "[\"line1\",\"line one\"]"
+  "outputs.read_write_functions.tsv.1": "[\"line2\",\"line two\"]"
+  "outputs.read_write_functions.tsv.2": "[\"line3\",\"line three\"]"
+  "outputs.read_write_functions.objects.0.line1": "line one"
+  "outputs.read_write_functions.objects.0.line2": "line two"
+  "outputs.read_write_functions.objects.0.line3": "line three"
   "outputs.read_write_functions.lines.0": "line1"
   "outputs.read_write_functions.lines.1": "line2"
   "outputs.read_write_functions.lines.2": "line3"
   "outputs.read_write_functions.json.field1": "1"
   "outputs.read_write_functions.json.field2": 2
+  "outputs.read_write_functions.json.field3": ""
 }

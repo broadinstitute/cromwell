@@ -15,7 +15,7 @@ import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import common.validation.Checked._
 import common.validation.Validation._
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import java.nio.file.{Path => NioPath}
 
 import wom.core.WorkflowSource
@@ -37,22 +37,42 @@ object ImportResolver {
     }
   }
 
-
   object DirectoryResolver {
-    def apply(directory: Path, allowEscapingDirectory: Boolean): DirectoryResolver = {
+    def apply(directory: Path, allowEscapingDirectory: Boolean, customName: Option[String]): DirectoryResolver = {
       val dontEscapeFrom = if (allowEscapingDirectory) None else Option(directory.toJava.getCanonicalPath)
-      DirectoryResolver(directory, dontEscapeFrom)
+      DirectoryResolver(directory, dontEscapeFrom, customName)
+    }
+
+    def localFilesystemResolvers(baseWdl: Option[Path]) = List(
+      DirectoryResolver(
+        DefaultPathBuilder.build(Paths.get(".")),
+        allowEscapingDirectory = true,
+        customName = None
+      ),
+      DirectoryResolver(
+        DefaultPathBuilder.build(Paths.get("/")),
+        allowEscapingDirectory = false,
+        customName = Some("entire local filesystem (relative to '/')")
+      )
+    ) ++ baseWdl.toList.map { rt =>
+      DirectoryResolver(
+        DefaultPathBuilder.build(Paths.get(rt.toAbsolutePath.toFile.getParent)),
+        allowEscapingDirectory = true,
+        customName = None
+      )
     }
   }
 
-  case class DirectoryResolver(directory: Path, dontEscapeFrom: Option[String] = None) extends ImportResolver {
-    lazy val absolutePathToDirectory = directory.toJava.getCanonicalPath
+  case class DirectoryResolver(directory: Path,
+                               dontEscapeFrom: Option[String] = None,
+                               customName: Option[String]) extends ImportResolver {
+    lazy val absolutePathToDirectory: String = directory.toJava.getCanonicalPath
 
     override def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
 
       def updatedResolverSet(oldRootDirectory: Path, newRootDirectory: Path, current: List[ImportResolver]): List[ImportResolver] = {
         current map {
-          case d if d == this => DirectoryResolver(newRootDirectory, dontEscapeFrom)
+          case d if d == this => DirectoryResolver(newRootDirectory, dontEscapeFrom, customName)
           case other => other
         }
       }
@@ -63,7 +83,7 @@ object ImportResolver {
           if (file.exists) {
             File(absolutePathToFile).contentAsString.validNel
           } else {
-            s"Import file not found: $path".invalidNel
+            s"File not found: $path".invalidNel
           }
         }
       }
@@ -92,20 +112,35 @@ object ImportResolver {
       _ <- checkLocation(abs, path)
     } yield abs
 
-    override def name: String = s"relative to directory $absolutePathToDirectory (without escaping $dontEscapeFrom)"
+    override lazy val name: String = (customName, dontEscapeFrom) match {
+      case (Some(custom), _) => custom
+      case (None, Some(dontEscapePath)) =>
+        val dontEscapeFromDirname = Paths.get(dontEscapePath).getFileName.toString
+        val shortPathToDirectory = absolutePathToDirectory.stripPrefix(dontEscapePath)
+
+        val relativePathToDontEscapeFrom = s"[...]/$dontEscapeFromDirname"
+        val relativePathToDirectory = s"$relativePathToDontEscapeFrom$shortPathToDirectory"
+
+        s"relative to directory $relativePathToDirectory (without escaping $relativePathToDontEscapeFrom)"
+      case (None, None) =>
+        val shortPathToDirectory = Paths.get(absolutePathToDirectory).toFile.getCanonicalFile.toPath.getFileName.toString
+        s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
+    }
   }
 
   def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[ImportResolver] = {
     LanguageFactoryUtil.validateImportsDirectory(zippedImports) map { dir =>
-      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath))
+      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
     }
   }
 
   case class HttpResolver(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty) extends ImportResolver {
     import HttpResolver._
 
-    override def name: String = {
-      s"http importer${relativeTo map { r => s" (relative to $r)" } getOrElse ""}"
+    override def name: String = relativeTo match {
+      case Some(relativeToPath) => s"http importer (relative to $relativeToPath)"
+      case None => "http importer (no 'relative-to' origin)"
+
     }
 
     def newResolverList(newRoot: String): List[ImportResolver] = {
@@ -122,7 +157,7 @@ object ImportResolver {
         else canonicalize(s"${relativeToValue.stripSuffix("/")}/$str").validNelCheck
       case None =>
         if (str.startsWith("http")) canonicalize(str).validNelCheck
-        else s"Cannot import '$str' relative to nothing".invalidNelCheck
+        else "Relative path".invalidNelCheck
     }
 
     override def innerResolver(str: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
@@ -147,10 +182,13 @@ object ImportResolver {
   }
 
   object HttpResolver {
+
     import common.util.IntrospectableLazy
     import common.util.IntrospectableLazy._
 
-    val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily { AsyncHttpClientCatsBackend[IO]() }
+    val sttpBackend: IntrospectableLazy[SttpBackend[IO, Nothing]] = lazily {
+      AsyncHttpClientCatsBackend[IO]()
+    }
 
     def closeBackendIfNecessary() = if (sttpBackend.exists) sttpBackend.close()
 

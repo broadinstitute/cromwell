@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{Actor, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
@@ -37,6 +39,8 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
   val stubbedConfig = ConfigFactory.load().getConfig("backend.providers.Mock").getConfig("config")
 
   val serviceRegistry = TestProbe().ref
+
+  val rootConfig = ConfigFactory.load
 
   val runtimeSection =
     """
@@ -77,7 +81,7 @@ class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike w
     val weaSupervisor = TestProbe()
     val workflowExecutionActor = TestActorRef(
       props = WorkflowExecutionActor.props(engineWorkflowDescriptor, ioActor, serviceRegistryActor, jobStoreActor, subWorkflowStoreActor,
-        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted),
+        callCacheReadActor.ref, callCacheWriteActor.ref, dockerHashActor.ref, jobTokenDispenserActor, MockBackendSingletonCollection, AllBackendInitializationData.empty, startState = Submitted, rootConfig, new AtomicInteger()),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref)
 

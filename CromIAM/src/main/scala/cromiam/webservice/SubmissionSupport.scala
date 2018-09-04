@@ -73,7 +73,7 @@ object SubmissionSupport {
     (
       extractCollection(user) &
       formFields((
-        WorkflowSourceKey,
+        WorkflowSourceKey.?,
         WorkflowUrlKey.?,
         WorkflowTypeKey.?,
         WorkflowTypeVersionKey.?,
@@ -96,7 +96,7 @@ object SubmissionSupport {
 
   // FIXME: Much like CromwellClient see if there are ways of unifying this a bit w/ the mothership
   final case class WorkflowSubmission(collection: Collection,
-                                      workflowSource: String,
+                                      workflowSource: Option[String],
                                       workflowUrl: Option[String],
                                       workflowType: Option[String],
                                       workflowTypeVersion: Option[String],
@@ -114,7 +114,7 @@ object SubmissionSupport {
     private val labels: String = JsObject(origLabels.map(o => o ++ collectionLabels).getOrElse(collectionLabels)).toString
 
     val entity: MessageEntity = {
-      val sourcePart = Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, workflowSource))
+      val sourcePart = workflowSource map { s => Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, s)) }
       val urlPart = workflowUrl map { u => Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, u))}
       val typePart = workflowType map { t => Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, t)) }
       val typeVersionPart = workflowTypeVersion map { v => Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, v)) }
@@ -123,7 +123,7 @@ object SubmissionSupport {
       val importsPart = workflowDependencies map { d => Multipart.FormData.BodyPart(WorkflowDependenciesKey, HttpEntity(MediaTypes.`application/octet-stream`, d)) }
       val onHoldPart = workflowOnHold map { h => Multipart.FormData.BodyPart(WorkflowOnHoldKey, HttpEntity(h.toString)) }
       val labelsPart = Multipart.FormData.BodyPart(LabelsKey, HttpEntity(MediaTypes.`application/json`, labels))
-      val parts = List(Option(sourcePart), urlPart, typePart, typeVersionPart, inputsPart, optionsPart, importsPart, onHoldPart, Option(labelsPart)).flatten ++ auxParts
+      val parts = List(sourcePart, urlPart, typePart, typeVersionPart, inputsPart, optionsPart, importsPart, onHoldPart, Option(labelsPart)).flatten ++ auxParts
 
       Multipart.FormData(parts: _*).toEntity()
     }

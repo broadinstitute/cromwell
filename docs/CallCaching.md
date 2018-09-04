@@ -6,12 +6,39 @@ Cromwell's call cache is maintained in its database.  In order for call caching 
 
 *Call Caching is disabled by default.*  Call Caching can be enabled in your Cromwell [Configuration](Configuring#call-caching) and the behavior can be modified via [Workflow Options](wf_options/Overview). If you are adding Workflow options, do not set [`read_from_cache` or `write_to_cache`](wf_options/Overview#call-caching-options) = false, as it will impact the following process.
 
-Once enabled, Cromwell will search the call cache for every `call` statement invocation.
+Once enabled, Cromwell by default will search the call cache for every `call` statement invocation.
 
 * If there was no cache hit, the `call` will be executed as normal.  Once finished it will add itself to the cache.
 * If there was a cache hit, outputs are either **copied from the original cached job to the new job's output directory** or **referenced from the original cached job** depending on the Cromwell [Configuration](Configuring#call-caching) settings.
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.  Additionally, if any files from a previous job directory are removed, call caching will fail due to missing files.
+
+***Call cache hit path prefixes***
+ 
+In a multi-user environment where access to job outputs may be restricted among different users, it can be useful to limit
+cache hits to those that are more likely to actually be readable for cache hit copies.
+Cromwell now supports a `call_cache_hit_path_prefixes` workflow option for this purpose. This is particularly useful in the PAPI backend where the workflow
+root can be specified in workflow options via `jes_gcs_root`. The value of `call_cache_hit_path_prefixes` should be an array of strings representing  
+prefixes that call cache hit output files should have in order to be considered as a cache hit. Using PAPI as an example and assuming Alice and Bob have
+made their data accessible to each other, Alice could submit a workflow with these options:
+
+```
+{
+  "call_cache_hit_path_prefixes": [ "gs://alice_bucket", "gs://bob_bucket" ]
+}
+```
+
+With these workflow options Cromwell would only look for cache hits for Alice's jobs in Alice's or Bob's buckets.
+
+As a further optimization the PAPI backend has the concept of "this" bucket on a per-workflow basis, where "this" bucket is
+the bucket that contains the current workflow root.
+If `call_cache_hit_path_prefixes` is specified in 
+workflow options on the PAPI backend, Cromwell will automatically prepend "this" bucket to the call cache hit path prefixes to search.
+For example, if Charles specified the same workflow options as in the example above and his workflow root was under `gs://charles_bucket`,
+Cromwell would search cache hits in all of the `gs://alice_bucket`, `gs://bob_bucket` and `gs://charles_bucket` buckets without having to specify
+`gs://charles_bucket` bucket explicitly in `call_cache_hit_path_prefixes`.
+
+If no `call_cache_hit_path_prefixes` are specified then all matching cache hits will be considered.
 
 **Docker Tags**
 

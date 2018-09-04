@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+export CROMWELL_BUILD_OPTIONAL_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
@@ -58,6 +59,7 @@ centaur/test_cromwell.sh \
     -e non_root_default_user \
     -e non_root_specified_user \
     -e write_lines_files \
+    -e draft3_read_write_functions_local \
     -e cwl_input_json \
 
 cromwell::build::generate_code_coverage

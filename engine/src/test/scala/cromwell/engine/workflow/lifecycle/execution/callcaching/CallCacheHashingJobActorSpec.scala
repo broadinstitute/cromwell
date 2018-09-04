@@ -45,8 +45,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       Set.empty,
       "backedName",
       Props.empty,
-      false,
-      DockerWithHash("ubuntu@sha256:blablablba")
+      DockerWithHash("ubuntu@sha256:blablablba"),
+      CallCachingActivity(readWriteMode = ReadCache)
     ), parent.ref)
     watch(testActor)
     expectTerminated(testActor)
@@ -79,8 +79,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       runtimeAttributeDefinitions,
       "backedName",
       Props.empty,
-      true,
-      DockerWithHash("ubuntu@sha256:blablablba")
+      DockerWithHash("ubuntu@sha256:blablablba"),
+      CallCachingActivity(readWriteMode = ReadAndWriteCache)
     ), parent.ref)
     
     val expectedInitialHashes = Set(
@@ -125,8 +125,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       Set.empty,
       "backend",
       Props.empty,
-      writeToCache = writeToCache,
-      DockerWithHash("ubuntu@256:blablabla")
+      DockerWithHash("ubuntu@256:blablabla"),
+      CallCachingActivity(readWriteMode = if (writeToCache) ReadAndWriteCache else ReadCache)
     ) {
       override def makeFileHashingActor() = testFileHashingActor
       override def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) = {

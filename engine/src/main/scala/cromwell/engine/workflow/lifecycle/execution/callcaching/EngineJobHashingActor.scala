@@ -47,8 +47,8 @@ class EngineJobHashingActor(receiver: ActorRef,
       runtimeAttributeDefinitions,
       backendName,
       fileHashingActorProps,
-      activity.writeToCache,
-      callCachingEligible
+      callCachingEligible,
+      activity
     ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
     super.preStart()
   }

@@ -5,7 +5,7 @@ import java.nio.file.{Files, Paths}
 import com.typesafe.config.ConfigFactory
 import common.Checked
 import common.validation.Validation._
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.path.Path
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
 import languages.cwl.CwlV1_0LanguageFactory
@@ -24,19 +24,8 @@ object WomGraphMaker {
   def getBundle(mainFile: Path): Checked[WomBundle] = getBundleAndFactory(mainFile).map(_._1)
 
   private def getBundleAndFactory(mainFile: Path): Checked[(WomBundle, LanguageFactory)] = {
-    // Resolves for:
-    // - Where we run from
-    // - Where the file is
-    lazy val importResolvers: List[ImportResolver] = List(
-      DirectoryResolver(
-        DefaultPathBuilder.build(Paths.get(".")),
-        allowEscapingDirectory = false),
-      DirectoryResolver(
-        DefaultPathBuilder.build(Paths.get(mainFile.toAbsolutePath.toFile.getParent)),
-        allowEscapingDirectory = true
-      ),
-      HttpResolver()
-    )
+    lazy val importResolvers: List[ImportResolver] =
+      DirectoryResolver.localFilesystemResolvers(Some(mainFile)) :+ HttpResolver(relativeTo = None)
 
     readFile(mainFile.toAbsolutePath.pathAsString) flatMap { mainFileContents =>
       val languageFactory =

@@ -10,6 +10,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.filesystems.gcs.GcsPathBuilder
+import PipelinesApiWorkflowPaths._
 
 import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
@@ -17,6 +18,12 @@ import scala.language.postfixOps
 object PipelinesApiWorkflowPaths {
   private val GcsRootOptionKey = "jes_gcs_root"
   private val AuthFilePathOptionKey = "auth_bucket"
+  private val GcsPrefix = "gs://"
+
+  private[common] def callCacheRootHintFromExecutionRoot(executionRoot: String): String = {
+    // If the root looks like gs://bucket/stuff-under-bucket this should return gs://bucket
+    GcsPrefix + executionRoot.substring(GcsPrefix.length).takeWhile(_ != '/')
+  }
 }
 
 case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
@@ -24,8 +31,11 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
                                      genomicsCredentials: Credentials,
                                      papiConfiguration: PipelinesApiConfiguration,
                                      override val pathBuilders: PathBuilders)(implicit ec: ExecutionContext) extends WorkflowPaths {
+
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(PipelinesApiWorkflowPaths.GcsRootOptionKey, papiConfiguration.root)
+
+  override lazy val callCacheRootPrefix: Option[String] = Option(callCacheRootHintFromExecutionRoot(executionRootString))
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 

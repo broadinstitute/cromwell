@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
@@ -158,7 +160,8 @@ object WorkflowActor {
             workflowStoreActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
-            workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+            totalJobsByRootWf: AtomicInteger): Props = {
     Props(
       new WorkflowActor(
         workflowId = workflowId,
@@ -177,7 +180,8 @@ object WorkflowActor {
         workflowStoreActor = workflowStoreActor,
         backendSingletonCollection = backendSingletonCollection,
         serverMode = serverMode,
-        workflowHeartbeatConfig = workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
+        workflowHeartbeatConfig = workflowHeartbeatConfig,
+        totalJobsByRootWf = totalJobsByRootWf)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -200,7 +204,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     workflowStoreActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean,
-                    workflowHeartbeatConfig: WorkflowHeartbeatConfig)
+                    workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+                    totalJobsByRootWf: AtomicInteger)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
 
@@ -286,7 +291,9 @@ class WorkflowActor(val workflowId: WorkflowId,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        startState = data.effectiveStartableState), name = s"WorkflowExecutionActor-$workflowId")
+        startState = data.effectiveStartableState,
+        rootConfig = conf,
+        totalJobsByRootWf = totalJobsByRootWf), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
       

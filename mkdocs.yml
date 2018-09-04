@@ -63,6 +63,7 @@ pages:
     - Errors: api/ErrorHandling.md
 - For Developers:
     - How to Build: Building.md
+    - Architecture: Arch.md
     - Instrumentation: Instrumentation.md
     - Integration tests: Centaur.md
     - Security: Security.md

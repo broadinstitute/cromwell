@@ -1,7 +1,9 @@
 package cromwell.core
 
+import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import common.util.TryUtil
+import common.validation.ErrorOr.ErrorOr
 import spray.json._
 
 import scala.collection.JavaConverters._
@@ -47,6 +49,7 @@ object WorkflowOptions {
   // Caching
   case object WriteToCache extends WorkflowOption("write_to_cache")
   case object ReadFromCache extends WorkflowOption("read_from_cache")
+  case object CallCacheHitPathPrefixes extends WorkflowOption("call_cache_hit_path_prefixes")
 
   // Copying
   case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")
@@ -93,6 +96,7 @@ object WorkflowOptions {
       case (k, v: JsObject) if defaultRuntimeOptionKey.equals(k) => k -> Success(v)
       case (k, v: JsNumber) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
+      case (k, v: JsArray) => k -> Success(v)
       case (k, v) => k -> Failure(new UnsupportedOperationException(s"Unsupported key/value pair in WorkflowOptions: $k -> $v"))
     }
 
@@ -145,6 +149,12 @@ case class WorkflowOptions(jsObject: JsObject) {
     case Some(jsBool: JsBoolean) => Success(jsBool.value)
     case Some(jsVal: JsValue) => Failure(new IllegalArgumentException(s"Unsupported JsValue as JsBoolean: $jsVal"))
     case None => Failure(OptionNotFoundException(s"Field not found: $key"))
+  }
+
+  def getVectorOfStrings(key: String): ErrorOr[Option[Vector[String]]] = jsObject.fields.get(key) match {
+    case Some(jsArr: JsArray) => Option(jsArr.elements collect { case e: JsString => e.value } ).validNel
+    case Some(jsVal: JsValue) => s"Unsupported JsValue as JsArray: $jsVal".invalidNel
+    case _ => None.validNel
   }
 
   def getDefaultRuntimeOption(key: String): Try[JsValue] = defaultRuntimeOptions map { attributes =>

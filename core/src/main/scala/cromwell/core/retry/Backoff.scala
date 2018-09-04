@@ -1,6 +1,8 @@
 package cromwell.core.retry
 
 import com.google.api.client.util.ExponentialBackOff
+import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
@@ -31,13 +33,23 @@ case class InitialGapBackoff(initialGapMillis: FiniteDuration, googleBackoff: Ex
 }
 
 object SimpleExponentialBackoff {
-  def apply(initialInterval: FiniteDuration, maxInterval: FiniteDuration, multiplier: Double) = {
+  def apply(initialInterval: FiniteDuration, maxInterval: FiniteDuration, multiplier: Double, randomizationFactor: Double = ExponentialBackOff.DEFAULT_RANDOMIZATION_FACTOR) = {
     new SimpleExponentialBackoff(new ExponentialBackOff.Builder()
       .setInitialIntervalMillis(initialInterval.toMillis.toInt)
       .setMaxIntervalMillis(maxInterval.toMillis.toInt)
       .setMultiplier(multiplier)
       .setMaxElapsedTimeMillis(Int.MaxValue)
+      .setRandomizationFactor(randomizationFactor)
       .build())
+  }
+  
+  def apply(config: Config): SimpleExponentialBackoff = {
+    SimpleExponentialBackoff(
+      config.as[FiniteDuration]("min"),
+      config.as[FiniteDuration]("max"),
+      config.as[Double]("multiplier"),
+      config.as[Double]("randomization-factor")
+    )
   }
 }
 

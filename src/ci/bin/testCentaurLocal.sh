@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+export CROMWELL_BUILD_OPTIONAL_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh

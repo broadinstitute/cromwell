@@ -36,7 +36,7 @@ $graph:
 
   outputs:
     trapezoidalArea:
-      type: float
+      type: long
       outputBinding:
         glob: stdout.txt
         loadContents: true
@@ -63,7 +63,7 @@ $graph:
       type: float
       outputSource: step-average/baseAverage
     trapezoidalArea:
-      type: float
+      type: long
       outputSource: step-product/trapezoidalArea
 
   steps:

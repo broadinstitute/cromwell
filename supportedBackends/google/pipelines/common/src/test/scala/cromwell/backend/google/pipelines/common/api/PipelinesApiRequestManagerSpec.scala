@@ -234,5 +234,5 @@ class MockPipelinesRequestHandler extends PipelinesApiRequestHandler {
 object TestPipelinesApiRequestManager {
   import PipelinesApiTestConfig._
 
-  def props(registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestPipelinesApiRequestManager(jesConfiguration.qps, jesConfiguration.papiRequestWorkers, registryProbe, statusPollers: _*))
+  def props(registryProbe: ActorRef, statusPollers: ActorRef*): Props = Props(new TestPipelinesApiRequestManager(papiConfiguration.qps, papiConfiguration.papiRequestWorkers, registryProbe, statusPollers: _*))
 }

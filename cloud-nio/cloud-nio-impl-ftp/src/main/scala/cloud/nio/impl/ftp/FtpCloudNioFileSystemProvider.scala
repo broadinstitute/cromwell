@@ -11,7 +11,9 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.{Failure, Success, Try}
 
-class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials) extends CloudNioFileSystemProvider with StrictLogging {
+class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials, ftpFileSystems: FtpFileSystems) extends CloudNioFileSystemProvider with StrictLogging {
+  val ftpConfig = ftpFileSystems.config
+
   override def fileProvider = new FtpCloudNioFileProvider(this)
 
   override def isFatal(exception: Exception) = exception match {
@@ -57,6 +59,6 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
   }
   
   def newCloudNioFileSystemFromHost(host: String) = {
-    FtpFileSystems.getFileSystem(host, this)
+    ftpFileSystems.getFileSystem(host, this)
   }
 }

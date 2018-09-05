@@ -41,7 +41,7 @@ class FtpCloudNioFileSystemProviderSpec extends FlatSpec with Matchers with Mock
 
   it should "pre compute the size before opening a read channel to avoid deadlocks" in {
     val mockSizeFunction = mockFunction[Long]
-    val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty(), FtpAnonymousCredentials) {
+    val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty(), FtpAnonymousCredentials, ftpFileSystems) {
 
       override def fileProvider = new FtpCloudNioFileProvider(this) {
         override def fileAttributes(cloudHost: String, cloudPath: String) =

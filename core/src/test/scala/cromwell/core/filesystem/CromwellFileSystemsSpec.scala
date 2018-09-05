@@ -1,10 +1,14 @@
 package cromwell.core.filesystem
 
+import akka.actor.ActorSystem
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.AggregatedMessageException
+import cromwell.core.WorkflowOptions
 import cromwell.core.path.MockPathBuilderFactory
 import org.scalatest.{FlatSpec, Matchers}
+
+import scala.concurrent.ExecutionContext
 
 class CromwellFileSystemsSpec extends FlatSpec with Matchers {
   behavior of "CromwellFileSystems"
@@ -39,6 +43,32 @@ class CromwellFileSystemsSpec extends FlatSpec with Matchers {
     fs2 shouldBe a[MockPathBuilderFactory]
     fs1.asInstanceOf[MockPathBuilderFactory].instanceConfig.getString("somekey") shouldBe "somevalue"
     fs2.asInstanceOf[MockPathBuilderFactory].instanceConfig.getString("someotherkey") shouldBe "someothervalue"
+  }
+  
+  it should "build singleton instance if specified" in {
+    val rootConf = ConfigFactory.parseString(
+      """
+        |filesystems {
+        |  fs1 {
+        |    class = "cromwell.core.filesystem.MockPathBuilderFactoryCustomSingletonConfig"
+        |    global {
+        |      class = "cromwell.core.filesystem.MockSingletonConfig"
+        |    }
+        |  }
+        |}
+      """.stripMargin)
+
+    val cromwellFileSystems = new CromwellFileSystems(rootConf)
+    val constructorAndSingleton = cromwellFileSystems.factoryBuilders("fs1")
+    constructorAndSingleton._2.isDefined shouldBe true
+    constructorAndSingleton._2.get.isInstanceOf[MockSingletonConfig] shouldBe true
+
+    val factory1 = cromwellFileSystems.buildFactory("fs1", ConfigFactory.empty)
+    val factory2 = cromwellFileSystems.buildFactory("fs1", ConfigFactory.empty)
+
+    // The singleton configs should be the same for different factories
+    assert(factory1.right.get.asInstanceOf[MockPathBuilderFactoryCustomSingletonConfig].singletonConfig ==
+      factory2.right.get.asInstanceOf[MockPathBuilderFactoryCustomSingletonConfig].singletonConfig)
   }
 
   List(
@@ -90,3 +120,8 @@ class CromwellFileSystemsSpec extends FlatSpec with Matchers {
 
 class MockPathBuilderFactoryWrongSignature()
 class MockNotPathBuilderFactory(globalConfig: Config, val instanceConfig: Config)
+
+class MockSingletonConfig(config: Config)
+class MockPathBuilderFactoryCustomSingletonConfig(globalConfig: Config, val instanceConfig: Config, val singletonConfig: MockSingletonConfig) extends cromwell.core.path.PathBuilderFactory {
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = ???
+}

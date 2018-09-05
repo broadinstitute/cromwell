@@ -51,5 +51,4 @@ class FtpUtilSpec extends FlatSpec with Matchers with Mockito {
     an[IllegalStateException] shouldBe thrownBy(lease.get())
     clientPool.live() shouldBe 0
   }
-
 }

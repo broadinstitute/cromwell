@@ -4,16 +4,16 @@ import cloud.nio.impl.ftp.{FtpAnonymousCredentials, FtpAuthenticatedCredentials}
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-class FtpConfigurationSpec extends FlatSpec with Matchers {
+class FtpInstanceConfigurationSpec extends FlatSpec with Matchers {
 
   behavior of "FtpConfigurationSpec"
 
   it should "parse anonymous credentials" in {
-    FtpConfiguration(ConfigFactory.empty()).ftpCredentials shouldBe FtpAnonymousCredentials
+    FtpInstanceConfiguration(ConfigFactory.empty()).ftpCredentials shouldBe FtpAnonymousCredentials
   }
 
   it should "parse authenticated credentials" in {
-    FtpConfiguration(ConfigFactory.parseString(
+    FtpInstanceConfiguration(ConfigFactory.parseString(
       """
         |auth {
         |  username = "me"
@@ -21,7 +21,7 @@ class FtpConfigurationSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin)).ftpCredentials shouldBe FtpAuthenticatedCredentials("me", "mot de passe", None)
 
-    FtpConfiguration(ConfigFactory.parseString(
+    FtpInstanceConfiguration(ConfigFactory.parseString(
       """
         |auth {
         |  username = "me"

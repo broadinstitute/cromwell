@@ -9,13 +9,12 @@ import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
 import cats.effect.IO
-import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, CromwellBackends, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowOutputs, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, CromwellBackends, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowMetadata, WorkflowOutputs, WorkflowStatus}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent._
@@ -69,9 +68,7 @@ object CentaurCromwellClient {
   def metadata(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = metadata(workflow.id)
 
   def metadata(id: WorkflowId): IO[WorkflowMetadata] = {
-    sendReceiveFutureCompletion(() => cromwellClient.metadata(id)) map { m =>
-      WorkflowMetadata.fromMetadataJson(m.value).toOption.get
-    }
+    sendReceiveFutureCompletion(() => cromwellClient.metadata(id))
   }
 
   lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))

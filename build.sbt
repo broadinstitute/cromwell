@@ -144,6 +144,7 @@ lazy val centaur = project
   .dependsOn(wdlTransformsDraft2)
   .dependsOn(wdlTransformsDraft3)
   .dependsOn(womtool)
+  .dependsOn(databaseSql % "it->compile")
 
 lazy val services = project
   .withLibrarySettings("cromwell-services")

@@ -16,12 +16,10 @@ object MetadataServicesStore {
     "SQLMETADATA" + Database.databaseChangeLogTableName
   )
 
-  private val metadataDatabaseConfig = ServicesStore.getDatabaseConfig("metadata")
-
   import ServicesStore.EnhancedSqlDatabase
 
   // Mix in AutoCloseable for shutdown purposes.
   // This whole MetadataSqlDatabase interface will likely change to a more abstract MetadataDAO in the future.
-  val metadataDatabaseInterface: MetadataSqlDatabase with AutoCloseable =
-    new MetadataSlickDatabase(metadataDatabaseConfig).initialized(MetadataServicesStore.MetadataLiquibaseSettings)
+  val metadataDatabaseInterface: MetadataSqlDatabase =
+    MetadataSlickDatabase.fromParentConfig().initialized(MetadataServicesStore.MetadataLiquibaseSettings)
 }

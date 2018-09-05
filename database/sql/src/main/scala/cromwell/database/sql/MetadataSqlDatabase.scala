@@ -8,8 +8,7 @@ import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait MetadataSqlDatabase {
-  this: SqlDatabase =>
+trait MetadataSqlDatabase extends SqlDatabase {
 
   /*
   The following section relates to:

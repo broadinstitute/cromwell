@@ -1,10 +1,7 @@
 package centaur.test
 
-import centaur.test.metadata.WorkflowMetadata
 import centaur.test.workflow.Workflow
-import cromwell.api.model.SubmittedWorkflow
-import spray.json.DefaultJsonProtocol._
-import spray.json._
+import cromwell.api.model.{SubmittedWorkflow, WorkflowMetadata}
 
 /**
   * An exception with information about a centaur test failure.
@@ -33,7 +30,7 @@ object CentaurTestException {
       message,
       workflowDefinition.testName,
       Option(submittedWorkflow.id.toString),
-      Option(actualMetadata.value.toJson.compactPrint),
+      Option(actualMetadata.value),
       None
     )
   }

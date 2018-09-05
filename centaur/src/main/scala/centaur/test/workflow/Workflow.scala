@@ -6,7 +6,7 @@ import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
-import centaur.test.metadata.WorkflowMetadata
+import centaur.test.metadata.WorkflowFlatMetadata
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr.ErrorOr
 import configs.Result
@@ -18,7 +18,7 @@ import scala.util.{Failure, Success, Try}
 
 final case class Workflow private(testName: String,
                                   data: WorkflowData,
-                                  metadata: Option[WorkflowMetadata],
+                                  metadata: Option[WorkflowFlatMetadata],
                                   notInMetadata: List[String],
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
                                   backends: BackendsRequirement) {
@@ -54,8 +54,8 @@ object Workflow {
         val backendsRequirement = BackendsRequirement.fromConfig(conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"), conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase))
         // If basePath is provided it'll be used as basis for finding other files, otherwise use the dir the config was in
         val basePath = conf.get[Option[Path]]("basePath") valueOrElse None map (File(_)) getOrElse configFile
-        val metadata: ErrorOr[Option[WorkflowMetadata]] = conf.get[Config]("metadata") match {
-          case Result.Success(md) => WorkflowMetadata.fromConfig(md) map Option.apply
+        val metadata: ErrorOr[Option[WorkflowFlatMetadata]] = conf.get[Config]("metadata") match {
+          case Result.Success(md) => WorkflowFlatMetadata.fromConfig(md) map Option.apply
           case Result.Failure(_) => None.validNel
         }
         val absentMetadata = conf.get[List[String]]("absent-metadata-keys") match {

@@ -13,6 +13,9 @@ trait JobKeyValueSqlDatabase {
   def addJobKeyValueEntries(jobKeyValueEntries: Iterable[JobKeyValueEntry])
                            (implicit ec: ExecutionContext): Future[Unit]
 
+  def queryJobKeyValueEntries(workflowExecutionUuid: String)
+                             (implicit ec: ExecutionContext): Future[Seq[JobKeyValueEntry]]
+
   def queryStoreValue(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
                       jobRetryAttempt: Int, storeKey: String)
                      (implicit ec: ExecutionContext): Future[Option[String]]

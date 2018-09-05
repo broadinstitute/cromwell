@@ -1,3 +1,0 @@
-{{with $centaurSentry := vault (printf "secret/dsde/cromwell/common/centaur-sentry")}}
-dsn: "{{$centaurSentry.Data.error_reporter_dsn}}"
-{{end}}

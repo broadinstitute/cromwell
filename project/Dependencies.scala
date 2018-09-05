@@ -38,21 +38,22 @@ object Dependencies {
   private val googleOauth2V = "0.8.0"
   private val googleOauthClientV = googleApiClientV
   private val grpcV = "1.12.0"
-  private val guavaV = "22.0"
+  private val guavaV = "26.0-jre"
   private val heterodonV = "1.0.0-beta1"
   private val hsqldbV = "2.3.4"
-  private val jacksonV = "2.9.4"
+  private val jacksonV = "2.9.6"
   private val janinoV = "3.0.7"
   private val jodaTimeV = "2.9.4"
   private val jsr305V = "3.0.0"
   private val kindProjectorV = "0.9.4"
   private val kittensV = "1.0.0-RC3"
   private val liquibaseSlf4jV = "2.0.0"
-  private val liquibaseV = "3.5.1"
+  private val liquibaseV = "3.5.5"
   private val logbackV = "1.2.3"
   private val metrics3StatsdV = "4.2.0"
   private val metricsScalaV = "3.5.6"
   private val mockserverNettyV = "3.10.2"
+  private val mongoJavaDriverV = "3.8.1"
   private val mouseV = "0.10-MF"
   private val mysqlV = "5.1.46"
   private val nettyHandlerV = "4.1.22.Final"
@@ -95,12 +96,18 @@ object Dependencies {
 
   /*
   If you see warnings from SBT about evictions, insert a specific dependency version into this list.
+  Any dependencies that are removed may be also removed from this list. However, be careful about downgrading any of
+  these dependencies. Older versions have known vulnerabilities, ex: CVE-2017-7525
    */
   val cromwellDependencyOverrides = List(
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-core" % logbackV,
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % jacksonV,
+    "com.fasterxml.jackson.jr" % "jackson-jr-objects" % jacksonV,
+    "com.fasterxml.jackson.module" % "jackson-module-paranamer" % jacksonV,
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
     "com.google.api" % "gax" % gaxV,
     "com.google.api-client" % "google-api-client" % googleApiClientV,
@@ -113,6 +120,7 @@ object Dependencies {
     "com.google.code.findbugs" % "jsr305" % jsr305V,
     "com.google.errorprone" % "error_prone_annotations" % errorProneAnnotationsV,
     "com.google.guava" % "guava" % guavaV,
+    "com.google.guava-gwt" % "guava" % guavaV,
     "com.google.http-client" % "google-http-client" % googleHttpClientV,
     "com.google.http-client" % "google-http-client-appengine" % googleHttpClientV,
     "com.google.http-client" % "google-http-client-jackson" % googleHttpClientV,
@@ -134,6 +142,7 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpcore" % apacheHttpCoreV,
+    "org.mongodb" % "mongo-java-driver" % mongoJavaDriverV,
     "org.reactivestreams" % "reactive-streams" % reactiveStreamsV,
     "org.scala-lang.modules" %% "scala-xml" % scalaXmlV,
     "org.slf4j" % "slf4j-api" % slf4jV,

@@ -1,7 +1,6 @@
 package cromwell.core.retry
 
 import cats.effect.{IO, Timer}
-import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -29,7 +28,7 @@ object IORetry {
                       isFatal: Throwable => Boolean = throwableToFalse,
                       onRetry: (Throwable, S) => S = noOpOnRetry)
                      (implicit timer: Timer[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
-    val delay = backoff.backoffMillis.millis
+    lazy val delay = backoff.backoffMillis.millis
 
     def fail(throwable: Throwable) = IO.raiseError(statefulIoException.toThrowable(state, throwable))
 
@@ -39,7 +38,10 @@ object IORetry {
         val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
 
         if (retriesLeft.forall(_ > 0)) {
-          IO.sleep(delay) *> withRetry(io, onRetry(throwable, state), retriesLeft, backoff.next, isTransient, isFatal, onRetry)
+          for {
+            _ <- IO.sleep(delay)
+            retried <- withRetry(io, onRetry(throwable, state), retriesLeft, backoff.next, isTransient, isFatal, onRetry)
+          } yield retried
         }
         else fail(throwable)
     }

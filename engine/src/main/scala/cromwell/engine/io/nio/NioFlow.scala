@@ -48,7 +48,12 @@ class NioFlow(parallelism: Int,
       onRetry = onRetry
     )
 
-    operationResult map { (_, commandContext) } handleErrorWith {
+    val io = for {
+      _ <- IO.shift(ec)
+      result <- operationResult
+    } yield (result, commandContext)
+    
+     io handleErrorWith {
       failure => IO.pure(commandContext.fail(failure))
     }
   }

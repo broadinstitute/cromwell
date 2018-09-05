@@ -8,10 +8,10 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
 import com.google.cloud.storage.StorageException
-import cromwell.core.{CromwellFatalException, TestKitSuite}
 import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.core.io._
 import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.{CromwellFatalExceptionMarker, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoCommandContext
 import org.scalatest.mockito.MockitoSugar
@@ -138,7 +138,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
    stream.run() map {
       case (failure: IoFailure[_], _) =>
-        assert(failure.failure.isInstanceOf[CromwellFatalException])
+        assert(failure.failure.isInstanceOf[CromwellFatalExceptionMarker])
         assert(failure.failure.getCause.isInstanceOf[FileAlreadyExistsException])
       case _ => fail("copy returned an unexpected message")
     }
@@ -183,7 +183,8 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
     stream.run() map {
       case (failure: IoFailure[_], _) =>
-        assert(failure.failure.isInstanceOf[CromwellFatalException])
+        assert(failure.failure.isInstanceOf[CromwellFatalExceptionMarker])
+        assert(failure.failure.getMessage == "[Attempted 1 time(s)] - NoSuchFileException: /this/does/not/exist")
         assert(failure.failure.getCause.isInstanceOf[NoSuchFileException])
       case other @ _ => fail(s"delete returned an unexpected message")
     }

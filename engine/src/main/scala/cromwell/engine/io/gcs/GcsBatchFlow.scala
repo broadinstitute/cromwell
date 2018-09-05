@@ -10,6 +10,7 @@ import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
+import cromwell.engine.io.IoState.EnhancedCromwellIoException
 import cromwell.engine.io.{IoCommandContext, IoState}
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 
@@ -151,5 +152,11 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
   /**
     * Fail a command context with a failure.
     */
-  private def fail(context: GcsBatchCommandContext[_, _], failure: Throwable) = Future.successful(GcsBatchTerminal(context.fail(failure, IoState(context.currentAttempt))))
+  private def fail(context: GcsBatchCommandContext[_, _], failure: Throwable) = {
+    Future.successful(
+      GcsBatchTerminal(
+        context.fail(EnhancedCromwellIoException(IoState(context.currentAttempt), failure))
+      )
+    )
+  }
 }

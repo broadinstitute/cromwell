@@ -2,13 +2,11 @@ package cromwell.engine.io
 
 import java.net.{SocketException, SocketTimeoutException}
 
-import javax.net.ssl.SSLException
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source}
-import cats.Show
 import com.google.cloud.storage.StorageException
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.IoDispatcher
@@ -23,6 +21,7 @@ import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
+import javax.net.ssl.SSLException
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -145,7 +144,7 @@ final class IoActor(queueSize: Int,
 trait IoCommandContext[T] extends StreamContext {
   def request: IoCommand[T]
   def replyTo: ActorRef
-  def fail[S](failure: Throwable, state: S)(implicit show: Show[S]): IoResult = (request.fail(failure, state), this)
+  def fail(failure: Throwable): IoResult = (request.fail(failure), this)
   def success(value: T): IoResult = (request.success(value), this)
 }
 

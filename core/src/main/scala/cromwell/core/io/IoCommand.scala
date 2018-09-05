@@ -1,7 +1,6 @@
 package cromwell.core.io
 
 import better.files.File.OpenOptions
-import cats.Show
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
@@ -34,7 +33,7 @@ trait IoCommand[+T] {
   /**
     * Fail the command with an exception
     */
-  def fail[TT >: T, S](failure: Throwable, state: S)(implicit show: Show[S]): IoFailure[TT] = IoFailure.apply[TT, S](this, failure, state)
+  def fail[TT >: T](failure: Throwable): IoFailure[TT] = IoFailure(this, failure)
 
   /**
     * A short name describing the command

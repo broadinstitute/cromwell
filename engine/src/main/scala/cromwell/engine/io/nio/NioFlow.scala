@@ -9,7 +9,6 @@ import cats.effect.IO
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.IORetry
-import cromwell.core.retry.IORetry.StatefulIoException
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.{IoCommandContext, IoState}
 import cromwell.filesystems.gcs.GcsPath
@@ -50,8 +49,7 @@ class NioFlow(parallelism: Int,
     )
 
     operationResult map { (_, commandContext) } handleErrorWith {
-      case e: StatefulIoException[IoState] @unchecked => IO.pure(commandContext.fail(e, e.state))
-      case failure => IO.pure(commandContext.fail(failure, IoState(1)))
+      failure => IO.pure(commandContext.fail(failure))
     }
   }
 

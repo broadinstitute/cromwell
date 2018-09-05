@@ -42,6 +42,11 @@ object SlickDatabase {
       Await.result(slickDatabase.database.run(slickDatabase.dataAccess.schema.create), Duration.Inf)
     }
   }
+
+  def getDatabaseConfig(name: String, parentConfig: Config): Config = {
+    val rootDatabaseConfig = parentConfig.getConfig("database")
+    rootDatabaseConfig.getOrElse(name, rootDatabaseConfig)
+  }
 }
 
 /**

@@ -3,20 +3,26 @@ package centaur.test.metadata
 import java.util.UUID
 
 import cats.data.Validated._
+import centaur.json.JsonUtils.EnhancedJsValue
 import com.typesafe.config.Config
 import common.collections.EnhancedCollections._
-import configs.syntax._
-import spray.json._
-import centaur.json.JsonUtils.EnhancedJsValue
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import configs.Result
-import common.validation.ErrorOr.ErrorOr
+import configs.syntax._
+import cromwell.api.model.WorkflowMetadata
 import mouse.all._
+import spray.json._
 
 import scala.util.{Failure, Success, Try}
 
-case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
+/**
+  * Workflow metadata that has been flattened for Centaur test purposes. The keys are similar to the simpleton-syntax
+  * stored in the Cromwell database, and values are primitive types, not nested JSON objects or arrays.
+  */
+case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 
-  def diff(actual: WorkflowMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {
+  def diff(actual: WorkflowFlatMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {
     // If the test fails in initialization there wouldn't be workflow root metadata, and if that's the expectation
     // then that's ok.
     val workflowRoot = actual.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
@@ -61,19 +67,25 @@ case class WorkflowMetadata(value: Map[String, JsValue]) extends AnyVal {
   }
 }
 
-object WorkflowMetadata {
-  def fromConfig(config: Config): ErrorOr[WorkflowMetadata] = {
+object WorkflowFlatMetadata {
+  def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] = {
     config.extract[Map[String, Option[String]]] match {
-      case Result.Success(m) => Valid(WorkflowMetadata(m safeMapValues { _.map(JsString.apply).getOrElse(JsNull) }))
+      case Result.Success(m) => Valid(WorkflowFlatMetadata(m safeMapValues { _.map(JsString.apply).getOrElse(JsNull) }))
       case Result.Failure(_) => invalidNel(s"Metadata block can not be converted to a Map: $config")
     }
   }
 
-  def fromMetadataJson(json: String): ErrorOr[WorkflowMetadata] = {
+  def fromMetadataJson(json: WorkflowMetadata): ErrorOr[WorkflowFlatMetadata] = {
     import DefaultJsonProtocol._
-    Try(json.parseJson.asJsObject.flatten().convertTo[Map[String, JsValue]]) match {
-      case Success(m) => Valid(WorkflowMetadata(m))
+    Try(json.value.parseJson.asJsObject.flatten().convertTo[Map[String, JsValue]]) match {
+      case Success(m) => Valid(WorkflowFlatMetadata(m))
       case Failure(e) => invalidNel(s"Unable to create Metadata from JSON: ${e.getMessage}")
+    }
+  }
+
+  implicit class EnhancedWorkflowMetadata(val json: WorkflowMetadata) {
+    def asFlat: WorkflowFlatMetadata = {
+      WorkflowFlatMetadata.fromMetadataJson(json).unsafe
     }
   }
 }

@@ -3,7 +3,7 @@ package cromwell.database.slick
 import java.sql.Timestamp
 
 import cats.data.NonEmptyList
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
@@ -11,6 +11,13 @@ import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQ
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
+
+object MetadataSlickDatabase {
+  def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase = {
+    val databaseConfig = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
+    new MetadataSlickDatabase(databaseConfig)
+  }
+}
 
 class MetadataSlickDatabase(originalDatabaseConfig: Config)
   extends SlickDatabase(originalDatabaseConfig)

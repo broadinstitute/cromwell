@@ -1,0 +1,12 @@
+{{with $centaurSentry := vault (printf "secret/dsde/cromwell/common/centaur-sentry")}}
+error-reporter {
+  providers {
+    sentry {
+      class: "centaur.reporting.SentryReporter"
+      config {
+        dsn: "{{$centaurSentry.Data.error_reporter_dsn}}"
+      }
+    }
+  }
+}
+{{end}}

@@ -12,7 +12,7 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
   private val numberOfQueues = initialTokenQueue.size
   // Indicate the index of next queue to try to dequeue from.
   // In case token queues have been removed since the last time an iterator was created on this token queue list, make sure the pointer is in range.
-  private var pointer: Int = initialPointer % numberOfQueues
+  private var pointer: Int = if (numberOfQueues == 0) 0 else initialPointer % numberOfQueues
   // List of queues available
   private[this] var tokenQueues: List[TokenQueue] = initialTokenQueue
 
@@ -29,7 +29,10 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
   def updatedPointer = pointer
 
   def hasNext = tokenQueues.exists(_.available)
-  def next() = findFirst.getOrElse(throw new IllegalStateException("Token iterator is empty"))
+  def next() = findFirst.getOrElse(unexpectedlyEmpty)
+
+  def unexpectedlyEmpty: LeasedActor =
+    throw new IllegalStateException("Token iterator is empty")
 
   // Goes over the queues and returns the first element that can be dequeued
   private def findFirst: Option[LeasedActor] = {

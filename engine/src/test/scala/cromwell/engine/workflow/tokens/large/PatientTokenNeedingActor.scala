@@ -24,8 +24,8 @@ class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobExecution
   var startTime: DateTime = _
 
   /**
-    * When told to begin, I ask for a token
-    * When I get a token, I "work" for 5 seconds by scheduling an AllDone to be sent back to myself
+    * When told to begin, I schedule myself to ask for a token after a random pause
+    * When I get a token, I "work" by scheduling an AllDone to be sent back to myself after a longer pause
     * When I get the AllDone, I forward that status on to whoever started me, then return the token
     */
   override def receive = {

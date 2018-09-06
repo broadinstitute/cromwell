@@ -14,7 +14,7 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
   val Pool2 = JobExecutionTokenType("pool2", Option(2), 1)
   
   it should "be empty if there's no queue" in {
-    RoundRobinQueueIterator(List.empty).hasNext shouldBe false
+    new RoundRobinQueueIterator(List.empty, 0).hasNext shouldBe false
   }
 
   it should "return an element if a queue can dequeue" in {
@@ -22,7 +22,7 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     val queues = List(
       TokenQueue(InfiniteTokenType).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
     )
-    val iterator = RoundRobinQueueIterator(queues)
+    val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
     val next = iterator.next()
     next.actor shouldBe probe1
@@ -40,7 +40,7 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
       TokenQueue(InfiniteTokenType).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA")).enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
       TokenQueue(Pool2).enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
     )
-    val iterator = RoundRobinQueueIterator(queues)
+    val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
     
     var next = iterator.next()
@@ -76,7 +76,7 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
         .enqueue(TokenQueuePlaceholder(probe4, "hogGroupA"))
         .enqueue(TokenQueuePlaceholder(probe5, "hogGroupA"))
     )
-    val iterator = RoundRobinQueueIterator(queues)
+    val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
 
     var next = iterator.next()
@@ -114,6 +114,6 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
   }
   
   it should "throw an exception when calling next() on an empty iterator" in {
-    assertThrows[IllegalStateException](RoundRobinQueueIterator(List.empty).next())
+    assertThrows[IllegalStateException](new RoundRobinQueueIterator(List.empty, 0).next())
   }
 }

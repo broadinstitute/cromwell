@@ -28,12 +28,12 @@ trait IoCommand[+T] {
     * Completes the command successfully
     * @return a message to be sent back to the sender, if needed
     */
-  def success[TT >: T](value: TT): IoSuccess[TT] = IoSuccess(this, value)
+  def success[S >: T](value: S): IoSuccess[S] = IoSuccess(this, value)
   
   /**
     * Fail the command with an exception
     */
-  def fail[TT >: T](failure: Throwable): IoFailure[TT] = IoFailure(this, failure)
+  def fail[S >: T](failure: Throwable): IoFailure[S] = IoFailure(this, failure)
 
   /**
     * A short name describing the command

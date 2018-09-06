@@ -3,6 +3,7 @@ package cromwell.core.retry
 import cats.effect.{IO, Timer}
 
 import scala.concurrent.duration._
+import scala.util.control.NonFatal
 
 object IORetry {
   def noOpOnRetry[S]: (Throwable, S) => S = (_, s) => s
@@ -34,7 +35,7 @@ object IORetry {
 
     io handleErrorWith {
       case throwable if isFatal(throwable) => fail(throwable)
-      case throwable =>
+      case NonFatal(throwable) =>
         val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
 
         if (retriesLeft.forall(_ > 0)) {
@@ -44,6 +45,7 @@ object IORetry {
           } yield retried
         }
         else fail(throwable)
+      case fatal => throw fatal
     }
 
   }

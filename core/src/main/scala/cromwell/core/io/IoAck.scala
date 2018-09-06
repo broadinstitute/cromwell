@@ -18,7 +18,6 @@ sealed trait IoAck[T] {
 case class IoSuccess[T](command: IoCommand[T], result: T) extends IoAck[T] {
   override def toTry = Success(result)
 }
-
 case class IoFailure[T](command: IoCommand[T], failure: Throwable) extends IoAck[T] {
   override def toTry = Failure(failure)
 }

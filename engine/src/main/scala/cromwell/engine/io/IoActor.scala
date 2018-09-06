@@ -1,7 +1,6 @@
 package cromwell.engine.io
 
 import java.net.{SocketException, SocketTimeoutException}
-import javax.net.ssl.SSLException
 
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
@@ -22,6 +21,7 @@ import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
+import javax.net.ssl.SSLException
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -38,8 +38,6 @@ final class IoActor(queueSize: Int,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
-  
-  implicit private val system = context.system
   implicit val ec = context.dispatcher
 
   /**

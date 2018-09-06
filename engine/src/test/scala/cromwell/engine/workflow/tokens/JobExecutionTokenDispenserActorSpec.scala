@@ -1,11 +1,12 @@
 package cromwell.engine.workflow.tokens
 
-import akka.actor.{ActorSystem, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.{Rate, TokensAvailable}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActorSpec._
+import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 import cromwell.util.AkkaTestUtil
 import cromwell.util.AkkaTestUtil.StoppingSupervisor
 import org.scalatest._
@@ -71,6 +72,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe false
   }
 
+  def asHogGroupAPlaceholder(probe: TestProbe): TokenQueuePlaceholder = asHogGroupAPlaceholder(probe.ref)
+  def asHogGroupAPlaceholder(ref: ActorRef): TokenQueuePlaceholder = TokenQueuePlaceholder(ref, "hogGroupA")
+
   it should "limit the dispensing of a limited token type" in {
     val senders = (1 to 15).map(_ => TestProbe())
     // Ask for 20 tokens
@@ -86,7 +90,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     // The last 10 should be queued
     // At this point [0, 1, 2, 3, 4] are the ones with tokens, and [5, 14] are still queued
     actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).size shouldBe 10
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.drop(5).map(_.ref)
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.drop(5).map(asHogGroupAPlaceholder)
 
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(100)
@@ -102,7 +106,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     senders.slice(5, 8).foreach(_.expectMsg(JobExecutionTokenDispensed))
 
     // At this point [3, 4, 5, 6, 7] are the ones with tokens, and [8, 19] are still queued
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.slice(8, 20).map(_.ref)
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.slice(8, 20).map(asHogGroupAPlaceholder)
 
     // Double-check the queue state: when we request a token now, we should still be denied:
     actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens)
@@ -110,7 +114,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest ! TokensAvailable(100)
     expectNoMessage()
     // We should be enqueued and the last in the queue though
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.last shouldBe self
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.last shouldBe TokenQueuePlaceholder(self, "hogGroupA")
 
     // Release all currently owned tokens
     senders.slice(3, 8).foreach(_.send(actorRefUnderTest, JobExecutionTokenReturn))
@@ -220,7 +224,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     // Check that the next in lines have no tokens and are indeed in the queue
     nextInLine1.underlyingActor.hasToken shouldBe false
     nextInLine2.underlyingActor.hasToken shouldBe false
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs List(nextInLine1, nextInLine2)
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs List(nextInLine1, nextInLine2).map(asHogGroupAPlaceholder)
 
     // First, kill off the actor which would otherwise be first in line:
     val deathwatch = TestProbe()

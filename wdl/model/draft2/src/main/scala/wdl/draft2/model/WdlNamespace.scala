@@ -488,6 +488,10 @@ object WdlNamespace {
     def checkValidityOfMemberAccess(memberAccessAst: Ast): Option[SyntaxError] = {
       val memberAccess = MemberAccess(memberAccessAst)
       val requestedValue = memberAccess.rhsString
+
+      if (call.callable.inputNames.contains(memberAccess.lhsString))
+        ???
+
       val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhsString)
       resolvedScope match {
         case Some(c: WdlCall) if c.outputs.exists(_.unqualifiedName == requestedValue) => None

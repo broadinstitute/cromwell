@@ -14,7 +14,7 @@ object TokenQueue {
   case class LeasedActor(actor: ActorRef, lease: Lease[JobExecutionToken])
   def apply(tokenType: JobExecutionTokenType) = new TokenQueue(Queue.empty, UnhoggableTokenPool(tokenType))
   final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
-  final case class ShuffledQueueAndLease(lease: Option[Lease[JobExecutionToken]], newQueue: Queue[TokenQueuePlaceholder])
+  final case class ShuffledQueueAndLease(lease: Option[Lease[JobExecutionToken]], newQueue: TokenQueue)
 }
 
 /**
@@ -48,8 +48,8 @@ final case class TokenQueue(queue: Queue[TokenQueuePlaceholder], private [tokens
         val (placeholder, newQueue) = actorAndNewQueue
         val poolAcquisitionResult = pool.tryAcquire(placeholder.hogGroup)
         shuffleQueueAndGetLease(poolAcquisitionResult, placeholder, queue, newQueue) match {
-          case ShuffledQueueAndLease(Some(lease), nq) => DequeueResult(Option(LeasedActor(placeholder.actor, lease)), copy(queue = nq))
-          case ShuffledQueueAndLease(None, nq) => DequeueResult(None, copy(queue = nq))
+          case ShuffledQueueAndLease(Some(lease), nq) => DequeueResult(Option(LeasedActor(placeholder.actor, lease)), nq)
+          case ShuffledQueueAndLease(None, nq) => nq.dequeue
         }
       case None =>
         DequeueResult(None, this)
@@ -60,10 +60,10 @@ final case class TokenQueue(queue: Queue[TokenQueuePlaceholder], private [tokens
                               thisPlaceholder: TokenQueuePlaceholder,
                               oldQueue: Queue[TokenQueuePlaceholder],
                               newQueue: Queue[TokenQueuePlaceholder]): ShuffledQueueAndLease = result match {
-    case thl: TokenHoggingLease => ShuffledQueueAndLease(Some(thl), newQueue)
-    case ComeBackLater => ShuffledQueueAndLease(None, oldQueue)
+    case thl: TokenHoggingLease => ShuffledQueueAndLease(Some(thl), copy(queue = newQueue))
+    case ComeBackLater => ShuffledQueueAndLease(None, copy(queue = oldQueue))
     // Hog response - move this placeholder to the end of the queue!
-    case Oink => ShuffledQueueAndLease(None, newQueue :+ thisPlaceholder )
+    case Oink => ShuffledQueueAndLease(None, copy(queue = newQueue :+ thisPlaceholder) )
   }
 
   /**

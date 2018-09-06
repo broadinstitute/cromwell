@@ -24,7 +24,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     if (tokenDispenserUnderTest != null) system.stop(tokenDispenserUnderTest)
   }
 
-  it should "limit two workflows to a max concurrency of 10 with no hog factor" in {
+  it should "limit two workflows to a max concurrency of 10 with no hog factor" ignore {
     val maxConcurrencyToTest = 10
     val hogFactor = 1 // ie, no hog factor
     val totalJobsPerWorkflow = maxConcurrencyToTest + 1
@@ -56,7 +56,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     system.stop(bigWorkflow2)
   }
 
-  it should "be able to restrain two workflows in the same hog group to a total of half of the total token pool" in {
+  it should "be able to restrain two workflows in the same hog group to a total of half of the total token pool" ignore {
     val totalTokensAvailable = 10
     val hogFactor = 2
     val maxConcurrencyExpected = 5
@@ -88,7 +88,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     system.stop(bigWorkflow2)
   }
 
-  it should "be able to allocate two workflows in different hog groups exactly half of the total token pool each" in {
+  it should "be able to allocate two workflows in different hog groups exactly half of the total token pool each" ignore {
     val totalTokensAvailable = 10
     val hogFactor = 2
     val maxConcurrencyPerWorkflow = 5
@@ -121,7 +121,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     system.stop(bigWorkflow2)
   }
 
-  it should "be able to allocate 100 workflows in different hog groups exactly 1/100 of the total token pool each" in {
+  it should "be able to allocate 100 workflows in 100 hog groups exactly 1/100 of the total token pool each" in {
     val totalTokensAvailable = 1000
     val hogFactor = 100
     val maxConcurrencyPerWorkflow = 10

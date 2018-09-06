@@ -416,7 +416,8 @@ object Dependencies {
   ) ++ akkaHttpDependencies ++ betterFilesDependencies
 
   val centaurDependencies = List(
-    "com.github.kxbmap" %% "configs" % configsV
+    "com.github.kxbmap" %% "configs" % configsV,
+    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies
 
   val engineDependencies = List(

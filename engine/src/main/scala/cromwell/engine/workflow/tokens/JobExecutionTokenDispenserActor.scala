@@ -21,6 +21,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     * Lazily created token queue. We only create a queue for a token type when we need it
     */
   var tokenQueues: Map[JobExecutionTokenType, TokenQueue] = Map.empty
+  var currentTokenQueuePointer: Int = 0
   var tokenAssignments: Map[ActorRef, Lease[JobExecutionToken]] = Map.empty
 
   scheduleInstrumentation {
@@ -65,7 +66,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   }
 
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
-    val iterator = RoundRobinQueueIterator(tokenQueues.values.toList)
+    val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
 
     val nextTokens = iterator.take(n).toList
 
@@ -83,6 +84,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     })
 
     tokenQueues = iterator.updatedQueues.map(queue => queue.tokenType -> queue).toMap
+    currentTokenQueuePointer = iterator.updatedPointer
   }
 
   private def release(actor: ActorRef): Unit = {

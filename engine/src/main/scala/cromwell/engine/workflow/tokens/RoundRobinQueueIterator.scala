@@ -7,11 +7,12 @@ import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
   * It will keep rotating the list until it finds a queue with an element that can be dequeued.
   * If no queue can be dequeued, the iterator is empty.
   */
-case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends Iterator[LeasedActor] {
+final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int) extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
-  // Indicate the index of next queue to try to dequeue from
-  private var pointer: Int = 0
+  // Indicate the index of next queue to try to dequeue from.
+  // In case token queues have been removed since the last time an iterator was created on this token queue list, make sure the pointer is in range.
+  private var pointer: Int = initialPointer % numberOfQueues
   // List of queues available
   private[this] var tokenQueues: List[TokenQueue] = initialTokenQueue
 
@@ -21,6 +22,11 @@ case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends 
     * This returns the up to date version of the queues according to the current state of iteration.
     */
   def updatedQueues = tokenQueues
+
+  /**
+    * And the same w.r.t the current pointer:
+    */
+  def updatedPointer = pointer
 
   def hasNext = tokenQueues.exists(_.available)
   def next() = findFirst.getOrElse(throw new IllegalStateException("Token iterator is empty"))

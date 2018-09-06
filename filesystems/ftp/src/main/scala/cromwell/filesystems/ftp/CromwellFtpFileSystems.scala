@@ -3,8 +3,8 @@ package cromwell.filesystems.ftp
 import cats.syntax.apply._
 import cloud.nio.impl.ftp.FtpFileSystemsConfiguration.{Active, ConnectionMode, Passive}
 import cloud.nio.impl.ftp.{FtpFileSystems, FtpFileSystemsConfiguration}
+import com.typesafe.config.Config
 import com.typesafe.config.ConfigException.{BadValue, Missing}
-import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.filesystems.ftp.CromwellFtpFileSystems._
@@ -38,15 +38,13 @@ object CromwellFtpFileSystems {
       .unsafe("Failed to parse FTP configuration")
   }
   
-  val Default = new CromwellFtpFileSystems(ConfigFactory.empty()) {
-    override lazy val ftpFileSystems = FtpFileSystems.Default
-  }
+  val Default = new CromwellFtpFileSystems(FtpFileSystems.Default)
 }
 
 /**
   * Cromwell Wrapper around an FtpFileSystems instance to handle parsing and validation of the configuration.
   * This is the class used as the global configuration class in the ftp filesystem configuration
   */
-class CromwellFtpFileSystems(private val config: Config) {
-  lazy val ftpFileSystems = new FtpFileSystems(parseConfig(config))
+class CromwellFtpFileSystems(val ftpFileSystems: FtpFileSystems) {
+  def this(config: Config) = this(new FtpFileSystems(parseConfig(config)))
 }

@@ -1,6 +1,7 @@
 package centaur.cwl
 
 import better.files.File
+import cloud.nio.impl.ftp.FtpFileSystems
 import com.typesafe.config.Config
 import common.validation.Parse.{Parse, _}
 import cromwell.core.path.Obsolete.Paths
@@ -83,7 +84,8 @@ case class TeskRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
   override lazy val description: String = "tesk"
 
   override lazy val pathBuilderFactory: PathBuilderFactory = {
-    new FtpPathBuilderFactory(conf, ftpConfig, CromwellFtpFileSystems.Default)
+    val fileSystemsConfiguration = FtpFileSystems.DefaultConfig.copy(capacity = 1)
+    new FtpPathBuilderFactory(conf, ftpConfig, new CromwellFtpFileSystems(new FtpFileSystems(fileSystemsConfiguration)))
   }
 
   override def preProcessWorkflow(workflow: String): String = preprocessor.preProcessWorkflow(workflow)

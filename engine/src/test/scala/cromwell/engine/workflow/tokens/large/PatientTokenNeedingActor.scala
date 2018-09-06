@@ -31,25 +31,21 @@ class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobExecution
   override def receive = {
     case Begin =>
       starter = sender
-      println(s"${self.path.name} starting...")
       val requestDelay = Random.nextInt(30) + 5
       context.system.scheduler.scheduleOnce(requestDelay.millis, self, RequestToken)(context.dispatcher)
       ()
     case RequestToken =>
-      println(s"${self.path.name} requesting token...")
       tokenDispenser ! JobExecutionTokenRequest(hogGroup, tokenType)
       startTime = DateTime.now()
     case JobExecutionTokenDispensed =>
-      println(s"${self.path.name} token received...")
       context.system.scheduler.scheduleOnce(1.seconds, self, AllDone)(context.dispatcher)
       starter ! ImBusy(DateTime.now().getMillis - startTime.getMillis)
     case AllDone =>
-      println(s"${self.path.name} all done...")
       starter ! AllDone
       tokenDispenser ! JobExecutionTokenReturn
       context.stop(self)
     case other =>
-      System.err.println(s"Bad message received: $other")
+      throw new Exception(s"Bad message received: $other")
   }
 }
 

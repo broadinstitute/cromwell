@@ -68,9 +68,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
     val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
 
-    val nextTokens = iterator.take(n).toList
-
-    if (nextTokens.nonEmpty) { println(s"Distributing up to $n new leases, took ${nextTokens.size}") }
+    val nextTokens = iterator.take(n)
 
     nextTokens.foreach({
       case LeasedActor(actor, lease) if !tokenAssignments.contains(actor) =>

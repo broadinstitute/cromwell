@@ -4,10 +4,6 @@ import java.util.concurrent.TimeoutException
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
-import cats.data.NonEmptyList
-import cats.syntax.option._
-import cats.syntax.apply._
-import cats.instances.option._
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -72,26 +68,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   val jobStartTime = System.currentTimeMillis()
 
-  var tokenReceivedTime = none[Long]
-  var tokenReceivedDuration = none[FiniteDuration]
-
-  var waitingForValueStoreTime = none[Long]
-  var waitingForValueStoreDuration = none[FiniteDuration]
-
-  var preparingJobTime = none[Long]
-  var preparingJobDuration = none[FiniteDuration]
-
-  var checkingCallCacheTime = none[Long]
-  var checkingCallCacheDuration = none[FiniteDuration]
-
-  var runningJobTime = none[Long]
-  var runningJobDuration = none[FiniteDuration]
-
-  var updatingJobStoreTime = none[Long]
-  var updatingJobStoreDuration = none[FiniteDuration]
-
-  def metricTag(name: String) = NonEmptyList.of("jobTimers", name)
-
   override val supervisorStrategy = OneForOneStrategy() {
     // If an actor fails to initialize, send the exception to self before stopping it so we can fail the job properly
     case e: ActorInitializationException =>
@@ -141,9 +117,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   when(RequestingExecutionToken) {
     case Event(JobExecutionTokenDispensed, NoData) =>
-      tokenReceivedTime = Option(System.currentTimeMillis())
-      tokenReceivedDuration = Option((tokenReceivedTime - jobStartTime).millis)
-
       replyTo ! JobStarting(jobDescriptorKey)
       if (restarting) {
         val jobStoreKey = jobDescriptorKey.toJobStoreKey(workflowIdForLogging)
@@ -201,19 +174,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   * job and would lead to memory leaks.
   */
   when(WaitingForValueStore) {
-    case Event(valueStore: ValueStore, NoData) =>
-      waitingForValueStoreTime = Option(System.currentTimeMillis())
-      waitingForValueStoreDuration = (waitingForValueStoreTime, tokenReceivedTime).mapN(_ - _).map(_.millis)
-
-      prepareJob(valueStore)
+    case Event(valueStore: ValueStore, NoData) => prepareJob(valueStore)
   }
 
   // When PreparingJob, the FSM always has NoData
   when(PreparingJob) {
     case Event(BackendJobPreparationSucceeded(jobDescriptor, bjeaProps), NoData) =>
-      preparingJobTime = Option(System.currentTimeMillis())
-      preparingJobDuration = (preparingJobTime, waitingForValueStoreTime).mapN(_ - _).map(_.millis)
-
       val updatedData = ResponsePendingData(jobDescriptor, bjeaProps)
       effectiveCallCachingMode match {
         case activity: CallCachingActivity if activity.readFromCache => handleReadFromCacheOn(jobDescriptor, activity, updatedData)
@@ -226,9 +192,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   when(CheckingCallCache) {
     case Event(CacheMiss, data: ResponsePendingData) =>
-      checkingCallCacheTime = Option(System.currentTimeMillis())
-      checkingCallCacheDuration = (checkingCallCacheTime, preparingJobTime).mapN(_ - _).map(_.millis)
-
       writeToMetadata(Map(
         callCachingHitResultMetadataKey -> false,
         callCachingReadResultMetadataKey -> "Cache Miss"))
@@ -327,9 +290,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay using data.withSuccessResponse(response)
     // Hashes are missing but writeToCache is OFF - complete the job
     case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
-      runningJobTime = Option(System.currentTimeMillis())
-      runningJobDuration = (runningJobTime, checkingCallCacheTime).mapN(_ - _).map(_.millis)
-
       eventList ++= response.executionEvents
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
   }
@@ -416,9 +376,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When UpdatingJobStore, the FSM always has ResponseData.
   when(UpdatingJobStore) {
     case Event(JobStoreWriteSuccess(_), data: ResponseData) =>
-      updatingJobStoreTime = Option(System.currentTimeMillis())
-      updatingJobStoreDuration = (updatingJobStoreTime, runningJobTime).mapN(_ - _).map(_.millis)
-
       forwardAndStop(data.response)
     case Event(JobStoreWriteFailure(t), _: ResponseData) =>
       respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, new Exception(s"JobStore write failure: ${t.getMessage}", t), None))

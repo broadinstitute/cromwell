@@ -10,7 +10,7 @@ import cromwell.core.io._
 import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.retry.IORetry
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.{IoCommandContext, IoState}
+import cromwell.engine.io.{IoCommandContext, IoAttempts}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.util.TryWithResource._
 
@@ -33,14 +33,14 @@ class NioFlow(parallelism: Int,
   
   private val processCommand: DefaultCommandContext[_] => IO[IoResult] = commandContext => {
 
-    val onRetry: (Throwable, IoState) => IoState = (t, s) => {
+    val onRetry: (Throwable, IoAttempts) => IoAttempts = (t, s) => {
       onRetryCallback(commandContext)
-      IoState.updateState(t, s)
+      IoAttempts.updateState(t, s)
     }
 
     val operationResult = IORetry.withRetry(
       handleSingleCommand(commandContext.request),
-      IoState(1),
+      IoAttempts(1),
       maxRetries = Option(nbAttempts),
       backoff = IoCommand.defaultBackoff,
       isTransient = isTransient,

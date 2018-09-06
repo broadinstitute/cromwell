@@ -10,8 +10,8 @@ import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.IoState.EnhancedCromwellIoException
-import cromwell.engine.io.{IoCommandContext, IoState}
+import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
+import cromwell.engine.io.{IoCommandContext, IoAttempts}
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 
 import scala.concurrent.duration._
@@ -155,7 +155,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
   private def fail(context: GcsBatchCommandContext[_, _], failure: Throwable) = {
     Future.successful(
       GcsBatchTerminal(
-        context.fail(EnhancedCromwellIoException(IoState(context.currentAttempt), failure))
+        context.fail(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure))
       )
     )
   }

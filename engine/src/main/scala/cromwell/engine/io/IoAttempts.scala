@@ -5,7 +5,7 @@ import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.retry.IORetry.StatefulIoError
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-object IoState {
+object IoAttempts {
   object EnhancedCromwellIoException {
     def apply[S](state: S, cause: Throwable)(implicit showState: Show[S]): EnhancedCromwellIoException = {
       EnhancedCromwellIoException(s"[${showState.show(state)}] - ${ExceptionUtils.getMessage(cause)}", cause)
@@ -15,20 +15,20 @@ object IoState {
   case class EnhancedCromwellIoException(message: String, cause: Throwable) 
     extends Throwable(message, cause, true, false) with CromwellFatalExceptionMarker
   
-  implicit val showState = new Show[IoState] {
-    override def show(t: IoState) = s"Attempted ${t.attempt} time(s)"
+  implicit val showState = new Show[IoAttempts] {
+    override def show(t: IoAttempts) = s"Attempted ${t.attempts} time(s)"
   }
   
-  implicit val stateToThrowable = new StatefulIoError[IoState] {
-    override def toThrowable(state: IoState, throwable: Throwable) = {
+  implicit val stateToThrowable = new StatefulIoError[IoAttempts] {
+    override def toThrowable(state: IoAttempts, throwable: Throwable) = {
       state.throwables.foreach(throwable.addSuppressed)
       EnhancedCromwellIoException(state, throwable)
     }
   }
 
-  val updateState: (Throwable, IoState) => IoState = (throwable, state) => {
-    state.copy(attempt = state.attempt + 1, throwables = state.throwables :+ throwable)
+  val updateState: (Throwable, IoAttempts) => IoAttempts = (throwable, state) => {
+    state.copy(attempts = state.attempts + 1, throwables = state.throwables :+ throwable)
   }
 }
 
-case class IoState(attempt: Int, throwables: List[Throwable] = List.empty)
+case class IoAttempts(attempts: Int, throwables: List[Throwable] = List.empty)

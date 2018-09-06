@@ -21,8 +21,8 @@ final case class UnhoggableTokenPool(tokenType: JobExecutionTokenType) extends S
 
   lazy val hogLimitOption: Option[Int] = tokenType match {
     case JobExecutionTokenType(_, None, _) => None
-    case JobExecutionTokenType(_, _, 1) => None
-    case JobExecutionTokenType(_, Some(limit), hogFactor) => Some(math.max(1, math.round(limit.floatValue() / hogFactor.floatValue())))
+    case JobExecutionTokenType(_, Some(limit), hogFactor) if hogFactor > 1 => Option(math.max(1, math.round(limit.floatValue() / hogFactor.floatValue())))
+    case JobExecutionTokenType(_, _, _) => None
   }
 
   private[this] val hogGroupAssignments: mutable.Map[String, HashSet[JobExecutionToken]] = mutable.Map.empty
@@ -50,7 +50,7 @@ final case class UnhoggableTokenPool(tokenType: JobExecutionTokenType) extends S
             super.tryAcquire() match {
               case Some(lease) =>
                 val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)
-                hogGroupAssignments += (hogGroup -> thisHogSet.+(hoggingLease.get))
+                hogGroupAssignments += hogGroup -> (thisHogSet + hoggingLease.get)
                 hoggingLease
               case None => ComeBackLater
             }
@@ -71,7 +71,7 @@ final case class UnhoggableTokenPool(tokenType: JobExecutionTokenType) extends S
   def unhog(hogGroup: String, lease: Lease[JobExecutionToken]): Unit = {
     hogLimitOption foreach { _ =>
       synchronized {
-        hogGroupAssignments += (hogGroup -> hogGroupAssignments.getOrElse(hogGroup, HashSet.empty).-(lease.get))
+        hogGroupAssignments += (hogGroup -> hogGroupAssignments.getOrElse(hogGroup, HashSet.empty - lease.get))
       }
     }
   }

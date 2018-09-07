@@ -1,7 +1,7 @@
 version 1.0
 
 # Check that we do not "leak" references to `out` between scopes - i.e. should never get "hello1234"
-workflow draft3_same_named_inputs_priority {
+workflow same_named_inputs_priority {
     String out = "hello"
     call echo as a {
         input:

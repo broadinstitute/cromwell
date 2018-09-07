@@ -15,6 +15,7 @@ import wom.callable.Callable.{FixedInputDefinition, OptionalInputDefinition}
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
+import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.types._
 
 class WdlFileToWomSpec extends FlatSpec with Matchers {
@@ -79,7 +80,8 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "task_with_metas" -> anyWomWillDo,
     "input_values" -> anyWomWillDo,
     "gap_in_command" -> anyWomWillDo,
-    "nio_file" -> validateNioFile
+    "nio_file" -> validateNioFile,
+    "same_named_inputs_priority" -> validateSameNamedInputsPriority
   )
 
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded
@@ -133,5 +135,19 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
         // Optional input:
         nioFileTask.inputs.find(_.name == "h").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
     }
+  }
+
+  private def validateSameNamedInputsPriority(b: WomBundle): Assertion = {
+    val nodes = b.primaryCallable.get.asInstanceOf[WorkflowDefinition].graph.nodes
+
+    val exposedExpressionNode = nodes.filter(_.isInstanceOf[ExposedExpressionNode]).head
+    val callInputs = nodes.filter(_.isInstanceOf[TaskCallInputExpressionNode]).toList
+
+    callInputs.size shouldBe 4
+
+    callInputs(0).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
+    callInputs(1).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
+    callInputs(2).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
+    callInputs(3).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
   }
 }

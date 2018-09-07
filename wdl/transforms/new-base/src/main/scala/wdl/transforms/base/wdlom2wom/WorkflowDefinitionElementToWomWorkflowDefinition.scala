@@ -9,6 +9,7 @@ import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
 import wom.callable.{Callable, WorkflowDefinition}
+import wom.graph.expression.AnonymousExpressionNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{GraphNode, WomIdentifier, Graph => WomGraph}
 import wom.types.WomType
@@ -87,10 +88,12 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
       currentValidation flatMap { currentList =>
         val availableValues: Map[String, OutputPort] = (for {
+          // Anonymous expression nodes are one-time-use and do not exist in the universe of available linking candidates (#3999)
+          node <- currentList.filterNot(_.isInstanceOf[AnonymousExpressionNode])
           node <- currentList
           port <- node.outputPorts
         } yield outputName(node, port) -> port).toMap
-        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
+        val nextGraphNodeValidation: ErrorOr[Set[GraphNode]] = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
         nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
       }
     }

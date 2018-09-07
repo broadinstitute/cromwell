@@ -48,3 +48,20 @@ export CROMWELL_STATSD_PREFIX=$(extract_metadata CROMWELL_STATSD_PREFIX)
 export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
 
 docker-compose up -d
+
+echo "Trying to ping Cromwell"
+
+until [[ $(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: application/json") = *"cromwell"* ]]; do
+	echo "No connection to Cromwell yet!"
+	sleep 5
+done
+
+echo "Connection to Cromwell success!"
+
+mkdir /workflow_files
+cd /workflow_files
+
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl -o workflow.wdl
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.inputs -o workflow_inputs.json
+
+curl -X POST "http://localhost:8000/api/workflows/v1" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "workflowSource=@workflow.wdl" -F "workflowInputs=@workflow_inputs.json;type=application/json"

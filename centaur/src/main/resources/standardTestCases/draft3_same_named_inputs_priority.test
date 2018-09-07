@@ -1,0 +1,17 @@
+name: draft3_same_named_inputs_priority
+testFormat: workflowsuccess
+backends: [Local]
+tags: [localdockertest]
+
+files: {
+  workflow: wdl_draft3/same_named_inputs_priority/same_named_inputs_priority.wdl
+}
+
+metadata {
+  workflowName: draft3_same_named_inputs_priority
+  status: Succeeded
+  "outputs.draft3_same_named_inputs_priority.a.result": "hello1",
+  "outputs.draft3_same_named_inputs_priority.b.result": "hello2",
+  "outputs.draft3_same_named_inputs_priority.c.result": "hello3",
+  "outputs.draft3_same_named_inputs_priority.d.result": "hello4"
+}

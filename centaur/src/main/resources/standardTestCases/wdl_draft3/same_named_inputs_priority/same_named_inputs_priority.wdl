@@ -21,6 +21,9 @@ workflow draft3_same_named_inputs_priority {
     }
 }
 task echo {
+    runtime {
+      docker: "ubuntu:latest"
+    }
     input {
         String out
     }

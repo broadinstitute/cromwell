@@ -4,7 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
-import wom.graph.{CommandCallNode, WomIdentifier}
+import wom.graph.{CommandCallNode, FullyQualifiedName, LocalName, WomIdentifier}
 import wom.types.WomType
 
 object AnonymousExpressionNode {
@@ -14,7 +14,16 @@ object AnonymousExpressionNode {
                                                      expression: WomExpression,
                                                      inputMapping: Map[String, OutputPort],
                                                      constructor: AnonymousExpressionConstructor[T]): ErrorOr[T] = {
-    ExpressionNode.buildFromConstructor(constructor)(identifier, expression, inputMapping)
+    // Anonymous expression nodes are created and then immediately consumed.
+    // Name mangling prevents lookups from finding them and using them after their expiration date.
+    val anonPrefix = s"anon_${scala.util.Random.nextInt().toHexString}_"
+
+    val mangledIdentifier = identifier.copy(
+      localName = LocalName(anonPrefix + identifier.localName.value),
+      fullyQualifiedName = FullyQualifiedName(anonPrefix + identifier.fullyQualifiedName.value)
+    )
+
+    ExpressionNode.buildFromConstructor(constructor)(mangledIdentifier, expression, inputMapping)
   }
 }
 

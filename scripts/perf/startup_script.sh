@@ -28,7 +28,7 @@ mkdir /app
 cd /app
 
 # Extract branch name
-export CROMWELL_BRANCH=$(extract metadata CROMWELL_BRANCH_NAME)
+export CROMWELL_BRANCH=$(extract_metadata CROMWELL_BRANCH_NAME)
 
 # Download the docker-compose script and cromwell configuration
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/vm_scripts/docker-compose.yml -o docker-compose.yml

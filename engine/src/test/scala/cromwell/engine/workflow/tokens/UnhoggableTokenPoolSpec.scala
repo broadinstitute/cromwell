@@ -2,9 +2,14 @@ package cromwell.engine.workflow.tokens
 
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{ComeBackLater, Oink, TokenHoggingLease}
+import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpec, Matchers}
+import scala.concurrent.duration._
 
-class UnhoggableTokenPoolSpec extends FlatSpec with Matchers {
+class UnhoggableTokenPoolSpec extends FlatSpec with Matchers with Eventually {
+
+  override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
+  implicit val patience = patienceConfig
 
   val hogLimitingTokenTypeToHogLimit = List(
     JobExecutionTokenType("backend", Some(150), 2) -> 75,
@@ -59,6 +64,7 @@ class UnhoggableTokenPoolSpec extends FlatSpec with Matchers {
     hogLimit2Pool.tryAcquire("group1") should be(Oink)
 
     lease1.release()
+    eventually { hogLimit2Pool.available("group1") shouldBe true }
     hogLimit2Pool.tryAcquire("group1") match {
       case _: TokenHoggingLease => // Great!
       case other => fail(s"expected lease but got $other")
@@ -66,6 +72,7 @@ class UnhoggableTokenPoolSpec extends FlatSpec with Matchers {
     hogLimit2Pool.tryAcquire("group1") should be(Oink)
 
     lease2.release()
+    eventually { hogLimit2Pool.available("group1") shouldBe true }
     hogLimit2Pool.tryAcquire("group1") match {
       case _: TokenHoggingLease => // Great!
       case other => fail(s"expected lease but got $other")

@@ -14,15 +14,11 @@ cromwell::build::assemble_jars
 
 CENTAUR_CWL_RUNNER_MODE="papi"
 GOOGLE_AUTH_MODE="service-account"
-GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
-GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-requester-pays-service-account.json"
 PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance/cwl-inputs/
 
 # Export variables used in conf files and commands
 export CENTAUR_CWL_RUNNER_MODE
 export GOOGLE_AUTH_MODE
-export GOOGLE_SERVICE_ACCOUNT_JSON
-export GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS
 export PAPI_INPUT_GCS_PREFIX
 
 shutdown_cromwell() {

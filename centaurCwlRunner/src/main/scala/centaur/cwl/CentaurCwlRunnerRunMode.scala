@@ -84,7 +84,7 @@ case class TeskRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
   override lazy val description: String = "tesk"
 
   override lazy val pathBuilderFactory: PathBuilderFactory = {
-    val fileSystemsConfiguration = FtpFileSystems.DefaultConfig.copy(capacity = 1)
+    val fileSystemsConfiguration = FtpFileSystems.DefaultConfig.copy(capacity = 2)
     new FtpPathBuilderFactory(conf, ftpConfig, new CromwellFtpFileSystems(new FtpFileSystems(fileSystemsConfiguration)))
   }
 

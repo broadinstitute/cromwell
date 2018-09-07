@@ -93,8 +93,8 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
           node <- currentList
           port <- node.outputPorts
         } yield outputName(node, port) -> port).toMap
-        val nextGraphNodeValidation: ErrorOr[Set[GraphNode]] = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
-        nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
+        val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
+        generatedGraphNodesValidation map { nextGraphNode => currentList ++ nextGraphNode }
       }
     }
 

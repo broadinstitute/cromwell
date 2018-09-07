@@ -129,6 +129,22 @@ sealed trait GoogleAuthMode {
   }
 
   /**
+    * Alias for credentials(GoogleAuthMode.NoOptionLookup, scopes).
+    * Only valid for credentials that are NOT externally provided, such as ApplicationDefault.
+    */
+  def credentials(scopes: Iterable[String]): Credentials = {
+    credentials(GoogleAuthMode.NoOptionLookup, scopes.asJavaCollection)
+  }
+
+  /**
+    * Alias for credentials(GoogleAuthMode.NoOptionLookup, scopes).
+    * Only valid for credentials that are NOT externally provided, such as ApplicationDefault.
+    */
+  def credentials(scopes: java.util.Collection[String]): Credentials = {
+    credentials(GoogleAuthMode.NoOptionLookup, scopes)
+  }
+
+  /**
     * Alias for credentials(GoogleAuthMode.NoOptionLookup, Set.empty).
     * Only valid for credentials that are NOT externally provided and do not need scopes, such as ApplicationDefault.
     */

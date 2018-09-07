@@ -31,27 +31,23 @@
 package cromwell.backend.impl.aws
 
 import java.security.MessageDigest
+import java.util.concurrent.{Executors, ScheduledExecutorService}
+
+import cats.syntax.functor._
+import scala.language.higherKinds
+import cats.effect.Async
 import software.amazon.awssdk.services.batch.BatchClient
-import software.amazon.awssdk.services.batch.model.
-                                        {
-                                          CancelJobRequest,
-                                          CancelJobResponse,
-                                          ClientException,
-                                          DescribeJobDefinitionsRequest,
-                                          DescribeJobsRequest,
-                                          RegisterJobDefinitionRequest,
-                                          SubmitJobRequest,
-                                          SubmitJobResponse,
-                                          JobDefinitionType,
-                                          JobDetail
-                                        }
+import software.amazon.awssdk.services.batch.model.{CancelJobRequest, CancelJobResponse, ClientException, DescribeJobDefinitionsRequest, DescribeJobsRequest, JobDefinitionType, JobDetail, RegisterJobDefinitionRequest, SubmitJobRequest, SubmitJobResponse}
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import org.slf4j.LoggerFactory
+import fs2.Scheduler
 
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.util.Try
 
 object AwsBatchJob {
@@ -126,7 +122,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     |exit $$(cat ${dockerRc})
     """).stripMargin
   }
-  def submitJob(): Try[SubmitJobResponse] = Try {
+  def submitJob[F[_]](ses: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor())(implicit ec: ExecutionContext, async: Async[F]): F[SubmitJobResponse] = {
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     val workflow = jobDescriptor.workflowDescriptor
     val uniquePath = workflow.callable.name + "/" +
@@ -142,27 +138,19 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
-    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath)
+    val definitionArn: F[String] = createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath)
 
-    var job : SubmitJobResponse = null // Use of null here due to underlying submitJob call
-    for (inx <- 1 to 6) {
-      try{
-        if (job == null) {
-          job = client.submitJob(SubmitJobRequest.builder()
-                      .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
-                      .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
-                      .jobQueue(runtimeAttributes.queueArn)
-                      .jobDefinition(definitionArn).build)
-        }
-      } catch {
-        case e: ClientException if e.statusCode() == 404 && inx < 6 => {
-          // RegisterJobDefinition is eventually consistent, so it may not be there
-          Log.warn(s"Job Definition does not yet exist - retrying (${inx}/5)")
-          Thread.sleep(100L * (inx ^ 2L))
-        }
-      }
-    }
-    job
+    val submit = async.flatMap(definitionArn)(arn =>
+      async.delay(client.submitJob(SubmitJobRequest.builder()
+      .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
+      .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
+      .jobQueue(runtimeAttributes.queueArn)
+      .jobDefinition(arn).build)))
+
+    Scheduler.fromScheduledExecutorService(ses).retry(submit, 0.millis, duration => duration.plus(duration), 6, {
+      case e: ClientException => e.statusCode() == 404
+      case _ => false
+    }).compile.last.map(_.get) //if successful there is guaranteed to be a value emitted, hence we can .get this option
   }
 
   /** Creates a job definition in AWS Batch
@@ -171,7 +159,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
    *  @return Arn for newly created job definition
    *
    */
-  private def createDefinition(name: String, taskId: String): String = {
+  private def createDefinition[F[_]](name: String,
+                                     taskId: String,
+                                     ses: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor())(
+                                     implicit async: Async[F],
+                                     executionContext: ExecutionContext): F[String] = {
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
     val jobDefinitionContext = AwsBatchJobDefinitionContext(runtimeAttributes,
                                                             taskId,
@@ -195,32 +187,21 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
                               .`type`(JobDefinitionType.CONTAINER)
                               .build
 
-    var arn = "" // Use of null here due to underlying submitJob call
-    for (inx <- 1 to 6) {
-      try {
-        if (arn == "") {
-          arn = client.registerJobDefinition(definitionRequest).jobDefinitionArn
-        }
-      } catch {
-        case e: ClientException if e.statusCode() == 404 && inx < 6 => {
-          // RegisterJobDefinition throws 404s every once in a while
-          Log.warn(s"RegisterJobDefinition 404 - retrying (${inx}/5)")
-          Thread.sleep(100L * (inx ^ 2L))
-        }
-        case e: ClientException if e.statusCode() == 409 => {
-          // This could be a problem here, as we might have registerJobDefinition
-          // but not describeJobDefinitions permissions. We've changed this to a
-          // warning as a result of this potential
-          Log.warn("Job definition already exists. Performing describe and retrieving latest revision")
-          val defs = client
-            .describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name)).build())
-            .jobDefinitions()
-          // We need latest revision
-          defs.get(defs.size() - 1).jobDefinitionArn()
-        }
-      }
+    val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
+
+    val retry: F[String] = Scheduler.fromScheduledExecutorService(ses).retry(submit, 0.millis, _ * 2, 6, {
+      case e: ClientException => e.statusCode() == 404
+      case _ => false
+    }).compile.last.map(_.get)
+
+    async.recoverWith(retry) {
+      case e: ClientException if e.statusCode() == 409 =>
+        Log.warn("Job definition already exists. Performing describe and retrieving latest revision")
+        async.
+          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name)).build())).
+          map(_.jobDefinitions()).
+          map(defs => defs.get(defs.size() - 1).jobDefinitionArn())
     }
-    arn
   }
 
   /** Sanitizes a job and job definition name

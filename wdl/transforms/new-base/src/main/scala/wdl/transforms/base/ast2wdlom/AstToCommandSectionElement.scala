@@ -28,9 +28,11 @@ object AstToCommandSectionElement {
         case 1 =>
           (distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min).validNelCheck
         case _ =>
-          s"Cannot mix leading whitespace characters in command: [${distinctLeadingWhitespaceCharacters.map { c: Char =>
+          val charList = distinctLeadingWhitespaceCharacters.map { c: Char =>
             "\"" + StringEscapeUtils.escapeJava(c.toString) + "\""
-          }.mkString(", ")}]".invalidNelCheck
+          }
+
+          s"Cannot mix leading whitespace characters in command: [${charList.mkString(", ")}]".invalidNelCheck
       }
 
       for {

@@ -8,14 +8,25 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.duration._
+/**
+  * Configuration for an instance of an FTPPathBuilderFactory
+  * 
+  * e.g:
+  * 
+  * engine.filesystems.ftp.config = {
+  *   auth {
+  *     username = "username"
+  *     password = "password"
+  *     account = "account"
+  *   }
+  * }
+  */
+case class FtpInstanceConfiguration(ftpCredentials: FtpCredentials)
 
-case class FtpConfiguration(ftpCredentials: FtpCredentials,
-                            cacheTTL: FiniteDuration)
-object FtpConfiguration {
-  lazy val Default = FtpConfiguration(FtpAnonymousCredentials, 24.hours)
+object FtpInstanceConfiguration {
+  lazy val Default = FtpInstanceConfiguration(FtpAnonymousCredentials)
   
-  def apply(conf: Config): FtpConfiguration = {
+  def apply(conf: Config): FtpInstanceConfiguration = {
     val credentials: ErrorOr[FtpCredentials] = conf.getAs[Config]("auth") map { authConfig =>
       val username = validate { authConfig.as[String]("username") }
       val password = validate { authConfig.as[String]("password") }
@@ -23,9 +34,7 @@ object FtpConfiguration {
       (username, password, account) mapN FtpAuthenticatedCredentials.apply
     } getOrElse Default.ftpCredentials.validNel
 
-    val cacheTTL: ErrorOr[FiniteDuration] = validate { conf.getAs[FiniteDuration]("cache-ttl").getOrElse(Default.cacheTTL) }
-
-    val validatedConfiguration = (credentials, cacheTTL) mapN FtpConfiguration.apply
+    val validatedConfiguration = credentials.map(FtpInstanceConfiguration.apply)
 
     validatedConfiguration.unsafe("FTP configuration is not valid")
   }

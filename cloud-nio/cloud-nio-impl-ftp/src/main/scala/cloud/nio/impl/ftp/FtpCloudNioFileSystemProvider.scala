@@ -2,7 +2,7 @@ package cloud.nio.impl.ftp
 
 import java.io.IOException
 import java.nio.file.attribute.FileAttribute
-import java.nio.file.{FileAlreadyExistsException, Path}
+import java.nio.file.{FileAlreadyExistsException, NoSuchFileException, Path}
 
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
 import cloud.nio.spi.{CloudNioFileSystemProvider, CloudNioPath, CloudNioReadChannel, CloudNioRetry}
@@ -11,7 +11,9 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.util.{Failure, Success, Try}
 
-class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials) extends CloudNioFileSystemProvider with StrictLogging {
+class FtpCloudNioFileSystemProvider(override val config: Config, val credentials: FtpCredentials, ftpFileSystems: FtpFileSystems) extends CloudNioFileSystemProvider with StrictLogging {
+  val ftpConfig = ftpFileSystems.config
+
   override def fileProvider = new FtpCloudNioFileProvider(this)
 
   override def isFatal(exception: Exception) = exception match {
@@ -42,6 +44,7 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
     } match {
       case Success(_) =>
       case Failure(f: FileAlreadyExistsException) => throw f
+      case Failure(f: NoSuchFileException) => throw f
       // java.nio.files.Files.createDirectories swallows IOException, that are not FileAlreadyExistsException, so log them here so we can now what happened
       case Failure(f: IOException) =>
         logger.error(s"Failed to create directory at $dir", f)
@@ -57,6 +60,6 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
   }
   
   def newCloudNioFileSystemFromHost(host: String) = {
-    FtpFileSystems.getFileSystem(host, this)
+    ftpFileSystems.getFileSystem(host, this)
   }
 }

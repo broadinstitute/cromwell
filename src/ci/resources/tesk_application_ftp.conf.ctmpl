@@ -1,4 +1,8 @@
 {{with $cromwellFtp := vault (printf "secret/dsde/cromwell/common/cromwell-ftp")}}
+filesystems {
+   ftp.global.config.max-connection-per-server-per-user = 5
+}
+
 engine {
   filesystems {
     ftp {
@@ -6,7 +10,6 @@ engine {
         username = {{$cromwellFtp.Data.username}}
         password = {{$cromwellFtp.Data.password}}
       }
-      connection-count-per-user = 4
     }
   }
 }
@@ -21,7 +24,6 @@ backend {
               username = {{$cromwellFtp.Data.username}}
               password = {{$cromwellFtp.Data.password}}
             }
-            connection-count-per-user = 4
           }
         }
       }

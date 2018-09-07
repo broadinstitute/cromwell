@@ -61,7 +61,7 @@ cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/tesk_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 5000
+    "cwl_conformance_test.timeout": 600
 }
 JSON
 

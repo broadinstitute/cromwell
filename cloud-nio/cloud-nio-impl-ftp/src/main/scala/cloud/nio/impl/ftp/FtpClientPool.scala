@@ -25,7 +25,10 @@ class FtpClientPool(capacity: Int, maxIdleTime: FiniteDuration, factory: () => F
   maxIdleTime = maxIdleTime,
   referenceType = ReferenceType.Strong,
   _factory = factory,
+  // Reset is called every time a client is added or released back to the pool. We don't want to actually reset the connection here
+  // otherwise we'd need to login again and reconfigure the connection every time
   _reset = Function.const(()),
   _dispose = FtpClientPool.dispose,
+  // Could not find a good health check at the moment (isAvailable and isConnected on the socket seem to both return false sometimes even if the client is fine)
   _healthCheck = Function.const(true)
 )

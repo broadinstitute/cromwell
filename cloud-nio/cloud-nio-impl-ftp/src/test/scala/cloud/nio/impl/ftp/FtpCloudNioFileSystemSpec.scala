@@ -17,12 +17,8 @@ class FtpCloudNioFileSystemSpec extends FlatSpec with Matchers with Eventually {
   implicit val patience = patienceConfig
 
   it should "lease the number of clients configured, not more, not less" in {
-    val config = ConfigFactory.parseString(
-      """
-        |acquire-connection-timeout = 1 second
-        |connection-count-per-user = 3
-      """.stripMargin)
-    val provider = new FtpCloudNioFileSystemProvider(config, FtpAnonymousCredentials)
+    val fileSystems = new FtpFileSystems(FtpFileSystems.DefaultConfig.copy(leaseTimeout = Option(1.second), capacity = 3))
+    val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty, FtpAnonymousCredentials, fileSystems)
     val fileSystem = new FtpCloudNioFileSystem(provider, "ftp.example.com") {
       // Override so we don't try to connect to anything
       override private[ftp] lazy val clientFactory = () => { new FTPClient() }
@@ -43,11 +39,8 @@ class FtpCloudNioFileSystemSpec extends FlatSpec with Matchers with Eventually {
   }
 
   it should "lease a pair of clients atomically" in {
-    val config = ConfigFactory.parseString(
-      """
-        |connection-count-per-user = 2
-      """.stripMargin)
-    val provider = new FtpCloudNioFileSystemProvider(config, FtpAnonymousCredentials)
+    val fileSystems = new FtpFileSystems(FtpFileSystems.DefaultConfig.copy(capacity = 2))
+    val provider = new FtpCloudNioFileSystemProvider(ConfigFactory.empty, FtpAnonymousCredentials, fileSystems)
     val fileSystem = new FtpCloudNioFileSystem(provider, "ftp.example.com") {
       // Override so we don't try to connect to anything
       override private[ftp] lazy val clientFactory = () => { new FTPClient() }

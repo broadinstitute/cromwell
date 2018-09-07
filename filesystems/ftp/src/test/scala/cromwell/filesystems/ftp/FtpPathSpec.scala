@@ -14,8 +14,8 @@ class FtpPathSpec extends FlatSpec with Matchers with PathBuilderSpecUtils {
 
   behavior of "FtpPathSpec"
 
-  val pathBuilderFactory = new FtpPathBuilderFactory(ConfigFactory.empty(), ConfigFactory.empty()) {
-    override private [ftp] lazy val configFtpConfiguration = new FtpConfiguration(FtpAnonymousCredentials, 1.hour)
+  val pathBuilderFactory = new FtpPathBuilderFactory(ConfigFactory.empty(), ConfigFactory.empty(), CromwellFtpFileSystems.Default) {
+    override private [ftp] lazy val configFtpConfiguration = new FtpInstanceConfiguration(FtpAnonymousCredentials)
   }
 
   val pathBuilder =

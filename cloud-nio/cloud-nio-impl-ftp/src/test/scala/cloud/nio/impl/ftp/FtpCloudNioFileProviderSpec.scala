@@ -140,7 +140,7 @@ class FtpCloudNioFileProviderSpec extends FlatSpec with Matchers with MockFtpFil
     attributes.lastModifiedTime() should not be null
   }
 
-  it should "craete a directory" in {
+  it should "create a directory" in {
     val root = "/root/directory"
     val directory = s"$root/directory"
     fakeUnixFileSystem.add(new DirectoryEntry(root))

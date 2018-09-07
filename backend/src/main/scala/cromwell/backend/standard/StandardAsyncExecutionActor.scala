@@ -213,7 +213,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     globFiles map globScript mkString "\n"
 
   /**
-    * Returns the shell scripting for linking a glob results.
+    * Returns the shell scripting for linking a glob results file.
     *
     * @param globFile The glob.
     * @return The shell scripting.

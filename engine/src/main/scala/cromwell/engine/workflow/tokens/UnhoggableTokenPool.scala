@@ -71,7 +71,7 @@ final case class UnhoggableTokenPool(tokenType: JobExecutionTokenType) extends S
   def unhog(hogGroup: String, lease: Lease[JobExecutionToken]): Unit = {
     hogLimitOption foreach { _ =>
       synchronized {
-        hogGroupAssignments += (hogGroup -> hogGroupAssignments.getOrElse(hogGroup, HashSet.empty - lease.get))
+        hogGroupAssignments += hogGroup -> (hogGroupAssignments.getOrElse(hogGroup, HashSet.empty) - lease.get)
       }
     }
   }

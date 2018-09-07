@@ -16,11 +16,10 @@ object AnonymousExpressionNode {
                                                      constructor: AnonymousExpressionConstructor[T]): ErrorOr[T] = {
     // Anonymous expression nodes are created and then immediately consumed.
     // Name mangling prevents lookups from finding them and using them after their expiration date.
-    val anonPrefix = s"anon_${scala.util.Random.nextInt().toHexString}_"
-
+    // Naturally, leading underscore is an illegal identifier so would never happen IRL.
     val mangledIdentifier = identifier.copy(
-      localName = LocalName(anonPrefix + identifier.localName.value),
-      fullyQualifiedName = FullyQualifiedName(anonPrefix + identifier.fullyQualifiedName.value)
+      localName = LocalName("__anon_" + identifier.localName.value),
+      fullyQualifiedName = FullyQualifiedName("__anon_" + identifier.fullyQualifiedName.value)
     )
 
     ExpressionNode.buildFromConstructor(constructor)(mangledIdentifier, expression, inputMapping)

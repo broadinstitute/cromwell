@@ -11,7 +11,7 @@ mkdir -p mnt
 
 #TODO: need this in the google cloud docker in order to auth
 #get startup script to run on new instance
-curl https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_scripts/scripts/perf/startup_script.sh > mnt/startup_script.sh
+curl https://raw.githubusercontent.com/broadinstitute/cromwell/$CROMWELL_BRANCH/scripts/perf/startup_script.sh > mnt/startup_script.sh
 
 DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.data.db_pass'`

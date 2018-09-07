@@ -10,8 +10,6 @@ extract_metadata() {
 # Get Build ID
 export BUILD_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
 
-#TODO: remove when done testing
-export BRANCH=db_perf_scripts
 
 # Get user/password
 export CLOUD_SQL_DB_USER=$(extract_metadata CROMWELL_DB_USER)
@@ -30,9 +28,9 @@ mkdir /app
 cd /app
 
 # Download the docker-compose script and cromwell configuration
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/docker-compose.yml -o docker-compose.yml
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$CROMWELL_BRANCH/scripts/perf/vm_scripts/docker-compose.yml -o docker-compose.yml
 mkdir cromwell
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf -o cromwell/cromwell.conf
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/$CROMWELL_BRANCH/scripts/perf/vm_scripts/cromwell/cromwell.conf -o cromwell/cromwell.conf
 
 # Get custom attributes from instance metadata
 export CLOUD_SQL_INSTANCES=$(extract_metadata CLOUD_SQL_INSTANCE)

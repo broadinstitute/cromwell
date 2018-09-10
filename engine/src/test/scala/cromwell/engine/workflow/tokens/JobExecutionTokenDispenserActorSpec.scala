@@ -236,7 +236,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = tokenGrabbingActors.head)
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(1)
-    eventually { nextInLine2.underlyingActor.hasToken shouldBe true } // Some is OK. This is the **expected** value!
+    eventually { nextInLine2.underlyingActor.hasToken shouldBe true }
   }
 
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.tokens.large
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
@@ -19,18 +19,13 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
 
   behavior of "JobExecutionTokenDispenserActor with concurrent demands"
 
-  var tokenDispenserUnderTest: ActorRef = _
-  after {
-    if (tokenDispenserUnderTest != null) system.stop(tokenDispenserUnderTest)
-  }
-
   it should "limit two workflows to a max concurrency of 10 with no hog factor" in {
     val maxConcurrencyToTest = 10
     val hogFactor = 1 // ie, no hog factor
     val totalJobsPerWorkflow = maxConcurrencyToTest + 1
     val tokenType = JobExecutionTokenType(backendName, Some(maxConcurrencyToTest), hogFactor)
 
-    tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyToTest + 1, 100.millis)), "tokenDispenserUnderTest")
+    val tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyToTest + 1, 100.millis)), "tokenDispenserUnderTest1")
 
     val globalRunningJobsCounter = new RunningJobCounter()
     val bigWorkflow1 = TestActorRef(new MultipleTokenUsingActor(tokenDispenserUnderTest, tokenType, totalJobsPerWorkflow, hogGroup = "hogGroupA", globalRunningJobsCounter), "multipleTokenUsingActor1")
@@ -54,6 +49,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
 
     system.stop(bigWorkflow1)
     system.stop(bigWorkflow2)
+    system.stop(tokenDispenserUnderTest)
   }
 
   it should "be able to restrain two workflows in the same hog group to a total of half of the total token pool" in {
@@ -63,7 +59,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     val totalJobsPerWorkflow = maxConcurrencyExpected + 1
     val tokenType = JobExecutionTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyExpected + 1, 100.millis)), "tokenDispenserUnderTest")
+    val tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyExpected + 1, 100.millis)), "tokenDispenserUnderTest2")
 
     val globalRunningJobsCounter = new RunningJobCounter()
     val bigWorkflow1 = TestActorRef(new MultipleTokenUsingActor(tokenDispenserUnderTest, tokenType, totalJobsPerWorkflow, hogGroup = "hogGroupA", globalRunningJobsCounter), "multipleTokenUsingActor1")
@@ -86,6 +82,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     globalRunningJobsCounter.getMax should be(maxConcurrencyExpected)
     system.stop(bigWorkflow1)
     system.stop(bigWorkflow2)
+    system.stop(tokenDispenserUnderTest)
   }
 
   it should "be able to allocate two workflows in two hog groups exactly half of the total token pool each" in {
@@ -96,7 +93,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     val totalJobsPerWorkflow = maxConcurrencyPerWorkflow + 1
     val tokenType = JobExecutionTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis)), "tokenDispenserUnderTest")
+    val tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis)), "tokenDispenserUnderTest3")
 
     val globalRunningJobsCounter = new RunningJobCounter()
     val bigWorkflow1 = TestActorRef(new MultipleTokenUsingActor(tokenDispenserUnderTest, tokenType, totalJobsPerWorkflow, hogGroup = "hogGroupA", globalRunningJobsCounter), "multipleTokenUsingActor1")
@@ -119,6 +116,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     globalRunningJobsCounter.getMax should be(maxConcurrencyOverall)
     system.stop(bigWorkflow1)
     system.stop(bigWorkflow2)
+    system.stop(tokenDispenserUnderTest)
   }
 
   it should "be able to allocate 100 workflows in 100 hog groups exactly 1/100 of the total token pool each" in {
@@ -129,7 +127,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     val totalJobsPerWorkflow = maxConcurrencyPerWorkflow * 2
     val tokenType = JobExecutionTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis)), "tokenDispenserUnderTest")
+    val tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis)), "tokenDispenserUnderTest4")
 
     val globalRunningJobsCounter = new RunningJobCounter()
 
@@ -152,6 +150,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
 
     globalRunningJobsCounter.getMax should be(maxConcurrencyOverall)
     workflows foreach { system.stop(_) }
+    system.stop(tokenDispenserUnderTest)
   }
 
   it should "be able to allocate 100 workflows in 50 hog groups 1/25 of the total token pool per group" in {
@@ -164,7 +163,7 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     val totalJobsPerWorkflow = maxConcurrencyPerHogGroup * 2
     val tokenType = JobExecutionTokenType(backendName, Some(totalTokensAvailable), hogFactor)
 
-    tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis)), "tokenDispenserUnderTest")
+    val tokenDispenserUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(maxConcurrencyOverall + 1, 100.millis)), "tokenDispenserUnderTest5")
 
     val hogGroupConcurrencyCounters = (0 until totalHogGroups).toVector map { _ => new RunningJobCounter() }
 
@@ -186,11 +185,26 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
       }
     }
 
+    // Check that each hog group was able to start jobs all the way up to its limit (but not beyond):
+    // NOTE:
+    // The test is set up to let the workflows of every hog group reach exactly the concurrency limit in parallel, but because we're in a non-deterministic test,
+    // occasionally it gets off-by-one (eg one hog group maxing out at 39 instead of 40 concurrent jobs).
+    // So:
+    //   - check that at least 90% of the hog groups did exactly hit the limit (as we would expect):
+    //   - check that no hog groups ever go over the limit,
+    //   - check that all hog groups got to at least 90% of what we expected
+
+    var exactlyAtLimit = 0
     hogGroupConcurrencyCounters foreach { c =>
-      Assertions.assert(c.getMax == maxConcurrencyPerHogGroup, "(asserting maxActualConcurrency per hog group == maxRequestedConcurrency per hog group)")
+      if (c.getMax == maxConcurrencyPerHogGroup) { exactlyAtLimit += 1 } else {
+        Assertions.assert(c.getMax <= maxConcurrencyPerHogGroup, "(asserting maxActualConcurrency per hog group <= maxRequestedConcurrency per hog group)")
+        Assertions.assert(c.getMax >= maxConcurrencyPerHogGroup * 0.9, "(asserting maxActualConcurrency per hog group >= (90% of maxRequestedConcurrency per hog group))")
+      }
     }
+    Assertions.assert(exactlyAtLimit >= (totalHogGroups * 0.9), "(at least 90% of the hog groups reached the full concurrency limit)")
 
     workflows foreach { system.stop(_) }
+    system.stop(tokenDispenserUnderTest)
   }
 
 }

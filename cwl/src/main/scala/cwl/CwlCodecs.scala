@@ -3,7 +3,6 @@ package cwl
 import cats.data.NonEmptyList
 import io.circe._
 import io.circe.generic.auto._
-import eu.timepit.refined.string._
 import io.circe.refined._
 import io.circe.literal._
 import common.Checked

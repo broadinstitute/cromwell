@@ -73,6 +73,9 @@ object CentaurCromwellClient {
 
   lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))
 
+  implicit private val timer = IO.timer(blockingEc)
+  implicit private val contextShift = IO.contextShift(blockingEc)
+
   def retryRequest[T](x: () => Future[T], timeout: FiniteDuration): IO[T] = {
     // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail 
     val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit

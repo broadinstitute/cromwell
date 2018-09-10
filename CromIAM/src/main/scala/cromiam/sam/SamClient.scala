@@ -8,7 +8,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import com.softwaremill.sttp._
+import com.softwaremill.sttp.{StatusCodes => _, _}
 import cromiam.auth.{Collection, User}
 import cromiam.sam.SamClient._
 import cromiam.sam.SamResourceJsonSupport._

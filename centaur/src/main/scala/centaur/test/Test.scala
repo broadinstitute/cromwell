@@ -161,6 +161,9 @@ object Operations {
     }
   }
 
+  implicit private val timer = IO.timer(global)
+  implicit private val contextShift = IO.contextShift(global)
+
   def waitFor(duration: FiniteDuration) = {
     new Test[Unit] {
       override def run = IO.sleep(duration)

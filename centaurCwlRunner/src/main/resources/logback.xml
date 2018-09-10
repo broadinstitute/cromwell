@@ -18,4 +18,13 @@
     https://github.com/akka/akka-http/blob/v10.0.10/akka-http-core/src/main/scala/akka/http/impl/engine/client/PoolMasterActor.scala#L117
     -->
     <logger name="akka.http.impl.engine.client.PoolMasterActor" level="off" additivity="false"/>
+
+    <!--
+    Silence Injector warning logging of:
+    06:36:48.095 [main] WARN  org.semanticweb.owlapi.utilities.Injector - No files found for META-INF/services/org.semanticweb.owlapi.model.OWLOntologyIRIMapper
+
+    via:
+    https://github.com/owlcs/owlapi/blob/owlapi-parent-5.1.7/api/src/main/java/org/semanticweb/owlapi/utilities/Injector.java#L383
+    -->
+    <logger name="org.semanticweb.owlapi.utilities.Injector" level="error" additivity="false"/>
 </configuration>

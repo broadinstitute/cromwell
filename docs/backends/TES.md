@@ -63,3 +63,11 @@ This backend supports CPU, memory and disk size configuration through the use of
     * Type: String (ex: "1 GB" or "1024 MB")
 
 If they are not set, the TES backend may use default values.
+
+**TESK**
+
+[TESK](https://github.com/EMBL-EBI-TSI/TESK) is an implementation of the TES interface that uses Kubernetes and FTP.
+When running Cromwell with a TESK backend, you will want to customize the way Cromwell process globs, as kubernetes will not work well with hard links in a lot of cases which is the default behavior in Cromwell.
+By adding this to the `config` section of the TES backend in Cromwell, Cromwell will use symlinks instead.  
+
+`glob-link-command = "ls -L GLOB_PATTERN 2> /dev/null | xargs -I ? ln -s ? GLOB_DIRECTORY"`

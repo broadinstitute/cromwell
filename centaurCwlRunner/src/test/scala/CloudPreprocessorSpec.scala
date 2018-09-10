@@ -1,11 +1,11 @@
-import centaur.cwl.PAPIPreprocessor
+import centaur.cwl.CloudPreprocessor
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
 
-class PAPIPreprocessorSpec extends FlatSpec with Matchers {
+class CloudPreprocessorSpec extends FlatSpec with Matchers {
   behavior of "PAPIPreProcessor"
 
-  val pAPIPreprocessor = new PAPIPreprocessor(ConfigFactory.load())
+  val pAPIPreprocessor = new CloudPreprocessor(ConfigFactory.load(), "papi.default-input-gcs-prefix")
   
   def validate(result: String, expectation: String) = {
     val parsedResult = io.circe.yaml.parser.parse(result).right.get

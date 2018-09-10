@@ -190,18 +190,18 @@ class LargeScaleJobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem(
     // The test is set up to let the workflows of every hog group reach exactly the concurrency limit in parallel, but because we're in a non-deterministic test,
     // occasionally it gets off-by-one (eg one hog group maxing out at 39 instead of 40 concurrent jobs).
     // So:
-    //   - check that at least 90% of the hog groups did exactly hit the limit (as we would expect):
+    //   - check that at least 80% of the hog groups did exactly hit the limit (as we would expect):
     //   - check that no hog groups ever go over the limit,
-    //   - check that all hog groups got to at least 90% of what we expected
+    //   - check that all hog groups got to at least 80% of what we expected, even if they didn't quite reach the exact limit
 
     var exactlyAtLimit = 0
     hogGroupConcurrencyCounters foreach { c =>
       if (c.getMax == maxConcurrencyPerHogGroup) { exactlyAtLimit += 1 } else {
         Assertions.assert(c.getMax <= maxConcurrencyPerHogGroup, "(asserting maxActualConcurrency per hog group <= maxRequestedConcurrency per hog group)")
-        Assertions.assert(c.getMax >= maxConcurrencyPerHogGroup * 0.9, "(asserting maxActualConcurrency per hog group >= (90% of maxRequestedConcurrency per hog group))")
+        Assertions.assert(c.getMax >= maxConcurrencyPerHogGroup * 0.8, "(asserting maxActualConcurrency per hog group >= (80% of maxRequestedConcurrency per hog group))")
       }
     }
-    Assertions.assert(exactlyAtLimit >= (totalHogGroups * 0.9), "(at least 90% of the hog groups reached the full concurrency limit)")
+    Assertions.assert(exactlyAtLimit >= (totalHogGroups * 0.8), "(at least 80% of the hog groups reached the full concurrency limit)")
 
     workflows foreach { system.stop(_) }
     system.stop(tokenDispenserUnderTest)

@@ -49,7 +49,8 @@ final case class TokenQueue(queue: Queue[TokenQueuePlaceholder], private [tokens
         val poolAcquisitionResult = pool.tryAcquire(placeholder.hogGroup)
         unpackLeaseOptionAndDetermineNewQueue(poolAcquisitionResult, placeholder, queue, newQueue) match {
           case UnpackedLeaseAndUpdatedQueue(Some(lease), nq) => DequeueResult(Option(LeasedActor(placeholder.actor, lease)), nq)
-          case UnpackedLeaseAndUpdatedQueue(None, nq) => nq.dequeue
+          case UnpackedLeaseAndUpdatedQueue(None, nq) if !(this.queue eq nq.queue) => nq.dequeue
+          case UnpackedLeaseAndUpdatedQueue(None, _) => DequeueResult(None, this)
         }
       case None =>
         DequeueResult(None, this)

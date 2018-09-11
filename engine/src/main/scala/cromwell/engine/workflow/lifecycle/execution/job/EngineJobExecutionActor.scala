@@ -406,10 +406,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       }
     case Event(EngineLifecycleActorAbortCommand, _) =>
       forwardAndStop(JobAbortedResponse(jobDescriptorKey))
-    // We can get extra I/O timeout messages from previous cache copy attempt. This is due to the fact that if one file fails to copy,
-    // we immediately cache miss and try the next potential hit, but don't cancel previous copy requests.
-    case Event(JobFailedNonRetryableResponse(_, _: TimeoutException, _), _) =>
-      stay()
     case Event(msg, _) =>
       log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender, stateName, stateData, msg)
       stay

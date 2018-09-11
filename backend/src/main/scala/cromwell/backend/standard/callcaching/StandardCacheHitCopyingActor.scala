@@ -178,8 +178,12 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           stay() using Option(newData)
       }
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
-      // any failure is fatal
-      context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+      // We can get extra I/O timeout messages from previous cache copy attempt. This is due to the fact that if one file fails to copy,
+      // we immediately cache miss and try the next potential hit, but don't cancel previous copy requests.
+      // (any other failure is fatal)
+      if (!failure.isInstanceOf[TimeoutException]) {
+        context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+      }
 
       val (newData, commandState) = data.commandComplete(command)
 

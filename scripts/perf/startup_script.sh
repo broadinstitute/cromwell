@@ -49,24 +49,31 @@ export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMet
 
 docker-compose up -d
 
-echo "Trying to ping Cromwell"
-
-until [[ $(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: application/json") = *"cromwell"* ]]; do
-	echo "No connection to Cromwell yet!"
-	sleep 5
-done
-
-echo "Cromwell is UP! Connection Successful!"
-
-mkdir /workflow_files
-cd /workflow_files
-
 # Extract workflow script name
 export WORKFLOW_SCRIPT_NAME=$(extract_metadata WORKFLOW_SCRIPT)
 
-# Download the workflow script
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/vm_scripts/workflow_scripts/${WORKFLOW_SCRIPT_NAME} -o workflow_script.sh
+if [ -z "$WORKFLOW_SCRIPT_NAME" ]
+then
+    echo "No WORKFLOW_SCRIPT provided! Can't launch the script!"
+else
+    echo "Trying to ping Cromwell"
 
-# Run the workflow script
-chmod +x /workflow_files/workflow_script.sh
-/bin/bash /workflow_files/workflow_script.sh
+    until [[ $(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: application/json") = *"cromwell"* ]]; do
+        echo "No connection to Cromwell yet!"
+        sleep 5
+    done
+
+    echo "Cromwell is UP! Connection Successful!"
+
+    mkdir /workflow_files
+    cd /workflow_files
+
+
+
+    # Download the workflow script
+    curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/vm_scripts/workflow_scripts/${WORKFLOW_SCRIPT_NAME} -o workflow_script.sh
+
+    # Run the workflow script
+    chmod +x /workflow_files/workflow_script.sh
+    /bin/bash /workflow_files/workflow_script.sh
+fi

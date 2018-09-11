@@ -60,7 +60,7 @@ class WdlConditionalWomSpec extends FlatSpec with Matchers {
         foo_out_output.identifier.fullyQualifiedName.value shouldBe "conditional_test.foo.out"
         
         val expressionNode = workflowGraph.nodes.collectFirst {
-          case expr: ExpressionNode if expr.localName == "conditional" => expr
+          case expr: ExpressionNode if expr.localName == "__anon_conditional" => expr
         }.getOrElse(fail("Resulting graph did not contain the 'conditional' ExpressionNode"))
 
         workflowGraph.nodes should be(Set(conditionalNode, foo_i_inputNode, b_inputNode, foo_out_output, expressionNode))

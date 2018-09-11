@@ -56,11 +56,10 @@ import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Try
+import spire.math.UByte
 
-//TODO: needs spire import
-case class SubmitJobConfig(attempts: Natural, createDefinitionconfig: CreateDefinitionConfig)
-case class CreateDefinitionConfig(attempts: Natural)
-
+case class SubmitJobConfig(attempts: UByte, createDefinitionconfig: CreateDefinitionConfig)
+case class CreateDefinitionConfig(attempts: UByte)
 
 /** The actual job for submission in AWS batch. Currently, each job will
  *  have its own job definition and queue. Support for separation and reuse of job

@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.job
 
-import java.util.concurrent.TimeoutException
-
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand

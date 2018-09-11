@@ -102,44 +102,6 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(completionEvents)
   }
 
-  //  def pushExecutionEventsToMetadataService(jobKey: JobKey, response: BackendJobExecutionResponse) = {
-  //    def makeEvents(eventKey: String, eventCurrent: ExecutionEvent, eventNext: ExecutionEvent) = {
-  //      List(
-  //        metadataEvent(jobKey, s"$eventKey:description", eventCurrent.name),
-  //        metadataEvent(jobKey, s"$eventKey:startTime", eventCurrent.offsetDateTime),
-  //        metadataEvent(jobKey, s"$eventKey:endTime", eventNext.offsetDateTime)
-  //      )
-  //    }
-  //    
-  //    response match {
-  //      case success: JobSucceededResponse =>
-  //        val eventList: Seq[ExecutionEvent] = success.executionEvents
-  //        val sortedEvents = eventList.sortBy(_.offsetDateTime)
-  //
-  //        sortedEvents.headOption foreach { firstEvent =>
-  //          // The final event is only used as the book-end for the final pairing so the name is never actually used...
-  //          val offset = firstEvent.offsetDateTime.getOffset
-  //          val now = OffsetDateTime.now.withOffsetSameInstant(offset)
-  //          val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
-  //          val tailedEventList = sortedEvents :+ lastEvent
-  //
-  //          val firstMetadataEvents: List[MetadataEvent] = tailedEventList.take(2).toList match {
-  //            case List(eventCurrent, eventNext) => makeEvents(runningKey.getOrElse(s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"), eventCurrent, eventNext)
-  //            case _ => List.empty
-  //          }
-  //
-  //          val events = firstMetadataEvents ++ (tailedEventList.tail.sliding(2) flatMap {
-  //            case Seq(eventCurrent, eventNext) =>
-  //              val eventKey = s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"
-  //              makeEvents(eventKey, eventCurrent, eventNext)
-  //          })
-  //
-  //          serviceRegistryActor ! PutMetadataAction(events)
-  //        }
-  //      case _ =>
-  //    }
-  //  }
-
   private def completedCallMetadataEvents(jobKey: JobKey, executionStatus: ExecutionStatus, returnCode: Option[Int]) = {
     val returnCodeEvent = returnCode map { rc =>
       List(MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.ReturnCode), MetadataValue(rc)))

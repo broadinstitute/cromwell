@@ -14,7 +14,7 @@ import wom.values.{WomEvaluatedCallInputs, WomValue}
 import scala.util.Random
 
 trait CallMetadataHelper {
-
+  
   def workflowIdForCallMetadata: WorkflowId
   def serviceRegistryActor: ActorRef
 
@@ -60,7 +60,7 @@ trait CallMetadataHelper {
 
     serviceRegistryActor ! PutMetadataAction(events)
   }
-
+  
   def pushWaitingForQueueSpaceCallMetadata(jobKey: JobKey) = {
     val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(WaitingForQueueSpace))
     serviceRegistryActor ! PutMetadataAction(event)
@@ -92,7 +92,7 @@ trait CallMetadataHelper {
       case _ =>
         throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
     }
-
+  
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
 
@@ -100,6 +100,35 @@ trait CallMetadataHelper {
     val completionEvents = completedCallMetadataEvents(jobKey, ExecutionStatus.Aborted, None)
 
     serviceRegistryActor ! PutMetadataAction(completionEvents)
+  }
+
+  def pushExecutionEventsToMetadataService(jobKey: JobKey, eventList: Seq[ExecutionEvent]) = {
+    def metadataEvent(k: String, value: Any) = {
+      val metadataValue = MetadataValue(value)
+      val metadataKey = metadataKeyForCall(jobKey, k)
+      MetadataEvent(metadataKey, metadataValue)
+    }
+    
+    val sortedEvents = eventList.sortBy(_.offsetDateTime)
+
+    sortedEvents.headOption foreach { firstEvent =>
+      // The final event is only used as the book-end for the final pairing so the name is never actually used...
+      val offset = firstEvent.offsetDateTime.getOffset
+      val now = OffsetDateTime.now.withOffsetSameInstant(offset)
+      val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
+      val tailedEventList = sortedEvents :+ lastEvent
+      val events = tailedEventList.sliding(2) flatMap {
+        case Seq(eventCurrent, eventNext) =>
+          val eventKey = s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"
+          List(
+            metadataEvent(s"$eventKey:description", eventCurrent.name),
+            metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
+            metadataEvent(s"$eventKey:endTime", eventNext.offsetDateTime)
+          )
+      }
+
+      serviceRegistryActor ! PutMetadataAction(events.toIterable)
+    }
   }
 
   private def completedCallMetadataEvents(jobKey: JobKey, executionStatus: ExecutionStatus, returnCode: Option[Int]) = {
@@ -112,14 +141,8 @@ trait CallMetadataHelper {
       MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.End), MetadataValue(OffsetDateTime.now))
     ) ++ returnCodeEvent.getOrElse(List.empty)
   }
-
-  protected def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
+  
+  private def randomNumberString: String = Random.nextInt.toString.stripPrefix("-")
 
   def metadataKeyForCall(jobKey: JobKey, myKey: String) = MetadataKey(workflowIdForCallMetadata, Option(MetadataJobKey(jobKey.node.fullyQualifiedName, jobKey.index, jobKey.attempt)), myKey)
-
-  def metadataEvent(jobKey: JobKey, k: String, value: Any) = {
-    val metadataValue = MetadataValue(value)
-    val metadataKey = metadataKeyForCall(jobKey, k)
-    MetadataEvent(metadataKey, metadataValue)
-  }
 }

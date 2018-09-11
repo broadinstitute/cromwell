@@ -19,6 +19,7 @@ import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
+import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}
@@ -61,8 +62,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               backendName: String,
                               callCachingMode: CallCachingMode,
-                              command: BackendJobExecutionActorCommand) extends LoggingFSM[EngineJobExecutionActorState, EJEAData] with TimedFSM[EngineJobExecutionActorState]
-  with WorkflowLogging with CallMetadataHelper with ExecutionEventsHelper with JobInstrumentation {
+                              command: BackendJobExecutionActorCommand) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
+  with WorkflowLogging with CallMetadataHelper with JobInstrumentation with TimedFSM[EngineJobExecutionActorState] {
 
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
@@ -107,12 +108,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   startWith(Pending, NoData)
+  private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
 
   override def onTimedTransition(from: EngineJobExecutionActorState, to: EngineJobExecutionActorState, duration: FiniteDuration) = {
     // Send to StatsD
     recordExecutionStepTiming(from.toString, duration)
-    // Push to metadata
-    pushExecutionEventToMetadataService(jobDescriptorKey)(ExecutionEvent(to.toString, OffsetDateTime.now()))
   }
 
   // When Pending, the FSM always has NoData
@@ -286,18 +286,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   val jobSuccessHandler: StateFunction = {
     // writeToCache is true and all hashes have already been retrieved - save to the cache
     case Event(response: JobSucceededResponse, data @ ResponsePendingData(_, _, Some(Success(hashes)), _, _, _)) if effectiveCallCachingMode.writeToCache =>
-      pushExecutionEventsToMetadataService(jobDescriptorKey, response.executionEvents)
+      eventList ++= response.executionEvents
       // Publish the image used now that we have it as we might lose the information if Cromwell is restarted
       // in between writing to the cache and writing to the job store
       response.dockerImageUsed foreach publishDockerImageUsed
       saveCacheResults(hashes, data.withSuccessResponse(response))
     // Hashes are still missing and we want them (writeToCache is true) - wait for them
     case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
-      pushExecutionEventsToMetadataService(jobDescriptorKey, response.executionEvents)
+      eventList ++= response.executionEvents
       stay using data.withSuccessResponse(response)
     // Hashes are missing but writeToCache is OFF - complete the job
     case Event(response: JobSucceededResponse, data: ResponsePendingData) =>
-      pushExecutionEventsToMetadataService(jobDescriptorKey, response.executionEvents)
+      eventList ++= response.executionEvents
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
   }
 
@@ -391,6 +391,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   onTransition {
     case fromState -> toState =>
       log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+      eventList :+= ExecutionEvent(toState.toString)
   }
 
   whenUnhandled {
@@ -476,7 +477,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     replyTo forward response
     returnExecutionToken()
     instrumentJobComplete(response)
-    terminateExecutionEvents(jobDescriptorKey)
+    pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     context stop self
     stay()
   }
@@ -485,7 +486,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     replyTo ! response
     returnExecutionToken()
     instrumentJobComplete(response)
-    terminateExecutionEvents(jobDescriptorKey)
+    pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
     context stop self
     stay()
   }

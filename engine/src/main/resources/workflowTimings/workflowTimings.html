@@ -65,54 +65,27 @@
                     }
                     
                     var executionEvents = callList[callIndex].executionEvents;
-                    
-                    function compareEvents(a,b) {
-                        var aTime = new Date(a["startTime"]).getTime();
-                        var bTime = new Date(b["startTime"]).getTime();
-                        
-                        if (aTime < bTime) return -1;
-                        if (aTime > bTime) return 1;
-                        else return 0;
-                    }
 
-                    executionEvents = executionEvents.sort(compareEvents);
-                    
                     var firstEventStart = null;
                     var finalEventEnd = null;
-                    
-                    if(callStatus == "Starting" || callStatus == "Running" || callStatus == "Done" || callStatus == "Failed" || callStatus == "RetryableFailure") {
+
+                    if(callStatus == "Done" || callStatus == "Failed" || callStatus == "RetryableFailure") {
                         executionCallsCount++;
                         for (var executionEventIndex in executionEvents) {
-                            var executionEvent = executionEvents[executionEventIndex];
+                            var executionEvent = callList[callIndex].executionEvents[executionEventIndex];
                             var description = executionEvent["description"];
                             // Replace all "start(...)" with just "start" so that the names (and therefore the "color" assigned from the list below) are consistent:
                             description = description.replace(new RegExp("^start.*"), "start");
                             var startDate = new Date(executionEvent["startTime"]);
+                            var endDate = new Date(executionEvent["endTime"]);
                             if (firstEventStart == null || startDate < firstEventStart) {
                                 firstEventStart = startDate
                             }
-                            var endDateString = executionEvent["endTime"];
-                            var executionEndDate;
-                            
-                            if (endDateString === null) {
-                                // If the end time is null but this is not the last event, take the next start time as the end time for this one
-                                // This can happen if Cromwell is restarted and cannot set the end date for a previous event
-                                if (parseInt(executionEventIndex) < executionEvents.length - 1) {
-                                    executionEndDate = new Date(executionEvents[parseInt(executionEventIndex) + 1]["startTime"]);
-                                } else {
-                                  // Otherwise if this is the last event it means it's in progress as far as we know
-                                  description = description + " (In Progress...)";
-                                  executionEndDate = new Date();
-                                }
-                            } else {
-                                executionEndDate = new Date(endDateString);
+                            if (finalEventEnd == null || endDate > finalEventEnd) {
+                                finalEventEnd = endDate
                             }
-                            if (finalEventEnd == null || executionEndDate > finalEventEnd) {
-                                finalEventEnd = executionEndDate
-                            }
-                            
                             // NB: See the column definitions above.
-                            addDataTableRow(dataTable, callFqn, description, startDate, executionEndDate, ancestry);
+                            addDataTableRow(dataTable, callFqn, description, startDate, endDate, ancestry);
                         }
 
                         if (callList[callIndex].hasOwnProperty("start")) {

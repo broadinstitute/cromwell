@@ -67,21 +67,12 @@
                     var executionEvents = callList[callIndex].executionEvents;
                     
                     function compareEvents(a,b) {
-                        console.log("Comparing " + a["startTime"] + " and " + b["startTime"]);
                         var aTime = new Date(a["startTime"]).getTime();
                         var bTime = new Date(b["startTime"]).getTime();
-                        console.log("aTime = " + aTime);
-                        console.log("bTime = " + bTime);
-                        if (aTime < bTime) {
-                            console.log(a["startTime"] + " < " + b["startTime"]);
-                            return -1;
-                        }
-                        if (aTime > bTime) {
-                            console.log(a["startTime"] + " > " + b["startTime"]);
-                            return 1;
-                        }
-                        console.log("same");
-                        return 0;
+                        
+                        if (aTime < bTime) return -1;
+                        if (aTime > bTime) return 1;
+                        else return 0;
                     }
 
                     executionEvents = executionEvents.sort(compareEvents);
@@ -104,9 +95,12 @@
                             var executionEndDate;
                             
                             if (endDateString === null) {
+                                // If the end time is null but this is not the last event, take the next start time as the end time for this one
+                                // This can happen if Cromwell is restarted and cannot set the end date for a previous event
                                 if (parseInt(executionEventIndex) < executionEvents.length - 1) {
                                     executionEndDate = new Date(executionEvents[parseInt(executionEventIndex) + 1]["startTime"]);
-                                } else {                            
+                                } else {
+                                  // Otherwise if this is the last event it means it's in progress as far as we know
                                   description = description + " (In Progress...)";
                                   executionEndDate = new Date();
                                 }

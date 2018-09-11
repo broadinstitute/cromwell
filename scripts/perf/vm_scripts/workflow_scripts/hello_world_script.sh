@@ -1,6 +1,6 @@
 #! bin/bash
 
-echo "Inside second script"
+echo "Running hello_world_script"
 
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl -o workflow.wdl
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.inputs -o workflow_inputs.json

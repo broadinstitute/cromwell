@@ -61,9 +61,12 @@ echo "Connection to Cromwell success!"
 mkdir /workflow_files
 cd /workflow_files
 
-#TODO: Change ss_perf_wf_deploy -> develop when it is pushed to develop
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/ss_perf_wf_deploy/scripts/perf/vm_scripts/workflow_scripts/hello_world_script.sh -o hello_world_script.sh
+# Extract workflow script name
+export WORKFLOW_SCRIPT_NAME=$(extract_metadata WORKFLOW_SCRIPT)
 
-chmod +x /workflow_files/hello_world_script.sh
+# Download the workflow script
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/vm_scripts/workflow_scripts/${WORKFLOW_SCRIPT_NAME} -o workflow_script.sh
 
-/bin/bash /workflow_files/hello_world_script.sh
+# Run the workflow script
+chmod +x /workflow_files/workflow_script.sh
+/bin/bash /workflow_files/workflow_script.sh

@@ -333,7 +333,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to actually run something
   override def executeAsync(): Future[ExecutionHandle] = {
     for {
-      submitJobResponse <- batchJob.submitJob[IO]().unsafeToFuture()
+      submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousStatus = None)
   }
 

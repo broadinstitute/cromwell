@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.job
 
-import java.time.OffsetDateTime
 import java.util.concurrent.TimeoutException
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
@@ -19,7 +18,6 @@ import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
-import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}

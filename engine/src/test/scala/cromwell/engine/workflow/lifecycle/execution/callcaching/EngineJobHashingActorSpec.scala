@@ -71,7 +71,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
       (WriteCache, false),
       (ReadAndWriteCache, true)
     )
-    forAll(activities) { case ((readWriteMode, hasCCReadActor)) =>
+    forAll(activities) { case (readWriteMode, hasCCReadActor) =>
       val receiver = TestProbe()
       val actorUnderTest = makeEJHA(receiver.ref, CallCachingActivity(readWriteMode))
       actorUnderTest.underlyingActor.callCacheReadingJobActor.isDefined shouldBe hasCCReadActor

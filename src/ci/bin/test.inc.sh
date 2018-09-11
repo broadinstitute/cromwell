@@ -583,13 +583,13 @@ cromwell::private::kill_tree() {
 
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
-    cromwell::private::echo_build_variables
     cromwell::private::exec_test_script
 }
 
 cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
+    cromwell::private::echo_build_variables
     cromwell::private::verify_cron_build
     cromwell::private::verify_secure_build
     cromwell::private::setup_secure_resources

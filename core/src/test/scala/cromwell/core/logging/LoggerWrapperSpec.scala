@@ -258,9 +258,28 @@ class LoggerWrapperSpec extends FlatSpec with Matchers with Mockito with TableDr
 
       def toList(arguments: Any): List[Any] = {
         arguments match {
-          case array: Array[_] => array.toList
+          case array: Array[_] => toLastFlattened(array)
           case seq: Seq[_] => seq.toList
           case any => List(any)
+        }
+      }
+
+      /*
+        * Flatten the last element of the array if the last element is itself an array.
+        *
+        * org.mockito.ArgumentMatchers#anyVararg() is deprecated, but works, sending in an empty array in the tail
+        * position. If we tried to use org.mockito.ArgumentMatchers#any(), it ends up mocking the wrong overloaded
+        * method. At each logging level there are two methods with very similar signatures:
+        *
+        * cromwell.core.logging.LoggerWrapper.error(pattern: String, arguments: AnyRef*)
+        * cromwell.core.logging.LoggerWrapper.error(pattern: String, arg: Any)
+        *
+        * As is, the Any vs. AnyRef overloads are barely dodging the issue https://issues.scala-lang.org/browse/SI-2991.
+        */
+      def toLastFlattened(array: Array[_]): List[Any] = {
+        array.toList.reverse match {
+          case (array: Array[_]) :: tail => tail.reverse ++ array.toList
+          case other => other.reverse
         }
       }
 
@@ -275,34 +294,34 @@ class LoggerWrapperSpec extends FlatSpec with Matchers with Mockito with TableDr
       val mockLogger = mock[Logger]
 
       mockLogger.error(anyString).answers(updateSlf4jMessages(Level.ERROR, _))
-      mockLogger.error(anyString, any[Any]).answers(updateSlf4jMessages(Level.ERROR, _))
-      mockLogger.error(anyString, any[Any], any[Any]).answers(updateSlf4jMessages(Level.ERROR, _))
+      mockLogger.error(anyString, any[Any]()).answers(updateSlf4jMessages(Level.ERROR, _))
+      mockLogger.error(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.ERROR, _))
       mockLogger.error(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.ERROR, _))
-      mockLogger.error(anyString, any[Throwable]).answers(updateSlf4jMessages(Level.ERROR, _))
+      mockLogger.error(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.ERROR, _))
 
       mockLogger.warn(anyString).answers(updateSlf4jMessages(Level.WARN, _))
-      mockLogger.warn(anyString, any[Any]).answers(updateSlf4jMessages(Level.WARN, _))
-      mockLogger.warn(anyString, any[Any], any[Any]).answers(updateSlf4jMessages(Level.WARN, _))
+      mockLogger.warn(anyString, any[Any]()).answers(updateSlf4jMessages(Level.WARN, _))
+      mockLogger.warn(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.WARN, _))
       mockLogger.warn(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.WARN, _))
-      mockLogger.warn(anyString, any[Throwable]).answers(updateSlf4jMessages(Level.WARN, _))
+      mockLogger.warn(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.WARN, _))
 
       mockLogger.info(anyString).answers(updateSlf4jMessages(Level.INFO, _))
-      mockLogger.info(anyString, any[Any]).answers(updateSlf4jMessages(Level.INFO, _))
-      mockLogger.info(anyString, any[Any], any[Any]).answers(updateSlf4jMessages(Level.INFO, _))
+      mockLogger.info(anyString, any[Any]()).answers(updateSlf4jMessages(Level.INFO, _))
+      mockLogger.info(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.INFO, _))
       mockLogger.info(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.INFO, _))
-      mockLogger.info(anyString, any[Throwable]).answers(updateSlf4jMessages(Level.INFO, _))
+      mockLogger.info(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.INFO, _))
 
       mockLogger.debug(anyString).answers(updateSlf4jMessages(Level.DEBUG, _))
-      mockLogger.debug(anyString, any[Any]).answers(updateSlf4jMessages(Level.DEBUG, _))
-      mockLogger.debug(anyString, any[Any], any[Any]).answers(updateSlf4jMessages(Level.DEBUG, _))
+      mockLogger.debug(anyString, any[Any]()).answers(updateSlf4jMessages(Level.DEBUG, _))
+      mockLogger.debug(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.DEBUG, _))
       mockLogger.debug(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.DEBUG, _))
-      mockLogger.debug(anyString, any[Throwable]).answers(updateSlf4jMessages(Level.DEBUG, _))
+      mockLogger.debug(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.DEBUG, _))
 
       mockLogger.trace(anyString).answers(updateSlf4jMessages(Level.TRACE, _))
-      mockLogger.trace(anyString, any[Any]).answers(updateSlf4jMessages(Level.TRACE, _))
-      mockLogger.trace(anyString, any[Any], any[Any]).answers(updateSlf4jMessages(Level.TRACE, _))
+      mockLogger.trace(anyString, any[Any]()).answers(updateSlf4jMessages(Level.TRACE, _))
+      mockLogger.trace(anyString, any[Any](), any[Any]()).answers(updateSlf4jMessages(Level.TRACE, _))
       mockLogger.trace(anyString, anyVarArg[AnyRef]).answers(updateSlf4jMessages(Level.TRACE, _))
-      mockLogger.trace(anyString, any[Throwable]).answers(updateSlf4jMessages(Level.TRACE, _))
+      mockLogger.trace(anyString, any[Throwable]()).answers(updateSlf4jMessages(Level.TRACE, _))
 
       val mockLoggingAdapter: LoggingAdapter = new LoggingAdapter {
         override val isErrorEnabled: Boolean = true

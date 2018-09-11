@@ -27,7 +27,7 @@ scripts/docker-compose-mysql/compose/mysql/data
 # Vault rendered resources
 artifactory_credentials.properties
 bcs_application.conf
-centaur_application_sentry_config.inc.conf
+centaur_secure.inc.conf
 cromwell-centaur-requester-pays-service-account.json
 cromwell-centaur-service-account.json
 cromwell-service-account.json
@@ -39,3 +39,6 @@ github_private_deploy_key
 papi_application.inc.conf
 papi_refresh_token.txt
 private_docker_papi_v2_usa.options
+tesk_application_ftp.conf
+ftp_centaur_cwl_runner.conf
+tesk_application.conf

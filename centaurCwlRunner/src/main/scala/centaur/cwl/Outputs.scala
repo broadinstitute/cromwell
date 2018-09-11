@@ -1,22 +1,23 @@
 package centaur.cwl
 
 import centaur.api.CentaurCromwellClient
+import centaur.test.metadata.WorkflowFlatMetadata._
+import common.validation.Parse._
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
-import common.validation.Parse._
 import cwl.ontology.Schema
 import cwl.{Cwl, CwlDecoder, MyriadOutputType}
 import io.circe.Json
 import io.circe.syntax._
+import scalaz.syntax.std.map._
 import shapeless.Poly1
 import spray.json.{JsObject, JsString, JsValue}
-import scalaz.syntax.std.map._
 
 object Outputs {
 
   //When the string returned is not valid JSON, it is effectively an exception as CWL runner expects JSON to be returned
   def handleOutput(submittedWorkflow: SubmittedWorkflow, pathBuilder: PathBuilder): String = {
-    val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).unsafeRunSync().value
+    val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).unsafeRunSync().asFlat.value
 
     // Wrapper function to provide the right signature for `intersectWith` below.
     def outputResolver(schemaOption: Option[Schema])(jsValue: JsValue, mot: MyriadOutputType): Json = {

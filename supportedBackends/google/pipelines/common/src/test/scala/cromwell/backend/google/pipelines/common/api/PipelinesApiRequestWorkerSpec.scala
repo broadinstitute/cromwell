@@ -136,8 +136,13 @@ abstract class TestPipelinesApiBatchHandler[O >: Null] extends PipelinesApiReque
 
 object TestPipelinesApiRequestWorker {
   def props(manager: ActorRef, jesConfiguration: PipelinesApiConfiguration, registryProbe: ActorRef)
-              (implicit batchHandler: TestPipelinesApiBatchHandler[_]) = 
-    Props(new TestPipelinesApiRequestWorker(manager, jesConfiguration.qps, registryProbe))
+           (implicit batchHandler: TestPipelinesApiBatchHandler[_]): Props = {
+    Props(new TestPipelinesApiRequestWorker(
+      manager,
+      jesConfiguration.jesAttributes.qps,
+      registryProbe
+    ))
+  }
   
   sealed trait PipelinesApiBatchCallbackResponse
   case object CallbackSuccess extends PipelinesApiBatchCallbackResponse

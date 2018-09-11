@@ -113,5 +113,4 @@ object GoogleAuthModeSpec {
 
   lazy val refreshTokenOptions: OptionLookup = Map("refresh_token" -> "the_refresh_token")
   lazy val userServiceAccountOptions: OptionLookup = Map("user_service_account_json" -> serviceAccountJsonContents)
-  lazy val emptyOptions: OptionLookup = Map.empty
 }

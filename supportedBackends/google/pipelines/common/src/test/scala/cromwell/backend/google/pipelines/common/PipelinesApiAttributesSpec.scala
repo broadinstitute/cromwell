@@ -14,7 +14,7 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
 
   behavior of "JesAttributes"
 
-  val googleConfig = GoogleConfiguration(JesGlobalConfig)
+  val googleConfig = GoogleConfiguration(PapiGlobalConfig)
   val runtimeConfig = ConfigFactory.load()
 
   it should "parse correct PAPI config" taggedAs IntegrationTest in {

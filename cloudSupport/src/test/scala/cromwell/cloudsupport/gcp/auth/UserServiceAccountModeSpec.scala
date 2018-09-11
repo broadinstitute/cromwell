@@ -1,42 +1,27 @@
 package cromwell.cloudsupport.gcp.auth
 
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import org.scalatest.{FlatSpec, Matchers}
 
 class UserServiceAccountModeSpec extends FlatSpec with Matchers {
 
   behavior of "UserServiceAccountMode"
 
-  it should "generate a credential" in {
-    val userServiceAccountMode = UserServiceAccountMode(
-      "user-service-account",
-      GoogleConfiguration.GoogleScopes)
+  it should "generate a non-validated credential" in {
+    val userServiceAccountMode = UserServiceAccountMode("user-service-account")
     val workflowOptions = GoogleAuthModeSpec.userServiceAccountOptions
-    val credentials = userServiceAccountMode.credential(workflowOptions)
+    userServiceAccountMode.credentialsValidation = GoogleAuthMode.NoCredentialsValidation
+    val credentials = userServiceAccountMode.credentials(workflowOptions)
     credentials.getAuthenticationType should be("OAuth2")
   }
 
-  it should "validate with a user_service_account_json workflow option" in {
-    val userServiceAccountMode = UserServiceAccountMode(
-      "user-service-account",
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.userServiceAccountOptions
-    userServiceAccountMode.validate(workflowOptions)
-  }
-
-  it should "fail validate without a user_service_account_json workflow option" in {
-    val userServiceAccountMode = UserServiceAccountMode(
-      "user-service-account",
-      GoogleConfiguration.GoogleScopes)
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val exception = intercept[OptionLookupException](userServiceAccountMode.validate(workflowOptions))
+  it should "fail to generate credentials without a user_service_account_json workflow option" in {
+    val userServiceAccountMode = UserServiceAccountMode("user-service-account")
+    val exception = intercept[OptionLookupException](userServiceAccountMode.credentials())
     exception.getMessage should be("user_service_account_json")
   }
 
   it should "requiresAuthFile" in {
-    val userServiceAccountMode = UserServiceAccountMode(
-      "user-service-account",
-      GoogleConfiguration.GoogleScopes)
+    val userServiceAccountMode = UserServiceAccountMode("user-service-account")
     userServiceAccountMode.requiresAuthFile should be(false)
   }
 

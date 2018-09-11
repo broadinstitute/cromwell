@@ -57,7 +57,9 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
   private def checkGcs(): Future[SubsystemStatus] = {
     // For any expected production usage of this check, the GCS bucket should be public read */
     val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storage = Future(googleAuth.credential(Map.empty)) map { c => GcsStorage.gcsStorage(googleConfig.applicationName, c, RetrySettings.newBuilder().build()) }
+    val storage = Future(googleAuth.pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)) map { credentials =>
+      GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
+    }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 
@@ -69,7 +71,7 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     val papiProjectId = papiConfig.as[String]("project")
 
     val check = for {
-      credentials <- Future(googleAuth.credential(Map.empty))
+      credentials <- Future(googleAuth.pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup))
       genomicsChecker = if (papiProviderConfig.as[String]("actor-factory").contains("v2alpha1"))
         GenomicsCheckerV2(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
       else

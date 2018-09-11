@@ -19,6 +19,11 @@ that relied upon this cache, the cache is now opt-in and must be turned on expli
 `http` and `https` workflow inputs are now supported for shared filesystem and Google Pipelines API (PAPI) version 2
 backends. Configuration details are described [here](http://cromwell.readthedocs.io/en/develop/filesystems/HTTP).
 
+### Call cache hint support
+
+More efficient cache hit copying in multi-user environments is now supported through the `call_cache_hit_path_prefixes` workflow option.
+Details [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-hit-path-prefixes)
+
 ### Bug Fixes
 
 #### API

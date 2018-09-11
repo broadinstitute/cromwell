@@ -10,6 +10,8 @@ import com.google.api.client.googleapis.testing.auth.oauth2.MockGoogleCredential
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.cloudkms.v1.CloudKMS
+import com.google.api.services.compute.ComputeScopes
+import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
@@ -25,6 +27,21 @@ import scala.util.{Failure, Success, Try}
 object GoogleAuthMode {
 
   type OptionLookup = String => String
+  val NoOptionLookup = noOptionLookup _
+
+  /**
+    * Enables swapping out credential validation for various testing purposes ONLY.
+    *
+    * All traits in this file are sealed, all classes final, meaning things like Mockito or other java/scala overrides
+    * cannot work.
+    */
+  type CredentialsValidation = Credentials => Unit
+  private[auth] val NoCredentialsValidation = mouse.ignore _
+
+  private def noOptionLookup(string: String): Nothing = {
+    throw new UnsupportedOperationException(s"cannot lookup $string")
+  }
+
   lazy val jsonFactory = JacksonFactory.getDefaultInstance
   lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
   lazy val HttpTransportFactory = new HttpTransportFactory {
@@ -38,10 +55,12 @@ object GoogleAuthMode {
   val DockerCredentialsEncryptionKeyNameKey = "docker_credentials_key_name"
   val DockerCredentialsTokenKey = "docker_credentials_token"
 
-  val GcsScopes = List(
+  private val PipelinesApiScopes = List(
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
-    StorageScopes.DEVSTORAGE_READ_WRITE
-  ).asJava
+    StorageScopes.DEVSTORAGE_READ_WRITE,
+    GenomicsScopes.GENOMICS,
+    ComputeScopes.COMPUTE
+  )
 
   def checkReadable(file: File) = {
     if (!file.isReadable) throw new FileNotFoundException(s"File $file does not exist or is not readable")
@@ -83,23 +102,63 @@ object GoogleAuthMode {
     val response = kms.projects.locations.keyRings.cryptoKeys.encrypt(keyName, request).execute
     response.getCiphertext
   }
+
+  /** Used for both checking that the credential is valid and creating a fresh credential. */
+  private def refreshCredentials(credentials: Credentials): Unit = {
+    credentials.refresh()
+  }
 }
 
 
 sealed trait GoogleAuthMode {
   protected lazy val log = LoggerFactory.getLogger(getClass.getSimpleName)
 
-  /**
-    * Validate the auth mode against provided options
-    */
-  def validate(options: OptionLookup): Unit = {
-    ()
-  }
-
   def name: String
 
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
-  def credential(options: OptionLookup): Credentials
+  private[auth] def credentials(options: OptionLookup, scopes: java.util.Collection[String]): Credentials
+
+  /**
+    * Create a credential object suitable for use with Pipelines API.
+    *
+    * @param options A lookup for external credential information.
+    * @return Credentials with scopes compatible with the Genomics API compute and storage.
+    */
+  def pipelinesApiCredentials(options: OptionLookup): Credentials = {
+    credentials(options, PipelinesApiScopes.asJavaCollection)
+  }
+
+  /**
+    * Alias for credentials(GoogleAuthMode.NoOptionLookup, scopes).
+    * Only valid for credentials that are NOT externally provided, such as ApplicationDefault.
+    */
+  def credentials(scopes: Iterable[String]): Credentials = {
+    credentials(GoogleAuthMode.NoOptionLookup, scopes.asJavaCollection)
+  }
+
+  /**
+    * Alias for credentials(GoogleAuthMode.NoOptionLookup, scopes).
+    * Only valid for credentials that are NOT externally provided, such as ApplicationDefault.
+    */
+  def credentials(scopes: java.util.Collection[String]): Credentials = {
+    credentials(GoogleAuthMode.NoOptionLookup, scopes)
+  }
+
+  /**
+    * Alias for credentials(GoogleAuthMode.NoOptionLookup, Set.empty).
+    * Only valid for credentials that are NOT externally provided and do not need scopes, such as ApplicationDefault.
+    */
+  private[auth] def credentials(): Credentials = {
+    credentials(GoogleAuthMode.NoOptionLookup, java.util.Collections.emptySet[String])
+  }
+
+  /**
+    * Alias for credentials(options, Set.empty).
+    * Only valid for credentials that are NOT externally provided and do not need scopes, such as ApplicationDefault.
+    */
+  private[auth] def credentials(options: OptionLookup): Credentials = {
+    credentials(options, java.util.Collections.emptySet[String])
+  }
 
   def requiresAuthFile: Boolean = false
 
@@ -109,10 +168,10 @@ sealed trait GoogleAuthMode {
     * All traits in this file are sealed, all classes final, meaning things like Mockito or other java/scala overrides
     * cannot work.
     */
-  private[auth] var credentialValidation: Credentials => Unit = credentials => credentials.refresh()
+  private[auth] var credentialsValidation: CredentialsValidation = refreshCredentials
 
-  protected def validateCredential(credential: Credentials) = {
-    Try(credentialValidation(credential)) match {
+  protected def validateCredentials[A <: Credentials](credential: A): credential.type = {
+    Try(credentialsValidation(credential)) match {
       case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
     }
@@ -124,9 +183,13 @@ sealed trait GoogleAuthMode {
 case object MockAuthMode extends GoogleAuthMode {
   override val name = "no_auth"
 
-  override def credential(options: OptionLookup): Credentials = NoCredentials.getInstance
+  override def credentials(unusedOptions: OptionLookup, unusedScopes: java.util.Collection[String]): NoCredentials = {
+    NoCredentials.getInstance
+  }
 
-  override def apiClientGoogleCredential(options: OptionLookup) = Option(new MockGoogleCredential.Builder().build())
+  override def apiClientGoogleCredential(options: OptionLookup): Option[MockGoogleCredential] = {
+    Option(new MockGoogleCredential.Builder().build())
+  }
 }
 
 object ServiceAccountMode {
@@ -148,48 +211,43 @@ trait HasApiClientGoogleCredentialStream { self: GoogleAuthMode =>
 }
 
 final case class ServiceAccountMode(override val name: String,
-                                    fileFormat: CredentialFileFormat,
-                                    scopes: java.util.List[String]) extends GoogleAuthMode with HasApiClientGoogleCredentialStream {
+                                    fileFormat: CredentialFileFormat)
+  extends GoogleAuthMode with HasApiClientGoogleCredentialStream {
   private val credentialsFile = File(fileFormat.file)
   checkReadable(credentialsFile)
 
   override protected def credentialStream(options: OptionLookup): InputStream = credentialsFile.newInputStream
 
-  private lazy val _credential: Credentials = {
-    val serviceAccount = fileFormat match {
+  private lazy val serviceAccountCredentials: ServiceAccountCredentials = {
+    fileFormat match {
       case PemFileFormat(accountId, _) =>
         log.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
-        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, scopes)
-      case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream).createScoped(scopes)
+        ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, null)
+      case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream)
     }
-
-    // Validate credentials synchronously here, without retry.
-    // It's very unlikely to fail as it should not happen more than a few times
-    // (one for the engine and for each backend using it) per Cromwell instance.
-    validateCredential(serviceAccount)
   }
 
-  override def credential(options: OptionLookup): Credentials = _credential
+  override def credentials(unusedOptions: OptionLookup,
+                           scopes: java.util.Collection[String]): GoogleCredentials = {
+    val scopedCredentials = serviceAccountCredentials.createScoped(scopes)
+    validateCredentials(scopedCredentials)
+  }
 }
 
-final case class UserServiceAccountMode(override val name: String, scopes: java.util.List[String]) extends GoogleAuthMode with HasApiClientGoogleCredentialStream {
+final case class UserServiceAccountMode(override val name: String)
+  extends GoogleAuthMode with HasApiClientGoogleCredentialStream {
   private def extractServiceAccount(options: OptionLookup): String = {
     extract(options, UserServiceAccountKey)
-  }
-
-  override def validate(options: OptionLookup): Unit = {
-    extractServiceAccount(options)
-    ()
   }
 
   override protected def credentialStream(options: OptionLookup): InputStream = {
     new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8"))
   }
 
-  override def credential(options: OptionLookup): Credentials = {
-    ServiceAccountCredentials
-      .fromStream(credentialStream(options))
-      .createScoped(scopes)
+  override def credentials(options: OptionLookup, scopes: java.util.Collection[String]): GoogleCredentials = {
+    val newCredentials = ServiceAccountCredentials.fromStream(credentialStream(options))
+    val scopedCredentials: GoogleCredentials = newCredentials.createScoped(scopes)
+    validateCredentials(scopedCredentials)
   }
 }
 
@@ -197,8 +255,7 @@ final case class UserServiceAccountMode(override val name: String, scopes: java.
 final case class UserMode(override val name: String,
                           user: String,
                           secretsPath: String,
-                          datastoreDir: String,
-                          scopes: java.util.List[String]) extends GoogleAuthMode {
+                          datastoreDir: String) extends GoogleAuthMode {
 
   private lazy val secretsStream = {
     val secretsFile = File(secretsPath)
@@ -206,27 +263,31 @@ final case class UserMode(override val name: String,
     secretsFile.newInputStream
   }
 
-  private lazy val _credential: Credentials = {
-    validateCredential(UserCredentials.fromStream(secretsStream))
+  private lazy val userCredentials: UserCredentials = {
+    validateCredentials(UserCredentials.fromStream(secretsStream))
   }
 
-  override def credential(options: OptionLookup): Credentials = _credential
+  override def credentials(unusedOptions: OptionLookup, unusedScopes: java.util.Collection[String]): Credentials = {
+    userCredentials
+  }
 }
 
 object ApplicationDefaultMode {
-  private lazy val _credential: Credentials = GoogleCredentials.getApplicationDefault
+  private lazy val applicationDefaultCredentials: GoogleCredentials = GoogleCredentials.getApplicationDefault
 }
 
 final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
-  override def credential(options: OptionLookup): Credentials = ApplicationDefaultMode._credential
+  override def credentials(unusedOptions: OptionLookup,
+                           unusedScopes: java.util.Collection[String]): GoogleCredentials = {
+    ApplicationDefaultMode.applicationDefaultCredentials
+  }
 
   override def apiClientGoogleCredential(unused: OptionLookup): Option[GoogleCredential] = Option(GoogleCredential.getApplicationDefault(httpTransport, jsonFactory))
 }
 
 final case class RefreshTokenMode(name: String,
                                   clientId: String,
-                                  clientSecret: String,
-                                  scopes: java.util.List[String]) extends GoogleAuthMode with ClientSecrets {
+                                  clientSecret: String) extends GoogleAuthMode with ClientSecrets {
 
   import GoogleAuthMode._
 
@@ -236,22 +297,16 @@ final case class RefreshTokenMode(name: String,
     extract(options, RefreshTokenOptionKey)
   }
 
-  override def validate(options: OptionLookup) = {
-    extractRefreshToken(options)
-    ()
-  }
-
-  override def credential(options: OptionLookup): Credentials = {
+  override def credentials(options: OptionLookup, unusedScopes: java.util.Collection[String]): UserCredentials = {
     val refreshToken = extractRefreshToken(options)
-    validateCredential(
-      UserCredentials
-        .newBuilder()
-        .setClientId(clientId)
-        .setClientSecret(clientSecret)
-        .setRefreshToken(refreshToken)
-        .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
-        .build()
-    )
+    val newCredentials: UserCredentials = UserCredentials
+      .newBuilder()
+      .setClientId(clientId)
+      .setClientSecret(clientSecret)
+      .setRefreshToken(refreshToken)
+      .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
+      .build()
+    validateCredentials(newCredentials)
   }
 }
 

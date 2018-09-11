@@ -6,10 +6,11 @@ import cats.Monad
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
+import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur._
 import centaur.api.CentaurCromwellClient
 import centaur.api.CentaurCromwellClient.LogFailures
-import centaur.test.metadata.WorkflowMetadata
+import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
 import com.google.api.services.genomics.Genomics
@@ -21,7 +22,7 @@ import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import spray.json.JsString
@@ -85,7 +86,9 @@ object Operations {
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
-  lazy val credentials: Credentials = configuration.auth(authName).toTry.get.credential(Map.empty)
+  lazy val credentials: Credentials = configuration.auth(authName)
+    .unsafe
+    .pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)
   lazy val credentialsProjectOption: Option[String] = {
     Option(credentials) collect {
       case serviceAccountCredentials: ServiceAccountCredentials => serviceAccountCredentials.getProjectId
@@ -158,6 +161,9 @@ object Operations {
     }
   }
 
+  implicit private val timer = IO.timer(global)
+  implicit private val contextShift = IO.contextShift(global)
+
   def waitFor(duration: FiniteDuration) = {
     new Test[Unit] {
       override def run = IO.sleep(duration)
@@ -203,7 +209,7 @@ object Operations {
                         formerJobId: String): Test[Unit] = {
     new Test[Unit] {
       override def run: IO[Unit] = CentaurCromwellClient.metadata(workflow) flatMap { s =>
-        s.value.get(s"calls.$callFqn.jobId") match {
+        s.asFlat.value.get(s"calls.$callFqn.jobId") match {
           case Some(newJobId) if newJobId.asInstanceOf[JsString].value == formerJobId => IO.unit
           case Some(newJobId) =>
             val message = s"Pre-restart job ID $formerJobId did not match post restart job ID $newJobId"
@@ -250,16 +256,16 @@ object Operations {
         metadata <- CentaurCromwellClient
           .metadata(WorkflowId.fromString(subWorkflowId))
           .redeem(_ => None, Option.apply)
-        jobId <- IO.pure(metadata.flatMap(_.value.get("calls.inner_abort.aborted.jobId")))
+        jobId <- IO.pure(metadata.flatMap(_.asFlat.value.get("calls.inner_abort.aborted.jobId")))
       } yield jobId.map(_.asInstanceOf[JsString].value)
     }
 
     def valueAsString(key: String, metadata: WorkflowMetadata) = {
-      metadata.value.get(key).map(_.asInstanceOf[JsString].value)
+      metadata.asFlat.value.get(key).map(_.asInstanceOf[JsString].value)
     }
 
     def findCallStatus(metadata: WorkflowMetadata): IO[Option[(String, String)]] = {
-      val status = metadata.value.get(s"calls.$callFqn.executionStatus")
+      val status = metadata.asFlat.value.get(s"calls.$callFqn.executionStatus")
       val statusString = status.map(_.asInstanceOf[JsString].value)
 
       for {
@@ -310,7 +316,7 @@ object Operations {
 
       for {
         md <- CentaurCromwellClient.metadata(workflowB)
-        calls = md.value.keySet.flatMap({
+        calls = md.asFlat.value.keySet.flatMap({
           case callNameRegexp(name) => Option(name)
           case _ => None
         })
@@ -336,7 +342,8 @@ object Operations {
                        workflowSpec: Workflow,
                        cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
-      def eventuallyMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): IO[WorkflowMetadata] = {
+      def eventuallyMetadata(workflow: SubmittedWorkflow,
+                             expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
         validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
@@ -346,7 +353,8 @@ object Operations {
         })
       }
 
-      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): IO[WorkflowMetadata] = {
+      def validateMetadata(workflow: SubmittedWorkflow,
+                           expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
         def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] = {
           if (diffs.nonEmpty) {
             val message = s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"
@@ -359,7 +367,7 @@ object Operations {
         def validateUnwantedMetadata(actualMetadata: WorkflowMetadata): IO[Unit] = {
           if (workflowSpec.notInMetadata.nonEmpty) {
             // Check that none of the "notInMetadata" keys are in the actual metadata
-            val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.value.keySet)
+            val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.asFlat.value.keySet)
             if (absentMdIntersect.nonEmpty) {
               val message = s"Found unwanted keys in metadata: ${absentMdIntersect.mkString(", ")}"
               IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
@@ -375,7 +383,7 @@ object Operations {
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
-          diffs = expectedMetadata.diff(actualMetadata, workflow.id.id, cacheHitUUID)
+          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata
       }
@@ -399,7 +407,7 @@ object Operations {
                                blacklistedValue: String): Test[Unit] = {
     new Test[Unit] {
       override def run: IO[Unit] = {
-        val badCacheResults = metadata.value collect {
+        val badCacheResults = metadata.asFlat.value collect {
           case (k, JsString(v)) if k.contains("callCaching.result") && v.contains(blacklistedValue) => s"$k: $v"
         }
 

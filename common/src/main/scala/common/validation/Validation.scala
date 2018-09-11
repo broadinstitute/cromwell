@@ -1,7 +1,6 @@
 package common.validation
 
 import java.io.{PrintWriter, StringWriter}
-import java.net.{URI, URL}
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
@@ -11,7 +10,6 @@ import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Parse.Parse
-import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -25,8 +23,6 @@ object Validation {
     }
   }
   
-  implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
-  
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
     case Failure(f) => f.getMessage.invalidNel
@@ -38,7 +34,7 @@ object Validation {
       v fold(
         //Use f to turn the failure list into a Throwable, then fail a future with it.
         //Function composition lets us ignore the actual argument of the error list
-        (Future.failed _) compose f,
+        Future.failed _ compose f,
         Future.successful
       )
   }
@@ -71,7 +67,9 @@ object Validation {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
     }
-    
+
+    def unsafe: A = unsafe("Errors(s)")
+
     def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
   }
 

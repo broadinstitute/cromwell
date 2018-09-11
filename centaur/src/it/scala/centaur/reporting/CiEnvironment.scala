@@ -9,7 +9,6 @@ case class CiEnvironment
 (
   isCi: Option[Boolean],
   isCron: Option[Boolean],
-  isSecure: Option[Boolean],
   `type`: Option[String],
   branch: Option[String],
   event: Option[String],
@@ -17,8 +16,7 @@ case class CiEnvironment
   number: Option[String],
   provider: Option[String],
   url: Option[String],
-  os: Option[String],
-  requiresSecure: Option[Boolean]
+  os: Option[String]
 )
 
 object CiEnvironment {
@@ -26,7 +24,6 @@ object CiEnvironment {
     new CiEnvironment(
       isCi = sys.env.get("CROMWELL_BUILD_IS_CI").flatMap(tryToBoolean),
       isCron = sys.env.get("CROMWELL_BUILD_IS_CRON").flatMap(tryToBoolean),
-      isSecure = sys.env.get("CROMWELL_BUILD_IS_SECURE").flatMap(tryToBoolean),
       `type` = sys.env.get("CROMWELL_BUILD_TYPE"),
       branch = sys.env.get("CROMWELL_BUILD_BRANCH"),
       event = sys.env.get("CROMWELL_BUILD_EVENT"),
@@ -35,7 +32,6 @@ object CiEnvironment {
       provider = sys.env.get("CROMWELL_BUILD_PROVIDER"),
       os = sys.env.get("CROMWELL_BUILD_OS"),
       url = sys.env.get("CROMWELL_BUILD_URL"),
-      requiresSecure = sys.env.get("CROMWELL_BUILD_REQUIRES_SECURE").flatMap(tryToBoolean)
     )
   }
 

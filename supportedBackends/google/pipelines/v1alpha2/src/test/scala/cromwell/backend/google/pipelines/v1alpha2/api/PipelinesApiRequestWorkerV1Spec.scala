@@ -7,7 +7,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.jesConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.papiConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestManager, PipelinesApiRequestWorkerSpec, TestPipelinesApiBatchHandler, TestPipelinesApiRequestWorker}
 import cromwell.backend.google.pipelines.v1alpha2.api.request.RequestHandler
@@ -22,7 +22,7 @@ class PipelinesApiRequestWorkerV1Spec extends PipelinesApiRequestWorkerSpec[Oper
     managerProbe = TestProbe()
     val registryProbe = TestProbe()
     batchHandler = new TestPipelinesApiBatchHandlerV1(managerProbe.ref)
-    workerActor = TestActorRef(TestPipelinesApiRequestWorker.props(managerProbe.ref, jesConfiguration, registryProbe.ref)(batchHandler), managerProbe.ref)
+    workerActor = TestActorRef(TestPipelinesApiRequestWorker.props(managerProbe.ref, papiConfiguration, registryProbe.ref)(batchHandler), managerProbe.ref)
   }
 }
 

@@ -52,7 +52,7 @@ object PathFactory {
     val (path, failures) = findFirstSuccess(preMapping(string), pathBuilders, Vector.empty)
 
     lazy val failuresMessage = failures.zip(pathBuilders).map({
-      case (failure, pathBuilder) => s"${pathBuilder.name}: ${failure.getMessage}"
+      case (failure, pathBuilder) => s"${pathBuilder.name}: ${failure.getMessage} (${failure.getClass.getSimpleName})"
     }).mkString("\n")
 
     path.map(postMapping) getOrElse {

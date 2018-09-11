@@ -48,6 +48,12 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
     runTransaction(action).void
   }
 
+  override def queryJobKeyValueEntries(workflowExecutionUuid: String)
+                                      (implicit ec: ExecutionContext): Future[Seq[JobKeyValueEntry]] = {
+    val action = dataAccess.jobKeyValueEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
+    runTransaction(action)
+  }
+
   override def queryStoreValue(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,
                                jobRetryAttempt: Int, storeKey: String)
                               (implicit ec: ExecutionContext): Future[Option[String]] = {

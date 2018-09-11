@@ -13,6 +13,7 @@ import cromwell.services.EnhancedThrottlerActor
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import CallCache._
 
 /**
   * Queues up work sent to it because its receive is non-blocking.
@@ -27,8 +28,8 @@ class CallCacheReadActor(cache: CallCache,
   override def routed = true
   override def processHead(request: CommandAndReplyTo[CallCacheReadActorRequest]): Future[Int] = instrumentedProcess {
     val response = request.command match {
-      case HasMatchingInitialHashLookup(initialHash) =>
-        cache.hasBaseAggregatedHashMatch(initialHash) map {
+      case HasMatchingInitialHashLookup(initialHash, hints) =>
+        cache.hasBaseAggregatedHashMatch(initialHash, hints) map {
           case true => HasMatchingEntries
           case false => NoMatchingEntries
         }
@@ -83,7 +84,7 @@ object CallCacheReadActor {
 
   sealed trait CallCacheReadActorRequest
   final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
-  final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
+  final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String, cacheHitHints: List[CacheHitHint] = List.empty) extends CallCacheReadActorRequest
   final case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
   final case class CallCacheEntryForCall(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) extends CallCacheReadActorRequest
 

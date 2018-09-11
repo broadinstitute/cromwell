@@ -27,8 +27,8 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
   startWith(WaitingForInitialHash, CCRJANoData)
   
   when(WaitingForInitialHash) {
-    case Event(InitialHashingResult(_, aggregatedBaseHash), CCRJANoData) =>
-      callCacheReadActor ! HasMatchingInitialHashLookup(aggregatedBaseHash)
+    case Event(InitialHashingResult(_, aggregatedBaseHash, hints), CCRJANoData) =>
+      callCacheReadActor ! HasMatchingInitialHashLookup(aggregatedBaseHash, hints)
       goto(WaitingForHashCheck) using CCRJAWithData(sender(), aggregatedBaseHash, None, 1)
   }
   

@@ -2,7 +2,7 @@ package cromwell.util
 
 import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
 import org.scalatest.{FlatSpec, Matchers}
-import spray.json.{JsObject, pimpString}
+import spray.json.{JsObject, enrichString}
 import wom.types._
 import wom.values._
 

@@ -61,15 +61,9 @@ echo "Connection to Cromwell success!"
 mkdir /workflow_files
 cd /workflow_files
 
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl -o workflow.wdl
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.inputs -o workflow_inputs.json
+#TODO: Change ss_perf_wf_deploy -> develop when it is pushed to develop
+curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/ss_perf_wf_deploy/scripts/perf/vm_scripts/workflow_scripts/hello_world_script.sh -o hello_world_script.sh
 
-curl -X POST "http://localhost:8000/api/workflows/v1" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "workflowSource=@workflow.wdl" -F "workflowInputs=@workflow_inputs.json;type=application/json"
+chmod +x /hello_world_script.sh
 
-cd /
-
-curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/ss_perf_wf_deploy/scripts/perf/vm_scripts/workflow_scripts/second_script.sh -o second_script.sh
-
-chmod +x /second_script.sh
-
-/bin/bash /second_script.sh
+/bin/bash /hello_world_script.sh

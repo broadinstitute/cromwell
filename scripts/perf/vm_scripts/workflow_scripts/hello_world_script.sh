@@ -2,9 +2,6 @@
 
 echo "Inside second script"
 
-mkdir /second_script_folder
-cd /second_script_folder
-
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.wdl -o workflow.wdl
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/hello/hello.inputs -o workflow_inputs.json
 

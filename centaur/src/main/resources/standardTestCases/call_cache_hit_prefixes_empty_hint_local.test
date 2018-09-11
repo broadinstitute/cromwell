@@ -7,6 +7,8 @@ backends: [Local, LocalNoDocker]
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl
   inputs: call_cache_hit_prefixes/call_cache_hit_prefixes_empty_hint.inputs
+  # Because the SFS backend currently does not override the callCacheRootPrefix method, an empty set of prefixes
+  # in workflow options means that no call cache hits will match.
   options: call_cache_hit_prefixes/call_cache_hit_prefixes_empty_hint.options
 }
 

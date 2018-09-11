@@ -51,6 +51,20 @@ object TestFormulas {
     } yield SubmitResponse(secondWf)
   }
 
+  def runWorkflowThriceExpectingCaching(workflowDefinition: Workflow): Test[SubmitResponse] = {
+    for {
+      firstWf <- runSuccessfulWorkflow(workflowDefinition)
+      secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
+      metadataTwo <- validateMetadata(secondWf, workflowDefinition, Option(firstWf.id.id))
+      _ <- validateNoCacheHits(secondWf, metadataTwo, workflowDefinition)
+      thirdWf <- runSuccessfulWorkflow(workflowDefinition.thirdRun)
+      _ <- printHashDifferential(secondWf, thirdWf)
+      metadataThree <- validateMetadata(thirdWf, workflowDefinition, Option(secondWf.id.id))
+      _ <- validateNoCacheMisses(thirdWf, metadataThree, workflowDefinition)
+      _ <- validateDirectoryContentsCounts(workflowDefinition, thirdWf, metadataThree)
+    } yield SubmitResponse(thirdWf)
+  }
+
   def runWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow): Test[SubmitResponse] = {
     for {
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches

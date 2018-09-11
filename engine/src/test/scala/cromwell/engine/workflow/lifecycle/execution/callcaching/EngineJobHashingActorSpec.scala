@@ -215,7 +215,8 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
     backendName = backendName,
     activity = activity,
-    callCachingEligible = callCachingEligible) {
+    callCachingEligible = callCachingEligible,
+    callCachePathPrefixes = None) {
     // override preStart to nothing to prevent the creation of the CCHJA.
     // This way it doesn't interfere with the tests and we can manually inject the messages we want
     override def preStart() =  ()

@@ -36,6 +36,10 @@ final case class Workflow private(testName: String,
   def secondRun: Workflow = {
     copy(data = data.copy(options = data.secondOptions))
   }
+
+  def thirdRun: Workflow = {
+    copy(data = data.copy(options = data.thirdOptions))
+  }
 }
 
 object Workflow {

@@ -1,9 +1,9 @@
 #! bin/bash
 
-echo "Running stress_call_caching_script"
+echo "Running stress_call_caching_script with cache hints"
 
 # Download workflow files
-gsutil cp gs://cromwell-perf-test/workflow_related_files/call_caching_sa2_workflow_options.json workflow_options.json
+gsutil cp gs://cromwell-perf-test/workflow_related_files/call_caching_sa2_options_with_cache_hints.json workflow_options.json
 
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/perf_workflow_test/call_caching_stress_test/callCachingStress.wdl -o workflow.wdl
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/perf_workflow_test/call_caching_stress_test/callCachingStress_inputs.json -o workflow_inputs.json

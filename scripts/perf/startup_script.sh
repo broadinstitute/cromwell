@@ -56,7 +56,7 @@ until [[ $(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: app
 	sleep 5
 done
 
-echo "Connection to Cromwell success!"
+echo "Cromwell is UP! Connection Successful!"
 
 mkdir /workflow_files
 cd /workflow_files

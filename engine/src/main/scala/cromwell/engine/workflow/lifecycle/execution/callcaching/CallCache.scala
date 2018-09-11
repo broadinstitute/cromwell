@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import cats.data.NonEmptyList
+import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendJobExecutionActor.{CallCached, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
@@ -84,11 +85,12 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
   }
 
-  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, hitNumber: Int)
+  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixHint: Option[CallCachePathPrefixes], hitNumber: Int)
                                        (implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] = {
     database.findCacheHitForAggregation(
       baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
       inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
+      callCacheRootHints = prefixHint.map(_.prefixes),
       hitNumber).map(_ map CallCachingEntryId.apply)
   }
 
@@ -174,6 +176,6 @@ object CallCache {
 
   sealed trait CacheHitHint
   case class CallCachePathPrefixes(callCacheRootPrefix: Option[String], workflowOptionPrefixes: List[String]) extends CacheHitHint {
-    def prefixes: List[String] = callCacheRootPrefix.toList ++ workflowOptionPrefixes
+    lazy val prefixes: List[String] = (callCacheRootPrefix.toList ++ workflowOptionPrefixes) map { _.ensureSlashed }
   }
 }

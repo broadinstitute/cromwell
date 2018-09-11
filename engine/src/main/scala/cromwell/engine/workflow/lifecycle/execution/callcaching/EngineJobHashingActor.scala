@@ -7,6 +7,7 @@ import cromwell.core.WorkflowId
 import cromwell.core.callcaching._
 import cromwell.core.logging.JobLogging
 import cromwell.engine.workflow.lifecycle.execution.CallMetadataHelper
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCachePathPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, FinalFileHashingResult, InitialHashingResult, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
@@ -27,7 +28,8 @@ class EngineJobHashingActor(receiver: ActorRef,
                             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                             backendName: String,
                             activity: CallCachingActivity,
-                            callCachingEligible: CallCachingEligible) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
+                            callCachingEligible: CallCachingEligible,
+                            callCacheRootHint: Option[CallCachePathPrefixes]) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
 
   override val jobTag = jobDescriptor.key.tag
   override val workflowId = jobDescriptor.workflowDescriptor.id
@@ -48,7 +50,8 @@ class EngineJobHashingActor(receiver: ActorRef,
       backendName,
       fileHashingActorProps,
       callCachingEligible,
-      activity
+      activity,
+      callCacheRootHint
     ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
     super.preStart()
   }
@@ -130,7 +133,8 @@ object EngineJobHashingActor {
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
             activity: CallCachingActivity,
-            callCachingEligible: CallCachingEligible): Props = Props(new EngineJobHashingActor(
+            callCachingEligible: CallCachingEligible,
+            callCacheRootHint: Option[CallCachePathPrefixes]): Props = Props(new EngineJobHashingActor(
     receiver = receiver,
     serviceRegistryActor = serviceRegistryActor,
     jobDescriptor = jobDescriptor,
@@ -140,5 +144,6 @@ object EngineJobHashingActor {
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
     backendName = backendName,
     activity = activity,
-    callCachingEligible = callCachingEligible)).withDispatcher(EngineDispatcher)
+    callCachingEligible = callCachingEligible,
+    callCacheRootHint = callCacheRootHint)).withDispatcher(EngineDispatcher)
 }

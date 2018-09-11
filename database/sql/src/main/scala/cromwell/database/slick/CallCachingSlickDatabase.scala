@@ -58,19 +58,23 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
+  case class PrefixAndLength(prefix: String, length: Int)
+
+  private def prefixesAndLengths(prefixes: List[String]): List[PrefixAndLength] = {
+    val doNotMatch = PrefixAndLength("", 1)
+    // `total` is ps.apply as a total function which returns an Option[String] instead of a String.
+    // `total` returns `None` if there is no element at the specified index.
+    val total = prefixes.lift
+    // Take the first three prefixes that have been supplied or fallback values that will intentionally fail to match anything.
+    (0 to 2).toList map { total(_) map { p => PrefixAndLength(p, p.length) } getOrElse doNotMatch }
+  }
+
   override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String, callCachePrefixes: Option[List[String]] = None)
                                                               (implicit ec: ExecutionContext): Future[Boolean] = {
     val action = callCachePrefixes match {
       case None => dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
       case Some(ps) =>
-        case class PrefixAndLength(prefix: String, length: Int)
-        // Trying to match a prefix of length 1 with an empty string is (intentionally) doomed to fail.
-        val doNotMatch = PrefixAndLength("", 1)
-        // `total` is ps.apply as a total function which returns an Option[String] instead of a String.
-        // `total` returns `None` if there is no element at the specified index.
-        val total = ps.lift
-        // Take the first three prefixes that have been supplied or fallback values that will intentionally fail to match anything.
-        val one :: two :: three :: _ = (0 to 2).toList map { total(_) map { p => PrefixAndLength(p, p.length) } getOrElse doNotMatch }
+        val one :: two :: three :: _ = prefixesAndLengths(ps)
         dataAccess.existsCallCachingEntriesForBaseAggregationHashWithCallCachePrefix(
           (baseAggregationHash,
             one.prefix, one.length,
@@ -80,9 +84,21 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], hitNumber: Int)
+  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCacheRootHints: Option[List[String]], hitNumber: Int)
                                          (implicit ec: ExecutionContext): Future[Option[Int]] = {
-    val action = dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
+
+    val action = callCacheRootHints match {
+      case None =>
+        dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
+      case Some(ps) =>
+        val one :: two :: three :: _ = prefixesAndLengths(ps)
+        dataAccess.callCachingEntriesForAggregatedHashesWithPrefixes(
+          baseAggregationHash, inputFilesAggregationHash,
+          one.prefix, one.length,
+          two.prefix, two.length,
+          three.prefix, three.length,
+          hitNumber).result.headOption
+    }
 
     runTransaction(action)
   }

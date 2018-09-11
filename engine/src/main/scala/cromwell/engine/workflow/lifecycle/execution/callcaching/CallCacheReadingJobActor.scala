@@ -7,6 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadAct
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCachePathPrefixes
 
 /**
   * Receives hashes from the CallCacheHashingJobActor and makes requests to the database to determine whether or not there might be a hit
@@ -22,7 +23,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
   * Sends the response to its parent.
   * In case of a CacheHit, stays alive in case using the hit fails and it needs to fetch the next one. Otherwise just dies.
   */
-class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
+class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
   
   startWith(WaitingForInitialHash, CCRJANoData)
   
@@ -45,10 +46,12 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
       callCacheReadActor ! HasMatchingInputFilesHashLookup(hashes)
       goto(WaitingForHashCheck)
     case Event(CompleteFileHashingResult(_, aggregatedFileHash), data: CCRJAWithData) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.currentHitNumber)
+      // so here we pass in the hints so the read actor knows to filter by bucket
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.currentHitNumber, prefixesHint)
       goto(WaitingForCacheHitOrMiss) using data.withFileHash(aggregatedFileHash)
     case Event(NoFileHashesResult, data: CCRJAWithData) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None), data.currentHitNumber)
+      // so here we pass in the hints so the read actor knows to filter by bucket
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None), data.currentHitNumber, prefixesHint)
       goto(WaitingForCacheHitOrMiss)
   }
   
@@ -59,7 +62,7 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
     case Event(CacheLookupNoHit, _) =>
       cacheMiss
     case Event(NextHit, CCRJAWithData(_, aggregatedInitialHash, aggregatedFileHash, currentHitNumber)) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash), currentHitNumber)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash), currentHitNumber, prefixesHint)
       stay()
   }
   
@@ -81,8 +84,8 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
 
 object CallCacheReadingJobActor {
   
-  def props(callCacheReadActor: ActorRef) = {
-    Props(new CallCacheReadingJobActor(callCacheReadActor)).withDispatcher(EngineDispatcher)
+  def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) = {
+    Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint)).withDispatcher(EngineDispatcher)
   }
   
   sealed trait CallCacheReadingJobActorState

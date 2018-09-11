@@ -8,6 +8,7 @@ import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
+import cromwell.backend.standard.StandardInitializationData
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
@@ -98,6 +99,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private val callCachingAllowReuseMetadataKey = CallCachingKeys.AllowReuseMetadataKey
   private val callCachingHitFailures = CallCachingKeys.HitFailuresKey
   private val callCachingHashes = CallCachingKeys.HashesKey
+
+  val callCacheRootHint = for {
+    activity <- Option(effectiveCallCachingMode) collect { case a: CallCachingActivity => a }
+    workflowOptionPrefixes <- activity.options.workflowOptionCallCachePrefixes
+    d <- initializationData collect { case d: StandardInitializationData => d }
+    rootPrefix = d.workflowPaths.callCacheRootPrefix
+  } yield CallCachePathPrefixes(rootPrefix, workflowOptionPrefixes.toList)
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -543,11 +551,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           jobDescriptor,
           initializationData,
           fileHashingActorProps,
-          CallCacheReadingJobActor.props(callCacheReadActor),
+          CallCacheReadingJobActor.props(callCacheReadActor, callCacheRootHint),
           factory.runtimeAttributeDefinitions(initializationData),
           backendName,
           activity,
-          callCachingEligible
+          callCachingEligible,
+          callCacheRootHint
         )
         val ejha = context.actorOf(props, s"ejha_for_$jobDescriptor")
 

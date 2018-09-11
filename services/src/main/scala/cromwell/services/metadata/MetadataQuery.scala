@@ -51,7 +51,7 @@ case object MetadataNull extends MetadataType { override val typeName = "null" }
 
 object MetadataValue {
   def apply(value: Any): MetadataValue = {
-    Option(value).getOrElse("") match {
+    Option(value) map {
       case WomInteger(i) => new MetadataValue(i.toString, MetadataInt)
       case WomFloat(f) => new MetadataValue(f.toString, MetadataNumber)
       case WomLong(f) => new MetadataValue(f.toString, MetadataNumber)
@@ -63,8 +63,10 @@ object MetadataValue {
       case _: Double | Float | _: java.lang.Double | _: java.lang.Float => new MetadataValue(value.toString, MetadataNumber)
       case _: Boolean | _: java.lang.Boolean => new MetadataValue(value.toString, MetadataBoolean)
       case other => new MetadataValue(other.toString, MetadataString)
-    }
+    } getOrElse Null
   }
+
+  val Null = new MetadataValue("", MetadataNull)
 }
 
 object MetadataType {

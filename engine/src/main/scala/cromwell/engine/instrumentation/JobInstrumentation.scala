@@ -52,4 +52,8 @@ trait JobInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   def setJobTimePerState(response: BackendJobExecutionResponse, duration: FiniteDuration): Unit = {
     setTimingJob(backendJobExecutionResponsePaths(response), duration)
   }
+  
+  def recordExecutionStepTiming(state: String, duration: FiniteDuration): Unit = {
+    sendTiming(jobTimingKey.concatNel("state").concatNel(state), duration, JobPrefix)
+  }
 }

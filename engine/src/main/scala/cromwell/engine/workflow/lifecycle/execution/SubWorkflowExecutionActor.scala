@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.SupervisorStrategy.Escalate
@@ -11,7 +12,6 @@ import cromwell.core._
 import cromwell.core.logging.JobLogging
 import cromwell.engine.backend.{BackendConfiguration, BackendSingletonCollection}
 import cromwell.engine.workflow.WorkflowMetadataHelper
-import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{CallPreparationFailed, Start}
@@ -19,12 +19,15 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, TimedFSM}
 import cromwell.engine.workflow.workflowstore.StartableState
 import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import wom.values.WomEvaluatedCallInputs
+
+import scala.concurrent.duration.FiniteDuration
 
 class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 parentWorkflow: EngineWorkflowDescriptor,
@@ -42,7 +45,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 initializationData: AllBackendInitializationData,
                                 startState: StartableState,
                                 rootConfig: Config,
-                                totalJobsByRootWf: AtomicInteger) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                totalJobsByRootWf: AtomicInteger) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] 
+  with TimedFSM[SubWorkflowExecutionActorState] with JobLogging with WorkflowMetadataHelper 
+  with CallMetadataHelper with ExecutionEventsHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -51,8 +56,11 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   override def jobTag: String = key.tag
 
   startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
-
-  private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
+  
+  override def onTimedTransition(from: SubWorkflowExecutionActorState, to: SubWorkflowExecutionActorState, duration: FiniteDuration) = {
+    // Push to metadata
+    pushExecutionEventToMetadataService(key)(ExecutionEvent(from.toString, OffsetDateTime.now()))
+  }
 
   when(SubWorkflowPendingState) {
     case Event(Execute, _) =>
@@ -141,14 +149,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       stateData.subWorkflowId match {
         case Some(id) =>
           pushWorkflowEnd(id)
-          pushExecutionEventsToMetadataService(key, eventList)
         case None => jobLogger.error("Sub workflow completed without a Sub Workflow UUID.")
       }
       context stop self
-  }
-
-  onTransition {
-    case _ -> toState => eventList :+= ExecutionEvent(toState.toString)
   }
 
   private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs, data: SubWorkflowExecutionActorData) = {

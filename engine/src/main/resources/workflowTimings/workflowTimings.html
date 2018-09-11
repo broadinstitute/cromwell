@@ -65,27 +65,60 @@
                     }
                     
                     var executionEvents = callList[callIndex].executionEvents;
+                    
+                    function compareEvents(a,b) {
+                        console.log("Comparing " + a["startTime"] + " and " + b["startTime"]);
+                        var aTime = new Date(a["startTime"]).getTime();
+                        var bTime = new Date(b["startTime"]).getTime();
+                        console.log("aTime = " + aTime);
+                        console.log("bTime = " + bTime);
+                        if (aTime < bTime) {
+                            console.log(a["startTime"] + " < " + b["startTime"]);
+                            return -1;
+                        }
+                        if (aTime > bTime) {
+                            console.log(a["startTime"] + " > " + b["startTime"]);
+                            return 1;
+                        }
+                        console.log("same");
+                        return 0;
+                    }
 
+                    executionEvents = executionEvents.sort(compareEvents);
+                    
                     var firstEventStart = null;
                     var finalEventEnd = null;
-
-                    if(callStatus == "Done" || callStatus == "Failed" || callStatus == "RetryableFailure") {
+                    
+                    if(callStatus == "Starting" || callStatus == "Running" || callStatus == "Done" || callStatus == "Failed" || callStatus == "RetryableFailure") {
                         executionCallsCount++;
                         for (var executionEventIndex in executionEvents) {
-                            var executionEvent = callList[callIndex].executionEvents[executionEventIndex];
+                            var executionEvent = executionEvents[executionEventIndex];
                             var description = executionEvent["description"];
                             // Replace all "start(...)" with just "start" so that the names (and therefore the "color" assigned from the list below) are consistent:
                             description = description.replace(new RegExp("^start.*"), "start");
                             var startDate = new Date(executionEvent["startTime"]);
-                            var endDate = new Date(executionEvent["endTime"]);
                             if (firstEventStart == null || startDate < firstEventStart) {
                                 firstEventStart = startDate
                             }
-                            if (finalEventEnd == null || endDate > finalEventEnd) {
-                                finalEventEnd = endDate
+                            var endDateString = executionEvent["endTime"];
+                            var executionEndDate;
+                            
+                            if (endDateString === null) {
+                                if (parseInt(executionEventIndex) < executionEvents.length - 1) {
+                                    executionEndDate = new Date(executionEvents[parseInt(executionEventIndex) + 1]["startTime"]);
+                                } else {                            
+                                  description = description + " (In Progress...)";
+                                  executionEndDate = new Date();
+                                }
+                            } else {
+                                executionEndDate = new Date(endDateString);
                             }
+                            if (finalEventEnd == null || executionEndDate > finalEventEnd) {
+                                finalEventEnd = executionEndDate
+                            }
+                            
                             // NB: See the column definitions above.
-                            addDataTableRow(dataTable, callFqn, description, startDate, endDate, ancestry);
+                            addDataTableRow(dataTable, callFqn, description, startDate, executionEndDate, ancestry);
                         }
 
                         if (callList[callIndex].hasOwnProperty("start")) {

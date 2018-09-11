@@ -791,6 +791,113 @@ object WdlFileToWdlomSpec {
         None,
         None,
         None))
+    ),
+    "cmd_whitespace_spaces" -> FileElement(
+      Vector.empty,
+      Vector.empty,
+      Vector(WorkflowDefinitionElement(
+        "Test",
+        None,
+        Set(CallElement("Echo",Some("echo"),None)),
+        None,
+        None,
+        None)
+      ),
+      Vector(TaskDefinitionElement(
+        "Echo",
+        None,
+        Vector(),
+        None,
+        CommandSectionElement(List(
+          CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with spaces\""))))),
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+      )
+    ),
+    "cmd_whitespace_none" -> FileElement(
+      Vector.empty,
+      Vector.empty,
+      Vector(WorkflowDefinitionElement(
+        "Test",
+        None,
+        Set(CallElement("Echo",Some("echo"),None)),
+        None,
+        None,
+        None)
+      ),
+      Vector(TaskDefinitionElement(
+        "Echo",
+        None,
+        Vector(),
+        None,
+        CommandSectionElement(List(
+          CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with nothing\""))))),
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+      )
+    ),
+    "cmd_whitespace_tabs" -> FileElement(
+      Vector.empty,
+      Vector.empty,
+      Vector(WorkflowDefinitionElement(
+        "Test",
+        None,
+        Set(CallElement("Echo",Some("echo"),None)),
+        None,
+        None,
+        None)
+      ),
+      Vector(TaskDefinitionElement(
+        "Echo",
+        None,
+        Vector(),
+        None,
+        CommandSectionElement(List(
+          CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with tabs\""))))),
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+      )
+    ),
+    "cmd_strip_common_tabs" -> FileElement(
+      Vector.empty,
+      Vector.empty,
+      Vector(WorkflowDefinitionElement(
+        "Test",
+        None,
+        Set(CallElement("Echo",Some("echo"),None)),
+        None,
+        None,
+        None)
+      ),
+      Vector(TaskDefinitionElement(
+        "Echo",
+        None,
+        Vector(),
+        None,
+        CommandSectionElement(List(
+          CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with tabs\""))),
+          CommandSectionLine(Vector(StringCommandPartElement("\t\techo \"I am prefixed with even more tabs\""))))),
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+      )
+    ),
+    "cmd_strip_common_spaces" -> FileElement(
+      Vector.empty,
+      Vector.empty,
+      Vector(WorkflowDefinitionElement(
+        "Test",
+        None,
+        Set(CallElement("Echo",Some("echo"),None)),
+        None,
+        None,
+        None)
+      ),
+      Vector(TaskDefinitionElement(
+        "Echo",
+        None,
+        Vector(),
+        None,
+        CommandSectionElement(List(
+          CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with spaces\""))),
+          CommandSectionLine(Vector(StringCommandPartElement("    echo \"I am prefixed with even more spaces\""))))),
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+      )
     )
   )
 }

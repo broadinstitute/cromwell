@@ -31,91 +31,36 @@
 package cromwell.backend.impl.aws
 
 import java.security.MessageDigest
+import java.util.concurrent.Executors
+
+import cats.syntax.functor._
+import scala.language.higherKinds
+import cats.effect.Async
 import software.amazon.awssdk.services.batch.BatchClient
-import software.amazon.awssdk.services.batch.model.
-                                        {
-                                          CancelJobRequest,
-                                          CancelJobResponse,
-                                          RegisterJobDefinitionRequest,
-                                          SubmitJobRequest,
-                                          SubmitJobResponse,
-                                          DescribeJobsRequest,
-                                          JobDefinitionType,
-                                          JobDetail
-                                        }
+import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest
 import cromwell.backend.BackendJobDescriptor
-import cromwell.core.path.Path
+import cromwell.backend.io.JobPaths
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.boolean.{And, Or}
+import eu.timepit.refined._
+import eu.timepit.refined.api._
+import eu.timepit.refined.string._
+import eu.timepit.refined.collection.MaxSize
+import eu.timepit.refined.string.MatchesRegex
 import org.slf4j.LoggerFactory
+import fs2.Scheduler
 
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.util.Try
 
-object AwsBatchJob {
-  def parseOutput(text: String): (Int, String, String) = {
-    var fileName = ""
-    var accumulatedText = ""
-    var rc = -1
-    var stdout = ""
-    var stderr = ""
-    def atBoundary(): Unit = {
-      accumulatedText = accumulatedText.substring(0, accumulatedText.length - "\n".length)
-      if (accumulatedText.startsWith("MIME-Version")) {
-        accumulatedText = ""
-        return
-      }
-      // Text should be something like:
-      // Content-Type: text/plain
-      // Content-Disposition: attachment; filename=rc.txt
-      // <mycontent here>
-      // TODO: There are two bugs I don't have time to fix:
-      //       1. We should be looking for a blank line between headers and comments, which means this can't be a pattern match
-      //       2. The output doesn't have a blank line between headers and comments at the moment
-      var subAccumulator = ""
-      for (l <- accumulatedText.split('\n')) {
-        l match {
-          case "Content-Type: text/plain" => ()
-          case line if line.startsWith("Content-Disposition: attachment; filename=") =>
-            fileName = line.substring(42)
-          case line => subAccumulator += line + "\n"
-        }
-      }
-      fileName match {
-        case "rc.txt" => rc = subAccumulator.trim.toInt
-        case "stdout.txt" => stdout = subAccumulator.length match {
-          case 0 => ""
-          case _ => subAccumulator.substring(0, subAccumulator.length - "\n".length)
-        }
-        case "stderr.txt" => stderr = subAccumulator.length match {
-          case 0 => ""
-          case _ => subAccumulator.substring(0, subAccumulator.length - "\n".length)
-        }
-        case _ => throw new Exception(s"Encountered unexpected filename ${fileName}")
-      }
-      accumulatedText = ""
-    }
-    def done(text: String): Unit = ()
+//TODO: needs spire import
+case class SubmitJobConfig(attempts: Natural, createDefinitionconfig: CreateDefinitionConfig)
+case class CreateDefinitionConfig(attempts: Natural)
 
-    val boundaryRegEx = "(?s)Content-Type: multipart/alternative; boundary=(\\w+)".r
-    // TODO: multiline regex on unbounded input is no-bueno. This should be parsing line by line
-    val boundary = boundaryRegEx findFirstMatchIn text match {
-      case Some(m) => m.group(1)
-      case None => throw new Exception("Failed to find multipart boundary in cloudwatch output")
-    }
-    for (l <- text.split('\n')) {
-      l match {
-        case line if line == "--" + boundary => atBoundary()
-        case line if line == "--" + boundary + "--" => {
-          atBoundary()
-          done(accumulatedText)
-        }
-        case line => accumulatedText += line + "\n"
-      }
-    }
-    (rc, stdout, stderr)
-  }
-}
 
 /** The actual job for submission in AWS batch. Currently, each job will
  *  have its own job definition and queue. Support for separation and reuse of job
@@ -133,7 +78,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
                              dockerRc: String,                              // Calculated from StandardAsyncExecutionActor
                              dockerStdout: String,                          // Calculated from StandardAsyncExecutionActor
                              dockerStderr: String,                          // Calculated from StandardAsyncExecutionActor
-                             callExecutionRoot: Path,                    // Based on config, calculated in Job Paths, key to all things outside container
+                             inputs: Set[AwsBatchInput],
+                             outputs: Set[AwsBatchFileOutput],
+                             jobPaths: JobPaths,                    // Based on config, calculated in Job Paths, key to all things outside container
                              parameters: Seq[AwsBatchParameter]
                              ) {
 
@@ -156,6 +103,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     //       This requires a custom AMI with the volume defined. But, since
     //       we need a custom AMI anyway for any real workflow, we just need
     //       to make sure this requirement is documented.
+    //
+    //       This MIME format is technically no longer necessary as the
+    //       proxy docker container will manage the stdout/stderr/rc
+    //       stuff being copied correctly, but this can still be useful
+    //       later, so I'm leaving it here for potential future use.
     script.concat(s"""
     |echo "MIME-Version: 1.0
     |Content-Type: multipart/alternative; boundary="${boundary}"
@@ -176,11 +128,14 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     |"
     |cat ${dockerStderr}
     |echo "--${boundary}--"
-    |sleep 2 # Provide sidecar opportunity to delocalize - not sure this is needed
     |exit $$(cat ${dockerRc})
     """).stripMargin
   }
-  def submitJob(): Try[SubmitJobResponse] = Try {
+
+  def submitJob[F[_]](
+                       scheduler: Scheduler = Scheduler.fromScheduledExecutorService(Executors.newSingleThreadScheduledExecutor))(
+                       implicit ec: ExecutionContext,
+                       async: Async[F]): F[SubmitJobResponse] = {
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     val workflow = jobDescriptor.workflowDescriptor
     val uniquePath = workflow.callable.name + "/" +
@@ -191,27 +146,27 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
-    Log.info(s"""commandLine: $commandLine""")
-    Log.info(s"""reconfiguredScript: $reconfiguredScript""")
     Log.info(s"""taskId: $taskId""")
     Log.info(s"""hostpath root: $uniquePath""")
-    Log.info(s"""callExecutionRoot: $callExecutionRoot""")
 
     // Build the Job definition before we submit. Eventually this should be
     // done separately and cached.
-    val definitionArn = createDefinition(s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath)
+    val definitionArn: F[String] = createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath, scheduler)
 
-    val job = client.submitJob(SubmitJobRequest.builder()
-                .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
-                .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
-                .jobQueue(runtimeAttributes.queueArn)
-                .jobDefinition(definitionArn).build)
+    val submit = async.flatMap(definitionArn)(arn =>
+      async.delay(client.submitJob(
+        SubmitJobRequest.builder()
+          .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName).value)
+          .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
+          .jobQueue(runtimeAttributes.queueArn)
+          .jobDefinition(arn).build
+      )))
 
-    // TODO: Remove the following comment: disks cannot have mount points at runtime, so set them null
-    // TODO: Others have an "ephemeral pipeline". AWS Batch does not have the same concept,
-    //       so in this case we need to register a new job description, then call submitjob to run it.
-
-    job
+    scheduler.retry(submit, 0.millis, duration => duration.plus(duration), 6, {
+      // RegisterJobDefinition is eventually consistent, so it may not be there
+      case e: ClientException => e.statusCode() == 404
+      case _ => false
+    }).compile.last.map(_.get) //if successful there is guaranteed to be a value emitted, hence we can .get this option
   }
 
   /** Creates a job definition in AWS Batch
@@ -220,36 +175,70 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
    *  @return Arn for newly created job definition
    *
    */
-  private def createDefinition(name: String, taskId: String): String = {
+  private def createDefinition[F[_]](name: String,
+                                     taskId: String,
+                                     scheduler:Scheduler)(
+                                     implicit async: Async[F],
+                                     executionContext: ExecutionContext): F[String] = {
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
-    val jobDefinition = jobDefinitionBuilder.build(reconfiguredScript, runtimeAttributes,
-                                                   runtimeAttributes.dockerImage, taskId, dockerRc, jobDescriptor, callExecutionRoot)
+    val jobDefinitionContext = AwsBatchJobDefinitionContext(runtimeAttributes,
+                                                            taskId,
+                                                            reconfiguredScript,
+                                                            dockerRc,
+                                                            dockerStdout,
+                                                            dockerStderr,
+                                                            jobDescriptor,
+                                                            jobPaths,
+                                                            inputs,
+                                                            outputs)
+    val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
 
     // See:
     //
     // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
     val definitionRequest = RegisterJobDefinitionRequest.builder
                               .containerProperties(jobDefinition.containerProperties)
-                              .jobDefinitionName(sanitize(name))
+                              .jobDefinitionName(sanitize(name).value)
                               // See https://stackoverflow.com/questions/24349517/scala-method-named-type
                               .`type`(JobDefinitionType.CONTAINER)
                               .build
 
-    client.registerJobDefinition(definitionRequest).jobDefinitionArn
+    val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
+
+    val retry: F[String] = scheduler.retry(submit, 0.millis, _ * 2, 6, {
+      case e: ClientException => e.statusCode() == 404
+      case _ => false
+    }).compile.last.map(_.get)
+
+    async.recoverWith(retry) {
+      case e: ClientException if e.statusCode() == 409 =>
+        Log.warn("Job definition already exists. Performing describe and retrieving latest revision")
+        async.
+          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name).value).build())).
+          map(_.jobDefinitions()).
+          map(defs => defs.get(defs.size() - 1).jobDefinitionArn())
+    }
   }
 
+  /**
+    * This type contains only backslashes, dashes, numbers, and characters
+    */
+  type AwsStringRefinement =
+    (MatchesRegex[W.`"""[^\\\\]"""`.T] Or
+    MatchesRegex[W.`"[^A-Za-z0-9_-]"`.T]) And
+      MaxSize[W.`128`.T]
+
   /** Sanitizes a job and job definition name
-   *
-   *  @param name Job or Job definition name
-   *  @return Sanitized name
-   *
-   */
-  private def sanitize(name: String): String =
+    *
+    *  @param name Job or Job definition name
+    *  @return Sanitized name
+    *
+    */
+  private def sanitize(name: String): String Refined AwsStringRefinement =
     // Up to 128 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.
     // We'll replace all invalid characters with an underscore
-    name
-      .replaceAll("[^A-Za-z0-9_\\-]", "_")
-      .slice(0,128)
+    refineV[AwsStringRefinement](name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0,128)).
+      getOrElse(throw new RuntimeException("this exception is impossible to be thrown as the previous line removed all offenders"))
 
   /** Gets the status of a job by its Id, converted to a RunStatus
    *

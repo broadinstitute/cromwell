@@ -34,6 +34,7 @@ package cromwell.backend.impl.aws
 import java.net.SocketTimeoutException
 
 import cats.data.Validated.Valid
+import cats.effect.IO
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.Validation._
@@ -135,7 +136,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                   instantiatedCommand.commandString,
                                   script.toString,
                                   rcPath.toString, executionStdout, executionStderr,
-                                  jobPaths.callExecutionRoot, Seq.empty[AwsBatchParameter])
+                                  generateAwsBatchInputs(jobDescriptor),
+                                  generateAwsBatchOutputs(jobDescriptor),
+                                  jobPaths, Seq.empty[AwsBatchParameter])
   }
   /* Tries to abort the job in flight
    *
@@ -182,9 +185,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   private[aws] def generateAwsBatchInputs(jobDescriptor: BackendJobDescriptor): Set[AwsBatchInput] = {
-    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
-    // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
-    // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
     def localizationPath(f: CommandSetupSideEffectFile) =
@@ -333,7 +333,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to actually run something
   override def executeAsync(): Future[ExecutionHandle] = {
     for {
-      submitJobResponse <- Future.fromTry(batchJob.submitJob())
+      submitJobResponse <- batchJob.submitJob[IO]().unsafeToFuture()
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousStatus = None)
   }
 
@@ -350,40 +350,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case Some(job) => job
       case None => throw new RuntimeException(s"pollStatusAsync called but job not available. This should not happen. Jobid ${jobId}")
     }
-    val status = job.status(jobId)
-    status collect { case _: TerminalRunStatus => writeToPaths(jobId, job) }
-    Future.fromTry(status)
+    Future.fromTry(job.status(jobId))
   }
-
-  /* Writes job output to location for Cromwell to run.
-   * This should be in S3. There is also some Cromwell lifecycle magic to handle
-   * something here, so I don't think this is the right location. The
-   * intent I believe is that the job writes it's own output, error, etc to
-   * S3, and through the magic that is the NIO Filesystem, we just automagically
-   * pick it up from there. However, AFAIK, there is no NIO Filesystem for
-   * AWS SDK v2 (preview 9). So, in AwsWorkflowPaths I've disconnected the
-   * S3 PathBuilder stuff in favor of just doing it like TES does, which is a
-   * local filesystem path. We'll pick up job information from CloudWatch Logs
-   * and the describejobs API call (via our AwsBatchJob object). This will
-   * need to be undone at some point and wired in more like the other backends.
-   *
-   *
-   */
-  private def writeToPaths(jobId: String, job: AwsBatchJob) = {
-    // import cromwell.filesystems.s3.S3PathBuilder
-    val detail = job.detail(jobId)
-    // TODO: Apparently in a bad config job.rc(detail) can be null, which
-    //       ends up not writing the returnCode file. This fails the job, for
-    //       a failed job, so not sure it's a real problem at this time
-    Log.info("Job Complete. Exit code: " + job.rc(detail))
-    Log.info("Output path: " + jobPaths.standardPaths.output.toString)
-    val (rc, stdout, stderr) = AwsBatchJob.parseOutput(job.output(detail))
-    // TODO: Is this the right place to be writing out to S3?
-    jobPaths.standardPaths.output.write(stdout)
-    jobPaths.standardPaths.error.write(stderr)
-    jobPaths.returnCode.write(rc.toString)
-  }
-
 
   override lazy val startMetadataKeyValues: Map[String, Any] = super[AwsBatchJobCachingActorHelper].startMetadataKeyValues
 
@@ -425,7 +393,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
-        case Success(path: S3Path) => workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
+        case Success(path: S3Path) => workingDisk.mountPoint.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
         case _ => value
       }
     )

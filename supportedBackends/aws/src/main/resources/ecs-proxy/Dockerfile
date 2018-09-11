@@ -1,4 +1,3 @@
-#!/bin/sh
 # Copyright 2018 Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -27,9 +26,13 @@
 #  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
-curl -s       \
-  --no-buffer \
-  -XGET       \
-  --unix-socket /var/run/docker.sock http://localhost/events | \
-  grep create --line-buffered | \
-  /root/spawnoninput /root/launch_sidecar
+FROM docker:latest
+
+WORKDIR /root/
+
+RUN apk --no-cache add bash py2-pip && \
+    pip install awscli
+
+COPY proxy .
+
+CMD ["/root/proxy"]

@@ -1,3 +1,4 @@
+#!/bin/sh
 # Copyright 2018 Amazon.com, Inc. or its affiliates.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,24 +27,4 @@
 #  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 #  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 #  POSSIBILITY OF SUCH DAMAGE.
-FROM golang:1.10.3-alpine
-
-WORKDIR /go/src/spawnoninput
-
-COPY spawnoninput.go .
-
-RUN CGO_ENABLED=0 GOOS=linux go build -v .
-
-FROM docker:latest
-
-WORKDIR /root/
-
-COPY --from=0 /go/src/spawnoninput/spawnoninput .
-
-RUN apk --no-cache add curl grep jq coreutils
-
-COPY monitor .
-
-COPY launch_sidecar .
-
-CMD ["/root/monitor", "/root/spawnoninput"]
+docker build -t ecs-agent-proxy:latest .

@@ -64,6 +64,6 @@ cd /workflow_files
 #TODO: Change ss_perf_wf_deploy -> develop when it is pushed to develop
 curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/ss_perf_wf_deploy/scripts/perf/vm_scripts/workflow_scripts/hello_world_script.sh -o hello_world_script.sh
 
-chmod +x /hello_world_script.sh
+chmod +x /workflow_files/hello_world_script.sh
 
-/bin/bash /hello_world_script.sh
+/bin/bash /workflow_files/hello_world_script.sh

@@ -1,8 +1,6 @@
 package wdl.transforms.base.ast2wdlom
 
-import cats.instances.either._
-import cats.instances.list._
-import cats.syntax.traverse._
+import cats.implicits._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
@@ -92,14 +90,14 @@ object AstToCommandSectionElement {
     if (prefix.isEmpty)
       lines.toList.validNelCheck
     else
-      (lines map { line =>
+      lines.toList traverse { line: CommandSectionLine =>
         line.parts.headOption match {
           case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
             CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail).validNelCheck
           case _ =>
             "Failed to strip common whitespace prefix from line.".invalidNelCheck
         }
-      }).toList.sequence[Checked, CommandSectionLine]
+      }
   }
 
   private def allWhitespace(s: String): Boolean = s.forall(_.isWhitespace)

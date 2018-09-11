@@ -20,7 +20,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.StartableState
-import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
+import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor, SubWorkflowStart}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
@@ -51,6 +51,11 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   override def jobTag: String = key.tag
 
   startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
+
+  override def preStart(): Unit = {
+    context.system.eventStream.publish(SubWorkflowStart(self))
+    super.preStart()
+  }
 
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
 

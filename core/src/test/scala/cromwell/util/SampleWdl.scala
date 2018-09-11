@@ -2,7 +2,7 @@ package cromwell.util
 
 import java.util.UUID
 
-import cromwell.core.WorkflowSourceFilesWithoutImports
+import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import spray.json._
 import wom.core.{ExecutableInputMap, WorkflowJson, WorkflowSource}
@@ -11,25 +11,54 @@ import wom.values._
 
 import scala.language.postfixOps
 
+case class WorkflowImport(name: String, content: String)
+
 trait SampleWdl extends TestFileUtil {
   def workflowSource(runtime: String = ""): WorkflowSource
+
+  def imports: Option[Set[WorkflowImport]] = None
+
+  def importsZip: Option[Array[Byte]] = imports map { imports_ =>
+    val stagingDir = DefaultPathBuilder.createTempDirectory("")
+    imports_ foreach { import_ =>
+      stagingDir.resolve(import_.name).write(import_.content)
+    }
+    stagingDir.zip().byteArray
+  }
+
   def asWorkflowSources(runtime: String = "",
                         workflowOptions: String = "{}",
                         labels: String = "{}",
                         workflowType: Option[String] = Option("WDL"),
                         workflowTypeVersion: Option[String] = None,
-                        workflowOnHold: Boolean = false) = {
-    WorkflowSourceFilesWithoutImports(
-      workflowSource = Option(workflowSource(runtime)),
-      workflowUrl = None,
-      workflowRoot = None,
-      inputsJson = workflowJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = labels,
-      workflowType = workflowType,
-      workflowTypeVersion = workflowTypeVersion,
-      warnings = Vector.empty,
-      workflowOnHold = workflowOnHold)
+                        workflowOnHold: Boolean = false): WorkflowSourceFilesCollection = {
+    importsZip match {
+      case Some(zip) =>
+        WorkflowSourceFilesWithDependenciesZip(
+          workflowSource = Option(workflowSource(runtime)),
+          workflowUrl = None,
+          workflowRoot = None,
+          inputsJson = workflowJson,
+          workflowOptionsJson = workflowOptions,
+          labelsJson = labels,
+          workflowType = workflowType,
+          workflowTypeVersion = workflowTypeVersion,
+          warnings = Vector.empty,
+          workflowOnHold = workflowOnHold,
+          importsZip = zip)
+      case None =>
+        WorkflowSourceFilesWithoutImports(
+          workflowSource = Option(workflowSource(runtime)),
+          workflowUrl = None,
+          workflowRoot = None,
+          inputsJson = workflowJson,
+          workflowOptionsJson = workflowOptions,
+          labelsJson = labels,
+          workflowType = workflowType,
+          workflowTypeVersion = workflowTypeVersion,
+          warnings = Vector.empty,
+          workflowOnHold = workflowOnHold)
+    }
   }
 
   val rawInputs: ExecutableInputMap

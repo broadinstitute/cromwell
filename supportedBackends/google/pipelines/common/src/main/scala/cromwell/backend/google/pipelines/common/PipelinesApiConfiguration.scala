@@ -30,8 +30,6 @@ class PipelinesApiConfiguration(val configurationDescriptor: BackendConfiguratio
   val dockerToken: Option[String] = dockerCredentials map { _.token }
 
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined || jesAttributes.restrictMetadataAccess
-  val qps = jesAttributes.qps
-  val papiRequestWorkers = jesAttributes.requestWorkers
   val jobShell = configurationDescriptor.backendConfig.as[Option[String]]("job-shell").getOrElse(
     configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
 }

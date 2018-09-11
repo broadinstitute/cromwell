@@ -3,7 +3,7 @@ package cromwell.filesystems.oss.nio
 import com.aliyun.oss.OSSClient
 import com.aliyun.oss.model.GenericRequest
 import org.mockito.Mockito._
-import org.mockito.Matchers._
+import org.mockito.ArgumentMatchers._
 
 
 class OssStorageFileAttributesViewSpec extends OssNioUtilSpec {

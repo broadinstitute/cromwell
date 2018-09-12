@@ -84,7 +84,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                                         ioActor: ActorRef,
                                         backendSingletonActor: Option[ActorRef]): Props = bjeaProps
 
-    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = Option((_, _, _, _) => callCacheHitCopyingProbe.props)
+    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = Option((_, _, _, _, _) => callCacheHitCopyingProbe.props)
 
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                              jobKey: BackendJobDescriptorKey,

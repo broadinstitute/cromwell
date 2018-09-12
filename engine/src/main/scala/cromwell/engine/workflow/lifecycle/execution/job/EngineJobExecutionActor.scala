@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.job
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
-import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -206,18 +206,21 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   when(FetchingCachedOutputsFromDatabase) {
-    case Event(CachedOutputLookupSucceeded(womValueSimpletons, jobDetritus, returnCode, cacheResultId, cacheHitDetails), data: ResponsePendingData) =>
-      writeToMetadata(Map(
-        callCachingHitResultMetadataKey -> true,
-        callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
-      log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
-      makeBackendCopyCacheHit(womValueSimpletons, jobDetritus, returnCode, data, cacheResultId) using data.withCacheDetails(cacheHitDetails)
+    case Event(CachedOutputLookupSucceeded(womValueSimpletons, jobDetritus, returnCode, cacheResultId, cacheHitDetails), data @ ResponsePendingData(_, _, _, _, Some(ejeaCacheHit), _)) =>
+      if (cacheResultId != ejeaCacheHit.hit.cacheResultId) {
+        // Sanity check: was this the right set of results (a false here is a BAD thing!):
+        log.error(s"Received incorrect call cache results from FetchCachedResultsActor. Expected ${ejeaCacheHit.hit} but got $cacheResultId. Running job")
+        // Treat this like the "CachedOutputLookupFailed" event:
+        runJob(data)
+      } else {
+        writeToMetadata(Map(
+          callCachingHitResultMetadataKey -> true,
+          callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
+        log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
+        makeBackendCopyCacheHit(womValueSimpletons, jobDetritus, returnCode, data, cacheResultId, ejeaCacheHit.hitNumber) using data.withCacheDetails(cacheHitDetails)
+      }
     case Event(CachedOutputLookupFailed(_, error), data: ResponsePendingData) =>
-      log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
-      runJob(data)
-    case Event(JobFailedNonRetryableResponse(_, error, _), data: ResponsePendingData) =>
-      // Similar to CachedOutputLookupFailed, some BackendCacheHitCopyingActors send this message when a copy fails:
-      log.warning("Can't make a copy of the cached job outputs for {} due to {}. Running job.", jobTag, error)
+      log.warning("Can't fetch a list of cached outputs to copy for {} due to {}. Running job.", jobTag, error)
       runJob(data)
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
@@ -236,11 +239,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       stay using data.withSuccessResponse(response)
     case Event(response: JobSucceededResponse, data: ResponsePendingData) => // bad hashes or cache write off
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
-    case Event(response: BackendJobExecutionResponse, data @ ResponsePendingData(_, _, _, _, Some(cacheHit), _)) =>
-      response match {
-        case f: BackendJobFailedResponse => invalidateCacheHitAndTransition(cacheHit, data, f.throwable)
-        case _ => runJob(data)
-      }
+    case Event(CopyingOutputsFailedResponse(_, cacheCopyAttempt, throwable), data @ ResponsePendingData(_, _, _, _, Some(cacheHit), _)) if cacheCopyAttempt == cacheHit.hitNumber =>
+      invalidateCacheHitAndTransition(cacheHit, data, throwable)
 
     // Hashes arrive:
     case Event(hashes: CallCacheHashes, data: SucceededResponseData) =>
@@ -404,6 +404,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       }
     case Event(EngineLifecycleActorAbortCommand, _) =>
       forwardAndStop(JobAbortedResponse(jobDescriptorKey))
+    case Event(_: CopyingOutputsFailedResponse, _) =>
+      // Normally these are caught in when(BackendIsCopyingCachedOutputs) { ... }
+      // But sometimes, we get failed responses long after we've moved on from a particular cache hit (usually
+      // due to timeouts). That's ok, we just ignore this message in any other situation:
+      stay()
     case Event(msg, _) =>
       log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}", sender, stateName, stateData, msg)
       stay
@@ -556,10 +561,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     goto(FetchingCachedOutputsFromDatabase) using data
   }
 
-  private def makeBackendCopyCacheHit(womValueSimpletons: Seq[WomValueSimpleton], jobDetritusFiles: Map[String,String], returnCode: Option[Int], data: ResponsePendingData, cacheResultId: CallCachingEntryId) = {
+  private def makeBackendCopyCacheHit(womValueSimpletons: Seq[WomValueSimpleton],
+                                      jobDetritusFiles: Map[String,String],
+                                      returnCode: Option[Int],
+                                      data: ResponsePendingData,
+                                      cacheResultId: CallCachingEntryId,
+                                      cacheCopyAttempt: Int) = {
     factory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
-        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor)
+        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
         cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, returnCode)
         replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.evaluatedTaskInputs)

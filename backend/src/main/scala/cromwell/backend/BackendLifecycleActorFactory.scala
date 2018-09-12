@@ -84,7 +84,7 @@ trait BackendLifecycleActorFactory {
     *
     * Simples!
     */
-  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = None
+  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = None
 
   /* ****************************** */
   /*              Misc.             */

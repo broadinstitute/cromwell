@@ -148,9 +148,9 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     // Usually, we use node names to check whether in-memory graphs are linked together correctly.
     // Obviously, in this regression test for a same-named-node bug that won't work - instead,
     // we use identity (the hash code) to differentiate multiple nodes with the same name.
-    callInputs(0).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
-    callInputs(1).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
-    callInputs(2).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
-    callInputs(3).inputPorts.head.upstream eq exposedExpressionNode.outputPorts.head shouldBe true
+    callInputs(0).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+    callInputs(1).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+    callInputs(2).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+    callInputs(3).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
   }
 }

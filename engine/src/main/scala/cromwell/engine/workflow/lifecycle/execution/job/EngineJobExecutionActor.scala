@@ -18,7 +18,6 @@ import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
-import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}
@@ -32,6 +31,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed}
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.{CallPreparation, JobPreparationActor}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, TimedFSM}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
@@ -61,7 +61,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               backendName: String,
                               callCachingMode: CallCachingMode,
                               command: BackendJobExecutionActorCommand) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
-  with WorkflowLogging with CallMetadataHelper with JobInstrumentation {
+  with WorkflowLogging with CallMetadataHelper with JobInstrumentation with TimedFSM[EngineJobExecutionActorState] {
 
   override val workflowIdForLogging = workflowDescriptor.id
   override val workflowIdForCallMetadata = workflowDescriptor.id
@@ -107,6 +107,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   startWith(Pending, NoData)
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
+
+  override def onTimedTransition(from: EngineJobExecutionActorState, to: EngineJobExecutionActorState, duration: FiniteDuration) = {
+    // Send to StatsD
+    recordExecutionStepTiming(from.toString, duration)
+  }
 
   // When Pending, the FSM always has NoData
   when(Pending) {

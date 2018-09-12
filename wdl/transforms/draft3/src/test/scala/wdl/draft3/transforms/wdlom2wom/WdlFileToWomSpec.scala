@@ -81,7 +81,12 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "input_values" -> anyWomWillDo,
     "gap_in_command" -> anyWomWillDo,
     "nio_file" -> validateNioFile,
-    "same_named_inputs_priority" -> validateSameNamedInputsPriority
+    "same_named_inputs_priority" -> validateSameNamedInputsPriority,
+    "cmd_whitespace_none" -> anyWomWillDo,
+    "cmd_strip_common_spaces" -> anyWomWillDo,
+    "cmd_whitespace_tabs" -> anyWomWillDo,
+    "cmd_strip_common_tabs" -> anyWomWillDo,
+    "cmd_whitespace_spaces" -> anyWomWillDo
   )
 
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded

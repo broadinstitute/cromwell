@@ -6,7 +6,7 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import cats.data.NonEmptyList
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -15,6 +15,7 @@ import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
+import cromwell.engine.SubWorkflowStart
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
@@ -44,7 +45,8 @@ object WorkflowManagerActor {
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
 
-  def props(workflowStore: ActorRef,
+  def props(config: Config,
+            workflowStore: ActorRef,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
@@ -58,7 +60,7 @@ object WorkflowManagerActor {
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
     val params = WorkflowManagerActorParams(
-      config = ConfigFactory.load,
+      config = config,
       workflowStore = workflowStore,
       ioActor = ioActor,
       serviceRegistryActor = serviceRegistryActor,
@@ -87,7 +89,7 @@ object WorkflowManagerActor {
   /**
     * Data
     */
-  case class WorkflowManagerData(workflows: Map[WorkflowId, ActorRef]) {
+  case class WorkflowManagerData(workflows: Map[WorkflowId, ActorRef], subWorkflows: Set[ActorRef]) {
     def idFromActor(actor: ActorRef): Option[WorkflowId] = workflows.collectFirst { case (id, a) if a == actor => id }
 
     def withAddition(entries: NonEmptyList[WorkflowIdToActorRef]): WorkflowManagerData = {
@@ -135,9 +137,12 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   override def preStart(): Unit = {
     // Starts the workflow polling cycle
     timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, Duration.Zero)
+    // Listen on subworkflow start events to inform our decision to pick up new root workflows from the workflow store.
+    context.system.eventStream.subscribe(self, classOf[SubWorkflowStart])
+    ()
   }
 
-  startWith(Running, WorkflowManagerData(workflows = Map.empty))
+  startWith(Running, WorkflowManagerData(workflows = Map.empty, subWorkflows = Set.empty))
 
   val runningAndNotStartingNewWorkflowsStateFunction: StateFunction = {
     /*
@@ -146,9 +151,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(RetrieveNewWorkflows, stateData) =>
       /*
         Cap the total number of workflows in flight, but also make sure we don't pull too many in at once.
-        Determine the number of available workflow slots and request the smaller of that number of maxWorkflowsToLaunch.
+        Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
-      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size)
+      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
@@ -239,8 +244,17 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       timers.cancel(RetrieveNewWorkflowsKey)
       sender() ! akka.Done
       goto(RunningAndNotStartingNewWorkflows)
+    case Event(SubWorkflowStart(actorRef), data) =>
+      // Watch for this subworkflow to expire to remove it from the Set of running subworkflows.
+      context.watch(actorRef)
+      stay using data.copy(subWorkflows = data.subWorkflows + actorRef)
+    case Event(Terminated(actorRef), data) =>
+      // This is looking only for subworkflow actor terminations. If for some reason we see a termination for a
+      // different type of actor this should be a noop since the ActorRef element being removed from the set of
+      // subworkflows would not have been in the set in the first place.
+      stay using data.copy(subWorkflows = data.subWorkflows - actorRef)
     // Uninteresting transition and current state notifications.
-    case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
+    case Event(Transition(_, _, _) | CurrentState(_, _), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest
     case Event(JobStoreWriteFailure(t), _) =>
       log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)

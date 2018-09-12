@@ -333,6 +333,7 @@ lazy val server = project
   .dependsOn(wdlBiscayneLanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
   .dependsOn(engine % "test->test")
+  .dependsOn(common % "test->test")
 
 lazy val root = (project in file("."))
   .withRootSettings()

@@ -7,6 +7,31 @@ extract_metadata() {
   curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
 }
 
+# Extract workflow script name
+export WORKFLOW_SCRIPT_NAME=$(extract_metadata WORKFLOW_SCRIPT)
+
+# Utility function to run the workflow script
+run_workflow_script() {
+  echo "Trying to ping Cromwell"
+
+  until [[ $(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: application/json") = *"cromwell"* ]]; do
+      echo "No connection to Cromwell yet!"
+      sleep 5
+  done
+
+  echo "Cromwell is UP! Connection Successful!"
+
+  mkdir /workflow_files
+  cd /workflow_files
+
+  # Download the workflow script
+  curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/vm_scripts/workflow_scripts/${WORKFLOW_SCRIPT_NAME} -o workflow_script.sh
+
+  # Run the workflow script
+  chmod +x /workflow_files/workflow_script.sh
+  /bin/bash /workflow_files/workflow_script.sh
+}
+
 # Get Build ID
 export BUILD_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
 
@@ -49,31 +74,9 @@ export CROMWELL_STATSD_PREFIX=$(curl "http://metadata.google.internal/computeMet
 
 docker-compose up -d
 
-# Extract workflow script name
-export WORKFLOW_SCRIPT_NAME=$(extract_metadata WORKFLOW_SCRIPT)
-
 if [ -z "$WORKFLOW_SCRIPT_NAME" ]
 then
-    echo "No WORKFLOW_SCRIPT provided! Can't launch the script!"
+    echo "No WORKFLOW_SCRIPT provided! Can't launch the workflow!"
 else
-    echo "Trying to ping Cromwell"
-
-    until [[ $(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: application/json") = *"cromwell"* ]]; do
-        echo "No connection to Cromwell yet!"
-        sleep 5
-    done
-
-    echo "Cromwell is UP! Connection Successful!"
-
-    mkdir /workflow_files
-    cd /workflow_files
-
-
-
-    # Download the workflow script
-    curl -L https://raw.githubusercontent.com/broadinstitute/cromwell/${CROMWELL_BRANCH}/scripts/perf/vm_scripts/workflow_scripts/${WORKFLOW_SCRIPT_NAME} -o workflow_script.sh
-
-    # Run the workflow script
-    chmod +x /workflow_files/workflow_script.sh
-    /bin/bash /workflow_files/workflow_script.sh
+    run_workflow_script
 fi

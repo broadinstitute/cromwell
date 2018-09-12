@@ -14,9 +14,8 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
   val backendConfig = mock[Config]
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
-    when(backendConfig.hasPath(any[String])).thenReturn(true)
+    when(backendConfig.hasPath("root")).thenReturn(true)
     when(backendConfig.getString("root")).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
-    when(backendConfig.getAnyRef("dockerRoot")).thenReturn(None)
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
     val workflowPaths = new WorkflowPathsWithDocker(wd, backendConfig)
     val id = wd.id
@@ -27,9 +26,8 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
   }
 
   "WorkflowPaths" should "provide correct paths for a sub workflow" in {
-    when(backendConfig.hasPath(any[String])).thenReturn(true)
+    when(backendConfig.hasPath("root")).thenReturn(true)
     when(backendConfig.getString("root")).thenReturn("local-cromwell-executions") // This is the folder defined in the config as the execution root dir
-    when(backendConfig.getAnyRef("dockerRoot")).thenReturn(None)
     val rootWd = mock[BackendWorkflowDescriptor]
     val rootWorkflow = WomMocks.mockWorkflowDefinition("rootWorkflow")
     val rootWorkflowId = WorkflowId.randomId()

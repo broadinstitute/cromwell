@@ -198,13 +198,10 @@ sealed abstract class WdlCall(val alias: Option[String],
     }
 
   override def resolveVariable(name: String, relativeTo: Scope = this): Option[WdlGraphNode] = {
-    if (this.callable.inputNames.contains(name))
-      this.parent match {
-        case Some(parent) => parent.resolveVariable(name, relativeTo)
-        case None => None
-      }
-    else
-      super.resolveVariable(name, relativeTo)
+    this.parent match {
+      case Some(parent) => parent.resolveVariable(name, relativeTo)
+      case None => None
+    }
   }
 }
 

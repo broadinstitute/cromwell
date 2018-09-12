@@ -4,7 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
-import wom.graph.{CommandCallNode, FullyQualifiedName, LocalName, WomIdentifier}
+import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.WomType
 
 object AnonymousExpressionNode {

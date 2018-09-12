@@ -50,7 +50,7 @@ class AwsBatchAttributesSpec extends FlatSpec with Matchers {
 
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val attributes = AwsBatchAttributes(config, backendConfig)
+    val attributes = AwsBatchAttributes.fromConfigs(config, backendConfig)
     attributes.executionBucket should be("s3://myBucket")
   }
 
@@ -63,7 +63,7 @@ class AwsBatchAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      AwsBatchAttributes(config, nakedConfig)
+      AwsBatchAttributes.fromConfigs(config, nakedConfig)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("No configuration setting found for key 'project'")

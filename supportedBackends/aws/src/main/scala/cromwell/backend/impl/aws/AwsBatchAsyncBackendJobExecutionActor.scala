@@ -34,6 +34,7 @@ package cromwell.backend.impl.aws
 import java.net.SocketTimeoutException
 
 import cats.data.Validated.Valid
+import cats.effect.IO
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.Validation._
@@ -332,7 +333,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Primary entry point for cromwell to actually run something
   override def executeAsync(): Future[ExecutionHandle] = {
     for {
-      submitJobResponse <- Future.fromTry(batchJob.submitJob())
+      submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousStatus = None)
   }
 

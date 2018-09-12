@@ -8,6 +8,7 @@
 .local/*
 .ensime
 tags
+**/*.tags
 !/.idea/inspectionProfiles/
 .idea/inspectionProfiles/*
 !/.idea/inspectionProfiles/Project_Default.xml

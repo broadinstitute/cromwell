@@ -40,7 +40,6 @@ import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 
-// GZip
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 import com.google.common.io.BaseEncoding

@@ -5,15 +5,11 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
 import net.ceedubs.ficus.Ficus._
 
-object WorkflowPathsWithDocker {
-  val DockerRoot: Path = DefaultPathBuilder.get("/cromwell-executions")
-}
-
 final case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDescriptor, config: Config, pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
-  val dockerRoot: Path = config.as[Option[String]]("dockerRoot") match {
-    case Some(pathString) => DefaultPathBuilder.get(pathString)
-    case _ => WorkflowPathsWithDocker.DockerRoot
-  }
+  val dockerRoot: Path =
+    DefaultPathBuilder.get(
+      config.as[Option[String]]("dockerRoot").getOrElse("/cromwell-exections")
+    )
   val dockerWorkflowRoot: Path = workflowPathBuilder(dockerRoot)
 
   override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPathsWithDocker = {

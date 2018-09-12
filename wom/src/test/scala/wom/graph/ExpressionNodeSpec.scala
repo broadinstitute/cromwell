@@ -53,7 +53,7 @@ class ExpressionNodeSpec extends FlatSpec with Matchers {
 
       x_outGraphOutputNode.upstream.size should be(1)
       val xExpressionNode = x_outGraphOutputNode.upstream.head.asInstanceOf[ExpressionNode]
-      xExpressionNode.localName should be("__anon_x")
+      xExpressionNode.localName should be("x")
       xExpressionNode.womType should be(WomIntegerType)
 
       xExpressionNode.upstream should be(Set(iInputNode, jInputNode))

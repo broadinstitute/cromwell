@@ -90,11 +90,13 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         val availableValues: Map[String, OutputPort] = (for {
           // Anonymous expression nodes are one-time-use and do not exist in the universe of available linking candidates (#3999)
           node <- currentList.filterNot(_.isInstanceOf[AnonymousExpressionNode])
-          node <- currentList
           port <- node.outputPorts
         } yield outputName(node, port) -> port).toMap
-        val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
-        generatedGraphNodesValidation map { nextGraphNode => currentList ++ nextGraphNode }
+
+        val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] =
+          WorkflowGraphElementToGraphNode.convert(
+            GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
+        generatedGraphNodesValidation map { nextGraphNodes: Set[GraphNode] => currentList ++ nextGraphNodes }
       }
     }
 

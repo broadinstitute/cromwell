@@ -14,15 +14,7 @@ object AnonymousExpressionNode {
                                                      expression: WomExpression,
                                                      inputMapping: Map[String, OutputPort],
                                                      constructor: AnonymousExpressionConstructor[T]): ErrorOr[T] = {
-    // Anonymous expression nodes are created and then immediately consumed.
-    // Name mangling prevents lookups from finding them and using them after their expiration date.
-    // Naturally, leading underscore is an illegal identifier so would never happen IRL.
-    val mangledIdentifier = identifier.copy(
-      localName = LocalName("__anon_" + identifier.localName.value),
-      fullyQualifiedName = FullyQualifiedName("__anon_" + identifier.fullyQualifiedName.value)
-    )
-
-    ExpressionNode.buildFromConstructor(constructor)(mangledIdentifier, expression, inputMapping)
+    ExpressionNode.buildFromConstructor(constructor)(identifier, expression, inputMapping)
   }
 }
 

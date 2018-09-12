@@ -76,11 +76,11 @@ class WdlNamespaceWomSpec extends FlatSpec with Matchers {
     val ps: CommandCallNode = workflowGraph.nodes.collectFirst({ case ps: CommandCallNode if ps.localName == "ps" => ps }).get
     val cgrep: CommandCallNode = workflowGraph.nodes.collectFirst({ case cgrep: CommandCallNode if cgrep.localName == "cgrep" => cgrep }).get
     val cgrepInFileExpression = {
-      workflowGraph.nodes.collectFirst({ case cgrepInFile: ExpressionNode if cgrepInFile.localName == "__anon_cgrep.in_file" => cgrepInFile }).get
+      workflowGraph.nodes.collectFirst({ case cgrepInFile: ExpressionNode if cgrepInFile.localName == "cgrep.in_file" => cgrepInFile }).get
     }
     val wc: CommandCallNode = workflowGraph.nodes.collectFirst({ case wc: CommandCallNode if wc.localName == "wc" => wc }).get
     val wcInFileExpression = {
-      workflowGraph.nodes.collectFirst({ case wcInFile: ExpressionNode if wcInFile.localName == "__anon_wc.in_file" => wcInFile }).get
+      workflowGraph.nodes.collectFirst({ case wcInFile: ExpressionNode if wcInFile.localName == "wc.in_file" => wcInFile }).get
     }
 
     workflowGraph.nodes.filterByType[CallNode] should be(Set(ps, cgrep, wc))

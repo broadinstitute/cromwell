@@ -79,12 +79,12 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
           untarUpstream should have size 2
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.localName == s"__anon_file://$rootPath/1st-workflow.cwl#untar/extractfile.merge" =>
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile.merge" =>
               shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WomStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
 
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.localName == s"__anon_file://$rootPath/1st-workflow.cwl#untar/tarfile.merge" =>
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile.merge" =>
               exprNode.inputPorts.map(_.upstream.graphNode).count {
                 case rgin: RequiredGraphInputNode =>
                   rgin.identifier.localName == LocalName("inp") &&
@@ -96,7 +96,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
             case compile: CallNode if compile.localName == s"compile" => compile
           }.get.inputPorts.map(_.upstream).head
 
-          compileUpstreamExpressionPort.name shouldBe s"__anon_file://$rootPath/1st-workflow.cwl#compile/src.merge"
+          compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src.merge"
           compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.internalName).count(_ == "example_out") shouldBe 1
 
           nodes.collect {

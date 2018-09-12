@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import java.security.MessageDigest
 
-import javax.xml.bind.DatatypeConverter
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
 import cromwell.backend.standard.StandardInitializationData
@@ -11,13 +10,13 @@ import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, Runtim
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WomValueSimpleton
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
+import javax.xml.bind.DatatypeConverter
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
-import CallCache._
 
 
 /**
@@ -41,7 +40,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                backendName: String,
                                fileHashingActorProps: Props,
                                callCachingEligible: CallCachingEligible,
-                               callCachingActivity: CallCachingActivity
+                               callCachingActivity: CallCachingActivity,
+                               batchSize: Int
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor = makeFileHashingActor()
@@ -137,7 +137,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       case WomValueSimpleton(name, x: WomFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
     }
 
-    val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor)
+    val hashingJobActorData = CallCacheHashingJobActorData(batchSize, fileHashRequests.toList, callCacheReadingJobActor)
     startWith(WaitingForHashFileRequest, hashingJobActorData)
 
     val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
@@ -203,7 +203,8 @@ object CallCacheHashingJobActor {
             backendName: String,
             fileHashingActorProps: Props,
             callCachingEligible: CallCachingEligible,
-            callCachingActivity: CallCachingActivity
+            callCachingActivity: CallCachingActivity,
+            batchSize: Int
            ) = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
@@ -212,7 +213,8 @@ object CallCacheHashingJobActor {
     backendName,
     fileHashingActorProps,
     callCachingEligible,
-    callCachingActivity
+    callCachingActivity,
+    batchSize
   )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState
@@ -237,15 +239,14 @@ object CallCacheHashingJobActor {
   }
 
   object CallCacheHashingJobActorData {
-    // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
-    val BatchSize = 100
-
-    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]) = {
-      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(BatchSize).toList, List.empty, callCacheReadingJobActor)
+    // Slick will eventually build a prepared statement with that many parameters. Don't set batchSize this too high or it will stackoverflow.
+    def apply(batchSize: Int, fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]) = {
+      new CallCacheHashingJobActorData(batchSize, fileHashRequestsRemaining.grouped(batchSize).toList, List.empty, callCacheReadingJobActor)
     }
   }
 
   final case class CallCacheHashingJobActorData(
+                                           batchSize: Int,    
                                            fileHashRequestsRemaining: List[List[SingleFileHashRequest]],
                                            fileHashResults: List[HashResult],
                                            callCacheReadingJobActor: Option[ActorRef]
@@ -274,7 +275,7 @@ object CallCacheHashingJobActor {
           // If the current batch is empty, we got a partial result, take the first BatchSize of the list
           if (updatedBatch.isEmpty) {
             // hashResult + fileHashResults.take(BatchSize - 1) -> BatchSize elements
-            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(BatchSize - 1): _*)
+            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(batchSize - 1): _*)
             (otherBatches, Option(PartialFileHashingResult(partialHashes)))
           }
           // Otherwise just return the updated request list and no message

@@ -27,7 +27,8 @@ class EngineJobHashingActor(receiver: ActorRef,
                             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                             backendName: String,
                             activity: CallCachingActivity,
-                            callCachingEligible: CallCachingEligible) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
+                            callCachingEligible: CallCachingEligible,
+                            batchSize: Int) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
 
   override val jobTag = jobDescriptor.key.tag
   override val workflowId = jobDescriptor.workflowDescriptor.id
@@ -48,7 +49,8 @@ class EngineJobHashingActor(receiver: ActorRef,
       backendName,
       fileHashingActorProps,
       callCachingEligible,
-      activity
+      activity,
+      batchSize
     ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
     super.preStart()
   }
@@ -130,7 +132,8 @@ object EngineJobHashingActor {
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
             activity: CallCachingActivity,
-            callCachingEligible: CallCachingEligible): Props = Props(new EngineJobHashingActor(
+            callCachingEligible: CallCachingEligible,
+            batchSize: Int): Props = Props(new EngineJobHashingActor(
     receiver = receiver,
     serviceRegistryActor = serviceRegistryActor,
     jobDescriptor = jobDescriptor,
@@ -140,5 +143,6 @@ object EngineJobHashingActor {
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
     backendName = backendName,
     activity = activity,
-    callCachingEligible = callCachingEligible)).withDispatcher(EngineDispatcher)
+    callCachingEligible = callCachingEligible,
+    batchSize = batchSize)).withDispatcher(EngineDispatcher)
 }

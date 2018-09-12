@@ -6,10 +6,14 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.either._
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Parse.Parse
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.refineV
+import net.ceedubs.ficus.readers.ValueReader
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -22,7 +26,7 @@ object Validation {
       logger.warn(s"Unrecognized configuration key(s) for $context: ${unrecognizedKeys.mkString(", ")}")
     }
   }
-  
+
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
     case Failure(f) => f.getMessage.invalidNel
@@ -41,12 +45,12 @@ object Validation {
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {
     def toErrorOr: ErrorOr[A] = {
-      Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
+      Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A]
     }
 
     def toErrorOrWithContext(context: String): ErrorOr[A] = toChecked
       .contextualizeErrors(context)
-      .leftMap({contextualizedErrors => 
+      .leftMap({contextualizedErrors =>
         if (t.failed.isFailure) {
           val errors = new StringWriter
           t.failed.get.printStackTrace(new PrintWriter(errors))
@@ -94,6 +98,15 @@ object Validation {
 
     def toParse(errorMessage: String): Parse[A] = {
       Parse.checkedParse(Either.fromOption(o, NonEmptyList.of(errorMessage)))
+    }
+  }
+
+  implicit def refinedValueReader[A, P](implicit reader: ValueReader[A], validation: eu.timepit.refined.api.Validate[A, P]) = new ValueReader[Refined[A, P]] {
+    override def read(config: Config, path: String) = {
+      val unCheckedValue = reader.read(config, path)
+      refineV[P](unCheckedValue)
+        .leftMap(NonEmptyList.one)
+        .unsafe(s"Configuration value $unCheckedValue at $path does not satisfy predicate constraint: ${validation.showExpr(unCheckedValue)}")
     }
   }
 }

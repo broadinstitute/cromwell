@@ -8,7 +8,7 @@ import net.ceedubs.ficus.Ficus._
 final case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDescriptor, config: Config, pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) extends WorkflowPaths {
   val dockerRoot: Path =
     DefaultPathBuilder.get(
-      config.as[Option[String]]("dockerRoot").getOrElse("/cromwell-exections")
+      config.as[Option[String]]("dockerRoot").getOrElse("/cromwell-executions")
     )
   val dockerWorkflowRoot: Path = workflowPathBuilder(dockerRoot)
 

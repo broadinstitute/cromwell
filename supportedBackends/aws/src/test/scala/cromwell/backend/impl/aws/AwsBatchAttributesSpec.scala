@@ -77,6 +77,9 @@ class AwsBatchAttributesSpec extends FlatSpec with Matchers {
       |{
       |   root = "s3://myBucket"
       |   maximum-polling-interval = 600
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
+      |
       |
       |   filesystems = {
       |     s3 {

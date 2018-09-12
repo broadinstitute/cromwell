@@ -29,7 +29,7 @@ trait BetterFileMethods {
 
   final def toJava: JFile = betterFile.toJava
 
-  final def name: String = betterFile.name
+  def name: String = betterFile.name
 
   final def nameOption: Option[String] = betterFile.nameOption
 
@@ -95,7 +95,7 @@ trait BetterFileMethods {
     this
   }
 
-  final def createDirectories()(implicit attributes: Attributes = Attributes.default): this.type = {
+  def createDirectories()(implicit attributes: Attributes = Attributes.default): this.type = {
     betterFile.createDirectories()(attributes)
     this
   }

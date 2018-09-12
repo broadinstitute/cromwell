@@ -119,6 +119,12 @@ lazy val sraFileSystem = (project in file("filesystems/sra"))
   .dependsOn(core)
   .dependsOn(core % "test->test")
 
+lazy val ftpFileSystem = (project in file("filesystems/ftp"))
+  .withLibrarySettings("cromwell-ftpFileSystem")
+  .dependsOn(core)
+  .dependsOn(core % "test->test")
+  .dependsOn(`cloud-nio-impl-ftp`)
+
 lazy val databaseSql = (project in file("database/sql"))
   .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
 
@@ -208,6 +214,7 @@ lazy val sfsBackend = (project in backendRoot / "sfs")
 lazy val tesBackend = (project in backendRoot / "tes")
   .withLibrarySettings("cromwell-tes-backend", tesBackendDependencies)
   .dependsOn(sfsBackend)
+  .dependsOn(ftpFileSystem)
   .dependsOn(backend % "test->test")
 
 lazy val sparkBackend = (project in backendRoot / "spark")
@@ -231,6 +238,7 @@ lazy val engine = project
   .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)
   .dependsOn(sraFileSystem)
+  .dependsOn(`cloud-nio-spi`)
   .dependsOn(languageFactoryCore)
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
@@ -247,6 +255,7 @@ lazy val centaurCwlRunner = project
   .dependsOn(cwl)
   .dependsOn(centaur)
   .dependsOn(gcsFileSystem)
+  .dependsOn(ftpFileSystem)
 
 lazy val womtool = project
   .withExecutableSettings("womtool", womtoolDependencies)
@@ -267,6 +276,7 @@ lazy val wes2cromwell = project
   .dependsOn(cromiam)
 
 lazy val languageFactoryRoot = Path("languageFactories")
+lazy val cloudNio = Path("cloud-nio")
 
 lazy val languageFactoryCore = (project in languageFactoryRoot / "language-factory-core")
   .withLibrarySettings("language-factory-core", languageFactoryDependencies)
@@ -296,6 +306,17 @@ lazy val cwlV1_0LanguageFactory = (project in languageFactoryRoot / "cwl-v1-0")
   .dependsOn(languageFactoryCore)
   .dependsOn(cwl)
 
+lazy val `cloud-nio-spi` = (project in cloudNio / "cloud-nio-spi")
+  .withLibrarySettings(libraryName = "cloud-nio-spi", dependencies = spiDependencies)
+
+lazy val `cloud-nio-util` = (project in cloudNio / "cloud-nio-util")
+  .dependsOn(`cloud-nio-spi`)
+  .withLibrarySettings(libraryName = "cloud-nio-util", dependencies = spiUtilDependencies)
+
+lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
+  .withLibrarySettings(libraryName = "cloud-nio-impl-ftp", dependencies = implFtpDependencies)
+  .dependsOn(`cloud-nio-util`)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
@@ -321,6 +342,9 @@ lazy val root = (project in file("."))
   .aggregate(centaur)
   .aggregate(centaurCwlRunner)
   .aggregate(cloudSupport)
+  .aggregate(`cloud-nio-spi`)
+  .aggregate(`cloud-nio-util`)
+  .aggregate(`cloud-nio-impl-ftp`)
   .aggregate(common)
   .aggregate(core)
   .aggregate(cromiam)
@@ -341,6 +365,7 @@ lazy val root = (project in file("."))
   .aggregate(languageFactoryCore)
   .aggregate(awsBackend)
   .aggregate(ossFileSystem)
+  .aggregate(ftpFileSystem)
   .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)

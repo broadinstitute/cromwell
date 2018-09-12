@@ -792,6 +792,39 @@ object WdlFileToWdlomSpec {
         None,
         None))
     ),
+    "same_named_inputs_priority" -> FileElement(
+      Vector(),
+      Vector(),
+      Vector(WorkflowDefinitionElement(
+        "same_named_inputs_priority",
+        None,
+        Set(
+          CallElement("echo", Some("b"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2"))))))),
+          CallElement("echo", Some("a"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1"))))))),
+          IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "out", StringLiteral("hello")),
+          CallElement("echo", Some("d"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4"))))))),
+          CallElement("echo", Some("c"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))))
+        ),
+        None,
+        None,
+        None
+      )
+    ),
+    Vector(TaskDefinitionElement(
+      "echo",
+      Some(InputsSectionElement(
+        Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType),"out",None)))),
+      Vector(),
+      Some(OutputsSectionElement(Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType),"result",IdentifierLookup("out"))))),
+      CommandSectionElement(
+        Vector(CommandSectionLine(
+          Vector(
+            StringCommandPartElement("echo "),
+            PlaceholderCommandPartElement(IdentifierLookup("out"),
+              PlaceholderAttributeSet(None,None,None,None)))))
+      ),
+      Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None))
+    ),
     "cmd_whitespace_spaces" -> FileElement(
       Vector.empty,
       Vector.empty,

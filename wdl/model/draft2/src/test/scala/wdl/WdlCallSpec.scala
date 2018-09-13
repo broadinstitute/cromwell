@@ -80,26 +80,30 @@ class WdlCallSpec extends WordSpec with Matchers {
     val wdl =
       s"""
        |workflow x {
-       |    call cram
-       |    call y as shouldntBeProblematic { input:
-       |        cram = cram.scram
-       |    }
+       |  call cram
+       |  call y as shouldntBeProblematic {
+       |    input:
+       |      cram = "asdf",
+       |      slam = cram.scram
+       |  }
+       |
        |}
        |
        |task cram {
-       |    command {
-       |        echo "."
-       |    }
-       |    output {
-       |        String scram = "."
-       |    }
+       |  command {
+       |    echo "."
+       |  }
+       |  output {
+       |    String scram = "."
+       |  }
        |}
        |
        |task y {
-       |    String cram
-       |    command {
-       |        echo "."
-       |    }
+       |  String cram
+       |  String slam
+       |  command {
+       |    echo "."
+       |  }
        |}
      """.stripMargin
 

@@ -2,22 +2,21 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import java.security.MessageDigest
 
-import javax.xml.bind.DatatypeConverter
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
-import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
+import javax.xml.bind.DatatypeConverter
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
-import CallCache._
 
 
 /**
@@ -41,7 +40,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                backendName: String,
                                fileHashingActorProps: Props,
                                callCachingEligible: CallCachingEligible,
-                               callCachingActivity: CallCachingActivity
+                               callCachingActivity: CallCachingActivity,
+                               callCachePathPrefixes: Option[CallCachePathPrefixes]
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor = makeFileHashingActor()
@@ -103,7 +103,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       context.parent ! error
       stopAndStay(None)
   }
-  
+
   // In its own function so it can be overridden in the test
   private [callcaching] def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) = {
     data.withFileHash(hashResult)
@@ -141,13 +141,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     startWith(WaitingForHashFileRequest, hashingJobActorData)
 
     val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
-    val callCacheRootHint = for {
-      workflowOptionPrefixes <- callCachingActivity.options.workflowOptionCallCachePrefixes
-      d <- initializationData collect { case d: StandardInitializationData => d }
-      rootPrefix = d.workflowPaths.callCacheRootPrefix
-    } yield CallCachePathPrefixes(rootPrefix, workflowOptionPrefixes.toList)
 
-    val initialHashingResult = InitialHashingResult(initialHashes, aggregatedBaseHash, callCacheRootHint.toList)
+    val initialHashingResult = InitialHashingResult(initialHashes, aggregatedBaseHash, callCachePathPrefixes.toList)
 
     sendToCallCacheReadingJobActor(initialHashingResult, hashingJobActorData)
     context.parent ! initialHashingResult
@@ -203,7 +198,8 @@ object CallCacheHashingJobActor {
             backendName: String,
             fileHashingActorProps: Props,
             callCachingEligible: CallCachingEligible,
-            callCachingActivity: CallCachingActivity
+            callCachingActivity: CallCachingActivity,
+            callCachePathPrefixes: Option[CallCachePathPrefixes]
            ) = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
@@ -212,7 +208,8 @@ object CallCacheHashingJobActor {
     backendName,
     fileHashingActorProps,
     callCachingEligible,
-    callCachingActivity
+    callCachingActivity,
+    callCachePathPrefixes
   )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState

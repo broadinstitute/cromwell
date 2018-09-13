@@ -37,9 +37,9 @@ class PipelinesApiWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with 
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/${workflowDescriptor.id}_auth.json")
   }
 
-  it should "calculate the call cache root correctly" in {
+  it should "calculate the call cache path prefix from the workflow execution root correctly" in {
     val WorkspaceBucket = "gs://workspace-id"
     val ExecutionRoot = WorkspaceBucket + "/submission-id"
-    PipelinesApiWorkflowPaths.callCacheRootHintFromExecutionRoot(ExecutionRoot) shouldBe WorkspaceBucket
+    PipelinesApiWorkflowPaths.callCachePathPrefixFromExecutionRoot(ExecutionRoot) shouldBe WorkspaceBucket
   }
 }

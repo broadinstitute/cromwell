@@ -20,7 +20,7 @@ object PipelinesApiWorkflowPaths {
   private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 
-  private[common] def callCacheRootHintFromExecutionRoot(executionRoot: String): String = {
+  private[common] def callCachePathPrefixFromExecutionRoot(executionRoot: String): String = {
     // If the root looks like gs://bucket/stuff-under-bucket this should return gs://bucket
     GcsPrefix + executionRoot.substring(GcsPrefix.length).takeWhile(_ != '/')
   }
@@ -35,7 +35,7 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(PipelinesApiWorkflowPaths.GcsRootOptionKey, papiConfiguration.root)
 
-  override lazy val callCacheRootPrefix: Option[String] = Option(callCacheRootHintFromExecutionRoot(executionRootString))
+  override lazy val callCacheRootPrefix: Option[String] = Option(callCachePathPrefixFromExecutionRoot(executionRootString))
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 

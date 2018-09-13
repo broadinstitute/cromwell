@@ -85,12 +85,12 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
   }
 
-  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixHint: Option[CallCachePathPrefixes], hitNumber: Int)
+  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixesHint: Option[CallCachePathPrefixes], hitNumber: Int)
                                        (implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] = {
     database.findCacheHitForAggregation(
       baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
       inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
-      callCacheRootHints = prefixHint.map(_.prefixes),
+      callCachePathPrefixes = prefixesHint.map(_.prefixes),
       hitNumber).map(_ map CallCachingEntryId.apply)
   }
 

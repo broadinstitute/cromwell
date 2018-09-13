@@ -41,7 +41,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                fileHashingActorProps: Props,
                                callCachingEligible: CallCachingEligible,
                                callCachingActivity: CallCachingActivity,
-                               callCacheRootHint: Option[CallCachePathPrefixes]
+                               callCachePathPrefixes: Option[CallCachePathPrefixes]
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor = makeFileHashingActor()
@@ -103,7 +103,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       context.parent ! error
       stopAndStay(None)
   }
-  
+
   // In its own function so it can be overridden in the test
   private [callcaching] def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) = {
     data.withFileHash(hashResult)
@@ -142,7 +142,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
     val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
 
-    val initialHashingResult = InitialHashingResult(initialHashes, aggregatedBaseHash, callCacheRootHint.toList)
+    val initialHashingResult = InitialHashingResult(initialHashes, aggregatedBaseHash, callCachePathPrefixes.toList)
 
     sendToCallCacheReadingJobActor(initialHashingResult, hashingJobActorData)
     context.parent ! initialHashingResult

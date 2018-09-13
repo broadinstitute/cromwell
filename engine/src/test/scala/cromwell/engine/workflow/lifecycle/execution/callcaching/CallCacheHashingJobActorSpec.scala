@@ -46,7 +46,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       "backedName",
       Props.empty,
       DockerWithHash("ubuntu@sha256:blablablba"),
-      CallCachingActivity(readWriteMode = ReadCache)
+      CallCachingActivity(readWriteMode = ReadCache),
+      batchSize = 10
     ), parent.ref)
     watch(testActor)
     expectTerminated(testActor)
@@ -80,7 +81,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       "backedName",
       Props.empty,
       DockerWithHash("ubuntu@sha256:blablablba"),
-      CallCachingActivity(readWriteMode = ReadAndWriteCache)
+      CallCachingActivity(readWriteMode = ReadAndWriteCache),
+      batchSize = 10
     ), parent.ref)
     
     val expectedInitialHashes = Set(
@@ -108,6 +110,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     callCacheRead.expectMsg(expectedInitialHashResult)
     actorUnderTest.stateName shouldBe WaitingForHashFileRequest
     actorUnderTest.stateData shouldBe CallCacheHashingJobActorData(
+      10,
       List(SingleFileHashRequest(jobDescriptor.key, HashKey("input", "File fileInput"), WomSingleFile("world"), None)),
       Option(callCacheRead.ref)
     )
@@ -126,7 +129,8 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       "backend",
       Props.empty,
       DockerWithHash("ubuntu@256:blablabla"),
-      CallCachingActivity(readWriteMode = if (writeToCache) ReadAndWriteCache else ReadCache)
+      CallCachingActivity(readWriteMode = if (writeToCache) ReadAndWriteCache else ReadCache),
+      batchSize = 10
     ) {
       override def makeFileHashingActor() = testFileHashingActor
       override def addFileHash(hashResult: HashResult, data: CallCacheHashingJobActorData) = {
@@ -145,7 +149,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val fileHashRequest2 = SingleFileHashRequest(null, null, null, null)
     cchja.setState(
       WaitingForHashFileRequest,
-      CallCacheHashingJobActorData(List(List(fileHashRequest1, fileHashRequest2)), List.empty, None)
+      CallCacheHashingJobActorData(10, List(List(fileHashRequest1, fileHashRequest2)), List.empty, None)
     )
 
     cchja ! NextBatchOfFileHashesRequest
@@ -164,7 +168,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     
     cchja.setState(
       WaitingForHashFileRequest,
-      CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
+      CallCacheHashingJobActorData(10, List.empty, List.empty, Option(callCacheReadProbe.ref))
     )
 
     cchja ! NextBatchOfFileHashesRequest
@@ -182,7 +186,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val hashResults = NonEmptyList.of(mock[HashResult])
     
     val result: PartialFileHashingResult = PartialFileHashingResult(hashResults)
-    val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
+    val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(10, List.empty, List.empty, Option(callCacheReadProbe.ref))
     
     val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, TestProbe().ref, writeToCache = true, Option(newData -> Option(result)))
 
@@ -200,7 +204,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val fileHashingActor = TestProbe()
     val result: PartialFileHashingResult = PartialFileHashingResult(NonEmptyList.of(mock[HashResult]))
     val fileHashRequest = SingleFileHashRequest(null, null, null, null)
-    val newData = CallCacheHashingJobActorData(List(List(fileHashRequest)), List.empty, None)
+    val newData = CallCacheHashingJobActorData(10, List(List(fileHashRequest)), List.empty, None)
     // still gives a CCReader when instantiating the actor, but not in the data (above)
     // This ensures the check is done with the data and not the actor attribute, as the data will change if the ccreader dies but the actor attribute
     // will stay Some(...)
@@ -219,7 +223,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     val parent = TestProbe()
     val callCacheReadProbe = TestProbe()
     List(CompleteFileHashingResult(Set(mock[HashResult]), "AggregatedFileHash"), NoFileHashesResult) foreach { result =>
-      val newData = CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
+      val newData = CallCacheHashingJobActorData(10, List.empty, List.empty, Option(callCacheReadProbe.ref))
       val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, parent.ref, writeToCache = true, Option(newData -> Option(result)))
 
       parent.expectMsgClass(classOf[InitialHashingResult])
@@ -239,7 +243,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
   it should "wait for next file hash if the batch is not complete yet" in {
     val callCacheReadProbe = TestProbe()
     val parent = TestProbe()
-    val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
+    val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(10, List.empty, List.empty, Option(callCacheReadProbe.ref))
     val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, parent.ref, writeToCache = true, Option(newData -> None))
 
     parent.expectMsgClass(classOf[InitialHashingResult])
@@ -273,7 +277,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
 
     val hashKey = HashKey("file")
     val fileHashRequest: SingleFileHashRequest = SingleFileHashRequest(null, hashKey, null, null)
-    val data = CallCacheHashingJobActorData(List(List(fileHashRequest)), List.empty, Option(callCacheReadProbe.ref))
+    val data = CallCacheHashingJobActorData(10, List(List(fileHashRequest)), List.empty, Option(callCacheReadProbe.ref))
     
     cchja.setState(WaitingForHashFileRequest, data)
     

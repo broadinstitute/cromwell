@@ -20,6 +20,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
+import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
@@ -547,7 +548,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           factory.runtimeAttributeDefinitions(initializationData),
           backendName,
           activity,
-          callCachingEligible
+          callCachingEligible,
+          FileBatchSize
         )
         val ejha = context.actorOf(props, s"ejha_for_$jobDescriptor")
 

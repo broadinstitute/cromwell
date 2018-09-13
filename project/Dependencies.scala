@@ -344,7 +344,7 @@ object Dependencies {
     "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V
-  ) ++ catsDependencies ++ configDependencies
+  ) ++ catsDependencies ++ configDependencies ++ refinedTypeDependenciesList
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,

@@ -56,7 +56,10 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   import CromwellRootActor._
   
   // Make sure the filesystems are initialized at startup
-  val _ = CromwellFileSystems.instance
+  locally(CromwellFileSystems.instance)
+  // Fail immediately if call caching configuration is invalid
+  // TODO: Find a better way to do this
+  locally(cromwell.engine.workflow.lifecycle.execution.callcaching.FileBatchSize)
 
   private val logger = Logging(context.system, this)
   protected val config = ConfigFactory.load()

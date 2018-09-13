@@ -47,6 +47,8 @@ object AwsBatchTestConfig {
       |}
       |
       |auth = "default"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
       |
       |default-runtime-attributes {
       |    cpu: 1
@@ -67,6 +69,8 @@ object AwsBatchTestConfig {
       |root = "s3://my-cromwell-workflows-bucket"
       |
       |auth = "default"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
       |
       |filesystems {
       |  s3 {

@@ -489,7 +489,7 @@ object WdlNamespace {
       val memberAccess = MemberAccess(memberAccessAst)
       val requestedValue = memberAccess.rhsString
 
-      // "Ignore local" because we do not want to pick up the LHS of input assignments in the current call if they
+      // "Ignore local" because we do not want to pick up input assignments in the same call block that
       // happen to have the same name as the target member (#3811). This probably nerfs ever fixing #4048.
       val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhsString, ignoreLocal = true)
       resolvedScope match {

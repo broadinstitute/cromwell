@@ -196,13 +196,6 @@ sealed abstract class WdlCall(val alias: Option[String],
         }
       }
     }
-
-  override def resolveVariable(name: String, relativeTo: Scope = this): Option[WdlGraphNode] = {
-    this.parent match {
-      case Some(parent) => parent.resolveVariable(name, relativeTo)
-      case None => None
-    }
-  }
 }
 
 case class WdlTaskCall(override val alias: Option[String], task: WdlTask, override val inputMappings: Map[String, WdlExpression], override val ast: Ast) extends WdlCall(alias, task, inputMappings, ast) {

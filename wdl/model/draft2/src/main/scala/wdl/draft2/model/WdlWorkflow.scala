@@ -79,7 +79,7 @@ case class WdlWorkflow(unqualifiedName: String,
   /** First tries to find any Call with name `name`.  If not found,
     * Fallback to looking at immediate children or delegating to parent node
     */
-  override def resolveVariable(name: String, relativeTo: Scope = this): Option[WdlGraphNode] = {
+  override def resolveVariable(name: String, relativeTo: Scope = this, ignoreLocal: Boolean = false): Option[WdlGraphNode] = {
     findCallByName(name) orElse findDeclarationByName(name) orElse findWorkflowOutputByName(name, relativeTo) orElse super.resolveVariable(name, relativeTo)
   }
 

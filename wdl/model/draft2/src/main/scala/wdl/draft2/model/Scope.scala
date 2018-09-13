@@ -184,7 +184,7 @@ trait Scope {
     * Performs scope resolution starting from this scope and walking up the lexical hierarchy
     * until it finds a GraphNode with the `name` as its unqualifiedName
     */
-  def resolveVariable(name: String, relativeTo: Scope = this, ignoreLocal: Boolean = true): Option[WdlGraphNode] = {
+  def resolveVariable(name: String, relativeTo: Scope = this, ignoreLocal: Boolean = false): Option[WdlGraphNode] = {
     val siblingScopes = if (children.contains(relativeTo))
     // For declarations, only resolve to declarations that are lexically before this declaration
       children.dropRight(children.size - children.indexOf(relativeTo) )

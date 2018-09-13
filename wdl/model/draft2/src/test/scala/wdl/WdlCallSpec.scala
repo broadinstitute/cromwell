@@ -75,7 +75,7 @@ class WdlCallSpec extends WordSpec with Matchers {
     exception.getMessage shouldBe "Input evaluation for Call w.t failed.:\ns1:\n\tCould not find s1 in input section of call w.t\ns2:\n\tCould not find s2 in input section of call w.t"
   }
 
-  "handle member access to a target with same name as the LHS of the input" in {
+  "call input name collision - same line" in {
 
     val wdl =
       s"""
@@ -108,7 +108,7 @@ class WdlCallSpec extends WordSpec with Matchers {
     namespace.workflows.head.calls.exists(_.alias == Option("shouldntBeProblematic")) shouldBe true
   }
 
-  "handle member access to a target with same name as another input in the call block" in {
+  "call input name collision - different lines" in {
 
     val wdl =
       s"""

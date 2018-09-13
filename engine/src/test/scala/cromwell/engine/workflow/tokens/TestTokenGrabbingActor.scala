@@ -18,7 +18,7 @@ class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobExecutionTo
     case AkkaTestUtil.InternalStop => context.stop(self)
   }
 
-  tokenDispenser ! JobExecutionTokenRequest(tokenType)
+  tokenDispenser ! JobExecutionTokenRequest("hogGroupA", tokenType)
 }
 
 object TestTokenGrabbingActor {

@@ -1,11 +1,12 @@
 package cromwell.engine.workflow.tokens
 
-import akka.actor.{ActorSystem, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.{Rate, TokensAvailable}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActorSpec._
+import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 import cromwell.util.AkkaTestUtil
 import cromwell.util.AkkaTestUtil.StoppingSupervisor
 import org.scalatest._
@@ -21,14 +22,14 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   behavior of "JobExecutionTokenDispenserActor"
 
   it should "dispense an infinite token correctly" in {
-    actorRefUnderTest ! JobExecutionTokenRequest(TestInfiniteTokenType)
+    actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", TestInfiniteTokenType)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
     actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe TestInfiniteTokenType
   }
 
   it should "accept return of an infinite token correctly" in {
-    actorRefUnderTest ! JobExecutionTokenRequest(TestInfiniteTokenType)
+    actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", TestInfiniteTokenType)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
     actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe TestInfiniteTokenType
@@ -38,14 +39,14 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
 
   it should "dispense indefinitely for an infinite token type" in {
     val senders = (1 to 20).map(_ => TestProbe())
-    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(TestInfiniteTokenType), sender = sender.ref))
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest("hogGroupA", TestInfiniteTokenType), sender = sender.ref))
     senders.foreach(_.expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed))
     actorRefUnderTest.underlyingActor.tokenAssignments.size shouldBe 20
   }
 
   it should "dispense the correct amount at the specified rate, not more and not faster" in {
     val senders = (1 to 20).map(_ => TestProbe())
-    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(TestInfiniteTokenType), sender = sender.ref))
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest("hogGroupA", TestInfiniteTokenType), sender = sender.ref))
     // The first 10 should get their token
     senders.take(10).foreach(_.expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed))
     // Couldn't figure out a cleaner way to "verify that none of this probes gets a message in the next X seconds"
@@ -56,14 +57,14 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   }
 
   it should "dispense a limited token correctly" in {
-    actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
+    actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
     actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe LimitedTo5Tokens
   }
 
   it should "accept return of a limited token type correctly" in {
-    actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
+    actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe true
     actorRefUnderTest.underlyingActor.tokenAssignments(self).get().jobExecutionTokenType shouldBe LimitedTo5Tokens
@@ -71,10 +72,13 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.underlyingActor.tokenAssignments.contains(self) shouldBe false
   }
 
+  def asHogGroupAPlaceholder(probe: TestProbe): TokenQueuePlaceholder = asHogGroupAPlaceholder(probe.ref)
+  def asHogGroupAPlaceholder(ref: ActorRef): TokenQueuePlaceholder = TokenQueuePlaceholder(ref, "hogGroupA")
+
   it should "limit the dispensing of a limited token type" in {
     val senders = (1 to 15).map(_ => TestProbe())
     // Ask for 20 tokens
-    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sender.ref))
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens), sender = sender.ref))
 
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(100)
@@ -86,7 +90,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     // The last 10 should be queued
     // At this point [0, 1, 2, 3, 4] are the ones with tokens, and [5, 14] are still queued
     actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).size shouldBe 10
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.drop(5).map(_.ref)
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.drop(5).map(asHogGroupAPlaceholder)
 
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(100)
@@ -102,15 +106,15 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     senders.slice(5, 8).foreach(_.expectMsg(JobExecutionTokenDispensed))
 
     // At this point [3, 4, 5, 6, 7] are the ones with tokens, and [8, 19] are still queued
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.slice(8, 20).map(_.ref)
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs senders.slice(8, 20).map(asHogGroupAPlaceholder)
 
     // Double-check the queue state: when we request a token now, we should still be denied:
-    actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
+    actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens)
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(100)
     expectNoMessage()
     // We should be enqueued and the last in the queue though
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.last shouldBe self
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.last shouldBe TokenQueuePlaceholder(self, "hogGroupA")
 
     // Release all currently owned tokens
     senders.slice(3, 8).foreach(_.send(actorRefUnderTest, JobExecutionTokenReturn))
@@ -136,7 +140,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
 
   it should "resend the same token to an actor which already has one" in {
     5 indexedTimes { _ =>
-      actorRefUnderTest ! JobExecutionTokenRequest(LimitedTo5Tokens)
+      actorRefUnderTest ! JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens)
     }
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(100)
@@ -153,7 +157,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   it should "not be fooled by a doubly-returned token" in {
     val senders = (1 to 7).map(_ => TestProbe())
     // Ask for 7 tokens
-    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(LimitedTo5Tokens), sender = sender.ref))
+    senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest("hogGroupA", LimitedTo5Tokens), sender = sender.ref))
 
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(5)
@@ -220,7 +224,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     // Check that the next in lines have no tokens and are indeed in the queue
     nextInLine1.underlyingActor.hasToken shouldBe false
     nextInLine2.underlyingActor.hasToken shouldBe false
-    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs List(nextInLine1, nextInLine2)
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queue.toList should contain theSameElementsInOrderAs List(nextInLine1, nextInLine2).map(asHogGroupAPlaceholder)
 
     // First, kill off the actor which would otherwise be first in line:
     val deathwatch = TestProbe()
@@ -232,7 +236,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = tokenGrabbingActors.head)
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(1)
-    eventually { nextInLine2.underlyingActor.hasToken shouldBe true } // Some is OK. This is the **expected** value!
+    eventually { nextInLine2.underlyingActor.hasToken shouldBe true }
   }
 
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
@@ -256,7 +260,7 @@ object JobExecutionTokenDispenserActorSpec {
     def indexedTimes(f: Int => Any) = 0 until n foreach { i => f(i) }
   }
 
-  val TestInfiniteTokenType = JobExecutionTokenType("infinite", maxPoolSize = None)
-  def limitedTokenType(limit: Int) = JobExecutionTokenType(s"$limit-limit", maxPoolSize = Option(limit))
+  val TestInfiniteTokenType = JobExecutionTokenType("infinite", maxPoolSize = None, hogFactor = 1)
+  def limitedTokenType(limit: Int) = JobExecutionTokenType(s"$limit-limit", maxPoolSize = Option(limit), hogFactor = 1)
   val LimitedTo5Tokens = limitedTokenType(5)
 }

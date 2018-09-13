@@ -7,7 +7,7 @@ import cromwell.core.{ExecutionStatus, JobExecutionToken}
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.TokensAvailable
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
-import cromwell.engine.workflow.tokens.TokenQueue.LeasedActor
+import cromwell.engine.workflow.tokens.TokenQueue.{LeasedActor, TokenQueuePlaceholder}
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
@@ -21,6 +21,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     * Lazily created token queue. We only create a queue for a token type when we need it
     */
   var tokenQueues: Map[JobExecutionTokenType, TokenQueue] = Map.empty
+  var currentTokenQueuePointer: Int = 0
   var tokenAssignments: Map[ActorRef, Lease[JobExecutionToken]] = Map.empty
 
   scheduleInstrumentation {
@@ -37,19 +38,19 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive)
 
   private def tokenDistributionReceive: Receive = {
-    case JobExecutionTokenRequest(tokenType) => enqueue(sender, tokenType)
+    case JobExecutionTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup, tokenType)
     case JobExecutionTokenReturn => release(sender)
     case TokensAvailable(n) => distribute(n)
     case Terminated(terminee) => onTerminate(terminee)
     case ShutdownCommand => context stop self
   }
 
-  private def enqueue(sndr: ActorRef, tokenType: JobExecutionTokenType): Unit = {
+  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobExecutionTokenType): Unit = {
     if (tokenAssignments.contains(sndr)) {
       sndr ! JobExecutionTokenDispensed
     } else {
       context.watch(sndr)
-      val updatedTokenQueue = getTokenQueue(tokenType).enqueue(sndr)
+      val updatedTokenQueue = getTokenQueue(tokenType).enqueue(TokenQueuePlaceholder(sndr, hogGroup))
       tokenQueues += tokenType -> updatedTokenQueue
     }
   }
@@ -65,7 +66,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   }
 
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
-    val iterator = RoundRobinQueueIterator(tokenQueues.values.toList)
+    val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
 
     val nextTokens = iterator.take(n)
 
@@ -74,11 +75,14 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         tokenAssignments = tokenAssignments + (actor -> lease)
         incrementJob("Started")
         actor ! JobExecutionTokenDispensed
-      // Only one token per actor, if you've already got one, you don't get this token !
-      case LeasedActor(_, lease) => lease.release()
+      // Only one token per actor, so if you've already got one, we don't need to use this new one:
+      case LeasedActor(actor, lease) =>
+        actor ! JobExecutionTokenDispensed
+        lease.release()
     })
 
     tokenQueues = iterator.updatedQueues.map(queue => queue.tokenType -> queue).toMap
+    currentTokenQueuePointer = iterator.updatedPointer
   }
 
   private def release(actor: ActorRef): Unit = {
@@ -101,7 +105,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         log.debug("Actor {} stopped while we were still watching it... but it doesn't have a token. Removing it from any queues if necessary", terminee)
         // This is a very inefficient way to remove the actor from the queue and can lead to very poor performance for a large queue and a large number of actors to remove
         tokenQueues = tokenQueues map {
-          case (tokenType, tokenQueue @ TokenQueue(queue, _)) => tokenType -> tokenQueue.copy(queue = queue.filterNot(_ == terminee))
+          case (tokenType, tokenQueue @ TokenQueue(queue, _)) => tokenType -> tokenQueue.copy(queue = queue.filterNot(_.actor == terminee))
         }
     }
     context.unwatch(terminee)
@@ -114,7 +118,7 @@ object JobExecutionTokenDispenserActor {
 
   def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate) = Props(new JobExecutionTokenDispenserActor(serviceRegistryActor, rate)).withDispatcher(EngineDispatcher)
 
-  case class JobExecutionTokenRequest(jobExecutionTokenType: JobExecutionTokenType)
+  case class JobExecutionTokenRequest(hogGroup: String, jobExecutionTokenType: JobExecutionTokenType)
 
   case object JobExecutionTokenReturn
   case object JobExecutionTokenDispensed

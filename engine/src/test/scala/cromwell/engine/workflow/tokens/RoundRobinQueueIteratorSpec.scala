@@ -3,25 +3,26 @@ package cromwell.engine.workflow.tokens
 import akka.testkit.TestProbe
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.TestKitSuite
+import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 import org.scalatest.{FlatSpecLike, Matchers}
 
 class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Matchers {
   behavior of "RoundRobinQueueIterator"
   
-  val InfiniteTokenType = JobExecutionTokenType("infinite", None)
-  val Pool1 = JobExecutionTokenType("pool1", Option(1))
-  val Pool2 = JobExecutionTokenType("pool2", Option(2))
+  val InfiniteTokenType = JobExecutionTokenType("infinite", None, 1)
+  val Pool1 = JobExecutionTokenType("pool1", Option(1), 1)
+  val Pool2 = JobExecutionTokenType("pool2", Option(2), 1)
   
   it should "be empty if there's no queue" in {
-    RoundRobinQueueIterator(List.empty).hasNext shouldBe false
+    new RoundRobinQueueIterator(List.empty, 0).hasNext shouldBe false
   }
 
   it should "return an element if a queue can dequeue" in {
     val probe1 = TestProbe().ref
     val queues = List(
-      TokenQueue(InfiniteTokenType).enqueue(probe1)
+      TokenQueue(InfiniteTokenType).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
     )
-    val iterator = RoundRobinQueueIterator(queues)
+    val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
     val next = iterator.next()
     next.actor shouldBe probe1
@@ -36,10 +37,10 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     val probe2 = TestProbe("probe-2").ref
     val probe3 = TestProbe("probe-3").ref
     val queues = List(
-      TokenQueue(InfiniteTokenType).enqueue(probe1).enqueue(probe3),
-      TokenQueue(Pool2).enqueue(probe2)
+      TokenQueue(InfiniteTokenType).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA")).enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
+      TokenQueue(Pool2).enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
     )
-    val iterator = RoundRobinQueueIterator(queues)
+    val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
     
     var next = iterator.next()
@@ -68,14 +69,14 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     val probe5 = TestProbe("probe-5").ref
     val queues = List(
       TokenQueue(Pool1)
-        .enqueue(probe1)
-        .enqueue(probe3),
+        .enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
+        .enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
       TokenQueue(Pool2)
-        .enqueue(probe2)
-        .enqueue(probe4)
-        .enqueue(probe5)
+        .enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
+        .enqueue(TokenQueuePlaceholder(probe4, "hogGroupA"))
+        .enqueue(TokenQueuePlaceholder(probe5, "hogGroupA"))
     )
-    val iterator = RoundRobinQueueIterator(queues)
+    val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
 
     var next = iterator.next()
@@ -97,10 +98,10 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     // both queues still have actors but the pools are empty
     iterator.hasNext shouldBe false
 
-    iterator.updatedQueues.head.queue.toList should contain theSameElementsAs List(probe3)
-    iterator.updatedQueues.last.queue.toList should contain theSameElementsAs List(probe5)
+    iterator.updatedQueues.head.queue.toList.map(_.actor) should contain theSameElementsAs List(probe3)
+    iterator.updatedQueues.last.queue.toList.map(_.actor) should contain theSameElementsAs List(probe5)
 
-    // If we release the first lease, we should be able to iterate on more time
+    // If we release the first lease, we should be able to iterate one more time
     probe1Lease.release()
     iterator.hasNext shouldBe true
     next = iterator.next()
@@ -109,10 +110,10 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     iterator.hasNext shouldBe false
 
     iterator.updatedQueues.head.queue shouldBe empty
-    iterator.updatedQueues.last.queue.toList should contain theSameElementsAs List(probe5)
+    iterator.updatedQueues.last.queue.toList.map(_.actor) should contain theSameElementsAs List(probe5)
   }
   
   it should "throw an exception when calling next() on an empty iterator" in {
-    assertThrows[IllegalStateException](RoundRobinQueueIterator(List.empty).next())
+    assertThrows[IllegalStateException](new RoundRobinQueueIterator(List.empty, 0).next())
   }
 }

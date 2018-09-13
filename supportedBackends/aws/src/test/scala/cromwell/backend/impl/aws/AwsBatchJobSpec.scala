@@ -51,6 +51,26 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
 
   behavior of "AwsBatchJob"
 
+  /*
+  DB 9/13/18
+  This test is broken!  It does not pass *unless the user is logged in w/ aws cli* (i.e. "auth configure").  Our
+  test server does not have such credentials and I was unsuccessful at setting this value manually.
+
+  I'm merging this in the interest of time.
+
+  It throws the following exception:
+  Cause: java.lang.IllegalArgumentException: Either s3://my-cromwell-workflows-bucket exists on a filesystem not supported by this instance of Cromwell, or a failure occurred while building an actionable path from it. Supported filesystems are: s3. Failures: s3: AWS region not provided (SdkClientException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems
+[info]   at cromwell.core.path.PathParsingException.<init>(PathParsingException.scala:5)
+[info]   at cromwell.core.path.PathFactory$.$anonfun$buildPath$4(PathFactory.scala:64)
+[info]   at scala.Option.getOrElse(Option.scala:121)
+[info]   at cromwell.core.path.PathFactory$.buildPath(PathFactory.scala:58)
+[info]   at cromwell.core.path.PathFactory.buildPath(PathFactory.scala:30)
+[info]   at cromwell.core.path.PathFactory.buildPath$(PathFactory.scala:30)
+[info]   at cromwell.backend.impl.aws.AwsBatchWorkflowPaths.buildPath(AwsBatchWorkflowPaths.scala:51)
+[info]   at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:34)
+[info]   at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:34)
+[info]   at cromwell.backend.impl.aws.AwsBatchWorkflowPaths.executionRoot$lzycompute(AwsBatchWorkflowPaths.scala:51)
+   */
   it should "alter the commandScript for mime output" in {
     val script = """
     |tmpDir=mkdir -p "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83" && echo "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83"

@@ -46,11 +46,9 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
       callCacheReadActor ! HasMatchingInputFilesHashLookup(hashes)
       goto(WaitingForHashCheck)
     case Event(CompleteFileHashingResult(_, aggregatedFileHash), data: CCRJAWithData) =>
-      // so here we pass in the hints so the read actor knows to filter by bucket
       callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.currentHitNumber, prefixesHint)
       goto(WaitingForCacheHitOrMiss) using data.withFileHash(aggregatedFileHash)
     case Event(NoFileHashesResult, data: CCRJAWithData) =>
-      // so here we pass in the hints so the read actor knows to filter by bucket
       callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None), data.currentHitNumber, prefixesHint)
       goto(WaitingForCacheHitOrMiss)
   }

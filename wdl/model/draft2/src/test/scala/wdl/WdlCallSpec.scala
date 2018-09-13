@@ -74,6 +74,38 @@ class WdlCallSpec extends WordSpec with Matchers {
     }
     exception.getMessage shouldBe "Input evaluation for Call w.t failed.:\ns1:\n\tCould not find s1 in input section of call w.t\ns2:\n\tCould not find s2 in input section of call w.t"
   }
+
+  "handle member access to a target with same name as input" in {
+
+    val wdl =
+      s"""
+       |workflow x {
+       |    call cram
+       |    call y as shouldntBeProblematic { input:
+       |        cram = cram.scram
+       |    }
+       |}
+       |
+       |task cram {
+       |    command {
+       |        echo "."
+       |    }
+       |    output {
+       |        String scram = "."
+       |    }
+       |}
+       |
+       |task y {
+       |    String cram
+       |    command {
+       |        echo "."
+       |    }
+       |}
+     """.stripMargin
+
+    val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get
+    namespace.workflows.head.calls.exists(_.alias == Option("shouldntBeProblematic")) shouldBe true
+  }
   
   "find workflows" in {
 

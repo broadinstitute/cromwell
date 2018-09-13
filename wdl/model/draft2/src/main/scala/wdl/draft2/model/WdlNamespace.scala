@@ -489,8 +489,8 @@ object WdlNamespace {
       val memberAccess = MemberAccess(memberAccessAst)
       val requestedValue = memberAccess.rhsString
 
-      // "Ignore local" so that we don't accidentally pick up an input assignment in the same call block that
-      // happens to have the same name as the target member (#3811). This probably nerfs ever fixing #4048.
+      // "Ignore local" so that we don't accidentally pick up an input assignment in the current call block that
+      // happens to have the same name as the member access target (#3811). This probably nerfs ever fixing #4048.
       val resolvedScope: Option[Scope] = call.resolveVariable(memberAccess.lhsString, ignoreLocal = true)
       resolvedScope match {
         case Some(c: WdlCall) if c.outputs.exists(_.unqualifiedName == requestedValue) => None

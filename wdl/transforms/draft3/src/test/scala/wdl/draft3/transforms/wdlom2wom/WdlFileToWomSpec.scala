@@ -15,6 +15,7 @@ import wom.callable.Callable.{FixedInputDefinition, OptionalInputDefinition}
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
+import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.types._
 
 class WdlFileToWomSpec extends FlatSpec with Matchers {
@@ -79,7 +80,13 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "task_with_metas" -> anyWomWillDo,
     "input_values" -> anyWomWillDo,
     "gap_in_command" -> anyWomWillDo,
-    "nio_file" -> validateNioFile
+    "nio_file" -> validateNioFile,
+    "same_named_inputs_priority" -> validateSameNamedInputsPriority,
+    "cmd_whitespace_none" -> anyWomWillDo,
+    "cmd_strip_common_spaces" -> anyWomWillDo,
+    "cmd_whitespace_tabs" -> anyWomWillDo,
+    "cmd_strip_common_tabs" -> anyWomWillDo,
+    "cmd_whitespace_spaces" -> anyWomWillDo
   )
 
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded
@@ -133,5 +140,22 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
         // Optional input:
         nioFileTask.inputs.find(_.name == "h").get.parameterMeta should be(Some(MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))))
     }
+  }
+
+  private def validateSameNamedInputsPriority(b: WomBundle): Assertion = {
+    val nodes = b.primaryCallable.get.asInstanceOf[WorkflowDefinition].graph.nodes
+
+    val exposedExpressionNode = nodes.filter(_.isInstanceOf[ExposedExpressionNode]).head
+    val callInputs = nodes.filter(_.isInstanceOf[TaskCallInputExpressionNode]).toList
+
+    callInputs.size shouldBe 4
+
+    // Usually, we use node names to check whether in-memory graphs are linked together correctly.
+    // Obviously, in this regression test for a same-named-node bug that won't work - instead,
+    // we use identity (the hash code) to differentiate multiple nodes with the same name.
+    callInputs(0).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+    callInputs(1).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+    callInputs(2).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+    callInputs(3).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
   }
 }

@@ -1,6 +1,10 @@
 package wdl.transforms.base.ast2wdlom
 
+import cats.implicits._
+import common.Checked
 import common.transforms.CheckedAtoB
+import common.validation.Checked._
+import org.apache.commons.text.StringEscapeUtils
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.{CommandPartElement, CommandSectionElement, CommandSectionLine}
 
@@ -8,13 +12,33 @@ object AstToCommandSectionElement {
   def astToCommandSectionElement(implicit astNodeToCommandPartElement: CheckedAtoB[GenericAstNode, CommandPartElement]
                                 ): CheckedAtoB[GenericAst, CommandSectionElement] = CheckedAtoB.fromCheck { ast: GenericAst =>
 
-    ast.getAttributeAsVector[CommandPartElement]("parts") map { parts =>
+    ast.getAttributeAsVector[CommandPartElement]("parts") flatMap { parts =>
       val lines = makeLines(parts)
-      val trimmed = trimStartAndEnd(lines)
-      val commonPrefixLength = minimumStartLength(trimmed)
-      val commonPrefix = " " * commonPrefixLength
+      val trimmed = trimStartAndEndBlankLines(lines)
 
-      CommandSectionElement(stripStarts(trimmed, commonPrefix))
+      // Commands support either tabs or spaces. For the undefined case of mixed tabs and spaces, Cromwell returns an error.
+      // https://github.com/openwdl/wdl/blob/master/versions/1.0/SPEC.md#stripping-leading-whitespace
+      val leadingWhitespaceMap = leadingWhitespace(trimmed)
+      val distinctLeadingWhitespaceCharacters = leadingWhitespaceMap.mkString.distinct
+
+      val commonPrefix: Checked[String] = distinctLeadingWhitespaceCharacters.length match {
+        case 0 => "".validNelCheck
+        case 1 =>
+          (distinctLeadingWhitespaceCharacters.head.toString * leadingWhitespaceMap.map(_.length).min).validNelCheck
+        case _ =>
+          val charList = distinctLeadingWhitespaceCharacters.map { c: Char =>
+            "\"" + StringEscapeUtils.escapeJava(c.toString) + "\""
+          }
+
+          s"Cannot mix leading whitespace characters in command: [${charList.mkString(", ")}]".invalidNelCheck
+      }
+
+      for {
+        prefix <- commonPrefix
+        lines <- stripStarts(trimmed, prefix)
+      } yield {
+        CommandSectionElement(lines)
+      }
     }
   }
 
@@ -39,7 +63,7 @@ object AstToCommandSectionElement {
     finalAccumulator map dropEmpties
   }
 
-  private def trimStartAndEnd(elements: Vector[CommandSectionLine]): Vector[CommandSectionLine] = {
+  private def trimStartAndEndBlankLines(elements: Vector[CommandSectionLine]): Vector[CommandSectionLine] = {
     elements.dropWhile(allWhitespace).reverse.dropWhile(allWhitespace).reverse
   }
 
@@ -51,24 +75,29 @@ object AstToCommandSectionElement {
     CommandSectionLine(line.parts.filterNot(empty))
   }
 
-  private def minimumStartLength(lines: Vector[CommandSectionLine]): Int = {
+  private def leadingWhitespace(lines: Vector[CommandSectionLine]): Vector[String] = {
     val r = "^(\\s*)".r
-    def startLength(line: CommandSectionLine) = line.parts.headOption match {
-      case Some(StringCommandPartElement(str)) => r.findFirstIn(str).map(_.length).getOrElse(0)
-      case _ => 0
+
+    def leadingWhitespaceForLine(line: CommandSectionLine): Option[String] = line.parts.headOption match {
+      case Some(StringCommandPartElement(str)) => r.findFirstIn(str)
+      case _ => None
     }
 
-    if (lines.nonEmpty) lines.map(startLength).min else 0
+    lines.map(leadingWhitespaceForLine(_).getOrElse(""))
   }
 
-  private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Vector[CommandSectionLine] = {
-    if (prefix.isEmpty) lines else lines map { line =>
-      line.parts.headOption match {
-        case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
-          CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail)
-        case _ => ??? // TODO: Should be impossible. Can we make the function total by fixing the inputs?
+  private def stripStarts(lines: Vector[CommandSectionLine], prefix: String): Checked[List[CommandSectionLine]] = {
+    if (prefix.isEmpty)
+      lines.toList.validNelCheck
+    else
+      lines.toList traverse { line: CommandSectionLine =>
+        line.parts.headOption match {
+          case Some(StringCommandPartElement(str)) if str.startsWith(prefix) =>
+            CommandSectionLine(Vector(StringCommandPartElement(str.stripPrefix(prefix))) ++ line.parts.tail).validNelCheck
+          case _ =>
+            "Failed to strip common whitespace prefix from line.".invalidNelCheck
+        }
       }
-    }
   }
 
   private def allWhitespace(s: String): Boolean = s.forall(_.isWhitespace)

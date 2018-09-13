@@ -84,10 +84,10 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCacheRootHints: Option[List[String]], hitNumber: Int)
+  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], hitNumber: Int)
                                          (implicit ec: ExecutionContext): Future[Option[Int]] = {
 
-    val action = callCacheRootHints match {
+    val action = callCachePathPrefixes match {
       case None =>
         dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
       case Some(ps) =>

@@ -100,7 +100,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   private val callCachingHitFailures = CallCachingKeys.HitFailuresKey
   private val callCachingHashes = CallCachingKeys.HashesKey
 
-  val callCacheRootHint = for {
+  val callCachePathPrefixes = for {
     activity <- Option(effectiveCallCachingMode) collect { case a: CallCachingActivity => a }
     workflowOptionPrefixes <- activity.options.workflowOptionCallCachePrefixes
     d <- initializationData collect { case d: StandardInitializationData => d }
@@ -551,12 +551,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           jobDescriptor,
           initializationData,
           fileHashingActorProps,
-          CallCacheReadingJobActor.props(callCacheReadActor, callCacheRootHint),
+          CallCacheReadingJobActor.props(callCacheReadActor, callCachePathPrefixes),
           factory.runtimeAttributeDefinitions(initializationData),
           backendName,
           activity,
           callCachingEligible,
-          callCacheRootHint
+          callCachePathPrefixes
         )
         val ejha = context.actorOf(props, s"ejha_for_$jobDescriptor")
 

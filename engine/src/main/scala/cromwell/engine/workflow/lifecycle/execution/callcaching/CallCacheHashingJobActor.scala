@@ -199,7 +199,7 @@ object CallCacheHashingJobActor {
             fileHashingActorProps: Props,
             callCachingEligible: CallCachingEligible,
             callCachingActivity: CallCachingActivity,
-            callCacheRootHint: Option[CallCachePathPrefixes]
+            callCachePathPrefixes: Option[CallCachePathPrefixes]
            ) = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
@@ -209,7 +209,7 @@ object CallCacheHashingJobActor {
     fileHashingActorProps,
     callCachingEligible,
     callCachingActivity,
-    callCacheRootHint
+    callCachePathPrefixes
   )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState

@@ -14,10 +14,9 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
   def createConfig(values: Map[String, String]): Config = {
     val config = mock[Config]
     values.foreach {
-      case (key: String, value: String) => {
+      case (key: String, value: String) =>
         when(config.hasPath(key)).thenReturn(true)
         when(config.getString(key)).thenReturn(value)
-      }
     }
     config
   }
@@ -35,7 +34,7 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     TestConfig(Some("local-cromwell-executions"), Some("/dockerRootExecutions")) // Testing with both defined.
   )
 
-  def testWorkflowPaths(root: Option[String], dockerRoot: Option[String]): Unit = {
+  def testWorkflowPaths(root: Option[String], dockerRoot: Option[String]) = {
     val backendConfig = rootConfig(root, dockerRoot)
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
     val workflowPaths = new WorkflowPathsWithDocker(wd, backendConfig)
@@ -43,12 +42,12 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val expectedRoot = root.getOrElse(WorkflowPaths.defaultExecutionRootString)
     val expectedDockerRoot = dockerRoot.getOrElse(WorkflowPathsWithDocker.defaultDockerRoot)
     workflowPaths.workflowRoot.pathAsString shouldBe
-      DefaultPathBuilder.get(s"${expectedRoot}/wf_hello/$id").toAbsolutePath.pathAsString
+      DefaultPathBuilder.get(s"$expectedRoot/wf_hello/$id").toAbsolutePath.pathAsString
     workflowPaths.dockerWorkflowRoot.pathAsString shouldBe
       s"$expectedDockerRoot/wf_hello/$id"
   }
 
-  def testSubWorkflowPaths(root: Option[String], dockerRoot: Option[String]): Unit = {
+  def testSubWorkflowPaths(root: Option[String], dockerRoot: Option[String]) = {
     val backendConfig = rootConfig(root, dockerRoot)
     val rootWd = mock[BackendWorkflowDescriptor]
     val rootWorkflow = WomMocks.mockWorkflowDefinition("rootWorkflow")

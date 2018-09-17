@@ -6,7 +6,7 @@ services:
   cromwell:
     image: "broadinstitute/cromwell:${CROMWELL_VERSION_TAG}"
     volumes:
-      - ./cromwell:/conf
+      - ${CROMWELL_CONF_DIR}:/conf
     environment:
       - CROMWELL_PROJECT
       - CROMWELL_EXECUTION_ROOT

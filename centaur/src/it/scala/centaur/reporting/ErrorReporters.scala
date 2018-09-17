@@ -82,7 +82,7 @@ class ErrorReporters(rootConfig: Config) {
 object ErrorReporters extends StrictLogging {
   private val ciEnvironment = CiEnvironment()
   private val rootConfig = ConfigFactory.load.getConfig("centaur")
-  private val errorReporters = new ErrorReporters(rootConfig)
+  private [reporting] val errorReporters = new ErrorReporters(rootConfig)
   val retryAttempts = errorReporters.retryAttempts
 
   errorReporters.errorReporters foreach { errorReporter =>

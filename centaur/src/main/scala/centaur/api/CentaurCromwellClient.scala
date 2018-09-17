@@ -14,7 +14,7 @@ import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, CromwellBackends, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowMetadata, WorkflowOutputs, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, CromwellBackends, CromwellVersion, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowMetadata, WorkflowOutputs, WorkflowStatus}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent._
@@ -70,6 +70,8 @@ object CentaurCromwellClient {
   def metadata(id: WorkflowId): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id))
   }
+  
+  def version: IO[CromwellVersion] = sendReceiveFutureCompletion(() => cromwellClient.version)
 
   lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))
 
@@ -92,10 +94,9 @@ object CentaurCromwellClient {
   }
 
   private def isTransient(f: Throwable) = f match {
-    case _: TimeoutException |
-                    _: StreamTcpException |
-                    _: IOException |
-                    _: UnsupportedContentTypeException => true
+    case _: StreamTcpException |
+         _: IOException |
+         _: UnsupportedContentTypeException => true
     case BufferOverflowException(message) => message.contains("Please retry the request later.")
     case unsuccessful: UnsuccessfulRequestException => unsuccessful.httpResponse.status == StatusCodes.NotFound
     case unexpected: RuntimeException => unexpected.getMessage.contains("The http server closed the connection unexpectedly") 

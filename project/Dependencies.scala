@@ -40,6 +40,7 @@ object Dependencies {
   private val guavaV = "26.0-jre"
   private val heterodonV = "1.0.0-beta1"
   private val hsqldbV = "2.4.1"
+  private val http4sVersion = "0.19.0-M2"
   private val jacksonV = "2.9.6"
   private val jacksonJqV = "0.0.9"
   private val janinoV = "3.0.9"
@@ -151,6 +152,11 @@ object Dependencies {
     "org.typelevel" %% "cats-core" % catsV,
     "org.typelevel" %% "cats-kernel" % catsV,
     "org.yaml" % "snakeyaml" % snakeyamlV
+  )
+  
+  private val http4sDependencies = List(
+    "org.http4s" %% "http4s-dsl" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
   )
 
   private val googleApiClientDependencies = List(
@@ -451,7 +457,7 @@ object Dependencies {
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
-  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies
+  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % commonsCodecV,

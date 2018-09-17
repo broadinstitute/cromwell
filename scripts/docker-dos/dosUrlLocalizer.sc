@@ -4,13 +4,13 @@ interp.repositories() ++= Seq(
   coursier.maven.MavenRepository("https://oss.sonatype.org/content/repositories/snapshots/"))
 
 @
-import $ivy.`org.http4s::http4s-dsl:0.19.0-SNAPSHOT`
-import $ivy.`org.http4s::http4s-blaze-server:0.19.0-SNAPSHOT`
-import $ivy.`org.http4s::http4s-blaze-client:0.19.0-SNAPSHOT`
+import $ivy.`org.http4s::http4s-dsl:0.18.17`
+import $ivy.`org.http4s::http4s-blaze-server:0.18.17`
+import $ivy.`org.http4s::http4s-blaze-client:0.18.17`
 import $ivy.`com.google.cloud:google-cloud-storage:1.35.0`
 import $ivy.`com.google.oauth-client:google-oauth-client:1.23.0`
 import $ivy.`com.google.auth:google-auth-library-credentials:0.9.1`
-import $ivy.`org.http4s::http4s-circe:0.19.0-SNAPSHOT`
+import $ivy.`org.http4s::http4s-circe:0.18.17`
 import $ivy.`io.circe::circe-literal:0.7.0`
 import $ivy.`io.spray::spray-json:1.3.4`
 
@@ -65,15 +65,13 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
     marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
+    _ = println(s"***** GCS Url from Martha: $gcsUrl")
     _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
   } yield()
 
-  println(s"done! with download...")
 
   dosResloverObj match {
     case Success(_) =>
-      val credentials = GoogleCredentials.getApplicationDefault()
-      println(s"final credentials: $credentials")
     case Failure(e) => {
       Console.err.println(s"Error: $e")
       e.printStackTrace(Console.err)
@@ -94,12 +92,6 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
   val scopedCredentials = credentials.createScoped(scopes)
   val accessToken = scopedCredentials.refreshAccessToken().getTokenValue()
 
-  println(s"credentials: $credentials")
-  println(s"scopedCredentials: $scopedCredentials")
-  println(s"accessToken: $accessToken")
-
-  println(s"marthaUrl: $marthaUrl")
-
   val longTimeoutConfig =
     BlazeClientConfig
       .defaultConfig
@@ -113,10 +105,8 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
       uri = marthaUrl,
       headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
-    _ = println(s"httpRequest: $postRequest")
-    _ = println(s"httpRequest Body: ${requestBody}")
     httpResponse <- httpClient.expect[String](postRequest)
-    _ = println(s"httpResponse: $httpResponse")
+    _ = println(s"Http response from Martha: $httpResponse")
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
   } yield marthaResObj
 
@@ -127,8 +117,6 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
 def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
   val urlObjOption = urlArray.find(urlObj => urlObj.url.startsWith("gs://"))
 
-  println(s"GS URL: ${urlObjOption}")
-
   urlObjOption match {
     case Some(urlObj) => Success(urlObj.url)
     case None => Failure(new Exception("No resolved url starting with 'gs://' found from Martha response!"))
@@ -138,27 +126,22 @@ def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
 
 def downloadFileFromGcs(gcsUrl: String, serviceAccount: String, downloadLoc: String) : Try[Unit] = {
   val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
-  //val fileToBeLocalized = gcsUrlArray(1)
-  //val gcsBucket = gcsUrlArray(0)
-  val fileToBeLocalized = "a.txt"
-  val gcsBucket = "rm-dev"
+  val fileToBeLocalized = gcsUrlArray(1)
+  val gcsBucket = gcsUrlArray(0)
 
-  println(s"fileToBeLocalized: ${fileToBeLocalized}")
-  println(s"gcsBucket: ${gcsBucket}")
+  println(s"**** File to be localized: $fileToBeLocalized")
+  println(s"**** GCS Bucket: $gcsBucket")
 
   Try {
     val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
       .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
-    println(s"download credentials: $credentials")
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
-    println(s"storage: $storage")
+    println(s"**** Storage: $storage")
     val blob = storage.get(gcsBucket, fileToBeLocalized)
-    println(s"blob: $blob")
+    println(s"**** Blob: $blob")
     val readChannel = blob.reader()
-    println(s"readChannel: $readChannel")
     Files.createDirectories(Paths.get(downloadLoc).getParent)
     val fileOuputStream = new FileOutputStream(downloadLoc)
-    println(s"fileOutputStream: ${fileOuputStream}")
     fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MaxValue)
     fileOuputStream.close()
   }

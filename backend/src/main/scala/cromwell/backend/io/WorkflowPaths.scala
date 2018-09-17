@@ -10,6 +10,7 @@ import scala.util.Try
 
 object WorkflowPaths {
   val DefaultPathBuilders = List(DefaultPathBuilder)
+  val defaultExecutionRootString: String = "cromwell-executions"
 }
 
 trait WorkflowPaths extends PathFactory {
@@ -19,7 +20,7 @@ trait WorkflowPaths extends PathFactory {
   /**
     * Path (as a String) of the root directory Cromwell should use for ALL workflows.
     */
-  protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse("cromwell-executions")
+  protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse(WorkflowPaths.defaultExecutionRootString)
 
   /**
     * Implementers of this trait might override this to provide an appropriate prefix corresponding to the execution root

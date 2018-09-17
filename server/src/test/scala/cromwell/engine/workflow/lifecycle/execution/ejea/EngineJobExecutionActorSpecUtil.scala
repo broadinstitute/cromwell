@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cromwell.backend.BackendCacheHitCopyingActor.CopyingOutputsFailedResponse
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.callcaching._
@@ -106,9 +107,15 @@ private[ejea] object HasJobSuccessResponse {
 
 private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =>
   val failedRc = Option(12)
-  val failureReason = new Exception("The sixth sheik's sheep is sick!")
+  val failureReason = new Exception("Deliberate failure for test case: job run failed!")
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
   def failureRetryableResponse = JobFailedRetryableResponse(helper.jobDescriptorKey, failureReason, failedRc)
   def failureNonRetryableResponse = JobFailedNonRetryableResponse(helper.jobDescriptorKey, failureReason, Option(12))
   def abortedResponse = JobAbortedResponse(helper.jobDescriptorKey)
+}
+
+private[ejea] trait HasCopyFailureResponses { self: EngineJobExecutionActorSpec =>
+  val copyFailureReason = new Exception("Deliberate failure for test case: failed to copy cache outputs!")
+  // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
+  def failedToCopyResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, copyFailureReason)
 }

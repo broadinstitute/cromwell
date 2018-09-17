@@ -24,6 +24,12 @@ backends. Configuration details are described [here](http://cromwell.readthedocs
 More efficient cache hit copying in multi-user environments is now supported through the `call_cache_hit_path_prefixes` workflow option.
 Details [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-hit-path-prefixes)
 
+
+### Extra configuration options
+
+The value `dockerRoot` can now be set in a backend configuration. 
+This will set the execution folder in the container (default: `/cromwell-executions`).
+
 ### Bug Fixes
 
 #### API

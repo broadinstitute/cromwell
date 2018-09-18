@@ -42,7 +42,7 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
 
   def toDockerPath(path: Path): Path = {
     path.toAbsolutePath match {
-      case p if p.startsWith(WorkflowPathsWithDocker.DockerRoot) => p
+      case p if p.startsWith(workflowPaths.dockerRoot) => p
       case p =>
         /* For example:
           *
@@ -55,7 +55,7 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
           * TODO: this assumes that p.startsWith(localExecutionRoot)
           */
         val subpath = p.subpath(workflowPaths.executionRoot.getNameCount, p.getNameCount)
-        WorkflowPathsWithDocker.DockerRoot.resolve(subpath)
+        workflowPaths.dockerRoot.resolve(subpath)
     }
   }
 }

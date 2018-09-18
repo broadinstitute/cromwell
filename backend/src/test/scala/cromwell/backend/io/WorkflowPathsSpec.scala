@@ -26,12 +26,12 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     createConfig(values)
   }
 
-  case class TestConfig(root: Option[String], dockerRoot: Option[String])
+  case class TestConfig(name: String, root: Option[String], dockerRoot: Option[String])
   val testConfigs: List[TestConfig] = List(
-    TestConfig(None, None), // Defaults testing
-    TestConfig(Some("local-cromwell-executions"), None),
-    TestConfig(None, Some("/dockerRootExecutions")),
-    TestConfig(Some("local-cromwell-executions"), Some("/dockerRootExecutions"))
+    TestConfig("defaults", None, None), // Defaults testing
+    TestConfig("custom root defined", Some("local-cromwell-executions"), None),
+    TestConfig("custom dockerRoot defined", None, Some("/dockerRootExecutions")),
+    TestConfig("both root and dockerRoot defined", Some("local-cromwell-executions"), Some("/dockerRootExecutions"))
   )
 
   def testWorkflowPaths(root: Option[String], dockerRoot: Option[String]) = {
@@ -84,11 +84,14 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     workflowPaths.dockerWorkflowRoot.pathAsString shouldBe s"$expectedDockerRoot/rootWorkflow/$rootWorkflowId/call-call1/shard-1/attempt-2/subWorkflow/$subWorkflowId"
   }
 
-  "WorkflowPaths" should "provide correct paths for a workflow" in {
-    testConfigs.foreach(config => testWorkflowPaths(config.root, config.dockerRoot))
+  testConfigs.foreach { config =>
+    "WorkflowPaths" should s"provide correct paths for a workflow with ${config.name}" in {
+      testWorkflowPaths(config.root, config.dockerRoot)
+    }
   }
-
-  "WorkflowPaths" should "provide correct paths for a sub workflow" in {
-    testConfigs.foreach(config => testSubWorkflowPaths(config.root, config.dockerRoot))
+  testConfigs.foreach { config =>
+    "WorkflowPaths" should s"provide correct paths for a sub workflow with ${config.name}" in {
+      testSubWorkflowPaths(config.root, config.dockerRoot)
+    }
   }
 }

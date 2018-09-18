@@ -29,9 +29,9 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
   case class TestConfig(root: Option[String], dockerRoot: Option[String])
   val testConfigs: List[TestConfig] = List(
     TestConfig(None, None), // Defaults testing
-    TestConfig(Some("local-cromwell-executions"), None), // Testing only with defined root
-    TestConfig(None, Some("/dockerRootExecutions")), // Testing only with defined dockerRoot
-    TestConfig(Some("local-cromwell-executions"), Some("/dockerRootExecutions")) // Testing with both defined.
+    TestConfig(Some("local-cromwell-executions"), None),
+    TestConfig(None, Some("/dockerRootExecutions")),
+    TestConfig(Some("local-cromwell-executions"), Some("/dockerRootExecutions"))
   )
 
   def testWorkflowPaths(root: Option[String], dockerRoot: Option[String]) = {

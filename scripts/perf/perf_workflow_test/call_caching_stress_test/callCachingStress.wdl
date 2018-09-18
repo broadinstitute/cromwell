@@ -1,5 +1,8 @@
 version 1.0
 
+#NOTE: Please do not change the spelling for 'nb_ouptputs'. This workflow is used for Call Cache test in Perf.
+#      Since there are cache entries inside test db with wrong spelling, correcting the spelling
+#      will fail the test as it won't be call cached anymore!
 task simpleTask {
     input {
         Int seed

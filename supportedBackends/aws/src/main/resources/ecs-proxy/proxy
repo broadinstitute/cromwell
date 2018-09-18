@@ -119,7 +119,7 @@ fi
 
 # -i will attach stdin, which effectively makes this a blocking call
 # we redirect to /dev/null so as not to pollute the logs
-docker start -i "${AWS_ECS_PROXY_TARGET_CONTAINER_ID}" > /dev/null 2>&1
+docker start -i "${AWS_ECS_PROXY_TARGET_CONTAINER_ID}" > /dev/null
 rc=$?
 
 # If there are no outputs, there's no reason to go through the dance below.

@@ -39,8 +39,8 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
     val workflowPaths = new WorkflowPathsWithDocker(wd, backendConfig)
     val id = wd.id
-    val expectedRoot = root.getOrElse(WorkflowPaths.defaultExecutionRootString)
-    val expectedDockerRoot = dockerRoot.getOrElse(WorkflowPathsWithDocker.defaultDockerRoot)
+    val expectedRoot = root.getOrElse(WorkflowPaths.DefaultExecutionRootString)
+    val expectedDockerRoot = dockerRoot.getOrElse(WorkflowPathsWithDocker.DefaultDockerRoot)
     workflowPaths.workflowRoot.pathAsString shouldBe
       DefaultPathBuilder.get(s"$expectedRoot/wf_hello/$id").toAbsolutePath.pathAsString
     workflowPaths.dockerWorkflowRoot.pathAsString shouldBe
@@ -74,8 +74,8 @@ class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
     subWd.id returns subWorkflowId
 
     val workflowPaths = new WorkflowPathsWithDocker(subWd, backendConfig)
-    val expectedRoot = root.getOrElse(WorkflowPaths.defaultExecutionRootString)
-    val expectedDockerRoot = dockerRoot.getOrElse(WorkflowPathsWithDocker.defaultDockerRoot)
+    val expectedRoot = root.getOrElse(WorkflowPaths.DefaultExecutionRootString)
+    val expectedDockerRoot = dockerRoot.getOrElse(WorkflowPathsWithDocker.DefaultDockerRoot)
 
     workflowPaths.workflowRoot.pathAsString shouldBe
       DefaultPathBuilder.get(

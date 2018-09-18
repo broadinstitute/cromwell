@@ -1,5 +1,6 @@
 package cromwell.backend.sfs
 
+import java.io.PrintWriter
 import java.nio.file.FileAlreadyExistsException
 import java.util.Calendar
 
@@ -246,7 +247,13 @@ trait SharedFileSystemAsyncJobExecutionActor
           val currentDate = Calendar.getInstance()
           currentDate.add(Calendar.SECOND, -15)
           if (s.date.after(currentDate)) s
-          else SharedFileSystemRunStatus("Failed")
+          else {
+            val writer = new PrintWriter(jobPaths.returnCode.toFile)
+            // 137 does mean a external kill -9, this is a assumption but easy workaround for now
+            writer.println(137)
+            writer.close()
+            SharedFileSystemRunStatus("Failed")
+          }
         }
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }

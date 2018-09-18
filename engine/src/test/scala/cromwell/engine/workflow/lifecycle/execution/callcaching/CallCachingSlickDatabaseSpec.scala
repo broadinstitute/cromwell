@@ -85,7 +85,7 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
           NonEmptyList.of("input: String s1" -> "HASH_S1")
         )
         _ = hasHashPairMatch shouldBe false
-        hit <- dataAccess.findCacheHitForAggregation("BASE_AGGREGATION", Option("FILE_AGGREGATION"), 1)
+        hit <- dataAccess.findCacheHitForAggregation("BASE_AGGREGATION", Option("FILE_AGGREGATION"), callCachePathPrefixes = None, 1)
         _ = hit shouldBe empty
       } yield ()).futureValue
     }

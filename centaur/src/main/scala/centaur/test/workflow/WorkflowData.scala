@@ -26,7 +26,8 @@ case class WorkflowData(workflowContent: Option[String],
                         options: Option[() => String],
                         labels: List[Label],
                         zippedImports: Option[File],
-                        secondOptions: Option[() => String] = None)
+                        secondOptions: Option[() => String] = None,
+                        thirdOptions: Option[() => String] = None)
 
 object WorkflowData {
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: File): ErrorOr[WorkflowData] = {
@@ -105,6 +106,7 @@ object WorkflowData {
       inputs = getOptionalFile("inputs") map (file => () => file.contentAsString),
       options = getOptionalFile("options") map (file => () => file.contentAsString),
       secondOptions = getOptionalFile(name = "second-options").orElse(getOptionalFile("options")) map (file => () => file.contentAsString),
+      thirdOptions = getOptionalFile(name = "third-options").orElse(getOptionalFile("options")) map (file => () => file.contentAsString),
       labels = getLabels,
       zippedImports = getImports
     )

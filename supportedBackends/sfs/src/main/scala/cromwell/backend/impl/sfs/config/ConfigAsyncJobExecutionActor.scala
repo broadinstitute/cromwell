@@ -1,5 +1,8 @@
 package cromwell.backend.impl.sfs.config
 
+import java.io.PrintWriter
+import java.util.Calendar
+
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
 import cromwell.backend.impl.sfs.config.ConfigConstants._
@@ -246,4 +249,39 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     jobScriptArgs(job, "kill", KillTask)
   }
+
+  protected lazy val exitCodeTimeout: Int = if (configurationDescriptor.backendConfig.hasPath(ExitCodeTimeoutConfig))
+    math.abs(configurationDescriptor.backendConfig.getInt(ExitCodeTimeoutConfig))
+  else 120
+
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
+    handle.previousStatus match {
+      case None => SharedFileSystemRunStatus("Running")
+      case Some(s) if s.status == "Done" => s
+      case Some(s) if s.status == "Running" =>
+        if (isAlive(handle.pendingJob).getOrElse(true)) s
+        else SharedFileSystemRunStatus("WaitingForReturnCode")
+      case Some(s) if s.status == "WaitingForReturnCode" =>
+        if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
+        else {
+          val currentDate = Calendar.getInstance()
+          currentDate.add(Calendar.SECOND, -exitCodeTimeout)
+          if (s.date.after(currentDate)) s
+          else {
+            jobLogger.error(s"Return file not found after $exitCodeTimeout seconds")
+            val writer = new PrintWriter(jobPaths.returnCode.toFile)
+            // 137 does mean a external kill -9, this is a assumption but easy workaround for now
+            writer.println(137)
+            writer.close()
+            SharedFileSystemRunStatus("Failed")
+          }
+        }
+      case _ => throw new NotImplementedError("This should not happen, please report this")
+    }
+  }
+
+  override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
+    runStatus.status == "Done" || runStatus.status == "Failed"
+  }
+
 }

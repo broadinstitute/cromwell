@@ -6,6 +6,7 @@ import java.util.Calendar
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.impl.sfs.config.ConfigConstants.ExitCodeTimeoutConfig
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -232,35 +233,12 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    handle.previousStatus match {
-      case None => SharedFileSystemRunStatus("Running")
-      case Some(s) if s.status == "Done" => s
-      case Some(s) if s.status == "Running" =>
-        //TODO: fix the get or else
-        if (isAlive(handle.pendingJob).getOrElse(true)) s
-        else SharedFileSystemRunStatus("WaitingForReturnCode")
-      case Some(s) if s.status == "WaitingForReturnCode" =>
-        if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
-        else {
-          //TODO: make seconds a config value
-
-          val currentDate = Calendar.getInstance()
-          currentDate.add(Calendar.SECOND, -15)
-          if (s.date.after(currentDate)) s
-          else {
-            val writer = new PrintWriter(jobPaths.returnCode.toFile)
-            // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-            writer.println(137)
-            writer.close()
-            SharedFileSystemRunStatus("Failed")
-          }
-        }
-      case _ => throw new NotImplementedError("This should not happen, please report this")
-    }
+    if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
+    else SharedFileSystemRunStatus("WaitingForReturnCode")
   }
 
   override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
-    runStatus.status == "Done" || runStatus.status == "Failed"
+    runStatus.status == "Done"
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {

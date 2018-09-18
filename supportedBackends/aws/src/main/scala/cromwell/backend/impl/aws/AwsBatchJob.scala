@@ -227,14 +227,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     }
   }
 
-  /**
-    * This type contains only backslashes, dashes, numbers, and characters
-    */
-  type AwsStringRefinement =
-    (MatchesRegex[W.`"""[^\\\\]"""`.T] Or
-    MatchesRegex[W.`"[^A-Za-z0-9_-]"`.T]) And
-      MaxSize[W.`128`.T]
-
   /** Sanitizes a job and job definition name
     *
     *  @param name Job or Job definition name

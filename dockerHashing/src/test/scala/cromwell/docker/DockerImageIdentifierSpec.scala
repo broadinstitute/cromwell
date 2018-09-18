@@ -14,7 +14,7 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       ("broad/cromwell",                          None,               Some("broad"),          "cromwell",   "latest"),
       ("index.docker.io/ubuntu",         Option("index.docker.io"),   None,                   "ubuntu",     "latest"),
       ("broad/cromwell/submarine",                None,               Some("broad/cromwell"), "submarine",  "latest"),
-      ("gcr.io/google/alpine",              Option("gcr.io"),         Some("google"),         "alpine",     "latest"),
+      ("gcr.io/google/alpine",              Option("gcr.io"),         Some("google"),         "slim",     "latest"),
       // With tags
       ("ubuntu:latest",                           None,               None,                   "ubuntu",     "latest"),
       ("ubuntu:1235-SNAP",                        None,               None,                   "ubuntu",     "1235-SNAP"),

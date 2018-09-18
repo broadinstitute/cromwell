@@ -226,18 +226,18 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    handle.previousStatus.map(_.status) match {
+    handle.previousStatus match {
       case None => SharedFileSystemRunStatus("Running")
-      case Some("Done") => SharedFileSystemRunStatus("Done")
-      case Some("Running") =>
+      case Some(s) if s.status == "Done" => s
+      case Some(s) if s.status == "Running" =>
         //TODO: fix the get or else
-        if (isAlive(handle.pendingJob).getOrElse(true)) SharedFileSystemRunStatus("Running")
+        if (isAlive(handle.pendingJob).getOrElse(true)) s
         else SharedFileSystemRunStatus("WaitingForReturnCode")
-      case Some("WaitingForReturnCode") =>
+      case Some(s) if s.status == "WaitingForReturnCode" =>
         if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
         else {
           //TODO: Add timeout here
-          SharedFileSystemRunStatus("WaitingForReturnCode")
+          s
         }
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }

@@ -14,8 +14,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
-  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
+case class SharedFileSystemRunStatus(status: String) {
+  override def toString: String = status
 }
 
 object SharedFileSystemAsyncJobExecutionActor {
@@ -226,11 +226,25 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    SharedFileSystemRunStatus(jobPaths.returnCode.exists)
+    handle.previousStatus.map(_.status) match {
+      case None => SharedFileSystemRunStatus("Running")
+      case Some("Done") => SharedFileSystemRunStatus("Done")
+      case Some("Running") =>
+        //TODO: fix the get or else
+        if (isAlive(handle.pendingJob).getOrElse(true)) SharedFileSystemRunStatus("Running")
+        else SharedFileSystemRunStatus("WaitingForReturnCode")
+      case Some("WaitingForReturnCode") =>
+        if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
+        else {
+          //TODO: Add timeout here
+          SharedFileSystemRunStatus("WaitingForReturnCode")
+        }
+      case _ => throw new NotImplementedError("This should not happen, please report this")
+    }
   }
 
   override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
-    runStatus.returnCodeFileExists
+    runStatus.status == "Done"
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {

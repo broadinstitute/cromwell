@@ -268,7 +268,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           currentDate.add(Calendar.SECOND, -exitCodeTimeout)
           if (s.date.after(currentDate)) s
           else {
-            jobLogger.error(s"Return file not found after $exitCodeTimeout seconds")
+            jobLogger.error(s"Return file not found after $exitCodeTimeout seconds, assuming external kill")
             val writer = new PrintWriter(jobPaths.returnCode.toFile)
             // 137 does mean a external kill -9, this is a assumption but easy workaround for now
             writer.println(137)

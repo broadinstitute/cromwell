@@ -1,12 +1,10 @@
 package cromwell.backend.sfs
 
-import java.io.PrintWriter
 import java.nio.file.FileAlreadyExistsException
 import java.util.Calendar
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.sfs.config.ConfigConstants.ExitCodeTimeoutConfig
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}

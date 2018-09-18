@@ -1,6 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.FileAlreadyExistsException
+import java.util.Calendar
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
@@ -14,8 +15,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(status: String) {
+case class SharedFileSystemRunStatus(status: String, date: Calendar) {
   override def toString: String = status
+}
+
+object SharedFileSystemRunStatus {
+  def apply(status: String): SharedFileSystemRunStatus = SharedFileSystemRunStatus(status, Calendar.getInstance())
 }
 
 object SharedFileSystemAsyncJobExecutionActor {
@@ -236,15 +241,19 @@ trait SharedFileSystemAsyncJobExecutionActor
       case Some(s) if s.status == "WaitingForReturnCode" =>
         if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
         else {
-          //TODO: Add timeout here
-          s
+          //TODO: make seconds a config value
+
+          val currentDate = Calendar.getInstance()
+          currentDate.add(Calendar.SECOND, -15)
+          if (s.date.after(currentDate)) s
+          else SharedFileSystemRunStatus("Failed")
         }
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }
   }
 
   override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
-    runStatus.status == "Done"
+    runStatus.status == "Done" || runStatus.status == "Failed"
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {

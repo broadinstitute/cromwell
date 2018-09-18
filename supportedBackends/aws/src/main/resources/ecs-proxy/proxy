@@ -69,8 +69,14 @@ copyfile() {
   echo "localdirectory=$localdirectory"
 
   if [ "$2" == "out" ]; then
-    echo "aws s3 cp --no-progress ${localdirectory}/${localname} ${s3location}"
-    aws s3 cp --no-progress "${localdirectory}/${localname}" "${s3location}"
+    # Globbed outputs are in a specially-named directory
+    if [[ "$localname" == glob-*/"*" ]]; then
+      echo "aws s3 sync --no-progress ${localdirectory}/${name} ${s3location}"
+      aws s3 sync --no-progress "${localdirectory}/${name}" "${s3location}"
+    else
+      echo "aws s3 cp --no-progress ${localdirectory}/${localname} ${s3location}"
+      aws s3 cp --no-progress "${localdirectory}/${localname}" "${s3location}"
+    fi
   else
     echo "aws s3 cp --no-progress ${s3location} ${localdirectory}/${localname}"
     aws s3 cp --no-progress "${s3location}" "${localdirectory}/${localname}"

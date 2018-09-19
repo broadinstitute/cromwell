@@ -77,6 +77,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         actor ! JobExecutionTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(actor, lease) =>
+        log.error(s"Actor ${actor.path} requested a job execution token more than once. This situation should have been impossible.")
         actor ! JobExecutionTokenDispensed
         lease.release()
     })

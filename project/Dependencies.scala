@@ -41,6 +41,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta1"
   private val hsqldbV = "2.4.1"
   private val jacksonV = "2.9.6"
+  private val jacksonJqV = "0.0.9"
   private val janinoV = "3.0.9"
   private val jodaTimeV = "2.9.4"
   private val jsr305V = "3.0.0"
@@ -335,6 +336,10 @@ object Dependencies {
   val gcsFileSystemDependencies = akkaHttpDependencies
 
   val httpFileSystemDependencies = akkaHttpDependencies
+
+  val demoDosFileSystemDependencies = List(
+    "net.thisptr" % "jackson-jq" % jacksonJqV
+  )
 
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV

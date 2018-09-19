@@ -74,6 +74,74 @@ class WdlCallSpec extends WordSpec with Matchers {
     }
     exception.getMessage shouldBe "Input evaluation for Call w.t failed.:\ns1:\n\tCould not find s1 in input section of call w.t\ns2:\n\tCould not find s2 in input section of call w.t"
   }
+
+  "call input name collision - same line" in {
+
+    val wdl =
+      s"""
+        |workflow x {
+        |  call cram
+        |  call y as shouldntBeProblematic {
+        |    input:
+        |      cram = cram.scram
+        |  }
+        |
+        |}
+        |
+        |task cram {
+        |  command {
+        |    echo "."
+        |  }
+        |  output {
+        |    String scram = "."
+        |  }
+        |}
+        |
+        |task y {
+        |  String cram
+        |  command {
+        |    echo "."
+        |  }
+        |}""".stripMargin
+
+    val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get
+    namespace.workflows.head.calls.exists(_.alias == Option("shouldntBeProblematic")) shouldBe true
+  }
+
+  "call input name collision - different lines" in {
+
+    val wdl =
+      s"""
+        |workflow x {
+        |  call cram
+        |  call y as shouldntBeProblematic {
+        |    input:
+        |      cram = "asdf",
+        |      slam = cram.scram
+        |  }
+        |
+        |}
+        |
+        |task cram {
+        |  command {
+        |    echo "."
+        |  }
+        |  output {
+        |    String scram = "."
+        |  }
+        |}
+        |
+        |task y {
+        |  String cram
+        |  String slam
+        |  command {
+        |    echo "."
+        |  }
+        |}""".stripMargin
+
+    val namespace = WdlNamespace.loadUsingSource(wdl, None, None).get
+    namespace.workflows.head.calls.exists(_.alias == Option("shouldntBeProblematic")) shouldBe true
+  }
   
   "find workflows" in {
 

@@ -33,11 +33,12 @@ class CallCacheReadActor(cache: CallCache,
           case true => HasMatchingEntries
           case false => NoMatchingEntries
         }
-      case HasMatchingInputFilesHashLookup(fileHashes) =>
-        cache.hasKeyValuePairHashMatch(fileHashes) map {
-          case true => HasMatchingEntries
-          case false => NoMatchingEntries
-        }
+      case HasMatchingInputFilesHashLookup(_) =>
+//        cache.hasKeyValuePairHashMatch(fileHashes) map {
+//          case true => HasMatchingEntries
+//          case false => NoMatchingEntries
+//        }
+        Future.successful(HasMatchingEntries)
       case CacheLookupRequest(aggregatedCallHashes, cacheHitNumber, prefixesHint) =>
         cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, prefixesHint, cacheHitNumber) map {
           case Some(nextHit) => CacheLookupNextHit(nextHit)

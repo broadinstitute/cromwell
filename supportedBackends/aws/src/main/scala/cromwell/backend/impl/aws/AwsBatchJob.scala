@@ -46,11 +46,6 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import eu.timepit.refined.boolean.{And, Or}
-import eu.timepit.refined._
-import eu.timepit.refined.string._
-import eu.timepit.refined.collection.MaxSize
-import eu.timepit.refined.string.MatchesRegex
 import org.slf4j.LoggerFactory
 import fs2.Scheduler
 import software.amazon.awssdk.core.regions.Region

@@ -10,12 +10,13 @@ import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
+import net.ceedubs.ficus.Ficus._
 import wdl.draft2.model._
 import wdl.transforms.draft2.wdlom2wom._
 import wom.callable.Callable.OptionalInputDefinition
 import wom.expression.NoIoFunctionSet
-import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
+import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -250,9 +251,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     jobScriptArgs(job, "kill", KillTask)
   }
 
-  protected lazy val exitCodeTimeout: Int = if (configurationDescriptor.backendConfig.hasPath(ExitCodeTimeoutConfig))
-    math.abs(configurationDescriptor.backendConfig.getInt(ExitCodeTimeoutConfig))
-  else 120
+  protected lazy val exitCodeTimeout: Int =
+    math.abs(configurationDescriptor.backendConfig.getOrElse(ExitCodeTimeoutConfig, 120))
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
     handle.previousStatus match {

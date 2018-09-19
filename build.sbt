@@ -92,7 +92,7 @@ lazy val awsS3FileSystem = (project in file("filesystems/s3"))
   .dependsOn(cloudSupport % "test->test")
 
 lazy val demoDosFileSystem = (project in file("filesystems/demo-dos"))
-  .withLibrarySettings("cromwell-demoDosFileSystem")
+  .withLibrarySettings("cromwell-demoDosFileSystem", demoDosFileSystemDependencies)
   .dependsOn(gcsFileSystem)
   .dependsOn(core % "test->test")
   .dependsOn(cloudSupport % "test->test")

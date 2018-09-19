@@ -42,6 +42,7 @@ object Dependencies {
   private val guavaV = "22.0"
   private val hsqldbV = "2.3.4"
   private val jacksonV = "2.9.4"
+  private val jacksonJqV = "0.0.9"
   private val janinoV = "3.0.7"
   private val jodaTimeV = "2.9.4"
   private val jsr305V = "3.0.0"
@@ -296,6 +297,10 @@ object Dependencies {
   val statsDDependencies = List(
     "nl.grons" %% "metrics-scala" % metricsScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
+  )
+
+  val demoDosFileSystemDependencies = List(
+    "net.thisptr" % "jackson-jq" % jacksonJqV
   )
 
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (

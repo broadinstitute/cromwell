@@ -112,7 +112,7 @@ class CromwellClient(val cromwellUrl: URL,
                args: Option[Map[String, List[String]]] = None,
                headers: List[HttpHeader] = defaultHeaders
                )(implicit ec: ExecutionContext): Future[WorkflowMetadata] = {
-    simpleRequest[String](metadataEndpoint(workflowId), headers=headers) map WorkflowMetadata
+    simpleRequest[String](metadataEndpoint(workflowId, args), headers=headers) map WorkflowMetadata
   }
 
   def outputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowOutputs] = simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId))

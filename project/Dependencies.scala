@@ -353,6 +353,16 @@ object Dependencies {
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
+  
+  val statsDProxyDependencies = List(
+    "co.fs2" %% "fs2-core" % fs2V,
+    "co.fs2" %% "fs2-io" % fs2V,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "com.iheart" %% "ficus" % ficusV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-core" % logbackV,
+    "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
+  )
 
   val commonDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,

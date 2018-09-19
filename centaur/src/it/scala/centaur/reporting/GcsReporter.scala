@@ -20,17 +20,19 @@ class GcsReporter(override val params: ErrorReporterParams) extends ErrorReporte
 
   /** Send a report of a centaur failure. */
   override def logCentaurFailure(testEnvironment: TestEnvironment, ciEnvironment: CiEnvironment, centaurTestException: CentaurTestException)(implicit executionContext: ExecutionContext) = {
+    logger.info(s"Reporting failed metadata to gs://$reportBucket/$reportPath")
     centaurTestException.metadataJsonOption.map(pushJsonToGcs).getOrElse(IO.unit)
   }
 
-  override def logSuccessfulRun(submitResponse: SubmitWorkflowResponse) = for {
-    metadata <- CentaurCromwellClient.metadata(submitResponse.submittedWorkflow.id)
-    _ <- pushJsonToGcs(metadata.value)
-  } yield ()
+  override def logSuccessfulRun(submitResponse: SubmitWorkflowResponse) = {
+    logger.info(s"Reporting successful metadata to gs://$reportBucket/$reportPath")
+    for {
+      metadata <- CentaurCromwellClient.metadataWithId(submitResponse.submittedWorkflow.id)
+      _ <- pushJsonToGcs(metadata.value)
+    } yield ()
+  }
 
   private def pushJsonToGcs(json: String) = IO {
-    logger.info(s"Reporting metadata to gs://$reportBucket/$reportPath")
-
     storage.create(
       BlobInfo.newBuilder(reportBucket, reportPath)
         .setContentType("application/json")

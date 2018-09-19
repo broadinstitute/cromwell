@@ -22,7 +22,8 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 object CentaurCromwellClient {
-  val LogFailures = ConfigFactory.load().as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
+  val config = ConfigFactory.load()
+  val LogFailures = config.as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
@@ -34,6 +35,9 @@ object CentaurCromwellClient {
   final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
   final val apiVersion = "v1"
   val cromwellClient = new CromwellClient(CentaurConfig.cromwellUrl, apiVersion)
+  
+  val defaultMetadataArgs = config
+    .getAs[Map[String, List[String]]]("centaur.metadata-args")
 
   def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
     sendReceiveFutureCompletion(() => cromwellClient.submit(workflow.toWorkflowSubmission(refreshToken = CentaurConfig.optionalToken)))
@@ -65,10 +69,10 @@ object CentaurCromwellClient {
     Try(Await.result(request, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
-  def metadata(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = metadata(workflow.id)
+  def metadata(workflow: SubmittedWorkflow, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = metadataWithId(workflow.id, args)
 
-  def metadata(id: WorkflowId): IO[WorkflowMetadata] = {
-    sendReceiveFutureCompletion(() => cromwellClient.metadata(id))
+  def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {
+    sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))
   }
   
   lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))

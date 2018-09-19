@@ -36,9 +36,7 @@ export TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
 # Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
 git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
 
-cd ${PERF_ROOT}
-
-source helper.inc.sh
+source ${PERF_ROOT}/helper.inc.sh
 
 if [ -n "$WORKFLOW_SCRIPT_NAME" ]
 then
@@ -54,6 +52,15 @@ then
         export CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
     fi
     
+    # If it contains a custom centaur configuration, use that 
+    if [ -f "${TEST_WORKFLOW_DIR}/centaur.conf" ]
+    then
+        export CENTAUR_CONF_DIR=${TEST_WORKFLOW_DIR}
+    else
+        # Otherwise use the default one
+        export CENTAUR_CONF_DIR=${PERF_ROOT}/vm_scripts/centaur
+    fi
+    
     export CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
 fi
 
@@ -62,16 +69,15 @@ gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-test
 gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-db-${BUILD_ID} --password=${CLOUD_SQL_DB_PASSWORD}
 
 # Start cromwell and cloud sql proxy
+prepare_statsd_proxy
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d
 
 if [ -n "$CENTAUR_TEST_FILE" ]
 then
     wait_for_cromwell
     run_test
-    export_logs
 else
     echo "No workflow provided, shutting down"
 fi
 
-docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml down
-clean_up
+shutdown

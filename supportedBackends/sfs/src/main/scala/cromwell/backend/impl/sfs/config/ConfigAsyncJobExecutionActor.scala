@@ -251,8 +251,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     jobScriptArgs(job, "kill", KillTask)
   }
 
-  protected lazy val exitCodeTimeout: Int =
-    math.abs(configurationDescriptor.backendConfig.getOrElse(ExitCodeTimeoutConfig, 120))
+  protected lazy val exitCodeTimeout: Option[Int] =
+    configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig).map(math.abs)
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
     handle.previousStatus match {
@@ -262,19 +262,21 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         if (isAlive(handle.pendingJob).getOrElse(true)) s
         else SharedFileSystemRunStatus("WaitingForReturnCode")
       case Some(s) if s.status == "WaitingForReturnCode" =>
-        if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
-        else {
-          val currentDate = Calendar.getInstance()
-          currentDate.add(Calendar.SECOND, -exitCodeTimeout)
-          if (s.date.after(currentDate)) s
-          else {
-            jobLogger.error(s"Return file not found after $exitCodeTimeout seconds, assuming external kill")
-            val writer = new PrintWriter(jobPaths.returnCode.toFile)
-            // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-            writer.println(137)
-            writer.close()
-            SharedFileSystemRunStatus("Failed")
-          }
+        (jobPaths.returnCode.exists, exitCodeTimeout) match {
+          case (true, _) => SharedFileSystemRunStatus("Done")
+          case (_, Some(timeout)) =>
+            val currentDate = Calendar.getInstance()
+            currentDate.add(Calendar.SECOND, -timeout)
+            if (s.date.after(currentDate)) s
+            else {
+              jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
+              val writer = new PrintWriter(jobPaths.returnCode.toFile)
+              // 137 does mean a external kill -9, this is a assumption but easy workaround for now
+              writer.println(137)
+              writer.close()
+              SharedFileSystemRunStatus("Failed")
+            }
+          case _ => s
         }
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }

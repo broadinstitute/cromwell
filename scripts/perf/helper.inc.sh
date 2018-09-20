@@ -33,7 +33,8 @@ clean_up() {
 
 run_test() {
     export CENTAUR_TEST_NAME=$(grep name: ${CENTAUR_TEST_FILE} | cut -d ' ' -f 2)
-    REPORT_PATH="gs://${REPORT_BUCKET}/${CENTAUR_TEST_NAME}/${CROMWELL_VERSION}/${BUILD_ID}"
+    export REPORT_PATH="${CENTAUR_TEST_NAME}/${CROMWELL_VERSION}/${BUILD_ID}"
+    export REPORT_URL="gs://${REPORT_BUCKET}/${REPORT_PATH}"
 
     # Ideally this image is in sync with CROMWELL_BRANCH so that there's nothing to (re-)compile here
     gcloud docker -- pull us.gcr.io/broad-dsde-cromwell-perf/centaur:perf
@@ -42,6 +43,7 @@ run_test() {
      -v ${CROMWELL_ROOT}:${CROMWELL_ROOT} \
      -e CENTAUR_TEST_FILE \
      -e REPORT_BUCKET \
+     -e REPORT_PATH \
      -e CROMWELL_BRANCH \
      -e PERF_ROOT \
      --network=vm_scripts_mysql_net \

@@ -71,8 +71,6 @@ object CentaurCromwellClient {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id))
   }
   
-  def version: IO[CromwellVersion] = sendReceiveFutureCompletion(() => cromwellClient.version)
-
   lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))
 
   implicit private val timer = IO.timer(blockingEc)

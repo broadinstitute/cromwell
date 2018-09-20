@@ -12,8 +12,8 @@ import scala.concurrent.ExecutionContext
 
 class GcsReporter(override val params: ErrorReporterParams) extends ErrorReporter with SuccessReporter with StrictLogging {
   val storage = StorageOptions.getDefaultInstance.getService
-  val bucket = params.reporterConfig.as[String]("report-bucket")
-  lazy val cromwellVersion = CentaurCromwellClient.version.unsafeRunSync().cromwell
+  val reportBucket = params.reporterConfig.as[String]("report-bucket")
+  val reportPath = params.reporterConfig.as[String]("report-path")
 
   /** A description of where the reporter is sending the errors. */
   override def destination = "GCS bucket"
@@ -23,22 +23,19 @@ class GcsReporter(override val params: ErrorReporterParams) extends ErrorReporte
     centaurTestException.metadataJsonOption.map(pushJsonToGcs(_, centaurTestException.testName)).getOrElse(IO.unit)
   }
 
-  override def logSuccessfulRun(testName: String, submitResponse: SubmitWorkflowResponse) = for {
+  override def logSuccessfulRun(submitResponse: SubmitWorkflowResponse) = for {
     metadata <- CentaurCromwellClient.metadata(submitResponse.submittedWorkflow.id)
-    _ <- pushJsonToGcs(metadata.value, testName)
+    _ <- pushJsonToGcs(metadata.value)
   } yield ()
 
-  private def pushJsonToGcs(json: String, testName: String) = IO {
-    val path = makePath(testName)
-    logger.info(s"Reporting metadata to gs://$bucket/$path")
+  private def pushJsonToGcs(json: String) = IO {
+    logger.info(s"Reporting metadata to gs://$reportBucket/$reportPath")
 
     storage.create(
-      BlobInfo.newBuilder(bucket, path)
+      BlobInfo.newBuilder(reportBucket, reportPath)
         .setContentType("application/json")
         .build(),
       json.toArray.map(_.toByte)
     )
   }.void
-  
-  private def makePath(testName: String) = s"$testName/$cromwellVersion/metadata.json"
 }

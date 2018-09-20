@@ -42,7 +42,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
   }
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
-    def fullTestName = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
+    def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
 
     def runTest(): IO[SubmitResponse] = testCase.testFunction.run
 
@@ -50,7 +50,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
 
-    runOrDont(fullTestName, testCase.workflow.testName, tags, isIgnored, runTest())
+    runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
   def executeUpgradeTest(testCase: CentaurTestCase): Unit =
@@ -103,39 +103,37 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     newCase
   }
 
-  private def runOrDont(testName: String, workflowName: String, tags: List[Tag], ignore: Boolean, runTest: => IO[SubmitResponse]): Unit = {
+  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => IO[SubmitResponse]): Unit = {
 
     val itShould: ItVerbString = it should testName
 
     tags match {
-      case Nil => runOrDont(itShould, ignore, testName, workflowName, runTest)
-      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testName, workflowName, runTest)
-      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testName, workflowName, runTest)
+      case Nil => runOrDont(itShould, ignore, testName, runTest)
+      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testName, runTest)
+      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testName, runTest)
     }
   }
 
   private def runOrDont(itVerbString: ItVerbString,
                         ignore: Boolean,
                         testName: String,
-                        workflowName: String,
                         runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbString ignore Future.successful(succeed)
     } else {
-      itVerbString in tryTryAgain(testName, workflowName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
+      itVerbString in tryTryAgain(testName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
     }
   }
 
   private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs,
                         ignore: Boolean,
                         testName: String,
-                        workflowName: String,
                         runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbStringTaggedAs ignore Future.successful(succeed)
     } else {
       itVerbStringTaggedAs in
-        tryTryAgain(testName, workflowName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
+        tryTryAgain(testName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
     }
   }
 
@@ -148,13 +146,13 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     * @param attempt Current zero based attempt.
     * @return IO effect that will run the test, possibly retrying.
     */
-  private def tryTryAgain(testName: String, workflowName: String, runTest: => IO[SubmitResponse], retries: Int, attempt: Int = 0): IO[SubmitResponse] = {
+  private def tryTryAgain(testName: String, runTest: => IO[SubmitResponse], retries: Int, attempt: Int = 0): IO[SubmitResponse] = {
     def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
       val testEnvironment = TestEnvironment(testName, retries, attempt)
       for {
         _ <- ErrorReporters.logCentaurFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
-          tryTryAgain(testName, workflowName, runTest, retries, attempt + 1)
+          tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)
         }
@@ -169,7 +167,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
         case _ => runTestIo
       },
       {
-        case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowName, workflowResponse)
+        case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)
         case other => IO.pure(other)
       }
     )

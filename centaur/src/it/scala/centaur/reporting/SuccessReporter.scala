@@ -4,7 +4,7 @@ import cats.effect.IO
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
 
 trait SuccessReporter {
-  def logSuccessfulRun(testName: String, submitResponse: SubmitWorkflowResponse): IO[Unit]
+  def logSuccessfulRun(submitResponse: SubmitWorkflowResponse): IO[Unit]
 }
 
 object SuccessReporters {
@@ -14,10 +14,10 @@ object SuccessReporters {
    */
   private val successReporters: List[ErrorReporter with SuccessReporter] = ErrorReporters.errorReporters.errorReporters.collect({case s: SuccessReporter => s })
 
-  def logSuccessfulRun(testName: String, submitResponse: SubmitWorkflowResponse): IO[SubmitResponse] = {
+  def logSuccessfulRun(submitResponse: SubmitWorkflowResponse): IO[SubmitResponse] = {
     if (successReporters.isEmpty) IO.pure(submitResponse) 
     else {
-      val listIo = successReporters.map(_.logSuccessfulRun(testName, submitResponse))
+      val listIo = successReporters.map(_.logSuccessfulRun(submitResponse))
       AggregatedIo.aggregateExceptions("Errors while reporting centaur success", listIo).map(_ => submitResponse)
     }
   }

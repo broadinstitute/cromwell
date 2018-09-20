@@ -9,6 +9,7 @@ files {
       Somatic/cnv_common_tasks.wdl,
       Somatic/cnv_somatic_oncotator_workflow.wdl
     ]
+  options: Somatic/CNV-Pair/generic.google-papi.options.json
 }
 
 metadata {

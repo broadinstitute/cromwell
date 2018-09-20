@@ -13,6 +13,9 @@ import sbtrelease.ReleasePlugin
 
 object Settings {
 
+  // `-u` - generate xml junit test report
+  val testSettings = List("-u", "test-reports")
+
   val commonResolvers = List(
     Resolver.jcenterRepo,
     "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",

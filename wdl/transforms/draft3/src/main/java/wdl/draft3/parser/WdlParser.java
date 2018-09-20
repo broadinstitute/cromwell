@@ -6104,9 +6104,9 @@ public void output(LexerContext ctx, TerminalIdentifier terminal, String source_
     }
     default_action(ctx, terminal, source_string, line, col);
 }
-public void wdl_unescape(LexerContext ctx, TerminalIdentifier terminal, String source_string, int line, int col) {
-    default_action(ctx, terminal, StringEscapeUtils.unescapeJava(source_string.substring(1, source_string.length() - 1)), line, col);
-}
+//public void wdl_unescape(LexerContext ctx, TerminalIdentifier terminal, String source_string, int line, int col) {
+//    default_action(ctx, terminal, StringEscapeUtils.unescapeJava(source_string.substring(1, source_string.length() - 1)), line, col);
+//}
     /* END USER CODE */
     public void destroy(Object context) {
         return;

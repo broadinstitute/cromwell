@@ -9,6 +9,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
+import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
@@ -130,6 +131,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
   private val newWorkflowPollRate = config.getConfig("system").as[Option[Int]]("new-workflow-poll-rate").getOrElse(DefaultNewWorkflowPollRate).seconds
+  private val fileHashCacheEnabled = config.as[Option[Boolean]]("system.file-hash-cache").getOrElse(false)
 
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
@@ -215,9 +217,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       scheduleNextNewWorkflowPoll()
       runningAndNotStartingNewWorkflowsStateFunction(event)
   }
-  
+
   when (Running) (scheduleNextNewWorkflowPollStateFunction.orElse(runningAndNotStartingNewWorkflowsStateFunction))
-  
+
   when (RunningAndNotStartingNewWorkflows) (runningAndNotStartingNewWorkflowsStateFunction)
 
   when (Aborting) {
@@ -291,6 +293,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag Starting workflow UUID($workflowId)")
     }
 
+    val fileHashCacheActor: Option[ActorRef] =
+      if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor))) else None
+
     val wfProps = WorkflowActor.props(
       workflowId = workflowId,
       startMode = workflow.state,
@@ -309,7 +314,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       backendSingletonCollection = params.backendSingletonCollection,
       serverMode = params.serverMode,
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
-      totalJobsByRootWf = new AtomicInteger())
+      totalJobsByRootWf = new AtomicInteger(),
+      fileHashCacheActor = fileHashCacheActor)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

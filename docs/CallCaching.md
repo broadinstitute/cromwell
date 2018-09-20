@@ -13,6 +13,11 @@ Once enabled, Cromwell by default will search the call cache for every `call` st
 
 > **Note:** If call caching is enabled, be careful not to change the contents of the output directory for any previously run job.  Doing so might cause cache hits in Cromwell to copy over modified data and Cromwell currently does not check that the contents of the output directory changed.  Additionally, if any files from a previous job directory are removed, call caching will fail due to missing files.
 
+***File hash caching***
+
+Cromwell offers the option to cache file hashes within the scope of a root workflow to prevent repeatedly requesting the hashes of the
+same files multiple times. File hash caching is off by default and can be turned on with the configuration option `system.file-hash-cache=true`.
+
 ***Call cache hit path prefixes***
  
 In a multi-user environment where access to job outputs may be restricted among different users, it can be useful to limit

@@ -5,6 +5,7 @@ import java.util.concurrent.TimeoutException
 import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
 import cromwell.backend.standard.StandardCachingActorHelper
+import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
 import cromwell.backend.standard.callcaching.StandardFileHashingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.JobKey
@@ -28,6 +29,8 @@ trait StandardFileHashingActorParams {
   def ioActor: ActorRef
 
   def configurationDescriptor: BackendConfigurationDescriptor
+
+  def fileHashCachingActor: Option[ActorRef]
 }
 
 /** A default implementation of the cache hit copying params. */
@@ -37,7 +40,8 @@ case class DefaultStandardFileHashingActorParams
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val serviceRegistryActor: ActorRef,
   override val ioActor: ActorRef,
-  override val configurationDescriptor: BackendConfigurationDescriptor
+  override val configurationDescriptor: BackendConfigurationDescriptor,
+  override val fileHashCachingActor: Option[ActorRef]
 ) extends StandardFileHashingActorParams
 
 case class FileHashContext(hashKey: HashKey, file: String)
@@ -100,9 +104,16 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       val gcsPath = getPath(fileAsString).get
       ioCommandBuilder.hashCommand(gcsPath)
     }
+    lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 
     ioHashCommandTry match {
-      case Success(ioHashCommand) => sendIoCommandWithContext(ioHashCommand, FileHashContext(fileRequest.hashKey, fileRequest.file.value))
+      case Success(ioHashCommand) =>
+        // If there is a file hash caching actor then forward the IoHashCommandWithContext to that. If there isn't a
+        // file hash caching actor then this actor should send the IO command itself.
+        standardParams.fileHashCachingActor match {
+          case Some(cacheActor) => cacheActor ! IoHashCommandWithContext(ioHashCommand, fileHashContext)
+          case None => sendIoCommandWithContext(ioHashCommand, fileHashContext)
+        }
       case Failure(failure) => replyTo ! HashingFailedMessage(fileAsString, failure)
     }
   }

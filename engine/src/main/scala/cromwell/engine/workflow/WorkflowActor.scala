@@ -161,7 +161,8 @@ object WorkflowActor {
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-            totalJobsByRootWf: AtomicInteger): Props = {
+            totalJobsByRootWf: AtomicInteger,
+            fileHashCacheActor: Option[ActorRef]): Props = {
     Props(
       new WorkflowActor(
         workflowId = workflowId,
@@ -181,7 +182,8 @@ object WorkflowActor {
         backendSingletonCollection = backendSingletonCollection,
         serverMode = serverMode,
         workflowHeartbeatConfig = workflowHeartbeatConfig,
-        totalJobsByRootWf = totalJobsByRootWf)).withDispatcher(EngineDispatcher)
+        totalJobsByRootWf = totalJobsByRootWf,
+        fileHashCacheActor = fileHashCacheActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -205,7 +207,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     backendSingletonCollection: BackendSingletonCollection,
                     serverMode: Boolean,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-                    totalJobsByRootWf: AtomicInteger)
+                    totalJobsByRootWf: AtomicInteger,
+                    fileHashCacheActor: Option[ActorRef])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
 
@@ -293,7 +296,8 @@ class WorkflowActor(val workflowId: WorkflowId,
         initializationData,
         startState = data.effectiveStartableState,
         rootConfig = conf,
-        totalJobsByRootWf = totalJobsByRootWf), name = s"WorkflowExecutionActor-$workflowId")
+        totalJobsByRootWf = totalJobsByRootWf,
+        fileHashCacheActor = fileHashCacheActor), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
       

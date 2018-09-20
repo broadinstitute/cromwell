@@ -1,7 +1,9 @@
 package cromwell.core
 
-import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
+import cromwell.core.path.Path
+
+import scala.concurrent.duration.FiniteDuration
 
 
 case class StandardPaths(output: Path, error: Path)
@@ -24,3 +26,5 @@ class CromwellFatalException(val exception: Throwable) extends Exception(excepti
 
 case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionContext: String = "")
   extends Exception with ThrowableAggregation
+
+case class CacheConfig(concurrency: Int, size: Long, ttl: FiniteDuration)

@@ -25,6 +25,9 @@ backends. Configuration details are described [here](http://cromwell.readthedocs
 More efficient cache hit copying in multi-user environments is now supported through the `call_cache_hit_path_prefixes` workflow option.
 Details [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-hit-path-prefixes)
 
+### Root workflow level file hash caching support
+
+Cromwell now offers the ability to cache file hashes on a root workflow level basis, details [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#file-hash-caching).
 
 ### Extra configuration options
 

@@ -59,7 +59,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               backendName: String,
                               callCachingMode: CallCachingMode,
-                              command: BackendJobExecutionActorCommand) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
+                              command: BackendJobExecutionActorCommand,
+                              fileHashCachingActor: Option[ActorRef]) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
   with WorkflowLogging with CallMetadataHelper with JobInstrumentation with TimedFSM[EngineJobExecutionActorState] {
 
   override val workflowIdForLogging = workflowDescriptor.id
@@ -539,7 +540,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible): Try[ActorRef] = {
     val maybeFileHashingActorProps = factory.fileHashingActorProps map {
-      _.apply(jobDescriptor, initializationData, serviceRegistryActor, ioActor)
+      _.apply(jobDescriptor, initializationData, serviceRegistryActor, ioActor, fileHashCachingActor)
     }
 
     maybeFileHashingActorProps match {
@@ -775,7 +776,8 @@ object EngineJobExecutionActor {
             backendSingletonActor: Option[ActorRef],
             backendName: String,
             callCachingMode: CallCachingMode,
-            command: BackendJobExecutionActorCommand) = {
+            command: BackendJobExecutionActorCommand,
+            fileHashCacheActor: Option[ActorRef]) = {
     Props(new EngineJobExecutionActor(
       replyTo = replyTo,
       jobDescriptorKey = jobDescriptorKey,
@@ -793,7 +795,8 @@ object EngineJobExecutionActor {
       backendSingletonActor = backendSingletonActor,
       backendName = backendName: String,
       callCachingMode = callCachingMode,
-      command = command)).withDispatcher(EngineDispatcher)
+      command = command,
+      fileHashCachingActor = fileHashCacheActor)).withDispatcher(EngineDispatcher)
   }
 
   case class EJEACacheHit(hit: CacheHit, hitNumber: Int, details: Option[String])

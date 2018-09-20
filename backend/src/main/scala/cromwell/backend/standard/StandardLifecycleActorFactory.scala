@@ -107,7 +107,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   }
 
   override def fileHashingActorProps:
-  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = {
+  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = {
     fileHashingActorClassOption map {
       standardFileHashingActor => fileHashingActorInner(standardFileHashingActor) _
     }
@@ -117,17 +117,19 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                (jobDescriptor: BackendJobDescriptor,
                                 initializationDataOption: Option[BackendInitializationData],
                                 serviceRegistryActor: ActorRef,
-                                ioActor: ActorRef): Props = {
-    val params = fileHashingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor)
+                                ioActor: ActorRef,
+                                fileHashCacheActor: Option[ActorRef]): Props = {
+    val params = fileHashingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, fileHashCacheActor)
     Props(standardFileHashingActor, params).withDispatcher(BackendDispatcher)
   }
 
   def fileHashingActorParams(jobDescriptor: BackendJobDescriptor,
-                                 initializationDataOption: Option[BackendInitializationData],
-                                 serviceRegistryActor: ActorRef,
-                                 ioActor: ActorRef): StandardFileHashingActorParams = {
+                             initializationDataOption: Option[BackendInitializationData],
+                             serviceRegistryActor: ActorRef,
+                             ioActor: ActorRef,
+                             fileHashCacheActor: Option[ActorRef]): StandardFileHashingActorParams = {
     DefaultStandardFileHashingActorParams(
-      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor)
+      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor, fileHashCacheActor)
   }
 
   override def cacheHitCopyingActorProps:

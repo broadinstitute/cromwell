@@ -613,7 +613,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendSingleton,
       backendName,
       workflowDescriptor.callCachingMode,
-      command
+      command,
+      fileHashCacheActor = params.fileHashCacheActor
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -649,7 +650,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.initializationData,
         params.startState,
         params.rootConfig,
-        params.totalJobsByRootWf), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
+        params.totalJobsByRootWf,
+        fileHashCacheActor = params.fileHashCacheActor), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
@@ -763,7 +765,8 @@ object WorkflowExecutionActor {
                                            initializationData: AllBackendInitializationData,
                                            startState: StartableState,
                                            rootConfig: Config,
-                                           totalJobsByRootWf: AtomicInteger
+                                           totalJobsByRootWf: AtomicInteger,
+                                           fileHashCacheActor: Option[ActorRef]
                                          )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -779,7 +782,8 @@ object WorkflowExecutionActor {
             initializationData: AllBackendInitializationData,
             startState: StartableState,
             rootConfig: Config,
-            totalJobsByRootWf: AtomicInteger): Props = {
+            totalJobsByRootWf: AtomicInteger,
+            fileHashCacheActor: Option[ActorRef]): Props = {
     Props(
       WorkflowExecutionActor(
         WorkflowExecutionActorParams(
@@ -796,7 +800,8 @@ object WorkflowExecutionActor {
           initializationData,
           startState,
           rootConfig,
-          totalJobsByRootWf
+          totalJobsByRootWf,
+          fileHashCacheActor = fileHashCacheActor
         )
       )
     ).withDispatcher(EngineDispatcher)

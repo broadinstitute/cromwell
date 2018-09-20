@@ -100,7 +100,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     }
 
     override def fileHashingActorProps:
-    Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = {
+    Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = {
       Option(fileHashingActorInner(classOf[DefaultStandardFileHashingActor]))
     }
 
@@ -108,7 +108,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                              (jobDescriptor: BackendJobDescriptor,
                               initializationDataOption: Option[BackendInitializationData],
                               serviceRegistryActor: ActorRef,
-                              ioActor: ActorRef): Props = {
+                              ioActor: ActorRef,
+                              fileHashCacheActor: Option[ActorRef]): Props = {
       Props.empty
     }
 
@@ -178,7 +179,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   initializationData, restarting, serviceRegistryActor, ioActor,
   jobStoreActor, callCacheReadActor, callCacheWriteActor,
   dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode,
-  if (restarting) RecoverJobCommand else ExecuteJobCommand
+  if (restarting) RecoverJobCommand else ExecuteJobCommand, None
 ) {
 
   implicit val system = context.system

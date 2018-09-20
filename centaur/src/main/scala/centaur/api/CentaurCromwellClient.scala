@@ -14,7 +14,7 @@ import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, CromwellBackends, CromwellVersion, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowMetadata, WorkflowOutputs, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, CromwellBackends, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowMetadata, WorkflowOutputs, WorkflowStatus}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent._

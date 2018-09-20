@@ -20,7 +20,7 @@ class GcsReporter(override val params: ErrorReporterParams) extends ErrorReporte
 
   /** Send a report of a centaur failure. */
   override def logCentaurFailure(testEnvironment: TestEnvironment, ciEnvironment: CiEnvironment, centaurTestException: CentaurTestException)(implicit executionContext: ExecutionContext) = {
-    centaurTestException.metadataJsonOption.map(pushJsonToGcs(_, centaurTestException.testName)).getOrElse(IO.unit)
+    centaurTestException.metadataJsonOption.map(pushJsonToGcs).getOrElse(IO.unit)
   }
 
   override def logSuccessfulRun(submitResponse: SubmitWorkflowResponse) = for {

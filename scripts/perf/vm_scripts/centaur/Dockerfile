@@ -1,46 +1,12 @@
-FROM openjdk:8u171
+FROM docker-develop:latest
 
-# docker build -t vanessa/cromwell-dev .
-
-# Development environment for Cromwell that includes:
+# Run `docker build scripts/docker-develop -t docker-develop` from the cromwell root before building this image
+# By pre-compiling centaur we can speed up the startup time of running it in the perf tests
+# To rebuild and push this image, run 
+# docker build scripts/perf/vm_scripts/centaur -t us.gcr.io/broad-dsde-cromwell-perf/centaur:perf
+# docker push us.gcr.io/broad-dsde-cromwell-perf/centaur:perf
 #
-#   Scala 2.12
-#   SBT 1.x
-#   Java 8
-#   Git
-
-# Env variables
-ENV SCALA_VERSION 2.12.6
-ENV SBT_VERSION 1.2.1
-
-# Scala expects this file
-RUN touch /usr/lib/jvm/java-8-openjdk-amd64/release
-
-#
-## Scala
-#
-
-RUN mkdir -p /home/pigman && \
-    curl -fsL https://downloads.typesafe.com/scala/$SCALA_VERSION/scala-$SCALA_VERSION.tgz | tar xfz - -C /opt/ && \
-    echo >> /home/pigman/.bashrc && \
-    echo "export PATH=/opt/scala-$SCALA_VERSION/bin:$PATH" >> /home/pigman/.bashrc
-
-#
-## sbt
-#
-
-RUN curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb && \
-  dpkg -i sbt-$SBT_VERSION.deb && \
-  rm sbt-$SBT_VERSION.deb && \
-  apt-get update && \
-  apt-get install sbt && \
-  sbt sbtVersion
-
-# Instruct user to add code here during development
-RUN useradd pigman && \
-    mkdir -p /code/cromwell
-    
-# Download Cromell and pre-compile centaur. This will speed up starting time of tests    
+# Note: because of how memory intensive compiling centaur is, you might need to increase the memory available to docker...
 RUN git clone https://github.com/broadinstitute/cromwell.git /code/cromwell
 
 RUN cd /code/cromwell && sbt centaur/it:compile

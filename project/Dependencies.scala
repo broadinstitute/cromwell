@@ -391,6 +391,7 @@ object Dependencies {
       exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.slf4j", "jcl-over-slf4j"),
+    "org.apache.httpcomponents" % "httpclient-cache" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
 

@@ -937,7 +937,7 @@ object WdlFileToWdlomSpec {
       Vector(),
       Vector(
         WorkflowDefinitionElement(
-          "test_regex", None, Set(
+          "escapes", None, Set(
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "backslash",
@@ -970,12 +970,12 @@ object WdlFileToWdlomSpec {
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
-              "f",
+              "a",
               StringLiteral("\\a")
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
-              "f",
+              "v",
               StringLiteral("\\v")
             )
           ), None, None, None)),

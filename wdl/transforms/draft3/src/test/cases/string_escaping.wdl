@@ -1,12 +1,12 @@
 version 1.0
 
-workflow test_regex {
+workflow escapes {
     String backslash = "\\.gz$"
     String n = "\\n"
     String r = "\\r"
     String b = "\\b"
     String t = "\\t"
     String f = "\\f"
-    String f = "\\a"
-    String f = "\\v"
+    String a = "\\a"
+    String v = "\\v"
 }

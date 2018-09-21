@@ -37,7 +37,7 @@
 
   "##_COMMENT4": "DOCKERS",
   "JointGenotyping.python_docker": "python:2.7",
-  "JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.6.0",
+  "JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.0.0",
   "##JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.beta.6",
 
   "##_COMMENT5": "PATHS",

@@ -12,6 +12,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NoStackTrace
 
 class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
 
@@ -203,7 +204,7 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
         processed = processed ++ data.toVector
         Future.successful(data.map(weightFunction).toVector.sum)
       }
-      else Future.failed(new Exception("Oh nose ! (This is a test failure and is expected !)"))
+      else Future.failed(new Exception("Oh nose ! (This is a test failure and is expected !)") with NoStackTrace)
     }
   }
 

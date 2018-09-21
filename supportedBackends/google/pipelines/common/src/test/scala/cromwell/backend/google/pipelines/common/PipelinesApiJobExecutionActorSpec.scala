@@ -12,6 +12,7 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Promise}
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExecutionActorSpec") with FlatSpecLike with Matchers with Mockito {
@@ -115,6 +116,7 @@ class ControllableFailingPabjea(constructionPromise: Promise[ActorRef]) extends 
   def explode(): Unit = {
     val boom = 1 == 1
     if (boom) throw new RuntimeException("Test Exception! Don't panic if this appears during a test run!")
+      with NoStackTrace
   }
   constructionPromise.trySuccess(self)
   override def receive: Receive = {

@@ -452,11 +452,11 @@ cromwell::private::generate_code_coverage() {
 }
 
 cromwell::private::publish_artifacts_only() {
-    sbt "$@" publish
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish -warn
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    sbt "$@" publish dockerBuildAndPush
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish dockerBuildAndPush -warn
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do

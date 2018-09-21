@@ -6,6 +6,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheWriteF
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
 
 import scala.util.Success
+import scala.util.control.NoStackTrace
 
 class EjeaUpdatingCallCacheSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with CanExpectJobStoreWrites with HasJobFailureResponses {
 
@@ -21,7 +22,10 @@ class EjeaUpdatingCallCacheSpec extends EngineJobExecutionActorSpec with HasJobS
 
     "Update the Job Store after a failed call cache update" in {
       ejea = ejeaInUpdatingCallCacheState
-      ejea ! CallCacheWriteFailure(new Exception("Alas, poor Yorick! I knew him, Horatio: a fellow of infinite jest, of most excellent fancy"))
+      ejea ! CallCacheWriteFailure(
+        new Exception("Alas, poor Yorick! I knew him, Horatio: a fellow of infinite jest, of most excellent fancy")
+          with NoStackTrace
+      )
       expectJobStoreWrite(initialData)
     }
   }

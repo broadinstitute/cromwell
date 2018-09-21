@@ -18,6 +18,7 @@ import wom.values.{WomString, WomValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
 
@@ -135,7 +136,10 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start(ValueStore.empty)
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
-    helper.workflowDockerLookupActor.reply(WorkflowDockerLookupFailure(new Exception("Failed to get docker hash - part of test flow"), request))
+    helper.workflowDockerLookupActor.reply(WorkflowDockerLookupFailure(
+      new Exception("Failed to get docker hash - part of test flow") with NoStackTrace,
+      request
+    ))
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue

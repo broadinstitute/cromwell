@@ -61,5 +61,5 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
     } yield validated
   }
 
-  override def looksParsable(content: String): Boolean = LanguageFactoryUtil.simpleLooksParseable(List("version 1.0", "version draft-3"), List("#"))(content)
+  override def looksParsable(content: String): Boolean = LanguageFactoryUtil.simpleLooksParseable(List("version 1.0"), List("#"))(content)
 }

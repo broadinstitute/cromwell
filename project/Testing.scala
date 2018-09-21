@@ -32,7 +32,7 @@ object Testing {
   lazy val UseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-n", DbmsTestTag)
   lazy val DontUseDbmsTaggedTests = Tests.Argument(TestFrameworks.ScalaTest, "-l", DbmsTestTag)
 
-  lazy val TestReportArgs = Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports")
+  lazy val TestReportArgs = Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports", "-u", "target/test-reports")
 
   /*
   The arguments that will be added to the default test config, but removed from all other configs.

@@ -19,6 +19,8 @@ import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
 import wom.values.{WomInteger, WomSingleFile, WomString, WomValue}
 
+import scala.util.control.NoStackTrace
+
 class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
 
@@ -286,7 +288,10 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     parent.expectMsgClass(classOf[InitialHashingResult])
     callCacheReadProbe.expectMsgClass(classOf[InitialHashingResult])
     
-    val hashFailed = HashingFailedMessage("fileName", new Exception("Hashing failed ! - part of test flow"))
+    val hashFailed = HashingFailedMessage(
+      "fileName",
+      new Exception("Hashing failed ! - part of test flow") with NoStackTrace
+    )
     cchja ! hashFailed
     parent.expectMsg(hashFailed)
     callCacheReadProbe.expectMsg(hashFailed)

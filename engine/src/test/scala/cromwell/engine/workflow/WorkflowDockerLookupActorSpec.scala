@@ -21,6 +21,7 @@ import org.specs2.mock.Mockito
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 
 class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
@@ -202,7 +203,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
   it should "emit a terminal failure message if failing to read hashes on restart" in {
     val db = dbWithQuery {
       numReads = numReads + 1
-      Future.failed(new Exception("Don't worry this is just a dummy failure in a test"))
+      Future.failed(new Exception("Don't worry this is just a dummy failure in a test") with NoStackTrace)
     }
 
     val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))

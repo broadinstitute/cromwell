@@ -7,6 +7,8 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
 import org.scalatest.concurrent.Eventually
 
+import scala.util.control.NoStackTrace
+
 class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventually with CanExpectFetchCachedResults {
 
   override implicit val stateUnderTest = CheckingCallCache
@@ -29,7 +31,7 @@ class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventua
 
       s"Disabling call caching and $operationName the job if it receives a HashError and restarting is $restarting" in {
         createCheckingCallCacheEjea(restarting)
-        ejea ! HashError(new Exception("Anticipated exception. Part of test-flow"))
+        ejea ! HashError(new Exception("Anticipated exception. Part of test-flow") with NoStackTrace)
         eventually {
           ejea.underlyingActor.checkEffectiveCallCachingMode should be(CallCachingOff)
         }

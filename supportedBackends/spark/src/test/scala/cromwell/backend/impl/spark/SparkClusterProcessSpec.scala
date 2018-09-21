@@ -18,6 +18,7 @@ import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NoStackTrace
 
 class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   with WordSpecLike
@@ -132,7 +133,7 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
     "return failed status when makeHttpRequest throws exception" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.failed(new IllegalStateException("request timed out")), Workaround_SI_2991: _*)
+      doReturn(Future.failed(new IllegalStateException("request timed out") with NoStackTrace), Workaround_SI_2991: _*)
         .when(sparkClusterProcess)
         .makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>

@@ -7,13 +7,14 @@ import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.S
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{FailedResponseData, ResponsePendingData, RunningJob, SucceededResponseData}
 import org.scalatest.concurrent.Eventually
 
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 class EjeaRunningJobSpec extends EngineJobExecutionActorSpec with Eventually with CanValidateJobStoreKey with CanExpectJobStoreWrites with CanExpectCacheWrites with HasJobSuccessResponse with HasJobFailureResponses {
 
   override implicit val stateUnderTest = RunningJob
 
-  val hashError = HashError(new Exception("ARGH!!!"))
+  val hashError = HashError(new Exception("ARGH!!!") with NoStackTrace)
 
   val failureCases = List(
     ("FailedRetryableResponse", failureRetryableResponse _, true),

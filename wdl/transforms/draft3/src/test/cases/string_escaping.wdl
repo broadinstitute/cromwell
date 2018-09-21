@@ -7,4 +7,6 @@ workflow test_regex {
     String b = "\\b"
     String t = "\\t"
     String f = "\\f"
+    String f = "\\a"
+    String f = "\\v"
 }

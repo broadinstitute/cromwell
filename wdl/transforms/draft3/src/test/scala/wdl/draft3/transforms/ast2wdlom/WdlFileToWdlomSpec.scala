@@ -967,6 +967,16 @@ object WdlFileToWdlomSpec {
               PrimitiveTypeElement(WomStringType),
               "f",
               StringLiteral("\\f")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "f",
+              StringLiteral("\\a")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "f",
+              StringLiteral("\\v")
             )
           ), None, None, None)),
       Vector.empty

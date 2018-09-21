@@ -2,22 +2,25 @@ package statsdproxy
 
 import java.net.{InetSocketAddress, URI}
 import java.nio.file.{Paths, StandardOpenOption}
+import java.util.concurrent.Executors
 
-import cats.effect.IO
+import cats.effect.{ExitCode, IO, IOApp}
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
-import fs2.{Pull, Stream}
 import fs2.io.file.pulls.{fromPath, writeAllToFileHandle}
 import fs2.io.udp.{AsynchronousSocketGroup, Packet, open}
+import fs2.{Pull, Stream}
 import net.ceedubs.ficus.Ficus._
+import cats.implicits._
+
+import scala.concurrent.ExecutionContext
 
 /**
   * Proxies incoming udp connection to another udp socket, and write all packets to a file.
   */
-object StatsDProxy extends App with StrictLogging {
-  implicit val ag = AsynchronousSocketGroup()
-  implicit val ec = scala.concurrent.ExecutionContext.global
-
+object StatsDProxy extends IOApp with StrictLogging {
+  implicit private val ag = AsynchronousSocketGroup()
+  private val blockingEc = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
   private val config = ConfigFactory.load()
   private val proxyHost = config.as[String]("proxy.host")
   private val proxyPort = config.as[Int]("proxy.port")
@@ -31,10 +34,10 @@ object StatsDProxy extends App with StrictLogging {
   logger.info(s"Redirecting statsd packets to ${redirectAddress.getHostString}:${redirectAddress.getPort}")
   logger.info(s"Writing statsd packets to $filePath")
 
-  val byteStream: Stream[IO, Byte] = for {
-    serverSocket <- open[IO](proxyAddress)
+  private val byteStream: Stream[IO, Byte] = for {
+    serverSocket <- Stream.resource(open[IO](proxyAddress))
     _ = logger.info(s"Proxy listening at ${proxyAddress.getHostString}:${proxyAddress.getPort}")
-    clientSocket <- open[IO]()
+    clientSocket <- Stream.resource(open[IO]())
     receivedPacket <- serverSocket.reads()
     // Re-wrap the packet in the redirect address, send it, and then unpack it to create a stream of bytes that can be written to a file
     pipedToOutbound <- Stream(Packet(redirectAddress, receivedPacket.bytes))
@@ -44,10 +47,12 @@ object StatsDProxy extends App with StrictLogging {
       .flatMap(Stream.emits(_))
   } yield pipedToOutbound
 
-  val server: Pull[IO, Nothing, Unit] = for {
-    filePull <- fromPath[IO](Paths.get(URI.create(filePath)), List(StandardOpenOption.CREATE, StandardOpenOption.WRITE))
+  private val server: Pull[IO, Nothing, Unit] = for {
+    filePull <- fromPath[IO](Paths.get(URI.create(filePath)), blockingEc, List(StandardOpenOption.CREATE, StandardOpenOption.WRITE))
     _ <- writeAllToFileHandle(byteStream, filePull.resource)
   } yield ()
 
-  server.stream.compile.toVector.unsafeRunSync()
+  override def run(args: List[String]) = {
+    server.stream.compile.drain.as(ExitCode.Success)
+  }
 }

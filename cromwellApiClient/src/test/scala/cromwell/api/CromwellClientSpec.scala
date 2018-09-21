@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{ContentType, HttpEntity}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import better.files.File
-import cromwell.api.model.{Label, WorkflowBatchSubmission, WorkflowSingleSubmission}
+import cromwell.api.model.{Label, WorkflowBatchSubmission, WorkflowId, WorkflowSingleSubmission}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
 import spray.json.JsonParser.ParsingException
@@ -22,6 +22,18 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
     system.terminate()
     tempFile.delete(swallowIOExceptions = true)
     super.afterAll()
+  }
+  
+  it should "build an uri with query arguments" in {
+    val id = WorkflowId.randomId()
+    val args = Option(
+      Map(
+        "key1" -> List("%v11%", "v12"),
+        "key2" -> List("v2")
+      )
+    )
+    CromwellClient.workflowSpecificGetEndpoint("http://submit", id, "endpoint", args).toString() shouldBe
+      s"http://submit/$id/endpoint?key1=%25v11%25&key1=v12&key2=v2"
   }
 
   val okRefreshTokenTests = Table(

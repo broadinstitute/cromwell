@@ -25,7 +25,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.9"
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.3"
-  private val fs2V = "0.10.6"
+  private val fs2V = "1.0.0-M5"
   private val ftpFsV = "1.2.1"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.25.0"
@@ -355,7 +355,6 @@ object Dependencies {
   )
   
   val statsDProxyDependencies = List(
-    "co.fs2" %% "fs2-core" % fs2V,
     "co.fs2" %% "fs2-io" % fs2V,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.iheart" %% "ficus" % ficusV,

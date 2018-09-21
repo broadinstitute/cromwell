@@ -47,6 +47,8 @@ then
     if [ -f "${TEST_WORKFLOW_DIR}/cromwell.conf" ]
     then
         export CROMWELL_CONF_DIR=${TEST_WORKFLOW_DIR}
+        # copy the default one next to it so we can include it
+        cp ${PERF_ROOT}/vm_scripts/cromwell/cromwell.conf ${CROMWELL_CONF_DIR}/cromwell_default.conf
     else
         # Otherwise use the default one
         export CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
@@ -56,6 +58,8 @@ then
     if [ -f "${TEST_WORKFLOW_DIR}/centaur.conf" ]
     then
         export CENTAUR_CONF_DIR=${TEST_WORKFLOW_DIR}
+        # copy the default one next to it so we can include it
+        cp ${PERF_ROOT}/vm_scripts/centaur/centaur.conf ${CENTAUR_CONF_DIR}/centaur_default.conf
     else
         # Otherwise use the default one
         export CENTAUR_CONF_DIR=${PERF_ROOT}/vm_scripts/centaur

@@ -16,7 +16,8 @@ wait_for_cromwell() {
       CROMWELL_VERSION=$(curl -X GET "http://localhost:8000/engine/v1/version" -H "accept: application/json" | jq -r '.cromwell')
       if [ -z ${CROMWELL_VERSION} ]
       then
-        CROMWELL_VERSION="unknown"
+        echo "Cromwell was up but failed to return its version, so something went wrong, shutting down"
+        shutdown
       fi
       export CROMWELL_VERSION
   else

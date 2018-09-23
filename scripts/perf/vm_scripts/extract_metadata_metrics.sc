@@ -83,7 +83,7 @@ object MetadataJsonProtocol extends DefaultJsonProtocol {
 }
 
 @main
-def extractMetricsFromMetadata(): Unit = {
+def extractMetricsFromMetadata(filePath: String): Unit = {
   import MetadataJsonProtocol._
 
   def diffBetweenDateTimeInHumanReadableFormat(date1: OffsetDateTime, date2: OffsetDateTime): String = {
@@ -101,87 +101,30 @@ def extractMetricsFromMetadata(): Unit = {
 
   val dateTimeFormatterPattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:SS")
 
-  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.json")
+  val metadataFile = File(filePath)
+  // val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/hello_world_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_hello_world_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_with_scatter_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata.json")
   //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/large_scatter_with_multiple_calls_metadata.json")
 
-  val metadataFile1Content = metadataFile1.contentAsString
-  val workflowMetadata = metadataFile1Content.parseJson.convertTo[Metadata]
-
-  println(s"************ WORKFLOW RUNNING TIMES **************")
-  println(s"Submission time: ${workflowMetadata.submission}")
-  println(s"Start time: ${workflowMetadata.start}")
-  println(s"End time: ${workflowMetadata.end}")
+  val metadataFileContent = metadataFile.contentAsString
+  val workflowMetadata = metadataFileContent.parseJson.convertTo[Metadata]
 
   val workflowStartedAfterTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.submission, workflowMetadata.start)
   val workflowRunningTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.start, workflowMetadata.end)
 
-  println(s"\nWorkflow was started after $workflowStartedAfterTime")
-  println(s"Workflow ran for $workflowRunningTime")
-
-  //DONE START- REMOVE IT
-  println(s"*********** CACHE COPY TRIES BEFORE FINDING A SUCCESSFUL HIT (PER JOB) *************")
-  workflowMetadata.calls.foreach(calls => {
-    calls.foreach(jobsForCall => {
-      val jobName = jobsForCall._1
-      println(s"Job Name: $jobName")
-      jobsForCall._2.foreach(job => {
-        job.callCaching.map(callCacheObject => {
-          val hitFailureMap = callCacheObject.hitFailures.getOrElse(Map.empty)
-          println(s"\t-Shard: ${job.shardIndex} retires: ${hitFailureMap.size}")
-        })
-
-      })
-    })
-  })
-  //DONE END- REMOVE IT
-
-  //DONE START- BUT KEEP THIS
   var totalJobsByRootWf: Int = 0
   workflowMetadata.calls.foreach(callMap => {
     callMap.foreach(task => totalJobsByRootWf += task._2.size)
   })
-  //DONE END- BUT KEEP THIS
 
-  //DONE START- BUT KEEP THIS
-  println(s"********** SCATTER WIDTH AT EXPANSION TIME **********")
   val scatterWidthMetricsOption = workflowMetadata.calls.map(callMap => callMap.map(task => {
-    if(task._2.head.shardIndex != -1){
-      println(s"Job ${task._1} scattered ${task._2.size} wide")
-      ScatterWidthMetrics(task._1, task._2.size)
-    }
-    else {
-      println(s"Job ${task._1} didn't have a scatter")
-      ScatterWidthMetrics(task._1, -1)
-    }
+    if(task._2.head.shardIndex != -1) ScatterWidthMetrics(task._1, task._2.size)
+    else ScatterWidthMetrics(task._1, -1)
   }))
-  //DONE END- BUT KEEP THIS
 
-  //DONE START- REMOVE IT
-  println(s"************* TIME BETWEEN SUBMISSION & CC HIT BEING SUCCESSFUL *********")
-  val iWantTheseStates = List("CheckingCallCache", "FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
-
-  workflowMetadata.calls.foreach(c => c.foreach(s=> {
-    println(s"Job Name: ${s._1}")
-    s._2.foreach(call => {
-      val eventsRelatedToCC = call.executionEvents.filter(e => iWantTheseStates.exists(s => s.equalsIgnoreCase(e.description)))
-
-      if(eventsRelatedToCC.nonEmpty){
-        val sortedEventsByStartTime = eventsRelatedToCC.sortBy(a => a.startTime)
-
-        val timeInCallCachingState = diffBetweenDateTimeInHumanReadableFormat(sortedEventsByStartTime(0).startTime, sortedEventsByStartTime(sortedEventsByStartTime.size-1).endTime)
-
-        println(s"\t-Shard ${call.shardIndex} spent $timeInCallCachingState in Call Caching state")
-      }else
-        println(s"\t-Shard ${call.shardIndex} did not do Call Caching")
-    })}))
-  //DONE END- REMOVE IT
-
-
-  //NEW CODE- KEEP IT
   val callCachingEventStates = List("CheckingCallCache", "FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
   val jobPreparationEventStates = List("Pending", "RequestingExecutionToken", "WaitingForValueStore", "PreparingJob", "CheckingJobStore")
   val cacheCopyingEventStates = List("FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
@@ -191,7 +134,7 @@ def extractMetricsFromMetadata(): Unit = {
       //cache copy tries before finding a successful hit
       val hitFailuresMap = call.callCaching.map(callCachingObject => callCachingObject.hitFailures.getOrElse(Map.empty))
 
-      val cacheRetries = if(hitFailuresMap.isDefined) hitFailuresMap.size else -1
+      val cacheRetries = if(hitFailuresMap.isDefined) hitFailuresMap.get.size else -1
 
       //time job spent in call caching states
       val eventsRelatedToCC = call.executionEvents.filter(event => callCachingEventStates.exists(state => state.equalsIgnoreCase(event.description)))
@@ -200,7 +143,7 @@ def extractMetricsFromMetadata(): Unit = {
         val eventsSortedByStartTime = eventsRelatedToCC.sortBy(x => x.startTime)
         diffBetweenDateTimeInHumanReadableFormat(eventsSortedByStartTime.head.startTime, eventsSortedByStartTime.last.endTime)
       }
-      else ""
+      else "-1"
 
       //time job spent in job preparation state i.e time between job submission and running it
       //(this doesn't consider the time it spent in call caching states
@@ -212,7 +155,7 @@ def extractMetricsFromMetadata(): Unit = {
         val totalTimeInPreparation = durationOfEventsInPreparationState.reduce(_ plus _)
         DurationFormatUtils.formatDurationWords(totalTimeInPreparation.toMillis, true, true)
       }
-      else ""
+      else "-1"
 
       //time job spent in fetching and copying cache hit(s)
       val durationOfEventsInCacheCopyingState = call.executionEvents
@@ -223,7 +166,7 @@ def extractMetricsFromMetadata(): Unit = {
         val totalTimeCopyingCacheHits = durationOfEventsInCacheCopyingState.reduce(_ plus _)
         DurationFormatUtils.formatDurationWords(totalTimeCopyingCacheHits.toMillis, true, true)
       }
-      else ""
+      else "-1"
 
 
       JobMetrics(
@@ -240,56 +183,7 @@ def extractMetricsFromMetadata(): Unit = {
       jobMetrics = allJobMetrics
     )
   }))
-  //NEW CODE- KEEP IT
 
-
-
-  //DONE START- REMOVE IT
-  println(s"*********** TIME BETWEEN SUBMISSION OF JOB AND RUNNING IT ***********")
-  val preparingJobEventsList = List("Pending", "RequestingExecutionToken", "WaitingForValueStore", "PreparingJob", "CheckingJobStore")
-  workflowMetadata.calls.foreach(callArray => callArray.foreach(s => {
-    println(s"Job Name: ${s._1}")
-    s._2.foreach(call => {
-      val eventsForThisJob: Seq[Duration] = call.executionEvents
-        .filter(e => preparingJobEventsList.exists(s => s.equalsIgnoreCase(e.description)))
-        .map(e => Duration.between(e.startTime, e.endTime))
-
-      if(eventsForThisJob.nonEmpty){
-        val totalTimeSpentBeforeRunning = eventsForThisJob.reduce(_ plus _)
-        val textRep = DurationFormatUtils.formatDurationWords(totalTimeSpentBeforeRunning.toMillis, true, true)
-
-        println(s"\t-Shard ${call.shardIndex}: $textRep")
-      }
-      else {
-        println(s"\t-Shard ${call.shardIndex} somehow didn't spend time preparing for the job")
-      }
-    })}))
-  //DONE END- REMOVE IT
-
-  //DONE START- REMOVE IT
-  println(s"*********** TIME FETCHING AND COPYING CAHE HIT(s) FOR A JOB **********")
-  val copyingEvents = List("FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
-  workflowMetadata.calls.foreach(callArray => callArray.foreach(s => {
-    println(s"Job Name: ${s._1}")
-    s._2.foreach(call => {
-      val eventsForThisJob: Seq[Duration] = call.executionEvents
-        .filter(e => copyingEvents.exists(s => s.equalsIgnoreCase(e.description)))
-        .map(e => Duration.between(e.startTime, e.endTime))
-
-      if(eventsForThisJob.nonEmpty){
-        val totalTimeCopyingCacheHits = eventsForThisJob.reduce(_ plus _)
-        val textRep = DurationFormatUtils.formatDurationWords(totalTimeCopyingCacheHits.toMillis, true, true)
-
-        println(s"\t-Shard ${call.shardIndex}: $textRep")
-      }
-      else {
-        println(s"\t-Shard ${call.shardIndex} didn't spend time fetching & copying cache hits!")
-      }
-    })}))
-  //DONE END- REMOVE IT
-
-
-  //BELOW EVERYTHING IS TO BE KEPT
   val workflowMetricsObject = WorkflowMetrics(
     workflowId = workflowMetadata.id,
     workflowName = workflowMetadata.workflowName,
@@ -298,12 +192,8 @@ def extractMetricsFromMetadata(): Unit = {
     totalJobsPerRootWf = totalJobsByRootWf
   )
 
-
-
-  //------------------------------------------------------------------------------------------------------------------
-  //WRITE TO CSV
-
-  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/small_metadata_metrics.csv")
+  //write metrics to CSV
+  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata_metrics.csv")
   val csvWriter = CSVWriter.open(outputFile)
 
   val workflowMetricsFormat = convertCaseClassToMap(workflowMetricsObject).map(row => List(row._1, row._2.toString)).toSeq
@@ -320,9 +210,31 @@ def extractMetricsFromMetadata(): Unit = {
     csvWriter.writeAll(Seq(header) ++ values)
   })
 
-  csvWriter.writeRow("**********************")
+  taskLevelMetricsOption.foreach(taskLevelMetricsList => {
+    taskLevelMetricsList.foreach(taskLevelMetrics => {
+      csvWriter.writeRow("**********************")
 
+      csvWriter.writeRow(List("taskName", taskLevelMetrics.taskName))
 
+      var shardList: Seq[Int] = Seq.empty[Int]
+      var cacheCopyRetriesList: Seq[Int] = Seq.empty[Int]
+      var timeInCallCachingState: Seq[String] = Seq.empty[String]
+      var timeFromSubmissionToRunning: Seq[String] = Seq.empty[String]
+      var timeForFetchingCopyingCacheHit: Seq[String] = Seq.empty[String]
 
+      taskLevelMetrics.jobMetrics.foreach(jobMetrics => {
+        shardList = shardList :+ jobMetrics.shard
+        cacheCopyRetriesList = cacheCopyRetriesList :+ jobMetrics.cacheCopyRetries
+        timeInCallCachingState = timeInCallCachingState :+ jobMetrics.timeInCallCachingState
+        timeFromSubmissionToRunning = timeFromSubmissionToRunning :+ jobMetrics.timeFromSubmissionToRunning
+        timeForFetchingCopyingCacheHit = timeForFetchingCopyingCacheHit :+ jobMetrics.timeForFetchingCopyingCacheHit
+      })
 
+      csvWriter.writeRow(Seq("shard") ++ shardList)
+      csvWriter.writeRow(Seq("cacheCopyRetries") ++ cacheCopyRetriesList)
+      csvWriter.writeRow(Seq("timeInCallCachingState") ++ timeInCallCachingState)
+      csvWriter.writeRow(Seq("timeFromSubmissionToRunning") ++ timeFromSubmissionToRunning)
+      csvWriter.writeRow(Seq("timeForFetchingCopyingCacheHit") ++ timeForFetchingCopyingCacheHit)
+    })
+  })
 }

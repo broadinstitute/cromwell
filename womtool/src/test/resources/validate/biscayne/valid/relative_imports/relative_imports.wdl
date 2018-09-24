@@ -1,4 +1,4 @@
-version biscayne
+version 1.1-draft
 
 import "sub_wfs/foo.wdl"
 

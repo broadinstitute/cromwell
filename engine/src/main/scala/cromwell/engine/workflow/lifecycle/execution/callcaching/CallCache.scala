@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import cats.data.NonEmptyList
 import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendJobExecutionActor.{CallCached, JobFailedNonRetryableResponse, JobSucceededResponse}
@@ -76,13 +75,6 @@ class CallCache(database: CallCachingSqlDatabase) {
   def hasBaseAggregatedHashMatch(baseAggregatedHash: String, hints: List[CacheHitHint])(implicit ec: ExecutionContext): Future[Boolean] = {
     val ccpp = hints collectFirst { case h: CallCachePathPrefixes => h.prefixes }
     database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash, ccpp)
-  }
-
-  def hasKeyValuePairHashMatch(hashes: NonEmptyList[HashResult])(implicit ec: ExecutionContext): Future[Boolean] = {
-    val hashKeyValuePairs = hashes map {
-      case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
-    }
-    database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
   }
 
   def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixesHint: Option[CallCachePathPrefixes], hitNumber: Int)

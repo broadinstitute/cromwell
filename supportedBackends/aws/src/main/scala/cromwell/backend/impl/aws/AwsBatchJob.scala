@@ -46,13 +46,6 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.boolean.{And, Or}
-import eu.timepit.refined._
-import eu.timepit.refined.api._
-import eu.timepit.refined.string._
-import eu.timepit.refined.collection.MaxSize
-import eu.timepit.refined.string.MatchesRegex
 import org.slf4j.LoggerFactory
 import fs2.Scheduler
 import software.amazon.awssdk.core.regions.Region
@@ -157,7 +150,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
       val submit =
         async.delay(client.submitJob(
           SubmitJobRequest.builder()
-            .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName).value)
+            .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn).build
@@ -203,7 +196,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
     val definitionRequest = RegisterJobDefinitionRequest.builder
                               .containerProperties(jobDefinition.containerProperties)
-                              .jobDefinitionName(sanitize(name).value)
+                              .jobDefinitionName(sanitize(name))
                               // See https://stackoverflow.com/questions/24349517/scala-method-named-type
                               .`type`(JobDefinitionType.CONTAINER)
                               .build
@@ -223,19 +216,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
         // warning as a result of this potential
         Log.warn("Job definition already exists. Performing describe and retrieving latest revision.")
         async.
-          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name).value).build())).
+          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name)).build())).
           map(_.jobDefinitions().asScala).
           map(_.last.jobDefinitionArn())
     }
   }
-
-  /**
-    * This type contains only backslashes, dashes, numbers, and characters
-    */
-  type AwsStringRefinement =
-    (MatchesRegex[W.`"""[^\\\\]"""`.T] Or
-    MatchesRegex[W.`"[^A-Za-z0-9_-]"`.T]) And
-      MaxSize[W.`128`.T]
 
   /** Sanitizes a job and job definition name
     *
@@ -243,11 +228,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     *  @return Sanitized name
     *
     */
-  private def sanitize(name: String): String Refined AwsStringRefinement =
+  private def sanitize(name: String): String =
     // Up to 128 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.
     // We'll replace all invalid characters with an underscore
-    refineV[AwsStringRefinement](name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0,128)).
-      getOrElse(throw new RuntimeException("Programmer Error!  Please report to Cromwell team.  This exception _should be_ impossible to be thrown as the String replaceAll should remove all offenders"))
+    name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0,128)
+
 
   /** Gets the status of a job by its Id, converted to a RunStatus
    *

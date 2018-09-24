@@ -28,8 +28,8 @@ final case class Workflow private(testName: String,
     workflowRoot = data.workflowRoot,
     workflowType = data.workflowType,
     workflowTypeVersion = data.workflowTypeVersion,
-    inputsJson = data.inputs.map(_ ()),
-    options = CromwellClient.replaceJson(data.options.map(_ ()), "refresh_token", refreshToken),
+    inputsJson = data.inputs.map(_.unsafeRunSync()),
+    options = CromwellClient.replaceJson(data.options.map(_.unsafeRunSync()), "refresh_token", refreshToken),
     labels = Option(data.labels),
     zippedImports = data.zippedImports)
 

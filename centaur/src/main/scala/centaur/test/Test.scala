@@ -254,7 +254,7 @@ object Operations {
     def findJobIdInSubWorkflow(subWorkflowId: String): IO[Option[String]] = {
       for {
         metadata <- CentaurCromwellClient
-          .metadata(WorkflowId.fromString(subWorkflowId))
+          .metadataWithId(WorkflowId.fromString(subWorkflowId))
           .redeem(_ => None, Option.apply)
         jobId <- IO.pure(metadata.flatMap(_.asFlat.value.get("calls.inner_abort.aborted.jobId")))
       } yield jobId.map(_.asInstanceOf[JsString].value)

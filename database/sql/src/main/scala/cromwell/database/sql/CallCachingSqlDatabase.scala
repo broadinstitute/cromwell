@@ -1,6 +1,5 @@
 package cromwell.database.sql
 
-import cats.data.NonEmptyList
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
 
@@ -11,9 +10,6 @@ trait CallCachingSqlDatabase {
 
   def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String)
                                                      (implicit ec: ExecutionContext): Future[Boolean]
-
-  def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
-                                                   (implicit ec: ExecutionContext): Future[Boolean]
 
   def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], hitNumber: Int)
                                 (implicit ec: ExecutionContext): Future[Option[Int]]

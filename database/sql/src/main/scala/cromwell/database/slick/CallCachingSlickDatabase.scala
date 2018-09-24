@@ -1,6 +1,5 @@
 package cromwell.database.slick
 
-import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.tuple._
 import cats.syntax.apply._
@@ -68,13 +67,6 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], hitNumber: Int)
                                          (implicit ec: ExecutionContext): Future[Option[Int]] = {
     val action = dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
-
-    runTransaction(action)
-  }
-
-  override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
-                                                            (implicit ec: ExecutionContext): Future[Boolean] = {
-    val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
 
     runTransaction(action)
   }

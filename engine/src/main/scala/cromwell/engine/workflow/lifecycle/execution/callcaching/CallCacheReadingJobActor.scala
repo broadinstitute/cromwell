@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashingFailedMessage
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
-import cromwell.core.Dispatcher.EngineDispatcher
 
 /**
   * Receives hashes from the CallCacheHashingJobActor and makes requests to the database to determine whether or not there might be a hit
@@ -41,9 +41,6 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
   }
   
   when(WaitingForFileHashes) {
-    case Event(PartialFileHashingResult(hashes), _) =>
-      callCacheReadActor ! HasMatchingInputFilesHashLookup(hashes)
-      goto(WaitingForHashCheck)
     case Event(CompleteFileHashingResult(_, aggregatedFileHash), data: CCRJAWithData) =>
       callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.currentHitNumber)
       goto(WaitingForCacheHitOrMiss) using data.withFileHash(aggregatedFileHash)

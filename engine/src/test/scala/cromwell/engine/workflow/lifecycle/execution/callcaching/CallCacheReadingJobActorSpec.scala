@@ -1,10 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.testkit.{TestFSMRef, TestProbe}
-import cats.data.NonEmptyList
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{HashKey, HashResult, HashValue, HashingFailedMessage}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.{CCRJAWithData, WaitingForCacheHitOrMiss, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
@@ -56,23 +55,6 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with M
     callCacheReadProbe.send(actorUnderTest, NoMatchingEntries)
     parent.expectMsg(CacheMiss)
     parent.expectTerminated(actorUnderTest)
-  }
-
-  it should "try to match partial file hashes against DB" in {
-    val callCacheReadProbe = TestProbe()
-    val callCacheHashingActor = TestProbe()
-    
-    val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref), TestProbe().ref)
-
-    actorUnderTest.setState(WaitingForFileHashes)
-
-    val fileHashes = NonEmptyList.of(HashResult(HashKey("f1"), HashValue("h1")), HashResult(HashKey("f2"), HashValue("h2")))
-    callCacheHashingActor.send(actorUnderTest, PartialFileHashingResult(fileHashes))
-    callCacheReadProbe.expectMsg(HasMatchingInputFilesHashLookup(fileHashes))
-    
-    eventually {
-      actorUnderTest.stateName shouldBe WaitingForHashCheck
-    }
   }
 
   it should "ask for matching cache entries for both aggregated hashes when got both" in {

@@ -76,10 +76,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   when(HashingFiles) {
     case Event(FileHashResponse(result), data) =>
       addFileHash(result, data) match {
-        case (newData, Some(partialHashes: PartialFileHashingResult)) =>
-          sendToCallCacheReadingJobActor(partialHashes, data)
-          // If there is no CCReader, send a message to itself to trigger the next batch
-          if (newData.callCacheReadingJobActor.isEmpty) self ! NextBatchOfFileHashesRequest
+        case (newData, Some(_: PartialFileHashingResult)) =>
+          self ! NextBatchOfFileHashesRequest
           goto(WaitingForHashFileRequest) using newData
         case (newData, Some(finalResult: FinalFileHashingResult)) =>
           sendToCallCacheReadingJobActor(finalResult, newData)

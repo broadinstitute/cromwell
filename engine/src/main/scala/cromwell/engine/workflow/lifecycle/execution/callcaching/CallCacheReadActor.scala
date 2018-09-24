@@ -6,7 +6,6 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
-import cromwell.core.callcaching.HashResult
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.services.EnhancedThrottlerActor
@@ -29,11 +28,6 @@ class CallCacheReadActor(cache: CallCache,
     val response = request.command match {
       case HasMatchingInitialHashLookup(initialHash) =>
         cache.hasBaseAggregatedHashMatch(initialHash) map {
-          case true => HasMatchingEntries
-          case false => NoMatchingEntries
-        }
-      case HasMatchingInputFilesHashLookup(fileHashes) =>
-        cache.hasKeyValuePairHashMatch(fileHashes) map {
           case true => HasMatchingEntries
           case false => NoMatchingEntries
         }
@@ -84,7 +78,6 @@ object CallCacheReadActor {
   sealed trait CallCacheReadActorRequest
   final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
   final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
-  final case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
   final case class CallCacheEntryForCall(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) extends CallCacheReadActorRequest
 
   sealed trait CallCacheReadActorResponse

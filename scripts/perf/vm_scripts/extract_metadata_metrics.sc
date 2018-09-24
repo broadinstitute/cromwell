@@ -11,11 +11,8 @@ import spray.json._
 import spray.json.DefaultJsonProtocol
 import better.files.File
 import java.time.{Duration, OffsetDateTime}
-import java.time.format.DateTimeFormatter
-
 import org.apache.commons.lang3.time.DurationFormatUtils
 import com.github.tototoshi.csv._
-
 import scala.collection.immutable.ListMap
 
 case class CallCaching(hit: Option[Boolean],
@@ -51,7 +48,7 @@ case class WorkflowMetrics(workflowId: String,
                            avgTimeForFetchingCopyingCacheHit: String)
 
 case class ScatterWidthMetrics(taskName: String,
-                               width: Int)
+                               scatterWidth: Int)
 
 case class JobMetrics(shard: Int,
                       cacheCopyRetries: Int,
@@ -83,53 +80,23 @@ object MetadataJsonProtocol extends DefaultJsonProtocol {
   implicit val metadataFormat = jsonFormat7(Metadata)
 }
 
-
-
 @main
 def extractMetricsFromMetadata(filePath: String): Unit = {
   import MetadataJsonProtocol._
 
+  def formatDurationToWords(duration: Duration): String = DurationFormatUtils.formatDurationWords(duration.toMillis, true, true)
+
   def diffBetweenDateTimeInHumanReadableFormat(date1: OffsetDateTime, date2: OffsetDateTime): String = {
     val durationBetweenDates = Duration.between(date1, date2)
-    DurationFormatUtils.formatDurationWords(durationBetweenDates.toMillis, true, true)
+    formatDurationToWords(durationBetweenDates)
   }
 
-  def convertCaseClassToMap(cc: AnyRef) =
+  def convertCaseClassToMap(cc: AnyRef): ListMap[String, Any] =
     (ListMap[String, Any]() /: cc.getClass.getDeclaredFields) {
       (a, f) =>
         f.setAccessible(true)
         a + (f.getName -> f.get(cc))
     }
-
-
-  val dateTimeFormatterPattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:SS")
-
-  //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.json")
-  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/hello_world_metadata.json")
-  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_hello_world_metadata.json")
-  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_with_scatter_metadata.json")
-  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata.json")
-  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_before_metadata.json")
-  //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/large_scatter_with_multiple_calls_metadata.json")
-
-
-  val metadataFileContent = metadataFile1.contentAsString
-  val workflowMetadata = metadataFileContent.parseJson.convertTo[Metadata]
-
-  //  println(s"************ WORKFLOW RUNNING TIMES **************")
-  //  println(s"Submission time: ${workflowMetadata.submission}")
-  //  println(s"Start time: ${workflowMetadata.start}")
-  //  println(s"End time: ${workflowMetadata.end}")
-
-  val workflowStartedAfterTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.submission, workflowMetadata.start)
-  val workflowRunningTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.start, workflowMetadata.end)
-
-
-  val scatterWidthMetricsOption = workflowMetadata.calls.map(callMap => callMap.map(task => {
-    if(task._2.head.shardIndex != -1) ScatterWidthMetrics(task._1, task._2.size)
-    else ScatterWidthMetrics(task._1, -1)
-  }))
-
 
   val callCachingEventStates = List("CheckingCallCache", "FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
   val jobPreparationEventStates = List("Pending", "RequestingExecutionToken", "WaitingForValueStore", "PreparingJob", "CheckingJobStore")
@@ -141,7 +108,28 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
   var totalTimeInJobPreparation: Duration = Duration.ZERO
   var totalTimeInCacheCopying: Duration = Duration.ZERO
 
+  //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.json")
+  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/hello_world_metadata.json")
+  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_hello_world_metadata.json")
+  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_with_scatter_metadata.json")
+  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata.json")
+  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_before_metadata.json")
+  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/large_scatter_with_multiple_calls_metadata.json")
 
+
+  val metadataFileContent = metadataFile1.contentAsString
+  val workflowMetadata = metadataFileContent.parseJson.convertTo[Metadata]
+
+  val workflowStartedAfterTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.submission, workflowMetadata.start)
+  val workflowRunningTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.start, workflowMetadata.end)
+
+  //scatter width at expansion time
+  val scatterWidthMetricsOption = workflowMetadata.calls.map(callMap => callMap.map(task => {
+    if(task._2.head.shardIndex != -1) ScatterWidthMetrics(task._1, task._2.size)
+    else ScatterWidthMetrics(task._1, -1)
+  }))
+
+  //metrics per task, which contains job level metrics as well
   val taskLevelMetricsOption: Option[Iterable[TaskMetrics]] = workflowMetadata.calls.map(taskMap => taskMap.map(task => {
     totalJobsByRootWf += task._2.size
 
@@ -167,7 +155,7 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
         totalTimeInCallCaching = totalTimeInCallCaching.plus(durationOfCC)
 
-        DurationFormatUtils.formatDurationWords(durationOfCC.toMillis, true, true)
+        formatDurationToWords(durationOfCC)
       }
       else "-1"
 
@@ -183,7 +171,7 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
         totalTimeInJobPreparation = totalTimeInJobPreparation.plus(totalTimeInPreparation)
 
-        DurationFormatUtils.formatDurationWords(totalTimeInPreparation.toMillis, true, true)
+        formatDurationToWords(totalTimeInPreparation)
       }
       else "-1"
 
@@ -197,7 +185,7 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
         totalTimeInCacheCopying = totalTimeInCacheCopying.plus(totalTimeCopyingCacheHits)
 
-        DurationFormatUtils.formatDurationWords(totalTimeCopyingCacheHits.toMillis, true, true)
+        formatDurationToWords(totalTimeCopyingCacheHits)
       }
       else "-1"
 
@@ -217,18 +205,19 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
     )
   }))
 
-  //  println(s"Total job ct $totalJobsByRootWf")
-  //  println(s"Total cache retries $totalCacheTries")
-  //  println(s"Total time in CC state $totalTimeInCallCaching avg: ${totalTimeInCallCaching.dividedBy(totalJobsByRootWf)}")
-  //  println(s"Total time in job preparation state $totalTimeInJobPreparation avg: ${totalTimeInJobPreparation.dividedBy(totalJobsByRootWf)}")
-  //  println(s"Total time in copying cache $totalTimeInCacheCopying avg: ${totalTimeInCacheCopying.dividedBy(totalJobsByRootWf)}")
+  // println(s"Total job ct $totalJobsByRootWf")
+  // println(s"Total cache retries $totalCacheTries")
+  // println(s"Total time in CC state $totalTimeInCallCaching avg: ${totalTimeInCallCaching.dividedBy(totalJobsByRootWf)}")
+  // println(s"Total time in job preparation state $totalTimeInJobPreparation avg: ${totalTimeInJobPreparation.dividedBy(totalJobsByRootWf)}")
+  // println(s"Total time in copying cache $totalTimeInCacheCopying avg: ${totalTimeInCacheCopying.dividedBy(totalJobsByRootWf)}")
 
 
+  //workflow level metrics
   val workflowMetricsObject = if(totalJobsByRootWf > 0) {
     val avgCacheRetriesTxt = totalCacheTries/totalJobsByRootWf
-    val avgTimeInCallCachingTxt = DurationFormatUtils.formatDurationWords(totalTimeInCallCaching.dividedBy(totalJobsByRootWf).toMillis, true, true)
-    val avgTimeInJobPreparationTxt = DurationFormatUtils.formatDurationWords(totalTimeInJobPreparation.dividedBy(totalJobsByRootWf).toMillis, true, true)
-    val avgTimeInCacheCopyingTxt = DurationFormatUtils.formatDurationWords(totalTimeInCacheCopying.dividedBy(totalJobsByRootWf).toMillis, true, true)
+    val avgTimeInCallCachingTxt = formatDurationToWords(totalTimeInCallCaching.dividedBy(totalJobsByRootWf))
+    val avgTimeInJobPreparationTxt = formatDurationToWords(totalTimeInJobPreparation.dividedBy(totalJobsByRootWf))
+    val avgTimeInCacheCopyingTxt = formatDurationToWords(totalTimeInCacheCopying.dividedBy(totalJobsByRootWf))
 
     WorkflowMetrics(
       workflowId = workflowMetadata.id,
@@ -255,7 +244,8 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
   )
 
   //write metrics to CSV
-  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata_metrics.csv")
+  //  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata_metrics.csv")
+  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.csv")
   val csvWriter = CSVWriter.open(outputFile)
 
   val workflowMetricsFormat = convertCaseClassToMap(workflowMetricsObject).map(row => List(row._1, row._2.toString)).toSeq
@@ -264,7 +254,6 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
   csvWriter.writeRow("**********************")
 
   scatterWidthMetricsOption.foreach( scatterWidthMetrics => {
-    csvWriter.writeRow(List("Scatter Width at expansion time"))
     val scatterMapOfKeyValues = scatterWidthMetrics.map(convertCaseClassToMap(_))
     val values = scatterMapOfKeyValues.map(_.values.toSeq)
     val header = scatterMapOfKeyValues.head.keys.toSeq

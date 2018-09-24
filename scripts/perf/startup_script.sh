@@ -70,7 +70,7 @@ then
 fi
 
 # Clone the CloudSQL DB
-gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base cromwell-db-${BUILD_ID}
+gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base-09-24-18 cromwell-db-${BUILD_ID}
 gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-db-${BUILD_ID} --password=${CLOUD_SQL_DB_PASSWORD}
 
 # Start cromwell and cloud sql proxy

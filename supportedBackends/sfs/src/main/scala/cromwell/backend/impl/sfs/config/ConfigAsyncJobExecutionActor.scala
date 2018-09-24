@@ -256,15 +256,23 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
     handle.previousStatus match {
-      case None => SharedFileSystemRunStatus("Running")
-      case Some(s) if s.status == "Done" => s
+      case None =>
+        // Is not set yet the status will be set default to running
+        SharedFileSystemRunStatus("Running")
+      case Some(s) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
+        // If exitcode file does exists status will be set to Done always
+        SharedFileSystemRunStatus("Done")
       case Some(s) if s.status == "Running" =>
+        // Exitcode file does not exist at this point, checking is jobs is still alive
         if (isAlive(handle.pendingJob).getOrElse(true)) s
         else SharedFileSystemRunStatus("WaitingForReturnCode")
       case Some(s) if s.status == "WaitingForReturnCode" =>
-        (jobPaths.returnCode.exists, exitCodeTimeout) match {
-          case (true, _) => SharedFileSystemRunStatus("Done")
-          case (_, Some(timeout)) =>
+        // Can only enter this state when the exit code does not exist and the job is not alive anymore
+        // `isAlive` is not called anymore from this point
+
+        // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
+        exitCodeTimeout match {
+          case Some(timeout) =>
             val currentDate = Calendar.getInstance()
             currentDate.add(Calendar.SECOND, -timeout)
             if (s.date.after(currentDate)) s
@@ -278,6 +286,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
             }
           case _ => s
         }
+      case Some(s) if s.status == "Done" => s // Nothing to be done here
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }
   }

@@ -66,7 +66,7 @@ then
     fi
     
     export CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
-    sed -i s/\$BRANCH/develop/ ${CENTAUR_TEST_FILE}
+    sed -i "s/\$BRANCH/${CROMWELL_BRANCH}/" ${CENTAUR_TEST_FILE}
 fi
 
 # Clone the CloudSQL DB

@@ -18,9 +18,6 @@ import com.github.tototoshi.csv._
 
 import scala.collection.immutable.ListMap
 
-//case class CallCachingHitFailuresMsg(causedBy: Option[Seq[CallCachingHitFailuresMsg]],
-//                                     message: String)
-
 case class CallCaching(hit: Option[Boolean],
                        result: Option[String],
                        hitFailures: Option[Seq[Map[String, Seq[JsObject]]]])
@@ -47,7 +44,11 @@ case class WorkflowMetrics(workflowId: String,
                            workflowName: String,
                            workflowStartedAfter: String,
                            workflowRunningTime: String,
-                           totalJobsPerRootWf: Int)
+                           totalJobsPerRootWf: Int,
+                           avgCacheCopyRetries: Double,
+                           avgTimeInCallCachingState: String,
+                           avgTimeFromSubmissionToRunning: String,
+                           avgTimeForFetchingCopyingCacheHit: String)
 
 case class ScatterWidthMetrics(taskName: String,
                                width: Int)
@@ -82,6 +83,8 @@ object MetadataJsonProtocol extends DefaultJsonProtocol {
   implicit val metadataFormat = jsonFormat7(Metadata)
 }
 
+
+
 @main
 def extractMetricsFromMetadata(filePath: String): Unit = {
   import MetadataJsonProtocol._
@@ -101,49 +104,73 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
   val dateTimeFormatterPattern = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:SS")
 
-  val metadataFile = File(filePath)
-  // val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.json")
+  //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/hello_world_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_hello_world_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_with_scatter_metadata.json")
-  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata.json")
+  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata.json")
+  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_before_metadata.json")
   //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/large_scatter_with_multiple_calls_metadata.json")
 
-  val metadataFileContent = metadataFile.contentAsString
+
+  val metadataFileContent = metadataFile1.contentAsString
   val workflowMetadata = metadataFileContent.parseJson.convertTo[Metadata]
+
+  //  println(s"************ WORKFLOW RUNNING TIMES **************")
+  //  println(s"Submission time: ${workflowMetadata.submission}")
+  //  println(s"Start time: ${workflowMetadata.start}")
+  //  println(s"End time: ${workflowMetadata.end}")
 
   val workflowStartedAfterTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.submission, workflowMetadata.start)
   val workflowRunningTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.start, workflowMetadata.end)
 
-  var totalJobsByRootWf: Int = 0
-  workflowMetadata.calls.foreach(callMap => {
-    callMap.foreach(task => totalJobsByRootWf += task._2.size)
-  })
 
   val scatterWidthMetricsOption = workflowMetadata.calls.map(callMap => callMap.map(task => {
     if(task._2.head.shardIndex != -1) ScatterWidthMetrics(task._1, task._2.size)
     else ScatterWidthMetrics(task._1, -1)
   }))
 
+
   val callCachingEventStates = List("CheckingCallCache", "FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
   val jobPreparationEventStates = List("Pending", "RequestingExecutionToken", "WaitingForValueStore", "PreparingJob", "CheckingJobStore")
   val cacheCopyingEventStates = List("FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
 
+  var totalJobsByRootWf: Int = 0
+  var totalCacheTries: Double = 0
+  var totalTimeInCallCaching: Duration = Duration.ZERO
+  var totalTimeInJobPreparation: Duration = Duration.ZERO
+  var totalTimeInCacheCopying: Duration = Duration.ZERO
+
+
   val taskLevelMetricsOption: Option[Iterable[TaskMetrics]] = workflowMetadata.calls.map(taskMap => taskMap.map(task => {
+    totalJobsByRootWf += task._2.size
+
     val allJobMetrics: Seq[JobMetrics] = task._2.map(call => {
       //cache copy tries before finding a successful hit
       val hitFailuresMap = call.callCaching.map(callCachingObject => callCachingObject.hitFailures.getOrElse(Map.empty))
 
-      val cacheRetries = if(hitFailuresMap.isDefined) hitFailuresMap.get.size else -1
+      val cacheRetries = if(hitFailuresMap.isDefined) {
+        val hitFailuresMapSize = hitFailuresMap.get.size
+        totalCacheTries += hitFailuresMapSize
+        hitFailuresMapSize
+      } else {
+        totalCacheTries += 0
+        -1
+      }
 
       //time job spent in call caching states
       val eventsRelatedToCC = call.executionEvents.filter(event => callCachingEventStates.exists(state => state.equalsIgnoreCase(event.description)))
 
       val timeInCallCachingState = if (eventsRelatedToCC.nonEmpty) {
         val eventsSortedByStartTime = eventsRelatedToCC.sortBy(x => x.startTime)
-        diffBetweenDateTimeInHumanReadableFormat(eventsSortedByStartTime.head.startTime, eventsSortedByStartTime.last.endTime)
+        val durationOfCC = Duration.between(eventsSortedByStartTime.head.startTime, eventsSortedByStartTime.last.endTime)
+
+        totalTimeInCallCaching = totalTimeInCallCaching.plus(durationOfCC)
+
+        DurationFormatUtils.formatDurationWords(durationOfCC.toMillis, true, true)
       }
       else "-1"
+
 
       //time job spent in job preparation state i.e time between job submission and running it
       //(this doesn't consider the time it spent in call caching states
@@ -153,6 +180,9 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
       val timeInPreparationState = if(durationOfEventsInPreparationState.nonEmpty) {
         val totalTimeInPreparation = durationOfEventsInPreparationState.reduce(_ plus _)
+
+        totalTimeInJobPreparation = totalTimeInJobPreparation.plus(totalTimeInPreparation)
+
         DurationFormatUtils.formatDurationWords(totalTimeInPreparation.toMillis, true, true)
       }
       else "-1"
@@ -164,6 +194,9 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
       val timeInCopyingCache = if(durationOfEventsInCacheCopyingState.nonEmpty){
         val totalTimeCopyingCacheHits = durationOfEventsInCacheCopyingState.reduce(_ plus _)
+
+        totalTimeInCacheCopying = totalTimeInCacheCopying.plus(totalTimeCopyingCacheHits)
+
         DurationFormatUtils.formatDurationWords(totalTimeCopyingCacheHits.toMillis, true, true)
       }
       else "-1"
@@ -184,12 +217,41 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
     )
   }))
 
-  val workflowMetricsObject = WorkflowMetrics(
+  //  println(s"Total job ct $totalJobsByRootWf")
+  //  println(s"Total cache retries $totalCacheTries")
+  //  println(s"Total time in CC state $totalTimeInCallCaching avg: ${totalTimeInCallCaching.dividedBy(totalJobsByRootWf)}")
+  //  println(s"Total time in job preparation state $totalTimeInJobPreparation avg: ${totalTimeInJobPreparation.dividedBy(totalJobsByRootWf)}")
+  //  println(s"Total time in copying cache $totalTimeInCacheCopying avg: ${totalTimeInCacheCopying.dividedBy(totalJobsByRootWf)}")
+
+
+  val workflowMetricsObject = if(totalJobsByRootWf > 0) {
+    val avgCacheRetriesTxt = totalCacheTries/totalJobsByRootWf
+    val avgTimeInCallCachingTxt = DurationFormatUtils.formatDurationWords(totalTimeInCallCaching.dividedBy(totalJobsByRootWf).toMillis, true, true)
+    val avgTimeInJobPreparationTxt = DurationFormatUtils.formatDurationWords(totalTimeInJobPreparation.dividedBy(totalJobsByRootWf).toMillis, true, true)
+    val avgTimeInCacheCopyingTxt = DurationFormatUtils.formatDurationWords(totalTimeInCacheCopying.dividedBy(totalJobsByRootWf).toMillis, true, true)
+
+    WorkflowMetrics(
+      workflowId = workflowMetadata.id,
+      workflowName = workflowMetadata.workflowName,
+      workflowStartedAfter = workflowStartedAfterTime,
+      workflowRunningTime = workflowRunningTime,
+      totalJobsPerRootWf = totalJobsByRootWf,
+      avgCacheCopyRetries = avgCacheRetriesTxt,
+      avgTimeInCallCachingState = avgTimeInCallCachingTxt,
+      avgTimeFromSubmissionToRunning = avgTimeInJobPreparationTxt,
+      avgTimeForFetchingCopyingCacheHit = avgTimeInCacheCopyingTxt
+    )
+  }
+  else WorkflowMetrics(
     workflowId = workflowMetadata.id,
     workflowName = workflowMetadata.workflowName,
     workflowStartedAfter = workflowStartedAfterTime,
     workflowRunningTime = workflowRunningTime,
-    totalJobsPerRootWf = totalJobsByRootWf
+    totalJobsPerRootWf = totalJobsByRootWf,
+    avgCacheCopyRetries = -1,
+    avgTimeInCallCachingState = "-1",
+    avgTimeFromSubmissionToRunning = "-1",
+    avgTimeForFetchingCopyingCacheHit = "-1"
   )
 
   //write metrics to CSV

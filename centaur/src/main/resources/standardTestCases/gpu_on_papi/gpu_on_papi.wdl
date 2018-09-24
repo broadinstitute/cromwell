@@ -14,7 +14,7 @@ task task_with_gpu {
   runtime {
     gpuCount: 1
     gpuType: gpuTypeInput
-    docker: "google/cloud-sdk:alpine"
+    docker: "google/cloud-sdk:slim"
     zones: ["us-central1-c"]
   }
 }

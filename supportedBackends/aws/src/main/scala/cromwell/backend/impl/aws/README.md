@@ -8,7 +8,7 @@ The architecture of the code base follows very closely to the Google version.
 Probably a little too closely, and lots of code was lifted from the Google
 backend originally, then modified to work with AWS.
 
-Fundamentally, Google Pipelines (a.k.a. JES) works pretty differently from
+Fundamentally, Google Pipelines API (a.k.a. PAPI) works pretty differently from
 AWS Batch. In Pipelines, all the infrastructure is completely managed by Google,
 while AWS Batch exposes that infrastructure to a large degree so that customers
 can fine tune it as necessary.
@@ -197,7 +197,7 @@ AWS Batch Job Instantiation
 
 When a Cromwell task begins, the Cromwell backend will call the SubmitJob
 API of AWS Batch. From there, the backend will call the AWS Batch DescribeJobs
-API to provide status the the Cromwell engine as requested.
+API to provide status to the Cromwell engine as requested.
 
 Once the job is Submitted in AWS Batch, one of the EC2 instances assigned
 to the compute environment (a.k.a. ECS Cluster) with a running agent will
@@ -309,7 +309,7 @@ dependencies. These had a significant effect on the ability of Cromwell to
 compile, but ultimately the overlapping dependencies came down to:
 
 * com.fasterxml.jackson.core (jackson-annotations):
-    Jackson version was bumped to accomodate
+    Jackson version was bumped to accomodate throughput
 * org.slf4j (jcl-over-slf4j):
     Ignored by aws sdk in favor of the version bundled in Cromwell
 * nettyHandler:
@@ -429,7 +429,7 @@ discussed in #2 below.
    Task container permissions are currently supported through ECS and AWS
    Batch, but there is no configuration currently wired for the Cromwell
    AWS Backend to pass these settings to AWS. As such, the task container
-   permissions must be managed by attaching a role to the EC2 Intance
+   permissions must be managed by attaching a role to the EC2 Instance
    with permissions necessary for both the ECS Agent and the task container.
 
 NOTE: ECS Agent permissions currently must use the permissions as outlined

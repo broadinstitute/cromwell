@@ -83,7 +83,8 @@ object MetadataBuilderActor {
      * Note that groupBy will preserve the ordering of the events in the Seq, which means that as long as the DB sorts them by timestamp, we can always assume the last one is the newest one.
      * This is guaranteed by the groupBy invariant and the fact that filter preservers the ordering. (See scala doc for groupBy and filter)
      */
-    val callsGroupedByFQN = callLevel groupBy { _.key.jobKey.get.callFqn }
+    val callsGroupedByFQN: Map[String, Seq[MetadataEvent]] =
+      callLevel groupBy { _.key.jobKey.get.callFqn }
     /*
      * Map(
      *    "fqn" -> Map( //Shard index
@@ -94,7 +95,8 @@ object MetadataBuilderActor {
      *    ...
      * )
      */
-    val callsGroupedByFQNAndIndex = callsGroupedByFQN safeMapValues { _ groupBy { _.key.jobKey.get.index } }
+    val callsGroupedByFQNAndIndex: Map[String, Map[Option[Int], Seq[MetadataEvent]]] =
+      callsGroupedByFQN safeMapValues { _ groupBy { _.key.jobKey.get.index } }
     /*
      * Map(
      *    "fqn" -> Map(
@@ -108,7 +110,8 @@ object MetadataBuilderActor {
      *    ...
      * )
      */
-    val callsGroupedByFQNAndIndexAndAttempt = callsGroupedByFQNAndIndex safeMapValues { _ safeMapValues { _ groupBy { _.key.jobKey.get.attempt } } }
+    val callsGroupedByFQNAndIndexAndAttempt: Map[String, Map[Option[Int], Map[Int, Seq[MetadataEvent]]]] =
+      callsGroupedByFQNAndIndex safeMapValues { _ safeMapValues { _ groupBy { _.key.jobKey.get.attempt } } }
 
     val eventsToAttemptFunction = Function.tupled(eventsToAttemptMetadata(expandedValues) _)
     val attemptToIndexFunction = (attemptMetadataToIndexMetadata _).tupled

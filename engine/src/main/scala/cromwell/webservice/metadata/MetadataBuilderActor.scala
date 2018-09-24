@@ -15,6 +15,8 @@ import cromwell.webservice.metadata.MetadataBuilderActor._
 import org.slf4j.LoggerFactory
 import spray.json._
 
+import scala.collection.immutable
+
 
 object MetadataBuilderActor {
   sealed abstract class MetadataBuilderActorResponse
@@ -71,8 +73,11 @@ object MetadataBuilderActor {
 
   private def buildMetadataJson(events: Seq[MetadataEvent], includeCallsIfEmpty: Boolean, expandedValues: Map[String, JsValue]): JsObject = {
     // Partition events into workflow level and call level events
+    val start = System.currentTimeMillis()
     val (workflowLevel, callLevel) = events partition { _.key.jobKey.isEmpty }
+    val one = System.currentTimeMillis()
     val workflowLevelJson = MetadataComponent(workflowLevel, Map.empty).toJson.asJsObject
+    val two = System.currentTimeMillis()
 
     /*
      * Map(
@@ -85,6 +90,7 @@ object MetadataBuilderActor {
      */
     val callsGroupedByFQN: Map[String, Seq[MetadataEvent]] =
       callLevel groupBy { _.key.jobKey.get.callFqn }
+    val three = System.currentTimeMillis()
     /*
      * Map(
      *    "fqn" -> Map( //Shard index
@@ -97,6 +103,7 @@ object MetadataBuilderActor {
      */
     val callsGroupedByFQNAndIndex: Map[String, Map[Option[Int], Seq[MetadataEvent]]] =
       callsGroupedByFQN safeMapValues { _ groupBy { _.key.jobKey.get.index } }
+    val four = System.currentTimeMillis()
     /*
      * Map(
      *    "fqn" -> Map(
@@ -112,17 +119,31 @@ object MetadataBuilderActor {
      */
     val callsGroupedByFQNAndIndexAndAttempt: Map[String, Map[Option[Int], Map[Int, Seq[MetadataEvent]]]] =
       callsGroupedByFQNAndIndex safeMapValues { _ safeMapValues { _ groupBy { _.key.jobKey.get.attempt } } }
+    val five = System.currentTimeMillis()
 
     val eventsToAttemptFunction = Function.tupled(eventsToAttemptMetadata(expandedValues) _)
     val attemptToIndexFunction = (attemptMetadataToIndexMetadata _).tupled
 
-    val callsMap = callsGroupedByFQNAndIndexAndAttempt safeMapValues { _ safeMapValues { _ map eventsToAttemptFunction } map attemptToIndexFunction } safeMapValues { md =>
+    val callsMap: Map[String, JsArray] = callsGroupedByFQNAndIndexAndAttempt safeMapValues { _ safeMapValues { _ map eventsToAttemptFunction } map attemptToIndexFunction } safeMapValues { md =>
       JsArray(md.toVector.sortBy(_.index) flatMap { _.metadata })
     }
+    val six = System.currentTimeMillis()
 
     val wrappedCalls = JsObject(Map(WorkflowMetadataKeys.Calls -> JsObject(callsMap)))
-    val callData = if (callsMap.isEmpty && !includeCallsIfEmpty) Nil else wrappedCalls.fields
+    val callData: immutable.Iterable[(String, JsValue)] = if (callsMap.isEmpty && !includeCallsIfEmpty) Nil else wrappedCalls.fields
     JsObject(workflowLevelJson.fields ++ callData)
+    val seven = System.currentTimeMillis()
+
+    println(
+      s"""
+        |one: ${(one - start)/1000}
+        |two: ${(two - one)/1000}
+        |three: ${(three - two)/1000}
+        |four: ${(four - three)/1000}
+        |five: ${(five - four)/1000}
+        |six: ${(six - five)/1000}
+        |seven: ${(seven - six)/1000}
+      """.stripMargin)
   }
 
   private def parseWorkflowEvents(includeCallsIfEmpty: Boolean, expandedValues: Map[String, JsValue])(events: Seq[MetadataEvent]): JsObject = {

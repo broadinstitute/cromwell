@@ -60,5 +60,5 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
     } yield validated
   }
 
-  override def looksParsable(content: String): Boolean = LanguageFactoryUtil.simpleLooksParseable(List("version 1.1-draft"), List("#"))(content)
+  override def looksParsable(content: String): Boolean = LanguageFactoryUtil.simpleLooksParseable(List("version development"), List("#"))(content)
 }

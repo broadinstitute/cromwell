@@ -1,4 +1,4 @@
-version 1.1-draft
+version development
 
 import "sub_wfs/foo.wdl"
 

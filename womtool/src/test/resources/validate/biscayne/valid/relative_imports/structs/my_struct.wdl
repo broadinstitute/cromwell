@@ -1,4 +1,4 @@
-version 1.1-draft
+version development
 
 struct MyStruct {
   Int a

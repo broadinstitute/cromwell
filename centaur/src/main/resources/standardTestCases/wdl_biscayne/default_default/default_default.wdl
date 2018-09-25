@@ -1,4 +1,4 @@
-version 1.1-draft
+version development
 
 workflow default_default {
   call default_default_task

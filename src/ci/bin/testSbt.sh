@@ -10,7 +10,8 @@ cromwell::build::setup_common_environment
 
 sbt \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-    clean coverage nointegration:test
+    -Dmysql.host=mysql-db -Dmysql.port=3306 \
+    clean coverage nointegration:test testOnly MetadataDatabaseAccessSpec
 
 cromwell::build::generate_code_coverage
 

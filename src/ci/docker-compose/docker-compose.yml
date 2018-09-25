@@ -8,6 +8,7 @@ services:
       - BUILD_NUMBER
       - BUILD_URL
       - CI
+      - CROMWELL_BUILD_CENTAUR_TYPE
       - GIT_BRANCH
       - JENKINS
       - JENKINS_BUILD_TYPE

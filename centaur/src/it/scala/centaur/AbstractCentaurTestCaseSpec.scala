@@ -53,10 +53,10 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
-  def executeUpgradeTest(testCase: CentaurTestCase): Unit =
-    executeStandardTest(upgradeTestWdl(testCase))
+  def executeWdlUpgradeTest(testCase: CentaurTestCase): Unit =
+    executeStandardTest(wdlUpgradeTestWdl(testCase))
 
-  private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
+  private def wdlUpgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
     import better.files.File
     import womtool.WomtoolMain
 

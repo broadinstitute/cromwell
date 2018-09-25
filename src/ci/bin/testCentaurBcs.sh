@@ -59,12 +59,11 @@ exclude_glob_tests=( \
 )
 
 centaur/test_cromwell.sh \
-    -j "${CROMWELL_JAR}" \
-    -c "${CROMWELL_CI_RESOURCES_DIRECTORY}/bcs_application.conf" \
-    -n "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf" \
+    -n "${CROMWELL_BUILD_CENTAUR_CONFIG}" \
+    -l "${CROMWELL_BUILD_LOG_DIRECTORY}" \
+    -g \
     -p 100 \
     -t 1m \
-    -g \
     -e localdockertest \
     "${exclude_known_bugs[@]}" \
     "${exclude_docker_tests[@]}" \

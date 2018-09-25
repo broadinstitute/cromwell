@@ -71,8 +71,8 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
                                 (implicit executionContext: ExecutionContext): IO[Unit] = {
     for {
       callAttemptFailures <- CallAttemptFailure.buildFailures(centaurTestException.metadataJsonOption)
-      jobKeyValueEntries <- params.cromwellDatabase.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
-      metadataEntries <- params.cromwellDatabase.metadataEntriesIo(centaurTestException.workflowIdOption)
+      jobKeyValueEntries <- params.database.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
+      metadataEntries <- params.database.metadataEntriesIo(centaurTestException.workflowIdOption)
       _ <- sendBigQueryFailure(
         testEnvironment,
         ciEnvironment,
@@ -131,13 +131,13 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "ci_env_branch" -> ciEnvironment.branch,
       "ci_env_event" -> ciEnvironment.event,
       "ci_env_is_ci" -> ciEnvironment.isCi,
-      "ci_env_is_cron" -> ciEnvironment.isCron,
       "ci_env_number" -> ciEnvironment.number,
       "ci_env_os" -> ciEnvironment.os,
       "ci_env_provider" -> ciEnvironment.provider,
       "ci_env_tag" -> ciEnvironment.tag,
       "ci_env_type" -> ciEnvironment.`type`,
       "ci_env_url" -> ciEnvironment.url,
+      "ci_env_centaur_type" -> ciEnvironment.centaurType,
       "test_attempt" -> Option(testEnvironment.attempt + 1),
       "test_message" -> Option(centaurTestException.message),
       "test_metadata_json" -> centaurTestException.metadataJsonOption,

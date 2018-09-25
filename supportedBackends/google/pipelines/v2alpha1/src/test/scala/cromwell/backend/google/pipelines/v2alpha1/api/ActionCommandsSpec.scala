@@ -18,11 +18,11 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
       s"flag is $flag"
     }
     
-    recovered shouldBe "flag is  2> gsutil_output.txt; RC_GSUTIL=$?; if [[ \"$RC_GSUTIL\" -eq 1 ]]; then\n grep \"Bucket is requester pays bucket but no user project provided.\" gsutil_output.txt && echo \"Retrying with user project\"; flag is -u my-project; fi "
+    recovered shouldBe "flag is  2> gsutil_output.txt; RC_GSUTIL=$?; if [ \"$RC_GSUTIL\" = \"1\" ]; then\n grep \"Bucket is requester pays bucket but no user project provided.\" gsutil_output.txt && echo \"Retrying with user project\"; flag is -u my-project; fi "
   }
   
   it should "use LocalizationConfiguration to set the number of localization retries" in {
     implicit val localizationConfiguration = LocalizationConfiguration(refineMV(31380))
-    retry("I'm very flaky") shouldBe "retry() { for i in `seq 31380`; do I'm very flaky; RC=$?; if [[ \"$RC\" -eq 0 ]]; then break; fi; sleep 5; done; return \"$RC\"; }; retry"
+    retry("I'm very flaky") shouldBe "retry() { for i in `seq 31380`; do I'm very flaky; RC=$?; if [ \"$RC\" = \"0\" ]; then break; fi; sleep 5; done; return \"$RC\"; }; retry"
   }
 }

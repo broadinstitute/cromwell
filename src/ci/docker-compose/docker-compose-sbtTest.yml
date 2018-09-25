@@ -1,0 +1,25 @@
+version: '2'
+services:
+  cromwell-test:
+    build:
+      context: cromwell-test
+    command: src/ci/bin/testSbt.sh
+    working_dir: ${PWD}
+    environment:
+      - BUILD_NUMBER
+      - BUILD_URL
+      - CI
+      - GIT_BRANCH
+      - JENKINS=true
+      - JENKINS_BUILD_TYPE
+      - CROMWELL_BUILD_SUPPORTS_CRON=true
+    volumes:
+      - ${PWD}:${PWD}
+    links:
+      - mysql-db
+  mysql-db:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_DATABASE=cromwell_test

@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "DockerImageID"
-  
+
   it should "parse valid docker images" in {
     val valid = Table(
       ("sourceString",                            "host",             "repo",                 "image",     "reference"),
@@ -14,7 +14,7 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       ("broad/cromwell",                          None,               Some("broad"),          "cromwell",   "latest"),
       ("index.docker.io/ubuntu",         Option("index.docker.io"),   None,                   "ubuntu",     "latest"),
       ("broad/cromwell/submarine",                None,               Some("broad/cromwell"), "submarine",  "latest"),
-      ("gcr.io/google/alpine",              Option("gcr.io"),         Some("google"),         "alpine",     "latest"),
+      ("gcr.io/google/slim",              Option("gcr.io"),         Some("google"),         "slim",     "latest"),
       // With tags
       ("ubuntu:latest",                           None,               None,                   "ubuntu",     "latest"),
       ("ubuntu:1235-SNAP",                        None,               None,                   "ubuntu",     "1235-SNAP"),
@@ -23,7 +23,7 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       ("localhost:5000/capture/transwf:170904", Some("localhost:5000"), Some("capture"),      "transwf",    "170904"),
       ("quay.io/biocontainers/platypus-variant:0.8.1.1--htslib1.5_0", Option("quay.io"), Some("biocontainers"), "platypus-variant", "0.8.1.1--htslib1.5_0")
     )
-    
+
     forAll(valid) { (dockerString, host, repo, image, reference) =>
       val imageId = DockerImageIdentifier.fromString(dockerString)
       imageId.isSuccess shouldBe true
@@ -67,7 +67,7 @@ class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenP
       "not@sha256:digest:tag",
       "not:sha256:digest@tag"
     )
-    
+
     invalid foreach { image =>
       DockerImageIdentifier.fromString(image).isSuccess shouldBe false
     }

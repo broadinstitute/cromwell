@@ -317,6 +317,9 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
   .withLibrarySettings(libraryName = "cloud-nio-impl-ftp", dependencies = implFtpDependencies)
   .dependsOn(`cloud-nio-util`)
 
+lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
+  .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
@@ -372,6 +375,7 @@ lazy val root = (project in file("."))
   .aggregate(sfsBackend)
   .aggregate(sparkBackend)
   .aggregate(sraFileSystem)
+  .aggregate(statsDProxy)
   .aggregate(tesBackend)
   .aggregate(wdlDraft2LanguageFactory)
   .aggregate(wdlDraft3LanguageFactory)

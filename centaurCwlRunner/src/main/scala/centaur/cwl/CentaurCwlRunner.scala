@@ -1,6 +1,7 @@
 package centaur.cwl
 
 import better.files._
+import cats.effect.IO
 import centaur.api.CentaurCromwellClient
 import centaur.cwl.Outputs._
 import centaur.test.TestOptions
@@ -159,8 +160,8 @@ object CentaurCwlRunner extends StrictLogging {
       None,
       workflowType,
       workflowTypeVersion,
-      inputContents.map(contents => () => contents),
-      optionsContents.map(contents => () => contents),
+      inputContents.map(IO.pure),
+      optionsContents.map(IO.pure),
       labels,
       zippedImports
     )

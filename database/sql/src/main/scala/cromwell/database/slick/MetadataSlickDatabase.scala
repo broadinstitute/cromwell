@@ -27,6 +27,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   import dataAccess.driver.api._
 
+  override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.metadataEntriesExists.result
+    runTransaction(action)
+  }
+
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[Unit] = {
     val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)

@@ -11,8 +11,6 @@ if [ "${CROMWELL_BUILD_EVENT}" != "cron" ]; then
 fi
 
 export CROMWELL_BUILD_REQUIRES_SECURE=true
-export CROMWELL_BUILD_SUPPORTS_CRON=true
-export CROMWELL_BUILD_IS_CRON=true
 
 cromwell::build::setup_common_environment
 cromwell::build::setup_conformance_environment
@@ -44,31 +42,20 @@ cd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}"
 # CWL conformance uses alpine images that do not have bash.
 java \
     -Xmx2g \
-    -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/tesk_application.conf" \
+    -Dconfig.file="${CROMWELL_BUILD_CROMWELL_CONFIG}" \
     -Dcall-caching.enabled=false \
     -Dsystem.job-shell=/bin/sh \
-    -jar "${CROMWELL_BUILD_JAR}" \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
     server &
 
 CROMWELL_PID=$!
 
 sleep 30
 
-cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
-{
-    "cwl_conformance_test.cwl_dir": "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}",
-    "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
-    "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
-    "cwl_conformance_test.conformance_expected_failures":
-        "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/tesk_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 600
-}
-JSON
-
 java \
     -Xmx2g \
     -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
-    -jar "${CROMWELL_BUILD_JAR}" \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
     run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
     -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
 

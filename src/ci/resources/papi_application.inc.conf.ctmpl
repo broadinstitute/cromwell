@@ -16,7 +16,7 @@ engine {
 {{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
 google {
   application-name = "cromwell"
-  json-dir = "src/ci/resources"
+  json-dir = "target/ci/resources"
   json-dir = ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
   auths = [
     {

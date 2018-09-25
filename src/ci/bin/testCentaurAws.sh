@@ -16,11 +16,7 @@ cromwell::build::assemble_jars
 #
 # TODO: Find tests to skip
 
-centaur/test_cromwell.sh \
-    -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/aws_application.conf" \
-    -n "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf" \
-    -g \
+cromwell::build::run_centaur \
     -e localdockertest
 
 cromwell::build::generate_code_coverage

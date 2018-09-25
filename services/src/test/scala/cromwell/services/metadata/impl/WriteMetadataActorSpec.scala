@@ -4,6 +4,7 @@ import java.sql.{Connection, Timestamp}
 
 import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyList
+import com.typesafe.config.ConfigFactory
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
@@ -39,25 +40,110 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
   // Mock database interface.
   val mockDatabaseInterface = new MetadataSqlDatabase with SqlDatabase {
+    private def notImplemented() = throw new UnsupportedOperationException
+
+    override protected val urlKey = "mock_database_url"
+    override protected val originalDatabaseConfig = ConfigFactory.empty
+
+    override def connectionDescription: String = "Mock Database"
+
+    override def existsMetadataEntries()(
+      implicit ec: ExecutionContext): Nothing = notImplemented()
+
     // Return successful
-    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext) = Future.successful(())
+    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+                                   (implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
-    override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext) = ???
-    override def queryMetadataEntries(workflowExecutionUuid: String)(implicit ec: ExecutionContext) = ???
-    override def queryMetadataEntries(workflowExecutionUuid: String, metadataKey: String)(implicit ec: ExecutionContext) = ???
-    override def queryMetadataEntries(workflowExecutionUuid: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int])(implicit ec: ExecutionContext) = ???
-    override def queryMetadataEntries(workflowUuid: String, metadataKey: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int])(implicit ec: ExecutionContext) = ???
-    override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String], metadataJobQueryValue: MetadataJobQueryValue)(implicit ec: ExecutionContext) = ???
-    override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String], metadataJobQueryValue: MetadataJobQueryValue)(implicit ec: ExecutionContext) = ???
-    override def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String, statusMetadataKey: String, labelMetadataKey: String, submissionMetadataKey: String, buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry)(implicit ec: ExecutionContext) = ???
-    override def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext) = ???
-    override def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext) = ???
-    override def queryWorkflowSummaries(parentWorkflowIdMetadataKey: String, workflowStatuses: Set[String], workflowNames: Set[String], workflowExecutionUuids: Set[String], labelAndKeyLabelValues: Set[(String, String)], labelOrKeyLabelValues: Set[(String, String)], excludeLabelAndValues: Set[(String, String)], excludeLabelOrValues: Set[(String, String)], submissionTimestamp: Option[Timestamp], startTimestampOption: Option[Timestamp], endTimestampOption: Option[Timestamp], includeSubworkflows: Boolean, page: Option[Int], pageSize: Option[Int])(implicit ec: ExecutionContext) = ???
-    override def countWorkflowSummaries(parentWorkflowIdMetadataKey: String, workflowStatuses: Set[String], workflowNames: Set[String], workflowExecutionUuids: Set[String], labelAndKeyLabelValues: Set[(String, String)], labelOrKeyLabelValues: Set[(String, String)], excludeLabelAndValues: Set[(String, String)], excludeLabelOrValues: Set[(String, String)], submissionTimestamp: Option[Timestamp], startTimestampOption: Option[Timestamp], endTimestampOption: Option[Timestamp], includeSubworkflows: Boolean)(implicit ec: ExecutionContext) = ???
-    override protected val urlKey = null
-    override protected val originalDatabaseConfig = null
-    override def withConnection[A](block: Connection => A) = ???
-    override def close() = ???
+    override def metadataEntryExists(workflowExecutionUuid: String)
+                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def queryMetadataEntries(workflowExecutionUuid: String)
+                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def queryMetadataEntries(workflowExecutionUuid: String,
+                                      metadataKey: String)(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
+    }
+
+    override def queryMetadataEntries(workflowExecutionUuid: String,
+                                      callFullyQualifiedName: String,
+                                      jobIndex: Option[Int],
+                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
+    }
+
+    override def queryMetadataEntries(workflowUuid: String,
+                                      metadataKey: String,
+                                      callFullyQualifiedName: String,
+                                      jobIndex: Option[Int],
+                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
+    }
+
+    override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
+                                                      metadataKeys: NonEmptyList[String],
+                                                      metadataJobQueryValue: MetadataJobQueryValue)
+                                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
+                                                       metadataKeys: NonEmptyList[String],
+                                                       metadataJobQueryValue: MetadataJobQueryValue)
+                                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def refreshMetadataSummaryEntries(startMetadataKey: String,
+                                               endMetadataKey: String,
+                                               nameMetadataKey: String,
+                                               statusMetadataKey: String,
+                                               labelMetadataKey: String,
+                                               submissionMetadataKey: String,
+                                               buildUpdatedSummary: (
+                                                 Option[WorkflowMetadataSummaryEntry],
+                                                   Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry)
+                                              (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def getWorkflowStatus(workflowExecutionUuid: String)
+                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def getWorkflowLabels(workflowExecutionUuid: String)
+                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def queryWorkflowSummaries(parentWorkflowIdMetadataKey: String,
+                                        workflowStatuses: Set[String],
+                                        workflowNames: Set[String],
+                                        workflowExecutionUuids: Set[String],
+                                        labelAndKeyLabelValues: Set[(String, String)],
+                                        labelOrKeyLabelValues: Set[(String, String)],
+                                        excludeLabelAndValues: Set[(String, String)],
+                                        excludeLabelOrValues: Set[(String, String)],
+                                        submissionTimestamp: Option[Timestamp],
+                                        startTimestampOption: Option[Timestamp],
+                                        endTimestampOption: Option[Timestamp],
+                                        includeSubworkflows: Boolean,
+                                        page: Option[Int],
+                                        pageSize: Option[Int])
+                                       (implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
+    }
+
+    override def countWorkflowSummaries(parentWorkflowIdMetadataKey: String,
+                                        workflowStatuses: Set[String],
+                                        workflowNames: Set[String],
+                                        workflowExecutionUuids: Set[String],
+                                        labelAndKeyLabelValues: Set[(String, String)],
+                                        labelOrKeyLabelValues: Set[(String, String)],
+                                        excludeLabelAndValues: Set[(String, String)],
+                                        excludeLabelOrValues: Set[(String, String)],
+                                        submissionTimestamp: Option[Timestamp],
+                                        startTimestampOption: Option[Timestamp],
+                                        endTimestampOption: Option[Timestamp],
+                                        includeSubworkflows: Boolean)(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
+    }
+
+    override def withConnection[A](block: Connection => A): Nothing = {
+      notImplemented()
+    }
+
+    override def close(): Nothing = notImplemented()
   }
-
 }

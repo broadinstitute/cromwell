@@ -8,7 +8,6 @@ import scala.util.Try
 case class CiEnvironment
 (
   isCi: Option[Boolean],
-  isCron: Option[Boolean],
   `type`: Option[String],
   branch: Option[String],
   event: Option[String],
@@ -16,14 +15,14 @@ case class CiEnvironment
   number: Option[String],
   provider: Option[String],
   url: Option[String],
-  os: Option[String]
+  os: Option[String],
+  centaurType: Option[String]
 )
 
 object CiEnvironment {
   def apply(): CiEnvironment = {
     new CiEnvironment(
       isCi = sys.env.get("CROMWELL_BUILD_IS_CI").flatMap(tryToBoolean),
-      isCron = sys.env.get("CROMWELL_BUILD_IS_CRON").flatMap(tryToBoolean),
       `type` = sys.env.get("CROMWELL_BUILD_TYPE"),
       branch = sys.env.get("CROMWELL_BUILD_BRANCH"),
       event = sys.env.get("CROMWELL_BUILD_EVENT"),
@@ -32,6 +31,7 @@ object CiEnvironment {
       provider = sys.env.get("CROMWELL_BUILD_PROVIDER"),
       os = sys.env.get("CROMWELL_BUILD_OS"),
       url = sys.env.get("CROMWELL_BUILD_URL"),
+      centaurType = sys.env.get("CROMWELL_BUILD_CENTAUR_TYPE"),
     )
   }
 

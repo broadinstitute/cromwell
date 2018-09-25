@@ -10,5 +10,5 @@ case class ErrorReporterParams
   name: String,
   rootConfig: Config,
   reporterConfig: Config,
-  cromwellDatabase: CromwellDatabase
+  database: ErrorReporterCromwellDatabase
 )

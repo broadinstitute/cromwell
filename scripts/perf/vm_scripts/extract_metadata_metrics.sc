@@ -1,18 +1,16 @@
 #!/usr/bin/env amm
 
 @
-import $ivy.`io.spray::spray-json:1.3.4`
-import $ivy.`com.github.pathikrit::better-files:2.17.1`
-import $ivy.`joda-time:joda-time:2.10`
-import $ivy.`org.apache.commons:commons-lang3:3.8`
-import $ivy.`com.github.tototoshi::scala-csv:1.3.5`
+import java.time.temporal.ChronoUnit
 
 import spray.json._
 import spray.json.DefaultJsonProtocol
 import better.files.File
 import java.time.{Duration, OffsetDateTime}
+
 import org.apache.commons.lang3.time.DurationFormatUtils
 import com.github.tototoshi.csv._
+
 import scala.collection.immutable.ListMap
 
 case class CallCaching(hit: Option[Boolean],
@@ -84,20 +82,6 @@ object MetadataJsonProtocol extends DefaultJsonProtocol {
 def extractMetricsFromMetadata(filePath: String): Unit = {
   import MetadataJsonProtocol._
 
-  def formatDurationToWords(duration: Duration): String = DurationFormatUtils.formatDurationWords(duration.toMillis, true, true)
-
-  def diffBetweenDateTimeInHumanReadableFormat(date1: OffsetDateTime, date2: OffsetDateTime): String = {
-    val durationBetweenDates = Duration.between(date1, date2)
-    formatDurationToWords(durationBetweenDates)
-  }
-
-  def convertCaseClassToMap(cc: AnyRef): ListMap[String, Any] =
-    (ListMap[String, Any]() /: cc.getClass.getDeclaredFields) {
-      (a, f) =>
-        f.setAccessible(true)
-        a + (f.getName -> f.get(cc))
-    }
-
   val callCachingEventStates = List("CheckingCallCache", "FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
   val jobPreparationEventStates = List("Pending", "RequestingExecutionToken", "WaitingForValueStore", "PreparingJob", "CheckingJobStore")
   val cacheCopyingEventStates = List("FetchingCachedOutputsFromDatabase", "BackendIsCopyingCachedOutputs")
@@ -113,15 +97,15 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_hello_world_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/subworkflow_with_scatter_metadata.json")
   //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata.json")
-  //  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_before_metadata.json")
-  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/large_scatter_with_multiple_calls_metadata.json")
+  val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/cc_before_metadata.json")
+  //    val metadataFile1 = File("/Users/sshah/Documents/perf_metadata_compare/large_scatter_with_multiple_calls_metadata.json")
 
 
   val metadataFileContent = metadataFile1.contentAsString
   val workflowMetadata = metadataFileContent.parseJson.convertTo[Metadata]
 
-  val workflowStartedAfterTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.submission, workflowMetadata.start)
-  val workflowRunningTime = diffBetweenDateTimeInHumanReadableFormat(workflowMetadata.start, workflowMetadata.end)
+  val workflowStartedAfterTime = Duration.between(workflowMetadata.submission, workflowMetadata.start)
+  val workflowRunningTimeDuration = Duration.between(workflowMetadata.start, workflowMetadata.end)
 
   //scatter width at expansion time
   val scatterWidthMetricsOption = workflowMetadata.calls.map(callMap => callMap.map(task => {
@@ -137,14 +121,8 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
       //cache copy tries before finding a successful hit
       val hitFailuresMap = call.callCaching.map(callCachingObject => callCachingObject.hitFailures.getOrElse(Map.empty))
 
-      val cacheRetries = if(hitFailuresMap.isDefined) {
-        val hitFailuresMapSize = hitFailuresMap.get.size
-        totalCacheTries += hitFailuresMapSize
-        hitFailuresMapSize
-      } else {
-        totalCacheTries += 0
-        -1
-      }
+      val cacheRetries = if(hitFailuresMap.isDefined) hitFailuresMap.get.size else 0
+      totalCacheTries += cacheRetries
 
       //time job spent in call caching states
       val eventsRelatedToCC = call.executionEvents.filter(event => callCachingEventStates.exists(state => state.equalsIgnoreCase(event.description)))
@@ -155,9 +133,9 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
         totalTimeInCallCaching = totalTimeInCallCaching.plus(durationOfCC)
 
-        formatDurationToWords(durationOfCC)
+        durationOfCC
       }
-      else "-1"
+      else Duration.ZERO
 
 
       //time job spent in job preparation state i.e time between job submission and running it
@@ -171,9 +149,9 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
         totalTimeInJobPreparation = totalTimeInJobPreparation.plus(totalTimeInPreparation)
 
-        formatDurationToWords(totalTimeInPreparation)
+        totalTimeInPreparation
       }
-      else "-1"
+      else Duration.ZERO
 
       //time job spent in fetching and copying cache hit(s)
       val durationOfEventsInCacheCopyingState = call.executionEvents
@@ -185,16 +163,16 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
 
         totalTimeInCacheCopying = totalTimeInCacheCopying.plus(totalTimeCopyingCacheHits)
 
-        formatDurationToWords(totalTimeCopyingCacheHits)
+        totalTimeCopyingCacheHits
       }
-      else "-1"
+      else Duration.ZERO
 
 
       JobMetrics(
         shard = call.shardIndex,
         cacheCopyRetries = cacheRetries,
         timeInCallCachingState = timeInCallCachingState,
-        timeFromSubmissionToRunning = timeInPreparationState,
+        timeInJobPreparation = timeInPreparationState,
         timeForFetchingCopyingCacheHit = timeInCopyingCache
       )
     })
@@ -205,87 +183,78 @@ def extractMetricsFromMetadata(filePath: String): Unit = {
     )
   }))
 
-  // println(s"Total job ct $totalJobsByRootWf")
-  // println(s"Total cache retries $totalCacheTries")
-  // println(s"Total time in CC state $totalTimeInCallCaching avg: ${totalTimeInCallCaching.dividedBy(totalJobsByRootWf)}")
-  // println(s"Total time in job preparation state $totalTimeInJobPreparation avg: ${totalTimeInJobPreparation.dividedBy(totalJobsByRootWf)}")
-  // println(s"Total time in copying cache $totalTimeInCacheCopying avg: ${totalTimeInCacheCopying.dividedBy(totalJobsByRootWf)}")
+
+  println(s"Total job ct $totalJobsByRootWf")
+  println(s"Total cache retries $totalCacheTries")
+  println(s"Total time in CC state $totalTimeInCallCaching avg: ${totalTimeInCallCaching.dividedBy(totalJobsByRootWf)}")
+  println(s"Total time in job preparation state $totalTimeInJobPreparation avg: ${totalTimeInJobPreparation.dividedBy(totalJobsByRootWf)}")
+  println(s"Total time in copying cache $totalTimeInCacheCopying avg: ${totalTimeInCacheCopying.dividedBy(totalJobsByRootWf)}")
 
 
   //workflow level metrics
   val workflowMetricsObject = if(totalJobsByRootWf > 0) {
-    val avgCacheRetriesTxt = totalCacheTries/totalJobsByRootWf
-    val avgTimeInCallCachingTxt = formatDurationToWords(totalTimeInCallCaching.dividedBy(totalJobsByRootWf))
-    val avgTimeInJobPreparationTxt = formatDurationToWords(totalTimeInJobPreparation.dividedBy(totalJobsByRootWf))
-    val avgTimeInCacheCopyingTxt = formatDurationToWords(totalTimeInCacheCopying.dividedBy(totalJobsByRootWf))
+    val avgCacheRetries = totalCacheTries/totalJobsByRootWf
+    val avgTimeInCallCaching = totalTimeInCallCaching.dividedBy(totalJobsByRootWf)
+    val avgTimeInJobPreparationState = totalTimeInJobPreparation.dividedBy(totalJobsByRootWf)
+    val avgTimeInCacheCopying = totalTimeInCacheCopying.dividedBy(totalJobsByRootWf)
+
+    //calculate standard deviation
+    //    val stdDevOfCacheRetries = taskLevelMetricsOption.map(taskLevelMetricsList =>
+    //      math.sqrt ((0.0 /: taskLevelMetricsList.map(taskMetrics => {
+    //        (acc, job) => acc + math.pow(job.cacheCopyRetries - avgCacheRetries, 2)
+    //      }))/totalJobsByRootWf)
+
+    val stdDevOfCacheRetries = taskLevelMetricsOption.map(taskLevelMetricsList => math.sqrt(taskLevelMetricsList.map(taskMetrics => {
+      (0.0 /: taskMetrics.jobMetrics) {
+        (acc, job) => acc + math.pow(job.cacheCopyRetries - avgCacheRetries, 2)
+      }
+    }).sum / totalJobsByRootWf))
+
+    val stdDevOfTimeInCallCaching = taskLevelMetricsOption.map(taskLevelMetricsList => Duration.of(math.sqrt(taskLevelMetricsList.map(taskMetrics => {
+      (0.0 /: taskMetrics.jobMetrics) {
+        (acc, job) => acc + math.pow(job.timeInCallCachingState.minus(avgTimeInCallCaching).toMillis, 2)
+      }
+    }).sum / totalJobsByRootWf).toLong, ChronoUnit.MILLIS))
+
+    val stdDevOfTimeInJobPreparation = taskLevelMetricsOption.map(taskLevelMetricsList => Duration.of(math.sqrt(taskLevelMetricsList.map(taskMetrics => {
+      (0.0 /: taskMetrics.jobMetrics) {
+        (acc, job) => acc + math.pow(job.timeInJobPreparation.minus(avgTimeInJobPreparationState).toMillis, 2)
+      }
+    }).sum / totalJobsByRootWf).toLong, ChronoUnit.MILLIS))
+
+    val stdDevOfTimeInCacheCopying = taskLevelMetricsOption.map(taskLevelMetricsList => Duration.of(math.sqrt(taskLevelMetricsList.map(taskMetrics => {
+      (0.0 /: taskMetrics.jobMetrics) {
+        (acc, job) => acc + math.pow(job.timeForFetchingCopyingCacheHit.minus(avgTimeInCacheCopying).toMillis, 2)
+      }
+    }).sum / totalJobsByRootWf).toLong, ChronoUnit.MILLIS))
+
+    println(s"Standard Deviation of Cache Retries: $stdDevOfCacheRetries")
+    println(s"Standard Deviation of time in Call Caching: $stdDevOfTimeInCallCaching")
+    println(s"Standard Deviation of time in Job Preparation: $stdDevOfTimeInJobPreparation")
+    println(s"Standard Deviation of time in Cache Copying: $stdDevOfTimeInCacheCopying")
+
 
     WorkflowMetrics(
       workflowId = workflowMetadata.id,
       workflowName = workflowMetadata.workflowName,
       workflowStartedAfter = workflowStartedAfterTime,
-      workflowRunningTime = workflowRunningTime,
+      workflowRunningTime = workflowRunningTimeDuration,
       totalJobsPerRootWf = totalJobsByRootWf,
-      avgCacheCopyRetries = avgCacheRetriesTxt,
-      avgTimeInCallCachingState = avgTimeInCallCachingTxt,
-      avgTimeFromSubmissionToRunning = avgTimeInJobPreparationTxt,
-      avgTimeForFetchingCopyingCacheHit = avgTimeInCacheCopyingTxt
+      avgCacheCopyRetries = avgCacheRetries,
+      avgTimeInCallCachingState = avgTimeInCallCaching,
+      avgTimeInJobPreparation = avgTimeInJobPreparationState,
+      avgTimeForFetchingAndCopyingCacheHit = avgTimeInCacheCopying
     )
   }
   else WorkflowMetrics(
     workflowId = workflowMetadata.id,
     workflowName = workflowMetadata.workflowName,
     workflowStartedAfter = workflowStartedAfterTime,
-    workflowRunningTime = workflowRunningTime,
+    workflowRunningTime = workflowRunningTimeDuration,
     totalJobsPerRootWf = totalJobsByRootWf,
     avgCacheCopyRetries = -1,
-    avgTimeInCallCachingState = "-1",
-    avgTimeFromSubmissionToRunning = "-1",
-    avgTimeForFetchingCopyingCacheHit = "-1"
+    avgTimeInCallCachingState = Duration.ZERO,
+    avgTimeInJobPreparation = Duration.ZERO,
+    avgTimeForFetchingAndCopyingCacheHit = Duration.ZERO
   )
-
-  //write metrics to CSV
-  //  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/cc_after_metadata_metrics.csv")
-  val outputFile = new java.io.File("/Users/sshah/Documents/perf_metadata_compare/small_metadata.csv")
-  val csvWriter = CSVWriter.open(outputFile)
-
-  val workflowMetricsFormat = convertCaseClassToMap(workflowMetricsObject).map(row => List(row._1, row._2.toString)).toSeq
-  csvWriter.writeAll(workflowMetricsFormat)
-
-  csvWriter.writeRow("**********************")
-
-  scatterWidthMetricsOption.foreach( scatterWidthMetrics => {
-    val scatterMapOfKeyValues = scatterWidthMetrics.map(convertCaseClassToMap(_))
-    val values = scatterMapOfKeyValues.map(_.values.toSeq)
-    val header = scatterMapOfKeyValues.head.keys.toSeq
-
-    csvWriter.writeAll(Seq(header) ++ values)
-  })
-
-  taskLevelMetricsOption.foreach(taskLevelMetricsList => {
-    taskLevelMetricsList.foreach(taskLevelMetrics => {
-      csvWriter.writeRow("**********************")
-
-      csvWriter.writeRow(List("taskName", taskLevelMetrics.taskName))
-
-      var shardList: Seq[Int] = Seq.empty[Int]
-      var cacheCopyRetriesList: Seq[Int] = Seq.empty[Int]
-      var timeInCallCachingState: Seq[String] = Seq.empty[String]
-      var timeFromSubmissionToRunning: Seq[String] = Seq.empty[String]
-      var timeForFetchingCopyingCacheHit: Seq[String] = Seq.empty[String]
-
-      taskLevelMetrics.jobMetrics.foreach(jobMetrics => {
-        shardList = shardList :+ jobMetrics.shard
-        cacheCopyRetriesList = cacheCopyRetriesList :+ jobMetrics.cacheCopyRetries
-        timeInCallCachingState = timeInCallCachingState :+ jobMetrics.timeInCallCachingState
-        timeFromSubmissionToRunning = timeFromSubmissionToRunning :+ jobMetrics.timeFromSubmissionToRunning
-        timeForFetchingCopyingCacheHit = timeForFetchingCopyingCacheHit :+ jobMetrics.timeForFetchingCopyingCacheHit
-      })
-
-      csvWriter.writeRow(Seq("shard") ++ shardList)
-      csvWriter.writeRow(Seq("cacheCopyRetries") ++ cacheCopyRetriesList)
-      csvWriter.writeRow(Seq("timeInCallCachingState") ++ timeInCallCachingState)
-      csvWriter.writeRow(Seq("timeFromSubmissionToRunning") ++ timeFromSubmissionToRunning)
-      csvWriter.writeRow(Seq("timeForFetchingCopyingCacheHit") ++ timeForFetchingCopyingCacheHit)
-    })
-  })
 }

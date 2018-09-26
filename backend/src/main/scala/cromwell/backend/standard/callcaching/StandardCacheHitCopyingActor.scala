@@ -193,9 +193,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       }
     case Event(IoForbiddenFailure(command: IoCommand[_], failure, forbiddenPath), Some(data)) =>
       extractBlacklistPrefix(forbiddenPath) foreach { p => blacklistCache.blacklist(rootWorkflowId, p)}
-      handleIoFailure(failure, command, data)
+      failAndAwaitPendingResponses(failure, command, data)
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
-      handleIoFailure(failure, command, data)
+      failAndAwaitPendingResponses(failure, command, data)
     // Should not be possible
     case Event(IoFailure(_: IoCommand[_], failure), None) => failAndStop(failure)
   }
@@ -234,6 +234,22 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
+  }
+
+  /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
+    * for all the pending responses to come back before stopping. */
+  def failAndAwaitPendingResponses(failure: Throwable, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
+
+    val (newData, commandState) = data.commandComplete(command)
+    commandState match {
+      // If we're still waiting for some responses, go to failed state
+      case StillWaiting => goto(FailedState) using Option(newData)
+      // Otherwise we're done
+      case _ =>
+        context stop self
+        stay()
+    }
   }
 
   def abort() = {
@@ -337,20 +353,5 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
     val path = sourcePathFromCopyOutputsCommand(command)
     extractBlacklistPrefix(path) exists { prefix => blacklistCache.isBlacklisted(rootWorkflowId, prefix) }
-  }
-
-  private def handleIoFailure(failure: Throwable, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
-    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
-
-    val (newData, commandState) = data.commandComplete(command)
-
-    commandState match {
-      // If we're still waiting for some responses, go to failed state
-      case StillWaiting => goto(FailedState) using Option(newData)
-      // Otherwise we're done
-      case _ =>
-        context stop self
-        stay()
-    }
   }
 }

@@ -8,13 +8,13 @@ import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
-import wdl.transforms.base.linking.expression.types._
 import wdl.transforms.base.linking.graph._
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.GraphLikeConvertInputs
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.callable.Callable
 import wom.graph.GraphNodePort.OutputPort
@@ -23,12 +23,17 @@ import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNo
 import wom.types.{WomAnyType, WomBooleanType, WomType}
 
 object IfElementToGraphNode {
-  def convert(a: ConditionalNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
+  def convert(a: ConditionalNodeMakerInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = {
     val conditionExpression = a.node.conditionExpression
     val graphElements = a.node.graphElements
 
-    val conditionWomExpression: WdlomWomExpression = WdlomWomExpression(conditionExpression, a.linkableValues)
-    val conditionExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier("if_condition"), conditionWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    val conditionWomExpressionV: ErrorOr[WdlomWomExpression] = WdlomWomExpression.make(conditionExpression, a.linkableValues)
+    val conditionExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = conditionWomExpressionV flatMap { conditionWomExpression =>
+      AnonymousExpressionNode.fromInputMapping(WomIdentifier("if_condition"), conditionWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply) }
 
     val conditionVariableTypeValidation: ErrorOr[Unit] = conditionExpression.evaluateType(a.linkableValues) flatMap {
       case WomBooleanType | WomAnyType => ().validNel

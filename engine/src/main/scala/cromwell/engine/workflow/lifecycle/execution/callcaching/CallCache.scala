@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import cats.data.NonEmptyList
+import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendJobExecutionActor.{CallCached, JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.core.ExecutionIndex.{ExecutionIndex, IndexEnhancedIndex}
@@ -13,7 +13,7 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCacheHashBundle
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
 import wom.core._
@@ -72,22 +72,17 @@ class CallCache(database: CallCachingSqlDatabase) {
     CallCachingJoin(callCachingEntry, hashesToInsert.toSeq, aggregatedHashesToInsert, resultToInsert.toSeq, jobDetritusToInsert.toSeq)
   }
 
-  def hasBaseAggregatedHashMatch(baseAggregatedHash: String)(implicit ec: ExecutionContext): Future[Boolean] = {
-    database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash)
+  def hasBaseAggregatedHashMatch(baseAggregatedHash: String, hints: List[CacheHitHint])(implicit ec: ExecutionContext): Future[Boolean] = {
+    val ccpp = hints collectFirst { case h: CallCachePathPrefixes => h.prefixes }
+    database.hasMatchingCallCachingEntriesForBaseAggregation(baseAggregatedHash, ccpp)
   }
 
-  def hasKeyValuePairHashMatch(hashes: NonEmptyList[HashResult])(implicit ec: ExecutionContext): Future[Boolean] = {
-    val hashKeyValuePairs = hashes map {
-      case HashResult(hashKey, hashValue) => (hashKey.key, hashValue.value)
-    }
-    database.hasMatchingCallCachingEntriesForHashKeyValues(hashKeyValuePairs)
-  }
-
-  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, hitNumber: Int)
+  def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes, prefixesHint: Option[CallCachePathPrefixes], hitNumber: Int)
                                        (implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] = {
     database.findCacheHitForAggregation(
       baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
       inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
+      callCachePathPrefixes = prefixesHint.map(_.prefixes),
       hitNumber).map(_ map CallCachingEntryId.apply)
   }
 
@@ -145,7 +140,7 @@ object CallCache {
                                            callOutputs: CallOutputs,
                                            jobDetritusFiles: Option[Map[String, Path]]
                                          )
-  
+
   implicit class EnhancedCallCachingJoin(val callCachingJoin: CallCachingJoin) extends AnyVal {
     def toJobSuccess(key: BackendJobDescriptorKey, pathBuilders: List[PathBuilder]): JobSucceededResponse = {
       import cromwell.Simpletons._
@@ -156,18 +151,23 @@ object CallCache {
 
       val outputs = if (callCachingJoin.callCachingSimpletonEntries.isEmpty) CallOutputs(Map.empty)
       else WomValueBuilder.toJobOutputs(key.call.outputPorts, callCachingJoin.callCachingSimpletonEntries map toSimpleton)
-      
+
       JobSucceededResponse(key, callCachingJoin.callCachingEntry.returnCode,outputs, Option(detritus), Seq.empty, None, resultGenerationMode = CallCached)
     }
-    
+
     def callCacheHashes: Set[HashResult] = {
       val hashResults = callCachingJoin.callCachingHashEntries.map({
-        case CallCachingHashEntry(k, v, _, _) => HashResult(HashKey.deserialize(k), HashValue(v)) 
+        case CallCachingHashEntry(k, v, _, _) => HashResult(HashKey.deserialize(k), HashValue(v))
       }) ++ callCachingJoin.callCachingAggregationEntry.collect({
         case CallCachingAggregationEntry(k, Some(v), _, _) => HashResult(HashKey.deserialize(k), HashValue(v))
       })
 
       hashResults.toSet
     }
+  }
+
+  sealed trait CacheHitHint
+  case class CallCachePathPrefixes(callCacheRootPrefix: Option[String], workflowOptionPrefixes: List[String]) extends CacheHitHint {
+    lazy val prefixes: List[String] = (callCacheRootPrefix.toList ++ workflowOptionPrefixes) map { _.ensureSlashed }
   }
 }

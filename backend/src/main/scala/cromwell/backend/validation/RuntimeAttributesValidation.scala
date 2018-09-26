@@ -4,15 +4,16 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import cromwell.backend.RuntimeAttributeDefinition
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import org.slf4j.Logger
-import squants.information.{Information, Megabytes}
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wdl.draft2.model.{NoLookup, WdlExpression}
 import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -38,7 +39,7 @@ object RuntimeAttributesValidation {
     validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
   }
 
-  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[Information]): ErrorOr[Information] = {
+  def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] = {
     validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
   }
 
@@ -74,7 +75,7 @@ object RuntimeAttributesValidation {
     }
   }
 
-  def parseMemoryString(k: String, s: WomString): ErrorOr[Information] = {
+  def parseMemoryString(k: String, s: WomString): ErrorOr[MemorySize] = {
     InformationValidation.validateString(k, s)
   }
 
@@ -134,12 +135,10 @@ object RuntimeAttributesValidation {
     * @return The keys and extracted values.
     */
   def toMetadataStrings(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Map[String, String] = {
-    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.mapValues(unpackOption)
+    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.safeMapValues(unpackOption)
 
     val attributes: Map[String, String] = attributeOptions collect {
       case (name, Some(values: Traversable[_])) => (name, values.mkString(","))
-      // For information, format it in MB instead of the default toString which prints in Bytes 
-      case (name, Some(information: Information)) => (name, information.toString(Megabytes).toString)
       case (name, Some(value)) => (name, value.toString)
     }
 

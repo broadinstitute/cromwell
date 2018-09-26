@@ -1,15 +1,18 @@
 package wdl.transforms.base.linking.expression.values
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values._
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
 
 
 object LookupEvaluators {
@@ -18,7 +21,8 @@ object LookupEvaluators {
     override def evaluateValue(a: IdentifierLookup,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       inputs.get(a.identifier) match {
         case Some(value) =>
           val mapped = forCommandInstantiationOptions.fold(value)(_.valueMapper(value))
@@ -33,7 +37,8 @@ object LookupEvaluators {
     override def evaluateValue(a: ExpressionMemberAccess,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       a.expression.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { evaluated =>
         doLookup(evaluated.value, a.memberAccessTail) map { EvaluatedValue(_, evaluated.sideEffectFiles) }
       }
@@ -44,7 +49,8 @@ object LookupEvaluators {
     override def evaluateValue(a: IdentifierMemberAccess,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       // Do the first lookup and decide whether any more lookups are needed:
       val generatedValueAndLookups: ErrorOr[(WomValue, Seq[String])] = {
@@ -63,29 +69,32 @@ object LookupEvaluators {
     }
   }
 
-  implicit val indexAccessValueEvaluator: ValueEvaluator[IndexAccess] = (a, inputs, ioFunctionSet, forCommandInstantiationOptions) => {
-    (a.expressionElement.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.index.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (lhs, rhs) =>
-      val value: ErrorOr[WomValue] = (lhs.value, rhs.value) match {
-        case (array: WomArray, WomInteger(index)) =>
-          if (array.value.length > index)
-            array.value(index).validNel
-          else
-            s"Bad array access $a: Array size ${array.value.length} does not have an index value '$index'".invalidNel
-        case (WomObject(values, _), WomString(index)) =>
-          if(values.contains(index))
-            values(index).validNel
-          else
-            s"Bad Object access $a: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
-        case (WomMap(mapType, values), index) =>
-          if(values.contains(index))
-            values(index).validNel
-          else
-            s"Bad Map access $a: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
-        case (otherCollection, otherKey) =>
-          s"Bad index access $a: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
-      }
+  implicit val indexAccessValueEvaluator: ValueEvaluator[IndexAccess] = new ValueEvaluator[IndexAccess] {
+    override def evaluateValue(a: IndexAccess, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+      (a.expressionElement.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.index.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (lhs, rhs) =>
+        val value: ErrorOr[WomValue] = (lhs.value, rhs.value) match {
+          case (array: WomArray, WomInteger(index)) =>
+            if (array.value.length > index)
+              array.value(index).validNel
+            else
+              s"Bad array access ${a.toWdlV1}: Array size ${array.value.length} does not have an index value '$index'".invalidNel
+          case (WomObject(values, _), WomString(index)) =>
+            if(values.contains(index))
+              values(index).validNel
+            else
+              s"Bad Object access ${a.toWdlV1}: Object with keys [${values.keySet.mkString(", ")}] does not have an index value [$index]".invalidNel
+          case (WomMap(mapType, values), index) =>
+            if(values.contains(index))
+              values(index).validNel
+            else
+              s"Bad Map access ${a.toWdlV1}: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
+          case (otherCollection, otherKey) =>
+            s"Bad index access ${a.toWdlV1}: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
+        }
 
-      value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }
+        value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }
+      }
     }
   }
 
@@ -112,6 +121,11 @@ object LookupEvaluators {
       case WomObject(_, _) => s"'Object'-type value did not contain the field '$key' at runtime".invalidNel
       case p: WomPair if key == "left" => p.left.validNel
       case p: WomPair if key == "right" => p.right.validNel
+      case WomMap(_, value) => Validated.fromOption(
+        o = value.collectFirst {
+          case (k, v) if k.valueString == key => v
+        },
+        ifNone = NonEmptyList(s"Requested key '$key' not found in the Map. Available keys were: ${value.keySet.mkString("[ ", ",", "]")}", Nil))
       case _ => s"No such field '$key' on type ${womValue.womType.toDisplayString}. Report this bug! Static validation failed.".invalidNel
     }
 

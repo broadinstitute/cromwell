@@ -9,13 +9,13 @@ import shapeless.Coproduct
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.GraphElementValueConsumer.ops._
 import wdl.model.draft3.graph.UnlinkedValueGenerator.ops._
-import wdl.transforms.base.linking.expression.types._
 import wdl.transforms.base.linking.graph._
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.GraphLikeConvertInputs
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, WorkflowDefinition}
@@ -27,19 +27,30 @@ import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNo
 import wom.types.{WomAnyType, WomArrayType, WomType}
 
 object ScatterElementToGraphNode {
-  def convert(a: ScatterNodeMakerInputs): ErrorOr[Set[GraphNode]] = if (a.insideAnotherScatter) {
-    convertInnerScatter(a)
-  } else {
-    convertOuterScatter(a)
-  }
+  def convert(a: ScatterNodeMakerInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] =
+    if (a.insideAnotherScatter) {
+      convertInnerScatter(a)
+    } else {
+      convertOuterScatter(a)
+    }
 
-  def convertOuterScatter(a: ScatterNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
+  def convertOuterScatter(a: ScatterNodeMakerInputs)
+                         (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                          fileEvaluator: FileEvaluator[ExpressionElement],
+                          typeEvaluator: TypeEvaluator[ExpressionElement],
+                          valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = {
     val scatterExpression = a.node.scatterExpression
     val scatterVariableName = a.node.scatterVariableName
     val graphElements = a.node.graphElements
 
-    val scatterWomExpression: WdlomWomExpression = WdlomWomExpression(scatterExpression, a.linkableValues)
-    val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName), scatterWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    val scatterWomExpressionV: ErrorOr[WdlomWomExpression] = WdlomWomExpression.make(scatterExpression, a.linkableValues)
+    val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = scatterWomExpressionV flatMap { scatterWomExpression =>
+      AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName), scatterWomExpression, a.linkablePorts, PlainAnonymousExpressionNode.apply)
+    }
 
     val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
       case a: WomArrayType => a.memberType.validNel
@@ -82,7 +93,11 @@ object ScatterElementToGraphNode {
     }
   }
 
-  def convertInnerScatter(a: ScatterNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
+  def convertInnerScatter(a: ScatterNodeMakerInputs)
+                         (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                          fileEvaluator: FileEvaluator[ExpressionElement],
+                          typeEvaluator: TypeEvaluator[ExpressionElement],
+                          valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = {
 
     val requiredOuterValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.node.graphElementConsumedValueHooks(a.availableTypeAliases, a.callables)
 

@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.common.GpuResource.GpuType
-import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, jesAttributes, _}
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, papiAttributes, _}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.core.WorkflowOptions
@@ -12,7 +12,8 @@ import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
-import squants.information.{Gigabytes, Megabytes}
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -25,7 +26,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
   }
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    Megabytes(2048), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    MemorySize(2.048, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "JesRuntimeAttributes" should {
@@ -214,7 +215,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Gigabytes(1))
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize.parse("1 GB").get)
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -282,7 +283,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
                                                            expectedRuntimeAttributes: PipelinesApiRuntimeAttributes,
                                                            workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                            defaultZones: NonEmptyList[String] = defaultZones,
-                                                           jesConfiguration: PipelinesApiConfiguration = jesConfiguration): Unit = {
+                                                           jesConfiguration: PipelinesApiConfiguration = papiConfiguration): Unit = {
     try {
       val actualRuntimeAttributes = toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
@@ -296,7 +297,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
                                                        exMsg: String,
                                                        workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
     try {
-      toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
+      toJesRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)
       fail(s"A RuntimeException was expected with message: $exMsg")
     } catch {
       case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
@@ -316,7 +317,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   private val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
-  private val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, jesAttributes)
+  private val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
-    PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.jesConfiguration).definitions.toSet
+    PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet
 }

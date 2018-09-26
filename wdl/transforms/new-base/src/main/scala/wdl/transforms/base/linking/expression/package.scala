@@ -4,19 +4,20 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
-import common.validation.ErrorOr.ErrorOr
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.graph.expression.WomExpressionMaker
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator, WomExpressionMaker}
 import wdl.model.draft3.graph._
 import wom.expression.WomExpression
 import wom.types.WomType
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
-import wdl.transforms.base.linking.expression.consumed._
 
 package object expression {
 
-  implicit val expressionElementToWomExpression: WomExpressionMaker[ExpressionElement] = new WomExpressionMaker[ExpressionElement] {
+  implicit def expressionElementToWomExpression(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                                                fileEvaluator: FileEvaluator[ExpressionElement],
+                                                typeEvaluator: TypeEvaluator[ExpressionElement],
+                                                valueEvaluator: ValueEvaluator[ExpressionElement]): WomExpressionMaker[ExpressionElement] = new WomExpressionMaker[ExpressionElement] {
     override def makeWomExpression(a: ExpressionElement,
                                    typeAliases: Map[String, WomType],
                                    consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomExpression] = {
@@ -27,7 +28,7 @@ package object expression {
         case missing => s"Could not create WOM expression for '$a': Found no generated value for consumed value $missing".invalidNel
       }
 
-      neededLinkedValues map { lookup => WdlomWomExpression(a, lookup.toMap) }
+      neededLinkedValues flatMap { lookup => WdlomWomExpression.make(a, lookup.toMap) }
 
     }
   }

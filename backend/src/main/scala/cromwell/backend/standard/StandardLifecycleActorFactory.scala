@@ -131,7 +131,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   }
 
   override def cacheHitCopyingActorProps:
-  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = {
+  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = {
     cacheHitCopyingActorClassOption map {
       standardCacheHitCopyingActor => cacheHitCopyingActorInner(standardCacheHitCopyingActor) _
     }
@@ -141,17 +141,19 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                (jobDescriptor: BackendJobDescriptor,
                                 initializationDataOption: Option[BackendInitializationData],
                                 serviceRegistryActor: ActorRef,
-                                ioActor: ActorRef): Props = {
-    val params = cacheHitCopyingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor)
+                                ioActor: ActorRef,
+                                cacheCopyAttempt: Int): Props = {
+    val params = cacheHitCopyingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, cacheCopyAttempt)
     Props(standardCacheHitCopyingActor, params).withDispatcher(BackendDispatcher)
   }
 
   def cacheHitCopyingActorParams(jobDescriptor: BackendJobDescriptor,
                                  initializationDataOption: Option[BackendInitializationData],
                                  serviceRegistryActor: ActorRef,
-                                 ioActor: ActorRef): StandardCacheHitCopyingActorParams = {
+                                 ioActor: ActorRef,
+                                 cacheCopyAttempt: Int): StandardCacheHitCopyingActorParams = {
     DefaultStandardCacheHitCopyingActorParams(
-      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor)
+      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor, cacheCopyAttempt)
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],

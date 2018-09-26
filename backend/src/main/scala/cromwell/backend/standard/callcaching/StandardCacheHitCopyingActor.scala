@@ -7,7 +7,7 @@ import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
-import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
@@ -36,6 +36,11 @@ trait StandardCacheHitCopyingActorParams {
   def ioActor: ActorRef
 
   def configurationDescriptor: BackendConfigurationDescriptor
+
+  /**
+    * The number of this copy attempt (so that listeners can ignore "timeout"s from previous attempts)
+    */
+  def cacheCopyAttempt: Int
 }
 
 /** A default implementation of the cache hit copying params. */
@@ -45,7 +50,8 @@ case class DefaultStandardCacheHitCopyingActorParams
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val serviceRegistryActor: ActorRef,
   override val ioActor: ActorRef,
-  override val configurationDescriptor: BackendConfigurationDescriptor
+  override val configurationDescriptor: BackendConfigurationDescriptor,
+  override val cacheCopyAttempt: Int
 ) extends StandardCacheHitCopyingActorParams
 
 object StandardCacheHitCopyingActor {
@@ -178,8 +184,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           stay() using Option(newData)
       }
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
-      // any failure is fatal
-      context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+      context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
       val (newData, commandState) = data.commandComplete(command)
 
@@ -226,7 +231,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   def failAndStop(failure: Throwable) = {
-    context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
   }

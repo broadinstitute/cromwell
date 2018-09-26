@@ -1,7 +1,9 @@
 package cromwell.languages
 
+import com.typesafe.config.Config
 import common.Checked
 import common.validation.Parse.Parse
+import common.validation.Checked._
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
 import wom.core._
@@ -14,10 +16,16 @@ trait LanguageFactory {
   def languageVersionName: String
 
   // Passed in by the constructor:
-  def config: Map[String, Any]
+  def config: Config
 
-  // Override if you want to accumulate extra options instead of throwing an exception:
-  lazy val standardConfig: StandardLanguageFactoryConfig = StandardLanguageFactoryConfig.parse(config, allowExtras = false)
+  import net.ceedubs.ficus.Ficus._
+
+  lazy val enabled = !config.as[Option[Boolean]]("enabled").contains(false)
+  lazy val enabledCheck: Checked[Unit] = if (enabled) ().validNelCheck else
+    s"The language factory for $languageName ($languageVersionName) is not currently enabled in this Cromwell".invalidNelCheck
+
+
+  lazy val strictValidation: Boolean = !config.as[Option[Boolean]]("strict-validation").contains(false)
 
   def getWomBundle(workflowSource: WorkflowSource,
                    workflowOptionsJson: WorkflowOptionsJson,
@@ -29,10 +37,12 @@ trait LanguageFactory {
                        ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace]
 
   def validateNamespace(source: WorkflowSourceFilesCollection,
+                        workflowSource: WorkflowSource,
                         workflowOptions: WorkflowOptions,
                         importLocalFilesystem: Boolean,
                         workflowIdForLogging: WorkflowId,
-                        ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace]
+                        ioFunctions: IoFunctionSet,
+                        importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace]
 
   /**
     * In case no version is specified: does this language factory feel like it might be suitable for this file?

@@ -3,13 +3,13 @@ package wdl.transforms.base.linking.expression.files
 import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.FileEvaluator
+import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
-import wdl.transforms.base.linking.expression.values._
 import wom.expression.IoFunctionSet
 import wom.types.WomType
-import wom.values.{WomFile,WomValue}
+import wom.values.{WomFile, WomValue}
 
 object LookupEvaluators {
 
@@ -17,7 +17,9 @@ object LookupEvaluators {
     override def predictFilesNeededToEvaluate(a: IdentifierLookup,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType): ErrorOr[Set[WomFile]] =
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
+                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
       Set.empty[WomFile].validNel
   }
 
@@ -25,7 +27,9 @@ object LookupEvaluators {
     override def predictFilesNeededToEvaluate(a: ExpressionMemberAccess,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType): ErrorOr[Set[WomFile]] = {
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
+                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
       a.expression.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
     }
   }
@@ -34,12 +38,18 @@ object LookupEvaluators {
     override def predictFilesNeededToEvaluate(a: IdentifierMemberAccess,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
-                                              coerceTo: WomType): ErrorOr[Set[WomFile]] =
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
+                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
       Set.empty[WomFile].validNel
   }
 
-  implicit val indexAccessFileEvaluator: FileEvaluator[IndexAccess] = (a, inputs, ioFunctionSet, coerceTo) => {
-    (a.expressionElement.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
-    a.index.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
+  implicit val indexAccessFileEvaluator: FileEvaluator[IndexAccess] = new FileEvaluator[IndexAccess] {
+    override def predictFilesNeededToEvaluate(a: IndexAccess, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
+                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+      (a.expressionElement.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
+        a.index.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)) mapN { _ ++ _ }
+    }
   }
 }

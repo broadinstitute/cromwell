@@ -1,3 +1,0 @@
-{
-  "comment": "This is a dummy workflow options file. It will be overwritten by the PAPI v2 Centaur builds that require it and effectively ignored by other Centaur builds."
-}

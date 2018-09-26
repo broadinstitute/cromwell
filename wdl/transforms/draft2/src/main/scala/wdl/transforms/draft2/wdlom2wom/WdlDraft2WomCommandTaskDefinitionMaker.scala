@@ -24,7 +24,7 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
     }).toList
 
     CallableTaskDefinition(
-      name = wdlTask.name,
+      name = wdlTask.fullyQualifiedName,
       commandTemplateBuilder = Function.const(wdlTask.commandTemplate.validNel),
       runtimeAttributes = wdlTask.runtimeAttributes.toWomRuntimeAttributes(wdlTask),
       meta = wdlTask.meta,

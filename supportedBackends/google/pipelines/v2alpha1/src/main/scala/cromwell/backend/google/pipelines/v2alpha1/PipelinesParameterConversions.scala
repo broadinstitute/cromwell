@@ -9,6 +9,9 @@ import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, ActionFlag}
+import cromwell.filesystems.demo.dos.DemoDosPath
+import cromwell.filesystems.http.HttpPath
+import cromwell.filesystems.sra.SraPath
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -29,24 +32,60 @@ trait PipelinesParameterConversions {
         Key.InputName -> fileInput.name
       )
 
-      if (fileInput.cloudPath.pathAsString.startsWith("dos://")) {
-        import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
-        val config = ConfigFactory.load
-        val demoDosDockerImage = config.getString("demo.dos.localization.docker-image")
-        val demoDosCommandTemplate = config.getString("demo.dos.localization.command-template")
-        val demoDosCommand = demoDosCommandTemplate
-          .replace(s"$${dosPath}", fileInput.cloudPath.escape)
-          .replace(s"$${containerPath}", fileInput.containerPath.escape)
-        ActionBuilder
-          .withImage(demoDosDockerImage)
-          .withCommand("/bin/sh", "-c", demoDosCommand)
-          .withMounts(mounts)
-          .withLabels(labels)
-          .setEntrypoint("")
-      } else {
-        cloudSdkShellAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
-      }
+      lazy val config = ConfigFactory.load
+      fileInput.cloudPath match {
+        case _: DemoDosPath =>
+          import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
+          import collection.JavaConverters._
 
+          val demoDosDockerImage = config.getString("demo.dos.localization.docker-image")
+          val demoDosCommandTemplate = config.getString("demo.dos.localization.command-template")
+          val demoDosMarthaUrl = config.getString("demo.dos.martha.url")
+          val demoDosCommand = demoDosCommandTemplate
+            .replace(s"$${dosPath}", fileInput.cloudPath.escape)
+            .replace(s"$${containerPath}", fileInput.containerPath.escape)
+          val marthaEnv = Map("MARTHA_URL" -> demoDosMarthaUrl)
+          ActionBuilder
+            .withImage(demoDosDockerImage)
+            .withCommand("/bin/sh", "-c", demoDosCommand)
+            .withMounts(mounts)
+            .setEnvironment(marthaEnv.asJava)
+            .withLabels(labels)
+            .setEntrypoint("")
+        case sraPath: SraPath =>
+          val sraConfig = config.getConfig("filesystems.sra")
+
+          def getString(key: String): Option[String] = {
+            if (sraConfig.hasPath(key)) {
+              Some(sraConfig.getString(key))
+            } else {
+              None
+            }
+          }
+
+          val image = getString("docker-image") getOrElse "fusera/fusera:alpine"
+          val (createNgc, ngcArgs) = getString("ngc") match {
+            case Some(ngc) => (s"echo $ngc | base64 -d > /tmp/sra.ngc", "-n /tmp/sra.ngc")
+            case None => ("", "")
+          }
+          val mountpoint = s"/cromwell_root/sra-${sraPath.accession}"
+          val runFusera = s"fusera mount $ngcArgs -a ${sraPath.accession} $mountpoint"
+          ActionBuilder
+            .withImage(image)
+            .withCommand("/bin/sh", "-c", s"$createNgc; mkdir $mountpoint; $runFusera")
+            .withMounts(mounts)
+            .withFlags(List(ActionFlag.RunInBackground, ActionFlag.EnableFuse))
+        case _: HttpPath =>
+          val dockerImage = "google/cloud-sdk:slim"
+          val command = s"curl --silent --create-dirs --output ${fileInput.containerPath} ${fileInput.cloudPath}"
+          ActionBuilder
+            .withImage(dockerImage)
+            .withCommand("/bin/sh", "-c", command)
+            .withMounts(mounts)
+            .withLabels(labels)
+            .setEntrypoint("")
+        case _ => cloudSdkShellAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
+      }
     }
   }
 

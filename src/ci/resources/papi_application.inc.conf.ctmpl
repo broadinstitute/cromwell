@@ -16,16 +16,23 @@ engine {
 {{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
 google {
   application-name = "cromwell"
+  json-dir = "target/ci/resources"
+  json-dir = ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
   auths = [
     {
       name = "service_account"
       scheme = "service_account"
+      # This service account does not have billing permission, and therefore cannot be used for requester pays
+      json-file = ${google.json-dir}/cromwell-centaur-service-account.json
+      # Allow downgrading to an older service account on Papi V1 until refresh_token_no_auth_bucket.test is
+      # migrated/fixed/added for the Papi V2 credential above.
       json-file = ${?GOOGLE_SERVICE_ACCOUNT_JSON}
     }
     {
       name = "requester_pays_service_account"
       scheme = "service_account"
-      json-file = ${?GOOGLE_SERVICE_ACCOUNT_JSON_REQUESTER_PAYS}
+      # This service account does have billing permission and can be used for requester pays
+      json-file = ${google.json-dir}/cromwell-centaur-requester-pays-service-account.json
     }
     {
       name = "refresh_token"

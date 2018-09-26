@@ -19,7 +19,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadAct
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteSuccess
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{InMemorySubWorkflowStore, InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.ServiceRegistryActor
@@ -232,11 +232,11 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false) {
-    override val serverMode = true
+  class TestCromwellRootActor(override val config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false, serverMode = true) {
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
-    def submitWorkflow(sources: WorkflowSourceFilesWithoutImports): WorkflowId = {
+    override lazy val subWorkflowStore = new InMemorySubWorkflowStore(workflowStore)
+    def submitWorkflow(sources: WorkflowSourceFilesCollection): WorkflowId = {
       val submitMessage = WorkflowStoreActor.SubmitWorkflow(sources)
       val result = Await.result(workflowStoreActor.ask(submitMessage)(TimeoutDuration), Duration.Inf).asInstanceOf[WorkflowSubmittedToStore].workflowId
       workflowManagerActor ! RetrieveNewWorkflows
@@ -299,7 +299,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     }
   }
 
-  private def buildCromwellRootActor(config: Config) = {
+  protected def buildCromwellRootActor(config: Config) = {
     TestActorRef(new TestCromwellRootActor(config), name = "TestCromwellRootActor" + UUID.randomUUID().toString)
   }
 
@@ -310,16 +310,15 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = DefaultConfig,
              patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WomValue] = {
+
     val rootActor = buildCromwellRootActor(config)
-    val sources = WorkflowSourceFilesWithoutImports(
-      workflowSource = sampleWdl.workflowSource(runtime),
-      workflowRoot = None,
+    val sources = sampleWdl.asWorkflowSources(
+      runtime = runtime,
+      workflowOptions = workflowOptions,
       workflowType = Option("WDL"),
       workflowTypeVersion = None,
-      inputsJson = sampleWdl.workflowJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = customLabels,
-      warnings = Vector.empty)
+      labels = customLabels
+    )
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
     eventually { verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
@@ -366,7 +365,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   /**
     * Verifies that a state is correct. // TODO: There must be a better way...?
     */
-  private def verifyWorkflowState(serviceRegistryActor: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
+  protected def verifyWorkflowState(serviceRegistryActor: ActorRef, workflowId: WorkflowId, expectedState: WorkflowState)(implicit ec: ExecutionContext): Unit = {
     def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
       val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
         case StatusLookupResponse(_, state) => state

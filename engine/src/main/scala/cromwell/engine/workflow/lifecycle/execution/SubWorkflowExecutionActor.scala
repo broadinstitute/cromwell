@@ -1,7 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
+import com.typesafe.config.Config
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
@@ -17,7 +20,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.StartableState
-import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
+import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor, SubWorkflowStart}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
@@ -37,7 +40,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 jobTokenDispenserActor: ActorRef,
                                 backendSingletonCollection: BackendSingletonCollection,
                                 initializationData: AllBackendInitializationData,
-                                startState: StartableState) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                startState: StartableState,
+                                rootConfig: Config,
+                                totalJobsByRootWf: AtomicInteger) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -46,6 +51,11 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   override def jobTag: String = key.tag
 
   startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
+
+  override def preStart(): Unit = {
+    context.system.eventStream.publish(SubWorkflowStart(self))
+    super.preStart()
+  }
 
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
 
@@ -190,7 +200,9 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        startState
+        startState,
+        rootConfig,
+        totalJobsByRootWf
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
@@ -300,7 +312,9 @@ object SubWorkflowExecutionActor {
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             initializationData: AllBackendInitializationData,
-            startState: StartableState) = {
+            startState: StartableState,
+            rootConfig: Config,
+            totalJobsByRootWf: AtomicInteger) = {
     Props(new SubWorkflowExecutionActor(
       key,
       parentWorkflow,
@@ -316,7 +330,9 @@ object SubWorkflowExecutionActor {
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonCollection,
       initializationData,
-      startState)
+      startState,
+      rootConfig,
+      totalJobsByRootWf)
     ).withDispatcher(EngineDispatcher)
   }
 }

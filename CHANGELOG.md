@@ -1,5 +1,49 @@
 # Cromwell Change Log
 
+## 35 Release Notes
+
+### Submit workflow using URL
+
+Cromwell now allows for a user to submit the URL pointing to workflow file to run a workflow.
+More details on how to use it in: 
+- `Server` mode can be found [here](https://cromwell.readthedocs.io/en/develop/api/RESTAPI/).
+- `Run` mode can be found [here](https://cromwell.readthedocs.io/en/develop/CommandLine/#run).
+
+### Languages
+
+- Added an opt-in namespace cache for the WDL Draft 2 language factory. Please see the Cromwell example configuration for details. NOTE: if upgrading from a hotfix version of Cromwell
+that relied upon this cache, the cache is now opt-in and must be turned on explicitly in config.
+- To maintain conformance with the OpenWDL spec, Cromwell drops support for the `version draft-3` identifier in this release. In the rare case where end users may have been using `version draft-3`, `version 1.0` is a drop-in replacement with no effect on functionality.
+
+### HTTP Workflow Inputs for Shared File System and Google Pipelines API Version 2 Backends
+
+`http` and `https` workflow inputs are now supported for shared filesystem and Google Pipelines API (PAPI) version 2
+backends. Configuration details are described [here](http://cromwell.readthedocs.io/en/develop/filesystems/HTTP).
+
+### Call cache hint support
+
+More efficient cache hit copying in multi-user environments is now supported through the `call_cache_hit_path_prefixes` workflow option.
+Details [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-hit-path-prefixes)
+
+
+### Extra configuration options
+
+The value `dockerRoot` can now be set in a backend configuration. 
+This will set the execution folder in the container (default: `/cromwell-executions`).
+
+### Bug Fixes
+
+#### API
+- The `releaseHold` endpoint will now return `404 Not Found` for an unrecognized workflow ID and `400 Bad Request` for a malformed or invalid workflow ID.
+
+#### Languages
+
+- Fixed a bug that allowed values to be "auto-boxed" into a single-element `Array` of that type, which is not allowed in the WDL spec (Closes [#3478](https://github.com/broadinstitute/cromwell/issues/3478)).
+
+#### PAPI version 1
+
+- Restored standard output and error streaming for jobs.
+
 ## 34 Release Notes
 
 ### Query API

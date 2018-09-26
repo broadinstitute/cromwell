@@ -18,6 +18,7 @@ case class WorkflowStoreEntry
 (
   workflowExecutionUuid: String,
   workflowDefinition: Option[Clob],
+  workflowUrl: Option[String],
   workflowRoot: Option[String],
   workflowType: Option[String],
   workflowTypeVersion: Option[String],

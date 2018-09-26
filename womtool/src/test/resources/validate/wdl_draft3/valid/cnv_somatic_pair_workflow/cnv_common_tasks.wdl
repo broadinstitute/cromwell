@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 # NOTE: When changing this file you must update _all_ tests that use the shared file
 
 task PreprocessIntervals {

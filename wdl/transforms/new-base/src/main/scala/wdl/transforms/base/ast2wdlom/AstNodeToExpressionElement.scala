@@ -16,14 +16,14 @@ import scala.util.Try
 
 object AstNodeToExpressionElement {
 
-  def astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement] = {
+  type EngineFunctionMaker = Vector[ExpressionElement] => ErrorOr[ExpressionElement]
 
-    CheckedAtoB.fromErrorOr("convert AST node to ExpressionElement")(convert _)
-
+  def astNodeToExpressionElement(customEngineFunctionMakers: Map[String, EngineFunctionMaker]): CheckedAtoB[GenericAstNode, ExpressionElement] = {
+    CheckedAtoB.fromErrorOr("convert AST node to ExpressionElement")(convert(customEngineFunctionMakers) _)
   }
 
-  protected def convert(ast: GenericAstNode): ErrorOr[ExpressionElement] = {
-    implicit val recursiveConverter = CheckedAtoB.fromErrorOr(convert _)
+  protected def convert(customEngineFunctionMakers: Map[String, EngineFunctionMaker])(ast: GenericAstNode): ErrorOr[ExpressionElement] = {
+    implicit val recursiveConverter = CheckedAtoB.fromErrorOr(convert(customEngineFunctionMakers) _)
     implicit val recursiveKvConverter = AstNodeToKvPair.astNodeToKvPair
     ast match {
 
@@ -73,8 +73,9 @@ object AstNodeToExpressionElement {
         val functionNameValidation: ErrorOr[String] = a.getAttributeAs[String]("name").toValidated
         val argsValidation: ErrorOr[Vector[ExpressionElement]] = a.getAttributeAsVector[ExpressionElement]("params").toValidated
 
+        val allEngineFunctionMakers = engineFunctionMakers ++ customEngineFunctionMakers
         (functionNameValidation, argsValidation) flatMapN {
-          case (name, params) if engineFunctionMakers.contains(name) => engineFunctionMakers(name).apply(params)
+          case (name, params) if allEngineFunctionMakers.contains(name) => allEngineFunctionMakers(name).apply(params)
           case (other, _) => s"Unknown engine function: '$other'".invalidNel
         }
 
@@ -180,7 +181,7 @@ object AstNodeToExpressionElement {
       s"Function $functionName expects 0 arguments but got ${params.size}".invalidNel
     }
 
-  private def validateOneParamEngineFunction(elementMaker: ExpressionElement => ExpressionElement, functionName: String)
+  def validateOneParamEngineFunction(elementMaker: ExpressionElement => ExpressionElement, functionName: String)
                                             (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
     if (params.size == 1) {
       elementMaker.apply(params.head).validNel

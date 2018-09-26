@@ -1,10 +1,12 @@
 package cromwell.backend.impl.tes
 
+import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.FullyQualifiedName
+import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
@@ -21,7 +23,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          containerWorkDir: Path,
                          commandScriptContents: String,
                          instantiatedCommand: InstantiatedCommand,
-                         dockerImageUsed: String) {
+                         dockerImageUsed: String,
+                         mapCommandLineWomFile: WomFile => WomFile) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.callable.name
@@ -57,11 +60,11 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
-    .mapValues {
+    .safeMapValues {
       _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[Input] = {
+  lazy val inputs: Seq[Input] = {
     val result = (callInputFiles ++ writeFunctionFiles).flatMap {
       case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
         case (f, index) =>
@@ -74,7 +77,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             name = Option(fullyQualifiedName + "." + index),
             description = Option(workflowName + "." + fullyQualifiedName + "." + index),
             url = Option(f.value),
-            path = tesPaths.containerInput(f.value),
+            path = mapCommandLineWomFile(f).value,
             `type` = Option(inputType),
             content = None
           )
@@ -188,7 +191,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
 
   val outputs: Seq[Output] = {
-    val result = womOutputs ++ standardOutputs ++ Seq(commandScriptOut) ++ additionalGlobOutput
+    val result = standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
 
     jobLogger.info(s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
 
@@ -197,7 +200,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>
-      Option(x.toGigabytes)
+      Option(x.to(MemoryUnit.GB).amount)
     case None =>
       None
   }

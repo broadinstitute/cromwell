@@ -36,7 +36,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
 
   implicit def default = RouteTestTimeout(5.seconds)
 
-  "REST ENGINE /stats endpoint" should "return 200 for stats" in {
+  "REST ENGINE /stats endpoint" should "return 200 for stats" ignore {
     Get(s"/engine/$version/stats") ~>
       akkaHttpService.engineRoutes ~>
       check {
@@ -199,6 +199,48 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
+  it should "return 201 for a successful workflow submission using workflowUrl" in {
+    val workflowUrl = Multipart.FormData.BodyPart("workflowUrl", HttpEntity("https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
+    val formData = Multipart.FormData(workflowUrl).toEntity()
+
+    Post(s"/workflows/$version", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "id": "${CromwellApiServiceSpec.ExistingWorkflowId.toString}",
+             |  "status": "Submitted"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.Created) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
+  it should "return 400 for a workflow submission using workflowUrl with invalid protocol" in {
+    val workflowUrl = Multipart.FormData.BodyPart("workflowUrl", HttpEntity("htpps://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
+    val formData = Multipart.FormData(workflowUrl).toEntity()
+
+    Post(s"/workflows/$version", formData) ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{
+             |  "status": "fail",
+             |  "message": "Error(s): Error while validating workflow url: unknown protocol: htpps"
+             |}""".stripMargin) {
+          responseAs[String].parseJson.prettyPrint
+        }
+        assertResult(StatusCodes.BadRequest) {
+          status
+        }
+        headers should be(Seq.empty)
+      }
+  }
+
   it should "return 201 for a successful workflow submission with onHold = true" in {
     val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, HelloWorld.workflowSource()))
     val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString()))
@@ -240,19 +282,19 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       }
   }
 
-  it should "return 500 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
+  it should "return 404 when invalid workflow id is submitted to onHoldToSubmitted API end point" in {
     val id = UnrecognizedWorkflowId
     Post(s"/workflows/$version/$id/releaseHold") ~>
       akkaHttpService.workflowRoutes ~>
       check {
         assertResult(
           s"""{
-             |  "status": "error",
+             |  "status": "fail",
              |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }
-        assertResult(StatusCodes.InternalServerError) {
+        assertResult(StatusCodes.NotFound) {
           status
         }
         headers should be(Seq.empty)
@@ -297,7 +339,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(
             s"""{
                 |  "status": "fail",
-                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource needs to be supplied"
+                |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource or workflowUrl needs to be supplied"
                 |}""".stripMargin) {
             responseAs[String]
           }

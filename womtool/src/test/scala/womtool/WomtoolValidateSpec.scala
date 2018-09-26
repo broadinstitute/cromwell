@@ -16,7 +16,8 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
     languageVersions.isEmpty should be(false)
   }
 
-  languageVersions foreach { versionDirectory =>
+  // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
+  languageVersions.filterNot(f => f.name.contains(".DS")) foreach { versionDirectory =>
     val versionName = versionDirectory.name
 
     val validTestCases = versionDirectory.path.resolve("valid")
@@ -36,7 +37,8 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
       it should s"run $versionName test '$ignoredCase'" ignore {}
     }
 
-    Option(validTestCases.toFile.list).toList.flatten foreach { validCase =>
+    // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
+    Option(validTestCases.toFile.list).toList.flatten.filterNot(_.contains(".DS")) foreach { validCase =>
       val inputsFile = ifExists(validTestCases.resolve(validCase).resolve(validCase + ".inputs.json").toFile)
       val withInputsAddition = if (inputsFile.isDefined) " and inputs file" else ""
       it should s"successfully validate $versionName workflow: '$validCase'$withInputsAddition" in {
@@ -50,7 +52,8 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
       }
     }
 
-    Option(invalidTestCases.toFile.list).toList.flatten foreach { invalidCase =>
+    // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
+    Option(invalidTestCases.toFile.list).toList.flatten.filterNot(_.contains(".DS")) foreach { invalidCase =>
       val inputsFile = ifExists(invalidTestCases.resolve(invalidCase).resolve(invalidCase + ".inputs.json").toFile)
       val withInputsAddition = if (inputsFile.isDefined) " and inputs file" else ""
 

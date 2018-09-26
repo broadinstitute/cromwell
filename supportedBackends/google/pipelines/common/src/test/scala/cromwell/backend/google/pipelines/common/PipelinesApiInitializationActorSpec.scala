@@ -8,7 +8,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorSpec._
-import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{JesGlobalConfig, genomicsFactory, googleConfiguration, jesAttributes}
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{PapiGlobalConfig, genomicsFactory, googleConfiguration, papiAttributes}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.Dispatcher.BackendDispatcher
@@ -56,7 +56,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
   }
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode], conf: BackendConfigurationDescriptor) = {
-    val props = getJesBackendProps(workflowDescriptor, calls, new PipelinesApiConfiguration(conf, genomicsFactory, googleConfiguration, jesAttributes))
+    val props = getJesBackendProps(workflowDescriptor, calls, new PipelinesApiConfiguration(conf, genomicsFactory, googleConfiguration, papiAttributes))
     system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
 
@@ -178,6 +178,6 @@ object PipelinesApiInitializationActorSpec {
       | """.stripMargin))
 
   val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
-    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(JesGlobalConfig)
+    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)
   }
 }

@@ -41,7 +41,7 @@ object Retry {
         
         if (retriesLeft.forall(_ > 0)) {
           onRetry(throwable)
-          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal, onRetry = onRetry))
+          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff.next, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal, onRetry = onRetry))
         } else {
           Future.failed(new CromwellFatalException(throwable))
         }

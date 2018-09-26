@@ -12,8 +12,9 @@ sealed trait PipelinesParameter {
   def mount: PipelinesApiAttachedDisk
 
   /**
-    * This HAS to be GCS, for now
-    * The file already exists in GCS for input files, but does not for output files
+    * The Path where the input file resides.  The backend-specific localization
+    * code handles creating actions for each specific filesystem
+    * implementation.
     *
     * e.g: gs://root_bucket/input_data/my_input.bam
     */

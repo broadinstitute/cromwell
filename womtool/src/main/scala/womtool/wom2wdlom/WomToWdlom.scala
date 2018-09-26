@@ -57,7 +57,7 @@ object WomToWdlom {
         tasks <- tasks.map(callableTaskDefinitionToTaskDefinitionElement(_)).toList.sequence[Checked, TaskDefinitionElement]
       } yield {
         FileElement(
-          Seq.empty, // TODO: imports
+          Seq.empty, // Imports do not exist in WOM and cannot sensibly be added at this point
           Seq.empty, // Structs do not exist in draft-2
           workflows,
           tasks
@@ -391,7 +391,7 @@ object WomToWdlom {
         None
 
       CallElement(
-        call.callable.name,
+        callableName,
         maybeAlias,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       ).validNelCheck

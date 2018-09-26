@@ -12,6 +12,7 @@ import akka.util.Timeout
 import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortAllWorkflowsCommand, PreventNewWorkflowsFromStarting}
+import cromwell.languages.util.ImportResolver.HttpResolver
 import cromwell.services.{MetadataServicesStore, EngineServicesStore}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.slf4j.LoggerFactory
@@ -216,6 +217,16 @@ object CromwellShutdown extends GracefulStopSupport {
       materializer.shutdown()
       logger.info("Stream materializer shut down")
       Future.successful(Done)
+    }
+
+    // 7) Close out the backend used for WDL HTTP import resolution
+    // http://sttp.readthedocs.io/en/latest/backends/start_stop.html
+    coordinatedShutdown.addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "wdlHttpImportResolverBackend") { () =>
+      Future {
+        HttpResolver.closeBackendIfNecessary()
+        logger.info("WDL HTTP import resolver closed")
+        Done
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ workflow read_write_json {
 
   Object json_object = object {
     str: "hi",
+    emptystr: "",
     int: 57,
     float: 27.5,
     pair: (5, "hello"),
@@ -22,8 +23,9 @@ workflow read_write_json {
 
   Object round_tripped_inner_obj = round_trip.round_tripped.obj
 
-  if (round_tripped_inner_obj.inner_float == make_some_json.output_json.float + round_trip.round_tripped.opt_int_1) {
-    call success { input: actual = round_tripped_inner_obj.inner_float, expected = make_some_json.output_json.float }
+  if (round_trip.round_tripped.emptystr == "" &&
+    round_tripped_inner_obj.inner_float == make_some_json.output_json.float + round_trip.round_tripped.opt_int_1) {
+      call success { input: actual = round_tripped_inner_obj.inner_float, expected = make_some_json.output_json.float }
   }
 
   output {
@@ -49,6 +51,7 @@ task make_some_json {
   command <<<
     echo '{'
     echo '  "str": "hi",'
+    echo '  "emptystr": "",'
     echo '  "int": 57,'
     echo '  "float": 27.5,'
     echo '  "pair": {'

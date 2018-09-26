@@ -10,10 +10,9 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
-import cromwell.filesystems.gcs.GcsPathBuilderFactory.DefaultRetrySettings
 import org.threeten.bp.Duration
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Config)
   extends PathBuilderFactory {
@@ -25,27 +24,38 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
   // Validate it against the google configuration
   val authModeValidation: ErrorOr[GoogleAuthMode] = googleConf.auth(authModeAsString)
   val applicationName = googleConf.applicationName
+  val maxAttempts = instanceConfig.getOrElse("max-attempts", 0)
 
   val authMode = authModeValidation.unsafe(s"Failed to create authentication mode for $authModeAsString")
 
   val defaultProject = instanceConfig.as[Option[String]]("project")
 
-  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = {
-    GcsPathBuilder.fromAuthMode(authMode, applicationName, DefaultRetrySettings, GcsStorage.DefaultCloudStorageConfiguration, options, defaultProject)
+  lazy val defaultRetrySettings: RetrySettings = {
+    RetrySettings.newBuilder()
+      .setMaxAttempts(maxAttempts)
+      .setTotalTimeout(Duration.ofSeconds(30))
+      .setInitialRetryDelay(Duration.ofMillis(100))
+      .setRetryDelayMultiplier(1.1)
+      .setMaxRetryDelay(Duration.ofSeconds(1))
+      .setJittered(true)
+      .setInitialRpcTimeout(Duration.ofMillis(100))
+      .setRpcTimeoutMultiplier(1.1)
+      .setMaxRpcTimeout(Duration.ofSeconds(5))
+      .build()
+  }
+
+  def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
+    GcsPathBuilder.fromAuthMode(
+      authMode,
+      applicationName,
+      defaultRetrySettings,
+      GcsStorage.DefaultCloudStorageConfiguration,
+      options,
+      defaultProject
+    )
   }
 }
 
 object GcsPathBuilderFactory {
-  lazy val DefaultRetrySettings: RetrySettings = RetrySettings.newBuilder()
-    .setTotalTimeout(Duration.ofSeconds(30))
-    .setInitialRetryDelay(Duration.ofMillis(100))
-    .setRetryDelayMultiplier(1.1)
-    .setMaxRetryDelay(Duration.ofSeconds(1))
-    .setJittered(true)
-    .setInitialRpcTimeout(Duration.ofMillis(100))
-    .setRpcTimeoutMultiplier(1.1)
-    .setMaxRpcTimeout(Duration.ofSeconds(5))
-    .build()
-
   lazy val DefaultCloudStorageConfiguration = GcsStorage.DefaultCloudStorageConfiguration
 }

@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.initialization
 
 import akka.actor.{ActorRef, FSM, Props}
+import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor._
@@ -85,7 +86,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
     case Event(StartInitializationCommand, _) =>
       val backendInitializationActors = Try {
         for {
-          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
+          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).safeMapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, ioActor, calls, serviceRegistryActor, restarting)
           ).valueOr(errors => throw AggregatedMessageException("Cannot validate backend factories", errors.toList))

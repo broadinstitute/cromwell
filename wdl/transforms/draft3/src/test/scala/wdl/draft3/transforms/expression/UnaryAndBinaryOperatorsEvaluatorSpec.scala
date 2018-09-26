@@ -2,8 +2,8 @@ package wdl.draft3.transforms.expression
 
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.transforms.base.linking.expression.values.expressionEvaluator
-import wdl.transforms.base.linking.expression.types.expressionTypeEvaluator
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.EvaluatedValue

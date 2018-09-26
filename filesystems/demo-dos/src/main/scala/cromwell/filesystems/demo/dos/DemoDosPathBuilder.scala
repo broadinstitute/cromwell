@@ -24,7 +24,7 @@ class DemoDosPathBuilder extends PathBuilder {
   override def name: String = "Demo Dos"
 
   override def build(pathAsString: String): Try[Path] = {
-    if (pathAsString.startsWith("dos://")) {
+    if (DemoDosPathBuilder.accepts(pathAsString)) {
       gcsPathBuilder.build(pathAsString.swapPrefix("dos", "gs")).transform(
         gcsPath => Success(DemoDosPath(gcsPath, this)),
         gcsException => {
@@ -53,6 +53,7 @@ object DemoDosPathBuilder {
     }
   }
 
+  def accepts(path: String): Boolean = path.startsWith("dos://")
 }
 
 case class DemoDosPath(gcsPath: GcsPath, demoDosPathBuilder: DemoDosPathBuilder)

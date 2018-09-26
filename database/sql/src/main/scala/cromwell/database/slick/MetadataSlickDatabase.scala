@@ -3,7 +3,7 @@ package cromwell.database.slick
 import java.sql.Timestamp
 
 import cats.data.NonEmptyList
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
@@ -12,6 +12,13 @@ import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMe
 
 import scala.concurrent.{ExecutionContext, Future}
 
+object MetadataSlickDatabase {
+  def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase = {
+    val databaseConfig = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
+    new MetadataSlickDatabase(databaseConfig)
+  }
+}
+
 class MetadataSlickDatabase(originalDatabaseConfig: Config)
   extends SlickDatabase(originalDatabaseConfig)
     with MetadataSqlDatabase
@@ -19,6 +26,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
   import dataAccess.driver.api._
+
+  override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.metadataEntriesExists.result
+    runTransaction(action)
+  }
 
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[Unit] = {

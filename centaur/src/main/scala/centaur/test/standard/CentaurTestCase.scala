@@ -1,7 +1,6 @@
 package centaur.test.standard
 
-import java.nio.file.Path
-
+import better.files._
 import cats.data.Validated._
 import cats.implicits._
 import centaur.test._
@@ -23,6 +22,7 @@ case class CentaurTestCase(workflow: Workflow,
     case WorkflowSuccessTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
+    case RunThriceExpectingCallCachingTest => TestFormulas.runWorkflowThriceExpectingCaching(workflow)
     case RunTwiceExpectingNoCallCachingTest => TestFormulas.runWorkflowTwiceExpectingNoCaching(workflow)
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)
     case SubmitFailureTest => TestFormulas.submitInvalidWorkflow(workflow, submitResponseOption.get)
@@ -33,7 +33,7 @@ case class CentaurTestCase(workflow: Workflow,
     case CromwellRestartWithoutRecover(callMarker) => TestFormulas.workflowRestart(workflow, callMarker, recover = false, finalStatus = Succeeded)
     case ScheduledAbort(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = false)
     case ScheduledAbortWithRestart(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = true)
-    case other => Test.failed(new Exception(s"Invalid test format $other"))
+    case other => Test.invalidTestDefinition(s"Invalid test format $other", workflow)
   }
 
   def isIgnored(supportedBackends: List[String]): Boolean = {
@@ -48,16 +48,16 @@ case class CentaurTestCase(workflow: Workflow,
 }
 
 object CentaurTestCase {
-  def fromPath(path: Path): ErrorOr[CentaurTestCase] = {
-    Try(ConfigFactory.parseFile(path.toFile)) match {
+  def fromFile(file: File): ErrorOr[CentaurTestCase] = {
+    Try(ConfigFactory.parseFile(file.toJava)) match {
       case Success(c) =>
-        CentaurTestCase.fromConfig(c, path.getParent) flatMap validateTestCase leftMap { s"Error in test file '$path'." :: _ }
-      case Failure(f) => invalidNel(s"Invalid test config: $path (${f.getMessage})")
+        CentaurTestCase.fromConfig(c, file.parent) flatMap validateTestCase leftMap { s"Error in test file '$file'." :: _ }
+      case Failure(f) => invalidNel(s"Invalid test config: $file (${f.getMessage})")
     }
   }
 
-  def fromConfig(conf: Config, configPath: Path): ErrorOr[CentaurTestCase] = {
-    val workflow = Workflow.fromConfig(conf, configPath)
+  def fromConfig(conf: Config, configFile: File): ErrorOr[CentaurTestCase] = {
+    val workflow = Workflow.fromConfig(conf, configFile)
     val format: ErrorOr[CentaurTestFormat] = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitHttpResponse.fromConfig(conf)

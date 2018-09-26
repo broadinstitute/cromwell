@@ -11,14 +11,19 @@ import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.CommandLineArguments.ValidSubmission
+import cromwell.CommandLineArguments.WorkflowSourceOrUrl
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
-import cromwell.core.path.Path
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
+import io.sentry.Sentry
+import io.sentry.config.Lookup
+import io.sentry.dsn.Dsn
+import io.sentry.util.Util
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
@@ -133,6 +138,12 @@ object CromwellEntryPoint extends GracefulStopSupport {
     Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
      */
     ConfigFactory.invalidateCaches()
+
+    // Quiet warnings about missing sentry DSNs by just providing the default.
+    val dsn = Option(Lookup.lookup("dsn")).filterNot(Util.isNullOrEmpty).getOrElse(
+      Dsn.DEFAULT_DSN + "&stacktrace.app.packages=quieted_with_any_value_because_empty_was_not_working")
+    Sentry.init(dsn)
+    ()
   }
 
   protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]) = {
@@ -165,9 +176,16 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, r, i, o, l, z) =>
+      case ValidSubmission(w, u, r, i, o, l, z) =>
+        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = {
+          if (w.isDefined) WorkflowSourceOrUrl(w,u)  // submission has CWL workflow file path and no imports
+          else if (u.get.startsWith("http")) WorkflowSourceOrUrl(w, u)
+          else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL/CWL file
+        }
+
         WorkflowSingleSubmission(
-          workflowSource = w,
+          workflowSource = finalWorkflowSourceAndUrl.source,
+          workflowUrl = finalWorkflowSourceAndUrl.url,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -182,9 +200,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(w, r, i, o, l, Some(z)), _) =>
+      case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
+        //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -194,9 +214,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
           importsZip = z.loadBytes,
           warnings = Vector.empty,
           workflowOnHold = false)
-      case (ValidSubmission(w, r, i, o, l, None), _) =>
+      case (ValidSubmission(w, u, r, i, o, l, None), _) =>
+        //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,

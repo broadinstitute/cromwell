@@ -1,0 +1,19 @@
+# A list of call cache hint prefixes is explicitly specified but empty.
+name: call_cache_hit_prefixes_empty_hint_local
+testFormat: runtwiceexpectingnocallcaching
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+
+files {
+  workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl
+  inputs: call_cache_hit_prefixes/call_cache_hit_prefixes_empty_hint.inputs
+  # Because the SFS backend currently does not override the callCacheRootPrefix method, an empty set of prefixes
+  # in workflow options means that no call cache hits will match.
+  options: call_cache_hit_prefixes/call_cache_hit_prefixes_empty_hint.options
+}
+
+metadata {
+  workflowName: call_cache_hit_prefixes
+  status: Succeeded
+  "outputs.call_cache_hit_prefixes.sup": "sup empty hint?"
+}

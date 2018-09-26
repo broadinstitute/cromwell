@@ -1,0 +1,4 @@
+{
+   "jes_gcs_root" : "gs://cloud-cromwell-dev-another",
+   "call_cache_hit_path_prefixes": []
+}

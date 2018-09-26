@@ -1,6 +1,5 @@
-package wdl
+package languages.wdl.draft2
 
-import languages.wdl.draft2.WdlDraft2LanguageFactory
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.integration.ClientAndServer.startClientAndServer
 import org.mockserver.model.HttpRequest.request
@@ -40,7 +39,7 @@ class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Mat
 
   override def beforeAll() = {
     mockServer = startClientAndServer(PortFactory.findFreePort())
-    host = "http://localhost:" + mockServer.getPort
+    host = "http://localhost:" + mockServer.getLocalPort
 
     mockServer.when(
       request().withPath("/hello.wdl")

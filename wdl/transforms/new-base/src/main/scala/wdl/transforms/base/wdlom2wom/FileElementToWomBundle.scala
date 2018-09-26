@@ -11,13 +11,13 @@ import common.validation.Checked._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
 import cromwell.languages.LanguageFactory
-import cromwell.languages.util.ImportResolver.ImportResolver
+import cromwell.languages.util.ImportResolver._
 import wdl.model.draft3.elements._
 import wdl.transforms.base.wdlom2wom.StructEvaluation.StructEvaluationInputs
 import wdl.transforms.base.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
 import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
-import wom.core.{WorkflowOptionsJson, WorkflowSource}
+import wom.core.WorkflowOptionsJson
 import wom.executable.WomBundle
 import wom.transforms.WomBundleMaker
 import wom.transforms.WomBundleMaker.ops._
@@ -30,14 +30,12 @@ object FileElementToWomBundle {
     override def toWomBundle(a: FileElementToWomBundleInputs): Checked[WomBundle] = {
 
       def toWorkflowInner(imports: Vector[WomBundle], tasks: Vector[TaskDefinitionElement], structs: Map[String, WomType]): ErrorOr[WomBundle] = {
-        val workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] = workflowDefinitionElementToWomWorkflowDefinition
-        val taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition] = taskDefinitionElementToWomTaskDefinition
 
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
         val localTasksValidation: ErrorOr[Map[String, Callable]] = {
           tasks.traverse { taskDefinition =>
-            taskConverter
+            a.taskConverter
               .run(TaskDefinitionElementToWomInputs(taskDefinition, structs))
               .map(t => t.name -> t).toValidated
           }.map(_.toMap)
@@ -49,7 +47,7 @@ object FileElementToWomBundle {
             a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
               val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
-              workflowConverter.run(convertInputs).toValidated
+              a.workflowConverter.run(convertInputs).toValidated
             }
           }
 
@@ -84,19 +82,19 @@ object FileElementToWomBundle {
                               optionsJson: WorkflowOptionsJson,
                               importResolvers: List[ImportResolver],
                               languageFactories: List[LanguageFactory]): ErrorOr[WomBundle] = {
-    val compoundImportResolver: CheckedAtoB[String, WorkflowSource] = CheckedAtoB.firstSuccess(importResolvers, s"resolve import '${importElement.importUrl}'")
+    val compoundImportResolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.firstSuccess(importResolvers.map(_.resolver), s"resolve import '${importElement.importUrl}'")
 
-    val languageFactoryKleislis: List[CheckedAtoB[WorkflowSource, WomBundle]] = languageFactories map { factory =>
-      CheckedAtoB.fromCheck { source: WorkflowSource =>
-        factory.getWomBundle(source, optionsJson, importResolvers, languageFactories)
+    val languageFactoryKleislis: List[CheckedAtoB[ResolvedImportBundle, WomBundle]] = languageFactories map { factory =>
+      CheckedAtoB.fromCheck { resolutionBundle: ResolvedImportBundle =>
+        factory.getWomBundle(resolutionBundle.source, optionsJson, resolutionBundle.newResolvers, languageFactories)
       }
     }
-    val compoundLanguageFactory: CheckedAtoB[WorkflowSource, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")
+    val compoundLanguageFactory: CheckedAtoB[ResolvedImportBundle, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")
 
     val overallConversion = compoundImportResolver andThen compoundLanguageFactory
 
     overallConversion
-      .run(importElement.importUrl)
+      .run(ImportResolutionRequest(importElement.importUrl, importResolvers))
       .map { applyNamespace(_, importElement) }
       .flatMap { respectImportRenames(_, importElement.structRenames) }
       .contextualizeErrors(s"import '${importElement.importUrl}'")
@@ -132,4 +130,7 @@ object FileElementToWomBundle {
 final case class FileElementToWomBundleInputs(fileElement: FileElement,
                                               workflowOptionsJson: WorkflowOptionsJson,
                                               importResolvers: List[ImportResolver],
-                                              languageFactories: List[LanguageFactory])
+                                              languageFactories: List[LanguageFactory],
+                                              workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition],
+                                              taskConverter: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition]
+                                             )

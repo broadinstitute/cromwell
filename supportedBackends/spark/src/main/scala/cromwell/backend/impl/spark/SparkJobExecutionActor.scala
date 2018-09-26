@@ -2,7 +2,7 @@ package cromwell.backend.impl.spark
 
 import java.nio.file.attribute.PosixFilePermission
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorContext, ActorRef, Props}
 import common.exception.MessageAggregation
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse, RunOnBackend}
@@ -37,6 +37,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   override val pathBuilders = DefaultPathBuilders
   private val tag = s"SparkJobExecutionActor-${jobDescriptor.key.tag}:"
+
+  implicit def actorContext: ActorContext = this.context
 
   lazy val cmds = new SparkCommands
   lazy val clusterExtProcess = new SparkClusterProcess()(context.system)

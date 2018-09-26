@@ -3,10 +3,10 @@ package cromwell.core.actor
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
 import cromwell.core.actor.RobustClientHelper._
 import cromwell.core.actor.StreamIntegration._
+import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
-import scala.util.Random
 
 object RobustClientHelper {
   case class RequestTimeout(msg: Any, to: ActorRef)
@@ -16,13 +16,12 @@ object RobustClientHelper {
 trait RobustClientHelper { this: Actor with ActorLogging =>
   private [actor] implicit val robustActorHelperEc = context.dispatcher
 
-  private final val random = new Random()
+  private var backoff: Option[Backoff] = None
 
   // package private for testing
   private [core] var timeouts = Map.empty[Any, (Cancellable, FiniteDuration)]
 
-  protected def backpressureTimeout: FiniteDuration = 10 seconds
-  protected def backpressureRandomizerFactor: Double = 0.5D
+  protected def initialBackoff(): Backoff = SimpleExponentialBackoff(5.seconds, 20.minutes, 2D)
 
   def robustReceive: Receive = {
     case BackPressure(request) =>
@@ -60,14 +59,15 @@ trait RobustClientHelper { this: Actor with ActorLogging =>
     timeout foreach { addTimeout(command, to, _) }
   }
 
-  private [actor] final def generateBackpressureTime = {
-    val backpressureTimeoutInMillis = backpressureTimeout.toMillis
-
-    val delta = backpressureRandomizerFactor * backpressureTimeoutInMillis
-    val minInterval = backpressureTimeoutInMillis - delta
-    val maxInterval = backpressureTimeoutInMillis + delta
-    val randomValue = (minInterval + (random.nextDouble() * (maxInterval - minInterval + 1))).toInt
-    randomValue.milliseconds
+  private [actor] final def generateBackpressureTime: FiniteDuration = {
+    val effectiveBackoff = backoff.getOrElse({
+      val firstBackoff = initialBackoff()
+      backoff = Option(firstBackoff)
+      firstBackoff
+    })
+    val backoffTime = effectiveBackoff.backoffMillis
+    backoff = Option(effectiveBackoff.next)
+    backoffTime.millis
   }
 
   protected def onTimeout(message: Any, to: ActorRef): Unit

@@ -2,6 +2,7 @@ package wdl.model.draft3.graph.expression
 
 import common.validation.ErrorOr.ErrorOr
 import simulacrum.typeclass
+import wdl.model.draft3.elements.ExpressionElement
 import wom.CommandSetupSideEffectFile
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
@@ -21,7 +22,8 @@ trait ValueEvaluator[A] {
   def evaluateValue(a: A,
                     inputs: Map[String, WomValue],
                     ioFunctionSet: IoFunctionSet,
-                    forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]): ErrorOr[EvaluatedValue[_ <: WomValue]]
+                    forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                   (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]]
 }
 
 final case class ForCommandInstantiationOptions(valueMapper: WomValue => WomValue)

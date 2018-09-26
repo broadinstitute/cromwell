@@ -4,14 +4,13 @@ import akka.http.scaladsl.model.{HttpEntity, MediaTypes, MessageEntity, Multipar
 import cromiam.auth.Collection.LabelsKey
 import cromiam.webservice.SubmissionSupport._
 
-final case class WesSubmission(
-                                workflowParams: String,
-                                workflowType: String,
-                                workflowTypeVersion: String,
-                                tags: Option[String],
-                                workflowEngineParameters: Option[String],
-                                workflowUrl: String,
-                                workflowAttachment: Iterable[String]
+final case class WesSubmission(workflowParams: String,
+                               workflowType: String,
+                               workflowTypeVersion: String,
+                               tags: Option[String],
+                               workflowEngineParameters: Option[String],
+                               workflowUrl: String,
+                               workflowAttachment: Iterable[String]
                               ) {
   val entity: MessageEntity = {
     /*
@@ -31,9 +30,7 @@ final case class WesSubmission(
      */
     val sourcePart = workflowAttachment.headOption map { a => Multipart.FormData.BodyPart(WorkflowSourceKey, HttpEntity(MediaTypes.`application/json`, a)) }
 
-    // FIXME: Saloni's work on handling workflow URLs is not yet done
-    //val urlPart = Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, workflowUrl))
-
+    val urlPart = Multipart.FormData.BodyPart(WorkflowUrlKey, HttpEntity(MediaTypes.`application/json`, workflowUrl))
 
     val typePart = Multipart.FormData.BodyPart(WorkflowTypeKey, HttpEntity(MediaTypes.`application/json`, workflowType))
     val typeVersionPart = Multipart.FormData.BodyPart(WorkflowTypeVersionKey, HttpEntity(MediaTypes.`application/json`, workflowTypeVersion))
@@ -41,8 +38,7 @@ final case class WesSubmission(
     val optionsPart = workflowEngineParameters map { o => Multipart.FormData.BodyPart(WorkflowOptionsKey, HttpEntity(MediaTypes.`application/json`, o)) }
     val labelsPart = tags map { t => Multipart.FormData.BodyPart(LabelsKey, HttpEntity(MediaTypes.`application/json`, t)) }
 
-    // FIXME: add Option(urlPart) when cromwell supports workflowUrl
-    val parts = List(sourcePart, Option(typePart), Option(typeVersionPart), Option(inputsPart), optionsPart, labelsPart).flatten
+    val parts = List(sourcePart, Option(urlPart), Option(typePart), Option(typeVersionPart), Option(inputsPart), optionsPart, labelsPart).flatten
 
     Multipart.FormData(parts: _*).toEntity()
   }

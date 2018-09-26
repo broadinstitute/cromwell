@@ -1,0 +1,15 @@
+include required(classpath("application.conf"))
+
+{{with $cromwellFtp := vault (printf "secret/dsde/cromwell/common/cromwell-ftp")}}
+centaur {
+  cwl-runner {
+    ftp {
+      auth {
+        username = {{$cromwellFtp.Data.username}}
+        password = {{$cromwellFtp.Data.password}}
+      }
+      connection-count-per-user = 1
+    }
+  }
+}
+{{end}}

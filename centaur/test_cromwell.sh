@@ -13,7 +13,7 @@ EXIT_CODE=1
 PROGNAME="$(basename $0)"
 
 usage="
-$PROGNAME [-h] [-b branch] [-j jar path] [-g] [-r rundir] [-c config file] [-t refresh token file] [-s service account json] [-e excludeTag] [-i testDirPath]
+$PROGNAME [-h] [-b branch] [-j jar path] [-g] [-r rundir] [-l logdir] [-c cromwell config file] [-n centaur config file] [-t refresh token file] [-s service account json] [-i includeTag] [-e excludeTag] [-d testDirPath]
 
 Builds and runs specified branch of Cromwell and runs Centaur against it.
 
@@ -22,43 +22,52 @@ Arguments:
     -b    Branch of Cromwell to test. Mutually exclusive with -j
     -j    Path of a cromwell jar to use. Mutually exclusive with -b
     -r    Directory where script is run (defaults to current directory)
+    -l    Directory where logs are written (defaults to logs under the current directory)
     -g    Generate code coverage output for the centaur main classes
     -c    If supplied, the config file to pass to Cromwell
+    -n    If supplied, the config file to pass to Centaur
     -t    If supplied, the timeout for request-plus-response from Centaur to Cromwell
+    -i    If supplied, will include tests with this tag
     -e    If supplied, will exclude tests with this tag
     -s    If supplied, will run only the specified suite
     -p    If supplied, number of tests to be run in parallel. 16 is the default
-    -i    If supplied, will run the tests in this directory instead of the standard tests
+    -d    If supplied, will run the tests in this directory instead of the standard tests
 "
 
 INITIAL_DIR=$(pwd)
 RUN_DIR=$(pwd)
+LOG_DIR="${RUN_DIR}"/logs
 TEST_THREAD_COUNT=16
 CENTAUR_SBT_COVERAGE=false
 CROMWELL_TIMEOUT=10s
 SUITE=""
 
-while getopts ":hb:r:c:p:j:gt:e:s:i:" option; do
+while getopts ":hb:r:l:c:n:p:j:gt:i:e:s:d:" option; do
     case "$option" in
         h) echo "$usage"
             exit
             ;;
-        b) CROMWELL_BRANCH="${OPTARG}"
-            ;;
         r) RUN_DIR=$OPTARG
-            mkdir -p "${RUN_DIR}"
             ;;
-        c) CONFIG_STRING="${OPTARG}"
+        l) LOG_DIR=$OPTARG
+            ;;
+        n) CENTAUR_CONFIG_STRING="${OPTARG}"
+            ;;
+        g) CENTAUR_SBT_COVERAGE=true
+            ;;
+        b) CROMWELL_BRANCH="${OPTARG}"
             ;;
         j) CROMWELL_JAR="${OPTARG}"
             ;;
-        g) CENTAUR_SBT_COVERAGE=true
+        c) CROMWELL_CONFIG_STRING="${OPTARG}"
             ;;
         t) CROMWELL_TIMEOUT="${OPTARG}"
             ;;
         p) TEST_THREAD_COUNT="${OPTARG}"
             ;;
-        i) TEST_CASE_DIR="${OPTARG}"
+        d) TEST_CASE_DIR="${OPTARG}"
+            ;;
+        i) INCLUDE_TAG+=("${OPTARG}")
             ;;
         e) EXCLUDE_TAG+=("${OPTARG}")
             ;;
@@ -76,11 +85,11 @@ while getopts ":hb:r:c:p:j:gt:e:s:i:" option; do
 done
 shift "$((OPTIND - 1))"
 
-LOG_DIR="${RUN_DIR}"/logs
 ASSEMBLY_LOG=${LOG_DIR}/cromwell_assembly.log
 CROMWELL_LOG=${LOG_DIR}/cromwell.log
 CENTAUR_LOG=${LOG_DIR}/centaur.log
 
+mkdir -p "${RUN_DIR}"
 cd "${RUN_DIR}"
 mkdir -p "${LOG_DIR}"
 
@@ -120,21 +129,26 @@ else
     CP=$(sbt "export centaur/it:dependencyClasspath" -error)
 fi
 
-if [ -n "${TEST_CASE_DIR}" ]; then
-    RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"
+if [ -n "${CENTAUR_CONFIG_STRING}" ]; then
+    CENTAUR_CONF="-Dconfig.file=${CENTAUR_CONFIG_STRING}"
+else
+    if [ -n "${TEST_CASE_DIR}" ]; then
+        RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"
+    fi
+
+    CENTAUR_CROMWELL_MODE="-Dcentaur.cromwell.mode=jar"
+    CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
+    CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CROMWELL_CONFIG_STRING}"
+    CENTAUR_CROMWELL_LOG="-Dcentaur.cromwell.jar.log=${CROMWELL_LOG}"
+    CENTAUR_CROMWELL_RESTART="-Dcentaur.cromwell.jar.withRestart=true"
+    CENTAUR_SEND_RECEIVE_TIMEOUT="-Dcentaur.sendReceiveTimeout='${CROMWELL_TIMEOUT}'"
+    CENTAUR_LOG_REQUEST_FAILURES="-Dcentaur.log-request-failures=true"
+    CENTAUR_CONF="${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_LOG_REQUEST_FAILURES} ${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART} ${CENTAUR_SEND_RECEIVE_TIMEOUT}"
 fi
 
-CENTAUR_CROMWELL_MODE="-Dcentaur.cromwell.mode=jar"
-CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
-CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CONFIG_STRING}"
-CENTAUR_CROMWELL_LOG="-Dcentaur.cromwell.jar.log=${CROMWELL_LOG}"
-CENTAUR_CROMWELL_RESTART="-Dcentaur.cromwell.jar.withRestart=true"
-CENTAUR_SEND_RECEIVE_TIMEOUT="-Dcentaur.sendReceiveTimeout='${CROMWELL_TIMEOUT}'"
-CENTAUR_LOG_REQUEST_FAILURES="-Dcentaur.log-request-failures=true"
-CENTAUR_CONF="${CENTAUR_LOG_REQUEST_FAILURES} ${CENTAUR_CROMWELL_MODE} ${CENTAUR_CROMWELL_JAR} ${CENTAUR_CROMWELL_CONF} ${CENTAUR_CROMWELL_LOG} ${CENTAUR_CROMWELL_RESTART} ${CENTAUR_SEND_RECEIVE_TIMEOUT}"
 
 TEST_DESCRIPTION="Running Centaur with sbt test"
-TEST_COMMAND="java ${RUN_SPECIFIED_TEST_DIR_CMD} ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -u target/test-reports -PS${TEST_THREAD_COUNT}"
+TEST_COMMAND="java ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -u target/test-reports -PS${TEST_THREAD_COUNT}"
 
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     TEST_DESCRIPTION=${TEST_DESCRIPTION}" excluding ${EXCLUDE_TAG[*]} tests"
@@ -143,6 +157,15 @@ if [[ -n ${EXCLUDE_TAG[*]} ]]; then
         EXCLUDE=" -l $val"${EXCLUDE}
     done
     TEST_COMMAND="${TEST_COMMAND}${EXCLUDE}"
+fi
+
+if [[ -n ${INCLUDE_TAG[*]} ]]; then
+    TEST_DESCRIPTION=${TEST_DESCRIPTION}" including ${INCLUDE_TAG[*]} tests"
+    INCLUDE=""
+    for val in "${INCLUDE_TAG[@]}"; do
+        INCLUDE=" -n $val"${INCLUDE}
+    done
+    TEST_COMMAND="${TEST_COMMAND}${INCLUDE}"
 fi
 
 if [[ -n "${SUITE}" ]]; then

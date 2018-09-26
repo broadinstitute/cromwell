@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
-import java.net.{URI, URL}
+import java.net.URL
 
 import cats.data.Validated._
 import cats.syntax.apply._
@@ -17,11 +17,10 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.{refineMV, refineV}
 import net.ceedubs.ficus.Ficus._
-import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 
 case class PipelinesApiAttributes(project: String,
                                   computeServiceAccount: String,
@@ -86,8 +85,6 @@ object PipelinesApiAttributes {
   )
 
   private val context = "Jes"
-
-  implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
 
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config): PipelinesApiAttributes = {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }

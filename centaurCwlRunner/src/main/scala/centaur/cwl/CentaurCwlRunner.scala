@@ -1,6 +1,7 @@
 package centaur.cwl
 
 import better.files._
+import cats.effect.IO
 import centaur.api.CentaurCromwellClient
 import centaur.cwl.Outputs._
 import centaur.test.TestOptions
@@ -154,7 +155,16 @@ object CentaurCwlRunner extends StrictLogging {
     val submitResponseOption = None
 
     val workflowData = WorkflowData(
-      workflowContents, None, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
+      Option(workflowContents),
+      None,
+      None,
+      workflowType,
+      workflowTypeVersion,
+      inputContents.map(IO.pure),
+      optionsContents.map(IO.pure),
+      labels,
+      zippedImports
+    )
     val workflow = Workflow(testName, workflowData, workflowMetadata, notInMetadata, directoryContentCounts, backends)
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 

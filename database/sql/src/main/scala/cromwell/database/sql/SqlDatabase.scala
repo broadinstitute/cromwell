@@ -10,6 +10,8 @@ trait SqlDatabase extends AutoCloseable {
   protected val originalDatabaseConfig: Config
   lazy val databaseConfig = SqlDatabase.withUniqueSchema(originalDatabaseConfig, urlKey)
 
+  def connectionDescription: String
+
   def withConnection[A](block: Connection => A): A
 }
 

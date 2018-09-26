@@ -7,7 +7,7 @@ import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobC
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, WorkflowId}
+import cromwell.core.{CallOutputs, WorkflowId, WorkflowOptions}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
@@ -23,6 +23,7 @@ import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
 private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mockito with TaskMock with WdlWomExpressionMock with DeclarationMock {
@@ -49,7 +50,11 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
-  val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
+  val backendWorkflowDescriptor = BackendWorkflowDescriptor(id = workflowId,
+    callable = null,
+    knownValues = null,
+    workflowOptions = WorkflowOptions.empty,
+    customLabels = null)
   val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet
@@ -84,7 +89,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                                         ioActor: ActorRef,
                                         backendSingletonActor: Option[ActorRef]): Props = bjeaProps
 
-    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = Option((_, _, _, _) => callCacheHitCopyingProbe.props)
+    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = Option((_, _, _, _, _) => callCacheHitCopyingProbe.props)
 
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                              jobKey: BackendJobDescriptorKey,
@@ -185,4 +190,5 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   override def createBackendJobExecutionActor(data: ResponsePendingData) = helper.bjeaProbe.ref
   override def invalidateCacheHit(cacheId: CallCachingEntryId): Unit = { helper.invalidateCacheActorCreations = helper.invalidateCacheActorCreations.foundOne(cacheId) }
   override def createJobPreparationActor(jobPrepProps: Props, name: String) = jobPreparationProbe.ref
+  override def onTimedTransition(from: EngineJobExecutionActorState, to: EngineJobExecutionActorState, duration: FiniteDuration) = {}
 }

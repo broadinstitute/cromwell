@@ -6,13 +6,13 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.core.actor.BatchActor.CommandAndReplyTo
-import cromwell.core.callcaching.HashResult
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.services.EnhancedThrottlerActor
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import CallCache._
 
 /**
   * Queues up work sent to it because its receive is non-blocking.
@@ -27,18 +27,13 @@ class CallCacheReadActor(cache: CallCache,
   override def routed = true
   override def processHead(request: CommandAndReplyTo[CallCacheReadActorRequest]): Future[Int] = instrumentedProcess {
     val response = request.command match {
-      case HasMatchingInitialHashLookup(initialHash) =>
-        cache.hasBaseAggregatedHashMatch(initialHash) map {
+      case HasMatchingInitialHashLookup(initialHash, hints) =>
+        cache.hasBaseAggregatedHashMatch(initialHash, hints) map {
           case true => HasMatchingEntries
           case false => NoMatchingEntries
         }
-      case HasMatchingInputFilesHashLookup(fileHashes) =>
-        cache.hasKeyValuePairHashMatch(fileHashes) map {
-          case true => HasMatchingEntries
-          case false => NoMatchingEntries
-        }
-      case CacheLookupRequest(aggregatedCallHashes, cacheHitNumber) =>
-        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, cacheHitNumber) map {
+      case CacheLookupRequest(aggregatedCallHashes, cacheHitNumber, prefixesHint) =>
+        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, prefixesHint, cacheHitNumber) map {
           case Some(nextHit) => CacheLookupNextHit(nextHit)
           case None => CacheLookupNoHit
         }
@@ -82,9 +77,8 @@ object CallCacheReadActor {
   case class AggregatedCallHashes(baseAggregatedHash: String, inputFilesAggregatedHash: Option[String])
 
   sealed trait CallCacheReadActorRequest
-  final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int) extends CallCacheReadActorRequest
-  final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String) extends CallCacheReadActorRequest
-  final case class HasMatchingInputFilesHashLookup(fileHashes: NonEmptyList[HashResult]) extends CallCacheReadActorRequest
+  final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes, cacheHitNumber: Int, prefixesHint: Option[CallCachePathPrefixes]) extends CallCacheReadActorRequest
+  final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String, cacheHitHints: List[CacheHitHint] = List.empty) extends CallCacheReadActorRequest
   final case class CallCacheEntryForCall(workflowId: WorkflowId, jobKey: BackendJobDescriptorKey) extends CallCacheReadActorRequest
 
   sealed trait CallCacheReadActorResponse

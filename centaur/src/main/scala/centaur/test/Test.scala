@@ -6,10 +6,11 @@ import cats.Monad
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
+import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur._
 import centaur.api.CentaurCromwellClient
 import centaur.api.CentaurCromwellClient.LogFailures
-import centaur.test.metadata.WorkflowMetadata
+import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
 import com.google.api.services.genomics.Genomics
@@ -21,13 +22,13 @@ import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -41,8 +42,11 @@ sealed abstract class Test[A] {
 
 object Test {
   def successful[A](value: A): Test[A] = testMonad.pure(value)
-  def failed[A](exception: Exception) = new Test[A] {
-    override def run = IO.raiseError(exception)
+
+  def invalidTestDefinition[A](message: String, workflowDefinition: Workflow): Test[A] = {
+    new Test[A] {
+      override def run: IO[Nothing] = IO.raiseError(CentaurTestException(message, workflowDefinition))
+    }
   }
 
   implicit val testMonad: Monad[Test] = new Monad[Test] {
@@ -59,7 +63,7 @@ object Test {
     }
 
     /** Call the default non-stack-safe but correct version of this method. */
-    override def tailRecM[A, B](a: A)(f: (A) => Test[Either[A, B]]): Test[B] = {
+    override def tailRecM[A, B](a: A)(f: A => Test[Either[A, B]]): Test[B] = {
       flatMap(f(a)) {
         case Right(b) => pure(b)
         case Left(nextA) => tailRecM(nextA)(f)
@@ -82,7 +86,9 @@ object Operations {
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
-  lazy val credentials: Credentials = configuration.auth(authName).toTry.get.credential(Map.empty)
+  lazy val credentials: Credentials = configuration.auth(authName)
+    .unsafe
+    .pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)
   lazy val credentialsProjectOption: Option[String] = {
     Option(credentials) collect {
       case serviceAccountCredentials: ServiceAccountCredentials => serviceAccountCredentials.getProjectId
@@ -120,20 +126,30 @@ object Operations {
   def submitInvalidWorkflow(workflow: Workflow): Test[SubmitHttpResponse] = {
     new Test[SubmitHttpResponse] {
       override def run: IO[SubmitHttpResponse] = {
-        CentaurCromwellClient.submit(workflow).redeemWith({
-          case unsuccessfulRequestException: UnsuccessfulRequestException =>
-            val httpResponse = unsuccessfulRequestException.httpResponse
-            val statusCode = httpResponse.status.intValue()
-            httpResponse.entity match {
-              case akka.http.scaladsl.model.HttpEntity.Strict(_, data) =>
-                IO.pure(SubmitHttpResponse(statusCode, data.utf8String))
-              case _ => IO.raiseError(new RuntimeException(s"Expected a strict http response entity but got ${httpResponse.entity}"))
+        CentaurCromwellClient.submit(workflow).redeemWith(
+          {
+            case unsuccessfulRequestException: UnsuccessfulRequestException =>
+              val httpResponse = unsuccessfulRequestException.httpResponse
+              val statusCode = httpResponse.status.intValue()
+              httpResponse.entity match {
+                case akka.http.scaladsl.model.HttpEntity.Strict(_, data) =>
+                  IO.pure(SubmitHttpResponse(statusCode, data.utf8String))
+                case _ =>
+                  val message = s"Expected a strict http response entity but got ${httpResponse.entity}"
+                  IO.raiseError(CentaurTestException(message, workflow, unsuccessfulRequestException))
+              }
+            case unexpected: Exception =>
+              val message = s"Unexpected error: ${unexpected.getMessage}"
+              IO.raiseError(CentaurTestException(message, workflow, unexpected))
+            case throwable: Throwable => throw throwable
+          },
+          {
+            submittedWorkflow => {
+              val message =
+                s"Expected a failure but got a successfully submitted workflow with id ${submittedWorkflow.id}"
+              IO.raiseError(CentaurTestException(message, workflow))
             }
-          case unexpected => IO.raiseError(unexpected)
-        },
-          submittedWorkflow =>
-            IO.raiseError(new RuntimeException(
-              s"Expected a failure but got a successfully submitted workflow with id ${submittedWorkflow.id}"))
+          }
         )
       }
     }
@@ -144,6 +160,9 @@ object Operations {
       override def run: IO[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
     }
   }
+
+  implicit private val timer = IO.timer(global)
+  implicit private val contextShift = IO.contextShift(global)
 
   def waitFor(duration: FiniteDuration) = {
     new Test[Unit] {
@@ -162,7 +181,11 @@ object Operations {
           workflowStatus <- CentaurCromwellClient.status(workflow)
           mappedStatus <- workflowStatus match {
             case s if s == expectedStatus => IO.pure(workflow)
-            case s: TerminalStatus => IO.raiseError(new Exception(s"Unexpected terminal status $s but was waiting for $expectedStatus"))
+            case s: TerminalStatus =>
+              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus"
+                IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
+              }
             case _ => for {
               _ <- IO.sleep(10.seconds)
               s <- status
@@ -179,19 +202,27 @@ object Operations {
   /**
     * Validate that the given jobId matches the one in the metadata
     */
-  def validateRecovered(workflow: SubmittedWorkflow, callFqn: String, formerJobId: String): Test[Unit] = {
+  def validateRecovered(workflowDefinition: Workflow,
+                        workflow: SubmittedWorkflow,
+                        metadata: WorkflowMetadata,
+                        callFqn: String,
+                        formerJobId: String): Test[Unit] = {
     new Test[Unit] {
       override def run: IO[Unit] = CentaurCromwellClient.metadata(workflow) flatMap { s =>
-        s.value.get(s"calls.$callFqn.jobId") match {
+        s.asFlat.value.get(s"calls.$callFqn.jobId") match {
           case Some(newJobId) if newJobId.asInstanceOf[JsString].value == formerJobId => IO.unit
-          case Some(_) => IO.raiseError(new Exception("Pre-restart job ID did not match post restart job ID"))
-          case _ => IO.raiseError(new Exception("Cannot find a post restart job ID"))
+          case Some(newJobId) =>
+            val message = s"Pre-restart job ID $formerJobId did not match post restart job ID $newJobId"
+            IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
+          case _ =>
+            val message = s"Cannot find a post restart job ID to match pre-restart job ID $formerJobId"
+            IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
         }
       }
     }
   }
 
-  def validatePAPIAborted(jobId: String, workflow: SubmittedWorkflow): Test[Unit] = {
+  def validatePAPIAborted(workflowDefinition: Workflow, workflow: SubmittedWorkflow, jobId: String): Test[Unit] = {
     new Test[Unit] {
       def checkPAPIAborted(): IO[Unit] = {
         for {
@@ -200,7 +231,11 @@ object Operations {
           operationError = Option(operation.getError)
           aborted = operationError.exists(_.getCode == 1) && operationError.exists(_.getMessage.startsWith("Operation canceled"))
           result <- if (!(done && aborted)) {
-            IO.raiseError(new Exception(s"Underlying JES job was not aborted properly. Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}"))
+            CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+              val message = s"Underlying JES job was not aborted properly. " +
+                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}"
+              IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
+            }
           } else IO.unit
         } yield result
       }
@@ -214,25 +249,25 @@ object Operations {
   /**
     * Polls until a specific call is in Running state. Returns the job id.
     */
-  def pollUntilCallIsRunning(workflow: SubmittedWorkflow, callFqn: String): Test[String] = {
+  def pollUntilCallIsRunning(workflowDefinition: Workflow, workflow: SubmittedWorkflow, callFqn: String): Test[String] = {
     // Special case for sub workflow testing
     def findJobIdInSubWorkflow(subWorkflowId: String): IO[Option[String]] = {
       for {
         metadata <- CentaurCromwellClient
-          .metadata(WorkflowId.fromString(subWorkflowId))
+          .metadataWithId(WorkflowId.fromString(subWorkflowId))
           .redeem(_ => None, Option.apply)
-        jobId <- IO.pure(metadata.flatMap(_.value.get("calls.inner_abort.aborted.jobId")))
+        jobId <- IO.pure(metadata.flatMap(_.asFlat.value.get("calls.inner_abort.aborted.jobId")))
       } yield jobId.map(_.asInstanceOf[JsString].value)
     }
 
     def valueAsString(key: String, metadata: WorkflowMetadata) = {
-      metadata.value.get(key).map(_.asInstanceOf[JsString].value)
+      metadata.asFlat.value.get(key).map(_.asInstanceOf[JsString].value)
     }
 
     def findCallStatus(metadata: WorkflowMetadata): IO[Option[(String, String)]] = {
-      val status = metadata.value.get(s"calls.$callFqn.executionStatus")
+      val status = metadata.asFlat.value.get(s"calls.$callFqn.executionStatus")
       val statusString = status.map(_.asInstanceOf[JsString].value)
-      
+
       for {
         jobId <- valueAsString(s"calls.$callFqn.jobId", metadata).map(jobId => IO.pure(Option(jobId)))
           .orElse(valueAsString(s"calls.$callFqn.subWorkflowId", metadata).map(findJobIdInSubWorkflow))
@@ -245,35 +280,35 @@ object Operations {
     }
 
     new Test[String] {
-      def doPerform: IO[String] = {
-        val metadata = for {
+      def doPerform(): IO[String] = {
+        for {
           // We don't want to keep going forever if the workflow failed
           status <- CentaurCromwellClient.status(workflow)
+          metadata <- CentaurCromwellClient.metadata(workflow)
           _ <- status match {
-            case Failed => IO.raiseError(new Exception("Workflow Failed"))
+            case Failed =>
+              val message = s"$callFqn failed"
+              IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
             case _ => IO.unit
           }
-          metadata <- CentaurCromwellClient.metadata(workflow)
-        } yield metadata
-
-        for {
-          md <- metadata
-          callStatus <- findCallStatus(md)
+          callStatus <- findCallStatus(metadata)
           result <- callStatus match {
             case Some(("Running", jobId)) => IO.pure(jobId)
-            case Some(("Failed", _)) => IO.raiseError(new Exception(s"$callFqn failed"))
+            case Some(("Failed", _)) =>
+              val message = s"$callFqn failed"
+              IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
             case _ => for {
               _ <- IO.sleep(5.seconds)
-              recurse <- doPerform
+              recurse <- doPerform()
             } yield recurse
           }
         } yield result
       }
 
-      override def run: IO[String] = doPerform.timeout(CentaurConfig.maxWorkflowLength)
+      override def run: IO[String] = doPerform().timeout(CentaurConfig.maxWorkflowLength)
     }
   }
-  
+
   def printHashDifferential(workflowA: SubmittedWorkflow, workflowB: SubmittedWorkflow) = new Test[Unit] {
     def hashDiffOfAllCalls = {
       // Extract the workflow name followed by call name to use in the call cache diff endpoint
@@ -281,7 +316,7 @@ object Operations {
 
       for {
         md <- CentaurCromwellClient.metadata(workflowB)
-        calls = md.value.keySet.flatMap({
+        calls = md.asFlat.value.keySet.flatMap({
           case callNameRegexp(name) => Option(name)
           case _ => None
         })
@@ -290,7 +325,7 @@ object Operations {
         })
       } yield diffs.flatMap(_.hashDifferential)
     }
-    
+
     override def run = {
       hashDiffOfAllCalls map {
         case diffs if diffs.nonEmpty && CentaurCromwellClient.LogFailures =>
@@ -303,10 +338,13 @@ object Operations {
     }
   }
 
-  def validateMetadata(submittedWorkflow: SubmittedWorkflow, workflowSpec: Workflow, cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
+  def validateMetadata(submittedWorkflow: SubmittedWorkflow,
+                       workflowSpec: Workflow,
+                       cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
-      def eventuallyMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): IO[WorkflowMetadata] = {
-        validateMetadata(workflow, expectedMetadata).handleErrorWith({_ =>
+      def eventuallyMetadata(workflow: SubmittedWorkflow,
+                             expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
+        validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
             _ = if (LogFailures) Console.err.println(s"Metadata mismatch for ${submittedWorkflow.id} - retrying")
@@ -314,31 +352,42 @@ object Operations {
           } yield recurse
         })
       }
-      
-      def validateMetadata(workflow: SubmittedWorkflow, expectedMetadata: WorkflowMetadata): IO[WorkflowMetadata] = {
-        def checkDiff(diffs: Iterable[String]): IO[Unit] = {
-          diffs match {
-            case d if d.nonEmpty => IO.raiseError(new Exception(s"Invalid metadata response:\n -${d.mkString("\n -")}\n"))
-            case _ => IO.unit
+
+      def validateMetadata(workflow: SubmittedWorkflow,
+                           expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
+        def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] = {
+          if (diffs.nonEmpty) {
+            val message = s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"
+            IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
+          } else {
+            IO.unit
           }
         }
+
+        def validateUnwantedMetadata(actualMetadata: WorkflowMetadata): IO[Unit] = {
+          if (workflowSpec.notInMetadata.nonEmpty) {
+            // Check that none of the "notInMetadata" keys are in the actual metadata
+            val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.asFlat.value.keySet)
+            if (absentMdIntersect.nonEmpty) {
+              val message = s"Found unwanted keys in metadata: ${absentMdIntersect.mkString(", ")}"
+              IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
+            } else {
+              IO.unit
+            }
+          } else {
+            IO.unit
+          }
+        }
+
         cleanUpImports(workflow)
-
-        def validateUnwantedMetadata(actualMetadata: WorkflowMetadata) = if (workflowSpec.notInMetadata.nonEmpty) {
-          // Check that none of the "notInMetadata" keys are in the actual metadata
-          val absentMdIntersect = workflowSpec.notInMetadata.toSet.intersect(actualMetadata.value.keySet)
-          if (absentMdIntersect.nonEmpty) IO.raiseError(new Exception(s"Found unwanted keys in metadata: ${absentMdIntersect.mkString(", ")}"))
-          else IO.unit
-        } else IO.unit
-
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
-          diffs = expectedMetadata.diff(actualMetadata, workflow.id.id, cacheHitUUID)
-          _ <- checkDiff(diffs)
+          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
+          _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata
       }
-      
+
       override def run: IO[WorkflowMetadata] = workflowSpec.metadata match {
         case Some(expectedMetadata) =>
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
@@ -348,25 +397,36 @@ object Operations {
       }
     }
   }
-  
+
   /**
     * Verify that none of the calls within the workflow are cached.
     */
-  def validateCacheResultField(metadata: WorkflowMetadata, workflowName: String, blacklistedValue: String): Test[Unit] = {
+  def validateCacheResultField(workflowDefinition: Workflow,
+                               submittedWorkflow: SubmittedWorkflow,
+                               metadata: WorkflowMetadata,
+                               blacklistedValue: String): Test[Unit] = {
     new Test[Unit] {
       override def run: IO[Unit] = {
-        val badCacheResults = metadata.value collect {
+        val badCacheResults = metadata.asFlat.value collect {
           case (k, JsString(v)) if k.contains("callCaching.result") && v.contains(blacklistedValue) => s"$k: $v"
         }
 
-        if (badCacheResults.isEmpty) IO.unit
-        else IO.raiseError(new Exception(s"Found unexpected cache hits for $workflowName:${badCacheResults.mkString("\n", "\n", "\n")}"))
+        if (badCacheResults.isEmpty) {
+          IO.unit
+        } else {
+          val message = s"Found unexpected cache hits for " +
+            s"${workflowDefinition.testName}:${badCacheResults.mkString("\n", "\n", "\n")}"
+          IO.raiseError(CentaurTestException(message, workflowDefinition, submittedWorkflow, metadata))
+        }
       }
     }
   }
 
-  def validateDirectoryContentsCounts(workflowDefinition: Workflow, submittedWorkflow: SubmittedWorkflow): Test[Unit] = new Test[Unit] {
+  def validateDirectoryContentsCounts(workflowDefinition: Workflow,
+                                      submittedWorkflow: SubmittedWorkflow,
+                                      metadata: WorkflowMetadata): Test[Unit] = new Test[Unit] {
     private val workflowId = submittedWorkflow.id.id.toString
+
     override def run: IO[Unit] = workflowDefinition.directoryContentCounts match {
       case None => IO.unit
       case Some(directoryContentCountCheck) =>
@@ -379,12 +439,26 @@ object Operations {
         val badCounts = counts collect {
           case (directory, expectedCount, actualCount) if expectedCount != actualCount => s"Expected to find $expectedCount item(s) at $directory but got $actualCount"
         }
-        if (badCounts.isEmpty) IO.unit else IO.raiseError(new Exception(badCounts.mkString("\n", "\n", "\n")))
+        if (badCounts.isEmpty) {
+          IO.unit
+        } else {
+          val message = badCounts.mkString("\n", "\n", "\n")
+          IO.raiseError(CentaurTestException(message, workflowDefinition, submittedWorkflow, metadata))
+        }
     }
   }
 
-  def validateNoCacheHits(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Hit")
-  def validateNoCacheMisses(metadata: WorkflowMetadata, workflowName: String): Test[Unit] = validateCacheResultField(metadata, workflowName, "Cache Miss")
+  def validateNoCacheHits(submittedWorkflow: SubmittedWorkflow,
+                          metadata: WorkflowMetadata,
+                          workflowDefinition: Workflow): Test[Unit] = {
+    validateCacheResultField(workflowDefinition, submittedWorkflow, metadata, "Cache Hit")
+  }
+
+  def validateNoCacheMisses(submittedWorkflow: SubmittedWorkflow,
+                            metadata: WorkflowMetadata,
+                            workflowDefinition: Workflow): Test[Unit] = {
+    validateCacheResultField(workflowDefinition, submittedWorkflow, metadata, "Cache Miss")
+  }
 
   def validateSubmitFailure(workflow: Workflow,
                             expectedSubmitResponse: SubmitHttpResponse,
@@ -394,17 +468,15 @@ object Operations {
         if (expectedSubmitResponse == actualSubmitResponse) {
           IO.unit
         } else {
-          IO.raiseError(
-            new RuntimeException(
-              s"""|
-                  |Expected
-                  |$expectedSubmitResponse
-                  |
-                  |but got:
-                  |$actualSubmitResponse
-                  |""".stripMargin
-            )
-          )
+          val message =
+            s"""|
+                |Expected
+                |$expectedSubmitResponse
+                |
+                |but got:
+                |$actualSubmitResponse
+                |""".stripMargin
+          IO.raiseError(CentaurTestException(message, workflow))
         }
       }
     }

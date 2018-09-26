@@ -158,7 +158,9 @@ object CallNode {
           validInputsAccumulated, expressionLanguageFunctions, outputStoreLookup, inputDefinition
         ) flatMap(inputDefinition.womType.coerceRawValue(_).toErrorOr)
 
-        accumulatedInputsSoFar + (inputDefinition -> coercedValue)
+        val contextualizedValue = coercedValue.contextualizeErrors(s"evaluate input '${inputDefinition.localName.value}'")
+
+        accumulatedInputsSoFar + (inputDefinition -> contextualizedValue)
     }.sequence
   }
   

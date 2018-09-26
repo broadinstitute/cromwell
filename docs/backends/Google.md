@@ -234,3 +234,30 @@ Every call run on the Pipelines API backend is given certain labels by default, 
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
 
 Any custom labels provided upon workflow submission are also applied to Google resources by the Pipelines API.
+
+## Using NCBI Sequence Read Archive (SRA) Data
+
+The v2alpha1 backend supports accessing [NCBI
+SRA](https://www.ncbi.nlm.nih.gov/sra) accessions natively.  To configure this
+support you'll need to enable it in your config file like so:
+
+```hocon
+filesystems {
+  sra {
+    class = "cromwell.filesystems.sra.SraPathBuilderFactory"
+    docker-image = "fusera/fusera:alpine"
+    ngc = "bmNiaV9nYXAfiwgAAAAAAAADBcHBDYQgEADAv1XQAGYXcfErUe5x0diCiFESA0Y8/VD8zTzrlXwMDEsoII9usPT5znZSmTqUohaSg5Gay14TbxsluMGOSBuqDEKefvbwCzv3BAAKoexb5uIbjjg7dq/p9mH7A5VTImxjAAAA"
+  }
+}
+```
+
+This filesystem has two required configuration options:
+* `docker-image`: The [fusera](https://github.com/mitre/fusera) docker image to
+  use to provide access.  This can be a custom image, but using the public
+  [fusera/fusera:alpine](https://hub.docker.com/r/fusera/fusera/) image is
+  recommended.
+* `ngc`: A base-64 encoded NGC file.  This is provided through the NCBI
+  interface.  Please see [the
+  documentation](https://www.ncbi.nlm.nih.gov/books/NBK63512/#Download.are_downloaded_files_encrypted)
+  for more information on obtaining your NGC.  The `ngc` value provided above
+  is the sample credential file.

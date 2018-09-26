@@ -24,13 +24,13 @@ object GoogleUtil {
 
   implicit class EnhancedGoogleAuthMode(val googleAuthMode: GoogleAuthMode) extends AnyVal {
     /**
-      * Retries getting the credentials three times.
+      * Retries getting the pipelines API credentials three times.
       */
-    def retryCredential(options: WorkflowOptions)
-                       (implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+    def retryPipelinesApiCredentials(options: WorkflowOptions)
+                                    (implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
       def credential(): Credentials = {
         try {
-          googleAuthMode.credential((key: String) => options.get(key).get)
+          googleAuthMode.pipelinesApiCredentials((key: String) => options.get(key).get)
         } catch {
           case exception: OptionLookupException =>
             throw new IllegalArgumentException(s"Missing parameters in workflow options: ${exception.key}", exception)

@@ -12,6 +12,11 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   import dataAccess.driver.api._
 
+  override def existsJobKeyValueEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.jobKeyValueEntriesExists.result
+    runTransaction(action)
+  }
+
   override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
     val action = if (useSlickUpserts) {
@@ -46,6 +51,12 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
       DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
     }
     runTransaction(action).void
+  }
+
+  override def queryJobKeyValueEntries(workflowExecutionUuid: String)
+                                      (implicit ec: ExecutionContext): Future[Seq[JobKeyValueEntry]] = {
+    val action = dataAccess.jobKeyValueEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
+    runTransaction(action)
   }
 
   override def queryStoreValue(workflowExecutionUuid: String, callFqn: String, jobScatterIndex: Int,

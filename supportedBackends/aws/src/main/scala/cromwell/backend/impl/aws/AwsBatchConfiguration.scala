@@ -41,8 +41,8 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val awsConfig = AwsConfiguration(configurationDescriptor.globalConfig)
 
   val root = configurationDescriptor.backendConfig.getString("root")
-  val runtimeConfig = configurationDescriptor.backendRuntimeConfig
-  val batchAttributes = AwsBatchAttributes(awsConfig, configurationDescriptor.backendConfig)
+  val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
+  val batchAttributes = AwsBatchAttributes.fromConfigs(awsConfig, configurationDescriptor.backendConfig)
   val awsAuth = batchAttributes.auth
   val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials
   val pathBuilderFactory = S3PathBuilderFactory(configurationDescriptor.globalConfig, configurationDescriptor.backendConfig)

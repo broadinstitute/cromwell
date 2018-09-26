@@ -7,8 +7,9 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import shapeless.Coproduct
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
-import wdl.model.draft3.elements.CallElement
-import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wdl.model.draft3.elements.{CallElement, ExpressionElement}
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
+import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
@@ -20,7 +21,11 @@ import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 object CallElementToGraphNode {
-  def convert(a: CallNodeMakerInputs): ErrorOr[Set[GraphNode]] = {
+  def convert(a: CallNodeMakerInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = {
     val callNodeBuilder = new CallNode.CallNodeBuilder()
 
     val callName = a.node.alias.getOrElse(a.node.callableReference.split("\\.").last)
@@ -80,17 +85,19 @@ object CallElementToGraphNode {
                   case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
                   case _ => PlainAnonymousExpressionNode.apply _
                 }
-                val wdlomWomExpression = WdlomWomExpression(expression, a.linkableValues)
-                val requiredInputType = i match {
-                  case _: InputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
-                  case _ => i.womType
-                }
-
-                (WorkflowGraphElementToGraphNode.validateAssignmentType(wdlomWomExpression, requiredInputType) flatMap { _ =>
-                  AnonymousExpressionNode.fromInputMapping[AnonymousExpressionNode](identifier, wdlomWomExpression, a.linkablePorts, constructor) map {
-                    LocalName(name) -> _
+                WdlomWomExpression.make(expression, a.linkableValues) flatMap { wdlomWomExpression =>
+                  val requiredInputType = i match {
+                    case _: InputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
+                    case _ => i.womType
                   }
-                }).contextualizeErrors(s"supply input $name = ${expression.toWdlV1}")
+
+                  (WorkflowGraphElementToGraphNode.validateAssignmentType(wdlomWomExpression, requiredInputType) flatMap { _ =>
+                    AnonymousExpressionNode.fromInputMapping[AnonymousExpressionNode](identifier, wdlomWomExpression, a.linkablePorts, constructor) map {
+                      LocalName(name) -> _
+                    }
+                  }).contextualizeErrors(s"supply input $name = ${expression.toWdlV1}")
+                }
+                
               case None =>
                 if (hasDeclaration(callable, name)) {
                   s"The call tried to supply a value '$name' that isn't overridable for this task (or sub-workflow). To be able to supply this value, move it into the task (or sub-workflow)'s inputs { } section.".invalidNel

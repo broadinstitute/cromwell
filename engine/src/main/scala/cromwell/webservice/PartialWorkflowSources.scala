@@ -1,27 +1,30 @@
 package cromwell.webservice
 
+import java.net.URL
+
 import _root_.io.circe.yaml
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
+import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.functor._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.core.labels.Label
-import wdl.draft2.model.WorkflowJson
 import org.slf4j.LoggerFactory
 import spray.json.{JsObject, JsValue, _}
+import wdl.draft2.model.WorkflowJson
 import wom.core._
-import cats.instances.list._
-import cats.syntax.traverse._
 
 import scala.util.{Failure, Success, Try}
 
-final case class PartialWorkflowSources(workflowSource: WorkflowSource,
+final case class PartialWorkflowSources(workflowSource: Option[WorkflowSource] = None,
+                                        workflowUrl: Option[WorkflowUrl] = None,
                                         workflowRoot: Option[String] = None,
                                         workflowType: Option[WorkflowType] = None,
                                         workflowTypeVersion: Option[WorkflowTypeVersion] = None,
@@ -35,10 +38,11 @@ final case class PartialWorkflowSources(workflowSource: WorkflowSource,
 
 object PartialWorkflowSources {
   val log = LoggerFactory.getLogger(classOf[PartialWorkflowSources])
-  
+
   val WdlSourceKey = "wdlSource"
   val WorkflowRootKey = "workflowRoot"
   val WorkflowSourceKey = "workflowSource"
+  val WorkflowUrlKey = "workflowUrl"
   val WorkflowTypeKey = "workflowType"
   val WorkflowTypeVersionKey = "workflowTypeVersion"
   val WorkflowInputsKey = "workflowInputs"
@@ -49,10 +53,12 @@ object PartialWorkflowSources {
   val WorkflowDependenciesKey = "workflowDependencies"
   val workflowOnHoldKey = "workflowOnHold"
 
-  val allKeys = List(WdlSourceKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
+  val allKeys = List(WdlSourceKey, WorkflowUrlKey, WorkflowRootKey, WorkflowSourceKey, WorkflowTypeKey, WorkflowTypeVersionKey, WorkflowInputsKey,
     WorkflowOptionsKey, labelsKey, WdlDependenciesKey, WorkflowDependenciesKey, workflowOnHoldKey)
 
   val allPrefixes = List(WorkflowInputsAuxPrefix)
+
+  val MaxWorkflowUrlLength = 2000
 
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
@@ -78,6 +84,7 @@ object PartialWorkflowSources {
       // workflow source
       val wdlSource = getStringValue(WdlSourceKey)
       val workflowSource = getStringValue(WorkflowSourceKey)
+      val workflowUrl = getStringValue(WorkflowUrlKey)
 
       def deprecationWarning(out: String, in: String)(actual: String): String = {
         if (actual == out) {
@@ -94,11 +101,15 @@ object PartialWorkflowSources {
       val wdlSourceDeprecationWarning: String => String = deprecationWarning(out = WdlSourceKey, in = WorkflowSourceKey)
       val wdlSourceWarning = wdlSource.as(WdlSourceKey) map wdlSourceDeprecationWarning
 
-      val workflowSourceFinal: ErrorOr[String] = (wdlSource, workflowSource) match {
-        case (Some(source), None) => source.validNel
-        case (None, Some(source)) => source.validNel
-        case (Some(_), Some(_)) => s"$WdlSourceKey and $WorkflowSourceKey can't both be supplied".invalidNel
-        case (None, None) => s"$WorkflowSourceKey needs to be supplied".invalidNel
+      val workflowSourceFinal: ErrorOr[Option[String]] = (wdlSource, workflowSource, workflowUrl) match {
+        case (Some(source), None, None) => Some(source).validNel
+        case (None, Some(source), None) => Some(source).validNel
+        case (None, None, Some(_)) => None.validNel
+        case (Some(_), Some(_), None) => s"$WdlSourceKey and $WorkflowSourceKey can't both be supplied".invalidNel
+        case (None, Some(_), Some(_)) => s"$WorkflowSourceKey and $WorkflowUrlKey can't both be supplied".invalidNel
+        case (Some(_), None, Some(_)) => s"$WdlSourceKey and $WorkflowUrlKey can't both be supplied".invalidNel
+        case (Some(_), Some(_), Some(_)) => s"$WdlSourceKey, $WorkflowSourceKey and $WorkflowUrlKey all 3 can't be supplied".invalidNel
+        case (None, None, None) => s"$WorkflowSourceKey or $WorkflowUrlKey needs to be supplied".invalidNel
       }
 
       // workflow inputs
@@ -131,6 +142,7 @@ object PartialWorkflowSources {
       (unrecognized, workflowSourceFinal, workflowInputs, workflowInputsAux, workflowDependenciesFinal, onHold) mapN {
         case (_, source, inputs, aux, dep, onHold) => PartialWorkflowSources(
           workflowSource = source,
+          workflowUrl = workflowUrl,
           workflowRoot = getStringValue(WorkflowRootKey),
           workflowType = getStringValue(WorkflowTypeKey),
           workflowTypeVersion = getStringValue(WorkflowTypeVersionKey),
@@ -154,7 +166,7 @@ object PartialWorkflowSources {
   private def workflowInputsValidation(data: String): ErrorOr[Vector[WorkflowJson]] = {
     import _root_.io.circe.Printer
     import cats.syntax.validated._
-    
+
     yaml.parser.parse(data) match {
       // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
       case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
@@ -199,10 +211,12 @@ object PartialWorkflowSources {
       case Valid(partialSource) =>
         (validateInputs(partialSource),
           validateOptions(partialSource.workflowOptions),
-          validateLabels(partialSource.customLabels.getOrElse("{}"))) mapN {
-          case (wfInputs, wfOptions, workflowLabels) =>
+          validateLabels(partialSource.customLabels.getOrElse("{}")),
+          partialSource.workflowUrl.traverse(validateWorkflowUrl)) mapN {
+          case (wfInputs, wfOptions, workflowLabels, wfUrl) =>
             wfInputs.map(inputsJson => WorkflowSourceFilesCollection(
               workflowSource = partialSource.workflowSource,
+              workflowUrl = wfUrl,
               workflowRoot = partialSource.workflowRoot,
               workflowType = partialSource.workflowType,
               workflowTypeVersion = partialSource.workflowTypeVersion,
@@ -220,6 +234,19 @@ object PartialWorkflowSources {
   def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {
     val convertToMap = allInputs.map(x => toMap(x))
     JsObject(convertToMap reduce (_ ++ _))
+  }
+
+  def validateWorkflowUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
+    def convertStringToUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
+      Try(new URL(workflowUrl)) match {
+        case Success(_) => workflowUrl.validNel
+        case Failure(e) => s"Error while validating workflow url: ${e.getMessage}".invalidNel
+      }
+    }
+
+    val len = workflowUrl.length
+    if (len > MaxWorkflowUrlLength) s"Invalid workflow url: url has length $len, longer than the maximum allowed $MaxWorkflowUrlLength characters".invalidNel
+    else convertStringToUrl(workflowUrl)
   }
 
   private def toMap(someInput: Option[String]): Map[String, JsValue] = {

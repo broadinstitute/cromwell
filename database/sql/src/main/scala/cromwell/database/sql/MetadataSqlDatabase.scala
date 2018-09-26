@@ -8,8 +8,7 @@ import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait MetadataSqlDatabase {
-  this: SqlDatabase =>
+trait MetadataSqlDatabase extends SqlDatabase {
 
   /*
   The following section relates to:
@@ -20,6 +19,8 @@ trait MetadataSqlDatabase {
 |  |  |  | |  |____     |  |     /  _____  \  |  '--'  | /  _____  \   |  |     /  _____  \
 |__|  |__| |_______|    |__|    /__/     \__\ |_______/ /__/     \__\  |__|    /__/     \__\
    */
+
+  def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean]
 
   /**
     * Add metadata events to the database transactionally.

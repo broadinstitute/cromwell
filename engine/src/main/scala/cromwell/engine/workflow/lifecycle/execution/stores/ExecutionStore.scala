@@ -1,6 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution.stores
 
+import java.util.concurrent.atomic.AtomicInteger
+
+import cats.syntax.validated._
+import common.collections.EnhancedCollections._
 import common.collections.Table
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.ExecutionStatus._
@@ -14,6 +19,7 @@ import wom.graph._
 import wom.graph.expression.ExpressionNodeLike
 
 object ExecutionStore {
+
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
 
   val MaxJobsToStartPerTick = 1000
@@ -77,7 +83,7 @@ object ExecutionStore {
 
   def empty = ActiveExecutionStore(Map.empty[JobKey, ExecutionStatus], needsUpdate = false)
 
-  def apply(callable: ExecutableCallable) = {
+  def apply(callable: ExecutableCallable, totalJobsByRootWf: AtomicInteger, totalMaxJobsPerRootWf: Int): ErrorOr[ActiveExecutionStore] = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
       case call: CommandCallNode => BackendJobDescriptorKey(call, None, 1)
@@ -87,13 +93,20 @@ object ExecutionStore {
       case subworkflow: WorkflowCallNode => SubWorkflowKey(subworkflow, None, 1)
     }
 
-    // There are potentially resolved workflow inputs that are default WomExpressions.
-    // For now assume that those are call inputs that will be evaluated in the CallPreparation.
-    // If they are actually workflow declarations then we would need to add them to the ExecutionStore so they can be evaluated.
-    // In that case we would want InstantiatedExpressions so we can create an InstantiatedExpressionNode and add a DeclarationKey
-    ActiveExecutionStore(notStartedKeys.map(_ -> NotStarted).toMap, notStartedKeys.nonEmpty)
-  }
+    val notStartedBackendJobs = notStartedKeys.collect { case key: BackendJobDescriptorKey => key }
+    val notStartedBackendJobsCt = notStartedBackendJobs.size
 
+    // this limits the total max jobs that can be created by a root workflow
+    if (totalJobsByRootWf.addAndGet(notStartedBackendJobsCt) > totalMaxJobsPerRootWf)
+      s"Root workflow tried creating ${totalJobsByRootWf.get} jobs, which is more than $totalMaxJobsPerRootWf, the max cumulative jobs allowed per root workflow.".invalidNel
+    else {
+      // There are potentially resolved workflow inputs that are default WomExpressions.
+      // For now assume that those are call inputs that will be evaluated in the CallPreparation.
+      // If they are actually workflow declarations then we would need to add them to the ExecutionStore so they can be evaluated.
+      // In that case we would want InstantiatedExpressions so we can create an InstantiatedExpressionNode and add a DeclarationKey
+      ActiveExecutionStore(notStartedKeys.map(_ -> NotStarted).toMap, notStartedKeys.nonEmpty).validNel
+    }
+  }
 }
 
 /**
@@ -134,7 +147,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   */
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
-  lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).mapValues(_.keys.toList)
+  lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
   def keyForNode(node: GraphNode): Option[JobKey] = {

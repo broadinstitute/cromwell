@@ -41,11 +41,6 @@ sealed trait WomArrayType extends WomType {
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && memberType.isCoerceableFrom(womArray.womType.memberType) =>
       womArray.map(v => memberType.coerceRawValue(v).get) // .get because isCoerceableFrom should make it safe
     case WomArrayLike(womArray) if this.isCoerceableFrom(womArray.womType) => coercion.apply(womArray)
-    case womValue: WomValue if memberType.isCoerceableFrom(womValue.womType) =>
-      memberType.coerceRawValue(womValue) match {
-        case Success(coercedValue) => WomArray(this, Seq(coercedValue))
-        case Failure(ex) => throw ex
-      }
   }
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {

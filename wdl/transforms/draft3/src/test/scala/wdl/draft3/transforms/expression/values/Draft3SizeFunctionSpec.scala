@@ -7,6 +7,7 @@ import wdl.draft3.transforms.expression.values.Draft3SizeFunctionSpec.testFuncti
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
 import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, Size}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wom.expression.{EmptyIoFunctionSet, IoFunctionSet}
 import wom.types._
 import wom.values._

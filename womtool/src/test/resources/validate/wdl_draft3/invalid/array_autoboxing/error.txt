@@ -1,0 +1,1 @@
+Failed to process workflow definition 'bad_autobox' (reason 1 of 1): Failed to process declaration 'Array[Int] bad_is = i' (reason 1 of 1): Cannot coerce expression of type 'Int' to 'Array[Int]'

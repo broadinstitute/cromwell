@@ -4,16 +4,17 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, SelectFirst}
 import wdl.model.draft3.elements._
-import wdl.model.draft3.graph.{GeneratedValueHandle, LinkedGraph}
+import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, LinkedGraph}
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
 import wom.callable.{Callable, WorkflowDefinition}
+import wom.graph.expression.AnonymousExpressionNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{GraphNode, WomIdentifier, Graph => WomGraph}
 import wom.types.WomType
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
-import wdl.transforms.base.linking.expression.consumed._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.transforms.base.wdlom2wom.graph.renaming.GraphIdentifierLookupRenamer.ops._
 import wdl.transforms.base.wdlom2wom.graph.renaming._
 
@@ -21,7 +22,11 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
 
   final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType], callables: Map[String, Callable])
 
-  def convert(b: WorkflowDefinitionConvertInputs): ErrorOr[WorkflowDefinition] = {
+  def convert(b: WorkflowDefinitionConvertInputs)
+             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+              fileEvaluator: FileEvaluator[ExpressionElement],
+              typeEvaluator: TypeEvaluator[ExpressionElement],
+              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[WorkflowDefinition] = {
 
     val a: WorkflowDefinitionConvertInputs = eliminateInputDependencies(b)
 
@@ -51,7 +56,11 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                                           insideAScatter: Boolean,
                                           callables: Map[String, Callable])
 
-  def convertGraphElements(a: GraphLikeConvertInputs): ErrorOr[WomGraph] = {
+  def convertGraphElements(a: GraphLikeConvertInputs)
+                          (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                           fileEvaluator: FileEvaluator[ExpressionElement],
+                           typeEvaluator: TypeEvaluator[ExpressionElement],
+                           valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[WomGraph] = {
 
     val seedGeneratedValueHandles = for {
       seedNode <- a.seedNodes
@@ -68,18 +77,26 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
                            seedNodes: Set[GraphNode],
                            workflowName: String,
                            insideAScatter: Boolean,
-                           callables: Map[String, Callable]): ErrorOr[WomGraph] = {
+                           callables: Map[String, Callable])
+                          (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+                           fileEvaluator: FileEvaluator[ExpressionElement],
+                           typeEvaluator: TypeEvaluator[ExpressionElement],
+                           valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[WomGraph] = {
 
     def graphNodeCreationFold(currentValidation: ErrorOr[List[GraphNode]], next: WorkflowGraphElement): ErrorOr[List[GraphNode]] = {
       def outputName(node: GraphNode, port: OutputPort): String = port.identifier.localName.value
 
       currentValidation flatMap { currentList =>
         val availableValues: Map[String, OutputPort] = (for {
-          node <- currentList
+          // Anonymous expression nodes are one-time-use and do not exist in the universe of available linking candidates (#3999)
+          node <- currentList.filterNot(_.isInstanceOf[AnonymousExpressionNode])
           port <- node.outputPorts
         } yield outputName(node, port) -> port).toMap
-        val nextGraphNodeValidation = WorkflowGraphElementToGraphNode.convert(GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
-        nextGraphNodeValidation map { nextGraphNode => currentList ++ nextGraphNode }
+
+        val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] =
+          WorkflowGraphElementToGraphNode.convert(
+            GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
+        generatedGraphNodesValidation map { nextGraphNodes: Set[GraphNode] => currentList ++ nextGraphNodes }
       }
     }
 
@@ -90,7 +107,8 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
     graphNodesValidation flatMap { graphNodes => WomGraph.validateAndConstruct(graphNodes.toSet) }
   }
 
-  private def eliminateInputDependencies(a: WorkflowDefinitionConvertInputs): WorkflowDefinitionConvertInputs = {
+  private def eliminateInputDependencies(a: WorkflowDefinitionConvertInputs)
+                                        (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): WorkflowDefinitionConvertInputs = {
     case class NewInputElementsSet(original: InputDeclarationElement, newInput: InputDeclarationElement, newDeclaration: IntermediateValueDeclarationElement)
 
     val inputElementsWithUpstreams: Seq[NewInputElementsSet] = a.definitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty) collect {

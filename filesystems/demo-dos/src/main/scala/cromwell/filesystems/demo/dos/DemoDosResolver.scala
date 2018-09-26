@@ -1,11 +1,11 @@
 package cromwell.filesystems.demo.dos
 
-import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import net.ceedubs.ficus.Ficus._
+import net.thisptr.jackson.jq.{JsonQuery, Scope}
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
@@ -22,8 +22,13 @@ case class DemoDosResolver(config: Config) extends StrictLogging {
   private lazy val objectMapper = new ObjectMapper()
   private lazy val marthaUri = config.getString("demo.dos.martha.url")
   private lazy val marthaRequestJsonTemplate = config.getString("demo.dos.martha.request.json-template")
-  private lazy val marthaResponseJsonPointerString = config.getString("demo.dos.martha.response.json-pointer")
-  private lazy val marthaResponseJsonPointer = JsonPointer.compile(marthaResponseJsonPointerString)
+  private lazy val marthaResponseJqFilterString = config.getString("demo.dos.martha.response.jq-filter")
+  private lazy val marthaResponseJqJsonQuery = JsonQuery.compile(marthaResponseJqFilterString)
+  private lazy val marthaResponseJqScope = {
+    val scope = Scope.newEmptyScope
+    scope.loadFunctions(Thread.currentThread().getContextClassLoader)
+    scope
+  }
   private lazy val marthaDebug = config.getOrElse("demo.dos.martha.debug", false)
 
   private def debugResponse(response: HttpResponse): String = if (marthaDebug) s"\n$response" else ""
@@ -60,7 +65,11 @@ case class DemoDosResolver(config: Config) extends StrictLogging {
           throwUnexpectedResponse
         }
 
-        val resolvedUrlOption = getResolvedUrl(objectMapper.readTree(content).at(marthaResponseJsonPointer))
+        val contentNode = objectMapper.readTree(content)
+        val filteredNodes = marthaResponseJqJsonQuery(marthaResponseJqScope, contentNode).asScala
+        val resolvedUrlOption = filteredNodes.toStream.map(getResolvedUrl).collectFirst {
+          case Some(url) => url
+        }
         val pathWithoutSchemeOption = resolvedUrlOption.map(_.substring(GcsScheme.length + 3))
 
         pathWithoutSchemeOption getOrElse throwUnexpectedResponse

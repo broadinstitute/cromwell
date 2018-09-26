@@ -1,6 +1,5 @@
 sudo: required
 dist: trusty
-group: deprecated-2017Q4
 services:
   - docker
   - mysql
@@ -24,6 +23,8 @@ env:
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=centaurBcs
+    - BUILD_TYPE=centaurEngineUpgradeLocal
+    - BUILD_TYPE=centaurEngineUpgradePapiV2
     - BUILD_TYPE=centaurLocal
     - BUILD_TYPE=centaurPapiV1
     - BUILD_TYPE=centaurPapiV2
@@ -32,6 +33,8 @@ env:
     - BUILD_TYPE=checkPublish
     - BUILD_TYPE=conformanceLocal
     - BUILD_TYPE=conformancePapiV2
+    - BUILD_TYPE=conformanceTesk
+    - BUILD_TYPE=dockerScripts
     - BUILD_TYPE=sbt
 script:
   - src/ci/bin/test.sh

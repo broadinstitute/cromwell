@@ -20,7 +20,8 @@ object CommandLineParser {
 //  Starts a web server on port 8000.  See the web server documentation for more details about the API endpoints.
 //  Command: run [options] workflow-source
 //  Run the workflow and print out the outputs in JSON format.
-//  workflow-source          Workflow source file.
+//  workflow-source          Workflow source file or workflow url.
+//  --workflow-root <value>  Workflow root
 //  -i, --inputs <value>     Workflow inputs file.
 //  -o, --options <value>    Workflow options file.
 //  -t, --type <value>       Workflow type.
@@ -34,8 +35,9 @@ object CommandLineParser {
 class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -jar /path/to/cromwell.jar") {
   
   private def commonSubmissionArguments = List(
-    arg[String]("workflow-source").text("Workflow source file.").required().
-      action((s, c) => c.copy(workflowSource = Option(DefaultPathBuilder.get(s)))),
+    arg[String]("workflow-source").text("Workflow source file or workflow url.").required().
+      action((s, c) =>
+        c.copy(workflowSource = Option(s))),
     opt[String]("workflow-root").text("Workflow root.").
       action((s, c) =>
         c.copy(workflowRoot = Option(s))),

@@ -1,0 +1,18 @@
+# In both runs a list of call cache hint prefixes is explicitly specified but empty.
+# Each run has different "jes_gcs_root"s so they should not see each other's cache entries.
+name: call_cache_hit_prefixes_two_roots_empty_hint_cache_miss_papi
+testFormat: runtwiceexpectingnocallcaching
+backends: [Papi]
+
+files {
+  workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl
+  inputs: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_miss_papi.inputs
+  options: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_papi_first.options
+  second-options: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_papi_second.options
+}
+
+metadata {
+  workflowName: call_cache_hit_prefixes
+  status: Succeeded
+  "outputs.call_cache_hit_prefixes.sup": "sup two roots empty hint miss?"
+}

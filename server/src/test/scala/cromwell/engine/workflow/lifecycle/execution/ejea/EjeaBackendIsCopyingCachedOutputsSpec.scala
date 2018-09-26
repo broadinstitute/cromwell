@@ -8,15 +8,16 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
 
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
-class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with HasJobFailureResponses with CanExpectJobStoreWrites with CanExpectCacheWrites with CanExpectCacheInvalidation {
+class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with HasCopyFailureResponses with HasJobFailureResponses with CanExpectJobStoreWrites with CanExpectCacheWrites with CanExpectCacheInvalidation {
 
   override implicit val stateUnderTest = BackendIsCopyingCachedOutputs
 
   "An EJEA in BackendIsCopyingCachedOutputs state" should {
 
-    val hashErrorCause = new Exception("blah")
+    val hashErrorCause = new Exception("blah") with NoStackTrace
     val hashResultsDataValue = Some(Success(SuccessfulCallCacheHashes))
     val hashErrorDataValue = Some(Failure(hashErrorCause))
 
@@ -100,7 +101,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           s"invalidate a call for caching if backend coping failed when it was going to receive $hashComboName, if call caching is $mode" in {
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
             // Send the response from the copying actor
-            ejea ! failureNonRetryableResponse
+            ejea ! failedToCopyResponse(cacheHitNumber)
 
             expectInvalidateCallCacheActor(cacheId)
             eventually {
@@ -110,14 +111,14 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           }
 
           s"not invalidate a call for caching if backend coping failed when invalidation is disabled, when it was going to receive $hashComboName, if call caching is $mode" in {
-            val invalidationDisabledOptions = CallCachingOptions(invalidateBadCacheResults = false)
+            val invalidationDisabledOptions = CallCachingOptions(invalidateBadCacheResults = false, workflowOptionCallCachePrefixes = None)
             val cacheInvalidationDisabledMode = mode match {
               case CallCachingActivity(rw, _) => CallCachingActivity(rw, invalidationDisabledOptions)
               case _ => fail(s"Mode $mode not appropriate for cache invalidation tests")
             }
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, cacheInvalidationDisabledMode)
             // Send the response from the copying actor
-            ejea ! failureNonRetryableResponse
+            ejea ! failedToCopyResponse(cacheHitNumber)
 
             helper.ejhaProbe.expectMsg(NextHit)
             
@@ -140,7 +141,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
 
             // Send the response from the copying actor
-            ejea ! failureNonRetryableResponse
+            ejea ! failedToCopyResponse(cacheHitNumber)
 
             expectInvalidateCallCacheActor(cacheId)
             eventually {
@@ -154,7 +155,12 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
   }
 
   private val cacheId: CallCachingEntryId = CallCachingEntryId(74)
-  private val cacheHit = Option(EJEACacheHit(CacheHit(cacheId), 0, None))
+  private val cacheHitNumber = 3
+  private val cacheHit = Option(EJEACacheHit(CacheHit(cacheId), hitNumber = cacheHitNumber, details = None))
   def standardResponsePendingData(hashes: Option[Try[CallCacheHashes]]) = ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, hashes, Option(helper.ejhaProbe.ref), cacheHit)
-  def ejeaInBackendIsCopyingCachedOutputsState(initialHashes: Option[Try[CallCacheHashes]], callCachingMode: CallCachingMode, restarting: Boolean = false) = helper.buildEJEA(restarting = restarting, callCachingMode = callCachingMode).setStateInline(data = standardResponsePendingData(initialHashes))
+  def ejeaInBackendIsCopyingCachedOutputsState(initialHashes: Option[Try[CallCacheHashes]], callCachingMode: CallCachingMode, restarting: Boolean = false) = {
+    helper
+      .buildEJEA(restarting = restarting, callCachingMode = callCachingMode)
+      .setStateInline(data = standardResponsePendingData(initialHashes))
+  }
 }

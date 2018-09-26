@@ -1,0 +1,13 @@
+# Tests that we can pass a single element in to an array as an input
+name: single_to_array_conversion
+testFormat: workflowsuccess
+
+files {
+  workflow: single_to_array_conversion/single_to_array_conversion.wdl
+}
+
+metadata {
+  workflowName: oneToMany
+  status: Succeeded
+  "outputs.oneToMany.listFiles.result": hello
+}

@@ -1,43 +1,54 @@
 package languages.wdl.draft2
 
+import java.security.MessageDigest
+import java.util.concurrent.{Callable, TimeUnit}
+
+import cats.data.EitherT.fromEither
+import cats.effect.IO
 import cats.instances.either._
 import cats.instances.list._
 import cats.syntax.functor._
-import cats.data.EitherT.fromEither
-import cats.effect.IO
 import cats.syntax.traverse._
+import com.google.common.cache.{Cache, CacheBuilder}
+import com.typesafe.config.Config
 import common.Checked
-import common.validation.Validation._
 import common.validation.Checked._
-import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.ErrorOr._
 import common.validation.Parse.Parse
+import common.validation.Validation._
 import cromwell.core._
-import cromwell.languages.util.ImportResolver.ImportResolver
+import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import languages.wdl.draft2.WdlDraft2LanguageFactory._
+import mouse.all._
+import net.ceedubs.ficus.Ficus._
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.shared.transforms.wdlom2wom.WdlSharedInputParsing
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
-import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
-import wom.graph.GraphNodePort.OutputPort
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
-import wom.transforms.WomExecutableMaker.ops._
+import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomBundleMaker.ops._
-import wom.values.WomValue
-import languages.wdl.draft2.WdlDraft2LanguageFactory._
+import wom.transforms.WomExecutableMaker.ops._
+import wom.values._
 
-class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends LanguageFactory {
+import scala.concurrent.duration.FiniteDuration
+
+class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFactory {
 
   override val languageName: String = "WDL"
   override val languageVersionName: String = "draft-2"
 
   override def validateNamespace(source: WorkflowSourceFilesCollection,
-                                    workflowOptions: WorkflowOptions,
-                                    importLocalFilesystem: Boolean,
-                                    workflowIdForLogging: WorkflowId,
-                                    ioFunctions: IoFunctionSet): Parse[ValidatedWomNamespace] = {
+                                 workflowSource: WorkflowSource,
+                                 workflowOptions: WorkflowOptions,
+                                 importLocalFilesystem: Boolean,
+                                 workflowIdForLogging: WorkflowId,
+                                 ioFunctions: IoFunctionSet,
+                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
@@ -52,27 +63,24 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
       list.sequence[Checked, Unit].void
     }
 
-    lazy val baseResolvers: List[String => WorkflowSource] = if (importLocalFilesystem) {
-      List(WdlNamespace.fileResolver, httpResolver)
-    } else {
-      List(httpResolver)
+    def workflowHashKey: String = {
+      workflowSource.md5Sum + (source.importsZipFileOption map { bytes => new String(MessageDigest.getInstance("MD5").digest(bytes)) }).getOrElse("")
     }
 
-    import common.validation.Validation._
-
-    lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = source match {
-      case w: WorkflowSourceFilesWithDependenciesZip =>
-        for {
-          importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
-          betterFilesImportsDir = better.files.File(importsDir.pathAsString)
-          directoryResolver = WdlNamespace.directoryResolver(betterFilesImportsDir): String => WorkflowSource
-          resolvers = directoryResolver +: baseResolvers
-          wf <- WdlNamespaceWithWorkflow.load(w.workflowSource, resolvers).toErrorOr
-          _ = importsDir.delete(swallowIOExceptions = true)
-        } yield wf
-      case w: WorkflowSourceFilesWithoutImports =>
-        WdlNamespaceWithWorkflow.load(w.workflowSource, baseResolvers).toErrorOr
+    def validationCallable = new Callable[ErrorOr[WdlNamespaceWithWorkflow]] {
+      def call: ErrorOr[WdlNamespaceWithWorkflow] = source match {
+        case w: WorkflowSourceFilesWithDependenciesZip =>
+          for {
+            importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
+            wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
+            _ = importsDir.delete(swallowIOExceptions = true)
+          } yield wf
+        case _: WorkflowSourceFilesWithoutImports =>
+          WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
+      }
     }
+
+    lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = namespaceCache.map(_.get(workflowHashKey, validationCallable)).getOrElse(validationCallable.call)
 
     def evaluateImports(wdlNamespace: WdlNamespace): Map[String, String] = {
       // Descend the namespace looking for imports and construct `MetadataEvent`s for them.
@@ -90,11 +98,11 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
     }
 
     val checked: Checked[ValidatedWomNamespace] = for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       wdlNamespace <- wdlNamespaceValidation.toEither
       _ <- validateWorkflowNameLengths(wdlNamespace)
       importedUris = evaluateImports(wdlNamespace)
-      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson), ioFunctions, standardConfig.strictValidation)
+      womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson), ioFunctions, strictValidation)
       validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable, ioFunctions)
       _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
     } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)
@@ -115,28 +123,50 @@ class WdlDraft2LanguageFactory(override val config: Map[String, Any]) extends La
 
   override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     for {
-      _ <- standardConfig.enabledCheck
+      _ <- enabledCheck
       namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked
       womBundle <- namespace.toWomBundle
     } yield womBundle
   }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
-    _ <- standardConfig.enabledCheck
-    executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, standardConfig.strictValidation)
+    _ <- enabledCheck
+    executable <- WdlSharedInputParsing.buildWomExecutable(womBundle, Option(inputs), ioFunctions, strictValidation)
     validatedNamespace <- LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions)
   } yield validatedNamespace
 
   // Commentary: we'll set this as the default in the reference.conf, so most people will get WDL draft 2 if nothing else looks parsable.
   override def looksParsable(content: String): Boolean = false
+
+  private[draft2] lazy val cacheConfig: Option[CacheConfig] = {
+    // WDL version 2 namespace caching is now opt-in.
+    for {
+      _ <- enabled.option(())
+      caching <- config.as[Option[Config]]("caching")
+      _ <- caching.as[Option[Boolean]]("enabled").contains(true).option(())
+      ttl = caching.as[Option[FiniteDuration]]("ttl").getOrElse(FiniteDuration.apply(20, TimeUnit.MINUTES))
+      concurrency = caching.as[Option[Int]]("concurrency").getOrElse(2)
+      size = caching.as[Option[Long]]("size").getOrElse(1000L)
+    } yield CacheConfig(concurrency = concurrency, size = size, ttl = ttl)
+  }
+
+  private[draft2] lazy val namespaceCache: Option[Cache[WorkflowSource, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
+    CacheBuilder.newBuilder()
+      .concurrencyLevel(c.concurrency)
+      .expireAfterAccess(c.ttl.length, c.ttl.unit)
+      .maximumSize(c.size)
+      .build[WorkflowSource, ErrorOr[WdlNamespaceWithWorkflow]]()
+  }
 }
 
 object WdlDraft2LanguageFactory {
-  private def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.run(str) match {
-    case Right(imported) => imported
+  private def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.resolver.run(ImportResolutionRequest(str, List.empty)) match {
+    case Right(imported) => imported.source
     case Left(errors) => throw new RuntimeException(s"Bad import $str: ${errors.toList.mkString(System.lineSeparator)}")
   }
 
-  val httpResolver = resolverConverter(ImportResolver.httpResolver)
-  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.httpResolverWithHeaders(headers))
+  val httpResolver = resolverConverter(ImportResolver.HttpResolver())
+  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.HttpResolver(headers = headers))
+
+  private [draft2] case class CacheConfig(concurrency: Int, size: Long, ttl: FiniteDuration)
 }

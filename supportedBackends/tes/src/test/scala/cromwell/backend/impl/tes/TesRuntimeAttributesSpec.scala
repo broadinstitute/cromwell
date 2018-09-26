@@ -8,7 +8,7 @@ import eu.timepit.refined.refineMV
 import org.scalatest.{Matchers, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import spray.json._
-import squants.information.Gigabytes
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -102,7 +102,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Option(Gigabytes(1)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(memory = Option(MemorySize.parse("1 GB").get))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -113,7 +113,7 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
     "validate a valid disk entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disk" -> WomString("1 GB"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(Gigabytes(1)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(disk = Option(MemorySize.parse("1 GB").get))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 

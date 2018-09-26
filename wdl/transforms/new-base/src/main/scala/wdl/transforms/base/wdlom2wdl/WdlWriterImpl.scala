@@ -8,6 +8,7 @@ import wom.callable.MetaValueElement._
 import wom.types._
 import WdlWriter._
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import org.apache.commons.text.StringEscapeUtils
 
 object WdlWriterImpl {
 
@@ -28,12 +29,14 @@ object WdlWriterImpl {
     }
   }
 
+  implicit val indexAccessWriter: WdlWriter[IndexAccess] = a => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+
   // Recursive references must be explicit
   implicit val expressionElementWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
     override def toWdlV1(a: ExpressionElement) = a match {
       case a: PrimitiveLiteralExpressionElement => a.toWdlV1
       case a: StringExpression => "\"" + a.pieces.map(_.toWdlV1).mkString + "\""
-      case a: StringLiteral => "\"" + a.value + "\""
+      case a: StringLiteral => "\"" + StringEscapeUtils.escapeJava(a.value) + "\""
       case a: ObjectLiteral =>
         "object { " + a.elements.map { pair =>
           pair._1 + ": " + expressionElementWriter.toWdlV1(pair._2)
@@ -54,7 +57,7 @@ object WdlWriterImpl {
       case a: IdentifierLookup => a.identifier
       case a: IdentifierMemberAccess => a.toWdlV1
       case a: ExpressionMemberAccess => s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
-      case a: IndexAccess => s"${expressionElementWriter.toWdlV1(a.expressionElement)}[${expressionElementWriter.toWdlV1(a.index)}]"
+      case a: IndexAccess => a.toWdlV1
       case a: ExpressionLiteralElement => a.expression
     }
   }
@@ -404,6 +407,9 @@ object WdlWriterImpl {
         case _: Ceil         => "ceil"
         case _: Round        => "round"
         case _: Glob         => "glob"
+        case _: AsMap        => "as_map"
+        case _: AsPairs      => "as_pairs"
+        case _: CollectByKey => "collect_by_key"
       }
 
       s"$fn(${a.param.toWdlV1})"
@@ -444,16 +450,21 @@ object WdlWriterImpl {
   }
 
   implicit val importElementWriter: WdlWriter[ImportElement] = new WdlWriter[ImportElement] {
-    override def toWdlV1(a: ImportElement): String = "import \"" + a.importUrl + "\""
+    override def toWdlV1(a: ImportElement): String = {
+      a.namespace match {
+        case Some(namespace) => s"""import "${a.importUrl}" as $namespace"""
+        case None =>            s"""import "${a.importUrl}""""
+      }
+    }
   }
 
   implicit val fileElementWriter: WdlWriter[FileElement] = new WdlWriter[FileElement] {
     override def toWdlV1(a: FileElement) = {
-      "version 1.0" +
+      "version 1.0" + System.lineSeparator +
         combine(a.imports.map(_.toWdlV1)) +
         combine(a.structs.map(_.toWdlV1)) +
-        combine(a.tasks.map(_.toWdlV1)) +
-        combine(a.workflows.map(_.toWdlV1))
+        combine(a.workflows.map(_.toWdlV1)) +
+        combine(a.tasks.map(_.toWdlV1))
     }
   }
 

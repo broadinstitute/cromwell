@@ -53,6 +53,8 @@ class AwsBatchConfigurationSpec extends FlatSpec with Matchers with TableDrivenP
       |aws {
       |
       |  application-name = "cromwell"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
       |
       |  auths = [
       |    {
@@ -80,6 +82,8 @@ class AwsBatchConfigurationSpec extends FlatSpec with Matchers with TableDrivenP
       |  root = "s3://my-cromwell-workflows-bucket"
       |
       |  auth = "application-default"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
       |
       |  default-runtime-attributes {
       |      failOnStderr: false

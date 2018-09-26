@@ -32,6 +32,7 @@
 package cromwell.backend.impl.aws
 
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 // import cromwell.cloudsupport.aws.auth.AwsBatchAuthModeSpec
 import cromwell.core.Tags.AwsTest
@@ -52,7 +53,7 @@ class AwsBatchWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matc
 
     val workflowDescriptor = buildWdlWorkflowDescriptor(
       SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
+      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
 

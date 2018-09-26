@@ -34,13 +34,19 @@ package cromwell.backend.impl.aws
 import java.net.{URI, URL}
 
 import cats.data.Validated._
+import cats.syntax.either._
+import cats.syntax.apply._
 import com.typesafe.config.{Config, ConfigValue}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import cromwell.backend.impl.aws.callcaching.{CopyCachedOutputs, AwsBatchCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
+import cromwell.backend.impl.aws.callcaching.{AwsBatchCacheHitDuplicationStrategy, CopyCachedOutputs, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.api._
+import eu.timepit.refined._
+import eu.timepit.refined.numeric._
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.{StringReader, ValueReader}
 import org.slf4j.{Logger, LoggerFactory}
@@ -48,8 +54,10 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConverters._
 
 case class AwsBatchAttributes(auth: AwsAuthMode,
-                         executionBucket: String,
-                         duplicationStrategy: AwsBatchCacheHitDuplicationStrategy)
+                              executionBucket: String,
+                              duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
+                              submitAttempts: Int Refined Positive,
+                              createDefinitionAttempts: Int Refined Positive)
 
 object AwsBatchAttributes {
   lazy val Logger = LoggerFactory.getLogger("AwsBatchAttributes")
@@ -82,7 +90,7 @@ object AwsBatchAttributes {
 
   implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
 
-  def apply(awsConfig: AwsConfiguration, backendConfig: Config): AwsBatchAttributes = {
+  def fromConfigs(awsConfig: AwsConfiguration, backendConfig: Config): AwsBatchAttributes = {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, availableConfigKeys, context, Logger)
 
@@ -94,25 +102,30 @@ object AwsBatchAttributes {
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
-    val filesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.s3.auth") }
-    val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.s3.caching.duplication-strategy").getOrElse("copy") match {
-      case "copy" => CopyCachedOutputs
-      case "reference" => UseOriginalCachedOutputs
-      case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
-    } }
+    val filesystemAuthMode: ErrorOr[AwsAuthMode] =
+      (for {
+        authName <- validate { backendConfig.as[String]("filesystems.s3.auth") }.toEither
+        validAuth <- awsConfig.auth(authName).toEither
+      } yield validAuth).toValidated
 
-
-    def authAwsConfigForAwsBatchAttributes(
-                          bucket: String,
-                          authName: String,
-                          cachingStrategy: AwsBatchCacheHitDuplicationStrategy): ErrorOr[AwsBatchAttributes] = validate {
-      awsConfig.auth(authName) match {
-        case Valid(a) => AwsBatchAttributes(a, bucket, cachingStrategy)
-        case Invalid(a) => throw new IllegalArgumentException(s"AwsBatch Configuration, auth name '$a' is not valid.")
+    val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
+      validate {
+        backendConfig.
+          as[Option[String]]("filesystems.s3.caching.duplication-strategy").
+          getOrElse("copy") match {
+            case "copy" => CopyCachedOutputs
+            case "reference" => UseOriginalCachedOutputs
+            case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
+          }
       }
-    }
 
-    (executionBucket, filesystemAuthName, duplicationStrategy) flatMapN authAwsConfigForAwsBatchAttributes match {
+    (
+      filesystemAuthMode,
+      executionBucket,
+      duplicationStrategy,
+      backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
+      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts")
+    ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
@@ -121,4 +134,14 @@ object AwsBatchAttributes {
         }
     }
   }
+
+  implicit val ficusPositiveInt: ValueReader[ErrorOr[Int Refined Positive]] =
+    new ValueReader[ErrorOr[Int Refined Positive]] {
+      override def read(config: Config, path: String): ErrorOr[Refined[Int, Positive]] = {
+        val int = config.getInt(path)
+        refineV[Positive](int).toValidatedNel
+    }
+  }
 }
+
+

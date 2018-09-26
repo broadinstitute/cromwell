@@ -9,6 +9,8 @@ import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 
+import scala.util.control.NoStackTrace
+
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
   override implicit val stateUnderTest = CheckingJobStore
@@ -41,11 +43,13 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
     "prepare job if cache entry existence lookup fails" in {
       createCheckingCacheEntryExistenceEjea()
 
-      ejea ! CacheResultLookupFailure(new Exception("[TEST] Failed to lookup cache entry existence"))
+      ejea ! CacheResultLookupFailure(new Exception("[TEST] Failed to lookup cache entry existence") with NoStackTrace)
       helper.replyToProbe.expectMsg(RequestValueStore)
       ejea.stateName should be(WaitingForValueStore)
     }
   }
 
-  private def createCheckingCacheEntryExistenceEjea(): Unit = { ejea = helper.buildEJEA(restarting = true).setStateInline(state = CheckingCacheEntryExistence, data = NoData) }
+  private def createCheckingCacheEntryExistenceEjea(): Unit = {
+    ejea = helper.buildEJEA().setStateInline(state = CheckingCacheEntryExistence, data = NoData)
+  }
 }

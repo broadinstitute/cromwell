@@ -5,13 +5,6 @@ import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import mouse.all._
 
-object PipelinesApiFactoryInterface {
-  val GenomicsScope = "https://www.googleapis.com/auth/genomics"
-  val ComputeScope = "https://www.googleapis.com/auth/compute"
-  val StorageFullControlScope = "https://www.googleapis.com/auth/devstorage.full_control"
-  val KmsScope = "https://www.googleapis.com/auth/cloudkms"
-}
-
 /**
   * The interface provides a single method to build a PipelinesApiRequestFactory
   * There should be one PipelinesApiRequestFactory created per workflow.

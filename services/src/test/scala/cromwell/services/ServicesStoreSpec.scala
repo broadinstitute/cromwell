@@ -178,7 +178,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         }
       }
 
-      schemaMetadata.indexMetadata.groupBy(getIndexName) foreach {
+      schemaMetadata.indexMetadata.filterNot(isForeignKeyIndex).groupBy(getIndexName) foreach {
         case (indexName, indexColumns) =>
           val index = indexColumns.head
           val prefix = if (index.nonUnique) "IX" else "UC"
@@ -297,7 +297,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     it should "fail to store and retrieve empty blobs" taggedAs DbmsTest in {
       // See notes in BytesToBlobOption
       import eu.timepit.refined.auto._
-      import eu.timepit.refined.collection._
       val clob = "".toClob(default = "{}")
       val clobOption = "{}".toClobOption
       val emptyBlob = new SerialBlob(Array.empty[Byte])
@@ -309,6 +308,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
+        workflowUrl = None,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = WorkflowStoreState.Submitted,
@@ -373,7 +373,6 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     it should "store and retrieve empty blobs" taggedAs DbmsTest in {
       // See notes in BytesToBlobOption
       import eu.timepit.refined.auto._
-      import eu.timepit.refined.collection._
 
       val submittedWorkflowState = WorkflowStoreState.Submitted
       val clob = "".toClob(default = "{}")
@@ -386,6 +385,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
+        workflowUrl = None,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = submittedWorkflowState,
@@ -402,6 +402,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
+        workflowUrl = None,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = submittedWorkflowState,
@@ -419,6 +420,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowType = WdlWorkflowType,
         workflowTypeVersion = None,
         workflowDefinition = clobOption,
+        workflowUrl = None,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
         workflowState = submittedWorkflowState,
@@ -583,6 +585,8 @@ object ServicesStoreSpec {
     s"cromwell.database.slick.tables.${tableName}Component$$${tableName.replace("Entry", "Entries")}"
 
   private def getIndexName(index: MIndexInfo) = index.indexName.get.replaceAll("(^SYS_IDX_|_\\d+$)", "")
+
+  private def isForeignKeyIndex(index: MIndexInfo) = getIndexName(index).startsWith("FK_")
 
   case class TableClass(tableName: String) {
     private def getClass(name: String): Try[Class[_]] = Try(Class.forName(name))

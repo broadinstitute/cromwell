@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.actor.StreamIntegration.BackPressure
+import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
@@ -20,6 +21,7 @@ import org.specs2.mock.Mockito
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 
 class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
@@ -36,15 +38,15 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
   }
 
   it should "wait and resubmit the docker request when it gets a backpressure message" in {
-    val backpressureWaitTime = 2 seconds
+    val backoff = SimpleExponentialBackoff(2.seconds, 10.minutes, 2D)
 
-    val lookupActor = TestActorRef(Props(new TestWorkflowDockerLookupActor(workflowId, dockerHashingActor.ref, Submitted, backpressureWaitTime)), self)
+    val lookupActor = TestActorRef(Props(new TestWorkflowDockerLookupActor(workflowId, dockerHashingActor.ref, Submitted, backoff)), self)
     lookupActor ! LatestRequest
 
     dockerHashingActor.expectMsg(LatestRequest)
     dockerHashingActor.reply(BackPressure(LatestRequest))
     // Give a couple of seconds of margin to account for test latency etc...
-    dockerHashingActor.expectMsg(backpressureWaitTime.+(5 seconds), LatestRequest)
+    dockerHashingActor.expectMsg(2.seconds.+(5 seconds), LatestRequest)
   }
 
   it should "not look up the same tag again after a successful lookup" in {
@@ -201,7 +203,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
   it should "emit a terminal failure message if failing to read hashes on restart" in {
     val db = dbWithQuery {
       numReads = numReads + 1
-      Future.failed(new Exception("Don't worry this is just a dummy failure in a test"))
+      Future.failed(new Exception("Don't worry this is just a dummy failure in a test") with NoStackTrace)
     }
 
     val lookupActor = TestActorRef(WorkflowDockerLookupActor.props(workflowId, dockerHashingActor.ref, isRestart = true, db))
@@ -269,10 +271,12 @@ object WorkflowDockerLookupActorSpec {
 
   def abjectFailure[A, B]: A => Future[B] = _ => Future.failed(new RuntimeException("Should not be called!"))
 
-  class TestWorkflowDockerLookupActor(workflowId: WorkflowId, dockerHashingActor: ActorRef, startState: StartableState, override val backpressureTimeout: FiniteDuration)
+  class TestWorkflowDockerLookupActor(workflowId: WorkflowId, dockerHashingActor: ActorRef, startState: StartableState, backoff: Backoff)
     extends WorkflowDockerLookupActor(
       workflowId,
       dockerHashingActor,
       startState.restarted,
-      EngineServicesStore.engineDatabaseInterface)
+      EngineServicesStore.engineDatabaseInterface) {
+    override protected def initialBackoff = backoff
+  }
 }

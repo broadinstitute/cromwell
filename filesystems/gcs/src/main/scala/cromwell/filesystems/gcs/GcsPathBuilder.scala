@@ -100,7 +100,7 @@ object GcsPathBuilder {
                    cloudStorageConfiguration: CloudStorageConfiguration,
                    options: WorkflowOptions,
                    defaultProject: Option[String])(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
-    authMode.retryCredential(options) map { credentials =>
+    authMode.retryPipelinesApiCredentials(options) map { credentials =>
       fromCredentials(credentials,
         applicationName,
         retrySettings,

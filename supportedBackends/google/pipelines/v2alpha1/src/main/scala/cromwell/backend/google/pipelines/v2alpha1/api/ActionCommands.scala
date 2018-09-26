@@ -71,7 +71,7 @@ object ActionCommands {
   def every(duration: FiniteDuration)(f: => String) = s"while true; do $f 2> /dev/null || true; sleep ${duration.toSeconds}; done"
 
   def retry(f: => String)(implicit localizationConfiguration: LocalizationConfiguration, wait: FiniteDuration) = {
-    s"""retry() { for i in `seq ${localizationConfiguration.localizationAttempts}`; do $f; RC=$$?; if [[ "$$RC" -eq 0 ]]; then break; fi; sleep ${wait.toSeconds}; done; return "$$RC"; }; retry"""
+    s"""retry() { for i in `seq ${localizationConfiguration.localizationAttempts}`; do $f; RC=$$?; if [ "$$RC" -eq 0 ]; then break; fi; sleep ${wait.toSeconds}; done; return "$$RC"; }; retry"""
   }
 
   def delocalizeFileOrDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType])(implicit localizationConfiguration: LocalizationConfiguration) = {
@@ -92,10 +92,9 @@ object ActionCommands {
   
   def recoverRequesterPaysError(path: Path)(f: String => String) = {
     val withoutProject = ""
-    val project = path.projectId
-    val withProject = s"-u $project"
+    val withProject = s"-u ${path.projectId}"
 
-    s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 1 && grep -q "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt ]]; then
-       | echo "Retrying with user project $project" && ${f(withProject)}; fi """.stripMargin
+    s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [ "$$RC_GSUTIL" -eq 1 ]; then
+       | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt && echo "Retrying with user project"; ${f(withProject)}; fi """.stripMargin
   }
 }

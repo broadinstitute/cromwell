@@ -139,16 +139,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
-  /**
-    * If a subclass of this `StandardCacheHitCopyingActor` supports blacklisting then it should implement this
-    * to return the prefix of the path from the failed copy command to use for blacklisting.
-    */
-  protected def extractBlacklistPrefix(command: CopyOutputsCommand): Option[String] = None
-
-  private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
-    extractBlacklistPrefix(command) exists { prefix => blacklistCache.isBlacklisted(rootWorkflowId, prefix) }
-  }
-
   when(Idle) {
     case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
       failAndStop(new IllegalArgumentException(s"Source bucket for cache hit copy in root workflow ${jobDescriptor.workflowDescriptor.rootWorkflowId} has been blacklisted: ${extractBlacklistPrefix(command)}"))
@@ -201,26 +191,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           commands foreach sendIoCommand
           stay() using Option(newData)
       }
+    case Event(IoForbiddenFailure(command: IoCommand[_], failure, forbiddenPath), Some(data)) =>
+      extractBlacklistPrefix(forbiddenPath) foreach { p => blacklistCache.blacklist(rootWorkflowId, p)}
+      handleIoFailure(failure, command, data)
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
-      val pattern = ".*does not have storage.objects.get access to ([^/]+).*".r.pattern
-      val matcher = pattern.matcher(failure.getMessage)
-      if (matcher.matches()) {
-        val bucket = matcher.group(1)
-        blacklistCache.blacklist(rootWorkflowId, bucket)
-      }
-
-      context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
-
-      val (newData, commandState) = data.commandComplete(command)
-
-      commandState match {
-        // If we're still waiting for some responses, go to failed state
-        case StillWaiting => goto(FailedState) using Option(newData)
-        // Otherwise we're done
-        case _ =>
-          context stop self
-          stay()
-      }
+      handleIoFailure(failure, command, data)
     // Should not be possible
     case Event(IoFailure(_: IoCommand[_], failure), None) => failAndStop(failure)
   }
@@ -346,5 +321,36 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
     failAndStop(new TimeoutException(exceptionMessage))
     ()
+  }
+
+  /**
+    * If a subclass of this `StandardCacheHitCopyingActor` supports blacklisting then it should implement this
+    * to return the prefix of the path from the failed copy command to use for blacklisting.
+    */
+  protected def extractBlacklistPrefix(path: String): Option[String] = None
+
+  private def extractBlacklistPrefix(command: CopyOutputsCommand): Option[String] =
+    extractBlacklistPrefix(command.jobDetritusFiles.values.head)
+
+  private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
+
+  private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
+    val path = sourcePathFromCopyOutputsCommand(command)
+    extractBlacklistPrefix(path) exists { prefix => blacklistCache.isBlacklisted(rootWorkflowId, prefix) }
+  }
+
+  private def handleIoFailure(failure: Throwable, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
+
+    val (newData, commandState) = data.commandComplete(command)
+
+    commandState match {
+      // If we're still waiting for some responses, go to failed state
+      case StillWaiting => goto(FailedState) using Option(newData)
+      // Otherwise we're done
+      case _ =>
+        context stop self
+        stay()
+    }
   }
 }

@@ -86,7 +86,8 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "cmd_strip_common_spaces" -> anyWomWillDo,
     "cmd_whitespace_tabs" -> anyWomWillDo,
     "cmd_strip_common_tabs" -> anyWomWillDo,
-    "cmd_whitespace_spaces" -> anyWomWillDo
+    "cmd_whitespace_spaces" -> anyWomWillDo,
+    "string_escaping" -> anyWomWillDo
   )
 
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded

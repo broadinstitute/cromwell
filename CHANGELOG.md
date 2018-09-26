@@ -11,8 +11,9 @@ More details on how to use it in:
 
 ### Languages
 
-Added an opt-in namespace cache for the WDL Draft 2 language factory. Please see the Cromwell example configuration for details. NOTE: if upgrading from a hotfix version of Cromwell
+- Added an opt-in namespace cache for the WDL Draft 2 language factory. Please see the Cromwell example configuration for details. NOTE: if upgrading from a hotfix version of Cromwell
 that relied upon this cache, the cache is now opt-in and must be turned on explicitly in config.
+- To maintain conformance with the OpenWDL spec, Cromwell drops support for the `version draft-3` identifier in this release. In the rare case where end users may have been using `version draft-3`, `version 1.0` is a drop-in replacement with no effect on functionality.
 
 ### HTTP Workflow Inputs for Shared File System and Google Pipelines API Version 2 Backends
 

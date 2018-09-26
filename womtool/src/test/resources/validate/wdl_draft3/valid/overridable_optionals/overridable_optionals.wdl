@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 workflow overridable_optionals {
   call foo

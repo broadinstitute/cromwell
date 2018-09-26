@@ -3,6 +3,7 @@ package cromwell.backend.impl.tes
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 
+import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -11,6 +12,7 @@ import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
@@ -19,7 +21,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
 import wom.values.WomFile
-
+import net.ceedubs.ficus.Ficus._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -73,6 +75,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
+  private val outputMode = validate {
+    OutputMode.withName(
+      configurationDescriptor.backendConfig
+        .getAs[String]("output-mode")
+        .getOrElse("granular").toUpperCase
+    )
+  }
+
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       (getPath(value), asAdHocFile(womFile)) match {
@@ -90,6 +100,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       getPath(value) match {
         case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
           path.pathAsString
+        case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
+          commandDirectory.pathAsString
         case Success(path: Path) if path.startsWith(tesJobPaths.callExecutionRoot) =>
           tesJobPaths.containerExec(commandDirectory, path.name)
         case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
@@ -110,19 +122,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   def createTaskMessage(): ErrorOr[Task] = {
-    val task =
-      commandScriptContents.map(
-        TesTask(
-          jobDescriptor,
-          configurationDescriptor,
-          jobLogger,
-          tesJobPaths,
-          runtimeAttributes,
-          commandDirectory,
-          _,
-          instantiatedCommand,
-          realDockerImageUsed,
-          mapCommandLineWomFile))
+    val task = (commandScriptContents, outputMode).mapN({
+      case (contents, mode) => TesTask(
+        jobDescriptor,
+        configurationDescriptor,
+        jobLogger,
+        tesJobPaths,
+        runtimeAttributes,
+        commandDirectory,
+        contents,
+        instantiatedCommand,
+        realDockerImageUsed,
+        mapCommandLineWomFile,
+        jobShell,
+        mode)
+    })
 
     task.map(task => Task(
       id = None,

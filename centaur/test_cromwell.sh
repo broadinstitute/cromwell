@@ -129,6 +129,9 @@ else
     CP=$(sbt "export centaur/it:dependencyClasspath" -error)
 fi
 
+# Add the it-classes folder to the classpath to ensure logback configuration files are picked up.
+CP="${CP}:${RUN_DIR}/centaur/target/scala-2.12/it-classes"
+
 if [ -n "${CENTAUR_CONFIG_STRING}" ]; then
     CENTAUR_CONF="-Dconfig.file=${CENTAUR_CONFIG_STRING}"
 else

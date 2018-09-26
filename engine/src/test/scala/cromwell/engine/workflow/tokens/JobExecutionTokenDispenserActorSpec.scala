@@ -239,6 +239,53 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     eventually { nextInLine2.underlyingActor.hasToken shouldBe true }
   }
 
+  it should "skip over dead actors repeatedly when assigning tokens to the actor queue" in {
+    val grabberSupervisor = TestActorRef(new StoppingSupervisor())
+    // The first 5 get a token and the 6th and 7h one are queued
+    val tokenGrabbingActors = (0 until 700).toVector.map { i =>
+      TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_" + i)
+    }
+
+    val actorIterator = tokenGrabbingActors.toIterator
+
+    while (actorIterator.hasNext) {
+      val withTokens = actorIterator.take(5).toList
+      val nextInLine1 = actorIterator.next()
+      val nextInLine2 = actorIterator.next()
+      eventually {
+        withTokens.foreach(_.underlyingActor.hasToken should be(true))
+      }
+
+      // Check that the next in lines have no tokens and are indeed in the queue
+      nextInLine1.underlyingActor.hasToken shouldBe false
+      nextInLine2.underlyingActor.hasToken shouldBe false
+      actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queues.flatMap(_._2).toList should contain theSameElementsInOrderAs List(nextInLine1, nextInLine2).map(asHogGroupAPlaceholder)
+
+      // First, kill off the actor which would otherwise be first in line:
+      val deathwatch = TestProbe()
+      deathwatch watch nextInLine1
+      nextInLine1 ! PoisonPill
+      deathwatch.expectTerminated(nextInLine1)
+
+      // Now, have an actor return its token and check that the released token goes to nextInLine2:
+      actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = tokenGrabbingActors.head)
+
+
+      eventually { nextInLine2.underlyingActor.hasToken shouldBe true }
+
+      // And kill off the rest:
+      (withTokens.toList :+ nextInLine2) foreach { actor =>
+        deathwatch watch actor
+        actor ! PoisonPill
+        deathwatch.expectTerminated(actor)
+      }
+    }
+
+
+
+
+  }
+
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
 
   before {

@@ -20,12 +20,12 @@ class BlacklistCache(concurrency: Int, ttl: FiniteDuration) {
       build[BlacklistCacheKey, java.lang.Boolean](falseLoader)
   }
 
-  def isBlacklisted(rootWorkflow: WorkflowId, bucket: String): Boolean = cache.get(BlacklistCacheKey(rootWorkflow, bucket))
+  def isBlacklisted(rootWorkflowId: WorkflowId, bucket: String): Boolean = cache.get(BlacklistCacheKey(rootWorkflowId, bucket))
 
-  def blacklist(rootWorkflow: WorkflowId, bucket: String): Unit = cache.put(BlacklistCacheKey(rootWorkflow, bucket), true)
+  def blacklist(rootWorkflowId: WorkflowId, bucket: String): Unit = cache.put(BlacklistCacheKey(rootWorkflowId, bucket), true)
 }
 
 
 object BlacklistCache {
-  case class BlacklistCacheKey(workflowId: WorkflowId, bucketName: String)
+  case class BlacklistCacheKey(rootWorkflowId: WorkflowId, bucketName: String)
 }

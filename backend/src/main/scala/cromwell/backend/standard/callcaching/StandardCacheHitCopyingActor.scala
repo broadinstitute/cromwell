@@ -139,19 +139,19 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /** Override this method if you want to provide an alternative way to duplicate files than copying them. */
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
-  private def sourceBucket(command: CopyOutputsCommand): String = {
-    // TODO this is POC hackery. Knowledge of GCS buckets obviously does not belong here but no point gilding this
-    // TODO until we determine if it's worth keeping through load testing.
-    command.jobDetritusFiles.values.head.stripPrefix("gs://").takeWhile(_ != '/')
-  }
+  /**
+    * If a subclass of this `StandardCacheHitCopyingActor` supports blacklisting then it should implement this
+    * to return the prefix of the path from the failed copy command to use for blacklisting.
+    */
+  protected def extractBlacklistPrefix(command: CopyOutputsCommand): Option[String] = None
 
-  private def sourceIsBlacklisted(command: CopyOutputsCommand): Boolean = {
-    blacklistCache.isBlacklisted(rootWorkflowId, sourceBucket(command))
+  private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
+    extractBlacklistPrefix(command) exists { prefix => blacklistCache.isBlacklisted(rootWorkflowId, prefix) }
   }
 
   when(Idle) {
-    case Event(command: CopyOutputsCommand, None) if sourceIsBlacklisted(command) =>
-      failAndStop(new IllegalArgumentException(s"Source bucket for cache hit copy in root workflow ${jobDescriptor.workflowDescriptor.rootWorkflowId} has been blacklisted: ${sourceBucket(command)}"))
+    case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
+      failAndStop(new IllegalArgumentException(s"Source bucket for cache hit copy in root workflow ${jobDescriptor.workflowDescriptor.rootWorkflowId} has been blacklisted: ${extractBlacklistPrefix(command)}"))
 
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
 

@@ -2,6 +2,7 @@ package cromwell.backend.google.pipelines.common.callcaching
 
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.TryUtil
+import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.google.pipelines.common.PipelinesApiBackendInitializationData
 import cromwell.backend.io.JobPaths
@@ -33,7 +34,10 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
         WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
       }
   }
-  
+
+  override def extractBlacklistPrefix(command: CopyOutputsCommand): Option[String] =
+    Option(command.jobDetritusFiles.values.head.stripPrefix("gs://").takeWhile(_ != '/'))
+
   override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = cachingStrategy match {
     case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
     case UseOriginalCachedOutputs =>

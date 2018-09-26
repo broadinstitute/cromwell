@@ -66,16 +66,16 @@ object ActionCommands {
     }
   }
 
-  def ifExist(containerPath: Path)(f: => String) = s"if [[ -e ${containerPath.escape} ]]; then $f; fi"
+  def ifExist(containerPath: Path)(f: => String) = s"if [ -e ${containerPath.escape} ]; then $f; fi"
 
   def every(duration: FiniteDuration)(f: => String) = s"while true; do $f 2> /dev/null || true; sleep ${duration.toSeconds}; done"
 
   def retry(f: => String)(implicit localizationConfiguration: LocalizationConfiguration, wait: FiniteDuration) = {
-    s"""retry() { for i in `seq ${localizationConfiguration.localizationAttempts}`; do $f; RC=$$?; if [[ "$$RC" -eq 0 ]]; then break; fi; sleep ${wait.toSeconds}; done; return "$$RC"; }; retry"""
+    s"""retry() { for i in `seq ${localizationConfiguration.localizationAttempts}`; do $f; RC=$$?; if [ "$$RC" = "0" ]; then break; fi; sleep ${wait.toSeconds}; done; return "$$RC"; }; retry"""
   }
 
   def delocalizeFileOrDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType])(implicit localizationConfiguration: LocalizationConfiguration) = {
-    s"if [[ -d ${containerPath.escape} ]]; then ${delocalizeDirectory(containerPath, cloudPath, contentType)}; else ${delocalizeFile(containerPath, cloudPath, contentType)}; fi"
+    s"if [ -d ${containerPath.escape} ]; then ${delocalizeDirectory(containerPath, cloudPath, contentType)}; else ${delocalizeFile(containerPath, cloudPath, contentType)}; fi"
   }
 
   def localizeDirectory(cloudPath: Path, containerPath: Path)(implicit localizationConfiguration: LocalizationConfiguration) = retry {
@@ -94,7 +94,7 @@ object ActionCommands {
     val withoutProject = ""
     val withProject = s"-u ${path.projectId}"
 
-    s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [[ "$$RC_GSUTIL" -eq 1 ]]; then
+    s"""${f(withoutProject)} 2> gsutil_output.txt; RC_GSUTIL=$$?; if [ "$$RC_GSUTIL" = "1" ]; then
        | grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt && echo "Retrying with user project"; ${f(withProject)}; fi """.stripMargin
   }
 }

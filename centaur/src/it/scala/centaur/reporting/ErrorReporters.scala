@@ -3,10 +3,9 @@ package centaur.reporting
 import cats.effect.IO
 import cats.syntax.functor._
 import centaur.test.CentaurTestException
+import centaur.{CentaurConfig, CromwellDatabase}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
-import cromwell.database.sql.{EngineSqlDatabase, MetadataSqlDatabase}
 import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
@@ -20,12 +19,9 @@ import scala.concurrent.ExecutionContext
 class ErrorReporters(rootConfig: Config) {
 
   private val errorReporterConfig: Config = rootConfig.getOrElse("error-reporter", ConfigFactory.empty)
-  private lazy val cromwellConfig = rootConfig.getConfig("cromwell")
-  private lazy val engineDatabase: EngineSqlDatabase = EngineSlickDatabase.fromParentConfig(cromwellConfig)
-  private lazy val metadataDatabase: MetadataSqlDatabase = MetadataSlickDatabase.fromParentConfig(cromwellConfig)
 
   // Parameters to CromwellDatabase() should be lazy and are only initialized when needed.
-  private val cromwellDatabase = new CromwellDatabase(engineDatabase, metadataDatabase)
+  private val cromwellDatabase = new ErrorReporterCromwellDatabase(CromwellDatabase.fromConfig(CentaurConfig.conf))
 
   private val errorReporterNames: List[String] = {
     val providersConfig = errorReporterConfig.getOrElse("providers", ConfigFactory.empty)
@@ -81,8 +77,7 @@ class ErrorReporters(rootConfig: Config) {
 
 object ErrorReporters extends StrictLogging {
   private val ciEnvironment = CiEnvironment()
-  private val rootConfig = ConfigFactory.load.getConfig("centaur")
-  private [reporting] val errorReporters = new ErrorReporters(rootConfig)
+  private[reporting] val errorReporters = new ErrorReporters(CentaurConfig.conf)
   val retryAttempts = errorReporters.retryAttempts
 
   errorReporters.errorReporters foreach { errorReporter =>

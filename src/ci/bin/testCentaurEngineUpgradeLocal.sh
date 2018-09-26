@@ -12,7 +12,5 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-# WdlUpgradeTestCaseSpec takes a selection of ordinary draft-2 test cases (tagged as "upgrade"), runs
-# them through the draft-2 to 1.0 upgrade script in Womtool, and runs them against local backend.
 cromwell::build::run_centaur \
-    -s "centaur.WdlUpgradeTestCaseSpec"
+    -s "centaur.EngineUpgradeTestCaseSpec"

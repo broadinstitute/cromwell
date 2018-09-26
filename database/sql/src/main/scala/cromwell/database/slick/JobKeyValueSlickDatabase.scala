@@ -12,6 +12,11 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   import dataAccess.driver.api._
 
+  override def existsJobKeyValueEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.jobKeyValueEntriesExists.result
+    runTransaction(action)
+  }
+
   override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
     val action = if (useSlickUpserts) {

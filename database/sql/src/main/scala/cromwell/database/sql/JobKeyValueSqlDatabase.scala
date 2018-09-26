@@ -7,6 +7,8 @@ import scala.concurrent.{ExecutionContext, Future}
 trait JobKeyValueSqlDatabase {
   this: SqlDatabase =>
 
+  def existsJobKeyValueEntries()(implicit ec: ExecutionContext): Future[Boolean]
+
   def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                          (implicit ec: ExecutionContext): Future[Unit]
 

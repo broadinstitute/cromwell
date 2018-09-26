@@ -1,6 +1,6 @@
 name: string_interpolation
 testFormat: workflowsuccess
-tags: [upgrade]
+tags: ["wdl_upgrade"]
 
 files {
   workflow: string_interpolation/string_interpolation.wdl

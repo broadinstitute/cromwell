@@ -46,11 +46,7 @@ FUNNEL_PID=$!
 # write_lines_files:         all inputs are read-only in TES
 # read_file_limits:          Fail only in Travis for unknown reason (Note that the draft 3 version does not fail)
 
-centaur/test_cromwell.sh \
-    -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/tes_application.conf" \
-    -n "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf" \
-    -g \
+cromwell::build::run_centaur \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \
     -e read_file_limits \

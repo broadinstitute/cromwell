@@ -20,8 +20,8 @@ services:
       - mysql-db
   mysql-db:
     image: "mysql:5.7"
-    # expose:
-      # - "3306"
+    expose:
+      - "3306"
     environment:
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
       - MYSQL_ROOT_PASSWORD=

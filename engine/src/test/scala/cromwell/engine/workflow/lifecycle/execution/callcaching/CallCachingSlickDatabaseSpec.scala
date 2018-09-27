@@ -1,10 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.slick.EngineSlickDatabase
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables._
 import cromwell.services.EngineServicesStore
@@ -13,7 +13,6 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-import cromwell.database.sql.SqlConverters._
 
 import scala.concurrent.ExecutionContext
 
@@ -81,10 +80,6 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
         )
         hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation("BASE_AGGREGATION")
         _ = hasBaseAggregation shouldBe false
-        hasHashPairMatch <- dataAccess.hasMatchingCallCachingEntriesForHashKeyValues(
-          NonEmptyList.of("input: String s1" -> "HASH_S1")
-        )
-        _ = hasHashPairMatch shouldBe false
         hit <- dataAccess.findCacheHitForAggregation("BASE_AGGREGATION", Option("FILE_AGGREGATION"), 1)
         _ = hit shouldBe empty
       } yield ()).futureValue

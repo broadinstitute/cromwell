@@ -176,31 +176,12 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     parent.expectMsg(NoFileHashesResult)
     parent.expectTerminated(cchja)
   }
-
-  it should "send the PartialFileHashingResult when a batch is complete" in {
-    val callCacheReadProbe = TestProbe()
-    val hashResults = NonEmptyList.of(mock[HashResult])
-    
-    val result: PartialFileHashingResult = PartialFileHashingResult(hashResults)
-    val newData: CallCacheHashingJobActorData = CallCacheHashingJobActorData(List.empty, List.empty, Option(callCacheReadProbe.ref))
-    
-    val cchja = makeCCHJA(Option(callCacheReadProbe.ref), TestProbe().ref, TestProbe().ref, writeToCache = true, Option(newData -> Option(result)))
-
-    cchja.setState(HashingFiles)
-
-    cchja ! FileHashResponse(mock[HashResult])
-
-    callCacheReadProbe.expectMsgClass(classOf[InitialHashingResult])
-    callCacheReadProbe.expectMsg(result)
-    cchja.stateName shouldBe WaitingForHashFileRequest
-    cchja.stateData shouldBe newData
-  }
-
-  it should "send itself a NextBatchOfFileHashesRequest when a batch is complete and there is no CCReader" in {
+  
+  def selfSendNextBacthRequest(ccReader: Option[ActorRef]) = {
     val fileHashingActor = TestProbe()
     val result: PartialFileHashingResult = PartialFileHashingResult(NonEmptyList.of(mock[HashResult]))
     val fileHashRequest = SingleFileHashRequest(null, null, null, null)
-    val newData = CallCacheHashingJobActorData(List(List(fileHashRequest)), List.empty, None)
+    val newData = CallCacheHashingJobActorData(List(List(fileHashRequest)), List.empty, ccReader)
     // still gives a CCReader when instantiating the actor, but not in the data (above)
     // This ensures the check is done with the data and not the actor attribute, as the data will change if the ccreader dies but the actor attribute
     // will stay Some(...)
@@ -213,6 +194,14 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
     // This proves that the ccjha keeps hashing files even though there is no ccreader requesting more hashes
     fileHashingActor.expectMsg(fileHashRequest)
     cchja.stateName shouldBe HashingFiles
+  }
+  
+  List(
+    ("send itself a NextBatchOfFileHashesRequest when a batch is complete and there is no CC Reader", None),
+    ("send itself a NextBatchOfFileHashesRequest when a batch is complete and there is a CC Reader", Option(TestProbe().ref))
+  ) foreach {
+    case (description, ccReader) => 
+      it should description in selfSendNextBacthRequest(ccReader)
   }
 
   it should "send FinalFileHashingResult to parent and CCReader and die" in {

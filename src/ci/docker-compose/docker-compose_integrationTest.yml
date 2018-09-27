@@ -18,8 +18,6 @@ services:
       - ${PWD}:${PWD}
     links:
       - mysql-db
-    depends_on:
-      - mysql-db:
   mysql-db:
     image: "mysql:5.7"
     # expose:

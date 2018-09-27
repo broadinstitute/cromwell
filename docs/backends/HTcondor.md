@@ -129,3 +129,7 @@ An example of this is when there is a need to work with 'requirements' or 'rank'
 ```
 
 `nativeSpecs` attribute needs to be specified as String.
+
+### Exit code
+
+See also [HPC - Exit code timeout](HPC#Exit-code-timeout)

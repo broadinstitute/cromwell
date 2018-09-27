@@ -30,6 +30,8 @@ object GcsBatchFlow {
 
 class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit)(implicit ec: ExecutionContext) {
 
+  private val ForbiddenPattern = ".*does not have storage.objects.get access to ([^/]+).*".r.pattern
+
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
     override def initialize(request: HttpRequest): Unit = {
@@ -142,7 +144,10 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
         case Some(waitTime) =>
           onRetry(context)(failure)
           akka.pattern.after(waitTime, scheduler)(Future.successful(GcsBatchRetry(context.next, failure)))
-        case None => fail(context, failure)
+        case None =>
+          val matcher = ForbiddenPattern.matcher(failure.getMessage)
+          if (matcher.matches()) failForbidden(context, failure, forbiddenPath = matcher.group(1))
+          else fail(context, failure)
       }
       
     // Otherwise just fail the command
@@ -156,6 +161,17 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     Future.successful(
       GcsBatchTerminal(
         context.fail(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure))
+      )
+    )
+  }
+
+  /**
+    * Fail a command context with a forbidden failure.
+    */
+  private def failForbidden(context: GcsBatchCommandContext[_, _], failure: Throwable, forbiddenPath: String) = {
+    Future.successful(
+      GcsBatchTerminal(
+        context.failForbidden(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure), forbiddenPath)
       )
     )
   }

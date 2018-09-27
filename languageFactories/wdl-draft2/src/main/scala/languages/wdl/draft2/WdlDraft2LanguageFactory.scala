@@ -150,7 +150,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     } yield CacheConfig(concurrency = concurrency, size = size, ttl = ttl)
   }
 
-  private[draft2] lazy val namespaceCache: Option[Cache[WorkflowSource, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
+  private[draft2] lazy val namespaceCache: Option[Cache[String, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
     CacheBuilder.newBuilder()
       .concurrencyLevel(c.concurrency)
       .expireAfterAccess(c.ttl.length, c.ttl.unit)

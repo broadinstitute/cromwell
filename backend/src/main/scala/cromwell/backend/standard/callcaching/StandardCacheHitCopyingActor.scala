@@ -21,6 +21,8 @@ import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import wom.values.WomSingleFile
 
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -64,6 +66,8 @@ object StandardCacheHitCopyingActor {
   case object FailedState extends StandardCacheHitCopyingActorState
   case object WaitingForOnSuccessResponse extends StandardCacheHitCopyingActorState
 
+  val blacklistCache = new BlacklistCache(concurrency = 20, ttl = 20 minutes)
+
   // TODO: this mechanism here is very close to the one in CallCacheHashingJobActorData
   // Abstracting it might be valuable
   /**
@@ -96,7 +100,7 @@ object StandardCacheHitCopyingActor {
         val updatedSubset = currentSubset - command
         // This subset is done but there are other ones, remove it from commandsToWaitFor and return the next round of commands
         if (updatedSubset.isEmpty) (this.copy(commandsToWaitFor = otherSubsets), NextSubSet(otherSubsets.head))
-        // otherwise update the head susbset and keep waiting  
+        // otherwise update the head subset and keep waiting
         else (this.copy(commandsToWaitFor = List(updatedSubset) ++ otherSubsets), StillWaiting)
     }
   }
@@ -126,6 +130,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   def destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
   
   lazy val ioActor = standardParams.ioActor
+  val rootWorkflowId = jobDescriptor.workflowDescriptor.rootWorkflowId
 
   startWith(Idle, None)
 
@@ -135,6 +140,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
   when(Idle) {
+    case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
+      failAndStop(new IllegalArgumentException(s"Source bucket for cache hit copy in root workflow ${jobDescriptor.workflowDescriptor.rootWorkflowId} has been blacklisted: ${extractBlacklistPrefix(command)}"))
+
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
 
       // Try to make a Path of the callRootPath from the detritus
@@ -183,19 +191,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           commands foreach sendIoCommand
           stay() using Option(newData)
       }
+    case Event(IoForbiddenFailure(command: IoCommand[_], failure, forbiddenPath), Some(data)) =>
+      extractBlacklistPrefix(forbiddenPath) foreach { p => blacklistCache.blacklist(rootWorkflowId, p)}
+      failAndAwaitPendingResponses(failure, command, data)
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
-      context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
-
-      val (newData, commandState) = data.commandComplete(command)
-
-      commandState match {
-        // If we're still waiting for some responses, go to failed state
-        case StillWaiting => goto(FailedState) using Option(newData)
-        // Otherwise we're done
-        case _ =>
-          context stop self
-          stay()
-      }
+      failAndAwaitPendingResponses(failure, command, data)
     // Should not be possible
     case Event(IoFailure(_: IoCommand[_], failure), None) => failAndStop(failure)
   }
@@ -234,6 +234,22 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
+  }
+
+  /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
+    * for all the pending responses to come back before stopping. */
+  def failAndAwaitPendingResponses(failure: Throwable, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
+
+    val (newData, commandState) = data.commandComplete(command)
+    commandState match {
+      // If we're still waiting for some responses, go to failed state
+      case StillWaiting => goto(FailedState) using Option(newData)
+      // Otherwise we're done
+      case _ =>
+        context stop self
+        stay()
+    }
   }
 
   def abort() = {
@@ -321,5 +337,21 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
     failAndStop(new TimeoutException(exceptionMessage))
     ()
+  }
+
+  /**
+    * If a subclass of this `StandardCacheHitCopyingActor` supports blacklisting then it should implement this
+    * to return the prefix of the path from the failed copy command to use for blacklisting.
+    */
+  protected def extractBlacklistPrefix(path: String): Option[String] = None
+
+  private def extractBlacklistPrefix(command: CopyOutputsCommand): Option[String] =
+    extractBlacklistPrefix(command.jobDetritusFiles.values.head)
+
+  private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
+
+  private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
+    val path = sourcePathFromCopyOutputsCommand(command)
+    extractBlacklistPrefix(path) exists { prefix => blacklistCache.isBlacklisted(rootWorkflowId, prefix) }
   }
 }

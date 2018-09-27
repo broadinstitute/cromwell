@@ -12,7 +12,7 @@ services:
       - CROMWELL_BUILD_CENTAUR_TYPE
       - JENKINS
       - JENKINS_BUILD_TYPE
-      # - CROMWELL_BUILD_SUPPORTS_CRON=true
+      - CROMWELL_BUILD_SUPPORTS_CRON
     working_dir: ${PWD}
     volumes:
       - ${PWD}:${PWD}

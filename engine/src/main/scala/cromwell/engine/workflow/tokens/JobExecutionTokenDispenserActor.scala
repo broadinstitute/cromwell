@@ -70,7 +70,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
     val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
 
-    // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which causes an
+    // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
     // exception.
     // If we do nothing now then when we rebuild the iterator next time we run distribute(), that won't happen again next time.
     val nextTokens = Try(iterator.take(n)) match {

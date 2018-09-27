@@ -15,8 +15,9 @@ import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.CwlDecoder
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
-import wom.executable.WomBundle
+import wom.executable.{Executable, WomBundle}
 import wom.expression.IoFunctionSet
+import wom.transforms.WomBundleMaker
 
 class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactory {
 
@@ -63,11 +64,20 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
     } yield validatedWomNamespace
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] =
+  override def getWomBundle(workflowSource: WorkflowSource,
+                            workflowOptionsJson: WorkflowOptionsJson,
+                            importResolvers: List[ImportResolver],
+                            languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     enabledCheck flatMap { _ => "No getWomBundle method implemented in CWL v1".invalidNelCheck }
+  }
 
-  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
-    enabledCheck flatMap { _ => "No createExecutable method implemented in CWL v1".invalidNelCheck }
+  // wom.executable.WomBundle.toExecutableCallable
+  // wom.executable.Executable
+  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
+    val x = womBundle.toExecutableCallable
+
+    ValidatedWomNamespace(Executable(x.right.get, Map.empty), Map.empty, Map.empty).validNelCheck
+  }
 
   override def looksParsable(content: String): Boolean = content.lines.exists { l =>
     val trimmed = l.trim.stripSuffix(",")

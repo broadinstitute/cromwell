@@ -2,7 +2,7 @@ name: workflow_url_biscayne_sub_wfs
 testFormat: workflowsuccess
 
 files {
-  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/aen_3990/womtool/src/test/resources/validate/biscayne/valid/relative_imports/sub_wfs/foo.wdl"
+  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/biscayne/valid/relative_imports/sub_wfs/foo.wdl"
 }
 
 metadata {

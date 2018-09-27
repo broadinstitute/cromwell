@@ -10,7 +10,7 @@ cromwell::build::setup_common_environment
 
 sbt \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-    clean coverage nointegration:test
+    coverage nointegration:test
 
 cromwell::build::generate_code_coverage
 

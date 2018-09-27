@@ -1,4 +1,4 @@
-version: '2'
+version: '2.1'
 services:
   cromwell-test:
     build:
@@ -18,6 +18,9 @@ services:
       - ${PWD}:${PWD}
     links:
       - mysql-db
+    depends_on:
+      mysql-db:
+        condition: service_healthy
   mysql-db:
     image: "mysql:5.7"
     # expose:

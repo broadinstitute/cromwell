@@ -193,7 +193,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
   
-  private val cwdOutput = Output(
+  private lazy val cwdOutput = Output(
     name = Option("execution.dir.output"),
     description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
     url = Option(tesPaths.callExecutionRoot.pathAsString),

@@ -48,7 +48,7 @@ sealed trait FtpBooleanOperation extends FtpOperation[Boolean] {
   def run(client: FTPClient): IO[Boolean] = {
     commonRun(client,
       {
-        // Operation didn't throw but the result is null which means it failed
+        // Operation didn't throw but the result is false which means it failed
         case false if failOnFalse => fail(client)
         case result => IO.pure(result)
       }
@@ -60,7 +60,7 @@ sealed trait FtpValueOperation[A <: AnyRef] extends FtpOperation[A] {
   def run(client: FTPClient): IO[A] = {
     commonRun(client, 
       {
-        // Operation didn't throw but the result is false which means it failed
+        // Operation didn't throw but the result is null which means it failed
         case null => fail(client)
         case result => IO.pure(result)
       }

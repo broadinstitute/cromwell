@@ -306,8 +306,6 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     jobPaths.callExecutionRoot.resolve(relativePath)
   }
   
-  protected def emptyDirectoryFillCommand = "find . -type d -empty -print0 | xargs -0 -I % touch %/.file"
-
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
     jobLogger.info(s"`${instantiatedCommand.commandString}`")

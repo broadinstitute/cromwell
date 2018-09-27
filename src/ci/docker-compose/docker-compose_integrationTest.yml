@@ -9,9 +9,9 @@ services:
       - BUILD_URL
       - CI
       - GIT_BRANCH
-      - JENKINS=true
+      - JENKINS="true"
       - JENKINS_BUILD_TYPE
-      - CROMWELL_BUILD_SUPPORTS_CRON=true
+      - CROMWELL_BUILD_SUPPORTS_CRON="true"
     working_dir: ${PWD}
     volumes:
       - ${PWD}:${PWD}

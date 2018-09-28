@@ -118,8 +118,8 @@ object WdlExpression {
       case t: Terminal if Seq("identifier", "integer", "float", "boolean").contains(t.getTerminalStr) => t.getSourceString
       case t: Terminal if t.getTerminalStr == "string" => s""""${t.getSourceString.replaceAll("\"", "\\" + "\"")}""""
       case a:Ast if a.isBinaryOperator =>
-        val lhs = toString(a.getAttribute("lhs"), highlighter)
-        val rhs = toString(a.getAttribute("rhs"), highlighter)
+        val lhs = Option(a.getAttribute("lhs")).map(toString(_, highlighter)).getOrElse("")
+        val rhs = Option(a.getAttribute("rhs")).map(toString(_, highlighter)).getOrElse("")
         a.getName match {
           case "Add" => s"$lhs + $rhs"
           case "Subtract" => s"$lhs - $rhs"

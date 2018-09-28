@@ -19,7 +19,7 @@ object AstNodeToExpressionElement {
   type EngineFunctionMaker = Vector[ExpressionElement] => ErrorOr[ExpressionElement]
 
   def astNodeToExpressionElement(customEngineFunctionMakers: Map[String, EngineFunctionMaker]): CheckedAtoB[GenericAstNode, ExpressionElement] = {
-    CheckedAtoB.fromErrorOr("convert AST node to ExpressionElement")(convert(customEngineFunctionMakers) _)
+    CheckedAtoB.fromErrorOr("parse expression")(convert(customEngineFunctionMakers) _)
   }
 
   protected def convert(customEngineFunctionMakers: Map[String, EngineFunctionMaker])(ast: GenericAstNode): ErrorOr[ExpressionElement] = {
@@ -105,8 +105,10 @@ object AstNodeToExpressionElement {
 
   private def useValidatedLhsAndRhs(a: GenericAst, combiner: BinaryOperatorElementMaker)
                                    (implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
-    val lhsValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("lhs").toValidated
-    val rhsValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("rhs").toValidated
+    val lhsValidation: ErrorOr[ExpressionElement] =
+      a.getAttributeAs[ExpressionElement]("lhs").toValidated.contextualizeErrors(s"read left hand side of ${a.getName} expression")
+    val rhsValidation: ErrorOr[ExpressionElement] =
+      a.getAttributeAs[ExpressionElement]("rhs").toValidated.contextualizeErrors(s"read right-hand side of ${a.getName} expression")
 
     (lhsValidation, rhsValidation) mapN { combiner }
   }

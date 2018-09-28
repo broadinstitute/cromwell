@@ -29,7 +29,7 @@ We will refer to this bucket as `s3-bucket-name`, and the full identifier as `s3
 
 More information and instructions to properly setup an AWS environment to work
 properly with Cromwell on AWS can be found on the
-[AWS for Genomics Workflow page](http://aws-genomics-workflows.s3-website-us-east-1.amazonaws.com/).
+[AWS for Genomics Workflow page](https://docs.opendata.aws/genomics-workflows/).
 
 **Workflow Source Files**
 

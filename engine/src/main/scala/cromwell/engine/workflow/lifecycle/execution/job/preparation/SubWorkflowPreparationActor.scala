@@ -66,7 +66,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   override def receive = {
     case Start(valueStore) =>
-      val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
+      val evaluatedInputs = resolveAndEvaluateInputs(callKey, expressionLanguageFunctions, valueStore)
       import common.validation.ErrorOr._
       evaluatedInputs.flatMap(prepareExecutionActor) match {
         case Valid(response) => context.parent ! response

@@ -4,7 +4,6 @@ import akka.actor.Props
 import common.validation.ErrorOr._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.{CallKey, JobKey}
-import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import wom.expression.IoFunctionSet
 import wom.graph.CallNode
@@ -22,7 +21,6 @@ object CallPreparation {
   case class CallPreparationFailed(jobKey: JobKey, throwable: Throwable) extends CallPreparationActorResponse
 
   def resolveAndEvaluateInputs(callKey: CallKey,
-                               workflowDescriptor: EngineWorkflowDescriptor,
                                expressionLanguageFunctions: IoFunctionSet,
                                valueStore: ValueStore): ErrorOr[WomEvaluatedCallInputs] = {
 

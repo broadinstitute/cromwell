@@ -17,7 +17,6 @@ import cwl.CwlDecoder
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.{Executable, WomBundle}
 import wom.expression.IoFunctionSet
-import wom.transforms.WomBundleMaker
 
 class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactory {
 
@@ -68,7 +67,7 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    enabledCheck flatMap { _ => "No getWomBundle method implemented in CWL v1".invalidNelCheck }
+    WomBundle(None, Map.empty, Map.empty).validNelCheck
   }
 
   // wom.executable.WomBundle.toExecutableCallable

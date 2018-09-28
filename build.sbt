@@ -240,6 +240,7 @@ lazy val engine = project
   .dependsOn(sraFileSystem)
   .dependsOn(`cloud-nio-spi`)
   .dependsOn(languageFactoryCore)
+  .dependsOn(common % "test->test")
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.

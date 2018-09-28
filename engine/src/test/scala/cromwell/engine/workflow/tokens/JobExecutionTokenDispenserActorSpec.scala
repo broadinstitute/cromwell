@@ -13,6 +13,7 @@ import org.scalatest._
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec")) with ImplicitSender with FlatSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll with Eventually {
 
@@ -263,12 +264,16 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
       // Check that the next in lines have no tokens and are indeed in the queue
       nextInLine.foreach(next => next.underlyingActor.hasToken shouldBe false)
 
-      // Complete running jobs and kill all except the 4th in line:
+      // Kill off running jobs and the queuers (except the 4th in line):
       (0 until 5).filterNot(_ == 3) foreach { index =>
-         nextInLine(index) ! PoisonPill
-        actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = withTokens(index))
+        // Kill off jobs in the queue:
+        nextInLine(index) ! PoisonPill
+        // Stop or kill off jobs which are 'running'
+        val randomInt = Random.nextInt(10)
+        if (randomInt <= 5) withTokens(index) ! PoisonPill
+        else actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = withTokens(index))
       }
-      // We also want to complete the 4th running job:
+      // Also complete the 4th running job (but not the 4th in the queue):
       actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = withTokens(3))
 
       actorRefUnderTest ! TokensAvailable(100)

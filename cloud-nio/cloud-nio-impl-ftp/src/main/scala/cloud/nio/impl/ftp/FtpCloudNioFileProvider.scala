@@ -17,7 +17,7 @@ import org.apache.commons.net.io.Util
 import scala.util.{Failure, Success}
 
 class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends CloudNioFileProvider {
-  override def existsPath(cloudHost: String, cloudPath: String) = withAutoRelease(cloudHost) { client =>
+  override def existsPath(cloudHost: String, cloudPath: String): Boolean = withAutoRelease(cloudHost) { client =>
     FtpListFiles(cloudHost, cloudPath, "determine file existence")
       .run(client)
       .map(_.nonEmpty)

@@ -2,6 +2,7 @@ package languages.cwl
 
 import better.files.File
 import cats.Monad
+import cats.data.{EitherT, NonEmptyList}
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import com.typesafe.config.Config
@@ -14,9 +15,10 @@ import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.CwlDecoder
+import wom.callable.ExecutableCallable
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.{Executable, WomBundle}
-import wom.expression.IoFunctionSet
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 
 class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactory {
 
@@ -67,7 +69,26 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    WomBundle(None, Map.empty, Map.empty).validNelCheck
+    val fileThing = goParse {
+      val tempDir = File.newTemporaryDirectory(prefix = s"${workflowSource.hashCode}.temp.")
+      val cwlFile: File = tempDir./(s"${workflowSource.hashCode}.cwl").write(workflowSource)
+      cwlFile
+    }
+
+    import cwl.AcceptAllRequirements
+
+    val ec: EitherT[IO, NonEmptyList[String], ExecutableCallable] = for {
+      file <- fileThing
+      cwl <- CwlDecoder.decodeCwlFile(file, Option(workflowSource))
+      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation))
+    } yield executable.entryPoint
+
+    val wtf: IO[ExecutableCallable] = ec.getOrElse(???)
+    val wtf2: ExecutableCallable = wtf.unsafeRunSync()
+
+    println(wtf2)
+
+    WomBundle(Option(ec.getOrElse(???).unsafeRunSync()), Map.empty, Map.empty).validNelCheck
   }
 
   // wom.executable.WomBundle.toExecutableCallable

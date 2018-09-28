@@ -23,7 +23,7 @@ class PipelinesApiWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with 
       SampleWdl.HelloWorld.workflowSource(),
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.mapValues(JsString.apply)).compactPrint)
     )
-    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders)
+    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), jesConfiguration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
     workflowPaths.executionRoot.pathAsString should be("gs://my-cromwell-workflows-bucket/")
     workflowPaths.workflowRoot.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")

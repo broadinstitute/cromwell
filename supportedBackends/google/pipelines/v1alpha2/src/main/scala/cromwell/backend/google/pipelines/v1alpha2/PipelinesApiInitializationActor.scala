@@ -3,8 +3,8 @@ package cromwell.backend.google.pipelines.v1alpha2
 import java.io.IOException
 
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
-import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiDockerCredentials, PipelinesApiAuthObject}
-import cromwell.backend.google.pipelines.common.{PipelinesApiInitializationActorParams, PipelinesApiWorkflowPaths}
+import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiAuthObject, PipelinesApiDockerCredentials}
+import cromwell.backend.google.pipelines.common.{PipelinesApiInitializationActorParams, PipelinesApiJobPaths, PipelinesApiWorkflowPaths}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesApiInitializationActor.AuthFileAlreadyExistsException
 import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.core.path.Path
@@ -74,6 +74,11 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     if (jsonMap.nonEmpty) Option(JsObject(jsonMap).prettyPrint)
     else None
   }
+
+  /** Overridden for v1 to account for the way the PAPI v1 controller names these files. PAPI v1 completely manages the periodic
+    * delocalization of these files including their naming. */
+  override def standardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String =
+    s"${pipelinesApiJobPaths.jesLogBasename}-$streamName.log"
 }
 
 object PipelinesApiInitializationActor {

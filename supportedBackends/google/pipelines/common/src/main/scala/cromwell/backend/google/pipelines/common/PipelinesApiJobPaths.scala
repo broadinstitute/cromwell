@@ -43,4 +43,11 @@ final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWo
   override lazy val customLogPaths: Map[String, Path] = Map(
     PipelinesApiJobPaths.JesLogPathKey -> jesLogPath
   )
+
+  override def standardOutputAndErrorPaths: Map[String, Path] = {
+    super.standardOutputAndErrorPaths map { case (k, v) =>
+      val updated = workflowPaths.standardStreamNameToFileNameMetadataMapper(this, k)
+      k -> v.parent.resolve(updated)
+    }
+  }
 }

@@ -105,7 +105,8 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     gcsCred <- gcsCredentials
     genomicsCred <- genomicsCredentials
     validatedPathBuilders <- pathBuilders
-  } yield new PipelinesApiWorkflowPaths(workflowDescriptor, gcsCred, genomicsCred, pipelinesConfiguration, validatedPathBuilders)(ioEc)
+  } yield new PipelinesApiWorkflowPaths(
+    workflowDescriptor, gcsCred, genomicsCred, pipelinesConfiguration, validatedPathBuilders, standardStreamNameToFileNameMetadataMapper)(ioEc)
 
   override lazy val initializationData: Future[PipelinesApiBackendInitializationData] = for {
     jesWorkflowPaths <- workflowPaths
@@ -128,5 +129,13 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     } yield Option(data)
   }
 
+  def standardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String =
+    PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths, streamName)
+
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
+}
+
+object PipelinesApiInitializationActor {
+  // For metadata publishing purposes default to using the name of a standard stream as the stream's filename.
+  def defaultStandardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String = streamName
 }

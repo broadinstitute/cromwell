@@ -518,4 +518,8 @@ object Dependencies {
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion = swaggerUiV
+
+  val perfDependencies = List(
+    "io.circe" %% "circe-java8" % circeV
+  ) ++ circeDependencies ++ betterFilesDependencies
 }

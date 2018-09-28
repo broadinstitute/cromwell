@@ -39,11 +39,6 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
 
-  val overrideme = () => throw new Exception("oopsie")
-  if (1 == (0 + 1)) {
-    overrideme.apply()
-  }
-
   val fullyQualifiedInputs: Map[String, WomValue] = evaluatedTaskInputs map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }

@@ -28,8 +28,6 @@ class CallPreparationSpec extends FlatSpec with Matchers with Mockito {
     val valueStore = ValueStore.empty
 
     CallPreparation.resolveAndEvaluateInputs(callKey, NoIoFunctionSet, valueStore) shouldBeInvalid
-      "Failed to evaluate input 'inputVal' (reason 1 of 1): Cannot coerce the empty String value "" into a File."
-
-
+      """Failed to evaluate input 'inputVal' (reason 1 of 1): Cannot coerce the empty String value "" into a File."""
   }
 }

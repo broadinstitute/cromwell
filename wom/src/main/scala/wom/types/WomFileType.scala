@@ -45,7 +45,7 @@ case object WomSingleFileType extends WomPrimitiveFileType {
       if (s != "")
         WomSingleFile(s)
       else
-        throw new IllegalArgumentException("Cannot coerce the empty String value \"\" into a File.")
+        throw new IllegalArgumentException("""Cannot coerce the empty String value "" into a File.""")
     case s: JsString => WomSingleFile(s.value)
     case s: WomString => coercion.apply(s.valueString)
     case f: WomSingleFile => f

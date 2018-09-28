@@ -2,7 +2,7 @@ package cwl.ontology
 
 import cats.instances.list._
 import cats.syntax.traverse._
-import com.google.common.cache.CacheBuilder
+import com.google.common.cache.{Cache, CacheBuilder}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
 import common.validation.ErrorOr._
@@ -103,16 +103,16 @@ case class Schema(schemaIris: Seq[String],
 object Schema {
   // Extending StrictLogging creates a circular dependency here for some reason, so making the logger ourselves
   private val logger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
+  private [ontology] val config = ConfigFactory.load.getAs[Config]("ontology.cache")
   // Simple cache to avoid reloading the same ontologies too often
-  private val ontologyCache = {
-    ConfigFactory.load.getAs[Config]("ontology.cache")
-    .map(CacheConfiguration.apply)
-    .map { config =>
-      logger.info(s"Ontology cache size: ${config.maxSize}")
-      CacheBuilder.newBuilder()
-        .maximumSize(config.maxSize)
-        .build[IRI, OWLOntology]()
-    }
+  private val ontologyCache = config.map(makeOntologyCache)
+  
+  private [ontology] def makeOntologyCache(config: Config): Cache[IRI, OWLOntology] = {
+    val cacheConfig = CacheConfiguration(config)
+    logger.info(s"Ontology cache size: ${cacheConfig.maxSize}")
+    CacheBuilder.newBuilder()
+      .maximumSize(cacheConfig.maxSize)
+      .build[IRI, OWLOntology]()
   }
 
   /**
@@ -123,16 +123,16 @@ object Schema {
   /**
     * Load an ontology either from an IRI.
     */
-  private def loadOntologyFromIri(ontologyManager: OWLOntologyManager)(schemaIri: String): ErrorOr[OWLOntology] = {
+  private [ontology] def loadOntologyFromIri(ontologyManager: OWLOntologyManager, cache: Option[Cache[IRI, OWLOntology]] = ontologyCache)(schemaIri: String): ErrorOr[OWLOntology] = {
     validate {
       val iri = IRI.create(schemaIri)
-      ontologyCache.flatMap(_.getIfPresent(iri) |> Option.apply) match {
+      cache.flatMap(_.getIfPresent(iri) |> Option.apply) match {
         case Some(ontology) =>
           ontologyManager.copyOntology(ontology, OntologyCopy.DEEP)
         case _ =>
           logger.info(s"Loading ${iri.toURI.toString}")
           val ontology = ontologyManager.loadOntologyFromOntologyDocument(iri)
-          ontologyCache.foreach(_.put(iri, ontology))
+          cache.foreach(_.put(iri, ontology))
           ontology
       }
     }

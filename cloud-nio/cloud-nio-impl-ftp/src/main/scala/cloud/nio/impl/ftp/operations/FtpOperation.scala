@@ -4,7 +4,7 @@ import java.io.{InputStream, OutputStream}
 import java.nio.file.{FileAlreadyExistsException, NoSuchFileException}
 
 import cats.effect.IO
-import cloud.nio.impl.ftp.FtpUtil.{FtpIoException, _}
+import cloud.nio.impl.ftp.FtpUtil._
 import cloud.nio.spi.CloudNioFileSystem
 import org.apache.commons.net.ftp.{FTPClient, FTPFile, FTPReply}
 

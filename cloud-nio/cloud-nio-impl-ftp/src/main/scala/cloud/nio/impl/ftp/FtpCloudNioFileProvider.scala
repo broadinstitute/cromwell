@@ -1,7 +1,7 @@
 package cloud.nio.impl.ftp
 
 import java.io.IOException
-import java.nio.channels.Channels
+import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
 import java.nio.file.FileAlreadyExistsException
 
 import cats.effect.IO
@@ -23,7 +23,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
       .map(_.nonEmpty)
   } unsafeRunSync()
 
-  override def existsPaths(cloudHost: String, cloudPathPrefix: String) = withAutoRelease(cloudHost) { client =>
+  override def existsPaths(cloudHost: String, cloudPathPrefix: String): Boolean = withAutoRelease(cloudHost) { client =>
     existsPathsWithClient(cloudHost, cloudPathPrefix, client)
   } unsafeRunSync()
 
@@ -41,15 +41,13 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
   override def listObjects(cloudHost: String, cloudPathPrefix: String, markerOption: Option[String]): CloudNioFileList = withAutoRelease(cloudHost) { client =>
     FtpListFiles(cloudHost, cloudPathPrefix, "list objects")
       .run(client)
-      .map(
-        _.map(_.getName).map(cloudPathPrefix.stripPrefix("/").ensureSlashed + _)
-      )
-      .map(
-        CloudNioFileList(_, markerOption)
-      )
+      .map({ files =>
+        val cleanFiles = files.map(_.getName).map(cloudPathPrefix.stripPrefix("/").ensureSlashed + _)
+        CloudNioFileList(cleanFiles, markerOption)
+      })
   } unsafeRunSync()
 
-  override def copy(sourceCloudHost: String, sourceCloudPath: String, targetCloudHost: String, targetCloudPath: String) = {
+  override def copy(sourceCloudHost: String, sourceCloudPath: String, targetCloudHost: String, targetCloudPath: String): Unit = {
     if (sourceCloudHost != targetCloudHost) throw new UnsupportedOperationException(s"Cannot copy files across different ftp servers: Source host: $sourceCloudHost, Target host: $targetCloudHost")
 
     val fileSystem = findFileSystem(sourceCloudHost)
@@ -70,7 +68,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
     }
   }
 
-  override def deleteIfExists(cloudHost: String, cloudPath: String) = withAutoRelease(cloudHost) { client =>
+  override def deleteIfExists(cloudHost: String, cloudPath: String): Boolean = withAutoRelease(cloudHost) { client =>
     FtpDeleteFile(cloudHost, cloudPath, "delete").run(client)
   } unsafeRunSync()
 
@@ -81,7 +79,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
       .map(new LeasedInputStream(cloudHost, cloudPath, _, lease))
   }
 
-  override def read(cloudHost: String, cloudPath: String, offset: Long) = {
+  override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
     for {
       lease <- acquireLease(cloudHost)
       is <- inputStream(cloudHost, cloudPath, offset, lease)
@@ -94,7 +92,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
       .map(new LeasedOutputStream(cloudHost, cloudPath, _, lease))
   }
 
-  override def write(cloudHost: String, cloudPath: String) = {
+  override def write(cloudHost: String, cloudPath: String): WritableByteChannel = {
     for {
       lease <- acquireLease(cloudHost)
       os <- outputStream(cloudHost, cloudPath, lease)
@@ -130,7 +128,7 @@ class FtpCloudNioFileProvider(fsProvider: FtpCloudNioFileSystemProvider) extends
     }
   }.void unsafeRunSync()
 
-  private def findFileSystem(host: String) = fsProvider.newCloudNioFileSystemFromHost(host)
+  private def findFileSystem(host: String): FtpCloudNioFileSystem = fsProvider.newCloudNioFileSystemFromHost(host)
 
   private def acquireLease[A](host: String): IO[Lease[FTPClient]] = IO { findFileSystem(host).leaseClient }
 

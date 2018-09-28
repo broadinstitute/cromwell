@@ -3,7 +3,7 @@ package cloud.nio.impl.ftp
 import java.io.IOException
 
 import cats.effect.IO
-import cloud.nio.impl.ftp.FtpUtil.{FtpIoException, _}
+import cloud.nio.impl.ftp.FtpUtil._
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito

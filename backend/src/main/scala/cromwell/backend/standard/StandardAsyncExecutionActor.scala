@@ -161,11 +161,8 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     womValue => WomFileMapper.mapWomFiles(mapCommandLineJobInputWomFile, inputsToNotLocalize)(womValue).get
   }
 
-  lazy val jobShell: String = {
-    configurationDescriptor.backendConfig.getAs[String]("job-shell")
-      .orElse(configurationDescriptor.globalConfig.getAs[String]("system.job-shell"))
-      .getOrElse("/bin/bash")
-  }
+  lazy val jobShell: String = configurationDescriptor.backendConfig.getOrElse("job-shell",
+    configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
 
   /**
     * The local path where the command will run.
@@ -344,7 +341,12 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
 
     val emptyDirectoryFillCommand: String = configurationDescriptor.backendConfig.getAs[String]("empty-dir-fill-command")
-      .getOrElse(s"( cd $cwd && find . -type d -empty -print0 | xargs -0 -I % touch %/.file )")
+      .getOrElse(
+        s"""(
+           |# add a .file in every empty directory to facilitate directory delocalization on the cloud
+           |cd $cwd
+           |find . -type d -empty -print0 | xargs -0 -I % touch %/.file 
+           |)""".stripMargin)
 
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.

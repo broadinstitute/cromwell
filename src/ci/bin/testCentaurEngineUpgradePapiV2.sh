@@ -13,4 +13,5 @@ cromwell::build::setup_centaur_environment
 cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
-    -s "centaur.EngineUpgradeTestCaseSpec"
+    -s "centaur.EngineUpgradeTestCaseSpec" \
+    -e localdockertest \

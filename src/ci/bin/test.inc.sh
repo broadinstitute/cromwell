@@ -542,8 +542,6 @@ cromwell::private::publish_artifacts_and_docker() {
     # TODO: clean this up by wiring something an argument in withExecutableSettings that would prevent the push at the source
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" server/dockerBuildAndPush -warn
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" cromiam/dockerBuildAndPush -warn
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" centaurCwlRunner/dockerBuildAndPush -warn
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" wes2cromwell/dockerBuildAndPush -warn
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" womtool/dockerBuildAndPush -warn
 }
 

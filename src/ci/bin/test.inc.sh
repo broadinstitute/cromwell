@@ -546,6 +546,10 @@ cromwell::private::publish_artifacts_and_docker() {
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish dockerBuildAndPush -warn
 }
 
+cromwell::private::publish_artifacts_check() {
+    sbt verifyArtifactoryCredentialsExist -warn
+}
+
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
 # poll github. To help those environments, signal that a new set of docker images has been published to dockerhub by
 # updating a well known branch in github.
@@ -769,18 +773,20 @@ cromwell::build::publish_artifacts() {
                 cromwell::private::publish_artifacts_and_docker \
                 -Dproject.isSnapshot=true
             cromwell::private::push_publish_complete
-        fi
 
-        if [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]]; then
+        elif [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]]; then
             # Docker tags float. "30" is the latest hotfix. Those dockers are published here on each hotfix commit.
             cromwell::private::publish_artifacts_and_docker -Dproject.isSnapshot=false
-        fi
 
-        if [ -n "${CROMWELL_BUILD_TAG:+set}" ]; then
+        elif [ -n "${CROMWELL_BUILD_TAG:+set}" ]; then
             # Artifact tags are static. Once "30" is set that is only "30" forever. Those artifacts are published here.
             cromwell::private::publish_artifacts_only \
                 -Dproject.version="${CROMWELL_BUILD_TAG}" \
                 -Dproject.isSnapshot=false
+
+        elif [ "${CROMWELL_BUILD_IS_SECURE}" = "true" ]; then
+            cromwell::private::publish_artifacts_check
+
         fi
 
     fi

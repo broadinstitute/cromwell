@@ -29,7 +29,7 @@ case class Call(shardIndex: Int,
   def cacheCopyRetries: Int = {
     val hitFailuresMap = callCaching.map(callCachingObject => callCachingObject.hitFailures.getOrElse(Map.empty))
 
-    if (hitFailuresMap.isDefined) hitFailuresMap.size else 0
+    if (hitFailuresMap.isDefined) hitFailuresMap.get.size else 0
   }
 
   /**

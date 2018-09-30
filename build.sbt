@@ -322,6 +322,7 @@ lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
 
 lazy val perf = project
   .withExecutableSettings("perf", perfDependencies)
+  .dependsOn(common)
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)

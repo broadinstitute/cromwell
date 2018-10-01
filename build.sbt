@@ -247,7 +247,7 @@ lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a can
   .dependsOn(cromwellApiClient)
 
 lazy val wes2cromwell = (project in file("wes2cromwell"))
-    .withExecutableSettings("wes2cromwell", wes2cromwellDependencies)
+    .withExecutableSettings("wes2cromwell", wes2cromwellDependencies, buildDocker = false)
     .dependsOn(common)
     .dependsOn(cromiam)
 

@@ -85,7 +85,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         AllBackendInitializationData(Map.empty),
         startState,
         rootConfig,
-        new AtomicInteger()
+        new AtomicInteger(),
+        None
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref

@@ -35,7 +35,7 @@
 
   "##_COMMENT5": "DOCKERS",
   "PreProcessingForVariantDiscovery_GATK4.gotc_docker": "broadinstitute/genomes-in-the-cloud:2.3.0-1501082129",
-  "PreProcessingForVariantDiscovery_GATK4.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.0.0",
+  "PreProcessingForVariantDiscovery_GATK4.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0",
   "PreProcessingForVariantDiscovery_GATK4.picard_docker": "broadinstitute/genomes-in-the-cloud:2.3.0-1501082129",
   "PreProcessingForVariantDiscovery_GATK4.python_docker": "python:2.7",
 

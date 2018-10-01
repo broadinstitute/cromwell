@@ -8,9 +8,21 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-sbt \
-    -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-    clean coverage nointegration:test
+case "${CROMWELL_BUILD_PROVIDER}" in
+    "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,GcsIntegrationTest"
+        ;;
+    "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+        CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DockerTest,GcsIntegrationTest"
+        ;;
+    *)
+        # Use the full list of excludes listed in Testing.scala
+        CROMWELL_SBT_TEST_EXCLUDE_TAGS=""
+        ;;
+esac
+export CROMWELL_SBT_TEST_EXCLUDE_TAGS
+
+sbt -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 
 cromwell::build::generate_code_coverage
 

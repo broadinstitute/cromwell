@@ -7,7 +7,7 @@ import common.validation.Checked._
 import wdl.draft3.parser.WdlParser.{Ast, AstNode}
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wdl.model.draft3.elements._
-import wdl.transforms.base.ast2wdlom.{AstNodeToCommandPartElement, AstNodeToExpressionElement, AstNodeToKvPair, AstNodeToMetaKvPair, AstNodeToPlaceholderAttributeSet, AstNodeToTypeElement, AstToCallElement, AstToCommandSectionElement, AstToDeclarationContent, AstToFileBodyElement, AstToFileElement, AstToIfElement, AstToImportElement, AstToInputDeclarationElement, AstToInputsSectionElement, AstToMetaSectionElement, AstToOutputsSectionElement, AstToParameterMetaSectionElement, AstToRuntimeAttributesSectionElement, AstToScatterElement, AstToStructElement, AstToTaskDefinitionElement, AstToTaskSectionElement, AstToWorkflowBodyElement, AstToWorkflowDefinitionElement, AstToWorkflowGraphNodeElementConverterMaker, GenericAst, GenericAstNode, astNodeToAst, astNodeToAstList}
+import wdl.transforms.base.ast2wdlom.{AstNodeToCommandPartElement, AstNodeToExpressionElement, AstNodeToKvPair, AstNodeToMetaKvPair, AstNodeToPlaceholderAttributeSet, AstNodeToStaticString, AstNodeToTypeElement, AstToCallElement, AstToCommandSectionElement, AstToDeclarationContent, AstToFileBodyElement, AstToFileElement, AstToIfElement, AstToImportElement, AstToInputDeclarationElement, AstToInputsSectionElement, AstToMetaSectionElement, AstToOutputsSectionElement, AstToParameterMetaSectionElement, AstToRuntimeAttributesSectionElement, AstToScatterElement, AstToStructElement, AstToTaskDefinitionElement, AstToTaskSectionElement, AstToWorkflowBodyElement, AstToWorkflowDefinitionElement, AstToWorkflowGraphNodeElementConverterMaker, GenericAst, GenericAstNode, astNodeToAst, astNodeToAstList}
 import wdl.draft3.transforms.parsing.fileToAst
 import wom.callable.MetaKvPair
 
@@ -15,6 +15,8 @@ package object ast2wdlom {
 
   val wrapAst: CheckedAtoB[Ast, GenericAst] = CheckedAtoB.fromCheck { a => Draft3GenericAst(a).validNelCheck }
   val wrapAstNode: CheckedAtoB[AstNode, GenericAstNode] = CheckedAtoB.fromCheck { a => Draft3GenericAstNode(a).validNelCheck }
+
+  implicit val astNodeToStaticString: CheckedAtoB[GenericAstNode, StaticString] = AstNodeToStaticString.astNodeToStaticStringElement
 
   // meta sections
   implicit val astNodeToMetaKvPair: CheckedAtoB[GenericAstNode, MetaKvPair] = AstNodeToMetaKvPair.astNodeToMetaKvPair

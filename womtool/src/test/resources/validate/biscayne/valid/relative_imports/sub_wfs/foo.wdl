@@ -1,4 +1,4 @@
-version biscayne
+version development
 
 import "../structs/my_struct.wdl"
 import "tasks/add5.wdl" as a5

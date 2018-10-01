@@ -1,11 +1,13 @@
 package womtool
 
 import better.files.File
+import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
 import womtool.WomtoolMain.{SuccessfulTermination, UnsuccessfulTermination}
 
 class WomtoolValidateSpec extends FlatSpec with Matchers {
 
+  private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
   val validationTestCases = File("womtool/src/test/resources/validate")
   val languageVersions = Option(validationTestCases.list).toList.flatten
 
@@ -67,7 +69,8 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
 
         WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) match {
           case UnsuccessfulTermination(msg) => errorFile match {
-            case Some(expectedError) => msg should include (expectedError.trim)
+            case Some(expectedError) =>
+              msg should include(expectedError.trim.replace(s"$${PWD_NAME}", presentWorkingDirectoryName))
             case None => succeed
           }
           case other => fail(s"Expected UnsuccessfulTermination but got $other")

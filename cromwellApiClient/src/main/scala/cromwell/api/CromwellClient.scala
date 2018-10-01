@@ -34,29 +34,12 @@ class CromwellClient(val cromwellUrl: URL,
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
 
-  /**
-    * @param args an optional map of HTTP arguments which will be added to the URL
-    */
-  private def workflowSpecificGetEndpoint(workflowId: WorkflowId, endpoint: String, args: Option[Map[String, List[String]]] = None) = {
-    // Converts the args map to an HTTP argument string, e.g. "foo=bar&baz=qux"
-    def argMapToString(argMap: Map[String, List[String]]): Iterable[String] = {
-      for {
-        arg <- argMap
-        value <- arg._2
-      } yield s"${arg._1}=$value"
-    }
-
-    val argString = args.map(argMapToString)
-    val url = s"$submitEndpoint/$workflowId/$endpoint"
-    argString.fold(url)(a => s"$url?$a")
-  }
-
-  def abortEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "abort")
-  def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "status")
-  def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): String = workflowSpecificGetEndpoint(workflowId, "metadata", args)
-  def outputsEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "outputs")
-  def labelsEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "labels")
-  def logsEndpoint(workflowId: WorkflowId): String = workflowSpecificGetEndpoint(workflowId, "logs")
+  def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "abort")
+  def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "status")
+  def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "metadata", args)
+  def outputsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "outputs")
+  def labelsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "labels")
+  def logsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "logs")
   def diffEndpoint(workflowA: WorkflowId, callA: String, indexA: ShardIndex, workflowB: WorkflowId, callB: String, indexB: ShardIndex): String = {
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
     s"$submitEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
@@ -112,7 +95,7 @@ class CromwellClient(val cromwellUrl: URL,
                args: Option[Map[String, List[String]]] = None,
                headers: List[HttpHeader] = defaultHeaders
                )(implicit ec: ExecutionContext): Future[WorkflowMetadata] = {
-    simpleRequest[String](metadataEndpoint(workflowId), headers=headers) map WorkflowMetadata
+    simpleRequest[String](metadataEndpoint(workflowId, args), headers=headers) map WorkflowMetadata
   }
 
   def outputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowOutputs] = simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId))
@@ -148,7 +131,7 @@ class CromwellClient(val cromwellUrl: URL,
     else entity.to[CromwellFailedResponseException] flatMap Future.failed
   }
 
-  private def simpleRequest[A](uri: String,
+  private def simpleRequest[A](uri: Uri,
                                method: HttpMethod = HttpMethods.GET,
                                headers: List[HttpHeader] = defaultHeaders)
                               (implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = {
@@ -250,5 +233,18 @@ object CromwellClient {
 
     val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
     multipartFormData.toEntity()
+  }
+
+  /**
+    * @param args an optional map of HTTP arguments which will be added to the URL
+    */
+  private [api] def workflowSpecificGetEndpoint(submitEndpoint: String, workflowId: WorkflowId, endpoint: String, args: Option[Map[String, List[String]]] = None) = {
+    val url = s"$submitEndpoint/$workflowId/$endpoint"
+    val queryBuilder = Uri.Query.newBuilder
+    args.getOrElse(Map.empty).foreach({
+      case (key, l) => l.foreach(v => queryBuilder.+=(key -> v))
+    })
+    val queryResult = queryBuilder.result()
+    Uri(url).withQuery(queryResult)
   }
 }

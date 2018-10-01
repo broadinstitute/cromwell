@@ -12,10 +12,6 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-centaur/test_cromwell.sh \
-    -j "${CROMWELL_BUILD_JAR}" \
-    -c "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf" \
-    -n "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf" \
-    -g
+cromwell::build::run_centaur
 
 cromwell::build::generate_code_coverage

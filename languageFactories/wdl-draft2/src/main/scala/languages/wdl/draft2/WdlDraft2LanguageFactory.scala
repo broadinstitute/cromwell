@@ -167,6 +167,4 @@ object WdlDraft2LanguageFactory {
 
   val httpResolver = resolverConverter(ImportResolver.HttpResolver())
   def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.HttpResolver(headers = headers))
-
-  private [draft2] case class CacheConfig(concurrency: Int, size: Long, ttl: FiniteDuration)
 }

@@ -27,6 +27,9 @@ Create a <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.ht
 We will refer to this bucket as `s3-bucket-name`, and the full identifier as `s3://s3-bucket-name`.
 `aws s3 mb s3://<s3-bucket-name>` 
 
+More information and instructions to properly setup an AWS environment to work
+properly with Cromwell on AWS can be found on the
+[AWS for Genomics Workflow page](https://docs.opendata.aws/genomics-workflows/).
 
 **Workflow Source Files**
 

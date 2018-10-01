@@ -4,9 +4,8 @@ import cats.instances.list._
 import cats.syntax.functor._
 import com.typesafe.config.ConfigFactory
 import common.Checked
-import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
+import cromwell.core.{CacheConfig, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.HttpResolver
-import languages.wdl.draft2.WdlDraft2LanguageFactory.CacheConfig
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.concurrent.Await

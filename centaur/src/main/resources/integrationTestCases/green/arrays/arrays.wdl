@@ -562,7 +562,7 @@ task SelectVariants {
   >>>
   runtime {
     disks: "local-disk " + disk_size + " HDD"
-    docker: "us.gcr.io/broad-gatk/gatk:4.0.0.0"
+    docker: "us.gcr.io/broad-gatk/gatk:4.0.9.0"
     memory: "3.5 GB"
     preemptible: preemptible_tries
   }

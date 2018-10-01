@@ -125,7 +125,6 @@ object SentryReporter {
   private def addCiEnvironment(sentryClient: SentryClient, ciEnvironment: CiEnvironment): Unit = {
     sentryClient.setEnvironment(providerOrDefault(ciEnvironment))
     addEnvironmentTag(sentryClient, "is_ci", ciEnvironment.isCi)
-    addEnvironmentTag(sentryClient, "is_cron", ciEnvironment.isCron)
     addEnvironmentTag(sentryClient, "type", ciEnvironment.`type`)
     addEnvironmentTag(sentryClient, "branch", ciEnvironment.branch)
     addEnvironmentTag(sentryClient, "event", ciEnvironment.event)
@@ -134,6 +133,7 @@ object SentryReporter {
     addEnvironmentTag(sentryClient, "provider", ciEnvironment.provider)
     addEnvironmentTag(sentryClient, "os", ciEnvironment.os)
     addEnvironmentTag(sentryClient, "url", ciEnvironment.url)
+    addEnvironmentTag(sentryClient, "centaur_type", ciEnvironment.centaurType)
   }
 
   /** Adds a tag for value, when present. */

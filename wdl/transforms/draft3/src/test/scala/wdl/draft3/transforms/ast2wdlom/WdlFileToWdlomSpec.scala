@@ -931,6 +931,55 @@ object WdlFileToWdlomSpec {
           CommandSectionLine(Vector(StringCommandPartElement("    echo \"I am prefixed with even more spaces\""))))),
         Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
       )
+    ),
+    "string_escaping" -> FileElement(
+      Vector(),
+      Vector(),
+      Vector(
+        WorkflowDefinitionElement(
+          "escapes", None, Set(
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "backslash",
+              StringLiteral("\\.gz$")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "n",
+              StringLiteral("\\n")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "r",
+              StringLiteral("\\r")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "b",
+              StringLiteral("\\b")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "t",
+              StringLiteral("\\t")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "f",
+              StringLiteral("\\f")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "a",
+              StringLiteral("\\a")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "v",
+              StringLiteral("\\v")
+            )
+          ), None, None, None)),
+      Vector.empty
     )
   )
 }

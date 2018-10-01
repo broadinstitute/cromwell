@@ -30,7 +30,12 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
                                      gcsCredentials: Credentials,
                                      genomicsCredentials: Credentials,
                                      papiConfiguration: PipelinesApiConfiguration,
-                                     override val pathBuilders: PathBuilders)(implicit ec: ExecutionContext) extends WorkflowPaths {
+                                     override val pathBuilders: PathBuilders,
+                                     // This allows for the adjustment of the standard stream file names in PAPI v1 to match the
+                                     // combined controller + job standard output and error files. PAPI v1 controls the periodic
+                                     // delocalization of these files so the metadata Cromwell publishes for these files needs
+                                     // to match the PAPI v1 names.
+                                     standardStreamNameToFileNameMetadataMapper: (PipelinesApiJobPaths, String) => String)(implicit ec: ExecutionContext) extends WorkflowPaths {
 
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(PipelinesApiWorkflowPaths.GcsRootOptionKey, papiConfiguration.root)

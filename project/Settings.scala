@@ -207,11 +207,13 @@ object Settings {
     def withExecutableSettings(executableName: String,
                                dependencies: Seq[ModuleID] = List.empty,
                                customSettings: Seq[Setting[_]] = List.empty,
-                               buildDocker: Boolean = true): Project = {
+                               buildDocker: Boolean = true,
+                               pushDocker: Boolean = true): Project = {
 
       val builders: Seq[Project => Project] = List(
         addTestSettings,
         if (buildDocker) _.enablePlugins(DockerPlugin).settings(dockerSettings) else identity,
+        if (buildDocker && !pushDocker) _.settings(DockerKeys.dockerPush := {()}) else identity,
         _
           .settings(assemblySettings)
           .settings(resourceGenerators in Compile += writeProjectVersionConf)

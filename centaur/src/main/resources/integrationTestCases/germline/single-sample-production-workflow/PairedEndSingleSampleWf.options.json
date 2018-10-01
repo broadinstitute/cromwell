@@ -3,6 +3,6 @@
   "write_to_cache":true,
   "default_runtime_attributes": {
     "zones": "us-central1-a us-central1-b us-east1-d us-central1-c us-central1-f us-east1-c",
-    "docker": "us.gcr.io/broad-gatk/gatk:4.0.0.0"
+    "docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0"
   }
 }

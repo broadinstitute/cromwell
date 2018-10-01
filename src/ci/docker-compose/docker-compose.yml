@@ -15,6 +15,7 @@ services:
     working_dir: ${PWD}
     volumes:
       - ${PWD}:${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
     links:
       - mysql-db
   mysql-db:

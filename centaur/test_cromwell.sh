@@ -111,7 +111,7 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     git checkout "${CROMWELL_BRANCH}"
     git pull
     echo "Building Cromwell"
-    sbt clean assembly >> "${ASSEMBLY_LOG}" 2>&1
+    sbt assembly >> "${ASSEMBLY_LOG}" 2>&1
     cd ..
     CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.* -name "cromwell-*.jar")
 fi

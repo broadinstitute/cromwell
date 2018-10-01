@@ -9,6 +9,6 @@
     "CNVSomaticPairWorkflow.common_sites": "gs://gatk-test-data/cnv/somatic/common_snps_sample-chr20.interval_list",
     "CNVSomaticPairWorkflow.ref_fasta_dict": "gs://gatk-test-data/cnv/somatic/human_g1k_v37.chr-20.truncated.dict",
     "CNVSomaticPairWorkflow.intervals": "gs://gatk-test-data/cnv/somatic/ice_targets_sample-chr20.interval_list",
-    "CNVSomaticPairWorkflow.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.1.2",
+    "CNVSomaticPairWorkflow.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0",
     "CNVSomaticPairWorkflow.is_run_oncotator": "true"
 }

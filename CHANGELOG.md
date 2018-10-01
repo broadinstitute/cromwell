@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 36 Release Notes
+
+### Extra configuration options
+
+The value `exit-code-timeout` can now set in a backend configuration.
+Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
+
+
 ## 35 Release Notes
 
 ### Submit workflow using URL
@@ -33,9 +41,6 @@ Cromwell now offers the ability to cache file hashes on a root workflow level ba
 
 The value `dockerRoot` can now be set in a backend configuration. 
 This will set the execution folder in the container (default: `/cromwell-executions`).
-
-The value `exit-code-timeout` can now set in a backend configuration.
-Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
 
 ### Bug Fixes
 

@@ -55,8 +55,8 @@ backend.providers.MyHPCBackend {
 
 ### Exit code timeout
 
-If the cluster is forcefully kills jobs, the job is able to write it's exit code anymore.
-To fix this the option `exit-code-timeout` can be used. When timeout is passed cromwell will mark the jobs as failed.
+If the cluster forcefully kills a job, it is unable to write its exit code anymore.
+To fix this the option `exit-code-timeout` can be used. When a job is no longer running and the timeout has passed without an RC file being made, Cromwell can mark the job as failed.
 If retries are enabled the job is submitted again.
 This option will implicitly enable polling with the `check-alive` option.
 

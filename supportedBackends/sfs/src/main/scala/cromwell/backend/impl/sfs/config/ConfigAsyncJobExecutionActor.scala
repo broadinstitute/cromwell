@@ -264,7 +264,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         SharedFileSystemRunStatus("Done")
       case Some(s) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
-        if (isAlive(handle.pendingJob).getOrElse(true)) s
+        if (exitCodeTimeout.isEmpty) s
+        else if (isAlive(handle.pendingJob).getOrElse(true)) s
         else SharedFileSystemRunStatus("WaitingForReturnCode")
       case Some(s) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore

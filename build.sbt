@@ -321,7 +321,7 @@ lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
   .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies, pushDocker = false)
 
 lazy val perf = project
-  .withExecutableSettings("perf", perfDependencies)
+  .withExecutableSettings("perf", perfDependencies, pushDocker = false)
   .dependsOn(common)
 
 lazy val server = project

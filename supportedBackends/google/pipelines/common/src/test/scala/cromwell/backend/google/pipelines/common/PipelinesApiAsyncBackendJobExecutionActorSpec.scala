@@ -102,7 +102,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: PipelinesApiConfiguration) = {
     val pathBuilders = Await.result(configuration.configurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
-    val workflowPaths = PipelinesApiWorkflowPaths(jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration, pathBuilders)
+    val workflowPaths = PipelinesApiWorkflowPaths(
+      jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
     val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(configuration)
     val requestFactory = new PipelinesApiRequestFactory {
       override def cancelRequest(job: StandardAsyncJob) = null

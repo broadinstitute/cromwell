@@ -27,8 +27,8 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
-    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders)
-    
+    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
+
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
     callPaths.returnCodeFilename should be("rc")
@@ -45,7 +45,7 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
-    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders)
+    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
 
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
@@ -67,7 +67,7 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
-    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders)
+    val workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
 
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     

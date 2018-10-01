@@ -268,10 +268,15 @@ object Dependencies {
 
   private val awsCloudDependencies = List(
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
-    "software.amazon.awssdk" % "aws-sdk-java" % awsSdkV,
     "org.lerch" % "s3fs" % s3fsV
       exclude("org.slf4j", "jcl-over-slf4j")
-  )
+  ) ++ List(
+    "batch",
+    "core",
+    "logs",
+    "s3",
+    "sts",
+  ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
     "io.grpc" % "grpc-core" % grpcV,

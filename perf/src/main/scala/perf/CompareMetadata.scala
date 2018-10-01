@@ -80,8 +80,10 @@ object CompareMetadata extends App {
 
   args.length match {
     case 2 => {
+      //The args can be path to file on GCS, but currently it only considers local filesystem paths
       val metadataOldEither = parseMetadataFromFile(args(0))
       val metadataNewEither = parseMetadataFromFile(args(1))
+
       (metadataOldEither, metadataNewEither) match {
         case (Right(metadataOld), Right(metadataNew)) => {
           val metadataOldMsg = s"Metrics for metadata generated from ${args(0)}"

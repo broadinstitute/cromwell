@@ -34,18 +34,18 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
   it should "not parse the new as_map function" in {
     val str = "as_map(some_pairs)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeInvalid "Failed to convert AST node to ExpressionElement (reason 1 of 1): Unknown engine function: 'as_map'"
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'as_map'"
   }
 
   it should "not parse the new as_pairs function" in {
     val str = "as_pairs(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeInvalid "Failed to convert AST node to ExpressionElement (reason 1 of 1): Unknown engine function: 'as_pairs'"
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'as_pairs'"
   }
 
   it should "not parse the new collect_by_key function" in {
     val str = "collect_by_key(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeInvalid "Failed to convert AST node to ExpressionElement (reason 1 of 1): Unknown engine function: 'collect_by_key'"
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'collect_by_key'"
   }
 }

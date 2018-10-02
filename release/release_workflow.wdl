@@ -171,8 +171,6 @@ task publishGithubRelease {
         String organization
         File cromwellJar
         File womtoolJar
-        String oldVersion
-        String newVersion
 
         String release_id
         String upload_url
@@ -189,13 +187,13 @@ task publishGithubRelease {
         set -x
 
         # Upload the cromwell jar as an asset
-        curl -X POST --data-binary @~{cromwellJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "~{cromwell_upload_url}"
+        curl --fail -X POST --data-binary @~{cromwellJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "~{cromwell_upload_url}"
 
         # Upload the womtool jar as an asset
-        curl -X POST --data-binary @~{womtoolJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "~{womtool_upload_url}"
+        curl --fail -X POST --data-binary @~{womtoolJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "~{womtool_upload_url}"
 
         # Publish the draft
-        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/~{organization}/cromwell/releases/"~{release_id}"?access_token=~{githubToken}
+        curl --fail -X PATCH -d '{"draft": false}' https://api.github.com/repos/~{organization}/cromwell/releases/"~{release_id}"?access_token=~{githubToken}
     >>>
     runtime {
         docker: "python:2.7"
@@ -325,7 +323,7 @@ workflow release_cromwell {
   }
   
   parameter_meta {
-    githubToken: "Github token use interact with github API"
+    githubToken: "Github token to interact with github API"
     organization: "Organization on which the release will be performed. Swap out for a test organization for testing"
     majorRelease: "Set to false to do a .X minor release"
   }
@@ -370,8 +368,6 @@ workflow release_cromwell {
            organization = organization,
            cromwellJar = cromwellJar,
            womtoolJar = womtoolJar,
-           newVersion = cromwellVersion,
-           oldVersion = cromwellPreviousVersion,
            release_id = draftGithubRelease.release_id,
            upload_url = draftGithubRelease.upload_url
   }

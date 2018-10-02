@@ -124,25 +124,19 @@ task versionPrep {
     }
 }
 
-task makeGithubRelease {
+task draftGithubRelease {
     input {
         String githubToken
         String organization
-        File cromwellJar
-        File womtoolJar
         String oldVersion
         String newVersion
     }
-
-    String cromwellJarName = basename(cromwellJar)
-    String womtoolJarName = basename(womtoolJar)
-
     command <<<
         set -e
         set -x
 
         # download changelog from master
-        curl https://raw.githubusercontent.com/~{organization}/cromwell/master/CHANGELOG.md -o CHANGELOG.md
+        curl --fail https://raw.githubusercontent.com/~{organization}/cromwell/master/CHANGELOG.md -o CHANGELOG.md
 
         # Extract the latest piece of the changelog corresponding to this release
         # head remove the last line, next sed escapes all ", and last sed/tr replaces all new lines with \n so it can be used as a JSON string
@@ -152,23 +146,56 @@ task makeGithubRelease {
         API_JSON="{\"tag_name\": \"~{newVersion}\",\"name\": \"~{newVersion}\",\"body\": \"$BODY\",\"draft\": true,\"prerelease\": false}"
 
         # POST the release as a draft
-        curl --data "$API_JSON" https://api.github.com/repos/~{organization}/cromwell/releases?access_token=~{githubToken} -o release_response
+        curl --fail --data "$API_JSON" https://api.github.com/repos/~{organization}/cromwell/releases?access_token=~{githubToken} -o release_response
 
         # parse the response to get the release id and the asset upload url
         RELEASE_ID=$(python -c "import sys, json; print json.load(sys.stdin)['id']" < release_response)
         UPLOAD_URL=$(python -c "import sys, json; print json.load(sys.stdin)['upload_url']" < release_response)
 
-        CROMWELL_UPLOAD_URL=$(sed 's/{.*}/?name=~{cromwellJarName}/' <<< "$UPLOAD_URL")
-        WOMTOOL_UPLOAD_URL=$(sed 's/{.*}/?name=~{womtoolJarName}/' <<< "$UPLOAD_URL")
+        echo $RELEASE_ID > release_id.txt
+        echo $UPLOAD_URL > upload_url.txt
+    >>>
+    runtime {
+        docker: "python:2.7"
+    }
+    output {
+      String release_id = read_string("release_id.txt")
+      String upload_url = read_string("upload_url.txt")
+    }
+
+}
+
+task publishGithubRelease {
+    input {
+        String githubToken
+        String organization
+        File cromwellJar
+        File womtoolJar
+        String oldVersion
+        String newVersion
+
+        String release_id
+        String upload_url
+    }
+
+    String cromwellJarName = basename(cromwellJar)
+    String womtoolJarName = basename(womtoolJar)
+
+    String cromwell_upload_url = "~{upload_url}?name=~{cromwellJarName}"
+    String womtool_upload_url = "~{upload_url}?name=~{womtoolJarName}"
+
+    command <<<
+        set -e
+        set -x
 
         # Upload the cromwell jar as an asset
-        curl -X POST --data-binary @~{cromwellJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "$CROMWELL_UPLOAD_URL"
+        curl -X POST --data-binary @~{cromwellJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "~{cromwell_upload_url}"
 
         # Upload the womtool jar as an asset
-        curl -X POST --data-binary @~{womtoolJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "$WOMTOOL_UPLOAD_URL"
+        curl -X POST --data-binary @~{womtoolJar} -H "Authorization: token ~{githubToken}" -H "Content-Type: application/octet-stream" "~{womtool_upload_url}"
 
         # Publish the draft
-        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/~{organization}/cromwell/releases/"$RELEASE_ID"?access_token=~{githubToken}
+        curl -X PATCH -d '{"draft": false}' https://api.github.com/repos/~{organization}/cromwell/releases/"~{release_id}"?access_token=~{githubToken}
     >>>
     runtime {
         docker: "python:2.7"
@@ -308,6 +335,13 @@ workflow release_cromwell {
     majorRelease = majorRelease
   }
 
+  call draftGithubRelease { input:
+      githubToken = githubToken,
+      organization = organization,
+      newVersion = cromwellVersion,
+      oldVersion = cromwellPreviousVersion
+  }
+
   # This is the version before the one being released
   String cromwellPreviousVersion = versionPrep.previouslyReleasedVersion
   # This is the version being released
@@ -331,21 +365,23 @@ workflow release_cromwell {
   File cromwellJar = select_first([do_major_release.cromwellJar, do_minor_release.cromwellJar])
   File womtoolJar = select_first([do_major_release.womtoolJar, do_minor_release.womtoolJar])
 
-  call makeGithubRelease { input:
+  call publishGithubRelease { input:
            githubToken = githubToken,
            organization = organization,
            cromwellJar = cromwellJar,
            womtoolJar = womtoolJar,
            newVersion = cromwellVersion,
-           oldVersion = cromwellPreviousVersion
+           oldVersion = cromwellPreviousVersion,
+           release_id = draftGithubRelease.release_id,
+           upload_url = draftGithubRelease.upload_url
   }
   
   call releaseHomebrew { input:
            organization = organization,
            githubToken = githubToken,
            releaseVersion = cromwellVersion,
-           cromwellReleaseUrl = makeGithubRelease.cromwellReleaseUrl,
-           womtoolReleaseUrl = makeGithubRelease.womtoolReleaseUrl,
+           cromwellReleaseUrl = publishGithubRelease.cromwellReleaseUrl,
+           womtoolReleaseUrl = publishGithubRelease.womtoolReleaseUrl,
            cromwellJar = cromwellJar,
            womtoolJar = womtoolJar
   }

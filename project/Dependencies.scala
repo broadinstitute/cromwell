@@ -227,7 +227,7 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
-    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV
   )
 
   private val slickDependencies = List(
@@ -416,7 +416,6 @@ object Dependencies {
   val owlApiDependencies = List(
     "net.sourceforge.owlapi" % "owlapi-distribution" % owlApiV
       exclude("org.apache.httpcomponents", "httpclient-osgi")
-      exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.slf4j", "jcl-over-slf4j"),
     "org.apache.httpcomponents" % "httpclient-cache" % apacheHttpClientV,

@@ -171,8 +171,8 @@ object QuerySupport {
     Exception(s"Invalid JSON in query POST body: ${e.getMessage}", e)
 
   final class LabelContainsOrException(val user: User, val labelOrs: NonEmptyList[String]) extends
-    Exception(s"User ${user.userId} submitted labels containing an OR, which is not allowed: " +
-      labelOrs.toList.mkString("'", "', '", "'"))
+    Exception(s"User ${user.userId} submitted a labels query containing an OR which CromIAM is blocking: " +
+      labelOrs.toList.mkString("LABELS CONTAIN '", "' OR LABELS CONTAIN '", "'"))
 
   val LabelAndKey = "label"
   val LabelOrKey = "labelor"

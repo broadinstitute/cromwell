@@ -13,6 +13,7 @@ import org.scalatest._
 import org.scalatest.concurrent.Eventually
 
 import scala.concurrent.duration._
+import scala.util.Random
 
 class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec")) with ImplicitSender with FlatSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll with Eventually {
 
@@ -237,6 +238,52 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     // Force token distribution
     actorRefUnderTest ! TokensAvailable(1)
     eventually { nextInLine2.underlyingActor.hasToken shouldBe true }
+  }
+
+  it should "skip over dead actors repeatedly when assigning tokens to the actor queue" in {
+    val grabberSupervisor = TestActorRef(new StoppingSupervisor())
+    // The first 5 get a token and the 6th and 7h one are queued
+    val tokenGrabbingActors = (0 until 1000).toVector.map { i =>
+      TestActorRef[TestTokenGrabbingActor](TestTokenGrabbingActor.props(actorRefUnderTest, LimitedTo5Tokens), grabberSupervisor, s"grabber_" + i)
+    }
+
+    val actorIterator = tokenGrabbingActors.toIterator
+
+    while (actorIterator.hasNext) {
+
+      // We won't actually dispense 100, this is simulating the "steady drip" message
+      // so that we don't have to wait 4 seconds per drip for the test case...
+      actorRefUnderTest ! TokensAvailable(100)
+      val withTokens = actorIterator.take(5).toList
+      val nextInLine = actorIterator.take(5).toList
+
+      eventually {
+        withTokens.foreach(_.underlyingActor.hasToken should be(true))
+      }
+
+      // Check that the next in lines have no tokens and are indeed in the queue
+      nextInLine.foreach(next => next.underlyingActor.hasToken shouldBe false)
+
+      // Kill off running jobs and the queuers (except the 4th in line):
+      (0 until 5).filterNot(_ == 3) foreach { index =>
+        // Kill off jobs in the queue:
+        nextInLine(index) ! PoisonPill
+        // Stop or kill off jobs which are 'running'
+        val randomInt = Random.nextInt(10)
+        if (randomInt <= 5) withTokens(index) ! PoisonPill
+        else actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = withTokens(index))
+      }
+      // Also complete the 4th running job (but not the 4th in the queue):
+      actorRefUnderTest.tell(msg = JobExecutionTokenReturn, sender = withTokens(3))
+
+      actorRefUnderTest ! TokensAvailable(100)
+      eventually { nextInLine(3).underlyingActor.hasToken shouldBe true }
+
+      // And kill off the rest of the actors:
+      (withTokens.toList :+ nextInLine(3)) foreach { actor => actor ! PoisonPill }
+    }
+
+    actorRefUnderTest.underlyingActor.tokenQueues.map(x => x._2.size).sum should be(0)
   }
 
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _

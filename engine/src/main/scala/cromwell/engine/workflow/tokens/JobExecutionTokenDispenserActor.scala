@@ -14,6 +14,8 @@ import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadContro
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import io.github.andrebeat.pool.Lease
 
+import scala.util.{Failure, Success, Try}
+
 class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRef, override val distributionRate: DynamicRateLimiter.Rate) extends Actor with ActorLogging
   with JobInstrumentation with CromwellInstrumentationScheduler with Timers with DynamicRateLimiter {
 
@@ -68,7 +70,15 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
     val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
 
-    val nextTokens = iterator.take(n)
+    // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
+    // exception.
+    // If we do nothing now then when we rebuild the iterator next time we run distribute(), that won't happen again next time.
+    val nextTokens = Try(iterator.take(n)) match {
+      case Success(tokens) => tokens
+      case Failure(e) =>
+        log.warning(s"Failed to take($n): ${e.getMessage}")
+        Iterator.empty
+    }
 
     nextTokens.foreach({
       case LeasedActor(actor, lease) if !tokenAssignments.contains(actor) =>

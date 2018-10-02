@@ -14,8 +14,7 @@ import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-import cwl.CwlDecoder
-import wom.callable.ExecutableCallable
+import cwl.{Cwl, CwlDecoder}
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.{Executable, WomBundle}
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
@@ -69,26 +68,20 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    val fileThing = goParse {
-      val tempDir = File.newTemporaryDirectory(prefix = s"${workflowSource.hashCode}.temp.")
-      val cwlFile: File = tempDir./(s"${workflowSource.hashCode}.cwl").write(workflowSource)
-      cwlFile
-    }
+    val cwlParse: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource)
 
     import cwl.AcceptAllRequirements
 
-    val ec: EitherT[IO, NonEmptyList[String], ExecutableCallable] = for {
-      file <- fileThing
-      cwl <- CwlDecoder.decodeCwlFile(file, Option(workflowSource))
+    val executableIO: EitherT[IO, NonEmptyList[String], Executable] = for {
+      cwl <- cwlParse
       executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation))
-    } yield executable.entryPoint
+    } yield executable
 
-    val wtf: IO[ExecutableCallable] = ec.getOrElse(???)
-    val wtf2: ExecutableCallable = wtf.unsafeRunSync()
+    executableIO.value.unsafeRunSync() match {
+      case Right(value) => WomBundle(Option(value.entryPoint), Map.empty, Map.empty).validNelCheck
+      case _ => ???
+    }
 
-    println(wtf2)
-
-    WomBundle(Option(ec.getOrElse(???).unsafeRunSync()), Map.empty, Map.empty).validNelCheck
   }
 
   // wom.executable.WomBundle.toExecutableCallable

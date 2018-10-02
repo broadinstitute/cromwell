@@ -302,7 +302,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     val relativePath = string.stripPrefix(cwdString)
     jobPaths.callExecutionRoot.resolve(relativePath)
   }
-  
+
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
     jobLogger.info(s"`${instantiatedCommand.commandString}`")

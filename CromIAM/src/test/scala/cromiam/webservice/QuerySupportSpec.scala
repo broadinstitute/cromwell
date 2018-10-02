@@ -111,7 +111,7 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
     val labelOrs = List("foo:bar", "foo:baz")
     the[LabelContainsOrException] thrownBy {
       ensureNoLabelOrs(user, labelOrs)
-    } should have message "User 123456780 submitted labels containing an OR, which is not allowed: 'foo:bar', 'foo:baz'"
+    } should have message "User 123456780 submitted a labels query containing an OR which CromIAM is blocking: LABELS CONTAIN 'foo:bar' OR LABELS CONTAIN 'foo:baz'"
   }
 
   it should "not throw an exception when a query does not contain a LabelOr" in {

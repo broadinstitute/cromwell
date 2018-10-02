@@ -32,7 +32,9 @@ class EngineJobHashingActor(receiver: ActorRef,
                             callCachePathPrefixes: Option[CallCachePathPrefixes]) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
 
   override val jobTag = jobDescriptor.key.tag
-  override val workflowId = jobDescriptor.workflowDescriptor.id
+  val workflowId = jobDescriptor.workflowDescriptor.id
+  override val workflowIdForLogging = jobDescriptor.workflowDescriptor.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging = jobDescriptor.workflowDescriptor.rootWorkflowId
   override val workflowIdForCallMetadata: WorkflowId = workflowId
 
   private [callcaching] var initialHash: Option[InitialHashingResult] = None

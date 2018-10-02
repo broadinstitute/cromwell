@@ -47,7 +47,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
-  override val workflowId = parentWorkflow.id
+  override val workflowIdForLogging = parentWorkflow.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging = parentWorkflow.rootWorkflowId
   override val workflowIdForCallMetadata = parentWorkflow.id
   override def jobTag: String = key.tag
 

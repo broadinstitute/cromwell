@@ -139,7 +139,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       )
     }
 
-    override lazy val jobLogger = new JobLogger("TestLogger", workflowId, jobTag, akkaLogger = Option(log)) {
+    override lazy val jobLogger = new JobLogger(
+      loggerName = "TestLogger",
+      workflowIdForLogging = workflowId.toPossiblyNotRoot,
+      rootWorkflowIdForLogging = workflowId.toRoot,
+      jobTag = jobTag,
+      akkaLogger = Option(log)
+    ) {
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }

@@ -7,7 +7,7 @@ import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{PossiblyNotRootWorkflowId, RootWorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
@@ -45,18 +45,27 @@ object WorkflowInitializationActor {
   case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse with WorkflowInitializationResponse
   final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse with WorkflowInitializationResponse
 
-  def props(workflowId: WorkflowId,
+  def props(workflowIdForLogging: PossiblyNotRootWorkflowId,
+            rootWorkflowIdForLogging: RootWorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             restarting: Boolean): Props = {
-    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor, ioActor, serviceRegistryActor, restarting)).withDispatcher(EngineDispatcher)
+    Props(new WorkflowInitializationActor(
+      workflowIdForLogging = workflowIdForLogging,
+      rootWorkflowIdForLogging = rootWorkflowIdForLogging,
+      workflowDescriptor = workflowDescriptor,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      restarting = restarting
+    )).withDispatcher(EngineDispatcher)
   }
 
   case class BackendActorAndBackend(actor: ActorRef, backend: String)
 }
 
-case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
+case class WorkflowInitializationActor(workflowIdForLogging: PossiblyNotRootWorkflowId,
+                                       rootWorkflowIdForLogging: RootWorkflowId,
                                        workflowDescriptor: EngineWorkflowDescriptor,
                                        ioActor: ActorRef,
                                        serviceRegistryActor: ActorRef,

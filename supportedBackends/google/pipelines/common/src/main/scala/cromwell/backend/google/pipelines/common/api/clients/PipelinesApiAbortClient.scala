@@ -3,9 +3,10 @@ package cromwell.backend.google.pipelines.common.api.clients
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiAbortQueryFailed, PAPIAbortRequest}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIAbortRequest, PipelinesApiAbortQueryFailed}
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled, PAPIOperationHasAlreadyFinished}
 import cromwell.backend.standard.StandardAsyncJob
+import cromwell.core.WorkflowId
 import cromwell.core.logging.JobLogging
 
 object PipelinesApiAbortClient {
@@ -16,6 +17,8 @@ object PipelinesApiAbortClient {
 }
 
 trait PipelinesApiAbortClient { this: Actor with ActorLogging with JobLogging with PapiInstrumentation =>
+  def workflowId: WorkflowId
+
   val papiApiActor: ActorRef
   val requestFactory: PipelinesApiRequestFactory
   

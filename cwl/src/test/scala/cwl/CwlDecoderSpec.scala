@@ -1,5 +1,6 @@
 package cwl
 
+import cats.data.NonEmptyList
 import cwl.CwlDecoder._
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -21,10 +22,13 @@ class CwlDecoderSpec extends FlatSpec with Matchers {
   }
 
   it should "fail to parse broken linked cwl" in {
-      decodeCwlFile(rootPath / "brokenlinks.cwl").
-        value.
-        unsafeRunSync.
-        isLeft shouldBe true
+    val result: Either[NonEmptyList[String], Cwl] = decodeCwlFile(rootPath / "brokenlinks.cwl").
+      value.
+      unsafeRunSync
+
+    result.isLeft shouldBe true
+    "Field `run` contains undefined reference to `file://.+/wrong.cwl`".r.findAllIn(result.left.get.head).size shouldBe 1
+    "Field `run` contains undefined reference to `file://.+/wrong2.cwl`".r.findAllIn(result.left.get.head).size shouldBe 1
   }
 
   it should "fail to parse invalid linked cwl" in {

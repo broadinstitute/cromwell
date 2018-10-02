@@ -1,7 +1,9 @@
 package cwl.ontology
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import org.semanticweb.owlapi.apibinding.OWLManager
 
 class SchemaSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -67,6 +69,17 @@ class SchemaSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
     it should s"return $isSubClass that $child is a sub class of $ancestor when checking schema $schemaDescription" in {
       schema.isSubClass(child, ancestor) should be(isSubClass)
     }
+  }
+  
+  it should "cache ontologies" in {
+    val cache = Schema.makeOntologyCache(ConfigFactory.parseString("max-size=5"))
+    val ontologyManager1 = OWLManager.createOWLOntologyManager
+    val ontologyManager2 = OWLManager.createOWLOntologyManager
+    val ontology1 = Schema.loadOntologyFromIri(ontologyManager1, Option(cache))(getClass.getResource("EDAM.owl").toExternalForm)
+    ontology1.isValid shouldBe true
+    val ontology2 = Schema.loadOntologyFromIri(ontologyManager2, Option(cache))(getClass.getResource("EDAM.owl").toExternalForm)
+    ontology2.isValid shouldBe true
+    ontology2.getOrElse(fail()).getOWLOntologyManager shouldBe ontologyManager2
   }
 
   private lazy val galaxySchema = {

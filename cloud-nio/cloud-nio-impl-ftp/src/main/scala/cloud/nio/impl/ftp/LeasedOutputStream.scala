@@ -2,7 +2,10 @@ package cloud.nio.impl.ftp
 
 import java.io.OutputStream
 
-import cloud.nio.impl.ftp.FtpUtil.{FtpOperation, runBoolean}
+import cats.effect.IO
+import cats.syntax.functor._
+import cloud.nio.impl.ftp.FtpUtil.autoRelease
+import cloud.nio.impl.ftp.operations.FtpCompletePendingCommand
 import io.github.andrebeat.pool.Lease
 import org.apache.commons.net.ftp.FTPClient
 
@@ -13,8 +16,6 @@ class LeasedOutputStream(cloudHost: String, cloudPath: String, outputStream: Out
   override def flush() = outputStream.flush()
   override def close() = {
     outputStream.close()
-    // This will also release the lease once the completePendingCommand is done
-    runBoolean(FtpOperation(cloudHost, cloudPath, "close input stream"), lease)(_.completePendingCommand())
-    ()
+    autoRelease(IO.pure(lease))(FtpCompletePendingCommand(cloudHost, cloudPath, "close input steam").run).void unsafeRunSync()
   }
 }

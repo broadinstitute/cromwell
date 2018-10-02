@@ -47,7 +47,7 @@ class FtpCloudNioFileSystemProvider(override val config: Config, val credentials
       case Failure(f: NoSuchFileException) => throw f
       // java.nio.files.Files.createDirectories swallows IOException, that are not FileAlreadyExistsException, so log them here so we can now what happened
       case Failure(f: IOException) =>
-        logger.error(s"Failed to create directory at $dir", f)
+        logger.debug(s"Failed to create directory at $dir", f)
         throw f
       case Failure(f) => throw f
     }

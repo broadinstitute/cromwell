@@ -14,7 +14,7 @@ import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -22,6 +22,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
 import wom.values.WomFile
 import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -40,6 +41,10 @@ case object Complete extends TesRunStatus {
 }
 
 case object FailedOrError extends TesRunStatus {
+  def isTerminal = true
+}
+
+case object Cancelled extends TesRunStatus {
   def isTerminal = true
 }
 
@@ -199,6 +204,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ()
   }
 
+  override def requestsAbortAndDiesImmediately: Boolean = false
+
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
@@ -210,7 +217,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
           case s if s.contains("CANCELED") =>
             jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
-            FailedOrError
+            Cancelled
 
           case s if s.contains("ERROR") =>
             jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
@@ -225,6 +232,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     case (oldHandle: StandardAsyncPendingExecutionHandle@unchecked, e: Exception) =>
       jobLogger.error(s"$tag TES Job ${oldHandle.pendingJob.jobId} has not been found, failing call")
       FailedNonRetryableExecutionHandle(e)
+  }
+
+  override def handleExecutionFailure(status: StandardAsyncRunStatus, returnCode: Option[Int]) = {
+    status match {
+      case Cancelled => Future.successful(AbortedExecutionHandle)
+      case _ => super.handleExecutionFailure(status, returnCode)
+    }
   }
 
   override def isTerminal(runStatus: TesRunStatus): Boolean = {

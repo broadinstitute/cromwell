@@ -6,14 +6,16 @@ import better.files.File
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import common.validation.ErrorOr._
+import com.typesafe.scalalogging.StrictLogging
 import io.circe
 import io.circe.generic.auto._
 import io.circe.parser._
 
 // Do not remove this unused import
 // If removed, circe parser fails to find implicit decoder for OffsetDateTime, and parsing fails
+import io.circe.java8.time.decodeOffsetDateTimeDefault
 
-object CompareMetadata extends App {
+object CompareMetadata extends App with StrictLogging{
 
   def parseMetadataFromFile(filePath: String): Either[circe.Error, Metadata] = {
     val metadataFile = File(filePath)
@@ -24,15 +26,15 @@ object CompareMetadata extends App {
 
 
   def displayComputedMetrics(metadata: Metadata, displayMsg: String): Unit = {
-    println(displayMsg)
+    logger.info(displayMsg)
 
-    println(s"Workflow started after: ${metadata.workflowStartedAfter}")
-    println(s"Workflow Running time: ${metadata.workflowRunningTime}")
-    println(s"Total jobs per root workflow: ${metadata.totalJobsPerRootWf}")
-    println(s"Avg cache copy retries: ${metadata.avgCacheRetries}")
-    println(s"Avg time job spent in Call Caching state: ${metadata.avgTimeInCallCachingState}")
-    println(s"Avg time job spent in Job Preparation state: ${metadata.avgTimeInJobPreparation}")
-    println(s"Avg time job spent in fetching and copying cache hit(s) state: ${metadata.avgTimeForFetchingAndCopyingCacheHit}")
+    logger.info(s"Workflow started after: ${metadata.workflowStartedAfter}")
+    logger.info(s"Workflow Running time: ${metadata.workflowRunningTime}")
+    logger.info(s"Total jobs per root workflow: ${metadata.totalJobsPerRootWf}")
+    logger.info(s"Avg cache copy retries: ${metadata.avgCacheRetries}")
+    logger.info(s"Avg time job spent in Call Caching state: ${metadata.avgTimeInCallCachingState}")
+    logger.info(s"Avg time job spent in Job Preparation state: ${metadata.avgTimeInJobPreparation}")
+    logger.info(s"Avg time job spent in fetching and copying cache hit(s) state: ${metadata.avgTimeForFetchingAndCopyingCacheHit}")
   }
 
   def compareDurationMetrics(metadataOld: Metadata, metadataNew: Metadata, metricFunc: Metadata => Duration, metricName: String): ErrorOr[String] = {
@@ -70,10 +72,9 @@ object CompareMetadata extends App {
   }
 
 
-  def printParseErrorToConsoleAndExit(errorList: circe.Error*): Unit = {
-    Console.err.println(s"Something went wrong while parsing metadata json. Error:")
-    errorList.foreach(e => e.printStackTrace(Console.err))
-    System.exit(1)
+  def printParseErrorToConsoleAndExit(metadataFile: String, error: circe.Error, systemExit: Boolean): Unit = {
+    logger.error(s"Something went wrong while parsing $metadataFile. Error: ${error.getLocalizedMessage}")
+    if (systemExit) System.exit(1)
   }
 
 
@@ -86,25 +87,28 @@ object CompareMetadata extends App {
       (metadataOldEither, metadataNewEither) match {
         case (Right(metadataOld), Right(metadataNew)) => {
           val metadataOldMsg = s"Metrics for metadata generated from ${args(0)}"
-          val metadataNewMsg = s"Metrics for metadata generated from ${args(1)}"
+          val metadataNewMsg = s"\nMetrics for metadata generated from ${args(1)}"
           displayComputedMetrics(metadataOld, metadataOldMsg)
           displayComputedMetrics(metadataNew, metadataNewMsg)
           compareMetadataMetrics(metadataOld, metadataNew) match {
-            case Valid(_) => Console.println("YAY!! Metrics from new metadata json haven't regressed!")
+            case Valid(_) => logger.info("\nYAY!! Metrics from new metadata json haven't regressed!")
             case Invalid(listOfErrors) => {
-              Console.err.println("Below metadata metrics have regressed:")
-              Console.err.println(listOfErrors.toList.mkString("\n"))
+              logger.error("Below metadata metrics have regressed:")
+              logger.error(listOfErrors.toList.mkString("\n"))
               System.exit(1)
             }
           }
         }
-        case (Right(_), Left(e)) => printParseErrorToConsoleAndExit(e)
-        case (Left(e), Right(_)) => printParseErrorToConsoleAndExit(e)
-        case (Left(e1), Left(e2)) => printParseErrorToConsoleAndExit(e1, e2)
+        case (Right(_), Left(e)) => printParseErrorToConsoleAndExit(args(1), e, systemExit = true)
+        case (Left(e), Right(_)) => printParseErrorToConsoleAndExit(args(0), e, systemExit = true)
+        case (Left(e1), Left(e2)) => {
+          printParseErrorToConsoleAndExit(args(0), e1, systemExit = false)
+          printParseErrorToConsoleAndExit(args(1), e2, systemExit = true)
+        }
       }
     }
     case _ => {
-      Console.err.println("Please pass in 2 file paths!")
+      logger.error("Please pass in 2 file paths!")
       System.exit(1)
     }
   }

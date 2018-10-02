@@ -227,7 +227,7 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
-    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV
   )
 
   private val slickDependencies = List(
@@ -520,6 +520,9 @@ object Dependencies {
   val swaggerUiVersion = swaggerUiV
 
   val perfDependencies = List(
-    "io.circe" %% "circe-java8" % circeV
+    "io.circe" %% "circe-java8" % circeV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-access" % logbackV
   ) ++ circeDependencies ++ betterFilesDependencies
 }

@@ -24,44 +24,40 @@ case class Metadata(id: String,
   /**
     * @return Time between the submission and start of workflow
     */
-  def workflowStartedAfter: Duration = Duration.between(submission, start)
+  val workflowStartedAfter: Duration = Duration.between(submission, start)
 
-  def workflowRunningTime: Duration = Duration.between(start, end)
+  val workflowRunningTime: Duration = Duration.between(start, end)
 
-  def totalJobsPerRootWf: Int = sumElementsInOptionSeq(calls.map(taskMap => taskMap.map(callsPerTask => callsPerTask._2.size)), addInt, 0)
+  val totalJobsPerRootWf: Int = sumElementsInOptionSeq(calls.map(taskMap => taskMap.map(callsPerTask => callsPerTask._2.size)), addInt, 0)
 
-  def avgCacheRetries: Int = {
-    val totalJobs = totalJobsPerRootWf
-    if (totalJobs > 0) {
+  val avgCacheRetries: Int = {
+    if (totalJobsPerRootWf > 0) {
       val cacheRetriesList = calls.map(taskMap => taskMap.flatMap(callsPerTask => callsPerTask._2.map(call => call.cacheCopyRetries)))
-      sumElementsInOptionSeq(cacheRetriesList, addInt, 0) / totalJobs
+      sumElementsInOptionSeq(cacheRetriesList, addInt, 0) / totalJobsPerRootWf
     }
     else 0
   }
 
-  def avgTimeInCallCachingState: Duration = {
-    val totalJobs = totalJobsPerRootWf
-    if (totalJobs > 0) {
+  val avgTimeInCallCachingState: Duration = {
+    if (totalJobsPerRootWf > 0) {
       val timeInCallCachingStateList = calls.map(taskMap => taskMap.flatMap(callsPerTask => callsPerTask._2.map(call => call.timeInCallCachingState)))
-      sumElementsInOptionSeq(timeInCallCachingStateList, addDuration, Duration.ZERO).dividedBy(totalJobs.toLong)
+      sumElementsInOptionSeq(timeInCallCachingStateList, addDuration, Duration.ZERO).dividedBy(totalJobsPerRootWf.toLong)
     }
     else Duration.ZERO
   }
 
-  def avgTimeInJobPreparation: Duration = {
-    val totalJobs = totalJobsPerRootWf
-    if (totalJobs > 0) {
+  val avgTimeInJobPreparation: Duration = {
+    if (totalJobsPerRootWf > 0) {
       val timeInJobPreparationList = calls.map(taskMap => taskMap.flatMap(callsPerTask => callsPerTask._2.map(call => call.timeInJobPreparation)))
-      sumElementsInOptionSeq(timeInJobPreparationList, addDuration, Duration.ZERO).dividedBy(totalJobs.toLong)
+      sumElementsInOptionSeq(timeInJobPreparationList, addDuration, Duration.ZERO).dividedBy(totalJobsPerRootWf.toLong)
     }
     else Duration.ZERO
   }
 
-  def avgTimeForFetchingAndCopyingCacheHit: Duration = {
-    val totalJobs = totalJobsPerRootWf
-    if (totalJobs > 0) {
+  val avgTimeForFetchingAndCopyingCacheHit: Duration = {
+    if (totalJobsPerRootWf > 0) {
       val timeInCopyingList = calls.map(taskMap => taskMap.flatMap(callsPerTask => callsPerTask._2.map(call => call.timeForFetchingAndCopyingCacheHit)))
-      sumElementsInOptionSeq(timeInCopyingList, addDuration, Duration.ZERO).dividedBy(totalJobs.toLong)
+      sumElementsInOptionSeq(timeInCopyingList, addDuration, Duration.ZERO).dividedBy(totalJobsPerRootWf.toLong)
     }
     else Duration.ZERO
   }

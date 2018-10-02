@@ -16,6 +16,7 @@ import io.circe.parser._
 import io.circe.java8.time.decodeOffsetDateTimeDefault
 
 object CompareMetadata extends App with StrictLogging{
+  private  val REGRESSION_CONST = 1.1
 
   def parseMetadataFromFile(filePath: String): Either[circe.Error, Metadata] = {
     val metadataFile = File(filePath)
@@ -37,8 +38,12 @@ object CompareMetadata extends App with StrictLogging{
     logger.info(s"Avg time job spent in fetching and copying cache hit(s) state: ${metadata.avgTimeForFetchingAndCopyingCacheHit}")
   }
 
+
+  /***
+    * Compares the metrics in Metadata which have type 'Duration' (mostly the ones related to time metrics)
+    */
   def compareDurationMetrics(metadataOld: Metadata, metadataNew: Metadata, metricFunc: Metadata => Duration, metricName: String): ErrorOr[String] = {
-    if(metricFunc(metadataNew).toMillis > 1.1 * metricFunc(metadataOld).toMillis){
+    if(metricFunc(metadataNew).toMillis > REGRESSION_CONST * metricFunc(metadataOld).toMillis){
       (s"$metricName of new metadata is greater than 10% of old metadata. " +
         s"New metric value: ${metricFunc(metadataNew)}. " +
         s"Old metric value: ${metricFunc(metadataOld)}.").invalidNel[String]
@@ -47,8 +52,11 @@ object CompareMetadata extends App with StrictLogging{
   }
 
 
+  /***
+    * Compares the metrics in Metadata which have type 'Int' (mostly the ones related to size metrics)
+    */
   def compareIntMetrics(metadataOld: Metadata, metadataNew: Metadata, metricFunc: Metadata => Int, metricName: String): ErrorOr[String] = {
-    if(metricFunc(metadataNew) > 1.1 * metricFunc(metadataOld)){
+    if(metricFunc(metadataNew) > REGRESSION_CONST * metricFunc(metadataOld)){
       (s"$metricName of new metadata is greater than 10% of old metadata. " +
         s"New metric value: ${metricFunc(metadataNew)}. " +
         s"Old metric value: ${metricFunc(metadataOld)}.").invalidNel[String]

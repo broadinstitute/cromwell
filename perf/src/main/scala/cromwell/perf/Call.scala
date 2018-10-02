@@ -26,20 +26,23 @@ case class Call(shardIndex: Int,
   /**
     * @return Cache copy retries before getting a successful hit or running the job
     */
-  def cacheCopyRetries: Int = {
-    val hitFailuresMap = callCaching.map(callCachingObject => callCachingObject.hitFailures.getOrElse(Map.empty))
+  val cacheCopyRetries: Int = {
+    val numFailures: Option[Int] = for {
+      cachingObject <- callCaching
+      failuresMap <- cachingObject.hitFailures
+    } yield failuresMap.size
 
-    if (hitFailuresMap.isDefined) hitFailuresMap.get.size else 0
+    numFailures.getOrElse(0)
   }
 
   /**
     * @return Time (in Duration) job spent in Call Caching states
     */
-  def timeInCallCachingState: Duration = {
+  val timeInCallCachingState: Duration = {
     val eventsRelatedToCC = executionEvents.filter(event => callCachingEventStates.exists(state => state.equalsIgnoreCase(event.description)))
 
     if (eventsRelatedToCC.nonEmpty) {
-      val eventsSortedByStartTime = eventsRelatedToCC.sortBy(x => x.startTime)
+      val eventsSortedByStartTime = eventsRelatedToCC.sortBy(_.startTime)
       Duration.between(eventsSortedByStartTime.head.startTime, eventsSortedByStartTime.last.endTime)
     }
     else Duration.ZERO
@@ -49,9 +52,10 @@ case class Call(shardIndex: Int,
     * @return Time (in Duration) job spent in job preparation state i.e time between job submission and running it
     *         (this doesn't consider the time it spent in call caching states
     */
-  def timeInJobPreparation: Duration = {
-    val durationOfEventsInPreparationState = executionEvents.filter(event => jobPreparationEventStates.exists(state => state.equalsIgnoreCase(event.description)))
-      .map(event => Duration.between(event.startTime, event.endTime))
+  val timeInJobPreparation: Duration = {
+    val durationOfEventsInPreparationState = executionEvents.collect {
+      case event if jobPreparationEventStates.exists(_.equalsIgnoreCase(event.description)) => Duration.between(event.startTime, event.endTime)
+    }
 
     if(durationOfEventsInPreparationState.nonEmpty) durationOfEventsInPreparationState.reduce(_ plus _) else Duration.ZERO
   }
@@ -60,9 +64,10 @@ case class Call(shardIndex: Int,
     *
     * @return Time (in Duration) job spent in fetching and copying cache hit(s)
     */
-  def timeForFetchingAndCopyingCacheHit: Duration = {
-    val durationOfEventsInCacheCopyingState = executionEvents.filter(event => cacheCopyingEventStates.exists(state => state.equalsIgnoreCase(event.description)))
-      .map(event => Duration.between(event.startTime, event.endTime))
+  val timeForFetchingAndCopyingCacheHit: Duration = {
+    val durationOfEventsInCacheCopyingState = executionEvents.collect {
+      case event if cacheCopyingEventStates.exists(_.equalsIgnoreCase(event.description)) => Duration.between(event.startTime, event.endTime)
+    }
 
     if(durationOfEventsInCacheCopyingState.nonEmpty) durationOfEventsInCacheCopyingState.reduce(_ plus _) else Duration.ZERO
   }

@@ -21,7 +21,7 @@ object CwlDecoder {
     val cwlToolResult =
       Try(CwltoolRunner.instance.salad(path))
         .toEither
-        .leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with $t"))
+        .leftMap(t => NonEmptyList.one(s"running cwltool on file $path failed with $t"))
 
     fromEither[IO](cwlToolResult)
   }

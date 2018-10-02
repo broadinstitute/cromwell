@@ -14,7 +14,7 @@ metadata {
   workflowName: scheduled_abort
   status: Aborted
   "calls.scheduled_abort.let_me_run.executionStatus": "Done"
-  "calls.scheduled_abort.aborted.executionStatus": "Failed"
+  "calls.scheduled_abort.aborted.executionStatus": "Aborted"
 }
 
 absent-metadata-keys: ["calls.scheduled_abort.lost_in_space.status"]

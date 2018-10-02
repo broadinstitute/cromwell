@@ -167,7 +167,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
   }
 
-  override def recoverAsync(jobId: StandardAsyncJob) = executeAsync()
+  override def reconnectAsync(jobId: StandardAsyncJob) = {
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus](jobDescriptor, jobId, None, previousStatus = None)
+    Future.successful(handle)
+  }
+
+  override def recoverAsync(jobId: StandardAsyncJob) = reconnectAsync(jobId)
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob) = {
+    tryAbort(jobId)
+    reconnectAsync(jobId)
+  }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 

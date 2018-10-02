@@ -107,7 +107,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
+      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }

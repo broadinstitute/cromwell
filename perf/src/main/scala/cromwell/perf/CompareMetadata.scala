@@ -1,18 +1,17 @@
-package perf
+package cromwell.perf
+
+import java.time.Duration
 
 import better.files.File
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits._
+import common.validation.ErrorOr._
 import io.circe
 import io.circe.generic.auto._
 import io.circe.parser._
-import cats.implicits._
-import java.time.Duration
-
-import cats.data.Validated.{Invalid, Valid}
-import common.validation.ErrorOr._
 
 // Do not remove this unused import
 // If removed, circe parser fails to find implicit decoder for OffsetDateTime, and parsing fails
-import io.circe.java8.time.decodeOffsetDateTimeDefault
 
 object CompareMetadata extends App {
 
@@ -37,7 +36,7 @@ object CompareMetadata extends App {
   }
 
   def compareDurationMetrics(metadataOld: Metadata, metadataNew: Metadata, metricFunc: Metadata => Duration, metricName: String): ErrorOr[String] = {
-    if(metricFunc(metadataNew).compareTo(metricFunc(metadataOld).multipliedBy(1.1.toLong)) > 0){
+    if(metricFunc(metadataNew).toMillis > 1.1 * metricFunc(metadataOld).toMillis){
       (s"$metricName of new metadata is greater than 10% of old metadata. " +
         s"New metric value: ${metricFunc(metadataNew)}. " +
         s"Old metric value: ${metricFunc(metadataOld)}.").invalidNel[String]

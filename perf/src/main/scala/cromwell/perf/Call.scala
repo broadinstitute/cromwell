@@ -1,4 +1,4 @@
-package perf
+package cromwell.perf
 
 import java.time.{Duration, OffsetDateTime}
 

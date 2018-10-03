@@ -10,7 +10,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.DirectoryFunctions.listFiles
 import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.{Path, PathFactory}
-import wom.expression.IoFunctionSet
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
 import wom.graph.CommandCallNode
 import wom.values.{WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
@@ -23,7 +23,7 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunc
   def findDirectoryOutputs(call: CommandCallNode,
                            jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
     call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
-      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
+      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, outputDefinition.womType) map {
         _.toList.flatMap(_.file.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
       }
     }

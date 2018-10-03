@@ -47,7 +47,6 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import org.slf4j.LoggerFactory
 import fs2.Stream
-import software.amazon.awssdk.core.regions.Region
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -78,14 +77,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
   val Log = LoggerFactory.getLogger(AwsBatchJob.getClass)
   // TODO: Auth, endpoint
   lazy val client = BatchClient.builder()
-    //TODO: setting this to get past batch job unit test, should be configured externally
-    .region(Region.US_EAST_1)
                    // .credentialsProvider(...)
                    // .endpointOverride(...)
                    .build
   lazy val logsclient = CloudWatchLogsClient.builder()
-    //TODO: setting this to get past batch job unit test, should be configured externally
-    .region(Region.US_EAST_1)
                    // .credentialsProvider(...)
                    // .endpointOverride(...)
                    .build

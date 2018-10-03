@@ -35,7 +35,6 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.core.auth.{AwsCredentials, StaticCredentialsProvider}
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
-import software.amazon.awssdk.core.regions.Region
 
 object S3Storage {
   val DefaultConfiguration = {
@@ -54,8 +53,6 @@ object S3Storage {
     S3Client.builder
       .advancedConfiguration(configuration)
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
-      //TODO: setting this to get past batch job unit test, should be configured externally
-      .region(Region.US_EAST_1)
       .build
   }
 

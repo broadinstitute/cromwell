@@ -7,7 +7,7 @@ import spray.json.{DefaultJsonProtocol, JsonParser, RootJsonFormat}
 sealed trait WesResponse extends Product with Serializable
 final case class WesErrorResponse(msg: String, status_code: Int) extends WesResponse
 final case class WesRunId(run_id: String) extends WesResponse
-final case class WesRunStatus(run_id: String, state: String) extends WesResponse
+final case class WesRunStatus(run_id: String, state: WesState) extends WesResponse
 final case class WesResponseRunList(runs: List[WesRunStatus]) extends WesResponse
 final case class WesResponseWorkflowMetadata(workflowLog: WesRunLog) extends WesResponse
 
@@ -16,12 +16,13 @@ object WesRunStatus {
     import cromwell.api.model.CromwellStatusJsonSupport._
     val jsonAst = JsonParser(json)
     val cromwellStatus = jsonAst.convertTo[CromwellStatus]
-    WesRunStatus(cromwellStatus.id, cromwellStatus.status)
+    WesRunStatus(cromwellStatus.id, WesState.fromCromwellStatus(cromwellStatus.status))
   }
 }
 
 object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   import WorkflowLogJsonSupport._
+  import WesStateJsonSupport._
 
   implicit val WesResponseErrorFormat = jsonFormat2(WesErrorResponse)
   implicit val WesResponseRunIdFormat = jsonFormat1(WesRunId)

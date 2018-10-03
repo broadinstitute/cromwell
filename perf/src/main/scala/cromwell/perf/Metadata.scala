@@ -46,6 +46,14 @@ case class Metadata(id: String,
     else Duration.ZERO
   }
 
+  val avgTimeInCheckingCallCacheState: Duration = {
+    if (totalJobsPerRootWf > 0) {
+      val timeInCheckingCallCacheStateList = calls.map(taskMap => taskMap.flatMap(callsPerTask => callsPerTask._2.map(call => call.timeInCheckingCallCacheState)))
+      sumElementsInOptionSeq(timeInCheckingCallCacheStateList, addDuration, Duration.ZERO).dividedBy(totalJobsPerRootWf.toLong)
+    }
+    else Duration.ZERO
+  }
+
   val avgTimeInJobPreparation: Duration = {
     if (totalJobsPerRootWf > 0) {
       val timeInJobPreparationList = calls.map(taskMap => taskMap.flatMap(callsPerTask => callsPerTask._2.map(call => call.timeInJobPreparation)))

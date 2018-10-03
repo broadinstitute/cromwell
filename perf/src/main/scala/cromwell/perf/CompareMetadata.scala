@@ -34,6 +34,7 @@ object CompareMetadata extends App with StrictLogging{
     logger.info(s"Total jobs per root workflow: ${metadata.totalJobsPerRootWf}")
     logger.info(s"Avg cache copy retries: ${metadata.avgCacheRetries}")
     logger.info(s"Avg time job spent in Call Caching state: ${metadata.avgTimeInCallCachingState}")
+    logger.info(s"Avg time job spent in just CheckingCallCache state: ${metadata.avgTimeInCheckingCallCacheState}")
     logger.info(s"Avg time job spent in Job Preparation state: ${metadata.avgTimeInJobPreparation}")
     logger.info(s"Avg time job spent in fetching and copying cache hit(s) state: ${metadata.avgTimeForFetchingAndCopyingCacheHit}")
   }
@@ -69,6 +70,7 @@ object CompareMetadata extends App with StrictLogging{
     val durationFuncList: List[(Metadata => Duration, String)] = List((_.workflowStartedAfter, "workflowStartedAfter"),
       (_.workflowRunningTime, "workflowRunningTime"),
       (_.avgTimeInCallCachingState, "avgTimeInCallCachingState"),
+      (_.avgTimeInCheckingCallCacheState, "avgTimeInCheckingCallCacheState"),
       (_.avgTimeInJobPreparation, "avgTimeInJobPreparation"),
       (_.avgTimeForFetchingAndCopyingCacheHit, "avgTimeForFetchingAndCopyingCacheHit"))
 
@@ -101,7 +103,7 @@ object CompareMetadata extends App with StrictLogging{
           compareMetadataMetrics(metadataOld, metadataNew) match {
             case Valid(_) => logger.info("\nYAY!! Metrics from new metadata json haven't regressed!")
             case Invalid(listOfErrors) => {
-              logger.error("Below metadata metrics have regressed:")
+              logger.error("\nBelow metadata metrics have regressed:")
               logger.error(listOfErrors.toList.mkString("\n"))
               System.exit(1)
             }

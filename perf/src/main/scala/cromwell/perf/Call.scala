@@ -35,6 +35,17 @@ case class Call(shardIndex: Int,
     numFailures.getOrElse(0)
   }
 
+  /***
+    * @return Time (in Duration) job spent in just CheckingCallCache state
+    */
+  val timeInCheckingCallCacheState: Duration = {
+    val eventsRelatedToCC = executionEvents.collect {
+      case event if event.description.equalsIgnoreCase("CheckingCallCache") => Duration.between(event.startTime, event.endTime)
+    }
+
+    if(eventsRelatedToCC.nonEmpty) eventsRelatedToCC.reduce(_ plus _) else Duration.ZERO
+  }
+
   /**
     * @return Time (in Duration) job spent in Call Caching states
     */

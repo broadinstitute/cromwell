@@ -2,12 +2,12 @@ package cromwell.engine.workflow.lifecycle.finalization
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ActorRef, FSM, OneForOneStrategy, Props}
+import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.backend._
-import common.collections.EnhancedCollections._
+import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor
@@ -41,20 +41,33 @@ object WorkflowFinalizationActor {
   case object WorkflowFinalizationSucceededResponse extends WorkflowLifecycleSuccessResponse
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, ioActor: ActorRef, jobExecutionMap: JobExecutionMap,
-            workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData, copyWorkflowOutputsActor: Option[Props]): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, ioActor, jobExecutionMap, workflowOutputs, initializationData, copyWorkflowOutputsActor)).withDispatcher(EngineDispatcher)
+  def props(workflowDescriptor: EngineWorkflowDescriptor,
+            ioActor: ActorRef,
+            jobExecutionMap: JobExecutionMap,
+            workflowOutputs: CallOutputs,
+            initializationData: AllBackendInitializationData,
+            copyWorkflowOutputsActor: Option[Props]): Props = {
+    Props(new WorkflowFinalizationActor(
+      workflowDescriptor,
+      ioActor,
+      jobExecutionMap,
+      workflowOutputs,
+      initializationData,
+      copyWorkflowOutputsActor
+    )).withDispatcher(EngineDispatcher)
   }
 }
 
-case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
-                                     workflowDescriptor: EngineWorkflowDescriptor,
+case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                      ioActor: ActorRef,
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: AllBackendInitializationData,
                                      copyWorkflowOutputsActorProps: Option[Props])
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
+
+  override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   val tag = self.path.name
   val backendAssignments = workflowDescriptor.backendAssignments

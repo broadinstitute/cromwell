@@ -20,22 +20,20 @@ import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortClient, PipelinesApiRunCreationClient, PipelinesApiStatusRequestClient}
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
-import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk, _}
+import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.demo.dos.DemoDosPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import cromwell.filesystems.sra.SraPath
 import cromwell.filesystems.http.HttpPath
+import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
-import org.slf4j.LoggerFactory
 import shapeless.Coproduct
 import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
@@ -90,8 +88,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   import PipelinesApiAsyncBackendJobExecutionActor._
 
-  val slf4jLogger = LoggerFactory.getLogger(PipelinesApiAsyncBackendJobExecutionActor.getClass)
-  val logger = new JobLogger("JesRun", jobDescriptor.workflowDescriptor.id, jobDescriptor.key.tag, None, Set(slf4jLogger))
+  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
   override lazy val requestFactory = initializationData.genomicsRequestFactory
 
   val jesBackendSingletonActor: ActorRef =

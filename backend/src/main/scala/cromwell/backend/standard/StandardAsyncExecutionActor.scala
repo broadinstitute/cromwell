@@ -19,11 +19,11 @@ import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.OutputEvaluator._
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
-import cromwell.backend.{Command, OutputEvaluator, _}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
@@ -574,7 +574,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** A tag that may be used for logging. */
-  lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
+  lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowIdForLogging.shortString}):${jobDescriptor.key.tag}]"
 
   /**
     * When returns true, the `remoteStdErrPath` will be read. If contents of that path are non-empty, the job will fail.

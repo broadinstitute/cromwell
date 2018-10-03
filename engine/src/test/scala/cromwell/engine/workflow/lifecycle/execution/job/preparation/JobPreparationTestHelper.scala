@@ -22,8 +22,12 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   val executionData = mock[WorkflowExecutionActorData]
   val workflowDescriptor = mock[EngineWorkflowDescriptor]
   val backendDescriptor = mock[BackendWorkflowDescriptor]
+  val workflowId = WorkflowId.randomId()
   workflowDescriptor.backendDescriptor returns backendDescriptor
-  workflowDescriptor.id returns WorkflowId.randomId()
+  workflowDescriptor.id returns workflowId
+  workflowDescriptor.possiblyNotRootWorkflowId returns workflowId.toPossiblyNotRoot
+  workflowDescriptor.rootWorkflowId returns workflowId.toRoot
+  workflowDescriptor.rootWorkflow returns workflowDescriptor
   executionData.workflowDescriptor returns workflowDescriptor
   val jobKey = mock[BackendJobDescriptorKey]
   val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, null)
@@ -32,7 +36,6 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
 
-  val workflowId = WorkflowId.randomId()
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 
   def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,

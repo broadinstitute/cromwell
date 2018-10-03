@@ -7,10 +7,10 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
 import cromwell.backend.validation.DockerValidation
-import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
@@ -46,7 +46,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                           backendSingletonActor: Option[ActorRef])
   extends FSM[JobPreparationActorState, JobPreparationActorData] with WorkflowLogging {
 
-  override lazy val workflowIdForLogging = workflowDescriptor.id
+  override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   private[preparation] lazy val noResponseTimeout: FiniteDuration = 3 minutes
   private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
@@ -107,7 +108,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
+      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }

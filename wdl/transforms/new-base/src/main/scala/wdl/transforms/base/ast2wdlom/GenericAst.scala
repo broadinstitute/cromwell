@@ -40,7 +40,9 @@ trait GenericAst extends GenericAstNode {
   def getName: String
 
   private def getAttributeAsAstNodeVector(attr: String): Checked[Vector[GenericAstNode]] = for {
-    attributeNode <- Option(getAttribute(attr)).toChecked(s"No attribute '$attr' found on Ast of type $getName. Did you mean: ${getAttributes.keys.mkString(", ")}")
+    // Note: if you see one of these in the wild and can recreate it, you might want to try switching in this more complete message:
+    //  "No attribute '$attr' found on Ast of type $getName. Did you mean: ${getAttributes.keys.mkString(", ")}"
+    attributeNode <- Option(getAttribute(attr)).toChecked(s"No expected attribute '$attr' found")
     asVector <- attributeNode.astListAsVector
   } yield asVector
 
@@ -50,7 +52,9 @@ trait GenericAst extends GenericAstNode {
     */
   def getAttributeAs[A](attr: String)(implicit toA: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
     val attribute = Option(getAttribute(attr))
-    attribute.map(toA.run).getOrElse(s"No attribute '$attr' found on Ast '$getName'. Did you mean: ${getAttributes.keys.mkString(", ")}".invalidNelCheck)
+    // Note: if you see one of these in the wild and can recreate it, you might want to try switching in this more complete message:
+    //  "No attribute '$attr' found on Ast '$getName'. Did you mean: ${getAttributes.keys.mkString(", ")}"
+    attribute.map(toA.run).getOrElse(s"No expected attribute '$attr' found".invalidNelCheck)
   }
 
   /**

@@ -133,13 +133,16 @@ object MaterializeWorkflowDescriptorActor {
 
 // TODO WOM: need to decide where to draw the line between language specific initialization and WOM
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
-                                         val workflowIdForLogging: WorkflowId,
+                                         workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
                                          ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
   val tag = self.path.name
+
+  override lazy val workflowIdForLogging = workflowId.toPossiblyNotRoot
+  override lazy val rootWorkflowIdForLogging = workflowId.toRoot
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
   implicit val ec = context.dispatcher
@@ -154,7 +157,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case Valid((workflowOptions, pathBuilders)) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
+            buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
               value.
               unsafeToFuture().
               map(_.toValidated)
@@ -265,7 +268,15 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
       }
 
-      errorOrParse(factory).flatMap(_.validateNamespace(sourceFiles, workflowSource, workflowOptions, importLocalFilesystem, workflowIdForLogging, engineIoFunctions, importResolvers))
+      errorOrParse(factory).flatMap(_.validateNamespace(
+        sourceFiles,
+        workflowSource,
+        workflowOptions,
+        importLocalFilesystem,
+        workflowId,
+        engineIoFunctions,
+        importResolvers
+      ))
     }
 
     val localFilesystemResolvers =
@@ -305,8 +316,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   private def pushLanguageToMetadata(languageName: String, languageVersion: String): Unit = {
     val events = List (
-      MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.LanguageName), MetadataValue(languageName)),
-      MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.LanguageVersionName), MetadataValue(languageVersion))
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.LanguageName), MetadataValue(languageName)),
+      MetadataEvent(
+        MetadataKey(workflowId, None, WorkflowMetadataKeys.LanguageVersionName),
+        MetadataValue(languageVersion)
+      )
     )
     serviceRegistryActor ! PutMetadataAction(events)
   }
@@ -316,11 +330,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     workflowInputs match {
       case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
+        List(MetadataEvent.empty(MetadataKey(workflowId, None, WorkflowMetadataKeys.Inputs)))
       case inputs =>
         inputs flatMap { case (outputPort, womValue) =>
           val inputName = outputPort.fullyQualifiedName
-          womValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
+          womValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
         }
     }
   }
@@ -331,15 +345,17 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       import cromwell.core.simpleton.WomValueSimpleton._
       // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
       val escapedUri = uri.escapeMeta
-      MetadataEvent(MetadataKey(
-        workflowIdForLogging, None, SubmissionSection, SubmissionSection_Imports, escapedUri), MetadataValue(value))
+      MetadataEvent(
+        MetadataKey(workflowId, None, SubmissionSection, SubmissionSection_Imports, escapedUri),
+        MetadataValue(value)
+      )
     }
     imported map { case (uri, value) => metadataEventForImportedFile(uri, value) }
   }
 
   private def wfNameMetadata(name: String): MetadataEvent = {
     // Workflow name:
-    MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
+    MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(name))
   }
 
   private def convertJsonToLabels(json: String): Labels = {

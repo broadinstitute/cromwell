@@ -4,7 +4,7 @@
 
 ### Extra configuration options
 
-The value `exit-code-timeout` can now set in a backend configuration.
+The value `exit-code-timeout-seconds` can now set in a backend configuration.
 Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
 
 

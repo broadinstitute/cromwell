@@ -269,7 +269,10 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
       case Some(s) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
         if (exitCodeTimeout.isEmpty) s
-        else if (isAlive(handle.pendingJob).getOrElse(true)) s
+        else if (isAlive(handle.pendingJob).fold({ e =>
+          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
+          true
+        }, x => x)) s
         else SharedFileSystemRunStatus("WaitingForReturnCode")
       case Some(s) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore

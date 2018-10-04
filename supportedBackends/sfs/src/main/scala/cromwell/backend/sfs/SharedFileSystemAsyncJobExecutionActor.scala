@@ -1,6 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.FileAlreadyExistsException
+import java.util.Calendar
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
@@ -14,8 +15,12 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
-  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
+case class SharedFileSystemRunStatus(status: String, date: Calendar) {
+  override def toString: String = status
+}
+
+object SharedFileSystemRunStatus {
+  def apply(status: String): SharedFileSystemRunStatus = SharedFileSystemRunStatus(status, Calendar.getInstance())
 }
 
 object SharedFileSystemAsyncJobExecutionActor {
@@ -226,11 +231,12 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    SharedFileSystemRunStatus(jobPaths.returnCode.exists)
+    if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
+    else SharedFileSystemRunStatus("WaitingForReturnCode")
   }
 
   override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
-    runStatus.returnCodeFileExists
+    runStatus.status == "Done"
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {

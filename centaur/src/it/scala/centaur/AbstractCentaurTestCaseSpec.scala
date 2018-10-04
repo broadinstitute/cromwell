@@ -49,8 +49,9 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
+    val retries = if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts else 0
 
-    runOrDont(nameTest, tags, isIgnored, runTest())
+    runOrDont(nameTest, tags, isIgnored, retries, runTest())
   }
 
   def executeWdlUpgradeTest(testCase: CentaurTestCase): Unit =
@@ -103,37 +104,43 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     newCase
   }
 
-  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => IO[SubmitResponse]): Unit = {
+  private def runOrDont(testName: String,
+                        tags: List[Tag],
+                        ignore: Boolean,
+                        retries: Int,
+                        runTest: => IO[SubmitResponse]): Unit = {
 
     val itShould: ItVerbString = it should testName
 
     tags match {
-      case Nil => runOrDont(itShould, ignore, testName, runTest)
-      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testName, runTest)
-      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testName, runTest)
+      case Nil => runOrDont(itShould, ignore, testName, retries, runTest)
+      case head :: Nil => runOrDont(itShould taggedAs head, ignore, testName, retries, runTest)
+      case head :: tail => runOrDont(itShould taggedAs(head, tail: _*), ignore, testName, retries, runTest)
     }
   }
 
   private def runOrDont(itVerbString: ItVerbString,
                         ignore: Boolean,
                         testName: String,
+                        retries: Int,
                         runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbString ignore Future.successful(succeed)
     } else {
-      itVerbString in tryTryAgain(testName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
+      itVerbString in tryTryAgain(testName, runTest, retries).unsafeToFuture().map(_ => succeed)
     }
   }
 
   private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs,
                         ignore: Boolean,
                         testName: String,
+                        retries: Int,
                         runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbStringTaggedAs ignore Future.successful(succeed)
     } else {
       itVerbStringTaggedAs in
-        tryTryAgain(testName, runTest, ErrorReporters.retryAttempts).unsafeToFuture().map(_ => succeed)
+        tryTryAgain(testName, runTest, retries).unsafeToFuture().map(_ => succeed)
     }
   }
 

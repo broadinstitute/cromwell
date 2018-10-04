@@ -8,13 +8,14 @@ import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
+import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.Dispatcher.BackendDispatcher
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}

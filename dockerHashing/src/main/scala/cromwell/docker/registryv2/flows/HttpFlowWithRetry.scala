@@ -6,9 +6,10 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.stream.{ActorMaterializer, FanOutShape2}
 import akka.stream.javadsl.MergePreferred
 import akka.stream.scaladsl.{Flow, GraphDSL, Partition}
+import common.util.Backoff
 import cromwell.docker.registryv2.flows.FlowUtils._
 import cromwell.docker.registryv2.flows.HttpFlowWithRetry._
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._

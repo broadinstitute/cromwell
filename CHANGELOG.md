@@ -5,7 +5,10 @@
 ### Extra configuration options
 
 The value `exit-code-timeout-seconds` can now set in a backend configuration.
-Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
+Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#exit-code-timeout)
+
+The value `retry_aborted_jobs` can now set in a workflow options.
+Details [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview/#retry-aborted-jobs)
 
 
 ## 35 Release Notes

@@ -3,6 +3,7 @@ package cromwell.backend.impl.tes
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 
+import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -11,14 +12,16 @@ import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.retry.Retry._
 import wom.values.WomFile
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -38,6 +41,10 @@ case object Complete extends TesRunStatus {
 }
 
 case object FailedOrError extends TesRunStatus {
+  def isTerminal = true
+}
+
+case object Cancelled extends TesRunStatus {
   def isTerminal = true
 }
 
@@ -73,6 +80,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
+  private val outputMode = validate {
+    OutputMode.withName(
+      configurationDescriptor.backendConfig
+        .getAs[String]("output-mode")
+        .getOrElse("granular").toUpperCase
+    )
+  }
+
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       (getPath(value), asAdHocFile(womFile)) match {
@@ -90,6 +105,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       getPath(value) match {
         case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
           path.pathAsString
+        case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
+          commandDirectory.pathAsString
         case Success(path: Path) if path.startsWith(tesJobPaths.callExecutionRoot) =>
           tesJobPaths.containerExec(commandDirectory, path.name)
         case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
@@ -110,19 +127,21 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   def createTaskMessage(): ErrorOr[Task] = {
-    val task =
-      commandScriptContents.map(
-        TesTask(
-          jobDescriptor,
-          configurationDescriptor,
-          jobLogger,
-          tesJobPaths,
-          runtimeAttributes,
-          commandDirectory,
-          _,
-          instantiatedCommand,
-          realDockerImageUsed,
-          mapCommandLineWomFile))
+    val task = (commandScriptContents, outputMode).mapN({
+      case (contents, mode) => TesTask(
+        jobDescriptor,
+        configurationDescriptor,
+        jobLogger,
+        tesJobPaths,
+        runtimeAttributes,
+        commandDirectory,
+        contents,
+        instantiatedCommand,
+        realDockerImageUsed,
+        mapCommandLineWomFile,
+        jobShell,
+        mode)
+    })
 
     task.map(task => Task(
       id = None,
@@ -153,7 +172,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
   }
 
-  override def recoverAsync(jobId: StandardAsyncJob) = executeAsync()
+  override def reconnectAsync(jobId: StandardAsyncJob) = {
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus](jobDescriptor, jobId, None, previousStatus = None)
+    Future.successful(handle)
+  }
+
+  override def recoverAsync(jobId: StandardAsyncJob) = reconnectAsync(jobId)
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob) = {
+    tryAbort(jobId)
+    reconnectAsync(jobId)
+  }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
@@ -175,6 +204,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ()
   }
 
+  override def requestsAbortAndDiesImmediately: Boolean = false
+
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
@@ -186,7 +217,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
           case s if s.contains("CANCELED") =>
             jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
-            FailedOrError
+            Cancelled
 
           case s if s.contains("ERROR") =>
             jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
@@ -201,6 +232,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     case (oldHandle: StandardAsyncPendingExecutionHandle@unchecked, e: Exception) =>
       jobLogger.error(s"$tag TES Job ${oldHandle.pendingJob.jobId} has not been found, failing call")
       FailedNonRetryableExecutionHandle(e)
+  }
+
+  override def handleExecutionFailure(status: StandardAsyncRunStatus, returnCode: Option[Int]) = {
+    status match {
+      case Cancelled => Future.successful(AbortedExecutionHandle)
+      case _ => super.handleExecutionFailure(status, returnCode)
+    }
   }
 
   override def isTerminal(runStatus: TesRunStatus): Boolean = {

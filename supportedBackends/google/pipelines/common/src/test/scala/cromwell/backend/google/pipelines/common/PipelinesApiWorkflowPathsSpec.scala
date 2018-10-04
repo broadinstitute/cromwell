@@ -25,7 +25,7 @@ class PipelinesApiWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with 
       SampleWdl.HelloWorld.workflowSource(),
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
-    workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders)
+    workflowPaths = PipelinesApiWorkflowPaths(workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), papiConfiguration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
   }
 
   it should "map the correct paths" in {

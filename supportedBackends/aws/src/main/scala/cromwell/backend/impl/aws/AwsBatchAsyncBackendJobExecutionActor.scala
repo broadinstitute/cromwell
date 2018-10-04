@@ -46,7 +46,6 @@ import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
@@ -61,8 +60,8 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
@@ -81,7 +80,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   import AwsBatchAsyncBackendJobExecutionActor._
 
   val Log = LoggerFactory.getLogger(AwsBatchAsyncBackendJobExecutionActor.getClass)
-  val logger = new JobLogger("AwsBatchRun", jobDescriptor.workflowDescriptor.id, jobDescriptor.key.tag, None, Set(Log))
 
   override type StandardAsyncRunInfo = AwsBatchJob
 

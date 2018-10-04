@@ -19,11 +19,11 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.RequestValueStore
 import cromwell.engine.workflow.lifecycle.execution._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.{CallCacheHashBundle, _}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, _}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
@@ -63,7 +63,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               fileHashCachingActor: Option[ActorRef]) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
   with WorkflowLogging with CallMetadataHelper with JobInstrumentation with TimedFSM[EngineJobExecutionActorState] {
 
-  override val workflowIdForLogging = workflowDescriptor.id
+  override val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
   override val workflowIdForCallMetadata = workflowDescriptor.id
 
   val jobStartTime = System.currentTimeMillis()
@@ -503,7 +504,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
-    reason foreach { log.error(_, "{}: Hash error, disabling call caching for this job.", jobTag) }
+    reason foreach { e => log.error("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage) }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))

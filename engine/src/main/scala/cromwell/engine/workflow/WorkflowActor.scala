@@ -213,7 +213,8 @@ class WorkflowActor(val workflowId: WorkflowId,
   with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
-  override val workflowIdForLogging = workflowId
+  override val workflowIdForLogging = workflowId.toPossiblyNotRoot
+  override val rootWorkflowIdForLogging = workflowId.toRoot
 
   private val restarting = initialStartableState.restarted
   
@@ -266,7 +267,15 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor, restarting),
+      val initializerActor = context.actorOf(
+        WorkflowInitializationActor.props(
+          workflowIdForLogging,
+          rootWorkflowIdForLogging,
+          workflowDescriptor,
+          ioActor,
+          serviceRegistryActor,
+          restarting
+        ),
         name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
@@ -474,7 +483,6 @@ class WorkflowActor(val workflowId: WorkflowId,
     }
     
     context.actorOf(WorkflowFinalizationActor.props(
-      workflowId = workflowId,
       workflowDescriptor = workflowDescriptor,
       ioActor = ioActor,
       jobExecutionMap = jobExecutionMap,

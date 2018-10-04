@@ -3,18 +3,18 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 import akka.actor.{Actor, Props}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import common.exception.MessageAggregation
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobBreadCrumb
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowId
 import cromwell.core.logging.WorkflowLogging
-import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
-import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{CallPreparationFailed, Start, _}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowPreparationActor.SubWorkflowPreparationSucceeded
-import cromwell.engine.{EngineWorkflowDescriptor, EngineIoFunctions}
-import common.exception.MessageAggregation
-import common.validation.ErrorOr.ErrorOr
-import wom.graph.{GraphInputNode, GraphNode, OptionalGraphInputNode, OptionalGraphInputNodeWithDefault}
+import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
+import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
 import wom.graph.GraphNodePort.OutputPort
+import wom.graph.{GraphInputNode, GraphNode, OptionalGraphInputNode, OptionalGraphInputNodeWithDefault}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
@@ -22,7 +22,8 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                   callKey: SubWorkflowKey,
                                   subWorkflowId: WorkflowId) extends Actor with WorkflowLogging {
 
-  override lazy val workflowIdForLogging = workflowDescriptor.id
+  override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   private def prepareExecutionActor(inputEvaluation: WomEvaluatedCallInputs): ErrorOr[CallPreparationActorResponse] = {
     val oldBackendDescriptor = workflowDescriptor.backendDescriptor
@@ -66,7 +67,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   override def receive = {
     case Start(valueStore) =>
-      val evaluatedInputs = resolveAndEvaluateInputs(callKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
+      val evaluatedInputs = resolveAndEvaluateInputs(callKey, expressionLanguageFunctions, valueStore)
       import common.validation.ErrorOr._
       evaluatedInputs.flatMap(prepareExecutionActor) match {
         case Valid(response) => context.parent ! response

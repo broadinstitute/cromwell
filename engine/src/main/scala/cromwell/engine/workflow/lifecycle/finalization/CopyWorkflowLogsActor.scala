@@ -52,7 +52,12 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, overrid
 
   def copyLogsReceive: Receive = {
     case CopyWorkflowLogsActor.Copy(workflowId, destinationDir) =>
-      val workflowLogger = new WorkflowLogger(self.path.name, workflowId, Option(log))
+      val workflowLogger = new WorkflowLogger(
+        loggerName = self.path.name,
+        workflowId = workflowId.toPossiblyNotRoot,
+        rootWorkflowId = workflowId.toRoot,
+        akkaLogger = Option(log)
+      )
 
       workflowLogger.workflowLogPath foreach { src =>
         if (src.exists) {

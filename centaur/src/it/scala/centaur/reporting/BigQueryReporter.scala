@@ -1,5 +1,6 @@
 package centaur.reporting
 
+import java.time.OffsetDateTime
 import java.util
 
 import cats.effect.IO
@@ -153,6 +154,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "test_message" -> Option(centaurTestException.message),
       "test_name" -> Option(testEnvironment.name),
       "test_stack_trace" -> centaurTestException.causeOption.map(ExceptionUtils.getStackTrace),
+      "test_timestamp" -> Option(OffsetDateTime.now.toString),
       "test_workflow_id" -> centaurTestException.workflowIdOption,
     ).collect {
       case (key, Some(value)) => (key, value)

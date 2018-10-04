@@ -19,11 +19,11 @@ import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.OutputEvaluator._
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
-import cromwell.backend.{Command, OutputEvaluator, _}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
@@ -340,6 +340,14 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // Only adjust the temporary directory permissions if this is executing under Docker.
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
 
+    val emptyDirectoryFillCommand: String = configurationDescriptor.backendConfig.getAs[String]("empty-dir-fill-command")
+      .getOrElse(
+        s"""(
+           |# add a .file in every empty directory to facilitate directory delocalization on the cloud
+           |cd $cwd
+           |find . -type d -empty -print0 | xargs -0 -I % touch %/.file 
+           |)""".stripMargin)
+
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
@@ -367,11 +375,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |INSTANTIATED_COMMAND
         |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
-        |(
-        |# add a .file in every empty directory to facilitate directory delocalization on the cloud
-        |cd $cwd
-        |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
-        |)
+        |$emptyDirectoryFillCommand
         |(
         |cd $cwd
         |SCRIPT_EPILOGUE
@@ -570,7 +574,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** A tag that may be used for logging. */
-  lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
+  lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowIdForLogging.shortString}):${jobDescriptor.key.tag}]"
 
   /**
     * When returns true, the `remoteStdErrPath` will be read. If contents of that path are non-empty, the job will fail.

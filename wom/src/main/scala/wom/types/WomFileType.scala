@@ -41,9 +41,13 @@ case object WomSingleFileType extends WomPrimitiveFileType {
   override val toDisplayString: String = "File"
 
   override protected def coercion: PartialFunction[Any, WomSingleFile] = {
-    case s: String => WomSingleFile(s)
+    case s: String =>
+      if (s != "")
+        WomSingleFile(s)
+      else
+        throw new IllegalArgumentException("""Cannot coerce the empty String value "" into a File.""")
     case s: JsString => WomSingleFile(s.value)
-    case s: WomString => WomSingleFile(s.valueString)
+    case s: WomString => coercion.apply(s.valueString)
     case f: WomSingleFile => f
   }
 

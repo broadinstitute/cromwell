@@ -1,6 +1,7 @@
 name: call_cache_capoeira_jes
 testFormat: workflowsuccess
 backends: [Papi, Local]
+retryTestFailures: false
 
 files {
   workflow: call_cache_capoeira/call_cache_capoeira_jes.wdl

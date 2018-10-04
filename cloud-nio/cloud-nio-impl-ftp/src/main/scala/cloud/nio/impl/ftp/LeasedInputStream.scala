@@ -2,7 +2,10 @@ package cloud.nio.impl.ftp
 
 import java.io.InputStream
 
+import cats.effect.IO
+import cats.syntax.functor._
 import cloud.nio.impl.ftp.FtpUtil._
+import cloud.nio.impl.ftp.operations.FtpCompletePendingCommand
 import io.github.andrebeat.pool.Lease
 import org.apache.commons.net.ftp.FTPClient
 
@@ -14,9 +17,7 @@ class LeasedInputStream(cloudHost: String, cloudPath: String, inputStream: Input
   override def available = inputStream.available()
   override def close() = {
     inputStream.close()
-    // This will also release the lease once the completePendingCommand is done
-    runBoolean(FtpOperation(cloudHost, cloudPath, "close input stream"), lease)(_.completePendingCommand())
-    ()
+    autoRelease(IO.pure(lease))(FtpCompletePendingCommand(cloudHost, cloudPath, "close input steam").run).void unsafeRunSync()
   }
   override def mark(readlimit: Int) = inputStream.mark(readlimit)
   override def reset() = inputStream.reset()

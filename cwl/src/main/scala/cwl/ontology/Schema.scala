@@ -8,8 +8,8 @@ import cats.syntax.traverse._
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger
+import common.util.IORetry
 import common.util.IORetry.StatefulIoError
-import common.util.{Backoff, IORetry}
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cwl.ontology.Schema._
@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, _}
 import scala.util.Try
 
 /**
@@ -110,19 +109,15 @@ case class Schema(schemaIris: Seq[String],
 object Schema {
   // Extending StrictLogging creates a circular dependency here for some reason, so making the logger ourselves
   private val logger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
-  private [ontology] val ontologyConfig = ConfigFactory.load.getAs[Config]("ontology")
-  private [ontology] val cacheConfig = ontologyConfig.flatMap(_.getAs[Config]("cache"))
+  private [ontology] val ontologyConfig = ConfigFactory.load.as[Config]("ontology")
+  private val ontologyConfiguration = OntologyConfiguration(ontologyConfig)
+  private [ontology] val cacheConfig = ontologyConfig.getAs[Config]("cache")
 
   // Simple cache to avoid reloading the same ontologies too often
   private val ontologyCache = cacheConfig.map(makeOntologyCache)
 
-  // Loading the ontology can fail transiently, so retry 3 times by default
-  // See https://github.com/protegeproject/webprotege/issues/298
-  private val retries = ontologyConfig.flatMap(_.getAs[Int]("retries")).getOrElse(3)
-  private val backoffTime = ontologyConfig.flatMap(_.getAs[FiniteDuration]("backoff")).getOrElse(1.second)
-  private val backoff = Backoff.staticBackoff(backoffTime)
   private implicit val statefulIoError = StatefulIoError.noop[Unit]
-  private implicit val timer = cats.effect.IO.timer(ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor()))
+  private implicit val timer = cats.effect.IO.timer(ExecutionContext.fromExecutor(Executors.newFixedThreadPool(ontologyConfiguration.poolSize)))
 
   private [ontology] def makeOntologyCache(config: Config): Cache[IRI, OWLOntology] = {
     val cacheConfig = CacheConfiguration(config)
@@ -148,16 +143,17 @@ object Schema {
           ontologyManager.copyOntology(ontology, OntologyCopy.DEEP)
         case _ =>
           logger.info(s"Loading ${iri.toURI.toString}")
-          val ontology =loadOntologyFromIri(ontologyManager, iri)
+          val ontology = loadOntologyFromIri(ontologyManager, iri)
           cache.foreach(_.put(iri, ontology))
           ontology
       }
     }
   }
 
+  // Loading the ontology can fail transiently, so put retires around it. See https://github.com/protegeproject/webprotege/issues/298
   private [ontology] def loadOntologyFromIri(ontologyManager: OWLOntologyManager, iri: IRI): OWLOntology = {
     val load = IO { ontologyManager.loadOntologyFromOntologyDocument(iri) }
-    IORetry.withRetry[OWLOntology, Unit](load, (), Option(retries), backoff).unsafeRunSync()
+    IORetry.withRetry[OWLOntology, Unit](load, (), ontologyConfiguration.retries, ontologyConfiguration.backoff).unsafeRunSync()
   }
 
   /**

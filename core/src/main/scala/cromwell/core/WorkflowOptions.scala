@@ -6,6 +6,8 @@ import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import spray.json._
 
+import net.ceedubs.ficus.Ficus._
+
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -59,11 +61,13 @@ object WorkflowOptions {
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
   case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
+  case object RetryAbortedJobs extends WorkflowOption("retry_aborted_jobs")
 
   private lazy val WorkflowOptionsConf = ConfigFactory.load.getConfig("workflow-options")
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
+  private lazy val retryAbortedJobsKey: Boolean = WorkflowOptionsConf.as[Option[Boolean]](RetryAbortedJobs.name).getOrElse(false)
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
@@ -166,6 +170,8 @@ case class WorkflowOptions(jsObject: JsObject) {
     case Some(jsVal) => Failure(new IllegalArgumentException(s"Unsupported JsValue for $defaultRuntimeOptionKey: $jsVal. Expected a JSON object."))
     case None => Failure(OptionNotFoundException(s"Cannot find definition for default runtime attributes"))
   }
+
+  def retryAbortedJobs: Boolean = retryAbortedJobsKey
 
   def getOrElse[B >: String](key: String, default: => B): B = get(key) match {
     case Success(value) => value

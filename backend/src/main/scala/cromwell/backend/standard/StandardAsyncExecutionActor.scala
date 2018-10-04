@@ -1075,7 +1075,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
             case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
-              Future.successful(AbortedExecutionHandle)
+              val executionHandle = FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt))
+              if (jobDescriptor.workflowDescriptor.workflowOptions.retryAbortedJobs)
+                retryElseFail(status, Future.successful(executionHandle))
+              else Future.successful(AbortedExecutionHandle)
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)

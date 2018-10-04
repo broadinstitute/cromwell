@@ -74,6 +74,19 @@ Example `options.json`:
 }
 ```
 
+## Retry Aborted jobs
+
+When a jobs is aborted or killed by an external source jobs will not be retried by default.
+To enable retries on aborted joba the option `retry-aborted-jobs` can be set to true like below:
+
+Example `options.json`:
+```json
+{
+    "retry_aborted_jobs": true
+}
+```
+
+
 ## Output Copying
 |Option|Value|Description|
 |---|---|---|

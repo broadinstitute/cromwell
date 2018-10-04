@@ -2,6 +2,7 @@ package centaur.test.workflow
 
 import java.nio.file.Path
 
+import common.validation.Validation._
 import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
@@ -21,7 +22,8 @@ final case class Workflow private(testName: String,
                                   metadata: Option[WorkflowFlatMetadata],
                                   notInMetadata: List[String],
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
-                                  backends: BackendsRequirement) {
+                                  backends: BackendsRequirement,
+                                  retryTestFailures: Boolean) {
   def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,
@@ -72,9 +74,10 @@ object Workflow {
           case Result.Success(f) => WorkflowData.fromConfig(filesConfig = f, fullConfig = conf, basePath = basePath)
           case Result.Failure(_) => invalidNel(s"No 'files' block in $configFile")
         }
+        val retryTestFailuresErrorOr = validate(conf.get[Boolean]("retryTestFailures").valueOrElse(true))
 
-        (files, directoryContentCheckValidation, metadata) mapN {
-          (f, d, m) => Workflow(n, f, m, absentMetadata, d, backendsRequirement)
+        (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures)
         }
 
       case Result.Failure(_) => invalidNel(s"No name for: $configFile")

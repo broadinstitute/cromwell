@@ -275,7 +275,7 @@ object Dependencies {
     "core",
     "logs",
     "s3",
-    "sts",
+    "sts"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -337,6 +337,15 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
+  val commonDependencies = List(
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-access" % logbackV
+  ) ++ catsDependencies ++ configDependencies
+
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies = configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++
@@ -361,18 +370,9 @@ object Dependencies {
   
   val statsDProxyDependencies = List(
     "co.fs2" %% "fs2-io" % fs2V,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.iheart" %% "ficus" % ficusV,
-    "ch.qos.logback" % "logback-classic" % logbackV,
-    "ch.qos.logback" % "logback-core" % logbackV,
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-  )
-
-  val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
-    "org.apache.commons" % "commons-lang3" % commonsLang3V
-  ) ++ catsDependencies ++ configDependencies
+  ) ++ commonDependencies
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
@@ -517,4 +517,8 @@ object Dependencies {
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion = swaggerUiV
+
+  val perfDependencies = List(
+    "io.circe" %% "circe-java8" % circeV
+  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies
 }

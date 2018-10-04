@@ -17,7 +17,7 @@ import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.services.healthmonitor.HealthMonitorServiceActor
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineDatabaseMonitor}
-import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor.{GenomicsCheckerV1, GenomicsCheckerV2}
+import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -33,16 +33,40 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     with EngineDatabaseMonitor {
   override implicit val system = context.system
 
-  override lazy val subsystems: Set[MonitoredSubsystem] = Set(DockerHub, EngineDb, Papi, Gcs)
+  private lazy val papiV1ConfigOption =
+    PapiConfiguration.fromBackendNameKey("papi-v1-backend-name", serviceConfig, globalConfig)
+  private lazy val papiV2ConfigOption =
+    PapiConfiguration.fromBackendNameKey("papi-v2-backend-name", serviceConfig, globalConfig)
+  private lazy val papiConfigOption =
+    PapiConfiguration.fromBackendNameKey("papi-backend-name", serviceConfig, globalConfig)
+  private lazy val defaultJesConfigOption = (papiConfigOption, papiV1ConfigOption, papiV2ConfigOption) match {
+    case (None, None, None) => Option(PapiConfiguration.fromBackendNameValue("Jes", serviceConfig, globalConfig))
+    case _ => None
+  }
+
+  def papiMonitoredSubsystem(name: String)(papiConfiguration: PapiConfiguration): MonitoredSubsystem = {
+    MonitoredSubsystem(name, () => checkPapi(papiConfiguration))
+  }
 
   private lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
-  private lazy val Papi = MonitoredSubsystem("PAPI", () => checkPapi())
+  private lazy val PapiV1Option = papiV1ConfigOption map papiMonitoredSubsystem("PAPIV1")
+  private lazy val PapiV2Option = papiV2ConfigOption map papiMonitoredSubsystem("PAPIV2")
+  private lazy val PapiOption = papiConfigOption map papiMonitoredSubsystem("PAPI")
+  private lazy val DefaultJesOption = defaultJesConfigOption map papiMonitoredSubsystem("PAPI")
+
+  override lazy val subsystems: Set[MonitoredSubsystem] = Set(
+    Option(DockerHub),
+    Option(EngineDb),
+    PapiOption,
+    PapiV1Option,
+    PapiV2Option,
+    DefaultJesOption,
+    Option(Gcs)
+  ) collect {
+    case Some(value) => value
+  }
 
   val googleConfig = GoogleConfiguration(globalConfig)
-
-  val papiBackendName = serviceConfig.as[Option[String]]("papi-backend-name").getOrElse("Jes")
-  val papiProviderConfig: Config = globalConfig.as[Config](s"backend.providers.$papiBackendName")
-  val papiConfig: Config = papiProviderConfig.as[Config]("config")
 
   val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
 
@@ -63,10 +87,14 @@ class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 
+  private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {
+    checkPapi(papiConfiguration.papiConfig, papiConfiguration.papiProviderConfig)
+  }
+
   /**
     * Demonstrates connectivity to Google Pipelines API (PAPI) by making sure it can access an authenticated endpoint
     */
-  private def checkPapi(): Future[SubsystemStatus] = {
+  private def checkPapi(papiConfig: Config, papiProviderConfig: Config): Future[SubsystemStatus] = {
     val endpointUrl = new URL(papiConfig.as[String]("genomics.endpoint-url"))
     val papiProjectId = papiConfig.as[String]("project")
 
@@ -130,8 +158,29 @@ object WorkbenchHealthMonitorServiceActor {
       .build
 
     override def check = Future {
-      genomics.projects().operations().list(papiProjectId).setPageSize(1).execute()
+      // https://cloud.google.com/genomics/reference/rest/#rest-resource-v2alpha1projectsoperations
+      genomics.projects().operations().list(s"projects/$papiProjectId/operations").setPageSize(1).execute()
       ()
+    }
+  }
+
+  case class PapiConfiguration(backendName: String, papiConfig: Config, papiProviderConfig: Config)
+
+  object PapiConfiguration {
+    def fromBackendNameKey(backendNameKey: String,
+                           serviceConfig: Config,
+                           globalConfig: Config): Option[PapiConfiguration] = {
+      serviceConfig.as[Option[String]](backendNameKey) map {
+        fromBackendNameValue(_, serviceConfig, globalConfig)
+      }
+    }
+
+    def fromBackendNameValue(papiBackendName: String,
+                             serviceConfig: Config,
+                             globalConfig: Config): PapiConfiguration = {
+      val papiProviderConfig: Config = globalConfig.as[Config](s"backend.providers.$papiBackendName")
+      val papiConfig: Config = papiProviderConfig.as[Config]("config")
+      PapiConfiguration(papiBackendName, papiConfig, papiProviderConfig)
     }
   }
 }

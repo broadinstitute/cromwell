@@ -36,7 +36,7 @@ CENTAUR_TEST_FILE=scripts/docker-compose-mysql/test/hello.test
 export CENTAUR_TEST_FILE
 
 # Call centaur with our custom test case
-sudo sbt clean "centaur/it:testOnly *ExternalTestCaseSpec"
+sudo sbt "centaur/it:testOnly *ExternalTestCaseSpec"
 
 # Tear everything down
 docker-compose -f scripts/docker-compose-mysql/docker-compose-cloudwell.yml down

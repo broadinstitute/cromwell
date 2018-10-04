@@ -8,6 +8,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
 
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse with HasCopyFailureResponses with HasJobFailureResponses with CanExpectJobStoreWrites with CanExpectCacheWrites with CanExpectCacheInvalidation {
@@ -16,7 +17,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
 
   "An EJEA in BackendIsCopyingCachedOutputs state" should {
 
-    val hashErrorCause = new Exception("blah")
+    val hashErrorCause = new Exception("blah") with NoStackTrace
     val hashResultsDataValue = Some(Success(SuccessfulCallCacheHashes))
     val hashErrorDataValue = Some(Failure(hashErrorCause))
 

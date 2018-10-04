@@ -60,7 +60,7 @@ object CromwellManager extends StrictLogging {
         .redirectErrorStream(true)
 
       // Start the cromwell process
-      logger.info("Starting Cromwell...")
+      logger.info(s"Starting Cromwell via: ${command.mkString(" ")}")
       val process = processBuilder.start()
       cromwellProcess = Option(process)
 

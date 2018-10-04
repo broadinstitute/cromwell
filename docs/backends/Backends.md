@@ -1,3 +1,5 @@
+#Backends
+
 A backend is a way to run the commands of your workflow. Cromwell allows for backends conforming to
 the Cromwell backend specification to be plugged into the Cromwell engine. Additionally, backends are included with the
 Cromwell distribution:
@@ -34,7 +36,7 @@ to be able to interpret its configuration.
 
 The providers section can contain multiple backends which will all be available to Cromwell.
 
-**Backend Job Limits**
+## Backend Job Limits
 
 All backends support limiting the number of concurrent jobs by specifying the following option in the backend's configuration
 stanza:
@@ -49,7 +51,7 @@ backend {
         concurrent-job-limit = 5
 ```
 
-**Backend Filesystems**
+## Backend Filesystems
 
 Each backend will utilize a filesystem to store the directory structure and results of an executed workflow.
 The backend/filesystem pairings are as follows:

@@ -89,7 +89,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       
       /*
        * Adjust for the additional docker images Cromwell uses for (de)localization
-       * At the moment, google/cloud-sdk:alpine (173MB) and stedolan/jq:latest (182MB)
+       * At the moment, google/cloud-sdk:slim (173MB) and stedolan/jq:latest (182MB)
        * Round it up to 1GB
        */
       val adjustedBootDiskSize = createPipelineParameters.runtimeAttributes.bootDiskSize + 1

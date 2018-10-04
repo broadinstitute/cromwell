@@ -1,19 +1,20 @@
 package cromwell.engine.workflow.tokens
 
-import cromwell.engine.workflow.tokens.TokenQueue.LeasedActor
+import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
 
 /**
   * Creates an Iterator from a list of TokenQueues.
   * It will keep rotating the list until it finds a queue with an element that can be dequeued.
   * If no queue can be dequeued, the iterator is empty.
   */
-case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends Iterator[LeasedActor] {
+final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int) extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
-  // Indicate the index of next queue to try to dequeue from
-  private var pointer: Int = 0
+  // Indicate the index of next queue to try to dequeue from.
+  // In case token queues have been removed since the last time an iterator was created on this token queue list, make sure the pointer is in range.
+  private var pointer: Int = if (numberOfQueues == 0) 0 else initialPointer % numberOfQueues
   // List of queues available
-  private var tokenQueues: List[TokenQueue] = initialTokenQueue
+  private[this] var tokenQueues: List[TokenQueue] = initialTokenQueue
 
   /**
     * As we iterate and dequeue elements, and because the queues are immutable,
@@ -22,8 +23,16 @@ case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends 
     */
   def updatedQueues = tokenQueues
 
-  override def hasNext = tokenQueues.exists(_.available)
-  override def next() = findFirst.getOrElse(throw new IllegalStateException("Token iterator is empty"))
+  /**
+    * And the same w.r.t the current pointer:
+    */
+  def updatedPointer = pointer
+
+  def hasNext = tokenQueues.exists(_.available)
+  def next() = findFirst.getOrElse(unexpectedlyEmpty)
+
+  def unexpectedlyEmpty: LeasedActor =
+    throw new IllegalStateException("Token iterator is empty")
 
   // Goes over the queues and returns the first element that can be dequeued
   private def findFirst: Option[LeasedActor] = {
@@ -33,14 +42,20 @@ case class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue]) extends 
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
     ((pointer until numberOfQueues) ++ (0 until pointer))
       .toStream
-      .map(index => tokenQueues(index).dequeueOption -> index)
+      .map(index => tokenQueues(index).dequeue -> index)
+      .map {
+        case original @ (DequeueResult(None, newTokenQueue), index) =>
+          tokenQueues = tokenQueues.updated(index, newTokenQueue)
+          original
+        case other => other
+      }
       .collectFirst({
-        case (Some(dequeuedActor), index) =>
+        case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>
           // Update the tokenQueues with the new queue
-          tokenQueues = tokenQueues.updated(index, dequeuedActor.tokenQueue)
+          tokenQueues = tokenQueues.updated(index, newTokenQueue)
           // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available
           pointer = (index + 1) % numberOfQueues
-          dequeuedActor.leasedActor
+          dequeuedActor
       })
   }
 }

@@ -2,7 +2,7 @@
 
 name: declarations
 testFormat: workflowsuccess
-tags: [upgrade]
+tags: ["wdl_upgrade"]
 
 files {
   workflow: declarations/declarations.wdl

@@ -1,6 +1,11 @@
 package centaur.reporting
 
+import java.util
+
 import cats.effect.IO
+import cats.syntax.traverse._
+import cats.syntax.apply._
+import cats.instances.list._
 import centaur.reporting.BigQueryReporter._
 import centaur.test.CentaurTestException
 import centaur.test.metadata.CallAttemptFailure
@@ -71,8 +76,8 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
                                 (implicit executionContext: ExecutionContext): IO[Unit] = {
     for {
       callAttemptFailures <- CallAttemptFailure.buildFailures(centaurTestException.metadataJsonOption)
-      jobKeyValueEntries <- params.cromwellDatabase.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
-      metadataEntries <- params.cromwellDatabase.metadataEntriesIo(centaurTestException.workflowIdOption)
+      jobKeyValueEntries <- params.database.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
+      metadataEntries <- params.database.metadataEntriesIo(centaurTestException.workflowIdOption)
       _ <- sendBigQueryFailure(
         testEnvironment,
         ciEnvironment,
@@ -90,26 +95,32 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
                                   callAttemptFailures: Vector[CallAttemptFailure],
                                   jobKeyValueEntries: Seq[JobKeyValueEntry],
                                   metadataEntries: Seq[MetadataEntry]): IO[Unit] = {
-    IO {
+
+    val metadata: IO[List[BigQueryError]] = {
+      val metadataRows: List[util.List[RowToInsert]] = metadataEntries.map(toMetadataRow).grouped(10000).map(_.asJava).toList
+      val metadataRequest: List[InsertAllRequest] = metadataRows.map(InsertAllRequest.of(metadataTableId, _))
+
+      if (metadataEntries.nonEmpty)
+        metadataRequest.traverse[IO, List[BigQueryError]](req => IO(bigQuery.insertAll(req)).map(_.getErrors)).map(_.flatten)
+      else
+        IO{Nil}
+    }
+    (IO {
       val testFailureRow = toTestFailureRow(testEnvironment, ciEnvironment, centaurTestException)
       val callAttemptFailureRows = callAttemptFailures.map(toCallAttemptFailureRow).asJava
       val jobKeyValueRows = jobKeyValueEntries.map(toJobKeyValueRow).asJava
-      val metadataRows = metadataEntries.map(toMetadataRow).asJava
 
       val testFailureRequest = InsertAllRequest.of(testFailureTableId, testFailureRow)
       val callAttemptFailuresRequest = InsertAllRequest.of(callAttemptFailureTableId, callAttemptFailureRows)
       val jobKeyValuesRequest = InsertAllRequest.of(jobKeyValueTableId, jobKeyValueRows)
-      val metadataRequest = InsertAllRequest.of(metadataTableId, metadataRows)
-
       val testFailureErrors = bigQuery.insertAll(testFailureRequest).getErrors
       val callAttemptFailuresErrors =
         if (callAttemptFailures.nonEmpty) bigQuery.insertAll(callAttemptFailuresRequest).getErrors else Nil
       val jobKeyValuesErrors =
         if (jobKeyValueEntries.nonEmpty) bigQuery.insertAll(jobKeyValuesRequest).getErrors else Nil
-      val metadataErrors = if (metadataEntries.nonEmpty) bigQuery.insertAll(metadataRequest).getErrors else Nil
 
-      testFailureErrors ++ callAttemptFailuresErrors ++ jobKeyValuesErrors ++ metadataErrors
-    } flatMap {
+      testFailureErrors ++ callAttemptFailuresErrors ++ jobKeyValuesErrors
+    }, metadata).mapN(_ ++ _).flatMap {
       case errors if errors.isEmpty => IO.unit
       case errors => IO.raiseError {
         val errorCount = errors.size
@@ -131,16 +142,15 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "ci_env_branch" -> ciEnvironment.branch,
       "ci_env_event" -> ciEnvironment.event,
       "ci_env_is_ci" -> ciEnvironment.isCi,
-      "ci_env_is_cron" -> ciEnvironment.isCron,
       "ci_env_number" -> ciEnvironment.number,
       "ci_env_os" -> ciEnvironment.os,
       "ci_env_provider" -> ciEnvironment.provider,
       "ci_env_tag" -> ciEnvironment.tag,
       "ci_env_type" -> ciEnvironment.`type`,
       "ci_env_url" -> ciEnvironment.url,
+      "ci_env_centaur_type" -> ciEnvironment.centaurType,
       "test_attempt" -> Option(testEnvironment.attempt + 1),
       "test_message" -> Option(centaurTestException.message),
-      "test_metadata_json" -> centaurTestException.metadataJsonOption,
       "test_name" -> Option(testEnvironment.name),
       "test_stack_trace" -> centaurTestException.causeOption.map(ExceptionUtils.getStackTrace),
       "test_workflow_id" -> centaurTestException.workflowIdOption,

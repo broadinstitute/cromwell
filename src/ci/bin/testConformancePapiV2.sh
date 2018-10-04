@@ -36,31 +36,20 @@ cd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}"
 # CWL conformance uses alpine images that do not have bash.
 java \
     -Xmx2g \
-    -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_application.conf" \
+    -Dconfig.file="${CROMWELL_BUILD_CROMWELL_CONFIG}" \
     -Dcall-caching.enabled=false \
     -Dsystem.job-shell=/bin/sh \
-    -jar "${CROMWELL_BUILD_JAR}" \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
     server &
 
 CROMWELL_PID=$!
 
 sleep 30
 
-cat <<JSON >"${CROMWELL_BUILD_CWL_TEST_INPUTS}"
-{
-    "cwl_conformance_test.cwl_dir": "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}",
-    "cwl_conformance_test.test_result_output": "${CROMWELL_BUILD_CWL_TEST_OUTPUT}",
-    "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
-    "cwl_conformance_test.conformance_expected_failures":
-        "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 1200
-}
-JSON
-
 java \
     -Xmx2g \
     -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
-    -jar "${CROMWELL_BUILD_JAR}" \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
     run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
     -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
 

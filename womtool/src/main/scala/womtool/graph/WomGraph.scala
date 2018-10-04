@@ -185,7 +185,7 @@ object WomGraph {
 
     val version1: Boolean = {
       val firstLine = workflowFileString.trim
-      firstLine.startsWith("version draft-3") || firstLine.startsWith("version 1.0")
+      firstLine.startsWith("version 1.0")
     }
     val womBundle: Checked[WomBundle] = if (version1) {
       val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle

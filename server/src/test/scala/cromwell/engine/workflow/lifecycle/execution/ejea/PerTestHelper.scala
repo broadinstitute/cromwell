@@ -7,7 +7,7 @@ import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobC
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, WorkflowId}
+import cromwell.core.{CallOutputs, WorkflowId, WorkflowOptions}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
@@ -50,7 +50,11 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
-  val backendWorkflowDescriptor = BackendWorkflowDescriptor(workflowId, null, null, null, null)
+  val backendWorkflowDescriptor = BackendWorkflowDescriptor(id = workflowId,
+    callable = null,
+    knownValues = null,
+    workflowOptions = WorkflowOptions.empty,
+    customLabels = null)
   val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet
@@ -96,7 +100,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     }
 
     override def fileHashingActorProps:
-    Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = {
+    Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = {
       Option(fileHashingActorInner(classOf[DefaultStandardFileHashingActor]))
     }
 
@@ -104,7 +108,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                              (jobDescriptor: BackendJobDescriptor,
                               initializationDataOption: Option[BackendInitializationData],
                               serviceRegistryActor: ActorRef,
-                              ioActor: ActorRef): Props = {
+                              ioActor: ActorRef,
+                              fileHashCacheActor: Option[ActorRef]): Props = {
       Props.empty
     }
 
@@ -174,7 +179,7 @@ private[ejea] class MockEjea(helper: PerTestHelper,
   initializationData, restarting, serviceRegistryActor, ioActor,
   jobStoreActor, callCacheReadActor, callCacheWriteActor,
   dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode,
-  if (restarting) RecoverJobCommand else ExecuteJobCommand
+  if (restarting) RecoverJobCommand else ExecuteJobCommand, None
 ) {
 
   implicit val system = context.system

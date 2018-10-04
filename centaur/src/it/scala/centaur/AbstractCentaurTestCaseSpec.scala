@@ -5,11 +5,11 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.flatMap._
-import cats.syntax.functor._
 import cats.syntax.traverse._
-import centaur.reporting.{ErrorReporters, TestEnvironment}
+import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
+import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
 import org.scalatest._
 
 import scala.concurrent.Future
@@ -23,6 +23,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
   generated, and no errors, resulting in 'Total number of tests run: 0' and 'No tests were executed.'
    */
   ErrorReporters.getClass
+  SuccessReporters.getClass
 
   private def testCases(baseFile: File): List[CentaurTestCase] = {
     val files = baseFile.list.filter(_.isRegularFile).toList
@@ -43,7 +44,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
 
-    def runTest(): IO[Unit] = testCase.testFunction.run.void
+    def runTest(): IO[SubmitResponse] = testCase.testFunction.run
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
@@ -52,10 +53,10 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     runOrDont(nameTest, tags, isIgnored, runTest())
   }
 
-  def executeUpgradeTest(testCase: CentaurTestCase): Unit =
-    executeStandardTest(upgradeTestWdl(testCase))
+  def executeWdlUpgradeTest(testCase: CentaurTestCase): Unit =
+    executeStandardTest(wdlUpgradeTestWdl(testCase))
 
-  private def upgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
+  private def wdlUpgradeTestWdl(testCase: CentaurTestCase): CentaurTestCase = {
     import better.files.File
     import womtool.WomtoolMain
 
@@ -102,7 +103,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     newCase
   }
 
-  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => IO[Unit]): Unit = {
+  private def runOrDont(testName: String, tags: List[Tag], ignore: Boolean, runTest: => IO[SubmitResponse]): Unit = {
 
     val itShould: ItVerbString = it should testName
 
@@ -116,7 +117,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
   private def runOrDont(itVerbString: ItVerbString,
                         ignore: Boolean,
                         testName: String,
-                        runTest: => IO[Unit]): Unit = {
+                        runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbString ignore Future.successful(succeed)
     } else {
@@ -127,7 +128,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
   private def runOrDont(itVerbStringTaggedAs: ItVerbStringTaggedAs,
                         ignore: Boolean,
                         testName: String,
-                        runTest: => IO[Unit]): Unit = {
+                        runTest: => IO[SubmitResponse]): Unit = {
     if (ignore) {
       itVerbStringTaggedAs ignore Future.successful(succeed)
     } else {
@@ -145,25 +146,31 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
     * @param attempt Current zero based attempt.
     * @return IO effect that will run the test, possibly retrying.
     */
-  private def tryTryAgain(testName: String, runTest: => IO[Unit], retries: Int, attempt: Int = 0): IO[Unit] = {
-    def maybeRetry(centaurTestException: CentaurTestException): IO[Unit] = {
+  private def tryTryAgain(testName: String, runTest: => IO[SubmitResponse], retries: Int, attempt: Int = 0): IO[SubmitResponse] = {
+    def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
       val testEnvironment = TestEnvironment(testName, retries, attempt)
       for {
         _ <- ErrorReporters.logCentaurFailure(testEnvironment, centaurTestException)
-        _ <- if (attempt < retries) {
+        r <- if (attempt < retries) {
           tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)
         }
-      } yield ()
+      } yield r
     }
 
     val runTestIo = IO(runTest).flatten
 
-    runTestIo handleErrorWith {
-      case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
-      case _ => runTestIo
-    }
+    runTestIo.redeemWith(
+      {
+        case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
+        case _ => runTestIo
+      },
+      {
+        case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)
+        case other => IO.pure(other)
+      }
+    )
   }
 
 }

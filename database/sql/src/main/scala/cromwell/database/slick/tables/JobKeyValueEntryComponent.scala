@@ -35,6 +35,8 @@ trait JobKeyValueEntryComponent {
 
   val jobKeyValueEntryIdsAutoInc = jobKeyValueEntries returning jobKeyValueEntries.map(_.jobKeyValueEntryId)
 
+  val jobKeyValueEntriesExists = Compiled(jobKeyValueEntries.take(1).exists)
+
   val jobKeyValueEntriesForWorkflowExecutionUuid = Compiled((workflowExecutionUuid: Rep[String]) => for {
       jobKeyValueEntry <- jobKeyValueEntries
       if jobKeyValueEntry.workflowExecutionUuid === workflowExecutionUuid

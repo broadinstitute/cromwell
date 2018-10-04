@@ -31,7 +31,6 @@
 package cromwell.backend.impl.aws
 
 import java.security.MessageDigest
-import java.util.concurrent.Executors
 
 import cats.data.{Kleisli, ReaderT}
 import cats.data.Kleisli._
@@ -39,26 +38,18 @@ import cats.data.ReaderT._
 import cats.implicits._
 
 import scala.language.higherKinds
-import cats.effect.Async
+import cats.effect.{Async, Timer}
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.boolean.{And, Or}
-import eu.timepit.refined._
-import eu.timepit.refined.api._
-import eu.timepit.refined.string._
-import eu.timepit.refined.collection.MaxSize
-import eu.timepit.refined.string.MatchesRegex
 import org.slf4j.LoggerFactory
-import fs2.Scheduler
+import fs2.Stream
 import software.amazon.awssdk.core.regions.Region
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -135,10 +126,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     |exit $$(cat ${dockerRc})
     """).stripMargin
   }
-
-  def submitJob[F[_]](
-                       scheduler: Scheduler = Scheduler.fromScheduledExecutorService(Executors.newSingleThreadScheduledExecutor))(
-                       implicit ec: ExecutionContext,
+  def submitJob[F[_]]()(
+                       implicit timer: Timer[F],
                        async: Async[F]): Aws[F, SubmitJobResponse] = {
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     val workflow = jobDescriptor.workflowDescriptor
@@ -157,20 +146,20 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
       val submit =
         async.delay(client.submitJob(
           SubmitJobRequest.builder()
-            .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName).value)
+            .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn).build
         ))
       ReaderT.liftF(
-        scheduler.retry(submit, 0.millis, duration => duration.plus(duration), awsBatchAttributes.submitAttempts.value, {
+        Stream.retry(submit, 0.millis, duration => duration.plus(duration), awsBatchAttributes.submitAttempts.value, {
           // RegisterJobDefinition is eventually consistent, so it may not be there
           case e: ClientException => e.statusCode() == 404
           case _ => false
         }).compile.last.map(_.get)) //if successful there is guaranteed to be a value emitted, hence we can .get this option
     }
 
-    (createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath, scheduler) product Kleisli.ask[F, AwsBatchAttributes]).
+    (createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath) product Kleisli.ask[F, AwsBatchAttributes]).
       flatMap((callClient _).tupled)
   }
 
@@ -181,10 +170,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
    *
    */
   private def createDefinition[F[_]](name: String,
-                                     taskId: String,
-                                     scheduler:Scheduler)(
+                                     taskId: String)(
                                      implicit async: Async[F],
-                                     executionContext: ExecutionContext): Aws[F, String] = ReaderT { awsBatchAttributes =>
+                                     timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
     val jobDefinitionContext = AwsBatchJobDefinitionContext(runtimeAttributes,
                                                             taskId,
@@ -203,14 +191,14 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
     val definitionRequest = RegisterJobDefinitionRequest.builder
                               .containerProperties(jobDefinition.containerProperties)
-                              .jobDefinitionName(sanitize(name).value)
+                              .jobDefinitionName(sanitize(name))
                               // See https://stackoverflow.com/questions/24349517/scala-method-named-type
                               .`type`(JobDefinitionType.CONTAINER)
                               .build
 
     val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
 
-    val retry: F[String] = scheduler.retry(submit, 0.millis, _ * 2, awsBatchAttributes.createDefinitionAttempts.value, {
+    val retry: F[String] = Stream.retry(submit, 0.millis, _ * 2, awsBatchAttributes.createDefinitionAttempts.value, {
       // RegisterJobDefinition throws 404s every once in a while
       case e: ClientException => e.statusCode() == 404
       case _ => false
@@ -223,19 +211,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
         // warning as a result of this potential
         Log.warn("Job definition already exists. Performing describe and retrieving latest revision.")
         async.
-          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name).value).build())).
+          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name)).build())).
           map(_.jobDefinitions().asScala).
           map(_.last.jobDefinitionArn())
     }
   }
-
-  /**
-    * This type contains only backslashes, dashes, numbers, and characters
-    */
-  type AwsStringRefinement =
-    (MatchesRegex[W.`"""[^\\\\]"""`.T] Or
-    MatchesRegex[W.`"[^A-Za-z0-9_-]"`.T]) And
-      MaxSize[W.`128`.T]
 
   /** Sanitizes a job and job definition name
     *
@@ -243,11 +223,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
     *  @return Sanitized name
     *
     */
-  private def sanitize(name: String): String Refined AwsStringRefinement =
+  private def sanitize(name: String): String =
     // Up to 128 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.
     // We'll replace all invalid characters with an underscore
-    refineV[AwsStringRefinement](name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0,128)).
-      getOrElse(throw new RuntimeException("Programmer Error!  Please report to Cromwell team.  This exception _should be_ impossible to be thrown as the String replaceAll should remove all offenders"))
+    name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0,128)
+
 
   /** Gets the status of a job by its Id, converted to a RunStatus
    *

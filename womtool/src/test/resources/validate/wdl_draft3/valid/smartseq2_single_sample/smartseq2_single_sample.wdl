@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 import "HISAT2.wdl" as HISAT2
 import "Picard.wdl" as Picard

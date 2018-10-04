@@ -61,6 +61,8 @@ trait MetadataEntryComponent {
 
   val metadataEntryIdsAutoInc = metadataEntries returning metadataEntries.map(_.metadataEntryId)
 
+  val metadataEntriesExists = Compiled(metadataEntries.take(1).exists)
+
   val metadataEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries

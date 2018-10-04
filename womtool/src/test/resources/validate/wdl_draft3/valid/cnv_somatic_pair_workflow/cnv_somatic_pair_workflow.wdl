@@ -1,4 +1,4 @@
-version draft-3
+version 1.0
 
 # Workflow for running the GATK CNV pipeline on a matched pair. Supports both WGS and WES.
 #

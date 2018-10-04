@@ -8,6 +8,7 @@ import wom.callable.MetaValueElement._
 import wom.types._
 import WdlWriter._
 import common.collections.EnhancedCollections.EnhancedTraversableLike
+import org.apache.commons.text.StringEscapeUtils
 
 object WdlWriterImpl {
 
@@ -35,7 +36,7 @@ object WdlWriterImpl {
     override def toWdlV1(a: ExpressionElement) = a match {
       case a: PrimitiveLiteralExpressionElement => a.toWdlV1
       case a: StringExpression => "\"" + a.pieces.map(_.toWdlV1).mkString + "\""
-      case a: StringLiteral => "\"" + a.value + "\""
+      case a: StringLiteral => "\"" + StringEscapeUtils.escapeJava(a.value) + "\""
       case a: ObjectLiteral =>
         "object { " + a.elements.map { pair =>
           pair._1 + ": " + expressionElementWriter.toWdlV1(pair._2)

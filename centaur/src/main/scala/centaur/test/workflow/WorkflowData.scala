@@ -1,14 +1,22 @@
 package centaur.test.workflow
 
+import java.util.concurrent.Executors
+
 import better.files.File
 import cats.data.Validated._
+import cats.effect.{ContextShift, IO}
+import com.google.cloud.storage.{BlobId, StorageOptions}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import configs.Result.{Failure, Success}
 import configs.syntax._
 import cromwell.api.model.Label
 import net.ceedubs.ficus.Ficus._
+import org.http4s.client.{Client, JavaNetClientBuilder}
 import spray.json._
+import org.http4s.dsl.io._
+
+import scala.concurrent.ExecutionContext
 
 /**
   * Stores workflow data / references.
@@ -22,21 +30,26 @@ case class WorkflowData(workflowContent: Option[String],
                         workflowRoot: Option[String],
                         workflowType: Option[String],
                         workflowTypeVersion: Option[String],
-                        inputs: Option[() => String],
-                        options: Option[() => String],
+                        inputs: Option[IO[String]],
+                        options: Option[IO[String]],
                         labels: List[Label],
                         zippedImports: Option[File],
-                        secondOptions: Option[() => String] = None,
-                        thirdOptions: Option[() => String] = None)
+                        secondOptions: Option[IO[String]] = None,
+                        thirdOptions: Option[IO[String]] = None)
 
 object WorkflowData {
+  val blockingEC = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
+  implicit val cs: ContextShift[IO] = IO.contextShift(blockingEC)
+  val httpClient: Client[IO] = JavaNetClientBuilder(blockingEC).create[IO]
+  val gcsStorage = StorageOptions.getDefaultInstance.getService
+
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: File): ErrorOr[WorkflowData] = {
     val workflowUrl = filesConfig.as[Option[String]]("workflowUrl")
     val workflowSourcePath = filesConfig.as[Option[String]]("workflow")
 
     (workflowSourcePath, workflowUrl) match {
       case (Some(workflowPath), None) => Valid(WorkflowData(
-        workflowPath = Option(basePath / workflowPath),
+        workflowPath = Option(workflowPath),
         workflowUrl = None,
         filesConfig = filesConfig,
         fullConfig = fullConfig,
@@ -52,9 +65,21 @@ object WorkflowData {
     }
   }
 
-  def apply(workflowPath: Option[File], workflowUrl: Option[String], filesConfig: Config, fullConfig: Config, basePath: File): WorkflowData = {
-    def getOptionalFile(name: String): Option[File] = {
-      filesConfig.get[Option[String]](name) valueOrElse None map basePath./
+  def apply(workflowPath: Option[String], workflowUrl: Option[String], filesConfig: Config, fullConfig: Config, basePath: File): WorkflowData = {
+    def slurp(file: String): IO[String] = file match {
+      case http if http.startsWith("http://") || http.startsWith("https://") => 
+        httpClient.expect[String](http)
+      case gcs if gcs.startsWith("gs://") =>
+        val noScheme = gcs.stripPrefix("gs://")
+        val firstSlashPosition = noScheme.indexOf("/")
+        val blob = BlobId.of(noScheme.substring(0, firstSlashPosition), noScheme.substring(firstSlashPosition + 1))
+        IO { gcsStorage.readAllBytes(blob).map(_.toChar).mkString }
+      case local =>
+        IO { basePath./(local).contentAsString }
+    }
+    
+    def getOptionalFileContent(name: String): Option[IO[String]] = {
+      filesConfig.getAs[String](name).map(slurp)
     }
 
     def getImports = filesConfig.get[List[String]]("imports") match {
@@ -75,7 +100,7 @@ object WorkflowData {
       imports match {
         case Nil => None
         case _ =>
-          val importsDirName = getImportsDirName(workflowPath, workflowUrl)
+          val importsDirName = getImportsDirName(workflowPath.map(basePath./), workflowUrl)
           val importsDir = File.newTemporaryDirectory(importsDirName + "_imports")
           imports foreach { p =>
             val srcFile = File(p.pathAsString)
@@ -89,10 +114,10 @@ object WorkflowData {
 
     def getLabels: List[Label] = {
       import cromwell.api.model.LabelsJsonFormatter._
-      getOptionalFile("labels") map { _.contentAsString.parseJson.convertTo[List[Label]] } getOrElse List.empty
+      getOptionalFileContent("labels") map { _.unsafeRunSync().parseJson.convertTo[List[Label]] } getOrElse List.empty
     }
 
-    val workflowSource = if (workflowPath.isDefined) Option(workflowPath.get.contentAsString) else None
+    val workflowSource = workflowPath.map(slurp).map(_.unsafeRunSync())
     val workflowType = fullConfig.get[Option[String]]("workflowType").value
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
     val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
@@ -103,10 +128,10 @@ object WorkflowData {
       workflowRoot = workflowRoot,
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,
-      inputs = getOptionalFile("inputs") map (file => () => file.contentAsString),
-      options = getOptionalFile("options") map (file => () => file.contentAsString),
-      secondOptions = getOptionalFile(name = "second-options").orElse(getOptionalFile("options")) map (file => () => file.contentAsString),
-      thirdOptions = getOptionalFile(name = "third-options").orElse(getOptionalFile("options")) map (file => () => file.contentAsString),
+      inputs = getOptionalFileContent("inputs"),
+      options = getOptionalFileContent("options"),
+      secondOptions = getOptionalFileContent(name = "second-options").orElse(getOptionalFileContent("options")),
+      thirdOptions = getOptionalFileContent(name = "third-options").orElse(getOptionalFileContent("options")),
       labels = getLabels,
       zippedImports = getImports
     )

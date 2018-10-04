@@ -31,7 +31,7 @@
   "JointGenotyping.snp_recalibration_annotation_values": ["QD", "MQRankSum", "ReadPosRankSum", "FS", "MQ", "SOR", "DP"],
 
   "JointGenotyping.python_docker": "python:2.7",
-  "JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.0.0",
+  "JointGenotyping.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0",
 
   "JointGenotyping.gatk_path": "/gatk/gatk",
 

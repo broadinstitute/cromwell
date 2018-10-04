@@ -76,7 +76,7 @@ trait PipelinesParameterConversions {
             .withMounts(mounts)
             .withFlags(List(ActionFlag.RunInBackground, ActionFlag.EnableFuse))
         case _: HttpPath =>
-          val dockerImage = "google/cloud-sdk:alpine"
+          val dockerImage = "google/cloud-sdk:slim"
           val command = s"curl --silent --create-dirs --output ${fileInput.containerPath} ${fileInput.cloudPath}"
           ActionBuilder
             .withImage(dockerImage)

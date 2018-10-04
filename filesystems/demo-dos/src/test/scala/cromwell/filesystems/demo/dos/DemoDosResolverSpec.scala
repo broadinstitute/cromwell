@@ -19,28 +19,38 @@ class DemoDosResolverSpec extends FlatSpec with Matchers with TableDrivenPropert
 
   behavior of "DemoDosResolver"
 
-  lazy val demoDosPathBuilder = new DemoDosPathBuilder()
+  private val demoDosPathBuilder = new DemoDosPathBuilder()
 
-  lazy val jsonTemplate = s"""{\\"dosUrl\\": \\"$${dosPath}\\"}"""
+  private val jsonTemplate = s"""{\\"dosUrl\\": \\"$${dosPath}\\"}"""
 
-  lazy val normalConfigString =
+  private val exampleConfig = ConfigFactory.parseString(
     s"""|demo.dos.martha.url = "http://example.org/some/possible/path"
         |demo.dos.martha.request.json-template = "$jsonTemplate"
-        |demo.dos.martha.response.json-pointer = "/dos"
+        |demo.dos.martha.response.jq-filter = ".dos"
         |""".stripMargin
-  lazy val normalConfig = ConfigFactory.parseString(normalConfigString)
+  )
 
-  lazy val debugConfigString =
-    s"""|$normalConfigString
+  private val debugConfig = ConfigFactory.parseString(
+    s"""|demo.dos.martha.url = "http://example.org/some/possible/path"
+        |demo.dos.martha.request.json-template = "$jsonTemplate"
+        |demo.dos.martha.response.jq-filter = ".dos"
         |demo.dos.martha.debug = true
         |""".stripMargin
-  lazy val debugConfig = ConfigFactory.parseString(debugConfigString)
+  )
 
-  lazy val okResponseStatusLine = statusLine(HttpStatus.SC_OK)
+  private val jqGoogleFilter = """.dos.data_object.urls[] | select(.url | startswith(\"gs://\")) | .url"""
+  private val filterConfig = ConfigFactory.parseString(
+    s"""|demo.dos.martha.url = "http://example.org/some/possible/path"
+        |demo.dos.martha.request.json-template = "$jsonTemplate"
+        |demo.dos.martha.response.jq-filter = "$jqGoogleFilter"
+        |""".stripMargin
+  )
 
-  lazy val forbiddenResponseStatusLine = statusLine(HttpStatus.SC_FORBIDDEN)
+  private val okResponseStatusLine = statusLine(HttpStatus.SC_OK)
 
-  val stringResponseEntity = new StringEntity(
+  private val forbiddenResponseStatusLine = statusLine(HttpStatus.SC_FORBIDDEN)
+
+  private val stringResponseEntity = new StringEntity(
     """|{
        |  "dos": "gs://my-gs-bucket/path/to/file.txt"
        |}
@@ -48,7 +58,7 @@ class DemoDosResolverSpec extends FlatSpec with Matchers with TableDrivenPropert
     ContentType.APPLICATION_JSON
   )
 
-  val arrayResponseEntity = new StringEntity(
+  private val arrayResponseEntity = new StringEntity(
     """|{
        |  "dos": [
        |    "s3://my-s3-bucket/path/to/file.txt",
@@ -60,17 +70,83 @@ class DemoDosResolverSpec extends FlatSpec with Matchers with TableDrivenPropert
     ContentType.APPLICATION_JSON
   )
 
-  val parseTests = Table(
-    ("description", "responseEntity"),
-    ("find gs paths from string json responses", stringResponseEntity),
-    ("find gs paths from array json responses", arrayResponseEntity)
+  private val gcsFirstResponseEntity = new StringEntity(
+    """|{
+       |  "dos": {
+       |    "data_object": {
+       |      "checksums": [
+       |        {
+       |          "checksum": "559573fbc52b3b3ca71eaea7fb22be5009a6bc54",
+       |          "type": "md5"
+       |        }
+       |      ],
+       |      "description": "",
+       |      "id": "630d31c3-381e-488d-b639-ce5d047a0142",
+       |      "mime_type": "",
+       |      "size": 2201638,
+       |      "urls": [
+       |        {
+       |          "url": "gs://my-gs-bucket/path/to/file.txt"
+       |        },
+       |        {
+       |          "url": "s3://my-s3-bucket/path/to/file.txt"
+       |        }
+       |      ],
+       |      "version": "2018-05-26T134315.070672Z"
+       |    }
+       |  },
+       |  "googleServiceAccount": {
+       |  }
+       |}
+       |""".stripMargin,
+    ContentType.APPLICATION_JSON
   )
 
-  forAll(parseTests) { (description, responseEntity) =>
+  private val gcsSecondResponseEntity = new StringEntity(
+    """|{
+       |  "dos": {
+       |    "data_object": {
+       |      "checksums": [
+       |        {
+       |          "checksum": "fdd7e5dc38915cc0a1f72a97cb9195189b4098eb",
+       |          "type": "md5"
+       |        }
+       |      ],
+       |      "description": "",
+       |      "id": "01b048d0-e128-4cb0-94e9-b2d2cab7563d",
+       |      "mime_type": "",
+       |      "size": 37501686827,
+       |      "urls": [
+       |        {
+       |          "url": "s3://my-s3-bucket/path/to/file.txt"
+       |        },
+       |        {
+       |          "url": "gs://my-gs-bucket/path/to/file.txt"
+       |        }
+       |      ],
+       |      "version": "2018-05-26T133719.491781Z"
+       |    }
+       |  },
+       |  "googleServiceAccount": {
+       |  }
+       |}
+       |""".stripMargin,
+    ContentType.APPLICATION_JSON
+  )
+
+  private val parseTests = Table(
+    ("description", "config", "responseEntity"),
+    ("find gs paths from string json responses", exampleConfig, stringResponseEntity),
+    ("find gs paths from array json responses", exampleConfig, arrayResponseEntity),
+    ("find gs paths when first in an array", filterConfig, gcsFirstResponseEntity),
+    ("find gs paths when second in an array", filterConfig, gcsSecondResponseEntity),
+  )
+
+  forAll(parseTests) { (description, config, responseEntity) =>
     it should description in {
       val mockClient = new MockClient(okResponseStatusLine, Option(responseEntity))
 
-      val resolver = new MockDemoDosResolver(normalConfig, mockClient)
+      val resolver = new MockDemoDosResolver(config, mockClient)
 
       val uuid = UUID.randomUUID()
       val dosUrl = s"dos://my-dos-host/$uuid"
@@ -86,17 +162,17 @@ class DemoDosResolverSpec extends FlatSpec with Matchers with TableDrivenPropert
     }
   }
 
-  lazy val normalExceptionMessage =
+  private val normalExceptionMessage =
     s"""Unexpected response looking up $${dosUrl} from http://example.org/some/possible/path."""
 
-  lazy val debugExceptionMessage =
+  private val debugExceptionMessage =
     s"""|Unexpected response looking up $${dosUrl} from http://example.org/some/possible/path.
         |HTTP/1.1 403 Forbidden []""".stripMargin
 
 
-  val forbiddenTests = Table(
+  private val forbiddenTests = Table(
     ("description", "config", "exceptionMessageTemplate"),
-    ("throw an exception for a forbidden request", normalConfig, normalExceptionMessage),
+    ("throw an exception for a forbidden request", exampleConfig, normalExceptionMessage),
     ("throw an exception for a debugged forbidden request", debugConfig, debugExceptionMessage)
   )
 
@@ -117,7 +193,7 @@ class DemoDosResolverSpec extends FlatSpec with Matchers with TableDrivenPropert
 
 object DemoDosResolverSpec {
 
-  def statusLine(status: Int) = new BasicStatusLine(
+  private def statusLine(status: Int) = new BasicStatusLine(
     HttpVersion.HTTP_1_1,
     status,
     EnglishReasonPhraseCatalog.INSTANCE.getReason(status, null)

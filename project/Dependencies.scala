@@ -25,7 +25,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.9"
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.3"
-  private val fs2V = "0.10.6"
+  private val fs2V = "1.0.0-M5"
   private val ftpFsV = "1.2.1"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.25.0"
@@ -40,7 +40,9 @@ object Dependencies {
   private val guavaV = "26.0-jre"
   private val heterodonV = "1.0.0-beta1"
   private val hsqldbV = "2.4.1"
+  private val http4sVersion = "0.19.0-M2"
   private val jacksonV = "2.9.6"
+  private val jacksonJqV = "0.0.9"
   private val janinoV = "3.0.9"
   private val jodaTimeV = "2.9.4"
   private val jsr305V = "3.0.0"
@@ -151,6 +153,11 @@ object Dependencies {
     "org.typelevel" %% "cats-kernel" % catsV,
     "org.yaml" % "snakeyaml" % snakeyamlV
   )
+  
+  private val http4sDependencies = List(
+    "org.http4s" %% "http4s-dsl" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
+  )
 
   private val googleApiClientDependencies = List(
     // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
@@ -217,7 +224,10 @@ object Dependencies {
     "ch.qos.logback" % "logback-access" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "io.sentry" % "sentry-logback" % sentryLogbackV,
-    "org.codehaus.janino" % "janino" % janinoV
+    "org.codehaus.janino" % "janino" % janinoV,
+    // Replace all log4j usage with slf4j
+    // https://www.slf4j.org/legacy.html#log4j-over-slf4j
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
   )
 
   private val slickDependencies = List(
@@ -336,8 +346,21 @@ object Dependencies {
 
   val httpFileSystemDependencies = akkaHttpDependencies
 
+  val demoDosFileSystemDependencies = List(
+    "net.thisptr" % "jackson-jq" % jacksonJqV
+  )
+
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
+  )
+  
+  val statsDProxyDependencies = List(
+    "co.fs2" %% "fs2-io" % fs2V,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "com.iheart" %% "ficus" % ficusV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-core" % logbackV,
+    "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
   )
 
   val commonDependencies = List(
@@ -391,6 +414,7 @@ object Dependencies {
       exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.slf4j", "jcl-over-slf4j"),
+    "org.apache.httpcomponents" % "httpclient-cache" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
 
@@ -442,7 +466,7 @@ object Dependencies {
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
-  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies
+  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % commonsCodecV,

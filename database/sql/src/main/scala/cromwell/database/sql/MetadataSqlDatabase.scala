@@ -20,6 +20,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
 |__|  |__| |_______|    |__|    /__/     \__\ |_______/ /__/     \__\  |__|    /__/     \__\
    */
 
+  def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean]
+
   /**
     * Add metadata events to the database transactionally.
     */

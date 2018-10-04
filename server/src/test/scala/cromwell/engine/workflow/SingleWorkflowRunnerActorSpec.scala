@@ -27,6 +27,7 @@ import spray.json._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util._
+import scala.util.control.NoStackTrace
 
 /**
  * A series of tests of the SingleWorkflowRunnerActor. Currently uses live versions of the SingleWorkflowRunnerActor and
@@ -276,8 +277,7 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
       within(TimeoutDuration) {
         val runner = createRunnerActor()
         val futureResult = runner ? RunWorkflow
-        val ex = new RuntimeException("expected error")
-        ex.setStackTrace(ex.getStackTrace.take(1)) // Leave just a small hint, not a full trace.
+        val ex = new RuntimeException("expected error") with NoStackTrace
         runner ! Status.Failure(ex)
         Await.ready(futureResult, Duration.Inf)
         futureResult.value.get match {

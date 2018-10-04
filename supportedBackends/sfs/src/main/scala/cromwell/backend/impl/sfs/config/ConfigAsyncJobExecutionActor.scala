@@ -1,6 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
 import java.io.PrintWriter
+import java.lang.IllegalArgumentException
 import java.util.Calendar
 
 import common.validation.Validation._
@@ -251,8 +252,11 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     jobScriptArgs(job, "kill", KillTask)
   }
 
-  protected lazy val exitCodeTimeout: Option[Int] =
-    configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig).map(math.abs)
+  protected lazy val exitCodeTimeout: Option[Int] = {
+    val timeout = configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig)
+    timeout.foreach{x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")}
+    timeout
+  }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
     handle.previousStatus match {

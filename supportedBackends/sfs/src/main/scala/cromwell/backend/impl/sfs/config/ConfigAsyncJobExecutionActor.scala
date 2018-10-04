@@ -288,7 +288,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
               jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
               val writer = new PrintWriter(jobPaths.returnCode.toFile)
               // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-              writer.println(137)
+              writer.println(9)
               writer.close()
               SharedFileSystemRunStatus("Failed")
             }

@@ -14,6 +14,7 @@ import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
 import mouse.boolean._
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -88,20 +89,22 @@ trait MetadataDatabaseAccess {
   }
 
   private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
-    metadata map { m =>
-      // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
-      val metadataJobKey: Option[MetadataJobKey] = for {
-        callFqn <- m.callFullyQualifiedName
-        attempt <- m.jobAttempt
-      } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
+    metadata map metadataEntryToMetadataEvent(workflowId)
+  }
 
-      val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
-      val value = m.metadataValueType.map(mType =>
-        MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
-      )
+  private def metadataEntryToMetadataEvent(workflowId: WorkflowId)(m: MetadataEntry): MetadataEvent = {
+    // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
+    val metadataJobKey: Option[MetadataJobKey] = for {
+      callFqn <- m.callFullyQualifiedName
+      attempt <- m.jobAttempt
+    } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
 
-      MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
-    }
+    val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
+    val value = m.metadataValueType.map(mType =>
+      MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
+    )
+
+    MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
   }
 
   def queryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
@@ -133,6 +136,20 @@ trait MetadataDatabaseAccess {
     }
 
     futureMetadata map metadataToMetadataEvents(query.workflowId)
+  }
+
+  def streamedQueryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext) = {
+    val uuid = query.workflowId.id.toString
+
+    val futureMetadata: Future[DatabasePublisher[MetadataEntry]] = query match {
+      case MetadataQuery(_, None, None, None, None, _) => Future.successful(metadataDatabaseInterface.streamedQueryMetadataEntries(uuid))
+      case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
+    }
+
+    futureMetadata map { publisher =>
+      publisher.mapResult(metadataEntryToMetadataEvent(query.workflowId))
+      
+    }
   }
 
   def queryWorkflowOutputs(id: WorkflowId)

@@ -59,7 +59,7 @@ object MetadataComponent {
   val KeySplitter = s"(?<!\\\\)$KeySeparator"
   private val bracketMatcher = """\[(\d*)\]""".r
   
-  private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataComponent = {
+  private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataObject = {
     chunk.indexOf('[') match {
       // If there's no bracket, it's an object. e.g.: "calls"
       case -1 => MetadataObject(Map(chunk -> innerValue))
@@ -95,7 +95,7 @@ object MetadataComponent {
     case _ => None
   }
 
-  private def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
+  def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
     lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
     lazy val originalKeyAndPrimitive = (event.key.key, primitive)
 
@@ -108,7 +108,7 @@ object MetadataComponent {
       } yield (keyWithSubWorkflowMetadata, subWorkflowComponent)) getOrElse originalKeyAndPrimitive
     } else originalKeyAndPrimitive
 
-    fromMetadataKeyAndPrimitive(keyAndPrimitive._1, keyAndPrimitive._2)
+    contextualize(event.key, fromMetadataKeyAndPrimitive(keyAndPrimitive._1, keyAndPrimitive._2).asInstanceOf[MetadataObject])
   }
   
   /** Sort events by timestamp, transform them into MetadataComponent, and merge them together. */
@@ -118,8 +118,28 @@ object MetadataComponent {
     events.toList map toMetadataComponent(subWorkflowMetadata) combineAll
   }
   
-  def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) = {
+  def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent): MetadataComponent = {
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
+  }
+  
+  private def contextualize(key: MetadataKey, component: MetadataObject): MetadataComponent = {
+    key.jobKey match {
+      case None => component
+      case Some(jobKey) => 
+        MetadataObject(
+          "calls" -> MetadataObject(
+            jobKey.callFqn -> MetadataList(
+              TreeMap(
+                jobKey.index.getOrElse(-1) ->
+                  component.copy(v = component.v ++ Map(
+                    "shardIndex" -> MetadataPrimitive(MetadataValue(jobKey.index.getOrElse(-1))),
+                    "attempt" -> MetadataPrimitive(MetadataValue(jobKey.attempt))
+                  ))
+              )
+            )
+          )
+        )
+    }
   }
 }
 

@@ -145,5 +145,8 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     }
 
     override def close(): Nothing = notImplemented()
+
+    override def streamedQueryMetadataEntries(workflowExecutionUuid: String) =
+      throw new NotImplementedError("Stream query not implemented in tests")
   }
 }

@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import cats.data.NonEmptyList
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -35,6 +36,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
   def queryMetadataEntries(workflowExecutionUuid: String,
                            metadataKey: String)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def streamedQueryMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
                            callFullyQualifiedName: String,

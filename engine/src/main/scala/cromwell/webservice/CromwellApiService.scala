@@ -110,7 +110,7 @@ trait CromwellApiService extends HttpInstrumentation {
       }
     } ~
     encodeResponse {
-      path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
+      path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
         instrumentRequest {
           parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
             val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
@@ -121,7 +121,12 @@ trait CromwellApiService extends HttpInstrumentation {
               case (Some(_), Some(_)) =>
                 val e = new IllegalArgumentException("includeKey and excludeKey may not be specified together")
                 e.failRequest(StatusCodes.BadRequest)
-              case (_, _) => metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+              case (_, _) => metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => 
+                if (version == "v2")
+                  GetStreamedSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows)
+                else
+                  GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows)
+              )
             }
           }
         }

@@ -24,7 +24,13 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
         includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) }
       } else includeKeysOption
       queryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
+    case GetStreamedSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
+      val includeKeys = if (expandSubWorkflows) {
+        includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) }
+      } else includeKeysOption
+      streamedQueryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
+    case GetStreamedMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => streamedQueryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLabels(workflowId) => queryLabelsAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
@@ -36,6 +42,14 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     val sndr = sender()
     queryMetadataEvents(query) onComplete {
       case Success(m) => sndr ! MetadataLookupResponse(query, m)
+      case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
+    }
+  }
+
+  private def streamedQueryAndRespond(query: MetadataQuery): Unit = {
+    val sndr = sender()
+    streamedQueryMetadataEvents(query) onComplete {
+      case Success(m) => sndr ! StreamedMetadataLookupResponse(query, m)
       case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
     }
   }

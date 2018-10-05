@@ -13,6 +13,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataBuilderActor._
 import org.slf4j.LoggerFactory
+import slick.basic.DatabasePublisher
 import spray.json._
 
 
@@ -142,6 +143,8 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
 
   private var target: ActorRef = ActorRef.noSender
 
+  implicit val ec = context.dispatcher
+  
   startWith(Idle, None)
   val tag = self.path.name
 
@@ -174,6 +177,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       target ! BuiltMetadataResponse(workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))
       allDone
     case Event(MetadataLookupResponse(query, metadata), None) => processMetadataResponse(query, metadata)
+    case Event(StreamedMetadataLookupResponse(query, metadata), None) => processStreamedMetadataResponse(query, metadata)
     case Event(_: ServiceRegistryFailure, _) =>
       target ! FailedMetadataResponse(new RuntimeException("Can't find metadata service"))
       allDone
@@ -246,6 +250,11 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     } else {
       buildAndStop(query, eventsList, Map.empty)
     }
+  }
+
+  def processStreamedMetadataResponse(query: MetadataQuery, stream: DatabasePublisher[MetadataEvent]) = {
+    target ! BuiltMetadataResponse(StreamMetadataBuilder.build(stream, query.workflowId))
+    allDone
   }
 
   def processMetadataEvents(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {

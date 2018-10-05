@@ -9,6 +9,7 @@ import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -55,6 +56,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val action =
       dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result
     runTransaction(action)
+  }
+
+  override def streamedQueryMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry] = {
+    val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
+    streamTransaction(action)
   }
 
   override def queryMetadataEntries(workflowExecutionUuid: String,

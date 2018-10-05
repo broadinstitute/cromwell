@@ -7,6 +7,7 @@ import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
+import slick.basic.DatabasePublisher
 import wom.core._
 import wom.values._
 
@@ -80,9 +81,14 @@ object MetadataService {
 
   final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
-                                             expandSubWorkflows: Boolean)
-    extends ReadAction
+                                             expandSubWorkflows: Boolean) extends ReadAction
+
+  final case class GetStreamedSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
+                                                   excludeKeysOption: Option[NonEmptyList[String]],
+                                                   expandSubWorkflows: Boolean) extends ReadAction
+
   final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
+  final case class GetStreamedMetadataQueryAction(key: MetadataQuery) extends ReadAction
   final case class GetStatus(workflowId: WorkflowId) extends ReadAction
   final case class GetLabels(workflowId: WorkflowId) extends ReadAction
   final case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
@@ -107,6 +113,7 @@ object MetadataService {
   }
 
   final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class StreamedMetadataLookupResponse(query: MetadataQuery, events: DatabasePublisher[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
 
   final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse

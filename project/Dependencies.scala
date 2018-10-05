@@ -520,5 +520,5 @@ object Dependencies {
 
   val perfDependencies = List(
     "io.circe" %% "circe-java8" % circeV
-  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies
+  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
 }

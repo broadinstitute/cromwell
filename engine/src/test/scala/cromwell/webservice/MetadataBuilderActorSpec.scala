@@ -3,8 +3,8 @@ package cromwell.webservice
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.testkit._
 import akka.pattern.ask
+import akka.testkit._
 import akka.util.Timeout
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
@@ -19,7 +19,7 @@ import spray.json._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
+class MetadataBuilderActorSpec(description: String) extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
   behavior of "MetadataBuilderActor"

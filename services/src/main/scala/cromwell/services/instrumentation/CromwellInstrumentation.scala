@@ -86,10 +86,24 @@ trait CromwellInstrumentation {
   }
 
   /**
+    * Creates a gauge message for the given bucket
+    */
+  private final def histogramMessage(path: InstrumentationPath, value: Long, prefix: Option[String]) = {
+    InstrumentationServiceMessage(CromwellHistogram(makeBucket(path, prefix), value))
+  }
+
+  /**
     * Set the bucket to the gauge value
     */
   protected final def sendGauge(path: InstrumentationPath, value: Long, prefix: Option[String] = None): Unit = {
     serviceRegistryActor.tell(gaugeMessage(path, value, prefix), instrumentationSender)
+  }
+
+  /**
+    * Set the bucket to the gauge value
+    */
+  protected final def sendHistogram(path: InstrumentationPath, value: Long, prefix: Option[String] = None): Unit = {
+    serviceRegistryActor.tell(histogramMessage(path, value, prefix), instrumentationSender)
   }
 
   /**

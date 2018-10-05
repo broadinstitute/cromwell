@@ -11,7 +11,7 @@ object CromwellStatsD {
   * Taken from rawls.
   */
 case class CromwellStatsD(hostname: String, port: Int) extends StatsD(hostname, port) {
-  val MetricSuffixesToFilter = Set("max", "min", "p50", "p75", "p98", "p99", "p999", "mean_rate", "m5_rate", "m15_rate")
+  val MetricSuffixesToFilter = Set("max", "min", "p75", "p98", "p99", "p999", "mean_rate", "m5_rate", "m15_rate")
   
   override def send(name: String, value: String): Unit = {
     if (MetricSuffixesToFilter.exists(suffix => name.endsWith(suffix)))

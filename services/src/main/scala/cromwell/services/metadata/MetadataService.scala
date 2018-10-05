@@ -38,6 +38,7 @@ object MetadataService {
     def serviceName = MetadataServiceName
   }
   trait ReadAction extends MetadataServiceAction
+  trait StreamedReadAction extends ReadAction
   object PutMetadataAction {
     def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
   }
@@ -80,9 +81,14 @@ object MetadataService {
 
   final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
-                                             expandSubWorkflows: Boolean)
-    extends ReadAction
+                                             expandSubWorkflows: Boolean) extends ReadAction
+
+  final case class StreamedGetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
+                                                   excludeKeysOption: Option[NonEmptyList[String]],
+                                                   expandSubWorkflows: Boolean) extends StreamedReadAction
+
   final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
+  final case class StreamedGetMetadataQueryAction(key: MetadataQuery) extends StreamedReadAction
   final case class GetStatus(workflowId: WorkflowId) extends ReadAction
   final case class GetLabels(workflowId: WorkflowId) extends ReadAction
   final case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction

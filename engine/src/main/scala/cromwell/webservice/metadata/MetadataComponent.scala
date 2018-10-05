@@ -15,12 +15,18 @@ import scala.language.postfixOps
 import scala.util.{Random, Try}
 
 object MetadataComponent {
+  val CallsKey = "calls"
+  private val AttemptKey = "attempt"
+  private val ShardKey = "shardIndex"
+
   implicit val MetadataComponentMonoid: Monoid[MetadataComponent] = new Monoid[MetadataComponent] {
     private lazy val stringKeyMapSg = implicitly[Semigroup[Map[String, MetadataComponent]]]
     private lazy val intKeyMapSg = implicitly[Semigroup[Map[Int, MetadataComponent]]]
 
     def combine(f1: MetadataComponent, f2: MetadataComponent): MetadataComponent = {
       (f1, f2) match {
+        case (MetadataEmptyComponent, v2) => v2
+        case (v1, MetadataEmptyComponent) => v1
         case (MetadataObject(v1), MetadataObject(v2)) => MetadataObject(stringKeyMapSg.combine(v1, v2))
         case (MetadataList(v1), MetadataList(v2)) => MetadataList(intKeyMapSg.combine(v1, v2))
         // If there's a custom ordering, use it
@@ -30,7 +36,7 @@ object MetadataComponent {
       }
     }
 
-    override def empty: MetadataComponent = MetadataObject.empty
+    override def empty: MetadataComponent = MetadataEmptyComponent
   }
 
   val metadataPrimitiveJsonWriter: JsonWriter[MetadataPrimitive] = JsonWriter.func2Writer[MetadataPrimitive] {
@@ -41,25 +47,18 @@ object MetadataComponent {
     case MetadataPrimitive(MetadataValue(_, MetadataNull), _) => JsNull
   }
 
-  implicit val metadataComponentJsonWriter: JsonWriter[MetadataComponent] = JsonWriter.func2Writer[MetadataComponent] {
-    case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this.metadataComponentJsonWriter) })
-    case MetadataObject(values) => JsObject(values.safeMapValues(_.toJson(this.metadataComponentJsonWriter)))
-    case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
-    case MetadataEmptyComponent => JsObject.empty
-    case MetadataNullComponent => JsNull
-    case MetadataJsonComponent(jsValue) => jsValue
-  }
+  implicit val DefaultMetadataComponentJsonWriter = new MetadataComponentJsonWriter(Map.empty)
 
   /* ******************************* */
   /* *** Metadata Events Parsing *** */
   /* ******************************* */
-  
+
   private val KeySeparator = MetadataKey.KeySeparator
   // Split on every unescaped KeySeparator
   val KeySplitter = s"(?<!\\\\)$KeySeparator"
   private val bracketMatcher = """\[(\d*)\]""".r
-  
-  private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataComponent = {
+
+  private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataObject = {
     chunk.indexOf('[') match {
       // If there's no bracket, it's an object. e.g.: "calls"
       case -1 => MetadataObject(Map(chunk -> innerValue))
@@ -78,7 +77,7 @@ object MetadataComponent {
         } yield asInt
         // Fold into a MetadataList: MetadataList(0 -> MetadataList(1 -> innerValue))
         val init = if (innerValue == MetadataEmptyComponent) {
-        // Empty value means empty list
+          // Empty value means empty list
           listIndices.toList.init.foldRight(MetadataList.empty)((index, acc) => MetadataList(TreeMap(index -> acc)))
         } else {
           listIndices.toList.foldRight(innerValue)((index, acc) => MetadataList(TreeMap(index -> acc)))
@@ -93,6 +92,21 @@ object MetadataComponent {
     case MetadataEvent(MetadataKey(_, Some(_), key), _, _) if key == CallMetadataKeys.ExecutionStatus => Option(MetadataPrimitive.ExecutionStatusOrdering)
     case MetadataEvent(MetadataKey(_, None, key), _, _) if key == WorkflowMetadataKeys.Status => Option(MetadataPrimitive.WorkflowStateOrdering)
     case _ => None
+  }
+
+  def toMetadataComponent(event: MetadataEvent) = {
+    lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
+
+    // If the event is a sub workflow id event, we might need to replace the id with a placeholder for the sub workflow metadata
+    lazy val subWorkflowKey = event.key.key.replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
+    lazy val subWorkflowComponent = event.extractSubWorkflowId.map(MetadataPlaceholderComponent.apply).getOrElse(primitive)
+
+    val (key, component): (String, MetadataComponent) = if (event.isSubWorkflowId)
+      subWorkflowKey -> subWorkflowComponent
+    else
+      event.key.key -> primitive
+
+    contextualize(event.key, fromMetadataKeyAndPrimitive(key, component).asInstanceOf[MetadataObject])
   }
 
   private def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
@@ -110,22 +124,70 @@ object MetadataComponent {
 
     fromMetadataKeyAndPrimitive(keyAndPrimitive._1, keyAndPrimitive._2)
   }
-  
+
   /** Sort events by timestamp, transform them into MetadataComponent, and merge them together. */
   def apply(events: Seq[MetadataEvent], subWorkflowMetadata: Map[String, JsValue] = Map.empty): MetadataComponent = {
     // The `List` has a `Foldable` instance defined in scope, and because the `List`'s elements have a `Monoid` instance
     // defined in scope, `combineAll` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
     events.toList map toMetadataComponent(subWorkflowMetadata) combineAll
   }
-  
+
   def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) = {
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
+  }
+
+  private def contextualize(key: MetadataKey, component: MetadataObject): MetadataComponent = {
+    // In order to keep the call array sorted by shard and then by attempt, make up an index made of those 2 value concatenated
+    def callIndex(shard: Option[Int], attempt: Int): Int = {
+      s"${shard.getOrElse(-1)}$attempt".toInt
+    }
+    
+    key.jobKey match {
+      case None => component
+      case Some(jobKey) =>
+        MetadataObject(
+          CallsKey -> MetadataObject(
+            jobKey.callFqn -> MetadataList(
+              TreeMap(
+                callIndex(jobKey.index, jobKey.attempt) ->
+                  MetadataComponentMonoid.combine(
+                    component,
+                    MetadataObject(
+                      ShardKey -> MetadataPrimitive(MetadataValue(jobKey.index.getOrElse(-1))),
+                      AttemptKey -> MetadataPrimitive(MetadataValue(jobKey.attempt))
+                    )
+                  )
+              )
+            )
+          )
+        )
+    }
+  }
+
+  implicit class EnhancedMetadataEvent(val event: MetadataEvent) extends AnyVal {
+    def isSubWorkflowId: Boolean = event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)
+    def extractSubWorkflowId: Option[WorkflowId] = {
+      event.value.map(value => WorkflowId.fromString(value.value))
+    }
+  }
+
+  class MetadataComponentJsonWriter(subWorkflowsMapping: Map[WorkflowId, JsObject]) extends JsonWriter[MetadataComponent] {
+    override def write(obj: MetadataComponent) = obj match {
+      case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this) })
+      case MetadataObject(values) => JsObject(values.safeMapValues(_.toJson(this)))
+      case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
+      case MetadataEmptyComponent => JsObject.empty
+      case MetadataNullComponent => JsNull
+      case MetadataPlaceholderComponent(subWorkflowId) => subWorkflowsMapping.getOrElse(subWorkflowId, JsNull)
+      case MetadataJsonComponent(jsValue) => jsValue
+    }
   }
 }
 
 sealed trait MetadataComponent
 case object MetadataEmptyComponent extends MetadataComponent
 case object MetadataNullComponent extends MetadataComponent
+case class MetadataPlaceholderComponent(subWorkflowId: WorkflowId) extends MetadataComponent
 
 // Metadata Object  
 object MetadataObject {

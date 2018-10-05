@@ -79,6 +79,8 @@ then
     sed -i "s/\$BRANCH/${CROMWELL_BRANCH}/" ${CENTAUR_TEST_FILE}
 fi
 
+set_up
+
 # Start cromwell and cloud sql proxy
 prepare_statsd_proxy
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d

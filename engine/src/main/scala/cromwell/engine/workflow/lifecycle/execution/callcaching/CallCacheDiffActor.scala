@@ -119,7 +119,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
             "hashDifferential" -> diff
           ))
 
-          BuiltCallCacheDiffResponse(metadataComponentJsonWriter.write(diffObject).asJsObject)
+          BuiltCallCacheDiffResponse(DefaultMetadataComponentJsonWriter.write(diffObject).asJsObject)
         case Failure(f) => FailedCallCacheDiffResponse(f)
       }
     }

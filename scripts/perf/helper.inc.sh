@@ -54,6 +54,10 @@ prepare_statsd_proxy() {
     export PROXY_PORT=9125
 }
 
+set_up() {
+    gcloud auth configure-docker --quiet
+}
+
 clean_up() {
     if [ "${CLEAN_UP}" = true ]
     then

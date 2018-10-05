@@ -46,3 +46,8 @@ case class CromwellTiming(bucket: CromwellBucket, value: FiniteDuration, samplin
   * Measures a gauge value
   */
 case class CromwellGauge(bucket: CromwellBucket, value: Long) extends CromwellMetric
+
+/**
+  * Measures a value and computes its statistical distribution over time
+  */
+case class CromwellHistogram(bucket: CromwellBucket, value: Long) extends CromwellMetric

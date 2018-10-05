@@ -10,6 +10,7 @@ import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import com.typesafe.config.Config
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, path => _}
@@ -26,17 +27,20 @@ import cromwell.webservice.routes.MetadataRouteSupport._
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success}
-
+import net.ceedubs.ficus.Ficus._
 
 trait MetadataRouteSupport extends HttpInstrumentation {
   implicit def actorRefFactory: ActorRefFactory
   implicit val ec: ExecutionContext
 
+  def config: Config
   val serviceRegistryActor: ActorRef
 
   implicit val timeout: Timeout
 
   private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
+
+  private val metadataStreamingEnabledByDefault = config.as[Boolean]("system.metadata-streaming-enabled-by-default")
 
   val metadataRoutes = concat(
     path("workflows" / Segment / Segment / "status") { (_, possibleWorkflowId) =>
@@ -72,6 +76,10 @@ trait MetadataRouteSupport extends HttpInstrumentation {
               case (Some(_), Some(_)) =>
                 val e = new IllegalArgumentException("includeKey and excludeKey may not be specified together")
                 e.failRequest(StatusCodes.BadRequest)
+              case (_, _) if metadataStreamingEnabledByDefault || version == "v1s" =>
+                metadataLookup(possibleWorkflowId,
+                  (w: WorkflowId) => StreamedGetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
+                  serviceRegistryActor, metadataBuilderRegulatorActor)
               case (_, _) =>
                 metadataLookup(possibleWorkflowId,
                   (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),

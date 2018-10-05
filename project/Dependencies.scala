@@ -25,7 +25,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.9"
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.3"
-  private val fs2V = "1.0.0-M5"
+  private val fs2V = "1.0.0"
   private val ftpFsV = "1.2.1"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.25.0"
@@ -69,6 +69,7 @@ object Dependencies {
   private val refinedV = "0.9.2"
   private val rhinoV = "1.7.10"
   private val s3fsV = "1.0.1"
+  private val scalaChartV = "0.5.1"
   private val scalaGraphV = "1.12.5"
   private val scalaLoggingV = "3.9.0"
   private val scalaPoolV = "0.4.1"
@@ -500,7 +501,8 @@ object Dependencies {
 
   val backendDependencies = List(
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "co.fs2" %% "fs2-io" % fs2V
+    "co.fs2" %% "fs2-io" % fs2V,
+    "co.fs2" %% "fs2-reactive-streams" % fs2V
   )
 
   val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
@@ -520,5 +522,8 @@ object Dependencies {
   val swaggerUiVersion = swaggerUiV
 
   val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
-    googleApiClientDependencies ++ googleCloudDependencies
+    googleApiClientDependencies ++ googleCloudDependencies ++ List(
+    "com.github.wookietreiber" %% "scala-chart" % scalaChartV,
+    "co.fs2" %% "fs2-io" % fs2V
+  )
 }

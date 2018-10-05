@@ -1,5 +1,7 @@
 package cromwell.services.loadcontroller.impl
 
+import java.lang.management.ManagementFactory
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Terminated, Timers}
 import akka.routing.Listeners
 import cats.data.NonEmptyList
@@ -37,13 +39,13 @@ class LoadControllerServiceActor(serviceConfig: Config,
   private [impl] var loadLevel: LoadLevel = NormalLoad
   private [impl] var monitoredActors: Set[ActorRef] = Set.empty
   private [impl] var loadMetrics: Map[ActorAndMetric, LoadLevel] = Map.empty
-  
+
   override def receive = listenerManagement.orElse(controlReceive)
 
   override def preStart() = {
-    if (controlFrequency.isFinite()) 
+    if (controlFrequency.isFinite())
       timers.startPeriodicTimer(LoadControlTimerKey, LoadControlTimerAction, controlFrequency.asInstanceOf[FiniteDuration])
-    else 
+    else
       log.info("Load control disabled")
     super.preStart()
   }
@@ -79,15 +81,19 @@ class LoadControllerServiceActor(serviceConfig: Config,
     }
     loadLevel = newLoadLevel
     sendGauge(NonEmptyList.one("global"), loadLevel.level.toLong, LoadInstrumentationPrefix)
+
+    // Instrument average load and memory usage as well from here
+    sendHistogram(NonEmptyList.one("loadAverage"), ManagementFactory.getOperatingSystemMXBean.getSystemLoadAverage.toLong, LoadInstrumentationPrefix)
+    sendHistogram(NonEmptyList.one("memory"), ManagementFactory.getMemoryMXBean.getHeapMemoryUsage.getUsed, LoadInstrumentationPrefix)
   }
-  
+
   private def handleTerminated(terminee: ActorRef) = {
     monitoredActors = monitoredActors - terminee
     loadMetrics = loadMetrics.filterKeys({
       case ActorAndMetric(actor, _) => actor != terminee
     })
   }
-  
+
   private def highLoadMetricsForLogging = {
     loadMetrics.collect({
       case (ActorAndMetric(_, metricPath), HighLoad) => metricPath.head

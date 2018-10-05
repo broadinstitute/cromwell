@@ -4,6 +4,7 @@ import java.io.{PrintWriter, StringWriter}
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
+import cats.effect.IO
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
@@ -66,6 +67,11 @@ object Validation {
     def toTry(context: String): Try[A] = e match {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
+    }
+    
+    def toIO(context: String): IO[A] = e match {
+      case Valid(v) => IO.pure(v)
+      case Invalid(errors) => IO.raiseError[A](AggregatedMessageException(context, errors.toList))
     }
 
     def unsafe: A = unsafe("Errors(s)")

@@ -321,6 +321,10 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
 lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
   .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies, pushDocker = false)
 
+lazy val perf = project
+  .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
+  .dependsOn(common)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)

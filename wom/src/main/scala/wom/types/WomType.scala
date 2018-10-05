@@ -98,10 +98,106 @@ object WomType {
     }
   }
 
-  def lowestCommonSubtype(types: Iterable[WomType]): WomType = {
-    types.collectFirst {
-      case t1 if types.forall(t2 => t1.isCoerceableFrom(t2)) => t1
-    } getOrElse WomAnyType
+  def lowestCommonSubtype(types: Iterable[WomType]): WomType = types match {
+    case e if e.isEmpty => WomNothingType
+    case ListOfPrimitives(primitiveType) => primitiveType
+    case ListOfPairs(pairType) => pairType
+    case ListOfOptionals(optionalType) => optionalType
+    case ListOfMaps(mapType) => mapType
+    case ListOfArrays(arrayType) => arrayType
+    case ListOfObject(objectType) => objectType
+    case _ => WomAnyType
+  }
+
+  private object ListOfPrimitives {
+    def unapply(types: Iterable[WomType]): Option[WomType] = {
+      if (types.forall(_.isInstanceOf[WomPrimitiveType])) {
+        firstCommonPrimitive(types)
+      } else None
+    }
+    private def firstCommonPrimitive(types: Iterable[WomType]): Option[WomType] = {
+      // See if any of the types are a good candidate:
+      val options = types.filter(t => types.forall(_.isCoerceableFrom(t)))
+      womTypeCoercionOrder.collectFirst {
+        // Primitives:
+        case p: WomPrimitiveType if options.toList.contains(p) => p
+      }
+    }
+  }
+
+
+  private object ListOfPairs {
+    def unapply(types: Iterable[WomType]): Option[WomPairType] = {
+      if (types.forall(_.isInstanceOf[WomPairType])) {
+        val pairs = types.map(_.asInstanceOf[WomPairType])
+        val leftType = lowestCommonSubtype(pairs.map(_.leftType))
+        val rightType = lowestCommonSubtype(pairs.map(_.rightType))
+        Some(WomPairType(leftType, rightType))
+      } else None
+    }
+  }
+
+  private object ListOfOptionals {
+    def unapply(types: Iterable[WomType]): Option[WomOptionalType] = {
+      val atLeastOneOptional = types.exists {
+        case _: WomOptionalType => true
+        case _ => false
+      }
+
+      if (atLeastOneOptional) {
+        val innerTypes = types map {
+          case WomOptionalType(inner) => inner
+          case nonOptional => nonOptional
+        }
+        Some(WomOptionalType(lowestCommonSubtype(innerTypes)))
+      } else {
+        None
+      }
+    }
+  }
+
+  private object ListOfMaps {
+    def unapply(types: Iterable[WomType]): Option[WomMapType] = {
+      val asMapTypes = types map {
+        case m: WomMapType => Some(m)
+        case _ => None
+      }
+
+      if (asMapTypes.forall(_.isDefined)) {
+        val maps = asMapTypes.map(_.get)
+        val keyType = lowestCommonSubtype(maps.map(_.keyType))
+        val valueType = lowestCommonSubtype(maps.map(_.valueType))
+        Some(WomMapType(keyType, valueType))
+      } else None
+    }
+  }
+
+  private object ListOfObject {
+    def unapply(types: Iterable[WomType]): Option[WomObjectType.type] = {
+      val asObjectTypes = types map {
+        case m: WomObjectTypeLike => Some(m)
+        case _ => None
+      }
+
+      if (asObjectTypes.forall(_.isDefined)) {
+        Some(WomObjectType)
+      } else None
+    }
+  }
+
+  private object ListOfArrays {
+    def unapply(types: Iterable[WomType]): Option[WomArrayType] = {
+      val asArrayTypes = types map {
+        case a: WomArrayType => Some(a)
+        case _ => None
+      }
+
+      if (asArrayTypes.forall(_.isDefined)) {
+          val arrs = asArrayTypes.map(_.get)
+          val memberType = lowestCommonSubtype(arrs.map(_.memberType))
+          Some(WomArrayType(memberType))
+      } else None
+    }
   }
 
   object RecursiveType {

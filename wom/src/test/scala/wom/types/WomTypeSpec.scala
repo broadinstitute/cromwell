@@ -156,4 +156,59 @@ class WomTypeSpec extends FlatSpec with Matchers {
     ("Pair[Int, String]", WomPairType(WomIntegerType, WomStringType)),
     ("Pair[Array[Int], String]", WomPairType(WomArrayType(WomIntegerType), WomStringType))
   )
+
+  behavior of "lowestCommonSubtype"
+
+  it should "choose correctly between two primitives" in {
+    WomType.lowestCommonSubtype(Seq(WomStringType, WomIntegerType)) should be(WomStringType)
+  }
+
+  it should "choose a good pair type" in {
+    WomType.lowestCommonSubtype(Seq(
+      WomPairType(WomStringType, WomIntegerType),
+      WomPairType(WomIntegerType, WomStringType)
+    )) should be(WomPairType(WomStringType, WomStringType))
+  }
+
+  it should "choose a good optional type" in {
+    WomType.lowestCommonSubtype(Seq(
+      WomOptionalType(WomIntegerType),
+      WomOptionalType(WomStringType)
+    )) should be(WomOptionalType(WomStringType))
+  }
+
+  it should "support boxing into an optional type" in {
+    WomType.lowestCommonSubtype(Seq(
+      WomOptionalType(WomIntegerType),
+      WomStringType
+    )) should be(WomOptionalType(WomStringType))
+  }
+
+  it should "choose a good array type" in {
+    WomType.lowestCommonSubtype(Seq(
+      WomArrayType(WomOptionalType(WomIntegerType)),
+      WomArrayType(WomOptionalType(WomStringType))
+    )) should be(WomArrayType(WomOptionalType(WomStringType)))
+  }
+
+  it should "choose a good map type" in {
+    WomType.lowestCommonSubtype(Seq(
+      WomOptionalType(WomMapType(WomIntegerType, WomStringType)),
+      WomOptionalType(WomMapType(WomStringType, WomIntegerType)),
+    )) should be(WomOptionalType(WomMapType(WomStringType, WomStringType)))
+  }
+
+  it should "choose 'object' for lists of objects" in {
+    WomType.lowestCommonSubtype(Seq(
+      WomCompositeType(Map(
+        "i" -> WomIntegerType,
+        "s" -> WomStringType
+      )),
+      WomCompositeType(Map(
+        "a" -> WomStringType,
+        "b" -> WomIntegerType
+      ))
+    )) should be(WomObjectType)
+  }
+
 }

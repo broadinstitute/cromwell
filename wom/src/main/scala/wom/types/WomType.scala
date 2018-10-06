@@ -115,13 +115,19 @@ object WomType {
         firstCommonPrimitive(types)
       } else None
     }
+
+    val coercePriority = List(
+      WomStringType, WomSingleFileType, WomUnlistedDirectoryType, WomFloatType, WomIntegerType, WomBooleanType, WomObjectType
+    )
+
     private def firstCommonPrimitive(types: Iterable[WomType]): Option[WomType] = {
-      // See if any of the types are a good candidate:
-      val options = types.filter(t => types.forall(_.isCoerceableFrom(t)))
-      womTypeCoercionOrder.collectFirst {
-        // Primitives:
-        case p: WomPrimitiveType if options.toList.contains(p) => p
-      }
+      // Types in the incoming list which everything could coerce to:
+      val suppliedOptions = types.filter(t => types.forall(t.isCoerceableFrom))
+
+      // A type not in the incoming list but which everything could coerce to nonetheless:
+      lazy val unsuppliedOption: Option[WomType] = coercePriority.find(p => types.forall(p.isCoerceableFrom))
+
+      coercePriority.find { p => suppliedOptions.toList.contains(p) } orElse { unsuppliedOption }
     }
   }
 

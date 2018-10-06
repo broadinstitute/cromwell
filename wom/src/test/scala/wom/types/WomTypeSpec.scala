@@ -7,6 +7,7 @@ import spray.json.JsString
 import wom.values._
 
 import scala.runtime.ScalaRunTime
+import scala.util.Random
 
 class WomTypeSpec extends FlatSpec with Matchers {
   "WomType class" should "stringify WomBoolean to 'Boolean'" in {
@@ -159,47 +160,15 @@ class WomTypeSpec extends FlatSpec with Matchers {
 
   behavior of "lowestCommonSubtype"
 
-  it should "choose correctly between two primitives" in {
-    WomType.lowestCommonSubtype(Seq(WomStringType, WomIntegerType)) should be(WomStringType)
-  }
-
-  it should "choose a good pair type" in {
-    WomType.lowestCommonSubtype(Seq(
-      WomPairType(WomStringType, WomIntegerType),
-      WomPairType(WomIntegerType, WomStringType)
-    )) should be(WomPairType(WomStringType, WomStringType))
-  }
-
-  it should "choose a good optional type" in {
-    WomType.lowestCommonSubtype(Seq(
-      WomOptionalType(WomIntegerType),
-      WomOptionalType(WomStringType)
-    )) should be(WomOptionalType(WomStringType))
-  }
-
-  it should "support boxing into an optional type" in {
-    WomType.lowestCommonSubtype(Seq(
-      WomOptionalType(WomIntegerType),
-      WomStringType
-    )) should be(WomOptionalType(WomStringType))
-  }
-
-  it should "choose a good array type" in {
-    WomType.lowestCommonSubtype(Seq(
-      WomArrayType(WomOptionalType(WomIntegerType)),
-      WomArrayType(WomOptionalType(WomStringType))
-    )) should be(WomArrayType(WomOptionalType(WomStringType)))
-  }
-
-  it should "choose a good map type" in {
-    WomType.lowestCommonSubtype(Seq(
-      WomOptionalType(WomMapType(WomIntegerType, WomStringType)),
-      WomOptionalType(WomMapType(WomStringType, WomIntegerType)),
-    )) should be(WomOptionalType(WomMapType(WomStringType, WomStringType)))
-  }
-
-  it should "choose 'object' for lists of objects" in {
-    WomType.lowestCommonSubtype(Seq(
+  // Type A in, Type B in, expected results
+  val lcsTestCases: List[(List[WomType], WomType)] = List(
+    (List(WomIntegerType, WomStringType), WomStringType),
+    (List(WomPairType(WomStringType, WomIntegerType), WomPairType(WomIntegerType, WomStringType)), WomPairType(WomStringType, WomStringType)),
+    (List(WomOptionalType(WomIntegerType), WomOptionalType(WomStringType)), WomOptionalType(WomStringType)),
+    (List(WomOptionalType(WomIntegerType), WomStringType), WomOptionalType(WomStringType)),
+    (List(WomArrayType(WomOptionalType(WomIntegerType)), WomArrayType(WomOptionalType(WomStringType))), WomArrayType(WomOptionalType(WomStringType))),
+    (List(WomOptionalType(WomMapType(WomIntegerType, WomStringType)), WomOptionalType(WomMapType(WomStringType, WomIntegerType))), WomOptionalType(WomMapType(WomStringType, WomStringType))),
+    (List(
       WomCompositeType(Map(
         "i" -> WomIntegerType,
         "s" -> WomStringType
@@ -208,7 +177,17 @@ class WomTypeSpec extends FlatSpec with Matchers {
         "a" -> WomStringType,
         "b" -> WomIntegerType
       ))
-    )) should be(WomObjectType)
+    ), WomObjectType),
+    (List(WomIntegerType, WomFloatType), WomFloatType),
+    (List(WomIntegerType, WomBooleanType), WomStringType)
+  )
+
+  lcsTestCases foreach { case (types, expectedLcs) =>
+    it should s"choose ${expectedLcs.toDisplayString} as the lowest common subtype of [${types.map(_.toDisplayString).mkString(", ")}]" in {
+      WomType.lowestCommonSubtype(types) should be(expectedLcs)
+      WomType.lowestCommonSubtype(types.reverse) should be(expectedLcs)
+      WomType.lowestCommonSubtype(Random.shuffle(types)) should be(expectedLcs)
+    }
   }
 
 }

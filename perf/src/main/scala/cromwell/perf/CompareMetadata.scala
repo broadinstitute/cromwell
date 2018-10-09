@@ -22,49 +22,37 @@ import io.circe.java8.time.decodeOffsetDateTimeDefault
 object CompareMetadata extends App with StrictLogging{
   private  val REGRESSION_CONST = 1.1
 
-//  def downloadGcsMetadataFile(gcsUrl: String): Unit = {
-  ////    val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
-  ////    val fileToBeLocalized = gcsUrlArray(1)
-  ////    val gcsBucket = gcsUrlArray(0)
-  ////    val downloadLoc = "/metadata.json"
-  ////
-  ////    val credentials = GoogleCredentials.fromStream(new FileInputStream("/resources/cromwell-perf-service-account.json"))
-  ////    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
-  ////    val blob = storage.get(gcsBucket, fileToBeLocalized)
-  ////    val readChannel = blob.reader()
-  ////    Files.createDirectories(Paths.get(downloadLoc).getParent)
-  ////    val fileOuputStream = new FileOutputStream(downloadLoc)
-  ////    fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MaxValue)
-  ////    fileOuputStream.close()
-  ////
-  ////    println("/metadata.json")
-  ////    val outputFile = File("/metadata.json").contentAsString
-  ////    println(outputFile)
-  ////  }
 
-  def parseMetadataFromFile(filePath: String): Either[circe.Error, Metadata] = {
+  def parseMetadataFromLocalFile(filePath: String): Either[circe.Error, Metadata] = {
     val metadataFile = File(filePath)
     val metadataFileContent = metadataFile.contentAsString
 
     decode[Metadata](metadataFileContent)
   }
 
-  def parseGcsMetadataFile(gcsUrl: String, outputFile: String): Either[circe.Error, Metadata] = {
+  def parseMetadataFromGcsFile(gcsUrl: String, outputFile: String): Either[circe.Error, Metadata] = {
     val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
     val fileToBeLocalized = gcsUrlArray(1)
     val gcsBucket = gcsUrlArray(0)
     val downloadLoc = s"/" + outputFile
 
     val credentials = GoogleCredentials.fromStream(new FileInputStream("/resources/cromwell-perf-service-account.json"))
-    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
+    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
     val blob = storage.get(gcsBucket, fileToBeLocalized)
     val readChannel = blob.reader()
     Files.createDirectories(Paths.get(downloadLoc).getParent)
     val fileOuputStream = new FileOutputStream(downloadLoc)
-    fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MaxValue)
+    fileOuputStream.getChannel.transferFrom(readChannel, 0, Long.MaxValue)
     fileOuputStream.close()
 
-    parseMetadataFromFile(downloadLoc)
+    parseMetadataFromLocalFile(downloadLoc)
+  }
+
+
+  def parseMetadata(inputFile: String, outputFile: String): Either[circe.Error, Metadata] = {
+    if (inputFile.startsWith("gs://"))
+      parseMetadataFromGcsFile(inputFile, outputFile)
+    else parseMetadataFromLocalFile(inputFile)
   }
 
 
@@ -132,11 +120,8 @@ object CompareMetadata extends App with StrictLogging{
 
   args.length match {
     case 2 => {
-      val metadataOldEither = if (args(0).startsWith("gs://")) parseGcsMetadataFile(args(0), "metadataOld.json") else parseMetadataFromFile(args(0))
-      val metadataNewEither = if (args(1).startsWith("gs://")) parseGcsMetadataFile(args(1), "metadataNew.json") else parseMetadataFromFile(args(1))
-
-//      val metadataOldEither = parseMetadataFromFile(args(0))
-//      val metadataNewEither = parseMetadataFromFile(args(1))
+      val metadataOldEither = parseMetadata(args(0), "metadataOld.json")
+      val metadataNewEither = parseMetadata(args(1), "metadataNew.json")
 
       (metadataOldEither, metadataNewEither) match {
         case (Right(metadataOld), Right(metadataNew)) => {

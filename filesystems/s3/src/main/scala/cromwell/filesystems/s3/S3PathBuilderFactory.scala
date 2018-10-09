@@ -43,7 +43,6 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
 import software.amazon.awssdk.core.auth.AwsCredentials
-import software.amazon.awssdk.core.regions.Region
 
 // The constructor of this class is required to be Config, Config by cromwell
 // So, we need to take this config and get the AuthMode out of it
@@ -55,16 +54,15 @@ final case class S3PathBuilderFactory private(globalConfig: Config, instanceConf
   val authModeAsString: String = instanceConfig.as[String]("auth")
   val authModeValidation: ErrorOr[AwsAuthMode] = conf.auth(authModeAsString)
   val authMode = authModeValidation.unsafe(s"Failed to get authentication mode for $authModeAsString")
-  val storageRegion: Region = instanceConfig.as[Option[String]]("s3.storage-region").map(Region.of).getOrElse(Region.US_EAST_1)
 
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] = {
-    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration,  options, storageRegion)
+    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration,  options, conf.region)
   }
 
   // Ignores the authMode and creates an S3PathBuilder using the passed credentials directly.
   // Can be used when the Credentials are already available.
   def fromCredentials(options: WorkflowOptions, credentials: AwsCredentials): S3PathBuilder = {
-    S3PathBuilder.fromCredentials(credentials, S3Storage.DefaultConfiguration, options, storageRegion)
+    S3PathBuilder.fromCredentials(credentials, S3Storage.DefaultConfiguration, options, conf.region)
   }
 }
 

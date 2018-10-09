@@ -82,7 +82,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
     val conf = AwsConfiguration(ConfigFactory.parseString(righteousAwsConfig))
 
     conf.applicationName shouldBe "cromwell"
-    conf.region shouldBe "region"
+    conf.strRegion shouldBe "region"
     conf.authsByName should have size 4
 
     val auths = conf.authsByName.values
@@ -125,7 +125,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
          |""".stripMargin
 
     val conf = AwsConfiguration(ConfigFactory.parseString(config))
-    conf.region shouldBe "us-east-1"
+    conf.strRegion shouldBe "us-east-1"
   }
 
   it should "return a known auth" in {

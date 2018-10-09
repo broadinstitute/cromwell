@@ -72,20 +72,19 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // W
                              inputs: Set[AwsBatchInput],
                              outputs: Set[AwsBatchFileOutput],
                              jobPaths: JobPaths,                    // Based on config, calculated in Job Paths, key to all things outside container
-                             parameters: Seq[AwsBatchParameter]
+                             parameters: Seq[AwsBatchParameter],
+                             s3Region: Region
                              ) {
 
   val Log = LoggerFactory.getLogger(AwsBatchJob.getClass)
   // TODO: Auth, endpoint
   lazy val client = BatchClient.builder()
-    //TODO: setting this to get past batch job unit test, should be configured externally
-    .region(Region.US_EAST_1)
+    .region(s3Region)
                    // .credentialsProvider(...)
                    // .endpointOverride(...)
                    .build
   lazy val logsclient = CloudWatchLogsClient.builder()
-    //TODO: setting this to get past batch job unit test, should be configured externally
-    .region(Region.US_EAST_1)
+    .region(s3Region)
                    // .credentialsProvider(...)
                    // .endpointOverride(...)
                    .build

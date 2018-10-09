@@ -39,15 +39,14 @@ import com.typesafe.config.{Config, ConfigException}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
-
-import cromwell.cloudsupport.aws.auth.{AwsAuthMode, CustomKeyMode, DefaultMode, AssumeRoleMode}
-
+import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, AwsAuthMode, CustomKeyMode, DefaultMode}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
+import software.amazon.awssdk.core.regions.Region
 
 final case class AwsConfiguration private (applicationName: String,
                                            authsByName: Map[String, AwsAuthMode],
-                                           region: String) {
+                                           strRegion: String) {
 
   def auth(name: String): ErrorOr[AwsAuthMode] = {
     authsByName.get(name) match {
@@ -57,6 +56,8 @@ final case class AwsConfiguration private (applicationName: String,
       case Some(a) => a.validNel
     }
   }
+
+  def region: Region = Region.of(strRegion)
 }
 
 object AwsConfiguration {

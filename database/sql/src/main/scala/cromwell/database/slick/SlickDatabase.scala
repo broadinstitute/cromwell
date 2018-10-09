@@ -107,7 +107,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   protected[this] def streamTransaction[R, T](action: StreamingDBIO[R, T]): DatabasePublisher[T] = {
     database.stream(
       action
-        .withStatementParameters(rsType = ResultSetType.ForwardOnly, rsConcurrency = ResultSetConcurrency.ReadOnly, fetchSize = Integer.MIN_VALUE)
+        .withStatementParameters(rsType = ResultSetType.ForwardOnly, rsConcurrency = ResultSetConcurrency.ReadOnly, fetchSize = 50000)
         .transactionally,
       bufferNext = true
     )

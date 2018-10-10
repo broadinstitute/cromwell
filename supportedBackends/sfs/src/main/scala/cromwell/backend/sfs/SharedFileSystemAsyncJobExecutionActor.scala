@@ -17,6 +17,12 @@ import scala.util.{Failure, Success, Try}
 
 case class SharedFileSystemRunStatus(status: String, date: Calendar) {
   override def toString: String = status
+
+  def experired(timeoutSeconds: Int): Boolean = {
+    val currentDate = Calendar.getInstance()
+    currentDate.add(Calendar.SECOND, -timeoutSeconds)
+    this.date.after(currentDate)
+  }
 }
 
 object SharedFileSystemRunStatus {

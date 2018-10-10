@@ -1,8 +1,6 @@
 package cromwell.backend.impl.sfs.config
 
 import java.io.PrintWriter
-import java.lang.IllegalArgumentException
-import java.util.Calendar
 
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
@@ -268,12 +266,16 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         SharedFileSystemRunStatus("Done")
       case Some(s) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
-        if (exitCodeTimeout.isEmpty) s
-        else if (isAlive(handle.pendingJob).fold({ e =>
-          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
-          true
-        }, x => x)) s
-        else SharedFileSystemRunStatus("WaitingForReturnCode")
+        exitCodeTimeout match {
+          case Some(timeout) =>
+            if (s.experired(timeout)) s
+            else if (isAlive(handle.pendingJob).fold({ e =>
+              log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
+              true
+            }, x => x)) SharedFileSystemRunStatus("Running")
+            else SharedFileSystemRunStatus("WaitingForReturnCode")
+          case _ => SharedFileSystemRunStatus("Running")
+        }
       case Some(s) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore
         // `isAlive` is not called anymore from this point
@@ -281,9 +283,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
         exitCodeTimeout match {
           case Some(timeout) =>
-            val currentDate = Calendar.getInstance()
-            currentDate.add(Calendar.SECOND, -timeout)
-            if (s.date.after(currentDate)) s
+            if (s.experired(timeout)) s
             else {
               jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
               val writer = new PrintWriter(jobPaths.returnCode.toFile)

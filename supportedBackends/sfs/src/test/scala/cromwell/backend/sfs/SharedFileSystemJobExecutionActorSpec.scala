@@ -90,8 +90,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val symConf = templateConf("soft-link")
     val copyConf = templateConf("copy")
 
-    val jsonInputFile = createCannedFile("localize", "content from json inputs")
-    val callInputFile = createCannedFile("localize", "content from call inputs")
+    val jsonInputFile = createCannedFile("localize", "content from json inputs", Option(DefaultPathBuilder.build(".").get))
+    val callInputFile = createCannedFile("localize", "content from call inputs", Option(DefaultPathBuilder.build(".").get))
     val inputs = Option(s"""{
       "wf_localize.workflowFile": "${callInputFile.pathAsString}",
       "wf_localize.localize.inputFileFromJson": "${jsonInputFile.pathAsString}"
@@ -134,7 +134,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, conf.backendConfig)
 
-      whenReady(backend.execute) { executionResponse =>
+      whenReady(backend.execute/*, Timeout.apply()*/) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
         val localizedJsonInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, jsonInputFile.parent.pathAsString.hashCode.toString + "/" + jsonInputFile.name)
         val localizedCallInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, callInputFile.parent.pathAsString.hashCode.toString + "/" + callInputFile.name)
@@ -293,7 +293,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     testWorkflow(workflow, backend)
   }
 
-  def createCannedFile(prefix: String, contents: String): Path = {
-    DefaultPathBuilder.createTempFile(prefix, ".out").write(contents)
+  def createCannedFile(prefix: String, contents: String, parent: Option[Path] = None): Path = {
+    DefaultPathBuilder.createTempFile(prefix, ".out", parent).write(contents)
   }
 }

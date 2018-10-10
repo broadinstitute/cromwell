@@ -12,8 +12,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.circe
 import io.circe.generic.auto._
 import io.circe.parser._
-import java.io.{FileInputStream, FileOutputStream}
-import java.nio.file.{Files, Paths}
+import java.io.FileInputStream
 
 // Do not remove this unused import
 // If removed, circe parser fails to find implicit decoder for OffsetDateTime, and parsing fails
@@ -30,28 +29,23 @@ object CompareMetadata extends App with StrictLogging{
     decode[Metadata](metadataFileContent)
   }
 
-  def parseMetadataFromGcsFile(gcsUrl: String, outputFile: String): Either[circe.Error, Metadata] = {
+  def parseMetadataFromGcsFile(gcsUrl: String): Either[circe.Error, Metadata] = {
     val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
     val fileToBeLocalized = gcsUrlArray(1)
     val gcsBucket = gcsUrlArray(0)
-    val downloadLoc = s"/" + outputFile
 
     val credentials = GoogleCredentials.fromStream(new FileInputStream("/resources/cromwell-perf-service-account.json"))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
     val blob = storage.get(gcsBucket, fileToBeLocalized)
-    val readChannel = blob.reader()
-    Files.createDirectories(Paths.get(downloadLoc).getParent)
-    val fileOuputStream = new FileOutputStream(downloadLoc)
-    fileOuputStream.getChannel.transferFrom(readChannel, 0, Long.MaxValue)
-    fileOuputStream.close()
+    val metadataFileContent = new String(blob.getContent())
 
-    parseMetadataFromLocalFile(downloadLoc)
+    decode[Metadata](metadataFileContent)
   }
 
 
-  def parseMetadata(inputFile: String, outputFile: String): Either[circe.Error, Metadata] = {
+  def parseMetadata(inputFile: String): Either[circe.Error, Metadata] = {
     if (inputFile.startsWith("gs://"))
-      parseMetadataFromGcsFile(inputFile, outputFile)
+      parseMetadataFromGcsFile(inputFile)
     else parseMetadataFromLocalFile(inputFile)
   }
 
@@ -120,8 +114,8 @@ object CompareMetadata extends App with StrictLogging{
 
   args.length match {
     case 2 => {
-      val metadataOldEither = parseMetadata(args(0), "metadataOld.json")
-      val metadataNewEither = parseMetadata(args(1), "metadataNew.json")
+      val metadataOldEither = parseMetadata(args(0))
+      val metadataNewEither = parseMetadata(args(1))
 
       (metadataOldEither, metadataNewEither) match {
         case (Right(metadataOld), Right(metadataNew)) => {

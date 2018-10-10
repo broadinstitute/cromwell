@@ -8,7 +8,8 @@ import akka.stream.ActorMaterializer
 import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
-import cromwell.webservice.{CromwellApiService, SwaggerService}
+import cromwell.webservice.SwaggerService
+import cromwell.webservice.routes.CromwellApiService
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}

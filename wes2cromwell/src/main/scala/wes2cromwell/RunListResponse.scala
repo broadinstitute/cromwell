@@ -11,7 +11,7 @@ object RunListResponse {
 
     val jsonAst = JsonParser(json)
     val queryResults = jsonAst.convertTo[CromwellQueryResults]
-    val runs = queryResults.results.toList.map(q => WesRunStatus(q.id.toString, q.status.toString))
+    val runs = queryResults.results.toList.map(q => WesRunStatus(q.id.toString,  WesState.fromCromwellStatus(q.status.toString)))
     RunListResponse(runs, "Not Yet Implemented") // FIXME: paging is still a known sore spot
   }
 }

@@ -7,6 +7,7 @@ import spray.json.JsString
 import wom.values._
 
 import scala.runtime.ScalaRunTime
+import scala.util.Random
 
 class WomTypeSpec extends FlatSpec with Matchers {
   "WomType class" should "stringify WomBoolean to 'Boolean'" in {
@@ -156,4 +157,37 @@ class WomTypeSpec extends FlatSpec with Matchers {
     ("Pair[Int, String]", WomPairType(WomIntegerType, WomStringType)),
     ("Pair[Array[Int], String]", WomPairType(WomArrayType(WomIntegerType), WomStringType))
   )
+
+  behavior of "lowestCommonSubtype"
+
+  // Type A in, Type B in, expected results
+  val lcsTestCases: List[(List[WomType], WomType)] = List(
+    (List(WomIntegerType, WomStringType), WomStringType),
+    (List(WomPairType(WomStringType, WomIntegerType), WomPairType(WomIntegerType, WomStringType)), WomPairType(WomStringType, WomStringType)),
+    (List(WomOptionalType(WomIntegerType), WomOptionalType(WomStringType)), WomOptionalType(WomStringType)),
+    (List(WomOptionalType(WomIntegerType), WomStringType), WomOptionalType(WomStringType)),
+    (List(WomArrayType(WomOptionalType(WomIntegerType)), WomArrayType(WomOptionalType(WomStringType))), WomArrayType(WomOptionalType(WomStringType))),
+    (List(WomOptionalType(WomMapType(WomIntegerType, WomStringType)), WomOptionalType(WomMapType(WomStringType, WomIntegerType))), WomOptionalType(WomMapType(WomStringType, WomStringType))),
+    (List(
+      WomCompositeType(Map(
+        "i" -> WomIntegerType,
+        "s" -> WomStringType
+      )),
+      WomCompositeType(Map(
+        "a" -> WomStringType,
+        "b" -> WomIntegerType
+      ))
+    ), WomObjectType),
+    (List(WomIntegerType, WomFloatType), WomFloatType),
+    (List(WomIntegerType, WomBooleanType), WomStringType)
+  )
+
+  lcsTestCases foreach { case (types, expectedLcs) =>
+    it should s"choose ${expectedLcs.toDisplayString} as the lowest common subtype of [${types.map(_.toDisplayString).mkString(", ")}]" in {
+      WomType.lowestCommonSubtype(types) should be(expectedLcs)
+      WomType.lowestCommonSubtype(types.reverse) should be(expectedLcs)
+      WomType.lowestCommonSubtype(Random.shuffle(types)) should be(expectedLcs)
+    }
+  }
+
 }

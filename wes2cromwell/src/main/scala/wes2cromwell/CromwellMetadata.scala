@@ -74,7 +74,7 @@ final case class CromwellMetadata(workflowName: Option[String],
     WesRunLog(
       run_id = id,
       request = workflowRequest,
-      state = WesState.fromCromwellState(status),
+      state = WesState.fromCromwellStatus(status),
       run_log = Option(workflowLogData),
       task_logs = Option(taskLogs),
       outputs = outputs

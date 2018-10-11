@@ -46,7 +46,7 @@ import software.amazon.awssdk.core.regions.Region
 
 final case class AwsConfiguration private (applicationName: String,
                                            authsByName: Map[String, AwsAuthMode],
-                                           strRegion: String) {
+                                           strRegion: Option[String]) {
 
   def auth(name: String): ErrorOr[AwsAuthMode] = {
     authsByName.get(name) match {
@@ -57,7 +57,7 @@ final case class AwsConfiguration private (applicationName: String,
     }
   }
 
-  def region: Region = Region.of(strRegion)
+  def region: Option[Region] = strRegion.map(Region.of)
 }
 
 object AwsConfiguration {
@@ -79,17 +79,12 @@ object AwsConfiguration {
 
     val appName = validate { awsConfig.as[String]("application-name") }
 
-    val region = validate {
-      (awsConfig.getAs[String]("region")) match {
-        case Some(region) => region
-        case _ => "us-east-1"
-      }
-    }
-    val regionStr = region.getOrElse("us-east-1")
+    val region: Option[String] =
+      awsConfig.getAs[String]("region")
 
     def buildAuth(authConfig: Config): ErrorOr[AwsAuthMode] = {
 
-      def customKeyAuth(authConfig: Config, name: String, region: String): ErrorOr[AwsAuthMode] = validate {
+      def customKeyAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] = validate {
         (authConfig.getAs[String]("access-key"), authConfig.getAs[String]("secret-key")) match {
           case (Some(accessKey), Some(secretKey)) =>
             CustomKeyMode(name, accessKey, secretKey, region)
@@ -99,11 +94,11 @@ object AwsConfiguration {
         }
       }
 
-      def defaultAuth(authConfig: Config, name: String, region: String): ErrorOr[AwsAuthMode] =  validate {
+      def defaultAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] =  validate {
         DefaultMode(name, region)
       }
 
-      def assumeRoleAuth(authConfig: Config, name: String, region: String): ErrorOr[AwsAuthMode] = validate {
+      def assumeRoleAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] = validate {
         val externalId = authConfig.hasPath("external-id") match {
           case true => authConfig.getString("external-id")
           case _ => ""
@@ -122,9 +117,9 @@ object AwsConfiguration {
       val scheme = authConfig.getString("scheme")
 
       scheme match {
-        case "default" => defaultAuth(authConfig, name, regionStr)
-        case "custom_keys" => customKeyAuth(authConfig, name, regionStr)
-        case "assume_role" => assumeRoleAuth(authConfig, name, regionStr)
+        case "default" => defaultAuth(authConfig, name, region)
+        case "custom_keys" => customKeyAuth(authConfig, name, region)
+        case "assume_role" => assumeRoleAuth(authConfig, name, region)
         case wut => s"Unsupported authentication scheme: $wut".invalidNel
       }
     }
@@ -162,7 +157,7 @@ object AwsConfiguration {
       }
     }
 
-    (appName, errorOrAuthList, region).flatMapN { (name, list, region) =>
+    (appName, errorOrAuthList).flatMapN { (name, list) =>
       uniqueAuthNames(list) map { _ =>
         AwsConfiguration(name, list map { a => a.name -> a } toMap, region)
       }

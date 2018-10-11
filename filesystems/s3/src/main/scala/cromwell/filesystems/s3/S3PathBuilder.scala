@@ -112,7 +112,7 @@ object S3PathBuilder {
   def fromAuthMode(authMode: AwsAuthMode,
                    configuration: S3AdvancedConfiguration,
                    options: WorkflowOptions,
-                   storageRegion: Region)(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
+                   storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
     val credentials = authMode.credential((key: String) => options.get(key).get)
 
     // Other backends needed retry here. In case we need retry, we'll return
@@ -127,7 +127,7 @@ object S3PathBuilder {
   def fromCredentials(credentials: AwsCredentials,
                       configuration: S3AdvancedConfiguration,
                       options: WorkflowOptions,
-                      storageRegion: Region): S3PathBuilder = {
+                      storageRegion: Option[Region]): S3PathBuilder = {
     new S3PathBuilder(S3Storage.s3Client(credentials, storageRegion), configuration)
   }
 }

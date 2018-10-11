@@ -50,15 +50,15 @@ object S3Storage {
       .build
   }
 
-  def s3Client(configuration: S3AdvancedConfiguration, credentials: AwsCredentials, region: Region): S3Client = {
-    S3Client.builder
+  def s3Client(configuration: S3AdvancedConfiguration, credentials: AwsCredentials, region: Option[Region]): S3Client = {
+    val builder = S3Client.builder
       .advancedConfiguration(configuration)
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
-      .region(region)
-      .build
+      region.foreach(builder.region)
+      builder.build
   }
 
-  def s3Client(credentials: AwsCredentials, region: Region): S3Client = {
+  def s3Client(credentials: AwsCredentials, region: Option[Region]): S3Client = {
     s3Client(s3AdvancedConfiguration(), credentials, region)
   }
 

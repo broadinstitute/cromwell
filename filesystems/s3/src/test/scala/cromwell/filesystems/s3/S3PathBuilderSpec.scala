@@ -51,7 +51,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       AnonymousCredentialsProvider.create.getCredentials,
       S3Storage.s3AdvancedConfiguration(),
       wfOptionsWithProject,
-      Region.AP_NORTHEAST_1
+      Some(Region.US_EAST_1)
     )
   }
 
@@ -385,7 +385,7 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
       AnonymousCredentialsProvider.create.getCredentials,
       S3Storage.s3AdvancedConfiguration(),
       WorkflowOptions.empty,
-      Region.AP_NORTHEAST_1
+      Some(Region.US_EAST_1)
     )
   }
 }

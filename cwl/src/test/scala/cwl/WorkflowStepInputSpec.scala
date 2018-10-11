@@ -72,7 +72,7 @@ object WorkflowStepInputSpec extends Properties("WorkflowStepInput") {
     WorkflowStepInput.determineMergeType(Map("s#in" -> WomBooleanType, "s#in2" -> WomIntegerType),
       Option(LinkMergeMethod.MergeFlattened),
       None, hasDefault = false
-    ) == Right(WomAnyType)
+    ) == Right(WomStringType)
   }
 }
 

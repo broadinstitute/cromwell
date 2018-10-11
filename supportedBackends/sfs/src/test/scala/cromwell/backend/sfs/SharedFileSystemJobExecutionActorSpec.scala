@@ -134,7 +134,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
       val jobPaths = JobPathsWithDocker(jobDescriptor.key, workflowDescriptor, conf.backendConfig)
 
-      whenReady(backend.execute/*, Timeout.apply()*/) { executionResponse =>
+      whenReady(backend.execute) { executionResponse =>
         assertResponse(executionResponse, expectedResponse)
         val localizedJsonInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, jsonInputFile.parent.pathAsString.hashCode.toString + "/" + jsonInputFile.name)
         val localizedCallInputFile = DefaultPathBuilder.get(jobPaths.callInputsRoot.pathAsString, callInputFile.parent.pathAsString.hashCode.toString + "/" + callInputFile.name)

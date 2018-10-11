@@ -35,7 +35,7 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
         workflowSource,
         source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
         source.workflowRoot,
-        Option(workflowIdForLogging.toString)
+        "cwl_temp_file_" + workflowIdForLogging.toString
       )
       executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson), ioFunctions, strictValidation))
       validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions))

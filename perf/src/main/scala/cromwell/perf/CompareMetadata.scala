@@ -21,7 +21,6 @@ import io.circe.java8.time.decodeOffsetDateTimeDefault
 object CompareMetadata extends App with StrictLogging{
   private  val REGRESSION_CONST = 1.1
 
-
   def parseMetadataFromLocalFile(filePath: String): Either[circe.Error, Metadata] = {
     val metadataFile = File(filePath)
     val metadataFileContent = metadataFile.contentAsString
@@ -29,12 +28,13 @@ object CompareMetadata extends App with StrictLogging{
     decode[Metadata](metadataFileContent)
   }
 
-  def parseMetadataFromGcsFile(gcsUrl: String): Either[circe.Error, Metadata] = {
+
+  def parseMetadataFromGcsFile(gcsUrl: String, pathToServiceAccount: String): Either[circe.Error, Metadata] = {
     val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
     val fileToBeLocalized = gcsUrlArray(1)
     val gcsBucket = gcsUrlArray(0)
 
-    val credentials = GoogleCredentials.fromStream(new FileInputStream("/resources/cromwell-perf-service-account.json"))
+    val credentials = GoogleCredentials.fromStream(new FileInputStream(pathToServiceAccount))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
     val blob = storage.get(gcsBucket, fileToBeLocalized)
     val metadataFileContent = new String(blob.getContent())
@@ -43,9 +43,9 @@ object CompareMetadata extends App with StrictLogging{
   }
 
 
-  def parseMetadata(inputFile: String): Either[circe.Error, Metadata] = {
+  def parseMetadata(inputFile: String, pathToServiceAccount: String): Either[circe.Error, Metadata] = {
     if (inputFile.startsWith("gs://"))
-      parseMetadataFromGcsFile(inputFile)
+      parseMetadataFromGcsFile(inputFile, pathToServiceAccount)
     else parseMetadataFromLocalFile(inputFile)
   }
 
@@ -112,34 +112,41 @@ object CompareMetadata extends App with StrictLogging{
   }
 
 
-  args.length match {
-    case 2 => {
-      val metadataOldEither = parseMetadata(args(0))
-      val metadataNewEither = parseMetadata(args(1))
-
-      (metadataOldEither, metadataNewEither) match {
-        case (Right(metadataOld), Right(metadataNew)) => {
-          val metadataOldMsg = s"Metrics for metadata generated from ${args(0)}"
-          val metadataNewMsg = s"\nMetrics for metadata generated from ${args(1)}"
-          displayComputedMetrics(metadataOld, metadataOldMsg)
-          displayComputedMetrics(metadataNew, metadataNewMsg)
-          compareMetadataMetrics(metadataOld, metadataNew) match {
-            case Valid(_) => logger.info("\nYAY!! Metrics from new metadata json haven't regressed!")
-            case Invalid(listOfErrors) => {
-              logger.error("\nBelow metadata metrics have regressed:")
-              logger.error(listOfErrors.toList.mkString("\n"))
-              System.exit(1)
-            }
+  def generateAndCompareMetrics(metadataOldEither: Either[circe.Error, Metadata], metadataNewEither: Either[circe.Error, Metadata]): Unit = {
+    (metadataOldEither, metadataNewEither) match {
+      case (Right(metadataOld), Right(metadataNew)) => {
+        val metadataOldMsg = s"Metrics for metadata generated from ${args(0)}"
+        val metadataNewMsg = s"\nMetrics for metadata generated from ${args(1)}"
+        displayComputedMetrics(metadataOld, metadataOldMsg)
+        displayComputedMetrics(metadataNew, metadataNewMsg)
+        compareMetadataMetrics(metadataOld, metadataNew) match {
+          case Valid(_) => logger.info("\nYAY!! Metrics from new metadata json haven't regressed!")
+          case Invalid(listOfErrors) => {
+            logger.error("\nBelow metadata metrics have regressed:")
+            logger.error(listOfErrors.toList.mkString("\n"))
+            System.exit(1)
           }
         }
-        case (Right(_), Left(e)) => printParseErrorToConsoleAndExit(args(1), e, systemExit = true)
-        case (Left(e), Right(_)) => printParseErrorToConsoleAndExit(args(0), e, systemExit = true)
-        case (Left(e1), Left(e2)) => {
-          printParseErrorToConsoleAndExit(args(0), e1, systemExit = false)
-          printParseErrorToConsoleAndExit(args(1), e2, systemExit = true)
-        }
+      }
+      case (Right(_), Left(e)) => printParseErrorToConsoleAndExit(args(1), e, systemExit = true)
+      case (Left(e), Right(_)) => printParseErrorToConsoleAndExit(args(0), e, systemExit = true)
+      case (Left(e1), Left(e2)) => {
+        printParseErrorToConsoleAndExit(args(0), e1, systemExit = false)
+        printParseErrorToConsoleAndExit(args(1), e2, systemExit = true)
       }
     }
+  }
+
+
+  args.length match {
+    case 2 => {
+      if (args(0).startsWith("gs://") || args(1).startsWith("gs://")) {
+        logger.error("Path to service account is needed to download GCS file. Please pass it as 3rd argument.")
+        System.exit(1)
+      }
+      else generateAndCompareMetrics(parseMetadataFromLocalFile(args(0)), parseMetadataFromLocalFile(args(1)))
+    }
+    case 3 => generateAndCompareMetrics(parseMetadata(args(0), args(2)), parseMetadata(args(1), args(2)))
     case _ => {
       logger.error("Please pass in 2 file paths!")
       System.exit(1)

@@ -27,10 +27,9 @@ trait RequestSupport {
   }
 
   def extractUserAndRequest: Directive[(User, HttpRequest)] = {
-    extractUser flatMap { user =>
-      extractStrictRequest flatMap { request =>
-        tprovide((user, request))
-      }
-    }
+    for {
+      user <- extractUser
+      request <- extractStrictRequest
+    } yield (user, request)
   }
 }

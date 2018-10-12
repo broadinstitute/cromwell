@@ -37,7 +37,7 @@ object CompareMetadata extends App with StrictLogging{
     val credentials = GoogleCredentials.fromStream(new FileInputStream(pathToServiceAccount))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
     val blob = storage.get(gcsBucket, fileToBeLocalized)
-    val metadataFileContent = new String(blob.getContent())
+    val metadataFileContent = blob.getContent().map(_.toChar).mkString
 
     decode[Metadata](metadataFileContent)
   }

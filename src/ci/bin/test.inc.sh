@@ -306,7 +306,7 @@ cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
     CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
     CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_LOG_DIRECTORY}/cwl_conformance_test.out.txt"
-    CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
+    CROMWELL_BUILD_CWL_TEST_PARALLELISM=8 # Set too high will cause false negatives due to cromwell server timeouts.
 
     export CROMWELL_BUILD_CWL_TOOL_VERSION
     export CROMWELL_BUILD_CWL_TEST_VERSION
@@ -398,7 +398,7 @@ cromwell::private::write_cwl_test_inputs() {
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 600
+    "cwl_conformance_test.timeout": 720
 }
 JSON
 }

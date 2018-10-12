@@ -1,4 +1,4 @@
-name: cwl_relative_imports_zip
+name: cwl_relative_imports_url
 testFormat: workflowsuccess
 
 files {

@@ -137,7 +137,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val jobPaths = AwsBatchJobPaths(workflowPaths, jobKey)
     val job = AwsBatchJob(null, null, "commandLine", script,
-      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet, jobPaths, Seq.empty[AwsBatchParameter])
+      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet, jobPaths, Seq.empty[AwsBatchParameter], None)
 
     job.reconfiguredScript should be(expectedscript)
   }

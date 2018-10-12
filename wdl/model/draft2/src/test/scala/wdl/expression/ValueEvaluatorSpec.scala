@@ -2,6 +2,7 @@ package wdl.expression
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.model
 import wdl.draft2.model.WdlExpression
 import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wdl.shared.FileSizeLimitationConfig
@@ -570,5 +571,24 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     val evaluated = exp.evaluate(lookup, NoFunctions)
     evaluated.isSuccess shouldBe true
     evaluated.get.womType shouldBe WomMapType(WomStringType, WomOptionalType(WomStringType))
+  }
+
+  it should "evaluate a map literal with values of String? and Int? into a Map[String, String?]" in {
+    val str = """ { "i": i_in, "s": s_in } """
+    val lookup = Map(
+      "i_in" -> WomOptionalValue(WomIntegerType, Some(WomInteger(1))),
+      "s_in" -> WomOptionalValue(WomStringType, Some(WomString("two")))
+    )
+    val exp = model.WdlExpression.fromString(str)
+
+    val expectedMap: WomMap = WomMap(WomMapType(WomStringType, WomOptionalType(WomStringType)), Map (
+      WomString("i") -> WomOptionalValue(WomStringType, Some(WomString("1"))),
+      WomString("s") -> WomOptionalValue(WomStringType, Some(WomString("two")))
+    ))
+
+    val evaluated = exp.evaluate(lookup, NoFunctions)
+
+    evaluated.isSuccess should be(true)
+    evaluated.get should be(expectedMap)
   }
 }

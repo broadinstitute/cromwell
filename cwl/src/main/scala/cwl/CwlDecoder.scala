@@ -50,10 +50,10 @@ object CwlDecoder {
       parsedCwl <- parseJson(standaloneWorkflow, fileName)
     } yield parsedCwl
 
-  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {
+  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None, cwlFilename: String = "cwl_temp_file"): Parse[Cwl] = {
     for {
-      parentDir <- goParse(BFile.newTemporaryDirectory("cwl.temp."))
-      file <- fromEither[IO](BFile.newTemporaryFile("temp.", ".cwl", Option(parentDir)).write(cwl).asRight)
+      parentDir <- goParse(BFile.newTemporaryDirectory("cwl_temp_dir_")) // has a random long appended like `cwl_temp_dir_100000000000`
+      file <- fromEither[IO](parentDir./(cwlFilename + ".cwl").write(cwl).asRight) // serves as the basis for the output directory name; must remain stable across restarts
       _ <- zipOption match {
         case Some(zip) => goParse(zip.unzipTo(parentDir))
         case None => Monad[Parse].unit

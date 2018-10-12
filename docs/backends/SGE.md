@@ -225,3 +225,7 @@ backend {
 ```
 
 The `job-id-regex` should contain one capture group while matching against the whole line or stdout file. The `check-alive` should return zero if the job is still alive.
+
+### Exit code
+
+See also [HPC - Exit code timeout](HPC#Exit-code-timeout)

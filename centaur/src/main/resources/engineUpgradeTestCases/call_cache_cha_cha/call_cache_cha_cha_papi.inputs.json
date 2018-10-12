@@ -1,0 +1,5 @@
+{
+  "call_cache_cha_cha.modify_file_command_prefix": "echo \"override\" | gsutil cp -",
+  "call_cache_cha_cha.modify_file_using_cloud": true,
+  "call_cache_cha_cha.modify_file_docker": "google/cloud-sdk"
+}

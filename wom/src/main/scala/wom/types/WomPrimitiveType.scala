@@ -1,6 +1,7 @@
 package wom.types
 
 trait WomPrimitiveType extends WomType {
+
   lazy val coercionMap: Map[WomType, Seq[WomType]] = Map(
     // From type -> To type
     WomAnyType -> Seq(WomStringType, WomIntegerType, WomFloatType, WomSingleFileType, WomBooleanType),

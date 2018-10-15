@@ -322,7 +322,7 @@ trait CromwellApiService extends HttpInstrumentation {
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }
   }
-
+//foo
   private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
 
   private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {

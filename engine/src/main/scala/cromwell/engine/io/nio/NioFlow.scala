@@ -6,9 +6,9 @@ import java.nio.charset.StandardCharsets
 import akka.actor.Scheduler
 import akka.stream.scaladsl.Flow
 import cats.effect.IO
+import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
-import cromwell.core.retry.IORetry
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.gcs.GcsPath

@@ -9,8 +9,9 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.client.util.ExponentialBackOff
 import com.google.cloud.storage.StorageException
+import common.util.Backoff
 import cromwell.core.io.SingleFileIoCommand
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.io.IoActor.IoResult
 import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
 import cromwell.engine.io.{IoActor, IoCommandContext}

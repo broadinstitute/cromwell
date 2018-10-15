@@ -2,16 +2,10 @@ package cromwell.core.retry
 
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.config.Config
+import common.util.Backoff
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-
-trait Backoff {
-  /** Next interval in millis */
-  def backoffMillis: Long
-  /** Get the next instance of backoff. This should be called after every call to backoffMillis */
-  def next: Backoff
-}
 
 object InitialGapBackoff {
   def apply(initialGap: FiniteDuration, initialInterval: FiniteDuration, maxInterval: FiniteDuration, multiplier: Double) = {

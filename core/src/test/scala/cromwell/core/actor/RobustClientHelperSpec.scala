@@ -2,9 +2,10 @@ package cromwell.core.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import common.util.Backoff
 import cromwell.core.TestKitSuite
 import cromwell.core.actor.StreamIntegration.BackPressure
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._

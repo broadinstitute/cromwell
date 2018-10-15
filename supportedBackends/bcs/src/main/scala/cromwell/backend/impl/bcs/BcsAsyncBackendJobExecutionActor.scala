@@ -35,7 +35,9 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
   override type StandardAsyncRunInfo = BcsJob
 
-  override type StandardAsyncRunStatus = RunStatus
+  override type StandardAsyncRunState = RunStatus
+
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
@@ -295,7 +297,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
     for {
       jobId <- Future.fromTry(bcsJob.submit())
-    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobId), Option(bcsJob), previousStatus = None)
+    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(jobId), Option(bcsJob), previousState = None)
   }
 
   override def recoverAsync(jobId: StandardAsyncJob) = executeAsync()

@@ -1,6 +1,7 @@
 package cromwell.core.path
 
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import common.util.Backoff
+import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration._

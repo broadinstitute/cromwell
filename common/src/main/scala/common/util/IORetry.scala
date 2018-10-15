@@ -1,4 +1,4 @@
-package cromwell.core.retry
+package common.util
 
 import cats.effect.{IO, Timer}
 
@@ -7,6 +7,12 @@ import scala.util.control.NonFatal
 
 object IORetry {
   def noOpOnRetry[S]: (Throwable, S) => S = (_, s) => s
+  
+  object StatefulIoError {
+    def noop[S] = new StatefulIoError[S] {
+      override def toThrowable(state: S, throwable: Throwable) = throwable
+    }
+  }
 
   /**
     * When we reach a point where we need to fail the IO (because we ran out of retries, or exception was fatal etc...)
@@ -24,10 +30,10 @@ object IORetry {
   def withRetry[A, S](io: IO[A],
                       state: S,
                       maxRetries: Option[Int],
-                      backoff: Backoff = SimpleExponentialBackoff(5.seconds, 10.seconds, 1.1D),
+                      backoff: Backoff,
                       isTransient: Throwable => Boolean = throwableToFalse,
                       isFatal: Throwable => Boolean = throwableToFalse,
-                      onRetry: (Throwable, S) => S = noOpOnRetry)
+                      onRetry: (Throwable, S) => S = noOpOnRetry[S])
                      (implicit timer: Timer[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
     lazy val delay = backoff.backoffMillis.millis
 

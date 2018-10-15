@@ -112,6 +112,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
+            CROMWELL_BUILD_SPAN_SCALE_FACTOR="15"
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
@@ -398,7 +399,7 @@ cromwell::private::write_cwl_test_inputs() {
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 600
+    "cwl_conformance_test.timeout": 1200
 }
 JSON
 }

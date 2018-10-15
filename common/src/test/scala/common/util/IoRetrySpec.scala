@@ -1,13 +1,13 @@
-package cromwell.core.retry
+package common.util
 
 import cats.effect.IO
-import cromwell.core.TestKitSuite
-import cromwell.core.retry.IORetry.StatefulIoError
-import org.scalatest.{FlatSpecLike, Matchers}
+import common.util.IORetry.StatefulIoError
+import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-class IoRetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matchers {
+
+class IoRetrySpec extends FlatSpec with Matchers {
   implicit val timer = IO.timer(ExecutionContext.global)
   implicit val ioError = new StatefulIoError[Int] {
     override def toThrowable(state: Int, throwable: Throwable) = new Exception(s"Attempted $state times", throwable)
@@ -25,7 +25,7 @@ class IoRetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matc
     }
 
     val incrementOnRetry: (Throwable, Int) => Int = (_, s) => s + 1
-    val io = IORetry.withRetry(work, 1, Option(3), backoff = SimpleExponentialBackoff(5.millis, 10.millis, 1D), onRetry = incrementOnRetry)
+    val io = IORetry.withRetry(work, 1, Option(3), backoff = Backoff.staticBackoff(10.millis), onRetry = incrementOnRetry)
     val statefulException = the[Exception] thrownBy io.unsafeRunSync()
     statefulException.getCause shouldBe exception
     statefulException.getMessage shouldBe "Attempted 3 times"

@@ -58,7 +58,9 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
 
     executableIO.value.unsafeRunSync() match {
       case Right(value) => WomBundle(Option(value.entryPoint), Map.empty, Map.empty).validNelCheck
-      case _ => ???
+      case Left(errors) =>
+        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+        throw new Exception(formattedErrors)
     }
 
   }

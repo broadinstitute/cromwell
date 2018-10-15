@@ -31,8 +31,7 @@ object CompareMetadata extends App with StrictLogging{
 
   def parseMetadataFromGcsFile(gcsUrl: String, pathToServiceAccount: String): Either[circe.Error, Metadata] = {
     val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
-    val fileToBeLocalized = gcsUrlArray(1)
-    val gcsBucket = gcsUrlArray(0)
+    val Array(gcsBucket, fileToBeLocalized) = gcsUrlArray
 
     val credentials = GoogleCredentials.fromStream(new FileInputStream(pathToServiceAccount))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService

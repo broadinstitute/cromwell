@@ -1,8 +1,5 @@
 package cromwell.webservice.metadata
 
-import cats.instances.list._
-import cats.instances.map._
-import cats.syntax.foldable._
 import cats.{Monoid, Semigroup}
 import common.collections.EnhancedCollections._
 import cromwell.core._
@@ -11,6 +8,7 @@ import cromwell.services.metadata._
 import spray.json._
 
 import scala.collection.immutable.TreeMap
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 import scala.util.{Random, Try}
 
@@ -47,18 +45,19 @@ object MetadataComponent {
     case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
     case MetadataEmptyComponent => JsObject.empty
     case MetadataNullComponent => JsNull
+    case MetadataPlaceholderComponent(query, ec) => StreamMetadataBuilder.build(query)(ec).unsafeRunSync()
     case MetadataJsonComponent(jsValue) => jsValue
   }
 
   /* ******************************* */
   /* *** Metadata Events Parsing *** */
   /* ******************************* */
-  
+
   private val KeySeparator = MetadataKey.KeySeparator
   // Split on every unescaped KeySeparator
   val KeySplitter = s"(?<!\\\\)$KeySeparator"
   private val bracketMatcher = """\[(\d*)\]""".r
-  
+
   private def parseKeyChunk(chunk: String, innerValue: MetadataComponent): MetadataObject = {
     chunk.indexOf('[') match {
       // If there's no bracket, it's an object. e.g.: "calls"
@@ -78,7 +77,7 @@ object MetadataComponent {
         } yield asInt
         // Fold into a MetadataList: MetadataList(0 -> MetadataList(1 -> innerValue))
         val init = if (innerValue == MetadataEmptyComponent) {
-        // Empty value means empty list
+          // Empty value means empty list
           listIndices.toList.init.foldRight(MetadataList.empty)((index, acc) => MetadataList(TreeMap(index -> acc)))
         } else {
           listIndices.toList.foldRight(innerValue)((index, acc) => MetadataList(TreeMap(index -> acc)))
@@ -95,37 +94,31 @@ object MetadataComponent {
     case _ => None
   }
 
-  def toMetadataComponent(subWorkflowMetadata: Map[String, JsValue])(event: MetadataEvent) = {
+  def toMetadataComponent(query: MetadataQuery, ec: ExecutionContext)(event: MetadataEvent) = {
     lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
-    lazy val originalKeyAndPrimitive = (event.key.key, primitive)
 
-    val keyAndPrimitive: (String, MetadataComponent) = if (event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)) {
-      (for {
-        metadataValue <- event.value
-        subWorkflowMetadata <- subWorkflowMetadata.get(metadataValue.value)
-        keyWithSubWorkflowMetadata = event.key.key.replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
-        subWorkflowComponent = MetadataJsonComponent(subWorkflowMetadata)
-      } yield (keyWithSubWorkflowMetadata, subWorkflowComponent)) getOrElse originalKeyAndPrimitive
-    } else originalKeyAndPrimitive
+    // If the event is a sub workflow id event, we might need to replace the id with a placeholder for the sub workflow metadata
+    lazy val keyWithSubWorkflowMetadata = event.key.key.replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
+    lazy val subWorkflowComponent = event.value map { metadataValue =>
+      MetadataPlaceholderComponent(query.copy(workflowId = WorkflowId.fromString(metadataValue.value)), ec)
+    } getOrElse primitive
 
-    contextualize(event.key, fromMetadataKeyAndPrimitive(keyAndPrimitive._1, keyAndPrimitive._2).asInstanceOf[MetadataObject])
+    val (key, component): (String, MetadataComponent) = if (query.expandSubWorkflows && event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)) {
+      keyWithSubWorkflowMetadata -> subWorkflowComponent
+    } else
+      event.key.key -> primitive
+
+    contextualize(event.key, fromMetadataKeyAndPrimitive(key, component).asInstanceOf[MetadataObject])
   }
-  
-  /** Sort events by timestamp, transform them into MetadataComponent, and merge them together. */
-  def apply(events: Seq[MetadataEvent], subWorkflowMetadata: Map[String, JsValue] = Map.empty): MetadataComponent = {
-    // The `List` has a `Foldable` instance defined in scope, and because the `List`'s elements have a `Monoid` instance
-    // defined in scope, `combineAll` can derive a sane `TimestampedJsValue` value even if the `List` of events is empty.
-    events.toList map toMetadataComponent(subWorkflowMetadata) combineAll
-  }
-  
+
   def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent): MetadataComponent = {
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
   }
-  
+
   private def contextualize(key: MetadataKey, component: MetadataObject): MetadataComponent = {
     key.jobKey match {
       case None => component
-      case Some(jobKey) => 
+      case Some(jobKey) =>
         MetadataObject(
           "calls" -> MetadataObject(
             jobKey.callFqn -> MetadataList(
@@ -146,6 +139,7 @@ object MetadataComponent {
 sealed trait MetadataComponent
 case object MetadataEmptyComponent extends MetadataComponent
 case object MetadataNullComponent extends MetadataComponent
+case class MetadataPlaceholderComponent(query: MetadataQuery, ec: ExecutionContext) extends MetadataComponent
 
 // Metadata Object  
 object MetadataObject {

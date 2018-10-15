@@ -253,7 +253,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
   }
 
   def processStreamedMetadataResponse(query: MetadataQuery, stream: DatabasePublisher[MetadataEvent]) = {
-    target ! BuiltMetadataResponse(StreamMetadataBuilder.build(stream, query.workflowId))
+    target ! BuiltMetadataResponse(StreamMetadataBuilder.build(query).unsafeRunSync())
     allDone
   }
 

@@ -55,14 +55,4 @@ object StatsDProxy extends IOApp with StrictLogging {
   override def run(args: List[String]) = {
     server.stream.compile.drain.as(ExitCode.Success)
   }
-  
-  def test = {
-    val x: List[IO[Unit]] = ???
-
-    import cats.implicits._
-
-    val y: IO[List[Unit]] = x.sequence
-
-    val z: IO[Unit] = y.map(_ => ())
-  }
 }

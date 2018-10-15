@@ -138,18 +138,15 @@ trait MetadataDatabaseAccess {
     futureMetadata map metadataToMetadataEvents(query.workflowId)
   }
 
-  def streamedQueryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext) = {
+  def streamedQueryMetadataEvents(query: MetadataQuery) = {
     val uuid = query.workflowId.id.toString
 
-    val futureMetadata: Future[DatabasePublisher[MetadataEntry]] = query match {
-      case MetadataQuery(_, None, None, None, None, _) => Future.successful(metadataDatabaseInterface.streamedQueryMetadataEntries(uuid))
-      case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
+    val publisher: DatabasePublisher[MetadataEntry] = query match {
+      case MetadataQuery(_, None, None, None, None, _) => metadataDatabaseInterface.streamedQueryMetadataEntries(uuid)
+      case _ => throw new IllegalArgumentException(s"Invalid MetadataQuery: $query")
     }
 
-    futureMetadata map { publisher =>
-      publisher.mapResult(metadataEntryToMetadataEvent(query.workflowId))
-      
-    }
+    publisher.mapResult(metadataEntryToMetadataEvent(query.workflowId))
   }
 
   def queryWorkflowOutputs(id: WorkflowId)

@@ -1,4 +1,4 @@
-package cromwell.webservice
+package cromwell.webservice.routes
 
 import java.util.UUID
 
@@ -33,6 +33,7 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice._
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.metadata.MetadataBuilderRegulatorActor
 import net.ceedubs.ficus.Ficus._
@@ -42,7 +43,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
 trait CromwellApiService extends HttpInstrumentation {
-  import cromwell.webservice.CromwellApiService._
+  import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val materializer: ActorMaterializer
@@ -152,7 +153,7 @@ trait CromwellApiService extends HttpInstrumentation {
     } ~
     path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
       instrumentRequest {
-        onComplete(validateWorkflowId(possibleWorkflowId)) {
+        onComplete(validateWorkflowId(possibleWorkflowId, serviceRegistryActor)) {
           case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
           case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
         }
@@ -198,7 +199,7 @@ trait CromwellApiService extends HttpInstrumentation {
           instrumentRequest {
             Labels.validateMapOfLabels(parameterMap) match {
               case Valid(labels) =>
-                val response = validateWorkflowId(possibleWorkflowId) flatMap { id =>
+                val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
                   val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
                   lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
                 }
@@ -238,7 +239,7 @@ trait CromwellApiService extends HttpInstrumentation {
   path("workflows" / Segment / Segment / "releaseHold") { (_, possibleWorkflowId) =>
     post {
       instrumentRequest {
-        val response = validateWorkflowId(possibleWorkflowId) flatMap { workflowId =>
+        val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { workflowId =>
           workflowStoreActor.ask(WorkflowStoreActor.WorkflowOnHoldToSubmittedCommand(workflowId)).mapTo[WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedResponse]
         }
         onComplete(response){
@@ -311,22 +312,12 @@ trait CromwellApiService extends HttpInstrumentation {
     }
   }
 
-  private def validateWorkflowId(possibleWorkflowId: String): Future[WorkflowId] = {
-    Try(WorkflowId.fromString(possibleWorkflowId)) match {
-      case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse] map {
-          case RecognizedWorkflowId => w
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
-          case FailedToCheckWorkflowId(t) => throw t
-        }
-      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
-    }
-  }
-//foo
+
+
   private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
 
   private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
-    val response = validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+    val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
 
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.response)
@@ -354,6 +345,20 @@ trait CromwellApiService extends HttpInstrumentation {
 
 object CromwellApiService {
   import spray.json._
+
+  def validateWorkflowId(possibleWorkflowId: String,
+                         serviceRegistryActor: ActorRef)
+                        (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
+    Try(WorkflowId.fromString(possibleWorkflowId)) match {
+      case Success(w) =>
+        serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse] map {
+          case RecognizedWorkflowId => w
+          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
+          case FailedToCheckWorkflowId(t) => throw t
+        }
+      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+    }
+  }
 
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
     def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {

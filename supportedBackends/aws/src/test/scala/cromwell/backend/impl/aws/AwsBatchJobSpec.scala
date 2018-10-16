@@ -59,7 +59,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   I'm merging this in the interest of time.
 
   It throws the following exception:
-  Cause: java.lang.IllegalArgumentException: Either s3://my-cromwell-workflows-bucket exists on a filesystem not supported by this instance of Cromwell, or a failure occurred while building an actionable path from it. Supported filesystems are: s3. Failures: s3: AWS region not provided (SdkClientException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems
+  Cause: java.lang.IllegalArgumentException: Either the path "s3://my-cromwell-workflows-bucket" exists on a filesystem not supported by this instance of Cromwell, or a failure occurred while building an actionable path from it. Supported filesystems are: s3. Failures: s3: AWS region not provided (SdkClientException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems
 [info]   at cromwell.core.path.PathParsingException.<init>(PathParsingException.scala:5)
 [info]   at cromwell.core.path.PathFactory$.$anonfun$buildPath$4(PathFactory.scala:64)
 [info]   at scala.Option.getOrElse(Option.scala:121)

@@ -112,7 +112,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
-            CROMWELL_BUILD_SPAN_SCALE_FACTOR="15"
+            CROMWELL_BUILD_SPAN_SCALE_FACTOR="20"
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false

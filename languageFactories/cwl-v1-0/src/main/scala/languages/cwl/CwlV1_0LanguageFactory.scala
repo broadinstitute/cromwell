@@ -2,7 +2,8 @@ package languages.cwl
 
 import better.files.File
 import cats.data.{EitherT, NonEmptyList}
-import shapeless.{Inl, Inr}
+import wom.callable.Callable
+//import shapeless.{Inl, Inr}
 //import cats.data.{EitherT, NonEmptyList}
 import cats.data.EitherT.fromEither
 import cats.effect.IO
@@ -14,7 +15,8 @@ import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-import cwl.{CommandLineTool, Cwl, CwlDecoder, ExpressionTool, Workflow}
+//import cwl.{CommandLineTool, Cwl, CwlDecoder, ExpressionTool, Workflow}
+import cwl.{Cwl, CwlDecoder}
 //import shapeless.CNil
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.{Executable, WomBundle}
@@ -53,30 +55,25 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
     val cwlParse: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource)
 
-//    import cwl.AcceptAllRequirements
+    import cwl.AcceptAllRequirements
 
-    val x: EitherT[IO, NonEmptyList[String], Cwl] = cwlParse map { cwl: Cwl =>
+    val x: EitherT[IO, NonEmptyList[String], Either[NonEmptyList[String], Callable]] = cwlParse map { cwl: Cwl =>
       cwl match {
-        case _: Workflow =>
-          cwl
-        case _: CommandLineTool =>
-          cwl
-        case _: ExpressionTool =>
-          cwl
-        case Inr(Inl(c: CommandLineTool)) =>
-          println(c)
-          cwl
-        case _ =>
-          ???
+        case Cwl.Workflow(workflow) =>
+          workflow.womDefinition(AcceptAllRequirements, Vector.empty)
+        case Cwl.CommandLineTool(cliTool) =>
+          cliTool.buildTaskDefinition(AcceptAllRequirements, Vector.empty)
+        case Cwl.ExpressionTool(expTool) =>
+          expTool.buildTaskDefinition(AcceptAllRequirements, Vector.empty)
       }
     }
 
-    val y = for {
-      cwl <- x
-    } yield cwl
+//    val y = for {
+//      cwl <- x
+//    } yield cwl
 
-    y.value.unsafeRunSync() match {
-      case Right(value) => println(value)
+    val y: Either[NonEmptyList[String], Callable] = x.value.unsafeRunSync() match {
+      case Right(value) => value
       case Left(errors) =>
         val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
         throw new Exception(formattedErrors)
@@ -94,7 +91,7 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
 //        throw new Exception(formattedErrors)
 //    }
 
-    ???
+    WomBundle(Option(y.getOrElse(???)), Map.empty, Map.empty).validNelCheck
   }
 
   // wom.executable.WomBundle.toExecutableCallable

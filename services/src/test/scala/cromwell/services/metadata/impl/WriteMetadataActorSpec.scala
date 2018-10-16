@@ -57,18 +57,17 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def metadataEntryExists(workflowExecutionUuid: String)
                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def queryMetadataEntries(workflowExecutionUuid: String)
-                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def queryMetadataEntries(workflowExecutionUuid: String): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
-                                      metadataKey: String)(implicit ec: ExecutionContext): Nothing = {
+                                      metadataKey: String): Nothing = {
       notImplemented()
     }
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
-                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
+                                      jobAttempt: Option[Int]): Nothing = {
       notImplemented()
     }
 
@@ -76,19 +75,19 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                       metadataKey: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
-                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
+                                      jobAttempt: Option[Int]): Nothing = {
       notImplemented()
     }
 
     override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
                                                       metadataKeys: NonEmptyList[String],
                                                       metadataJobQueryValue: MetadataJobQueryValue)
-                                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
+                                                     : Nothing = notImplemented()
 
     override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
                                                        metadataKeys: NonEmptyList[String],
                                                        metadataJobQueryValue: MetadataJobQueryValue)
-                                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
+                                                      : Nothing = notImplemented()
 
     override def refreshMetadataSummaryEntries(startMetadataKey: String,
                                                endMetadataKey: String,
@@ -146,7 +145,6 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     override def close(): Nothing = notImplemented()
 
-    override def streamedQueryMetadataEntries(workflowExecutionUuid: String) =
-      throw new NotImplementedError("Stream query not implemented in tests")
+    override def queryMetadataEntry(workflowExecutionUuid: String, metadataKey: String)(implicit ec: ExecutionContext): Nothing = notImplemented()
   }
 }

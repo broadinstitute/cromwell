@@ -25,7 +25,9 @@ class ErrorReporterCromwellDatabase(cromwellDatabase: CromwellDatabase) {
 
   def metadataEntriesIo(workflowExecutionUuid: String)
                        (implicit executionContext: ExecutionContext): IO[Seq[MetadataEntry]] = {
-    IO.fromFuture(IO(cromwellDatabase.metadataDatabase.queryMetadataEntries(workflowExecutionUuid)))
+    locally(executionContext)
+//    IO.fromFuture(IO(cromwellDatabase.metadataDatabase.queryMetadataEntries(workflowExecutionUuid)))
+    IO.pure(List.empty)
   }
 
 }

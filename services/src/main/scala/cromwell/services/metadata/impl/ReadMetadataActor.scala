@@ -5,7 +5,7 @@ import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{CallMetadataKeys, MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.WorkflowQueryParameters
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -19,35 +19,9 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
   implicit val ec = context.dispatcher
 
   def receive = {
-    case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
-      val includeKeys = if (expandSubWorkflows) {
-        includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) }
-      } else includeKeysOption
-      queryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
-    case GetStreamedSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
-      val includeKeys = if (expandSubWorkflows) {
-        includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) }
-      } else includeKeysOption
-      streamedQueryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
-    case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
-    case GetStreamedMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => streamedQueryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLabels(workflowId) => queryLabelsAndRespond(workflowId)
-    case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
     case query: WorkflowQuery => queryWorkflowsAndRespond(query.parameters)
-    case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
-  }
-
-  private def queryAndRespond(query: MetadataQuery): Unit = {
-    val sndr = sender()
-    queryMetadataEvents(query) onComplete {
-      case Success(m) => sndr ! MetadataLookupResponse(query, m)
-      case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
-    }
-  }
-
-  private def streamedQueryAndRespond(query: MetadataQuery): Unit = {
-    sender() ! StreamedMetadataLookupResponse(query, streamedQueryMetadataEvents(query))
   }
 
   private def queryStatusAndRespond(id: WorkflowId): Unit = {
@@ -85,21 +59,4 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
       case Failure(t) => sndr ! WorkflowQueryFailure(t)
     }
   }
-
-  private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
-    val replyTo = sender()
-    queryWorkflowOutputs(id) onComplete {
-      case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
-      case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
-    }
-  }
-
-  private def queryLogsAndRespond(id: WorkflowId): Unit = {
-    val replyTo = sender()
-    queryLogs(id) onComplete {
-      case Success(s) => replyTo ! LogsResponse(id, s)
-      case Failure(t) => replyTo ! LogsFailure(id, t)
-    }
-  }
-
 }

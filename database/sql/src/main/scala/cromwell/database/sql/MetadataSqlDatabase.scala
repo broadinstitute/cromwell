@@ -30,37 +30,33 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
-  def queryMetadataEntries(workflowExecutionUuid: String)
-                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+  def queryMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry]
+
+  def queryMetadataEntry(workflowExecutionUuid: String,
+                         metadataKey: String)
+                        (implicit ec: ExecutionContext): Future[Option[MetadataEntry]]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
-                           metadataKey: String)
-                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
-
-  def streamedQueryMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry]
+                           metadataKey: String): DatabasePublisher[MetadataEntry]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Option[Int])
-                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+                           jobAttempt: Option[Int]): DatabasePublisher[MetadataEntry]
 
   def queryMetadataEntries(workflowUuid: String,
                            metadataKey: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Option[Int])
-                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+                           jobAttempt: Option[Int]): DatabasePublisher[MetadataEntry]
 
   def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
                                            metadataKeys: NonEmptyList[String],
-                                           metadataJobQueryValue: MetadataJobQueryValue)
-                                          (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+                                           metadataJobQueryValue: MetadataJobQueryValue): DatabasePublisher[MetadataEntry]
 
   def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
                                             metadataKeys: NonEmptyList[String],
-                                            metadataJobQueryValue: MetadataJobQueryValue)
-                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+                                            metadataJobQueryValue: MetadataJobQueryValue): DatabasePublisher[MetadataEntry]
 
   /**
     * Retrieves all summarizable metadata satisfying the specified criteria.

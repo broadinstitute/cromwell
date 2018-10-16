@@ -1,5 +1,6 @@
 package cromwell.webservice.metadata
 
+import cats.instances.map._
 import cats.{Monoid, Semigroup}
 import common.collections.EnhancedCollections._
 import cromwell.core._
@@ -9,10 +10,13 @@ import spray.json._
 
 import scala.collection.immutable.TreeMap
 import scala.concurrent.ExecutionContext
-import scala.language.postfixOps
 import scala.util.{Random, Try}
 
 object MetadataComponent {
+  private val CallsKey = "calls"
+  private val AttemptKey = "attempt"
+  private val ShardKey = "shardIndex"
+  
   implicit val MetadataComponentMonoid: Monoid[MetadataComponent] = new Monoid[MetadataComponent] {
     private lazy val stringKeyMapSg = implicitly[Semigroup[Map[String, MetadataComponent]]]
     private lazy val intKeyMapSg = implicitly[Semigroup[Map[Int, MetadataComponent]]]
@@ -45,7 +49,7 @@ object MetadataComponent {
     case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
     case MetadataEmptyComponent => JsObject.empty
     case MetadataNullComponent => JsNull
-    case MetadataPlaceholderComponent(query, ec) => StreamMetadataBuilder.build(query)(ec).unsafeRunSync()
+    case MetadataPlaceholderComponent(query, ec) => StreamMetadataBuilder.workflowMetadataQuery(query)(ec).unsafeRunSync().toJson(this.metadataComponentJsonWriter)
     case MetadataJsonComponent(jsValue) => jsValue
   }
 
@@ -111,6 +115,16 @@ object MetadataComponent {
     contextualize(event.key, fromMetadataKeyAndPrimitive(key, component).asInstanceOf[MetadataObject])
   }
 
+  def toMetadataComponent(event: MetadataEvent): MetadataComponent = {
+    lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
+    contextualize(event.key, fromMetadataKeyAndPrimitive(event.key.key, primitive).asInstanceOf[MetadataObject])
+  }
+
+  /** Sort events by timestamp, transform them into MetadataComponent, and merge them together. */
+  def apply(events: Seq[MetadataEvent], subWorkflowMetadata: Map[String, JsValue] = Map.empty): MetadataComponent = {
+    MetadataEmptyComponent
+  }
+
   def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent): MetadataComponent = {
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
   }
@@ -120,13 +134,13 @@ object MetadataComponent {
       case None => component
       case Some(jobKey) =>
         MetadataObject(
-          "calls" -> MetadataObject(
+          CallsKey -> MetadataObject(
             jobKey.callFqn -> MetadataList(
               TreeMap(
                 jobKey.index.getOrElse(-1) ->
                   component.copy(v = component.v ++ Map(
-                    "shardIndex" -> MetadataPrimitive(MetadataValue(jobKey.index.getOrElse(-1))),
-                    "attempt" -> MetadataPrimitive(MetadataValue(jobKey.attempt))
+                    ShardKey -> MetadataPrimitive(MetadataValue(jobKey.index.getOrElse(-1))),
+                    AttemptKey -> MetadataPrimitive(MetadataValue(jobKey.attempt))
                   ))
               )
             )

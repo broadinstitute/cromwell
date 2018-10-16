@@ -53,11 +53,13 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    val cwlParse: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource)
+    val cwlParseAttempt: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource)
 
     import cwl.AcceptAllRequirements
 
-    val x: EitherT[IO, NonEmptyList[String], Either[NonEmptyList[String], Callable]] = cwlParse map { cwl: Cwl =>
+    val callableIO: EitherT[IO, NonEmptyList[String], Either[NonEmptyList[String], Callable]] = for {
+      cwl <- cwlParseAttempt
+    } yield {
       cwl match {
         case Cwl.Workflow(workflow) =>
           workflow.womDefinition(AcceptAllRequirements, Vector.empty)
@@ -68,30 +70,10 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
       }
     }
 
-//    val y = for {
-//      cwl <- x
-//    } yield cwl
-
-    val y: Either[NonEmptyList[String], Callable] = x.value.unsafeRunSync() match {
-      case Right(value) => value
-      case Left(errors) =>
-        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
-        throw new Exception(formattedErrors)
+    callableIO.value.unsafeRunSync().joinRight match {
+      case Right(value: Callable) => WomBundle(Option(value), Map.empty, Map.empty).validNelCheck
+      case Left(errors) => errors.toList.mkString(", ").invalidNelCheck
     }
-
-//    val executableIO: EitherT[IO, NonEmptyList[String], Executable] = for {
-//      cwl <- cwlParse
-//      executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation))
-//    } yield executable
-//
-//    executableIO.value.unsafeRunSync() match {
-//      case Right(value) => WomBundle(Option(value.entryPoint), Map.empty, Map.empty).validNelCheck
-//      case Left(errors) =>
-//        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
-//        throw new Exception(formattedErrors)
-//    }
-
-    WomBundle(Option(y.getOrElse(???)), Map.empty, Map.empty).validNelCheck
   }
 
   // wom.executable.WomBundle.toExecutableCallable

@@ -491,7 +491,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
-  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies
+  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies = List(
     "com.typesafe.akka" %% "akka-stream" % akkaV
@@ -520,5 +520,5 @@ object Dependencies {
 
   val perfDependencies = List(
     "io.circe" %% "circe-java8" % circeV
-  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies
+  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
 }

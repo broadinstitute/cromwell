@@ -74,7 +74,12 @@ sealed trait AwsAuthMode {
    private[auth] var credentialValidation: ((AwsCredentials, Option[String]) => Unit) =
      (credentials: AwsCredentials, region: Option[String]) => {
        val builder = STSClient.builder
-       region.foreach(str => builder.region(Region.of(str)))
+
+       //If the region argument exists in config, set it in the builder.
+       //Otherwise it is left unset and the AwsCredential builder will look in various places to supply,
+       //ultimately using US-EAST-1 if none is found
+       region.map(Region.of).foreach(builder.region)
+
        builder.credentialsProvider(StaticCredentialsProvider.create(credentials))
          .build
          .getCallerIdentity(GetCallerIdentityRequest.builder.build)

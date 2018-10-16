@@ -81,15 +81,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val client = {
    val builder = BatchClient.builder()
    configRegion.foreach(builder.region)
-      // .credentialsProvider(...)
-      // .endpointOverride(...)
    builder.build
   }
   lazy val logsclient = {
     val builder = CloudWatchLogsClient.builder()
     configRegion.foreach(builder.region)
-      // .credentialsProvider(...)
-      // .endpointOverride(...)
     builder.build
   }
 

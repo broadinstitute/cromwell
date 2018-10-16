@@ -81,7 +81,7 @@ import scala.util.Success
 class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromCredentials(AnonymousCredentialsProvider.create.getCredentials,
-    S3Storage.DefaultConfiguration, WorkflowOptions.empty, Some(Region.AP_NORTHEAST_1))
+    S3Storage.DefaultConfiguration, WorkflowOptions.empty, Option(Region.US_EAST_1))
 
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 

@@ -266,10 +266,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       val sndr = sender()
       context.actorOf(EngineStatsActor.props(data.workflows.values.toList, sndr), s"EngineStatsActor-${sndr.hashCode()}")
       stay()
-    // Anything else certainly IS interesting:
-    case Event(unhandled, _) =>
-      log.warning(s"$tag Unhandled message: $unhandled")
-      stay()
   }
 
   onTransition {

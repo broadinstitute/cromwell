@@ -59,10 +59,4 @@ class MetadataSummaryRefreshActor()
     case Event(MetadataSummaryComplete, _) =>
       goto(WaitingForRequest) using SummaryRefreshData
   }
-
-  whenUnhandled {
-    case Event(wut, _) =>
-      log.warning("Unrecognized or unexpected message while in state '{}': {}", stateName, wut)
-      stay()
-  }
 }

@@ -217,9 +217,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   whenUnhandled {
     case Event(AbortJobCommand, _) =>
       abort()
-    case Event(unexpected, _) =>
-      log.warning(s"Backend cache hit copying actor received an unexpected message: $unexpected in state $stateName")
-      stay()
   }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {

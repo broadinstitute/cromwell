@@ -288,18 +288,3 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
     }
   }
 }
-
-class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorSpec {
-  "A SingleWorkflowRunnerActor" should {
-    "successfully warn about unexpected output" in {
-      within(TimeoutDuration) {
-        val runner = createRunnerActor()
-        waitForWarning("SingleWorkflowRunnerActor: received unexpected message: expected unexpected") {
-          runner ? RunWorkflow
-          runner ! "expected unexpected"
-        }
-        assert(!system.whenTerminated.isCompleted)
-      }
-    }
-  }
-}

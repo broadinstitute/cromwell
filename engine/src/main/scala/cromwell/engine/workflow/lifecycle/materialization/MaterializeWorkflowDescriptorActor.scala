@@ -204,9 +204,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   whenUnhandled {
     case Event(EngineLifecycleActorAbortCommand, _) =>
       goto(MaterializationAbortedState)
-    case unhandledMessage =>
-      workflowLogger.warn(s"received an unhandled message $unhandledMessage in state $stateName")
-      stay
   }
 
   private def workflowInitializationFailed(errors: NonEmptyList[String], replyTo: ActorRef) = {

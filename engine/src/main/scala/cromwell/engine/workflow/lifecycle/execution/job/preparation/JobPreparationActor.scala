@@ -89,12 +89,6 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
   }
 
-  whenUnhandled {
-    case Event(unexpectedMessage, _) =>
-      workflowLogger.warn(s"JobPreparation actor received an unexpected message in state $stateName: $unexpectedMessage")
-      stay()
-  }
-
   private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
   private[preparation] def lookupKeyValueEntries(inputs: WomEvaluatedCallInputs,

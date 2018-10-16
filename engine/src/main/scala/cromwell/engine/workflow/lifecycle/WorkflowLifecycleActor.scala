@@ -78,12 +78,6 @@ trait WorkflowLifecycleActor[S <: WorkflowLifecycleActorState] extends LoggingFS
     case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
 
-  whenUnhandled {
-    case unhandledMessage =>
-      workflowLogger.warn(s"received an unhandled message: $unhandledMessage")
-      stay
-  }
-
   onTransition {
     case _ -> state if state.terminal =>
       workflowLogger.debug("State is now terminal. Stopping self.")

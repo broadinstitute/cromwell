@@ -14,12 +14,12 @@ sealed trait ExecutionHandle {
   def result: ExecutionResult
 }
 
-final case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunStatus]
+final case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, BackendRunState]
 (
   jobDescriptor: BackendJobDescriptor,
   pendingJob: BackendJobId,
   runInfo: Option[BackendRunInfo],
-  previousStatus: Option[BackendRunStatus]
+  previousState: Option[BackendRunState]
 ) extends ExecutionHandle {
   override val isDone = false
   override val result = NonRetryableExecution(new IllegalStateException("PendingExecutionHandle cannot yield a result"))

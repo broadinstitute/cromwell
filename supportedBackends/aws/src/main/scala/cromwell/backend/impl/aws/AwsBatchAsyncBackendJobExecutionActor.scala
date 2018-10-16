@@ -83,7 +83,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override type StandardAsyncRunInfo = AwsBatchJob
 
-  override type StandardAsyncRunStatus = RunStatus
+  override type StandardAsyncRunState = RunStatus
+
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
@@ -335,7 +337,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     for {
       submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
-    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousStatus = None)
+    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
 
   val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)

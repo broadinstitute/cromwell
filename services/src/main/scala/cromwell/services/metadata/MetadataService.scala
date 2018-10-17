@@ -83,17 +83,12 @@ object MetadataService {
                                              excludeKeysOption: Option[NonEmptyList[String]],
                                              expandSubWorkflows: Boolean) extends ReadAction
 
-  final case class GetStreamedSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
-                                                   excludeKeysOption: Option[NonEmptyList[String]],
-                                                   expandSubWorkflows: Boolean) extends ReadAction
-
   final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
-  final case class GetStreamedMetadataQueryAction(key: MetadataQuery) extends ReadAction
   final case class GetStatus(workflowId: WorkflowId) extends ReadAction
   final case class GetLabels(workflowId: WorkflowId) extends ReadAction
   final case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
-  final case class GetLogs(workflowId: WorkflowId) extends ReadAction
+  final case class WorkflowLogs(workflowId: WorkflowId) extends ReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit

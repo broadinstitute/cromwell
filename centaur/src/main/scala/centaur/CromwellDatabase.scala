@@ -2,7 +2,7 @@ package centaur
 
 import com.typesafe.config.Config
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
-import cromwell.database.sql.{EngineSqlDatabase, MetadataSqlDatabase}
+import cromwell.database.sql.{EngineSqlDatabase, MetadataSqlDatabase, StreamMetadataSqlDatabase}
 
 trait CromwellDatabase {
   def engineDatabase: EngineSqlDatabase
@@ -17,7 +17,7 @@ object CromwellDatabase {
     lazy val cromwellConfig = rootConfig.getConfig("cromwell")
     new CromwellDatabase {
       override lazy val engineDatabase: EngineSqlDatabase = EngineSlickDatabase.fromParentConfig(cromwellConfig)
-      override lazy val metadataDatabase: MetadataSqlDatabase = MetadataSlickDatabase.fromParentConfig(cromwellConfig)
+      override lazy val metadataDatabase: MetadataSqlDatabase with StreamMetadataSqlDatabase = MetadataSlickDatabase.fromParentConfig(cromwellConfig)
     }
   }
 }

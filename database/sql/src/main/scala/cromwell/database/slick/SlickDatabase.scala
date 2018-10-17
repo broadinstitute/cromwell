@@ -71,6 +71,9 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   val database = slickConfig.db
 
   override lazy val connectionDescription = databaseConfig.getString(urlKey)
+  
+  // Integer.MIN_VALUE is the value used by MYSQL to 
+  private val streamFetchSize = databaseConfig.getAs[Int]("fetch-size").getOrElse(Integer.MIN_VALUE)
 
   SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")
 
@@ -104,10 +107,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     database.run(action.transactionally)
   }
 
-  protected[this] def streamTransaction[R, T](action: StreamingDBIO[R, T], fetchSize: Int = 5000): DatabasePublisher[T] = {
+  protected[this] def streamTransaction[R, T](action: StreamingDBIO[R, T]): DatabasePublisher[T] = {
     database.stream(
       action
-        .withStatementParameters(rsType = ResultSetType.ForwardOnly, rsConcurrency = ResultSetConcurrency.ReadOnly, fetchSize = fetchSize)
+        .withStatementParameters(rsType = ResultSetType.ForwardOnly, rsConcurrency = ResultSetConcurrency.ReadOnly, fetchSize = streamFetchSize)
         .transactionally
     )
   }

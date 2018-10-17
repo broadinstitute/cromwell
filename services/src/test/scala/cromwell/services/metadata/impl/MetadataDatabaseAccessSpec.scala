@@ -10,7 +10,6 @@ import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata._
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
-import org.reactivestreams.{Subscriber, Subscription}
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -136,12 +135,8 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name)
         expected <- unorderedEvents(workflow1Id)
-        publisher = dataAccess
-          .queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false))
-          .valueOr(_ => fail("Failed to obtain an event stream"))
-        subscriber = new TestSubscriber[MetadataEvent]
-        _ = publisher.subscribe(subscriber)
-        _ = subscriber.elements shouldBe expected
+        response <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false))
+        _ = response shouldBe expected
       } yield()).futureValue
     }
 
@@ -466,12 +461,4 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       dataAccess.metadataDatabaseInterface.close()
     }
   }
-}
-
-class TestSubscriber[T] extends Subscriber[T] {
-  var elements: Vector[T] = Vector.empty
-  override def onSubscribe(s: Subscription) = s.request(10)
-  override def onNext(t: T) = elements = elements :+ t 
-  override def onError(t: Throwable) = throw new RuntimeException("Not expecting an error stream metadata events")
-  override def onComplete() = {}
 }

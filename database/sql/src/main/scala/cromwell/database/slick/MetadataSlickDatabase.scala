@@ -5,16 +5,15 @@ import java.sql.Timestamp
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
-import cromwell.database.sql.MetadataSqlDatabase
+import cromwell.database.sql.{MetadataSqlDatabase, StreamMetadataSqlDatabase}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
-import slick.basic.DatabasePublisher
 
 import scala.concurrent.{ExecutionContext, Future}
 
 object MetadataSlickDatabase {
-  def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase = {
+  def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase with StreamMetadataSlickDatabase = {
     val databaseConfig = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
     new MetadataSlickDatabase(databaseConfig)
   }
@@ -23,6 +22,8 @@ object MetadataSlickDatabase {
 class MetadataSlickDatabase(originalDatabaseConfig: Config)
   extends SlickDatabase(originalDatabaseConfig)
     with MetadataSqlDatabase
+    with StreamMetadataSqlDatabase
+    with StreamMetadataSlickDatabase
     with SummaryStatusSlickDatabase {
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
@@ -44,48 +45,45 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def queryMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry] = {
+  override def queryMetadataEntries(workflowExecutionUuid: String)
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
-    streamTransaction(action)
-  }
-
-  override def queryMetadataEntry(workflowExecutionUuid: String,
-                                    metadataKey: String)
-                                   (implicit ec: ExecutionContext): Future[Option[MetadataEntry]] = {
-    val action =
-      dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result.headOption
     runTransaction(action)
   }
 
   override def queryMetadataEntries(workflowExecutionUuid: String,
-                                    metadataKey: String): DatabasePublisher[MetadataEntry] = {
+                                    metadataKey: String)
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action =
       dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result
-    streamTransaction(action)
+    runTransaction(action)
   }
 
   override def queryMetadataEntries(workflowExecutionUuid: String,
                                     callFullyQualifiedName: String,
                                     jobIndex: Option[Int],
-                                    jobAttempt: Option[Int]): DatabasePublisher[MetadataEntry] = {
+                                    jobAttempt: Option[Int])
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.
       metadataEntriesForJobKey((workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt)).result
-    streamTransaction(action)
+    runTransaction(action)
   }
 
   override def queryMetadataEntries(workflowUuid: String,
                                     metadataKey: String,
                                     callFullyQualifiedName: String,
                                     jobIndex: Option[Int],
-                                    jobAttempt: Option[Int]): DatabasePublisher[MetadataEntry] = {
+                                    jobAttempt: Option[Int])
+                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForJobKeyAndMetadataKey((
       workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt)).result
-    streamTransaction(action)
+    runTransaction(action)
   }
 
   override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
                                                     metadataKeys: NonEmptyList[String],
-                                                    metadataJobQueryValue: MetadataJobQueryValue): DatabasePublisher[MetadataEntry] = {
+                                                    metadataJobQueryValue: MetadataJobQueryValue)
+                                                   (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = metadataJobQueryValue match {
       case CallQuery(callFqn, jobIndex, jobAttempt) =>
         dataAccess.metadataEntriesLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
@@ -93,19 +91,20 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       case CallOrWorkflowQuery => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
     }
       
-    streamTransaction(action)
+    runTransaction(action)
   }
 
   override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
                                                      metadataKeys: NonEmptyList[String],
-                                                     metadataJobQueryValue: MetadataJobQueryValue): DatabasePublisher[MetadataEntry] = {
+                                                     metadataJobQueryValue: MetadataJobQueryValue)
+                                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = metadataJobQueryValue match {
       case CallQuery(callFqn, jobIndex, jobAttempt) =>
         dataAccess.metadataEntriesNotLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
       case WorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
       case CallOrWorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
     }
-    streamTransaction(action)
+    runTransaction(action)
   }
 
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:

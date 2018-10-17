@@ -7,67 +7,55 @@ import womtool.WomtoolMain.{SuccessfulTermination, UnsuccessfulTermination}
 
 class WomtoolValidateSpec extends FlatSpec with Matchers {
 
-  private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
-  val validationTestCases = File("womtool/src/test/resources/validate")
-  val languageVersions = Option(validationTestCases.list).toList.flatten
-
   behavior of "womtool validate"
 
+  private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
+  val validationTestCases = File("womtool/src/test/resources/validate")
+  val languages = Map(
+    "wdl" -> Seq(
+      "biscayne",
+      "wdl_draft2",
+      "wdl_draft3"
+    ),
+    "cwl" -> Seq(
+      "cwlV1_0"
+    )
+  )
 
-  it should "test at least one version" in {
-    languageVersions.isEmpty should be(false)
+  languages foreach { case (language: String, languageVersions: Seq[String]) =>
+    languageVersions foreach { languageVersion: String =>
+      val versionDirectory = validationTestCases./(language)./(languageVersion)
+
+      testValid(language, languageVersion, versionDirectory)
+      testInvalid(language, languageVersion, versionDirectory)
+      logIgnored(language, languageVersion, versionDirectory)
+    }
   }
 
-  // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
-  languageVersions.filterNot(f => f.name.contains(".DS")) foreach { versionDirectory =>
-    val versionName = versionDirectory.name
-
-    val validTestCases = versionDirectory.path.resolve("valid")
-    val invalidTestCases = versionDirectory.path.resolve("invalid")
+  private def logIgnored(language: String, languageVersion: String, versionDirectory: File) = {
     val ignoredTestCases = versionDirectory.path.resolve("ignored")
 
-    // Don't bother checking that the 'ignored' directory exists:
-    List(validTestCases, invalidTestCases) foreach { path =>
-      it should s"be set up for testing $versionName in '${versionDirectory.relativize(path).toString}'" in {
-        if (!path.toFile.exists) fail(s"Path doesn't exist: ${path.toAbsolutePath.toString}")
-        if (Option(path.toFile.list).toList.flatten.isEmpty) fail(s"No test cases found in: ${path.toAbsolutePath.toString}")
-        versionDirectory.list.nonEmpty shouldBe true
-      }
+    Option(ignoredTestCases.toFile.list).toList.filterNot(_.contains(".DS_Store")).flatten foreach { ignoredCase =>
+      it should s"run $language (version $languageVersion) test '$ignoredCase'" ignore {}
     }
+  }
 
-    Option(ignoredTestCases.toFile.list).toList.flatten foreach { ignoredCase =>
-      it should s"run $versionName test '$ignoredCase'" ignore {}
-    }
+  private def testInvalid(language: String, languageVersion: String, versionDirectory: File) = {
+    val invalidTestCases = versionDirectory.path.resolve("invalid")
+    if (invalidTestCases.toFile.list.isEmpty) fail("No invalid test cases in versionDirectory")
 
-    // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
-    Option(validTestCases.toFile.list).toList.flatten.filterNot(_.contains(".DS")) foreach { validCase =>
-      val inputsFile = ifExists(validTestCases.resolve(validCase).resolve(validCase + ".inputs.json").toFile)
-      val withInputsAddition = if (inputsFile.isDefined) " and inputs file" else ""
-      it should s"successfully validate $versionName workflow: '$validCase'$withInputsAddition" in {
-        val wdl = mustExist(validTestCases.resolve(validCase).resolve(validCase + ".wdl").toFile)
-        val inputsArgs = inputsFile match {
-          case Some(path) => Seq("-i", path.getAbsolutePath)
-          case None => Seq.empty[String]
-        }
-
-        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination(""))
-      }
-    }
-
-    // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
-    Option(invalidTestCases.toFile.list).toList.flatten.filterNot(_.contains(".DS")) foreach { invalidCase =>
+    invalidTestCases.toFile.list.filterNot(_.contains(".DS_Store")) foreach { invalidCase: String =>
       val inputsFile = ifExists(invalidTestCases.resolve(invalidCase).resolve(invalidCase + ".inputs.json").toFile)
       val withInputsAddition = if (inputsFile.isDefined) " and inputs file" else ""
 
-      it should s"fail to validate $versionName workflow: '$invalidCase'$withInputsAddition" in {
-        val wdl = mustExist(invalidTestCases.resolve(invalidCase).resolve(invalidCase + ".wdl").toFile)
+      it should s"fail to validate $language (version $languageVersion) workflow: '$invalidCase'$withInputsAddition" in {
+        val workflow = mustExist(invalidTestCases.resolve(invalidCase).resolve(s"$invalidCase.$language").toFile)
         val errorFile = ifExists(invalidTestCases.resolve(invalidCase).resolve("error.txt").toFile).map(f => File(f.getAbsolutePath).contentAsString)
         val inputsArgs = inputsFile match {
           case Some(path) => Seq("-i", path.getAbsolutePath)
           case None => Seq.empty[String]
         }
-
-        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) match {
+        WomtoolMain.runWomtool(Seq("validate", workflow.getAbsolutePath) ++ inputsArgs) match {
           case UnsuccessfulTermination(msg) => errorFile match {
             case Some(expectedError) =>
               msg should include(expectedError.trim.replace(s"$${PWD_NAME}", presentWorkingDirectoryName))
@@ -75,6 +63,25 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
           }
           case other => fail(s"Expected UnsuccessfulTermination but got $other")
         }
+      }
+    }
+  }
+
+  private def testValid(language: String, languageVersion: String, versionDirectory: File) = {
+    val validTestCases = versionDirectory.path.resolve("valid")
+    if (validTestCases.toFile.list.isEmpty) fail("No valid test cases in versionDirectory")
+
+    validTestCases.toFile.list.filterNot(_.contains(".DS_Store")) foreach { validCase: String =>
+      val inputsFile = ifExists(validTestCases.resolve(validCase).resolve(validCase + ".inputs.json").toFile)
+      val withInputsAddition = if (inputsFile.isDefined) " and inputs file" else ""
+
+      it should s"successfully validate $language (version $languageVersion) workflow: '$validCase'$withInputsAddition" in {
+        val workflow = mustExist(validTestCases.resolve(validCase).resolve(s"$validCase.$language").toFile)
+        val inputsArgs = inputsFile match {
+          case Some(path) => Seq("-i", path.getAbsolutePath)
+          case None => Seq.empty[String]
+        }
+        WomtoolMain.runWomtool(Seq("validate", workflow.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination(""))
       }
     }
   }

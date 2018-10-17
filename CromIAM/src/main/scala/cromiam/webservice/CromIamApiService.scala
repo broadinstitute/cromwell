@@ -1,25 +1,30 @@
 package cromiam.webservice
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
+import com.typesafe.config.ConfigFactory
+import cromiam.auth.Collection.validateLabels
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
-import Collection.validateLabels
+import cromiam.instrumentation.CromIamInstrumentation
 import cromiam.sam.SamClient
 import cromiam.sam.SamClient.{CollectionAuthorizationRequest, SamConnectionFailure, SamDenialException, SamDenialResponse}
 import cromiam.server.config.CromIamServerConfig
 import cromiam.server.status.StatusService
 import cromiam.webservice.CromIamApiService._
+import cromwell.services.ServiceRegistryActor
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.util.{Failure, Success}
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromiam"
@@ -30,13 +35,16 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 trait CromIamApiService extends RequestSupport
   with EngineRouteSupport
   with SubmissionSupport
-  with QuerySupport {
+  with QuerySupport
+  with CromIamInstrumentation {
 
   implicit val system: ActorSystem
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: ActorMaterializer
 
   protected def configuration: CromIamServerConfig
+
+  val config = ConfigFactory.load()
 
   val log: LoggingAdapter
 
@@ -68,6 +76,8 @@ trait CromIamApiService extends RequestSupport
 
 
   val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes }
+
+  override def serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
 
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / Abort) { (_, workflowId) =>
     post {
@@ -173,12 +183,22 @@ trait CromIamApiService extends RequestSupport
                                              cromwellAuthClient: CromwellClient,
                                              cromwellRequestClient: CromwellClient): Future[HttpResponse] = {
     def authForCollection(collection: Collection): Future[Unit] = {
-      samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
+      val startTimestamp = System.currentTimeMillis
+      val r = samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
         case e =>
           log.error(e, "Unable to connect to Sam {}", e)
           Future.failed(SamConnectionFailure("authorization", e))
       }
+
+
+      r.onComplete{
+        case Success(_) => sendTimingApi(makeRequestPath(request, "success"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
+        case Failure(SamDenialException) => sendTimingApi(makeRequestPath(request, "denied"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
+        case Failure(_) => sendTimingApi(makeRequestPath(request, "connection-error"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
+      }
+
+      r
     }
 
 

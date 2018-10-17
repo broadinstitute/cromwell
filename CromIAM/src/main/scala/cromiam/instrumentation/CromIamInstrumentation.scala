@@ -17,7 +17,7 @@ object CromIamInstrumentation {
 }
 
 trait CromIamInstrumentation extends CromwellInstrumentation {
-  lazy val cromiamOverheadPrefix: Option[String] = Option(s"cromiam.$CromIAMOverheadPrefix")
+  lazy val cromiamOverheadPrefix: Option[String] = Option(s"cromiam.$CromIamSamOverheadPrefix")
 
 
   def sendRequestOverhead(api: String, duration: FiniteDuration): Unit = {

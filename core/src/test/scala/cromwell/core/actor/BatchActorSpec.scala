@@ -110,15 +110,6 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
   }
 
   it should "process again when previous processing finished and we're still over batch size" in {
-    println(
-      s"""|
-        |FINDME:
-          |spanScaleFactor = $spanScaleFactor
-          |patienceConfig.timeout = ${patienceConfig.timeout}
-          |patienceConfig.interval = ${patienceConfig.interval}
-          |:FINDME
-          |""".stripMargin)
-
     // Add some processing time so we have time to send more events while a batch is being processed
     val batch = TestFSMRef(new BatchActorTest(2.seconds))
     batch ! "hola"

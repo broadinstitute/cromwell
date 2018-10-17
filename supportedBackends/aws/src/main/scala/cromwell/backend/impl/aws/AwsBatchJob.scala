@@ -62,33 +62,32 @@ import scala.util.Try
  *  @param runtimeAttributes runtime attributes class (which subsequently pulls from config)
  *  @param commandLine command line to be passed to the job
  */
-final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor,           // WDL/CWL
-                             runtimeAttributes: AwsBatchRuntimeAttributes,  // config or WDL/CWL
-                             commandLine: String,                           // WDL/CWL
-                             script: String,                                // WDL/CWL
-                             dockerRc: String,                              // Calculated from StandardAsyncExecutionActor
-                             dockerStdout: String,                          // Calculated from StandardAsyncExecutionActor
-                             dockerStderr: String,                          // Calculated from StandardAsyncExecutionActor
+final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
+                             runtimeAttributes: AwsBatchRuntimeAttributes, // config or WDL/CWL
+                             commandLine: String, // WDL/CWL
+                             script: String, // WDL/CWL
+                             dockerRc: String, // Calculated from StandardAsyncExecutionActor
+                             dockerStdout: String, // Calculated from StandardAsyncExecutionActor
+                             dockerStderr: String, // Calculated from StandardAsyncExecutionActor
                              inputs: Set[AwsBatchInput],
                              outputs: Set[AwsBatchFileOutput],
-                             jobPaths: JobPaths,                    // Based on config, calculated in Job Paths, key to all things outside container
-                             parameters: Seq[AwsBatchParameter]
+                             jobPaths: JobPaths, // Based on config, calculated in Job Paths, key to all things outside container
+                             parameters: Seq[AwsBatchParameter],
+                             configRegion: Option[Region]
                              ) {
 
   val Log = LoggerFactory.getLogger(AwsBatchJob.getClass)
   // TODO: Auth, endpoint
-  lazy val client = BatchClient.builder()
-    //TODO: setting this to get past batch job unit test, should be configured externally
-    .region(Region.US_EAST_1)
-                   // .credentialsProvider(...)
-                   // .endpointOverride(...)
-                   .build
-  lazy val logsclient = CloudWatchLogsClient.builder()
-    //TODO: setting this to get past batch job unit test, should be configured externally
-    .region(Region.US_EAST_1)
-                   // .credentialsProvider(...)
-                   // .endpointOverride(...)
-                   .build
+  lazy val client = {
+   val builder = BatchClient.builder()
+   configRegion.foreach(builder.region)
+   builder.build
+  }
+  lazy val logsclient = {
+    val builder = CloudWatchLogsClient.builder()
+    configRegion.foreach(builder.region)
+    builder.build
+  }
 
   lazy val reconfiguredScript = {
     // We'll use the MD5 of the dockerRc so the boundary is "random" but consistent

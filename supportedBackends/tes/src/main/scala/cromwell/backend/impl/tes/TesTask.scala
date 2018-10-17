@@ -2,6 +2,7 @@ package cromwell.backend.impl.tes
 
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
+import cromwell.backend.impl.tes.OutputMode.OutputMode
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -24,7 +25,9 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          commandScriptContents: String,
                          instantiatedCommand: InstantiatedCommand,
                          dockerImageUsed: String,
-                         mapCommandLineWomFile: WomFile => WomFile) {
+                         mapCommandLineWomFile: WomFile => WomFile,
+                         jobShell: String,
+                         outputMode: OutputMode) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.callable.name
@@ -88,7 +91,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   // TODO add TES logs to standard outputs
-  private val standardOutputs = Seq("rc", "stdout", "stderr").map {
+  private lazy val standardOutputs = Seq("rc", "stdout", "stderr").map {
     f =>
       Output(
         name = Option(f),
@@ -189,9 +192,20 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     }
 
   private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
+  
+  private lazy val cwdOutput = Output(
+    name = Option("execution.dir.output"),
+    description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
+    url = Option(tesPaths.callExecutionRoot.pathAsString),
+    path = containerWorkDir.pathAsString,
+    `type` = Option("DIRECTORY")
+  )
 
   val outputs: Seq[Output] = {
-    val result = standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
+    val result =  outputMode match {
+      case OutputMode.GRANULAR => standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
+      case OutputMode.ROOT => List(cwdOutput) ++ additionalGlobOutput
+    }
 
     jobLogger.info(s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
 
@@ -215,7 +229,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
-    command = Seq("/bin/bash", commandScript.path),
+    command = Seq(jobShell, commandScript.path),
     workdir = runtimeAttributes.dockerWorkingDir,
     stdout = Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
     stderr = Option(tesPaths.containerOutput(containerWorkDir, "stderr")),

@@ -7,4 +7,4 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-sbt +clean +package assembly +doc
+sbt +package assembly dockerPushCheck +doc

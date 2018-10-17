@@ -40,11 +40,11 @@ object WomMap {
   def apply(m: Map[WomValue, WomValue]): WomMap = {
     val keyType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
     val valueType = WomType.lowestCommonSubtype(m.values.map(_.womType))
-    WomMap(WomMapType(keyType, valueType), m)
+    coerceMap(m, WomMapType(keyType, valueType))
   }
 }
 
-case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends WomValue with WomArrayLike with TsvSerializable {
+final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomValue]) extends WomValue with WomArrayLike with TsvSerializable {
   val typesUsedInKey = value.map { case (k, _) => k.womType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != womType.keyType)
@@ -73,7 +73,7 @@ case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends W
     }
   }
 
-  def map(f: PartialFunction[((WomValue, WomValue)), (WomValue, WomValue)]): WomMap = {
+  def map(f: PartialFunction[(WomValue, WomValue), (WomValue, WomValue)]): WomMap = {
     value map f match {
       case m: Map[WomValue, WomValue] if m.nonEmpty => WomMap(WomMapType(m.head._1.womType, m.head._2.womType), m)
       case _ => this

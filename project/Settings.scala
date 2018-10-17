@@ -1,4 +1,5 @@
 import Dependencies._
+import GenerateRestApiDocs._
 import Merging.customMergeStrategy
 import Publishing._
 import Testing._
@@ -97,7 +98,7 @@ object Settings {
   val Scala2_12Version = "2.12.6"
   val ScalaVersion = Scala2_12Version
   val sharedSettings = ReleasePlugin.projectSettings ++
-    cromwellVersionWithGit ++ publishingSettings ++ List(
+    cromwellVersionWithGit ++ artifactorySettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
@@ -110,59 +111,6 @@ object Settings {
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
     addCompilerPlugin(paradisePlugin)
-  )
-
-  val dockerTags = settingKey[Seq[String]]("The tags for docker builds.")
-
-  lazy val dockerSettings = Seq(
-    /*
-    NOTE: Gave up fighting with SBT settings. Using an environment variable instead.
-
-    The below "just works", assuming womtool docker image building is also enabled, setting the right image names and
-    versions.
-
-    `sbt 'show docker::imageNames'` returns:
-      ArrayBuffer(broadinstitute/womtool:30, broadinstitute/womtool:30-c33be41-SNAP)
-      ArrayBuffer(broadinstitute/cromwell:30, broadinstitute/cromwell:30-c33be41-SNAP)
-
-    `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
-      ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
-      ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
-    */
-    dockerTags := sys.env
-      .getOrElse("CROMWELL_SBT_DOCKER_TAGS", s"$cromwellVersion,${version.value}")
-      .split(","),
-    imageNames in docker := dockerTags.value map { tag =>
-      ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
-    },
-    dockerfile in docker := {
-      // The assembly task generates a fat JAR file
-      val artifact: File = assembly.value
-      val artifactTargetPath = s"/app/${artifact.name}"
-      val projectName = name.value
-
-      new Dockerfile {
-        from("openjdk:8")
-        expose(8000)
-        add(artifact, artifactTargetPath)
-        runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
-
-        // If you use the 'exec' form for an entry point, shell processing is not performed and
-        // environment variable substitution does not occur.  Thus we have to /bin/bash here
-        // and pass along any subsequent command line arguments
-        // See https://docs.docker.com/engine/reference/builder/#/entrypoint
-        entryPoint(
-          "/bin/bash",
-          "-c",
-          s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase}_ARGS} $${*}",
-          "--"
-        )
-      }
-    },
-    buildOptions in docker := BuildOptions(
-      cache = false,
-      removeIntermediateContainers = BuildOptions.Remove.Always
-    )
   )
 
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
@@ -207,11 +155,19 @@ object Settings {
     def withExecutableSettings(executableName: String,
                                dependencies: Seq[ModuleID] = List.empty,
                                customSettings: Seq[Setting[_]] = List.empty,
-                               buildDocker: Boolean = true): Project = {
+                               buildDocker: Boolean = true,
+                               pushDocker: Boolean = true): Project = {
 
       val builders: Seq[Project => Project] = List(
         addTestSettings,
-        if (buildDocker) _.enablePlugins(DockerPlugin).settings(dockerSettings) else identity,
+        if (buildDocker) {
+          _
+            .enablePlugins(DockerPlugin)
+            .settings(dockerSettings)
+            .settings(dockerPushSettings(pushDocker))
+        } else {
+          identity
+        },
         _
           .settings(assemblySettings)
           .settings(resourceGenerators in Compile += writeProjectVersionConf)
@@ -232,7 +188,8 @@ object Settings {
         _
           .disablePlugins(AssemblyPlugin)
           .settings(publish := {})
-          .settings(GenerateRestApiDocs.generateRestApiDocsSettings)
+          .settings(generateRestApiDocsSettings)
+          .settings(rootArtifactorySettings)
       )
 
       buildProject(project, "root", Nil, builders)

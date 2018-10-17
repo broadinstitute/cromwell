@@ -227,7 +227,7 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
-    "org.slf4j" % "log4j-over-slf4j" % slf4jV,
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV
   )
 
   private val slickDependencies = List(
@@ -268,10 +268,15 @@ object Dependencies {
 
   private val awsCloudDependencies = List(
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
-    "software.amazon.awssdk" % "aws-sdk-java" % awsSdkV,
     "org.lerch" % "s3fs" % s3fsV
       exclude("org.slf4j", "jcl-over-slf4j")
-  )
+  ) ++ List(
+    "batch",
+    "core",
+    "logs",
+    "s3",
+    "sts"
+  ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
     "io.grpc" % "grpc-core" % grpcV,
@@ -332,6 +337,15 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
+  val commonDependencies = List(
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-access" % logbackV
+  ) ++ catsDependencies ++ configDependencies
+
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies = configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++
@@ -356,18 +370,9 @@ object Dependencies {
   
   val statsDProxyDependencies = List(
     "co.fs2" %% "fs2-io" % fs2V,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "com.iheart" %% "ficus" % ficusV,
-    "ch.qos.logback" % "logback-classic" % logbackV,
-    "ch.qos.logback" % "logback-core" % logbackV,
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-  )
-
-  val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
-    "org.apache.commons" % "commons-lang3" % commonsLang3V
-  ) ++ catsDependencies ++ configDependencies
+  ) ++ commonDependencies
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
@@ -411,7 +416,6 @@ object Dependencies {
   val owlApiDependencies = List(
     "net.sourceforge.owlapi" % "owlapi-distribution" % owlApiV
       exclude("org.apache.httpcomponents", "httpclient-osgi")
-      exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.apache.httpcomponents", "httpcore-osgi")
       exclude("org.slf4j", "jcl-over-slf4j"),
     "org.apache.httpcomponents" % "httpclient-cache" % apacheHttpClientV,
@@ -487,7 +491,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
-  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies
+  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies = List(
     "com.typesafe.akka" %% "akka-stream" % akkaV
@@ -513,4 +517,8 @@ object Dependencies {
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion = swaggerUiV
+
+  val perfDependencies = List(
+    "io.circe" %% "circe-java8" % circeV
+  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
 }

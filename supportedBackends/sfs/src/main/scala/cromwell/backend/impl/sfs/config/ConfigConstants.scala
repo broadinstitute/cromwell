@@ -16,6 +16,7 @@ object ConfigConstants {
   val KillConfig = "kill"
   val KillDockerConfig = "kill-docker"
   val CheckAliveConfig = "check-alive"
+  val ExitCodeTimeoutConfig = "exit-code-timeout-seconds"
   val RuntimeAttributesConfig = "runtime-attributes"
   val JobIdRegexConfig = "job-id-regex"
   val RunInBackgroundConfig = "run-in-background"

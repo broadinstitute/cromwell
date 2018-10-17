@@ -1,7 +1,8 @@
 package cromwell.filesystems.oss.nio
 
 import com.aliyun.oss.{ClientException, OSSException}
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import common.util.Backoff
+import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}

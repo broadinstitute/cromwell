@@ -12,6 +12,7 @@ import wdl.draft3.parser.WdlParser.{ParseTree, SyntaxErrorFormatter}
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
 import wdl.model.draft3.elements._
 import wdl.transforms.base.ast2wdlom.GenericAstNode
+
 import scala.collection.JavaConverters._
 
 class Ast2WdlomSpec extends FlatSpec with Matchers {
@@ -21,7 +22,10 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
   def fromString[A](expression: String,
                     parseFunction: (util.List[WdlParser.Terminal], SyntaxErrorFormatter) => ParseTree)
                    (implicit converter: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
-    val tokens = parser.lex(expression, "string")
+    // Add the "version 1.0" to force the lexer into "main" mode.
+    val versionedExpression = "version 1.0\n" + expression
+    // That "version 1.0" means we'll have 2 unwanted tokens at the start of the list, so drop 'em:
+    val tokens = parser.lex(versionedExpression, "string").asScala.drop(2).asJava
     val terminalMap = (tokens.asScala.toVector map {(_, expression)}).toMap
     val parseTree = parseFunction(tokens, WdlDraft3SyntaxErrorFormatter(terminalMap))
     (wrapAstNode andThen converter).run(parseTree.toAst)
@@ -30,18 +34,18 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
   it should "not parse the new as_map function" in {
     val str = "as_map(some_pairs)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeInvalid "Failed to convert AST node to ExpressionElement (reason 1 of 1): Unknown engine function: 'as_map'"
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'as_map'"
   }
 
   it should "not parse the new as_pairs function" in {
     val str = "as_pairs(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeInvalid "Failed to convert AST node to ExpressionElement (reason 1 of 1): Unknown engine function: 'as_pairs'"
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'as_pairs'"
   }
 
   it should "not parse the new collect_by_key function" in {
     val str = "collect_by_key(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeInvalid "Failed to convert AST node to ExpressionElement (reason 1 of 1): Unknown engine function: 'collect_by_key'"
+    expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'collect_by_key'"
   }
 }

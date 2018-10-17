@@ -15,8 +15,8 @@ case object SYSTEM_ERROR extends WesState
 case object CANCELED extends WesState
 
 object WesState {
-  def fromCromwellState(cromwellState: String): WesState = {
-    cromwellState match {
+  def fromCromwellStatus(cromwellStatus: String): WesState = {
+    cromwellStatus match {
       case "On Hold" => PAUSED
       case "Submitted" => QUEUED
       case "Running" => RUNNING

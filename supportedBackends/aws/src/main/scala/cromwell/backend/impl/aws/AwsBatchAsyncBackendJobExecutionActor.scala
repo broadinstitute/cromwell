@@ -46,7 +46,6 @@ import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
@@ -61,8 +60,8 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
@@ -81,11 +80,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   import AwsBatchAsyncBackendJobExecutionActor._
 
   val Log = LoggerFactory.getLogger(AwsBatchAsyncBackendJobExecutionActor.getClass)
-  val logger = new JobLogger("AwsBatchRun", jobDescriptor.workflowDescriptor.id, jobDescriptor.key.tag, None, Set(Log))
 
   override type StandardAsyncRunInfo = AwsBatchJob
 
-  override type StandardAsyncRunStatus = RunStatus
+  override type StandardAsyncRunState = RunStatus
+
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
@@ -133,13 +133,16 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case Valid(s) => s
       case errors => new RuntimeException(errors.toList.mkString(", "))
     }
-    AwsBatchJob(jobDescriptor, runtimeAttributes,
-                                  instantiatedCommand.commandString,
-                                  script.toString,
-                                  rcPath.toString, executionStdout, executionStderr,
-                                  generateAwsBatchInputs(jobDescriptor),
-                                  generateAwsBatchOutputs(jobDescriptor),
-                                  jobPaths, Seq.empty[AwsBatchParameter])
+    AwsBatchJob(
+      jobDescriptor,
+      runtimeAttributes,
+      instantiatedCommand.commandString,
+      script.toString,
+      rcPath.toString, executionStdout, executionStderr,
+      generateAwsBatchInputs(jobDescriptor),
+      generateAwsBatchOutputs(jobDescriptor),
+      jobPaths, Seq.empty[AwsBatchParameter],
+      configuration.awsConfig.region)
   }
   /* Tries to abort the job in flight
    *
@@ -337,7 +340,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     for {
       submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
-    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousStatus = None)
+    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
 
   val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)

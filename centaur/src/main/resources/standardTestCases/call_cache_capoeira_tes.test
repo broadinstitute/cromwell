@@ -2,6 +2,7 @@ name: call_cache_capoeira_tes
 testFormat: workflowsuccess
 backends: [TES]
 tags: [localdockertest]
+retryTestFailures: false
 
 files {
   workflow: call_cache_capoeira/call_cache_capoeira_tes.wdl

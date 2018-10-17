@@ -42,11 +42,13 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 initializationData: AllBackendInitializationData,
                                 startState: StartableState,
                                 rootConfig: Config,
-                                totalJobsByRootWf: AtomicInteger) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                totalJobsByRootWf: AtomicInteger,
+                                fileHashCacheActor: Option[ActorRef]) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
-  override val workflowId = parentWorkflow.id
+  override val workflowIdForLogging = parentWorkflow.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging = parentWorkflow.rootWorkflowId
   override val workflowIdForCallMetadata = parentWorkflow.id
   override def jobTag: String = key.tag
 
@@ -202,7 +204,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         initializationData,
         startState,
         rootConfig,
-        totalJobsByRootWf
+        totalJobsByRootWf,
+        fileHashCacheActor = fileHashCacheActor
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
@@ -314,7 +317,8 @@ object SubWorkflowExecutionActor {
             initializationData: AllBackendInitializationData,
             startState: StartableState,
             rootConfig: Config,
-            totalJobsByRootWf: AtomicInteger) = {
+            totalJobsByRootWf: AtomicInteger,
+            fileHashCacheActor: Option[ActorRef]) = {
     Props(new SubWorkflowExecutionActor(
       key,
       parentWorkflow,
@@ -332,7 +336,8 @@ object SubWorkflowExecutionActor {
       initializationData,
       startState,
       rootConfig,
-      totalJobsByRootWf)
+      totalJobsByRootWf,
+      fileHashCacheActor = fileHashCacheActor)
     ).withDispatcher(EngineDispatcher)
   }
 }

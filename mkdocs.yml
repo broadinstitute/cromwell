@@ -13,6 +13,7 @@ pages:
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
     - Getting started with Pipelines API: tutorials/PipelinesApi101.md
     - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
+    - Getting started with AWS Batch: tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
@@ -28,6 +29,10 @@ pages:
     - Cromwell Releases: Getting.md
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
+- Feature Documentation:
+  - Call Caching: cromwell_features/CallCaching.md
+  - Labels: cromwell_features/Labels.md
+  - Hog Factors: cromwell_features/HogFactors.md
 - Runtime Attributes: RuntimeAttributes.md
 - Workflow Options:
   - Overview: wf_options/Overview.md
@@ -37,8 +42,6 @@ pages:
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
 - Configuration: Configuring.md
 - WOMtool: WOMtool.md
-- Labels: Labels.md
-- Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
 - Execution: execution/ExecutionTwists.md
@@ -58,6 +61,7 @@ pages:
 - Filesystems:
     - Overview: filesystems/Filesystems.md
     - Google Cloud Storage: filesystems/GoogleCloudStorage.md
+    - HTTP: filesystems/HTTP.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md

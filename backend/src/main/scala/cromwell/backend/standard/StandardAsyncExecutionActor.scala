@@ -19,11 +19,11 @@ import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.OutputEvaluator._
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
-import cromwell.backend.{Command, OutputEvaluator, _}
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
@@ -85,10 +85,15 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   type StandardAsyncRunInfo
 
   /** The type of the run status returned during each poll. */
-  type StandardAsyncRunStatus
+  type StandardAsyncRunState
+
+  /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
+    * in the state type.
+    */
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean
 
   /** The pending execution handle for each poll. */
-  type StandardAsyncPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus]
+  type StandardAsyncPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
 
   /** Standard set of parameters passed to the backend. */
   def standardParams: StandardAsyncExecutionActorParams
@@ -144,7 +149,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   // This is a trickery to allow the mapCommandLineWomFile above to call isAdHoc file without creating an
   // infinite recursion. This should really go away when we finally can have a sane implementation
-  // keeping track of the paths cleanly without so many value mappers 
+  // keeping track of the paths cleanly without so many value mappers
   def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = mapCommandLineWomFile(womFile)
 
   // Allows backends to signal to the StandardAsyncExecutionActor that there's a set of input files which
@@ -340,6 +345,14 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     // Only adjust the temporary directory permissions if this is executing under Docker.
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
 
+    val emptyDirectoryFillCommand: String = configurationDescriptor.backendConfig.getAs[String]("empty-dir-fill-command")
+      .getOrElse(
+        s"""(
+           |# add a .file in every empty directory to facilitate directory delocalization on the cloud
+           |cd $cwd
+           |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
+           |)""".stripMargin)
+
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
@@ -367,11 +380,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |INSTANTIATED_COMMAND
         |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
-        |(
-        |# add a .file in every empty directory to facilitate directory delocalization on the cloud
-        |cd $cwd
-        |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
-        |)
+        |$emptyDirectoryFillCommand
         |(
         |cd $cwd
         |SCRIPT_EPILOGUE
@@ -570,7 +579,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   }
 
   /** A tag that may be used for logging. */
-  lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowId.shortString}):${jobDescriptor.key.tag}]"
+  lazy val tag = s"${this.getClass.getSimpleName} [UUID(${workflowIdForLogging.shortString}):${jobDescriptor.key.tag}]"
 
   /**
     * When returns true, the `remoteStdErrPath` will be read. If contents of that path are non-empty, the job will fail.
@@ -666,7 +675,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param handle The handle of the running job.
     * @return The status of the job.
     */
-  def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunStatus = {
+  def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunState = {
     throw new NotImplementedError(s"Neither pollStatus nor pollStatusAsync implemented by $getClass")
   }
 
@@ -676,7 +685,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param handle The handle of the running job.
     * @return The status of the job.
     */
-  def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[StandardAsyncRunStatus] = Future.fromTry(Try(pollStatus(handle)))
+  def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[StandardAsyncRunState] = Future.fromTry(Try(pollStatus(handle)))
 
   /**
     * Adds custom behavior invoked when polling fails due to some exception. By default adds nothing.
@@ -697,7 +706,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param runStatus The run status.
     * @return True if the job has completed.
     */
-  def isTerminal(runStatus: StandardAsyncRunStatus): Boolean
+  def isTerminal(runStatus: StandardAsyncRunState): Boolean
 
   /**
     * Returns any events retrieved from the terminal run status.
@@ -705,7 +714,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param runStatus The terminal run status, as defined by isTerminal.
     * @return The execution events.
     */
-  def getTerminalEvents(runStatus: StandardAsyncRunStatus): Seq[ExecutionEvent] = Seq.empty
+  def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
   /**
     * Returns true if the status represents a completion.
@@ -713,7 +722,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param runStatus The run status.
     * @return True if the job is done.
     */
-  def isDone(runStatus: StandardAsyncRunStatus): Boolean = true
+  def isDone(runStatus: StandardAsyncRunState): Boolean = true
 
   /**
     * Returns any custom metadata from the polled status.
@@ -721,7 +730,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param runStatus The run status.
     * @return The job metadata.
     */
-  def getTerminalMetadata(runStatus: StandardAsyncRunStatus): Map[String, Any] = Map.empty
+  def getTerminalMetadata(runStatus: StandardAsyncRunState): Map[String, Any] = Map.empty
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.
@@ -846,7 +855,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param returnCode The return code.
     * @return The execution handle.
     */
-  def handleExecutionSuccess(runStatus: StandardAsyncRunStatus,
+  def handleExecutionSuccess(runStatus: StandardAsyncRunState,
                              handle: StandardAsyncPendingExecutionHandle,
                              returnCode: Int)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     evaluateOutputs() map {
@@ -874,7 +883,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param runStatus The run status.
     * @return The execution handle.
     */
-  def retryElseFail(runStatus: StandardAsyncRunStatus,
+  def retryElseFail(runStatus: StandardAsyncRunState,
                     backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
 
     val retryable = previousFailedRetries < maxRetries
@@ -894,7 +903,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param runStatus The run status.
     * @return The execution handle.
     */
-  def handleExecutionFailure(runStatus: StandardAsyncRunStatus,
+  def handleExecutionFailure(runStatus: StandardAsyncRunState,
                              returnCode: Option[Int]): Future[ExecutionHandle] = {
     val exception = new RuntimeException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: $runStatus")
     Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
@@ -945,7 +954,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): Future[ExecutionHandle] = {
     executionHandle match {
-      case handle: PendingExecutionHandle[StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
+      case handle: PendingExecutionHandle[StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunState@unchecked] =>
         tellKvJobId(handle.pendingJob) map { _ =>
           jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
@@ -965,7 +974,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
     previous match {
       case handle: PendingExecutionHandle[
-        StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunStatus@unchecked] =>
+        StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunState@unchecked] =>
 
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
         pollStatusAsync(handle) flatMap {
@@ -985,29 +994,28 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   /**
     * Process a poll success.
     *
-    * @param oldHandle The previous execution status.
-    * @param status The updated status.
+    * @param oldHandle The previous execution handle.
+    * @param state The updated run state.
     * @return The updated execution handle.
     */
   def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle,
-                        status: StandardAsyncRunStatus): Future[ExecutionHandle] = {
-    val previousStatus = oldHandle.previousStatus
-    if (!(previousStatus contains status)) {
-      /*
-      If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise just use
-      the state names.
-       */
-      val prevStateName = previousStatus.map(_.toString).getOrElse("-")
-      jobLogger.info(s"Status change from $prevStateName to $status")
-      tellMetadata(Map(CallMetadataKeys.BackendStatus -> status))
+                        state: StandardAsyncRunState): Future[ExecutionHandle] = {
+    val previousState = oldHandle.previousState
+    if (!(previousState exists statusEquivalentTo(state))) {
+      // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise just use
+      // the state names.
+      // This logging and metadata publishing assumes that StandardAsyncRunState subtypes `toString` nicely to state names.
+      val prevStatusName = previousState.map(_.toString).getOrElse("-")
+      jobLogger.info(s"Status change from $prevStatusName to $state")
+      tellMetadata(Map(CallMetadataKeys.BackendStatus -> state))
     }
 
-    status match {
-      case _ if isTerminal(status) =>
-        val metadata = getTerminalMetadata(status)
+    state match {
+      case _ if isTerminal(state) =>
+        val metadata = getTerminalMetadata(state)
         tellMetadata(metadata)
-        handleExecutionResult(status, oldHandle)
-      case s => Future.successful(oldHandle.copy(previousStatus = Option(s))) // Copy the current handle with updated previous status.
+        handleExecutionResult(state, oldHandle)
+      case s => Future.successful(oldHandle.copy(previousState = Option(s))) // Copy the current handle with updated previous status.
     }
   }
 
@@ -1048,7 +1056,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @param oldHandle The previous execution handle.
     * @return The updated execution handle.
     */
-  def handleExecutionResult(status: StandardAsyncRunStatus,
+  def handleExecutionResult(status: StandardAsyncRunState,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
     val stderr = jobPaths.standardPaths.error

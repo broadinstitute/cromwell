@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
 
 files {
-  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/aen_3990/centaur/src/main/resources/standardTestCases/wdl_biscayne/biscayne_http_relative_imports/biscayne_http_relative_imports.wdl"
+  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/wdl_biscayne/biscayne_http_relative_imports/biscayne_http_relative_imports.wdl"
 }
 
 metadata {

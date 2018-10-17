@@ -13,7 +13,7 @@
   "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.interval_padding": 100,
 
   "##_COMMENT4": "DOCKERS",
-  "HaplotypeCallerGvcf_GATK4.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.0.0",
+  "HaplotypeCallerGvcf_GATK4.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0",
 
   "##_COMMENT5": "PATHS",
   "HaplotypeCallerGvcf_GATK4.gatk_path": "/gatk/gatk",

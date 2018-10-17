@@ -33,8 +33,8 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.webservice.metadata.MetadataBuilderRegulatorActor
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -323,9 +323,10 @@ trait CromwellApiService extends HttpInstrumentation {
     }
   }
 
+  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
+
   private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
-    val metadataBuilderActor = actorRefFactory.actorOf(MetadataBuilderActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName)
-    val response = validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+    val response = validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
 
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.response)

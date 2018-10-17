@@ -1,5 +1,9 @@
 package cromwell.backend.impl.sfs.config
 
+import java.io.PrintWriter
+import java.lang.IllegalArgumentException
+import java.util.Calendar
+
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
 import cromwell.backend.impl.sfs.config.ConfigConstants._
@@ -7,12 +11,13 @@ import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
+import net.ceedubs.ficus.Ficus._
 import wdl.draft2.model._
 import wdl.transforms.draft2.wdlom2wom._
 import wom.callable.Callable.OptionalInputDefinition
 import wom.expression.NoIoFunctionSet
-import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
+import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -246,4 +251,56 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
     jobScriptArgs(job, "kill", KillTask)
   }
+
+  protected lazy val exitCodeTimeout: Option[Int] = {
+    val timeout = configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig)
+    timeout.foreach{x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")}
+    timeout
+  }
+
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+    handle.previousState match {
+      case None =>
+        // Is not set yet the status will be set default to running
+        SharedFileSystemRunState("Running")
+      case Some(s) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
+        // If exitcode file does exists status will be set to Done always
+        SharedFileSystemRunState("Done")
+      case Some(s) if s.status == "Running" =>
+        // Exitcode file does not exist at this point, checking is jobs is still alive
+        if (exitCodeTimeout.isEmpty) s
+        else if (isAlive(handle.pendingJob).fold({ e =>
+          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
+          true
+        }, x => x)) s
+        else SharedFileSystemRunState("WaitingForReturnCode")
+      case Some(s) if s.status == "WaitingForReturnCode" =>
+        // Can only enter this state when the exit code does not exist and the job is not alive anymore
+        // `isAlive` is not called anymore from this point
+
+        // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
+        exitCodeTimeout match {
+          case Some(timeout) =>
+            val currentDate = Calendar.getInstance()
+            currentDate.add(Calendar.SECOND, -timeout)
+            if (s.date.after(currentDate)) s
+            else {
+              jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
+              val writer = new PrintWriter(jobPaths.returnCode.toFile)
+              // 137 does mean a external kill -9, this is a assumption but easy workaround for now
+              writer.println(9)
+              writer.close()
+              SharedFileSystemRunState("Failed")
+            }
+          case _ => s
+        }
+      case Some(s) if s.status == "Done" => s // Nothing to be done here
+      case _ => throw new NotImplementedError("This should not happen, please report this")
+    }
+  }
+
+  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
+    runStatus.status == "Done" || runStatus.status == "Failed"
+  }
+
 }

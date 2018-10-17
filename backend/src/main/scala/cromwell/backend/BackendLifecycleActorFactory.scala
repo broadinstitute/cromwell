@@ -74,7 +74,7 @@ trait BackendLifecycleActorFactory {
   /*           Call Caching         */
   /* ****************************** */
 
-  def fileHashingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = None
+  def fileHashingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = None
 
   /**
     * Providing this method to generate Props for a cache hit copying actor is optional.

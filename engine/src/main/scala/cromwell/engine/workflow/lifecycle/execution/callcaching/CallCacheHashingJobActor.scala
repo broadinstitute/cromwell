@@ -96,7 +96,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     case Event(Terminated(_), _) =>
       stopAndStay(None)
     case Event(error: HashingFailedMessage, data) =>
-      log.error(error.reason, s"Failed to hash ${error.file}")
+      log.error("""Failed to hash "{}": {}""", error.file, error.reason.getMessage)
       sendToCallCacheReadingJobActor(error, data)
       context.parent ! error
       stopAndStay(None)

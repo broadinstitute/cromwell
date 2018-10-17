@@ -9,6 +9,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import com.typesafe.config.Config
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
@@ -35,13 +36,12 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
+import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
-import net.ceedubs.ficus.Ficus._
-import com.typesafe.config.Config
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -52,7 +52,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   implicit val ec = context.dispatcher
   override val serviceRegistryActor = params.serviceRegistryActor
   val workflowDescriptor = params.workflowDescriptor
-  override val workflowIdForLogging = workflowDescriptor.id
+  override val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
   override val workflowIdForCallMetadata = workflowDescriptor.id
   private val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
   private val restarting = params.startState.restarted
@@ -65,7 +66,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
-      .traverse {
+      .traverse[ErrorOr, (String, BackendLifecycleActorFactory)] {
       backendName => CromwellBackends.backendLifecycleFactoryActorByName(backendName) map { backendName -> _ }
     }
 
@@ -80,13 +81,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   // If executionStore returns a Failure about root workflow creating jobs more than total jobs per root workflow limit,
   // the WEA will fail by sending WorkflowExecutionFailedResponse to its parent and kill itself
   executionStore match {
-    case Valid(validExecutionStore) => {
+    case Valid(validExecutionStore) =>
       startWith(
         WorkflowExecutionPendingState,
         WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, validExecutionStore)
       )
-    }
-    case Invalid(e) => {
+    case Invalid(e) =>
       val errorMsg = s"Failed to initialize WorkflowExecutionActor. Error: $e"
       workflowLogger.error(errorMsg)
       context.parent ! WorkflowExecutionFailedResponse(Map.empty, new Exception(errorMsg))
@@ -100,7 +100,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
       workflowLogger.debug("Actor failed to initialize. Stopping self.")
       context.stop(self)
-    }
   }
 
   private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
@@ -310,12 +309,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
+    import LazyWomFile._
     import WorkflowExecutionActor.EnhancedWorkflowOutputs
     import cats.instances.list._
     import cats.syntax.traverse._
     import cromwell.util.JsonFormatting.WomValueJsonFormatter._
     import spray.json._
-    import LazyWomFile._
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
       val fullyQualifiedOutputs = outputs map {
@@ -353,7 +352,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map(outputNode =>
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
-      .toList.traverse({
+      .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => value.initialize(data.expressionLanguageFunctions).map(name -> _)
       case (name, None) =>
         s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
@@ -502,7 +501,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
     })
 
-    val diffValidation = runnableKeys.traverse({
+    val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
@@ -613,7 +612,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       backendSingleton,
       backendName,
       workflowDescriptor.callCachingMode,
-      command
+      command,
+      fileHashCacheActor = params.fileHashCacheActor
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -649,7 +649,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.initializationData,
         params.startState,
         params.rootConfig,
-        params.totalJobsByRootWf), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
+        params.totalJobsByRootWf,
+        fileHashCacheActor = params.fileHashCacheActor), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
@@ -763,7 +764,8 @@ object WorkflowExecutionActor {
                                            initializationData: AllBackendInitializationData,
                                            startState: StartableState,
                                            rootConfig: Config,
-                                           totalJobsByRootWf: AtomicInteger
+                                           totalJobsByRootWf: AtomicInteger,
+                                           fileHashCacheActor: Option[ActorRef]
                                          )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -779,7 +781,8 @@ object WorkflowExecutionActor {
             initializationData: AllBackendInitializationData,
             startState: StartableState,
             rootConfig: Config,
-            totalJobsByRootWf: AtomicInteger): Props = {
+            totalJobsByRootWf: AtomicInteger,
+            fileHashCacheActor: Option[ActorRef]): Props = {
     Props(
       WorkflowExecutionActor(
         WorkflowExecutionActorParams(
@@ -796,7 +799,8 @@ object WorkflowExecutionActor {
           initializationData,
           startState,
           rootConfig,
-          totalJobsByRootWf
+          totalJobsByRootWf,
+          fileHashCacheActor = fileHashCacheActor
         )
       )
     ).withDispatcher(EngineDispatcher)

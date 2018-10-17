@@ -121,6 +121,8 @@ object StandardFileHashingActorSpec {
     override def serviceRegistryActor = withServiceRegistryActor
 
     override def backendInitializationDataOption = withBackendInitializationDataOption
+
+    override def fileHashCachingActor: Option[ActorRef] = None
   }
 
 }

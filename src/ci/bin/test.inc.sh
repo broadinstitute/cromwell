@@ -112,6 +112,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
+            CROMWELL_BUILD_SPAN_SCALE_FACTOR="15"
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
@@ -202,6 +203,9 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PROVIDER
+    export CROMWELL_BUILD_PROVIDER_TRAVIS
+    export CROMWELL_BUILD_PROVIDER_JENKINS
+    export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_RANDOM_256_BITS_BASE64
     export CROMWELL_BUILD_REQUIRES_SECURE
     export CROMWELL_BUILD_OPTIONAL_SECURE
@@ -395,7 +399,7 @@ cromwell::private::write_cwl_test_inputs() {
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 600
+    "cwl_conformance_test.timeout": 1200
 }
 JSON
 }
@@ -477,6 +481,9 @@ cromwell::private::setup_secure_resources() {
 }
 
 cromwell::private::make_build_directories() {
+    if [ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]; then
+        sudo chmod -R a+w .
+    fi
     mkdir -p "${CROMWELL_BUILD_LOG_DIRECTORY}"
     mkdir -p "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"
     cp -r "${CROMWELL_BUILD_RESOURCES_SOURCES}"/* "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"
@@ -537,14 +544,11 @@ cromwell::private::publish_artifacts_only() {
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish -warn
-    # Explicitly list to avoid pushing executables that are not meant to be published
-    # TODO: clean this up by wiring something an argument in withExecutableSettings that would prevent the push at the source
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" server/dockerBuildAndPush -warn
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" cromiam/dockerBuildAndPush -warn
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" centaurCwlRunner/dockerBuildAndPush -warn
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" wes2cromwell/dockerBuildAndPush -warn
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" womtool/dockerBuildAndPush -warn
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish dockerBuildAndPush -warn
+}
+
+cromwell::private::publish_artifacts_check() {
+    sbt verifyArtifactoryCredentialsExist -warn
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
@@ -760,7 +764,9 @@ cromwell::build::generate_code_coverage() {
 }
 
 cromwell::build::publish_artifacts() {
-    if [ "${CROMWELL_BUILD_TYPE}" == "sbt" ] && [ "${CROMWELL_BUILD_EVENT}" == "push" ]; then
+    if [ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ] && \
+        [ "${CROMWELL_BUILD_TYPE}" == "sbt" ] && \
+        [ "${CROMWELL_BUILD_EVENT}" == "push" ]; then
 
         if [ "${CROMWELL_BUILD_BRANCH}" = "develop" ]; then
             # Publish images for both the "cromwell develop branch" and the "cromwell dev environment".
@@ -768,18 +774,19 @@ cromwell::build::publish_artifacts() {
                 cromwell::private::publish_artifacts_and_docker \
                 -Dproject.isSnapshot=true
             cromwell::private::push_publish_complete
-        fi
 
-        if [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]]; then
+        elif [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]]; then
             # Docker tags float. "30" is the latest hotfix. Those dockers are published here on each hotfix commit.
             cromwell::private::publish_artifacts_and_docker -Dproject.isSnapshot=false
-        fi
 
-        if [ -n "${CROMWELL_BUILD_TAG:+set}" ]; then
+        elif [ -n "${CROMWELL_BUILD_TAG:+set}" ]; then
             # Artifact tags are static. Once "30" is set that is only "30" forever. Those artifacts are published here.
             cromwell::private::publish_artifacts_only \
                 -Dproject.version="${CROMWELL_BUILD_TAG}" \
                 -Dproject.isSnapshot=false
+
+        elif [ "${CROMWELL_BUILD_IS_SECURE}" = "true" ]; then
+            cromwell::private::publish_artifacts_check
 
         fi
 

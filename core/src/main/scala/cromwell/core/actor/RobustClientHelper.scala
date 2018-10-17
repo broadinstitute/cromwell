@@ -1,9 +1,10 @@
 package cromwell.core.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable}
+import common.util.Backoff
 import cromwell.core.actor.RobustClientHelper._
 import cromwell.core.actor.StreamIntegration._
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps

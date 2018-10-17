@@ -23,6 +23,8 @@ case class EngineWorkflowDescriptor(topLevelCallable: Callable,
   def isRootWorkflow: Boolean = rootWorkflow.parentWorkflow.isEmpty
 
   lazy val id = backendDescriptor.id
+  lazy val possiblyNotRootWorkflowId = id.toPossiblyNotRoot
+  lazy val rootWorkflowId = rootWorkflow.id.toRoot
   lazy val callable = backendDescriptor.callable
   lazy val name = callable.name
   lazy val knownValues = backendDescriptor.knownValues

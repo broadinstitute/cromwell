@@ -33,20 +33,12 @@ package cromwell.backend.impl.aws
 
 import java.util.UUID
 
-import _root_.wdl.draft2.model._
-import wdl.transforms.draft2.wdlom2wom._
-import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
-import wom.transforms.WomExecutableMaker.ops._
-import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestDuration} // TestProbe
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import akka.testkit.{ImplicitSender, TestActorRef, TestDuration}
 import common.collections.EnhancedCollections._
-// import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
-// import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle } //FailedRetryableExecutionHandle, AbortedExecutionHandle
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle}
 import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchPendingExecutionHandle
 import cromwell.backend.impl.aws.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
@@ -65,25 +57,31 @@ import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
-// import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
+import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import software.amazon.awssdk.core.regions.Region
 import spray.json._
+import wdl.draft2.model._
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.WomFileMapper
 import wom.expression.NoIoFunctionSet
 import wom.graph.CommandCallNode
+import wom.transforms.WomExecutableMaker.ops._
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise} // ExecutionContext
+import scala.concurrent.{Await, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
 class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromCredentials(AnonymousCredentialsProvider.create.getCredentials,
-    S3Storage.DefaultConfiguration, WorkflowOptions.empty)
+    S3Storage.DefaultConfiguration, WorkflowOptions.empty, Option(Region.US_EAST_1))
 
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
@@ -116,7 +114,8 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
   val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext = CallContext(mockPathBuilder.build("s3://root").get, DummyStandardPaths, false)
+  lazy val TestableCallContext =
+    CallContext(mockPathBuilder.build("s3://root").get, DummyStandardPaths, isDocker = false)
 
   lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
@@ -161,8 +160,14 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       )
     }
 
-    override lazy val jobLogger = new JobLogger("TestLogger", workflowId, jobTag, akkaLogger = Option(log)) {
-      override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
+    override lazy val jobLogger = new JobLogger(
+      "TestLogger",
+      workflowIdForLogging,
+      rootWorkflowIdForLogging,
+      jobTag,
+      akkaLogger = Option(log)
+    ) {
+      override def tag: String = s"$name [UUID(${workflowIdForLogging.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
 
@@ -567,7 +572,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     )
     val backend = makeAwsBatchActorRef(SampleWdl.FilePassingWorkflow, "a", inputs).underlyingActor
     val jobDescriptor = backend.jobDescriptor
-    val workflowId = backend.workflowId
+    val workflowId = backend.workflowDescriptor.id
     val batchInputs = backend.generateAwsBatchInputs(jobDescriptor)
     batchInputs should have size 1
     batchInputs should contain(AwsBatchFileInput("in-0", "s3://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))

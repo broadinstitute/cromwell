@@ -1,8 +1,8 @@
 package cromwell.engine.io
 
 import cats.Show
+import common.util.IORetry.StatefulIoError
 import cromwell.core.CromwellFatalExceptionMarker
-import cromwell.core.retry.IORetry.StatefulIoError
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 object IoAttempts {

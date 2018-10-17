@@ -83,7 +83,8 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {
 
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
-  val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)
+  val possiblyNotRootWorkflowId = id.toPossiblyNotRoot
+  val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id).toRoot
   lazy val hogGroup = {
     val config = ConfigFactory.load
     if (config.hasPath("system.hog-safety.workflow-option")) {

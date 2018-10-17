@@ -10,7 +10,6 @@ import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataBuilderActor._
-import cromwell.webservice.metadata.MetadataComponent._
 import org.slf4j.LoggerFactory
 import spray.json._
 
@@ -119,11 +118,14 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
 
   def buildAndStop(ioComponent: IO[MetadataComponent]): State = {
     target ! BuiltMetadataResponse(ioComponent.unsafeRunSync().toJson.asJsObject)
+    log.info("Done")
     allDone
   }
 
   def buildAndStop(query: MetadataQuery): State = {
-    buildAndStop(StreamMetadataBuilder.workflowMetadataQuery(query): IO[MetadataComponent])
+    target ! BuiltMetadataResponse(StreamMetadataBuilder.workflowMetadataQuery(query).unsafeRunSync())
+    log.info("Done")
+    allDone
   }
 
   def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {

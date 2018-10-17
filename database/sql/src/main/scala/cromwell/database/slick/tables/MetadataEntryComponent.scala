@@ -3,6 +3,7 @@ package cromwell.database.slick.tables
 import java.sql.{Clob, Timestamp}
 
 import cats.data.NonEmptyList
+import com.typesafe.config.ConfigFactory
 import cromwell.database.sql.tables.MetadataEntry
 
 trait MetadataEntryComponent {
@@ -63,11 +64,13 @@ trait MetadataEntryComponent {
 
   val metadataEntriesExists = Compiled(metadataEntries.take(1).exists)
 
+  val limit = ConfigFactory.load().getLong("metadata.debug.limit")
+  
   val metadataEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield metadataEntry).sortBy(_.metadataTimestamp)
+    } yield metadataEntry).sortBy(_.metadataTimestamp).take(limit)
   )
 
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(

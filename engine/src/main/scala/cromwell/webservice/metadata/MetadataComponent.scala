@@ -43,16 +43,6 @@ object MetadataComponent {
     case MetadataPrimitive(MetadataValue(_, MetadataNull), _) => JsNull
   }
 
-  implicit val metadataComponentJsonWriter: JsonWriter[MetadataComponent] = JsonWriter.func2Writer[MetadataComponent] {
-    case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this.metadataComponentJsonWriter) })
-    case MetadataObject(values) => JsObject(values.safeMapValues(_.toJson(this.metadataComponentJsonWriter)))
-    case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
-    case MetadataEmptyComponent => JsObject.empty
-    case MetadataNullComponent => JsNull
-    case MetadataPlaceholderComponent(query, ec) => StreamMetadataBuilder.workflowMetadataQuery(query)(ec).unsafeRunSync().toJson(this.metadataComponentJsonWriter)
-    case MetadataJsonComponent(jsValue) => jsValue
-  }
-
   /* ******************************* */
   /* *** Metadata Events Parsing *** */
   /* ******************************* */
@@ -102,14 +92,12 @@ object MetadataComponent {
     lazy val primitive = event.value map { MetadataPrimitive(_, customOrdering(event)) } getOrElse MetadataEmptyComponent
 
     // If the event is a sub workflow id event, we might need to replace the id with a placeholder for the sub workflow metadata
-    lazy val keyWithSubWorkflowMetadata = event.key.key.replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
-    lazy val subWorkflowComponent = event.value map { metadataValue =>
-      MetadataPlaceholderComponent(query.copy(workflowId = WorkflowId.fromString(metadataValue.value)), ec)
-    } getOrElse primitive
+    lazy val subWorkflowKey = event.key.key.replace(CallMetadataKeys.SubWorkflowId, CallMetadataKeys.SubWorkflowMetadata)
+    lazy val subWorkflowComponent = event.extractSubWorkflowId.map(MetadataPlaceholderComponent.apply).getOrElse(primitive)
 
-    val (key, component): (String, MetadataComponent) = if (query.expandSubWorkflows && event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)) {
-      keyWithSubWorkflowMetadata -> subWorkflowComponent
-    } else
+    val (key, component): (String, MetadataComponent) = if (event.isSubWorkflowId) 
+      subWorkflowKey -> subWorkflowComponent 
+    else
       event.key.key -> primitive
 
     contextualize(event.key, fromMetadataKeyAndPrimitive(key, component).asInstanceOf[MetadataObject])
@@ -148,12 +136,33 @@ object MetadataComponent {
         )
     }
   }
+  
+  implicit class EnhancedMetadataEvent(val event: MetadataEvent) extends AnyVal {
+    def isSubWorkflowId: Boolean = event.key.key.endsWith(CallMetadataKeys.SubWorkflowId)
+    def extractSubWorkflowId: Option[WorkflowId] = {
+      event.value.map(value => WorkflowId.fromString(value.value))
+    }
+  }
+  
+  implicit val DefaultMetadataComponentJsonWriter = new MetadataComponentJsonWriter(Map.empty)
+  
+  class MetadataComponentJsonWriter(subWorkflowsMapping: Map[WorkflowId, JsObject]) extends JsonWriter[MetadataComponent] {
+    override def write(obj: MetadataComponent) = obj match {
+      case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this) })
+      case MetadataObject(values) => JsObject(values.safeMapValues(_.toJson(this)))
+      case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
+      case MetadataEmptyComponent => JsObject.empty
+      case MetadataNullComponent => JsNull
+      case MetadataPlaceholderComponent(subWorkflowId) => subWorkflowsMapping.getOrElse(subWorkflowId, JsNull)
+      case MetadataJsonComponent(jsValue) => jsValue
+    }
+  }
 }
 
 sealed trait MetadataComponent
 case object MetadataEmptyComponent extends MetadataComponent
 case object MetadataNullComponent extends MetadataComponent
-case class MetadataPlaceholderComponent(query: MetadataQuery, ec: ExecutionContext) extends MetadataComponent
+case class MetadataPlaceholderComponent(subWorkflowId: WorkflowId) extends MetadataComponent
 
 // Metadata Object  
 object MetadataObject {

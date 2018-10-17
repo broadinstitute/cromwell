@@ -1,4 +1,4 @@
-package cromwell.webservice
+package cromwell.webservice.routes
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.coding.{Decoder, Gzip}
@@ -10,8 +10,8 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common.util.VersionUtil
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core._
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow, WorkflowOnHoldToSubmittedCommand}
@@ -21,7 +21,7 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
-import cromwell.webservice.routes.CromwellApiService
+import cromwell.webservice.EngineStatsActor
 import mouse.boolean._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._

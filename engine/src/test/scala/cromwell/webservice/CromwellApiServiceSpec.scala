@@ -1,4 +1,4 @@
-package cromwell.webservice.routes
+package cromwell.webservice
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.coding.{Decoder, Gzip}
@@ -21,7 +21,7 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
-import cromwell.webservice.EngineStatsActor
+import cromwell.webservice.routes.CromwellApiService
 import mouse.boolean._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._

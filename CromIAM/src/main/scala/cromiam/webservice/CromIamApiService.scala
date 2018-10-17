@@ -53,6 +53,11 @@ trait CromIamApiService extends RequestSupport
     configuration.cromwellConfig.port,
     log)
 
+  lazy val cromwellAbortClient = new CromwellClient(configuration.cromwellAbortConfig.scheme,
+    configuration.cromwellAbortConfig.interface,
+    configuration.cromwellAbortConfig.port,
+    log)
+
   lazy val samClient = new SamClient(configuration.samConfig.scheme, configuration.samConfig.interface, configuration.samConfig.port, log)
 
   val statusService: StatusService
@@ -75,6 +80,7 @@ trait CromIamApiService extends RequestSupport
     }
   }
 
+  //noinspection MutatorLikeMethodIsParameterless
   def releaseHoldRoute: Route =  path("api" / "workflows" / Segment / Segment / ReleaseHold) { (_, workflowId) =>
     post {
       extractUserAndRequest { (user, req) =>
@@ -112,7 +118,7 @@ trait CromIamApiService extends RequestSupport
 
   def backendRoute: Route = workflowGetRoute("backends")
 
-  def callCacheDiffRoute: Route = path("api" / "workflows" / Segment / "callcaching" / "diff") { version =>
+  def callCacheDiffRoute: Route = path("api" / "workflows" / Segment / "callcaching" / "diff") { _ =>
     get {
       extractUserAndRequest { (user, req) =>
         logUserAction(user, "call caching diff")
@@ -155,10 +161,17 @@ trait CromIamApiService extends RequestSupport
     }
   }
 
+  /**
+    * Authorization-related Cromwell interactions run through the `cromwellAuthClient`, while the actual Cromwell
+    * request runs through `cromwellRequestClient`. These can be the same Cromwell instance but they can also be
+    * different if the request needs to go to a specific Cromwell instance such as an abort server.
+    */
   private def authorizeThenForwardToCromwell(user: User,
                                              workflowIds: List[String],
                                              action: String,
-                                             request: HttpRequest): Future[HttpResponse] = {
+                                             request: HttpRequest,
+                                             cromwellAuthClient: CromwellClient,
+                                             cromwellRequestClient: CromwellClient): Future[HttpResponse] = {
     def authForCollection(collection: Collection): Future[Unit] = {
       samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
@@ -170,10 +183,10 @@ trait CromIamApiService extends RequestSupport
 
 
     (for {
-      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellClient.getRootWorkflow(id, user)))
-      collections <- Future.sequence(rootWorkflowIds.map(id => cromwellClient.collectionForWorkflow(id, user))).map(_.distinct)
+      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellAuthClient.getRootWorkflow(id, user)))
+      collections <- Future.sequence(rootWorkflowIds.map(id => cromwellAuthClient.collectionForWorkflow(id, user))).map(_.distinct)
       _ <- collections traverse authForCollection
-      resp <- cromwellClient.forwardToCromwell(request)
+      resp <- cromwellRequestClient.forwardToCromwell(request)
     } yield resp) recover {
       case SamDenialException => SamDenialResponse
       case other => HttpResponse(status = InternalServerError, entity = s"CromIAM unexpected error: $other")
@@ -181,15 +194,36 @@ trait CromIamApiService extends RequestSupport
   }
 
   private def authorizeReadThenForwardToCromwell(user: User, workflowIds: List[String], request: HttpRequest): Future[HttpResponse] = {
-    authorizeThenForwardToCromwell(user, workflowIds, "view", request)
+    authorizeThenForwardToCromwell(
+      user = user,
+      workflowIds = workflowIds,
+      action = "view",
+      request = request,
+      cromwellAuthClient = cromwellClient,
+      cromwellRequestClient = cromwellClient)
   }
 
   private def authorizeUpdateThenForwardToCromwell(user: User, workflowId: String, request: HttpRequest): Future[HttpResponse] = {
-    authorizeThenForwardToCromwell(user, List(workflowId), "update", request)
+    authorizeThenForwardToCromwell(
+      user = user,
+      workflowIds = List(workflowId),
+      action = "update",
+      request = request,
+      cromwellAuthClient = cromwellClient,
+      cromwellRequestClient = cromwellClient)
   }
 
   private def authorizeAbortThenForwardToCromwell(user: User, workflowId: String, request: HttpRequest): Future[HttpResponse] = {
-    authorizeThenForwardToCromwell(user, List(workflowId), "abort", request)
+    // Do all the authing for the abort with "this" cromwell instance (cromwellClient), but the actual abort command
+    // must go to the dedicated abort server (cromwellAbortClient).
+    authorizeThenForwardToCromwell(
+      user = user,
+      workflowIds = List(workflowId),
+      action = "abort",
+      request = request,
+      cromwellAuthClient = cromwellClient,
+      cromwellRequestClient = cromwellAbortClient
+    )
   }
 
   private def logUserAction(user: User, action: String) = log.info("User " + user.userId + " requesting " + action)
@@ -200,8 +234,6 @@ trait CromIamApiService extends RequestSupport
 }
 
 object CromIamApiService {
-  private[webservice] val CromIamStatsForbidden = HttpResponse(status = Forbidden, entity = "CromIAM does not allow access to the /stats endpoint")
-
   val Abort = "abort"
   val Labels = "labels"
   val ReleaseHold = "releaseHold"

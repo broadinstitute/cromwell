@@ -59,7 +59,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override type StandardAsyncRunInfo = Any
 
-  override type StandardAsyncRunStatus = TesRunStatus
+  override type StandardAsyncRunState = TesRunStatus
+
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override lazy val pollBackOff = SimpleExponentialBackoff(
     initialInterval = 1 seconds,
@@ -169,11 +171,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       taskMessage <- taskMessageFuture
       entity <- Marshal(taskMessage).to[RequestEntity]
       ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity))
-    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
+    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousState = None)
   }
 
   override def reconnectAsync(jobId: StandardAsyncJob) = {
-    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunStatus](jobDescriptor, jobId, None, previousStatus = None)
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor, jobId, None, previousState = None)
     Future.successful(handle)
   }
 
@@ -234,7 +236,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       FailedNonRetryableExecutionHandle(e)
   }
 
-  override def handleExecutionFailure(status: StandardAsyncRunStatus, returnCode: Option[Int]) = {
+  override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {
     status match {
       case Cancelled => Future.successful(AbortedExecutionHandle)
       case _ => super.handleExecutionFailure(status, returnCode)

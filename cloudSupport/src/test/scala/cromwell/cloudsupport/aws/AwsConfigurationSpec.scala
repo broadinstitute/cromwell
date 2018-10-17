@@ -82,7 +82,7 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
     val conf = AwsConfiguration(ConfigFactory.parseString(righteousAwsConfig))
 
     conf.applicationName shouldBe "cromwell"
-    conf.region shouldBe "region"
+    conf.strRegion shouldBe Some("region")
     conf.authsByName should have size 4
 
     val auths = conf.authsByName.values
@@ -108,24 +108,6 @@ class AwsConfigurationSpec extends FlatSpec with Matchers {
     assumeRole.baseAuthentication.name shouldBe "default"
     assumeRole.roleArn shouldBe "my-role-arn"
     assumeRole.externalId shouldBe ""
-  }
-
-  it should "default region to us-east-1" in {
-    val config =
-      """|aws {
-         |  application-name = "cromwell"
-         |
-         |  auths = [
-         |    {
-         |      name = "name-default"
-         |      scheme = "default"
-         |    }
-         |  ]
-         |}
-         |""".stripMargin
-
-    val conf = AwsConfiguration(ConfigFactory.parseString(config))
-    conf.region shouldBe "us-east-1"
   }
 
   it should "return a known auth" in {

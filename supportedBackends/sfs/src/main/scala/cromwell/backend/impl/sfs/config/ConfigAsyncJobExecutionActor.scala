@@ -258,14 +258,14 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     timeout
   }
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    handle.previousStatus match {
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+    handle.previousState match {
       case None =>
         // Is not set yet the status will be set default to running
-        SharedFileSystemRunStatus("Running")
+        SharedFileSystemRunState("Running")
       case Some(s) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
         // If exitcode file does exists status will be set to Done always
-        SharedFileSystemRunStatus("Done")
+        SharedFileSystemRunState("Done")
       case Some(s) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
         if (exitCodeTimeout.isEmpty) s
@@ -273,7 +273,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
           true
         }, x => x)) s
-        else SharedFileSystemRunStatus("WaitingForReturnCode")
+        else SharedFileSystemRunState("WaitingForReturnCode")
       case Some(s) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore
         // `isAlive` is not called anymore from this point
@@ -290,7 +290,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
               // 137 does mean a external kill -9, this is a assumption but easy workaround for now
               writer.println(9)
               writer.close()
-              SharedFileSystemRunStatus("Failed")
+              SharedFileSystemRunState("Failed")
             }
           case _ => s
         }
@@ -299,7 +299,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     }
   }
 
-  override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
+  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
     runStatus.status == "Done" || runStatus.status == "Failed"
   }
 

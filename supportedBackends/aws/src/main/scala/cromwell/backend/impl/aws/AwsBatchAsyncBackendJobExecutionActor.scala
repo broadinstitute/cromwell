@@ -133,13 +133,16 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case Valid(s) => s
       case errors => new RuntimeException(errors.toList.mkString(", "))
     }
-    AwsBatchJob(jobDescriptor, runtimeAttributes,
-                                  instantiatedCommand.commandString,
-                                  script.toString,
-                                  rcPath.toString, executionStdout, executionStderr,
-                                  generateAwsBatchInputs(jobDescriptor),
-                                  generateAwsBatchOutputs(jobDescriptor),
-                                  jobPaths, Seq.empty[AwsBatchParameter])
+    AwsBatchJob(
+      jobDescriptor,
+      runtimeAttributes,
+      instantiatedCommand.commandString,
+      script.toString,
+      rcPath.toString, executionStdout, executionStderr,
+      generateAwsBatchInputs(jobDescriptor),
+      generateAwsBatchOutputs(jobDescriptor),
+      jobPaths, Seq.empty[AwsBatchParameter],
+      configuration.awsConfig.region)
   }
   /* Tries to abort the job in flight
    *

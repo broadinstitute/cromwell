@@ -37,6 +37,7 @@ import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
+import software.amazon.awssdk.core.regions.Region
 
 class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
 
@@ -49,7 +50,8 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     S3PathBuilder.fromCredentials(
       AnonymousCredentialsProvider.create.getCredentials,
       S3Storage.s3AdvancedConfiguration(),
-      wfOptionsWithProject
+      wfOptionsWithProject,
+      Option(Region.US_EAST_1)
     )
   }
 
@@ -382,7 +384,8 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     S3PathBuilder.fromCredentials(
       AnonymousCredentialsProvider.create.getCredentials,
       S3Storage.s3AdvancedConfiguration(),
-      WorkflowOptions.empty
+      WorkflowOptions.empty,
+      Option(Region.US_EAST_1)
     )
   }
 }

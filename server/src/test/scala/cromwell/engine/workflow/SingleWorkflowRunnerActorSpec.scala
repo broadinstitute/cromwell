@@ -288,3 +288,18 @@ class SingleWorkflowRunnerActorFailureSpec extends SingleWorkflowRunnerActorSpec
     }
   }
 }
+
+class SingleWorkflowRunnerActorUnexpectedSpec extends SingleWorkflowRunnerActorSpec {
+  "A SingleWorkflowRunnerActor" should {
+    "successfully warn about unexpected output" in {
+      within(TimeoutDuration) {
+        val runner = createRunnerActor()
+        waitForWarning("unhandled message from Actor") {
+          runner ? RunWorkflow
+          runner ! "expected unexpected"
+        }
+        assert(!system.whenTerminated.isCompleted)
+      }
+    }
+  }
+}

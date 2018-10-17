@@ -30,6 +30,7 @@ import scala.util.{Failure, Success}
 
 trait MetadataRouteSupport extends HttpInstrumentation {
   implicit def actorRefFactory: ActorRefFactory
+
   implicit val ec: ExecutionContext
 
   val serviceRegistryActor: ActorRef
@@ -149,10 +150,10 @@ object MetadataRouteSupport {
 
 
   private def metadataBuilderActorRequest(possibleWorkflowId: String,
-                                     request: WorkflowId => ReadAction,
-                                     serviceRegistryActor: ActorRef,
-                                     metadataBuilderRegulatorActor: ActorRef)
-                                    (implicit timeout: Timeout, ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
+                                          request: WorkflowId => ReadAction,
+                                          serviceRegistryActor: ActorRef,
+                                          metadataBuilderRegulatorActor: ActorRef)
+                                         (implicit timeout: Timeout, ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
     validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
   }
 

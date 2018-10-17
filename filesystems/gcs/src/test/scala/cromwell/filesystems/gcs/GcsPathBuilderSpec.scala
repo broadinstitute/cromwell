@@ -275,15 +275,15 @@ class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
   )
 
   private def badPaths = Seq(
-    BadPath("an empty path", "", " does not have a gcs scheme"),
+    BadPath("an empty path", "", "Path \"\" does not have a gcs scheme"),
     BadPath("an bucketless path", "gs://", "The specified GCS path 'gs://' does not parse as a URI.\nExpected authority at index 5: gs://"),
     BadPath("a bucket named .", "gs://./hello/world", "The path 'gs://./hello/world' does not seem to be a valid GCS path. Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."),
     BadPath("a non ascii bucket name", "gs://nonasciibucket£€/hello/world",
       "The path 'gs://nonasciibucket£€/hello/world' does not seem to be a valid GCS path. Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at https://cloud.google.com/storage/docs/naming."),
     BadPath("a https path", "https://hello/world", "Cloud Storage URIs must have 'gs' scheme: https://hello/world"),
     BadPath("a file uri path", "file:///hello/world", "Cloud Storage URIs must have 'gs' scheme: file:///hello/world"),
-    BadPath("a relative file path", "hello/world", "hello/world does not have a gcs scheme"),
-    BadPath("an absolute file path", "/hello/world", "/hello/world does not have a gcs scheme")
+    BadPath("a relative file path", "hello/world", "Path \"hello/world\" does not have a gcs scheme"),
+    BadPath("an absolute file path", "/hello/world", "Path \"/hello/world\" does not have a gcs scheme")
   )
 
   private lazy val pathBuilder = {

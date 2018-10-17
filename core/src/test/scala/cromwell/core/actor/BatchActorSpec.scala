@@ -21,6 +21,15 @@ class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with E
   override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
   implicit val patience = patienceConfig
 
+  println(
+    s"""|
+        |FINDME:
+        |spanScaleFactor = $spanScaleFactor
+        |patienceConfig.timeout = ${patienceConfig.timeout}
+        |patienceConfig.interval = ${patienceConfig.interval}
+        |:FINDME
+        |""".stripMargin)
+
   it should "start with WaitingToProcess" in {
     val batch = TestFSMRef(new BatchActorTest)
     batch.stateName shouldBe WaitingToProcess

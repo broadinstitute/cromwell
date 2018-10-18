@@ -6,7 +6,7 @@ import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.RequesterPaysErrors._
 import mouse.all._
-import org.apache.commons.text.StringEscapeUtils.ESCAPE_XSI
+import org.apache.commons.text.StringEscapeUtils
 
 import scala.concurrent.duration._
 
@@ -25,7 +25,7 @@ object ActionCommands {
   
   implicit class ShellPath(val path: Path) extends AnyVal {
     // The command String runs in Bourne shell so shell metacharacters in filenames must be escaped
-    def escape = ESCAPE_XSI.translate(path.pathAsString)
+    def escape: String = StringEscapeUtils.escapeXSI(path.pathAsString)
   }
   
   private def makeContentTypeFlag(contentType: Option[ContentType]) = contentType.map(ct => s"""-h "Content-Type: $ct"""").getOrElse("")

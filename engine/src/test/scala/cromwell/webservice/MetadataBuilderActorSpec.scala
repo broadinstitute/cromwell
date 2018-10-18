@@ -3,11 +3,10 @@ package cromwell.webservice
 import java.time.OffsetDateTime
 import java.util.UUID
 
-import akka.pattern.ask
 import akka.testkit._
+import akka.pattern.ask
 import akka.util.Timeout
 import cromwell.core._
-import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.webservice.metadata.MetadataBuilderActor
@@ -24,11 +23,9 @@ import scala.language.postfixOps
 class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
-  MetadataServicesStore
-
   behavior of "MetadataParser"
 
-  val defaultTimeout = 1 day
+  val defaultTimeout = 200 millis
   implicit val timeout: Timeout = defaultTimeout
 
   val mockServiceRegistry = TestProbe()

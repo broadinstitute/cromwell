@@ -63,13 +63,11 @@ trait MetadataEntryComponent {
 
   val metadataEntriesExists = Compiled(metadataEntries.take(1).exists)
 
-//  val limit = ConfigFactory.load().getLong("metadata.debug.limit")
-  
   val metadataEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield metadataEntry).sortBy(_.metadataTimestamp)//.take(limit)
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(

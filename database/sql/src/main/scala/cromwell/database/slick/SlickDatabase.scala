@@ -72,7 +72,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   override lazy val connectionDescription = databaseConfig.getString(urlKey)
   
-  // Integer.MIN_VALUE is the value used by MYSQL to 
+  // Integer.MIN_VALUE is the value used by MYSQL to enable streaming. Use that as a default.
   private val streamFetchSize = databaseConfig.getAs[Int]("fetch-size").getOrElse(Integer.MIN_VALUE)
 
   SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")

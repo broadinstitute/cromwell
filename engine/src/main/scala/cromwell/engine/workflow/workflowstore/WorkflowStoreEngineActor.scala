@@ -5,8 +5,10 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
+import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.WorkflowMetadataHelper
@@ -31,15 +33,15 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))
   self ! InitializerCommand
 
-//  scheduleInstrumentation {
-//    store.stats map { stats: Map[WorkflowStoreState, Int] =>
-//      // Update the count for Submitted and Running workflows, defaulting to 0
-//      val statesMap = stats.withDefault(_ => 0)
-//      updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
-//      updateWorkflowsRunning(statesMap(WorkflowStoreState.Running))
-//    }
-//    ()
-//  }
+  scheduleInstrumentation {
+    store.stats map { stats: Map[WorkflowStoreState, Int] =>
+      // Update the count for Submitted and Running workflows, defaulting to 0
+      val statesMap = stats.withDefault(_ => 0)
+      updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
+      updateWorkflowsRunning(statesMap(WorkflowStoreState.Running))
+    }
+    ()
+  }
 
   when(Unstarted) {
     case Event(InitializerCommand, _) =>

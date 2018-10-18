@@ -7,6 +7,21 @@
 The value `exit-code-timeout-seconds` can now set in a backend configuration.
 Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
 
+### [AWS S3 file transfers are now encrypted](https://github.com/broadinstitute/cromwell/pull/4264)
+
+### Bug fixes
+
+#### Metadata Request Coalescing
+
+Coalesce metadata requests to eliminate expensive and redundant queries and metadata construction.
+
+#### Eliminate redundant SFS logging and metadata 
+
+Eliminate superfluous logging and metadata publishing in the shared filesystem backend on poll intervals where there was not a state change.
+
+#### AWS region configuration respected throughout
+
+Previously US-EAST-1 was hardcoded in places.
 
 ## 35 Release Notes
 

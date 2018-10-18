@@ -50,8 +50,6 @@ prepare_statsd_proxy() {
 
 set_up() {
     gcloud auth configure-docker --quiet
-    apt-get update
-    apt-get install --assume-yes apache2-utils
 }
 
 clean_up() {

@@ -7,7 +7,11 @@ task curl_metadata {
     }
 
     command {
-        ab -n 5 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata
+        curl -s 300 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
+        curl -s 300 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
+        curl -s 300 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
+        curl -s 300 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
+        curl -s 300 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
     }
 }
 

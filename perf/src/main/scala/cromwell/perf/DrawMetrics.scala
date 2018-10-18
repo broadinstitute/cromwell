@@ -13,12 +13,27 @@ import scala.concurrent.ExecutionContext
 
 object DrawMetrics extends IOApp with scalax.chart.module.Charting with StrictLogging {
   def run(args: List[String]): IO[ExitCode] = {
-    val blockingExecutionContext = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(2))
-    val filter = args(2)
+    implicit val ec = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
+    implicit val contextShift = IO.contextShift(ec)
 
-    logger.info(s"Reading metric file at ${args.head}. Filtering for $filter")
+    val filter = args.head
+    val output = args.drop(1).head
+    val sources = args.drop(2)
 
-    io.file.readAll[IO](Paths.get(args.head), blockingExecutionContext, 4096)
+    sources
+      .parTraverse[IO, IO.Par, DrawMetrics.XYSeries](makeXYSeries(filter))
+      .map(XYLineChart(_))
+      .map(configureChart)
+      .flatMap(drawToPng(output))
+      // For some reason the app does not exit without shutting down the EC
+      .map(_ => ec.shutdown())
+      .as(ExitCode.Success)
+  }
+
+  def makeXYSeries(filter: String)(file: String)(implicit ec: ExecutionContext): IO[DrawMetrics.XYSeries] = {
+    logger.info(s"Reading metric file at $file. Filtering for $filter")
+
+    io.file.readAll[IO](Paths.get(file), ec, 4096)
       .through(text.utf8Decode)
       .through(text.lines)
       .filter(_.contains(filter))
@@ -26,17 +41,11 @@ object DrawMetrics extends IOApp with scalax.chart.module.Charting with StrictLo
       .zipWithIndex
       .map(_.swap)
       .compile
-      .fold(new XYSeries(args(2)))({
+      .fold(new XYSeries(filter))({
         case (series, (x, y)) =>
           series.add(x.toDouble, y)
           series
       })
-      .map(XYLineChart(_))
-      .map(configureChart)
-      .flatMap(drawToPng(args(1)))
-      // For some reason the app does not exit without shutting down the EC
-      .map(_ => blockingExecutionContext.shutdown())
-      .as(ExitCode.Success)
   }
 
   def extractValue(line: String): Double = {

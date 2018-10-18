@@ -4,7 +4,7 @@ networks:
      driver: bridge
 services:
   cromwell:
-    image: "broadinstitute/cromwell:${CROMWELL_VERSION_TAG}"
+    image: "${CROMWELL_IMAGE}"
     volumes:
       - ${CROMWELL_CONF_DIR}:/conf
     environment:

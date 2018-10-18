@@ -1,4 +1,4 @@
-name: hello
+name: metadata_load_v1s
 testFormat: workflowsuccess
 
 files {

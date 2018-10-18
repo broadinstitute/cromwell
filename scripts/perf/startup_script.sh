@@ -25,6 +25,7 @@ export CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
 export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
 export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
 export CROMWELL_STATSD_PREFIX=$(extract_metadata CROMWELL_STATSD_PREFIX)
+export DO_SHUTDOWN=$(extract_metadata DO_SHUTDOWN)
 # Use the instance name as statsd prefix to avoid metrics collisions
 export CROMWELL_STATSD_PREFIX=${BUILD_ID}
 export REPORT_BUCKET=cromwell-perf-test-reporting

@@ -49,13 +49,17 @@ prepare_statsd_proxy() {
 }
 
 set_up() {
+    gcloud auth configure-docker --quiet
     apt-get update
     apt-get install --assume-yes apache2-utils
 }
 
 clean_up() {
-    gcloud sql instances delete cromwell-db-${BUILD_ID}
-    gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
+    if [ "${DO_SHUTDOWN}" = true ]
+    then
+        gcloud sql instances delete cromwell-db-${BUILD_ID}
+        gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
+    fi
 }
 
 run_test() {

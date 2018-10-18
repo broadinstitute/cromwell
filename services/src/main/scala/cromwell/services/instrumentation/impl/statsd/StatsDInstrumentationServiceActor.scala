@@ -59,6 +59,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
       case CromwellIncrement(bucket) => increment(bucket)
       case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
       case CromwellGauge(bucket, value) => updateGauge(bucket, value)
+      case CromwellHistogram(bucket, value) => updateHistogram(bucket, value)
       case CromwellTiming(bucket, value, _) => updateTiming(bucket, value)
     }
     case ShutdownCommand => context stop self
@@ -106,5 +107,12 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     */
   private def updateTiming(bucket: CromwellBucket, value: FiniteDuration) = {
     metrics.timer(bucket.toStatsDString()).update(value)
+  }
+
+  /**
+    * Adds a new timing value for this bucket
+    */
+  private def updateHistogram(bucket: CromwellBucket, value: Long) = {
+    metrics.histogram(bucket.toStatsDString()).+=(value)
   }
 }

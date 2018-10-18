@@ -77,6 +77,8 @@ gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=c
 prepare_statsd_proxy
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d
 
+set_up
+
 if [ -n "$CENTAUR_TEST_FILE" ]
 then
     wait_for_cromwell

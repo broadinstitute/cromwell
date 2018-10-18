@@ -1,0 +1,12 @@
+name: hello
+testFormat: workflowsuccess
+
+files {
+  workflow: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/test_cases/metadata_load/metadata_load.wdl"
+  inputs: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/test_cases/metadata_load_v1/metadata_load_v1.inputs"
+}
+
+metadata {
+  workflowName: metadata_load
+  status: Succeeded
+}

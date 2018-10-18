@@ -69,6 +69,7 @@ object Dependencies {
   private val refinedV = "0.9.2"
   private val rhinoV = "1.7.10"
   private val s3fsV = "1.0.1"
+  private val scalaChartV = "0.5.1"
   private val scalaGraphV = "1.12.5"
   private val scalaLoggingV = "3.9.0"
   private val scalaPoolV = "0.4.1"
@@ -521,5 +522,8 @@ object Dependencies {
   val swaggerUiVersion = swaggerUiV
 
   val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
-    googleApiClientDependencies ++ googleCloudDependencies
+    googleApiClientDependencies ++ googleCloudDependencies ++ List(
+    "com.github.wookietreiber" %% "scala-chart" % scalaChartV,
+    "co.fs2" %% "fs2-io" % fs2V
+  )
 }

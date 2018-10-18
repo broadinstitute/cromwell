@@ -78,11 +78,11 @@ fi
 gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base-09-24-18 cromwell-db-${BUILD_ID}
 gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-db-${BUILD_ID} --password=${CLOUD_SQL_DB_PASSWORD}
 
+set_up
+
 # Start cromwell and cloud sql proxy
 prepare_statsd_proxy
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d
-
-set_up
 
 if [ -n "$CENTAUR_TEST_FILE" ]
 then

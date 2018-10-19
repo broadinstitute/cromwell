@@ -3,8 +3,6 @@ package languages.cwl
 import better.files.File
 import cats.data.{EitherT, NonEmptyList}
 import wom.callable.Callable
-//import shapeless.{Inl, Inr}
-//import cats.data.{EitherT, NonEmptyList}
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import com.typesafe.config.Config
@@ -15,12 +13,9 @@ import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-//import cwl.{CommandLineTool, Cwl, CwlDecoder, ExpressionTool, Workflow}
 import cwl.{Cwl, CwlDecoder}
-//import shapeless.CNil
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.{Executable, WomBundle}
-//import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.expression.IoFunctionSet
 
 class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactory {

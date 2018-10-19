@@ -343,6 +343,10 @@ class CwlPreProcessor(saladFunction: BFile => Parse[String] = saladCwlFile) {
   /**
     * Given a Json representing a tool or workflow, flattens it and return the other processed references that were generated.
     *
+    * NB: Flatten here means two things:
+    *  - Find references within the CWL and convert them into 'local' links
+    *  - Create a map of canonical links to JSON CWL content
+    *
     * @param saladedJson           json to process
     * @param unProcessedReferences references that have been parsed and saladed (we have the json), but not flattened yet
     * @param processedReferences   references that are fully flattened

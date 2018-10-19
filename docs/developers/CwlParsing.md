@@ -37,4 +37,4 @@ the range of possible CWL JSON.
 
 ## Convert the case classes into WOM representations
 
-As of today, CWL doesn't 'do' WOM bundles. It goes straight to executable:
+As of today, CWL doesn't produce WOM bundles. Instead, it goes straight to executable.

@@ -56,10 +56,18 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
 
   override def receive = {
     case InstrumentationServiceMessage(cromwellMetric) => cromwellMetric match {
-      case CromwellIncrement(bucket) => increment(bucket)
-      case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
-      case CromwellGauge(bucket, value) => updateGauge(bucket, value)
-      case CromwellTiming(bucket, value, _) => updateTiming(bucket, value)
+      case something @ CromwellIncrement(bucket) =>
+        println(s"Received $something from ${sender().path.name}")
+        increment(bucket)
+      case something @ CromwellCount(bucket, value, _) =>
+        println(s"Received $something from ${sender().path.name}")
+        updateCounter(bucket, value)
+      case something @ CromwellGauge(bucket, value) =>
+        println(s"Received $something from ${sender().path.name}")
+        updateGauge(bucket, value)
+      case something @ CromwellTiming(bucket, value, _) =>
+        println(s"Received $something from ${sender().path.name}")
+        updateTiming(bucket, value)
     }
     case ShutdownCommand => context stop self
   }

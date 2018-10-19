@@ -21,10 +21,7 @@ import cromiam.server.config.CromIamServerConfig
 import cromiam.server.status.StatusService
 import cromiam.webservice.CromIamApiService._
 import cromwell.services.ServiceRegistryActor
-
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
-import scala.util.{Failure, Success}
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
   override def swaggerServiceName = "cromiam"
@@ -45,7 +42,7 @@ trait CromIamApiService extends RequestSupport
   protected def configuration: CromIamServerConfig
 
   val config = ConfigFactory.load()
-  override def serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
+  override lazy val serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
 
   val log: LoggingAdapter
 
@@ -60,14 +57,20 @@ trait CromIamApiService extends RequestSupport
   lazy val cromwellClient = new CromwellClient(configuration.cromwellConfig.scheme,
     configuration.cromwellConfig.interface,
     configuration.cromwellConfig.port,
-    log)
+    log,
+    serviceRegistryActor)
 
   lazy val cromwellAbortClient = new CromwellClient(configuration.cromwellAbortConfig.scheme,
     configuration.cromwellAbortConfig.interface,
     configuration.cromwellAbortConfig.port,
-    log)
+    log,
+    serviceRegistryActor)
 
-  lazy val samClient = new SamClient(configuration.samConfig.scheme, configuration.samConfig.interface, configuration.samConfig.port, log, serviceRegistryActor)
+  lazy val samClient = new SamClient(configuration.samConfig.scheme,
+    configuration.samConfig.interface,
+    configuration.samConfig.port,
+    log,
+    serviceRegistryActor)
 
   val statusService: StatusService
 
@@ -183,27 +186,17 @@ trait CromIamApiService extends RequestSupport
                                              cromwellAuthClient: CromwellClient,
                                              cromwellRequestClient: CromwellClient): Future[HttpResponse] = {
     def authForCollection(collection: Collection): Future[Unit] = {
-      val startTimestamp = System.currentTimeMillis
-      val samResponse = samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
+      samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action), request) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
         case e =>
           log.error(e, "Unable to connect to Sam {}", e)
           Future.failed(SamConnectionFailure("authorization", e))
       }
-
-
-      samResponse.onComplete{
-        case Success(_) => sendTimingApi(makeRequestPath(request, "success"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
-        case Failure(SamDenialException) => sendTimingApi(makeRequestPath(request, "denied"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
-        case Failure(_) => sendTimingApi(makeRequestPath(request, "connection-error"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
-      }
-
-      samResponse
     }
 
 
     (for {
-      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellAuthClient.getRootWorkflow(id, user)))
+      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellAuthClient.getRootWorkflow(id, user, request)))
       collections <- Future.sequence(rootWorkflowIds.map(id => cromwellAuthClient.collectionForWorkflow(id, user))).map(_.distinct)
       _ <- collections traverse authForCollection
       resp <- cromwellRequestClient.forwardToCromwell(request)

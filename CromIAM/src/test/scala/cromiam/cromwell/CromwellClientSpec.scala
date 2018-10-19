@@ -2,9 +2,9 @@ package cromiam.cromwell
 
 import java.net.URL
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
-import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.{HttpHeader, HttpRequest}
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.stream.ActorMaterializer
 import cromiam.auth.User
@@ -27,17 +27,19 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
 
   val cromwellClient = new MockCromwellClient()
 
+  val mockHttpRequest = HttpRequest.apply()
+
   override protected def afterAll(): Unit = {
     actorSystem.terminate()
     super.afterAll()
   }
 
   "CromwellClient" should "eventually return a subworkflow's root workflow id" in {
-    cromwellClient.getRootWorkflow(SubworkflowId.id.toString, FictitiousUser).map(w => assert(w == RootWorkflowId.id.toString))
+    cromwellClient.getRootWorkflow(SubworkflowId.id.toString, FictitiousUser, mockHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
   }
 
   it should "eventually return a top level workflow's ID when requesting root workflow id" in {
-    cromwellClient.getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser).map(w => assert(w == RootWorkflowId.id.toString))
+    cromwellClient.getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser, mockHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
   }
 
   it should "properly fetch the collection for a workflow with a collection name" in {
@@ -59,7 +61,7 @@ object CromwellClientSpec {
   final class MockCromwellClient()(implicit system: ActorSystem,
                                    ece: ExecutionContextExecutor,
                                    materializer: ActorMaterializer)
-  extends CromwellClient("http", "bar", 1, NoLogging) {
+  extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender) {
     override val cromwellApiClient: CromwellApiClient = new MockCromwellApiClient()
   }
 

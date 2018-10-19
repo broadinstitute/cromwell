@@ -21,6 +21,8 @@ trait QuerySupport extends RequestSupport {
 
   val log: LoggingAdapter
 
+  val queryRoute: String = "api-workflows-v1-query"
+
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: ActorMaterializer
 
@@ -39,7 +41,7 @@ trait QuerySupport extends RequestSupport {
 
   def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     post {
-      preprocessQuery("GET") { (user, collections, request) =>
+      preprocessQuery("POST") { (user, collections, request) =>
         processLabelsForPostQuery(user, collections) { entity =>
           complete { cromwellClient.forwardToCromwell(request.withEntity(entity)) }
         }
@@ -56,7 +58,9 @@ trait QuerySupport extends RequestSupport {
     extractUser flatMap  { user =>
       log.info("Received query " + method + " request for user " + user.userId)
 
-      onComplete(samClient.collectionsForUser(user)) flatMap {
+      val statsdPath = NonEmptyList.of(queryRoute, method)
+
+      onComplete(samClient.collectionsForUser(user, statsdPath)) flatMap {
         case Success(collections) =>
           toStrictEntity(Timeout) tflatMap { _ =>
             extractStrictRequest flatMap { request =>

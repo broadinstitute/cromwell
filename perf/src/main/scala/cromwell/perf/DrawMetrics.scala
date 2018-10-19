@@ -12,6 +12,8 @@ import scalax.chart.XYChart
 import scala.concurrent.ExecutionContext
 
 object DrawMetrics extends IOApp with scalax.chart.module.Charting with StrictLogging {
+  val MB = 1024 * 1024
+  
   def run(args: List[String]): IO[ExitCode] = {
     implicit val ec = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
     implicit val contextShift = IO.contextShift(ec)
@@ -23,7 +25,7 @@ object DrawMetrics extends IOApp with scalax.chart.module.Charting with StrictLo
     sources
       .parTraverse[IO, IO.Par, DrawMetrics.XYSeries](makeXYSeries(filter))
       .map(XYLineChart(_))
-      .map(configureChart)
+      .map(configureChart(filter))
       .flatMap(drawToPng(output))
       // For some reason the app does not exit without shutting down the EC
       .map(_ => ec.shutdown())
@@ -32,20 +34,27 @@ object DrawMetrics extends IOApp with scalax.chart.module.Charting with StrictLo
 
   def makeXYSeries(filter: String)(file: String)(implicit ec: ExecutionContext): IO[DrawMetrics.XYSeries] = {
     logger.info(s"Reading metric file at $file. Filtering for $filter")
+    val path = Paths.get(file)
 
-    io.file.readAll[IO](Paths.get(file), ec, 4096)
+    io.file.readAll[IO](path, ec, 4096)
       .through(text.utf8Decode)
       .through(text.lines)
       .filter(_.contains(filter))
       .map(extractValue)
+      .map(scaleY(filter))
       .zipWithIndex
       .map(_.swap)
       .compile
-      .fold(new XYSeries(filter))({
+      .fold(new XYSeries(path.getFileName))({
         case (series, (x, y)) =>
           series.add(x.toDouble, y)
           series
       })
+  }
+  
+  def scaleY(filter: String)(value: Double) = filter match {
+    case memory if memory.contains("memory") => value / MB
+    case _ => value
   }
 
   def extractValue(line: String): Double = {
@@ -54,8 +63,9 @@ object DrawMetrics extends IOApp with scalax.chart.module.Charting with StrictLo
     line.substring(start + 1, end).toDouble
   }
 
-  def configureChart(chart: XYChart) = {
+  def configureChart(filter: String)(chart: XYChart) = {
     chart.plot.getDomainAxis.setTickLabelsVisible(false)
+    chart.title_=(filter)
     chart
   }
 

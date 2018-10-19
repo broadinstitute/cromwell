@@ -2,14 +2,14 @@ package cwl
 
 import better.files.{File => BFile}
 import cats.data.EitherT._
-import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.validation.ErrorOr._
+import common.validation.Validation._
 import common.validation.Parse._
 import common.validation.Validation.ValidationChecked
-import cwl.preprocessor.CwlPreProcessor
+import cwl.preprocessor.{CwlFileReference, CwlPreProcessor, CwlReference}
 import io.circe.Json
 
 import scala.util.Try
@@ -18,11 +18,10 @@ object CwlDecoder {
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
-  def saladCwlFile(path: BFile): Parse[String] = {
+  def saladCwlFile(reference: CwlReference): Parse[String] = {
     val cwlToolResult =
-      Try(CwltoolRunner.instance.salad(path))
-        .toEither
-        .leftMap(t => NonEmptyList.one(s"running cwltool on file $path failed with $t"))
+      Try(CwltoolRunner.instance.salad(reference))
+        .toCheckedWithContext(s"run cwltool on file $reference")
 
     fromEither[IO](cwlToolResult)
   }
@@ -39,19 +38,28 @@ object CwlDecoder {
     }
   }
 
-  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).contextualizeErrors(s"parse '$file'"))
+  def parseJson(json: Json, from: String): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).contextualizeErrors(s"parse '$from'"))
 
   /**
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
     */
-  def decodeCwlFile(fileName: BFile,
-                    workflowRoot: Option[String] = None)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] =
-    for {
-      standaloneWorkflow <- processor.preProcessCwlFile(fileName, workflowRoot)
-      parsedCwl <- parseJson(standaloneWorkflow, fileName)
-    } yield parsedCwl
+  def decodeCwlReference(reference: CwlReference)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] = {
+    def makeStandaloneWorkflow(): Parse[Json] = processor.preProcessCwl(reference)
 
-  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None, cwlFilename: String = "cwl_temp_file"): Parse[Cwl] = {
+    for {
+      standaloneWorkflow <- makeStandaloneWorkflow()
+      parsedCwl <- parseJson(standaloneWorkflow, reference.pathAsString)
+    } yield parsedCwl
+  }
+
+  def decodeCwlFile(file: BFile, workflowRoot: Option[String] = None) = {
+    decodeCwlReference(CwlFileReference(file, workflowRoot))
+  }
+
+  def decodeCwlString(cwl: String,
+                      zipOption: Option[BFile] = None,
+                      rootName: Option[String] = None,
+                      cwlFilename: String = "cwl_temp_file"): Parse[Cwl] = {
     for {
       parentDir <- goParse(BFile.newTemporaryDirectory("cwl_temp_dir_")) // has a random long appended like `cwl_temp_dir_100000000000`
       file <- fromEither[IO](parentDir./(cwlFilename + ".cwl").write(cwl).asRight) // serves as the basis for the output directory name; must remain stable across restarts
@@ -69,10 +77,9 @@ object CwlDecoder {
     //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.
     val bFileName = fileName.stripPrefix("file://")
 
-    decodeCwlFile(BFile(bFileName)).
+    decodeCwlReference(CwlFileReference(BFile(bFileName), None)).
       map(fileName.toString -> _).
       value.
       map(_.toValidated)
   }
 }
-

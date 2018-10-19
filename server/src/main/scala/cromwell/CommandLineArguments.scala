@@ -14,6 +14,7 @@ import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.webservice.PartialWorkflowSources
+import cwl.preprocessor.CwlFileReference
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
@@ -66,7 +67,7 @@ case class CommandLineArguments(command: Option[Command] = None,
       val workflowPath = File(workflowSourcePath.pathAsString)
 
       logger.info("Pre Processing Workflow...")
-      lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, workflowRoot)
+      lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlToString(CwlFileReference(workflowPath, workflowRoot))
 
       Try(preProcessedCwl.value.unsafeRunSync())
         .toChecked

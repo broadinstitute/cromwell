@@ -56,8 +56,10 @@ object Validation {
       .toValidated
 
     def toChecked: Checked[A] = {
-      Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))
+      Either.fromTry(t).leftMap { ex => NonEmptyList.one(s"${ex.getClass.getSimpleName}: ${ex.getMessage}: $ex") }
     }
+
+    def toCheckedWithContext(context: String): Checked[A] = toErrorOrWithContext(context).toEither
   }
 
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {

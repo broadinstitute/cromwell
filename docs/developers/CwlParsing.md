@@ -8,7 +8,7 @@ The process of parsing CWL runs approximately like this:
 
 ## Getting a canonical flat file
 
-### From a source file and dependencies zip
+### From a source file and dependencies zip:
 
 The process looks like:
 
@@ -23,6 +23,21 @@ The process looks like:
     - A single flat JSON 
     - Every imported step expanded to contain an in-line description
     - Only relative names (ie we remove all references to `file://tmp/...` since those are not deterministic during Cromwell restarts)
+
+### From a workflow URL:
+
+The process looks similar to "source file and dependencies" except we never write anything locally:
+
+1. `SALAD and flatten`:
+    - Run `cwltool --print-pre` against the URL to get a canonicalize JSON representation (aka `SALAD`) it.
+        - NB: `cwltool --print-pre` must be able to resolve dependencies but it does not flatten them into the file.
+    - Recursively `SALAD and flatten` any references into their own JSON representations of the contents.
+    - Replace every reference in-place with the expanded JSON content.
+1. At the end of this process we will have:
+    - A single flat JSON 
+    - Every imported step expanded to contain an in-line description
+    - Only relative names (ie we remove all references to `file://tmp/...` since those are not deterministic during Cromwell restarts)
+
 
 ## Using Circe to get case classes
 

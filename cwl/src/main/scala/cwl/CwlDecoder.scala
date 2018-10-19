@@ -8,6 +8,7 @@ import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.validation.ErrorOr._
 import common.validation.Parse._
+import common.validation.Validation.ValidationChecked
 import cwl.preprocessor.CwlPreProcessor
 import io.circe.Json
 
@@ -38,7 +39,7 @@ object CwlDecoder {
     }
   }
 
-  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).leftMap(_.prepend(s"error when parsing file $file")))
+  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).contextualizeErrors(s"parse '$file'"))
 
   /**
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state

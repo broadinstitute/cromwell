@@ -160,7 +160,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
           val cloudStoragePath = fileSystem.getPath(path)
           GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId)
         }
-      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"$string does not have a gcs scheme"))
+      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"""Path "$string" does not have a gcs scheme"""))
       case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
     }
   }

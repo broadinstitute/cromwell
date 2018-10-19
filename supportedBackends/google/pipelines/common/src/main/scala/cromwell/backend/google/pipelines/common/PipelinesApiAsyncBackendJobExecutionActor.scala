@@ -97,7 +97,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunInfo = Run
 
-  override type StandardAsyncRunStatus = RunStatus
+  override type StandardAsyncRunState = RunStatus
+
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 
@@ -436,7 +438,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private def reconnectToExistingJob(jobForResumption: StandardAsyncJob, forceAbort: Boolean = false) = {
     if (forceAbort) tryAbort(jobForResumption)
-    Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(Run(jobForResumption)), previousStatus = None))
+    Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(Run(jobForResumption)), previousState = None))
   }
 
   private def createNewJob(): Future[ExecutionHandle] = {
@@ -487,7 +489,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     } yield runId
 
     runPipelineResponse map { runId =>
-      PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousStatus = None)
+      PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
     } recover {
       case JobAbortedException => AbortedExecutionHandle
     }

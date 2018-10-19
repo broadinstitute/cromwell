@@ -21,7 +21,9 @@ import mouse.all._
 import scala.collection.JavaConverters._
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit localizationConfiguration: LocalizationConfiguration) extends PipelinesApiFactoryInterface
+  with ContainerSetup
   with Localization
+  with UserAction
   with Delocalization {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
@@ -47,21 +49,14 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       // Mounts for disks defined in the runtime attributes
       val mounts = createPipelineParameters |> toMounts
 
+      val containerSetup: List[Action] = containerSetupActions(mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
+      val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
+      val allActions = containerSetup ++ localization ++ userAction ++ deLocalization
 
       val environment = Map.empty[String, String].asJava
 
-      val userAction = ActionBuilder.userAction(
-        createPipelineParameters.dockerImage,
-        createPipelineParameters.commandScriptContainerPath.pathAsString,
-        mounts,
-        createPipelineParameters.jobShell,
-        createPipelineParameters.privateDockerKeyAndEncryptedToken
-      )
-      
-      val allActions = localization ++ List(userAction) ++ deLocalization
-      
       // Start background actions first, leave the rest as is
       val sortedActions = allActions.sortWith({
         case (a1, _) => Option(a1.getFlags).map(_.asScala).toList.flatten.contains(ActionFlag.RunInBackground.toString)

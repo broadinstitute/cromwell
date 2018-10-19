@@ -59,7 +59,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   I'm merging this in the interest of time.
 
   It throws the following exception:
-  Cause: java.lang.IllegalArgumentException: Either s3://my-cromwell-workflows-bucket exists on a filesystem not supported by this instance of Cromwell, or a failure occurred while building an actionable path from it. Supported filesystems are: s3. Failures: s3: AWS region not provided (SdkClientException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems
+  Cause: java.lang.IllegalArgumentException: Could not build the path "s3://my-cromwell-workflows-bucket". It may refer to a filesystem not supported by this instance of Cromwell. Supported filesystems are: s3. Failures: s3: AWS region not provided (SdkClientException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems
 [info]   at cromwell.core.path.PathParsingException.<init>(PathParsingException.scala:5)
 [info]   at cromwell.core.path.PathFactory$.$anonfun$buildPath$4(PathFactory.scala:64)
 [info]   at scala.Option.getOrElse(Option.scala:121)
@@ -137,7 +137,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     val jobKey = BackendJobDescriptorKey(call, None, 1)
     val jobPaths = AwsBatchJobPaths(workflowPaths, jobKey)
     val job = AwsBatchJob(null, null, "commandLine", script,
-      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet, jobPaths, Seq.empty[AwsBatchParameter])
+      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet, jobPaths, Seq.empty[AwsBatchParameter], None)
 
     job.reconfiguredScript should be(expectedscript)
   }

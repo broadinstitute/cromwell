@@ -1,0 +1,44 @@
+name: papi_v2_log
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: papi_v2_log/papi_v2_log.wdl
+}
+
+metadata {
+  workflowName: papi_v2_log
+  status: Succeeded
+
+  # Each array entry matches a `grep -c` in check_log
+
+  "outputs.papi_v2_log.check_write_log.out_counts.0": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.1": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.2": 1
+  # Write localizes /script but not /written.txt
+  "outputs.papi_v2_log.check_write_log.out_counts.3": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.4": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.5": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.6": 1
+  # Write delocalizes /written.txt
+  "outputs.papi_v2_log.check_write_log.out_counts.7": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.8": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.9": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.10": 1
+  "outputs.papi_v2_log.check_write_log.out_counts.11": 1
+
+  "outputs.papi_v2_log.check_read_log.out_counts.0": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.1": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.2": 1
+  # Read localizes /script and /written.txt
+  "outputs.papi_v2_log.check_read_log.out_counts.3": 2
+  "outputs.papi_v2_log.check_read_log.out_counts.4": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.5": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.6": 1
+  # Read doesn't delocalize any outputs
+  "outputs.papi_v2_log.check_read_log.out_counts.7": 0
+  "outputs.papi_v2_log.check_read_log.out_counts.8": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.9": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.10": 1
+  "outputs.papi_v2_log.check_read_log.out_counts.11": 1
+}

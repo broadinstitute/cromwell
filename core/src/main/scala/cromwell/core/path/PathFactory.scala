@@ -58,7 +58,7 @@ object PathFactory {
     path.map(postMapping) getOrElse {
       val pathBuilderNames: String = pathBuilders map { _.name } mkString ", "
       throw PathParsingException(
-        s"Either $string exists on a filesystem not supported by this instance of Cromwell, or a failure occurred while building an actionable path from it." +
+        s"""Could not build the path "$string". It may refer to a filesystem not supported by this instance of Cromwell.""" +
           s" Supported filesystems are: $pathBuilderNames." +
           s" Failures: $failuresMessage" +
           s" Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems"

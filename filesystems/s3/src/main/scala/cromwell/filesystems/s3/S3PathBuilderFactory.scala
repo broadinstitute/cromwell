@@ -33,14 +33,15 @@ package cromwell.filesystems.s3
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation._ // enables "unsafe"
+import common.validation.Validation._
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.path.PathBuilderFactory
 import cromwell.core.WorkflowOptions
-import net.ceedubs.ficus.Ficus._ // enables "as"
-import scala.concurrent.{ExecutionContext,Future}
+import net.ceedubs.ficus.Ficus._
+
+import scala.concurrent.{ExecutionContext, Future}
 import software.amazon.awssdk.core.auth.AwsCredentials
 
 // The constructor of this class is required to be Config, Config by cromwell
@@ -55,13 +56,13 @@ final case class S3PathBuilderFactory private(globalConfig: Config, instanceConf
   val authMode = authModeValidation.unsafe(s"Failed to get authentication mode for $authModeAsString")
 
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] = {
-    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration,  options)
+    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration,  options, conf.region)
   }
 
   // Ignores the authMode and creates an S3PathBuilder using the passed credentials directly.
   // Can be used when the Credentials are already available.
   def fromCredentials(options: WorkflowOptions, credentials: AwsCredentials): S3PathBuilder = {
-    S3PathBuilder.fromCredentials(credentials, S3Storage.DefaultConfiguration, options)
+    S3PathBuilder.fromCredentials(credentials, S3Storage.DefaultConfiguration, options, conf.region)
   }
 }
 

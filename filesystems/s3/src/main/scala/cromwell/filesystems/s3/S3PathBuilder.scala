@@ -40,6 +40,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
+import software.amazon.awssdk.core.regions.Region
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -108,28 +109,26 @@ object S3PathBuilder {
     } recover { case t => UnparseableS3Path(string, t) } get
   }
 
-  // TODO: Evaluate and remove or re-implement
-  // def isS3Path(nioPath: NioPath): Boolean = {
-  //   nioPath.getFileSystem.provider().getScheme.equalsIgnoreCase("s3")
-  // }
-
   def fromAuthMode(authMode: AwsAuthMode,
                    configuration: S3AdvancedConfiguration,
-                   options: WorkflowOptions)(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
+                   options: WorkflowOptions,
+                   storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
     val credentials = authMode.credential((key: String) => options.get(key).get)
 
     // Other backends needed retry here. In case we need retry, we'll return
     // a future. This will allow us to add capability without changing signature
     Future(fromCredentials(credentials,
       configuration,
-      options
+      options,
+      storageRegion
     ))
   }
 
   def fromCredentials(credentials: AwsCredentials,
                       configuration: S3AdvancedConfiguration,
-                      options: WorkflowOptions): S3PathBuilder = {
-    new S3PathBuilder(S3Storage.s3Client(credentials), configuration)
+                      options: WorkflowOptions,
+                      storageRegion: Option[Region]): S3PathBuilder = {
+    new S3PathBuilder(S3Storage.s3Client(credentials, storageRegion), configuration)
   }
 }
 

@@ -1,17 +1,21 @@
 package cromiam.server.config
 
 import akka.http.scaladsl.settings.ServerSettings
+import cats.instances.option._
 import cats.syntax.apply._
+import cats.syntax.functor._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr.ErrorOr
+import cromiam.server.config.CromIamServerConfig._
+import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
-import cromiam.server.config.CromIamServerConfig._
 
 final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
                                      cromwellConfig: ServiceConfig,
+                                     cromwellAbortConfig: ServiceConfig,
                                      samConfig: ServiceConfig,
                                      swaggerOauthConfig: SwaggerOauthConfig)
 
@@ -19,10 +23,12 @@ object CromIamServerConfig {
   def getFromConfig(conf: Config): ErrorOr[CromIamServerConfig] = {
     val cromIamConfig = CromIamConfig.getFromConfig(conf, "cromiam")
     val cromwellConfig = ServiceConfig.getFromConfig(conf, "cromwell")
+    val cromwellAbortConfig = conf.as[Option[Config]]("cromwell_abort") as { ServiceConfig.getFromConfig(conf, "cromwell_abort") }
+    val effectiveCromwellAbortConfig = cromwellAbortConfig.getOrElse(cromwellConfig)
     val samConfig = ServiceConfig.getFromConfig(conf, "sam")
     val googleConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
 
-    (cromIamConfig, cromwellConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
+    (cromIamConfig, cromwellConfig, effectiveCromwellAbortConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
   }
 
   private[config] def getValidatedConfigPath[A](conf: Config, path: String, getter: (Config, String) => A, default: Option[A] = None): ErrorOr[A] = {

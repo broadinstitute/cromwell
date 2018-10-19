@@ -15,7 +15,7 @@ import scala.language.postfixOps
 import scala.util.{Random, Try}
 
 object MetadataComponent {
-  private val CallsKey = "calls"
+  val CallsKey = "calls"
   private val AttemptKey = "attempt"
   private val ShardKey = "shardIndex"
 
@@ -25,6 +25,8 @@ object MetadataComponent {
 
     def combine(f1: MetadataComponent, f2: MetadataComponent): MetadataComponent = {
       (f1, f2) match {
+        case (MetadataEmptyComponent, v2) => v2
+        case (v1, MetadataEmptyComponent) => v1
         case (MetadataObject(v1), MetadataObject(v2)) => MetadataObject(stringKeyMapSg.combine(v1, v2))
         case (MetadataList(v1), MetadataList(v2)) => MetadataList(intKeyMapSg.combine(v1, v2))
         // If there's a custom ordering, use it
@@ -34,7 +36,7 @@ object MetadataComponent {
       }
     }
 
-    override def empty: MetadataComponent = MetadataObject.empty
+    override def empty: MetadataComponent = MetadataEmptyComponent
   }
 
   val metadataPrimitiveJsonWriter: JsonWriter[MetadataPrimitive] = JsonWriter.func2Writer[MetadataPrimitive] {
@@ -135,6 +137,11 @@ object MetadataComponent {
   }
 
   private def contextualize(key: MetadataKey, component: MetadataObject): MetadataComponent = {
+    // In order to keep the call array sorted by shard and then by attempt, make up an index made of those 2 value concatenated
+    def callIndex(shard: Option[Int], attempt: Int): Int = {
+      s"${shard.getOrElse(-1)}$attempt".toInt
+    }
+    
     key.jobKey match {
       case None => component
       case Some(jobKey) =>
@@ -142,11 +149,14 @@ object MetadataComponent {
           CallsKey -> MetadataObject(
             jobKey.callFqn -> MetadataList(
               TreeMap(
-                jobKey.index.getOrElse(-1) ->
-                  component.copy(v = component.v ++ Map(
-                    ShardKey -> MetadataPrimitive(MetadataValue(jobKey.index.getOrElse(-1))),
-                    AttemptKey -> MetadataPrimitive(MetadataValue(jobKey.attempt))
-                  ))
+                callIndex(jobKey.index, jobKey.attempt) ->
+                  MetadataComponentMonoid.combine(
+                    component,
+                    MetadataObject(
+                      ShardKey -> MetadataPrimitive(MetadataValue(jobKey.index.getOrElse(-1))),
+                      AttemptKey -> MetadataPrimitive(MetadataValue(jobKey.attempt))
+                    )
+                  )
               )
             )
           )

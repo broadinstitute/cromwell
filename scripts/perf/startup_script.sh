@@ -36,7 +36,6 @@ export TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
 
 export CENTAUR_TEST_NAME=unknown-test
 export CROMWELL_VERSION=unknown-version
-export 
 
 # Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
 git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}

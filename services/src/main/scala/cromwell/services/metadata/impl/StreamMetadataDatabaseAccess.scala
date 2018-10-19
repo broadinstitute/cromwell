@@ -1,11 +1,10 @@
 package cromwell.services.metadata.impl
 
-import cats.data.NonEmptyList
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
-import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
+import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery}
 import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata._
@@ -57,19 +56,5 @@ trait StreamMetadataDatabaseAccess {
     }
 
     futureMetadata.map(_.mapResult(metadataEntryToMetadataEvent(query.workflowId)))
-  }
-
-  def queryWorkflowOutputs(id: WorkflowId): Publisher[MetadataEvent] = {
-    val uuid = id.id.toString
-    metadataDatabaseInterface.streamQueryMetadataEntriesLikeMetadataKeys(
-      uuid, NonEmptyList.of(s"${WorkflowMetadataKeys.Outputs}:%"), WorkflowQuery)
-      .mapResult(metadataEntryToMetadataEvent(id))
-  }
-
-  def queryLogs(id: WorkflowId): Publisher[MetadataEvent] = {
-    import cromwell.services.metadata.CallMetadataKeys._
-
-    val keys = NonEmptyList.of(Stdout, Stderr, BackendLogsPrefix + ":%")
-    metadataDatabaseInterface.streamQueryMetadataEntriesLikeMetadataKeys(id.id.toString, keys, CallOrWorkflowQuery).mapResult(metadataEntryToMetadataEvent(id))
   }
 }

@@ -2,13 +2,14 @@ package cromwell.webservice.metadata
 
 import cats.effect.IO
 import cats.effect.IO._
-import cats.instances.vector._
 import cats.instances.tuple._
+import cats.instances.vector._
 import cats.syntax.parallel._
-import common.validation.Validation._
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
+import common.validation.Validation._
+import cromwell.core.WorkflowId
 import cromwell.services.MetadataServicesStore
+import cromwell.services.metadata.MetadataService.GetSingleWorkflowMetadataAction
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.StreamMetadataDatabaseAccess
 import cromwell.webservice.metadata.MetadataComponent._
@@ -20,59 +21,101 @@ import spray.json._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
+/**
+  * Builds a metadata JSON, streaming elements from the Database.
+  * DO NOT stream the json itself back to the caller.
+  */
 class StreamMetadataBuilder(requestTimeout: FiniteDuration) extends StreamMetadataDatabaseAccess with MetadataServicesStore with LazyLogging {
-  def buildQuery(query: MetadataQuery,
-                 eventToComponent: MetadataEvent => MetadataComponent,
-                 extraComponents: Seq[MetadataComponent] = Seq.empty)
-                (implicit ec: ExecutionContext): IO[JsObject] = {
-    implicit val contextShift = cats.effect.IO.contextShift(ec)
-
-    // Given a vector of workflow ids, build the corresponding jsons in parallel using the same query
-    def buildSubWorkflows(ids: Vector[WorkflowId]): IO[Map[WorkflowId, JsObject]] = {
-      ids.parTraverse[IO, IO.Par, (WorkflowId, JsObject)](id =>
-        buildQuery(query.copy(workflowId = id), eventToComponent, extraComponents).map(id -> _)
-      ).map(_.toMap)
-    }
-    
-    // Transform a MetadataEvent to a MetadataComponent, and optionally add it to the sub workflow id list if necessary
-    def mapEvent(subWorkflowIds: Vector[WorkflowId], event: MetadataEvent): (Vector[WorkflowId], MetadataComponent) = {
-      if (event.isSubWorkflowId)
-        (event.extractSubWorkflowId.map(subWorkflowIds.:+(_)).getOrElse(subWorkflowIds), eventToComponent(event))
-      else
-        (subWorkflowIds, eventToComponent(event))
-    }
-    
-    // Run the stream by mapping metadata events to metadata components while accumulating sub workflow ids. Then fold everything together
-    def runStream(stream: FStream[IO, MetadataEvent]): IO[(Vector[WorkflowId], MetadataComponent)] = stream
-      .mapAccumulate[Vector[WorkflowId], MetadataComponent](Vector.empty[WorkflowId])(mapEvent)
-      .append(fs2.Stream.emits(extraComponents.map(Vector.empty[WorkflowId] -> _)))
-      .compile
-      .foldMonoid
-
-    for {
-      stream <- queryToEventStream(query)
-      subWorkflowIdsAndComponent <- runStream(stream)
-      (subWorkflowIds, component) = subWorkflowIdsAndComponent
-      subWorkflowJsons <- buildSubWorkflows(subWorkflowIds)
-      componentWriter = new MetadataComponentJsonWriter(subWorkflowJsons)
-    } yield component.toJson(componentWriter).asJsObject
-  }
-
-  def workflowIdComponent(id: WorkflowId): MetadataComponent = MetadataObject(Map("id" -> MetadataPrimitive(MetadataValue(id.toString))))
-  lazy val workflowOutputsComponent: MetadataComponent = MetadataObject(Map(WorkflowMetadataKeys.Outputs -> MetadataEmptyComponent))
-
-  def queryToEventStream(query: MetadataQuery)(implicit ec: ExecutionContext): IO[fs2.Stream[IO, MetadataEvent]] = {
-    for {
-      publisher <- queryMetadataEvents(query).toIO("Invalid metadata query")
-      stream <- publisherToEventStream(publisher, Option(query.workflowId))
-    } yield stream
-  }
+  // A MetadataComponent for the workflow id
+  private def workflowIdComponent(id: WorkflowId): MetadataComponent = MetadataObject("id" -> MetadataPrimitive(MetadataValue(id.toString)))
+  
+  // An empty calls section
+  private val emptyCallSection: MetadataComponent = MetadataObject(CallsKey -> MetadataEmptyComponent)
 
   /**
     * Builds the json corresponding to the provided MetadataQuery
     */
   def workflowMetadataQuery(query: MetadataQuery)(implicit ec: ExecutionContext): IO[JsObject] = {
-    buildQuery(query, toMetadataComponent, List(workflowIdComponent(query.workflowId)))
+    buildQuery(query, List(workflowIdComponent(query.workflowId), emptyCallSection))
+  }
+
+  /**
+    * Builds the json corresponding to the provided GetSingleWorkflowMetadataAction
+    */
+  def workflowMetadataQuery(action: GetSingleWorkflowMetadataAction)(implicit ec: ExecutionContext): IO[JsObject] = action match {
+    case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
+      val includeKeys = if (expandSubWorkflows) includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) } else includeKeysOption
+      workflowMetadataQuery(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
+  }
+
+  /**
+    * Builds the JsObject corresponding to a MetadataQuery, in a streaming fashion.
+    * Uses a reactive stream publisher that gets turned into an fs2 stream which we use to pull the metadata rows from the database
+    * and build a MetadataComponent as the rows get pulled. Use the MetadataComponent Monoid to fold them into one.
+    * Ultimately serializes it to Json.
+    *
+    * Note: Unfortunately we cannot simply flatMap the sub workflow id streams into the main one.
+    * That is because the database connection providing the stream will stay open and "locked" until the stream is consumed entirely (or cancelled).
+    * Because of that if we make streams depend on each other we can create deadlocks.
+    * Instead, this accumulates the sub workflow IDs we encounter in a Vector. Once the main stream is complete, we build the json corresponding
+    * to those subworkflows recursively and then use them when serializing the main metadata from MetadataComponent to Json.
+    */
+  private def buildQuery(query: MetadataQuery, extraComponents: Seq[MetadataComponent])
+                        (implicit ec: ExecutionContext): IO[JsObject] = {
+    implicit val contextShift = cats.effect.IO.contextShift(ec)
+
+    // Given a vector of workflow ids, build the corresponding jsons in parallel using the same query
+    def buildSubWorkflows(ids: Vector[WorkflowId]): IO[Map[WorkflowId, JsObject]] = {
+      ids.parTraverse[IO, IO.Par, (WorkflowId, JsObject)](id =>
+        buildQuery(query.copy(workflowId = id), extraComponents).map(id -> _)
+      ).map(_.toMap)
+    }
+
+    // Transform a MetadataEvent to a MetadataComponent, and optionally add it to the sub workflow id list if necessary
+    def mapEvent(subWorkflowIds: Vector[WorkflowId], event: MetadataEvent): (Vector[WorkflowId], MetadataComponent) = {
+      if (event.isSubWorkflowId)
+        (event.extractSubWorkflowId.map(subWorkflowIds.:+(_)).getOrElse(subWorkflowIds), toMetadataComponent(event))
+      else{
+        val a = (subWorkflowIds, toMetadataComponent(event))
+        a
+      }
+    }
+
+    // Run the stream by mapping metadata events to metadata components while accumulating sub workflow ids. Then fold everything together
+    def runStream(stream: FStream[IO, MetadataEvent]): IO[(Vector[WorkflowId], MetadataComponent)] = stream
+      .mapAccumulate[Vector[WorkflowId], MetadataComponent](Vector.empty[WorkflowId])(mapEvent)
+      .compile
+      .foldMonoid
+    
+    def addExtraComponents(component: MetadataComponent) = component match {
+      // If the stream was empty, result should be empty json, no extras
+      case MetadataEmptyComponent => component
+      case _ => extraComponents.toVector.fold(component)(MetadataComponentMonoid.combine)
+    }
+
+    for {
+      // Get the publisher of metadata events from the database
+      publisher <- queryToPublisher(query)
+      // Turn it into a stream
+      stream <- publisherToEventStream(publisher, Option(query.workflowId))
+      // Read the stream and turn all that into a MetadataComponent along with the sub workflow ids in a vector
+      subWorkflowIdsAndComponent <- runStream(stream)
+      // Just unapply the Tuple for clarity
+      (subWorkflowIds, component) = subWorkflowIdsAndComponent
+      // Add extra components if any
+      withExtras = addExtraComponents(component)
+      // This is the Vector[WorkflowId] we recursively turn into its own Map[WorkflowId, JsObject]
+      subWorkflowJsons <- buildSubWorkflows(subWorkflowIds)
+      // Now we have everything, create a MetadataComponent Json serializer using the subworkflow jsons
+      componentWriter = new MetadataComponentJsonWriter(subWorkflowJsons)
+    } yield withExtras.toJson(componentWriter).asJsObject
+  }
+
+  /**
+    * Obtain the Publisher from the database for a given query
+    */
+  private [metadata] def queryToPublisher(query: MetadataQuery): IO[Publisher[MetadataEvent]] = {
+    queryMetadataEvents(query).toIO("Invalid metadata query")
   }
 
   /**

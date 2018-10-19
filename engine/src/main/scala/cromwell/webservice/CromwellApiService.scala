@@ -30,7 +30,6 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffAc
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
-import cromwell.services.metadata.{CallMetadataKeys, MetadataQuery}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
@@ -343,12 +342,8 @@ trait CromwellApiService extends HttpInstrumentation {
 
   private def streamedIfPossibleMetadataRequestRoute(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
     val result = validateWorkflowId(possibleWorkflowId).map(request) flatMap {
-      case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
-        val includeKeys = if (expandSubWorkflows) includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) } else includeKeysOption
-
-        streamMetadataBuilder
-          .workflowMetadataQuery(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
-          .unsafeToFuture().map(BuiltMetadataResponse.apply)
+      case action: GetSingleWorkflowMetadataAction =>
+        streamMetadataBuilder.workflowMetadataQuery(action).unsafeToFuture().map(BuiltMetadataResponse.apply)
       case GetMetadataQueryAction(query) =>
         streamMetadataBuilder.workflowMetadataQuery(query).unsafeToFuture().map(BuiltMetadataResponse.apply)
       case _ => processMetadataRequest(possibleWorkflowId, request)

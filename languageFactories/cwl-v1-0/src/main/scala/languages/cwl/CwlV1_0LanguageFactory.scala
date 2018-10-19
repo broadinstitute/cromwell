@@ -71,12 +71,8 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
     }
   }
 
-  // wom.executable.WomBundle.toExecutableCallable
-  // wom.executable.Executable
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
-    val x = womBundle.toExecutableCallable
-
-    ValidatedWomNamespace(Executable(x.right.get, Map.empty), Map.empty, Map.empty).validNelCheck
+    ???
   }
 
   override def looksParsable(content: String): Boolean = content.lines.exists { l =>

@@ -30,7 +30,7 @@ gcloud \
     instances \
     create perf-test-$BUILD_NUMBER \
     --zone us-central1-c \
-    --source-instance-template cromwell-perf-template-09-18 \
+    --source-instance-template cromwell-perf-template-with-larger-machine \
     --metadata-from-file startup-script=$DOCKER_ETC_PATH/startup_script.sh \
     --metadata \
         CROMWELL_DB_USER=cromwell,CROMWELL_DB_PASS=$DB_PASS,CLOUD_SQL_INSTANCE=cromwell-db-perf-test-$BUILD_NUMBER,DO_SHUTDOWN=$DO_SHUTDOWN,CROMWELL_IMAGE=$CROMWELL_VERSION_NUMBER,CROMWELL_PROJECT=broad-dsde-cromwell-perf,CROMWELL_BUCKET=$GCS_BUCKET,CROMWELL_STATSD_HOST=10.128.0.4,CROMWELL_STATSD_PORT=8125,CROMWELL_STATSD_PREFIX=perf-test-$BUILD_NUMBER,CROMWELL_BRANCH_NAME=$CROMWELL_BRANCH,WORKFLOW_SCRIPT=$WORKFLOW_SCRIPT"

@@ -26,7 +26,8 @@ class WomtoolInputsSpec extends FlatSpec with Matchers {
     Option(versionDirectory.list).toList.flatten foreach { validCase =>
       val caseName = validCase.name
 
-      val wdlFile = mustExist(versionDirectory.path.resolve(s"../../validate/$versionName/valid/$caseName/$caseName.wdl").toFile)
+      // TODO: generalize to CWL
+      val wdlFile = mustExist(versionDirectory.path.resolve(s"../../validate/wdl/$versionName/valid/$caseName/$caseName.wdl").toFile)
 
       it should s"make the right 'all inputs' file for $versionName workflow: '$caseName'" in {
         val allInputsExpectation = expectedJson(versionDirectory, caseName, "all.inputs.json")

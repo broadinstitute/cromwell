@@ -11,7 +11,7 @@ import cromwell.core.TestKitSuite
 import cromwell.services.healthmonitor.HealthMonitorServiceActor._
 import cromwell.services.healthmonitor.HealthMonitorServiceActorSpec._
 import org.scalatest.{Assertion, FlatSpecLike}
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{Eventually, ScaledTimeSpans}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
@@ -104,7 +104,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
         Future.successful(OkStatus)
       } else {
         Future {
-          Thread.sleep(10000)
+          Thread.sleep(scaled(10.seconds).toMillis)
           OkStatus
         }
       }
@@ -136,7 +136,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
           Future.failed(new RuntimeException("womp womp"))
         case _ =>
           Future {
-            Thread.sleep(5000L)
+            Thread.sleep(scaled(5.seconds).toMillis)
             SubsystemStatus(ok = true, messages = None)
           }
       }
@@ -180,11 +180,12 @@ object HealthMonitorServiceActorSpec {
   val FailedStatus = SubsystemStatus(ok = false, Option(List("womp womp")))
   val TimedOutStatus = SubsystemStatus(ok = false, Option(List("Timed out")))
 
-  abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty()) extends HealthMonitorServiceActor {
-    override lazy val staleThreshold = 3 seconds
-    override lazy val failureRetryInterval = 100 milliseconds
-    override lazy val sweepInterval = 200 milliseconds
-    override lazy val futureTimeout = 1 second
+  abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty())
+    extends HealthMonitorServiceActor with ScaledTimeSpans {
+    override lazy val staleThreshold = scaled(3.seconds)
+    override lazy val failureRetryInterval = scaled(100.milliseconds)
+    override lazy val sweepInterval = scaled(200.milliseconds)
+    override lazy val futureTimeout = scaled(1.second)
   }
 
   private def mockCheckSuccess(): Future[SubsystemStatus] = {

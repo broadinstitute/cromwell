@@ -13,7 +13,7 @@ services:
       - CROMWELL_STATSD_PREFIX
       - CLOUD_SQL_DB_USER
       - CLOUD_SQL_DB_PASSWORD
-      - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf -Xmx=12G
+      - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf -Xmx12G
     command: ["server"]
     depends_on:
       - statsd-proxy

@@ -45,6 +45,7 @@ trait CromIamApiService extends RequestSupport
   protected def configuration: CromIamServerConfig
 
   val config = ConfigFactory.load()
+  override def serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
 
   val log: LoggingAdapter
 
@@ -66,7 +67,7 @@ trait CromIamApiService extends RequestSupport
     configuration.cromwellAbortConfig.port,
     log)
 
-  lazy val samClient = new SamClient(configuration.samConfig.scheme, configuration.samConfig.interface, configuration.samConfig.port, log)
+  lazy val samClient = new SamClient(configuration.samConfig.scheme, configuration.samConfig.interface, configuration.samConfig.port, log, serviceRegistryActor)
 
   val statusService: StatusService
 
@@ -77,7 +78,6 @@ trait CromIamApiService extends RequestSupport
 
   val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes }
 
-  override def serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
 
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / Abort) { (_, workflowId) =>
     post {
@@ -184,7 +184,7 @@ trait CromIamApiService extends RequestSupport
                                              cromwellRequestClient: CromwellClient): Future[HttpResponse] = {
     def authForCollection(collection: Collection): Future[Unit] = {
       val startTimestamp = System.currentTimeMillis
-      val r = samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
+      val samResponse = samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
         case e =>
           log.error(e, "Unable to connect to Sam {}", e)
@@ -192,13 +192,13 @@ trait CromIamApiService extends RequestSupport
       }
 
 
-      r.onComplete{
+      samResponse.onComplete{
         case Success(_) => sendTimingApi(makeRequestPath(request, "success"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
         case Failure(SamDenialException) => sendTimingApi(makeRequestPath(request, "denied"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
         case Failure(_) => sendTimingApi(makeRequestPath(request, "connection-error"), (System.currentTimeMillis - startTimestamp).millis, "auth-collection")
       }
 
-      r
+      samResponse
     }
 
 

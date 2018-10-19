@@ -1,6 +1,6 @@
 package cromiam.sam
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -10,10 +10,12 @@ import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import com.softwaremill.sttp.{StatusCodes => _, _}
 import cromiam.auth.{Collection, User}
+import cromiam.instrumentation.CromIamInstrumentation
 import cromiam.sam.SamClient._
 import cromiam.sam.SamResourceJsonSupport._
 import cromiam.server.status.StatusCheckedSubsystem
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 /*
@@ -22,24 +24,27 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
      out into workbench-libs. We should replace this with that once the stars line up but for now it doesn't seem
      worth it. If one finds themselves making heavy changes to this file, that statement should be reevaluated.
  */
-class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapter)(implicit system: ActorSystem,
-                                                                                   ece: ExecutionContextExecutor,
-                                                                                   materializer: ActorMaterializer) extends StatusCheckedSubsystem {
-  override val statusUri = uri"$samBaseUri/status"
+class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapter, serviceRegistryActorRef: ActorRef)
+               (implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: ActorMaterializer) extends StatusCheckedSubsystem with CromIamInstrumentation {
 
-  def isSubmitWhitelisted(user: User): Future[Boolean] = {
+  override val statusUri = uri"$samBaseUri/status"
+  override val serviceRegistryActor: ActorRef = serviceRegistryActorRef
+
+  def isSubmitWhitelisted(user: User, apiRequest: HttpRequest): Future[Boolean] = {
     val request = HttpRequest(
       method = HttpMethods.GET,
       uri = samSubmitWhitelistUri,
       headers = List[HttpHeader](user.authorization)
     )
 
+    val startTimestamp = System.currentTimeMillis
     for {
       response <- Http().singleRequest(request)
       whitelisted <- response.status match {
         case StatusCodes.OK => Unmarshal(response.entity).to[String].map(_.toBoolean)
         case _ => Future.successful(false)
       }
+      _ = sendTimingApi(makeRequestPath(apiRequest, whitelisted.toString), (System.currentTimeMillis - startTimestamp).millis, "user-whitelisted")
       _ = if (!whitelisted) log.error("Submit Access Denied for user {}", user.userId)
     } yield whitelisted
   }

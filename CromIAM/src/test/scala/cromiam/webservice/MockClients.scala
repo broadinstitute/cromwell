@@ -1,6 +1,6 @@
 package cromiam.webservice
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.model.StatusCodes._
@@ -23,7 +23,7 @@ final class MockCromwellClient()(implicit system: ActorSystem,
 class MockSamClient()(implicit system: ActorSystem,
                       ece: ExecutionContextExecutor,
                       materializer: ActorMaterializer)
-  extends SamClient("http", "bar", 1, NoLogging)(system, ece, materializer) {
+  extends SamClient("http", "bar", 1, NoLogging, ActorRef.noSender)(system, ece, materializer) {
   override def collectionsForUser(user: User): Future[List[Collection]] = {
     Future.successful(List(Collection("col1"), Collection("col2")))
   }

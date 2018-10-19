@@ -26,8 +26,11 @@ The process looks like:
 
 ## Using Circe to get case classes
 
-This process is more or less automatic - the case classes define the fields which the anticipate existing in the JSON
+This process is more or less automatic - the case classes define the fields which they anticipate existing in the JSON.
 and Circe does the rest.
+    - Optional fields in case classes are allowed to not exist in the JSON
+    - All fields in the JSON must be represented by fields in the appropriate case classes
+    - In cases where the JSON may be structured in one of several ways, we use Shapeless coproducts to specify "one of" many options.
 
 If a file is failing to parse the first stop should always be to double-check that the case classes accurately represent
 the range of possible CWL JSON.

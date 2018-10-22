@@ -250,8 +250,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     jobScriptArgs(job, "kill", KillTask)
   }
 
-  protected lazy val exitCodeTimeout: Option[Int] = {
-    val timeout = configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig)
+  protected lazy val exitCodeTimeout: Option[Long] = {
+    val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
     timeout.foreach{x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")}
     timeout
   }
@@ -268,7 +268,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         // Exitcode file does not exist at this point, checking is jobs is still alive
         exitCodeTimeout match {
           case Some(timeout) =>
-            if (s.experired(timeout)) s
+            if (!s.expired(timeout)) s
             else if (isAlive(handle.pendingJob).fold({ e =>
               log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
               true
@@ -283,7 +283,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
         exitCodeTimeout match {
           case Some(timeout) =>
-            if (s.experired(timeout)) s
+            if (!s.expired(timeout)) s
             else {
               jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
               val writer = new PrintWriter(jobPaths.returnCode.toFile)

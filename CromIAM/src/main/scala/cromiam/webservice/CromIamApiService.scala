@@ -81,7 +81,6 @@ trait CromIamApiService extends RequestSupport
 
   val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes }
 
-
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / Abort) { (_, workflowId) =>
     post {
       extractUserAndRequest { (user, req) =>

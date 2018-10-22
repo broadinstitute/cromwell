@@ -95,7 +95,7 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
     val cromwellResponseFunc = () => cromwellApiClient.metadata(WorkflowId.fromString(workflowId),
                                       args = Option(Map("includeKey" -> List("rootWorkflowId"))),
                                       headers = List(user.authorization)).map(metadataToRootWorkflowId)
-//
+
     instrumentRequest(cromwellResponseFunc, cromIamRequest, rootWfIdPrefix)
   }
 }

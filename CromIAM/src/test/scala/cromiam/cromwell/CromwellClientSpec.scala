@@ -27,7 +27,7 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
 
   val cromwellClient = new MockCromwellClient()
 
-  val mockHttpRequest = HttpRequest()
+  val fakeHttpRequest = HttpRequest()
 
   override protected def afterAll(): Unit = {
     actorSystem.terminate()
@@ -35,22 +35,22 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
   }
 
   "CromwellClient" should "eventually return a subworkflow's root workflow id" in {
-    cromwellClient.getRootWorkflow(SubworkflowId.id.toString, FictitiousUser, mockHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
+    cromwellClient.getRootWorkflow(SubworkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
   }
 
   it should "eventually return a top level workflow's ID when requesting root workflow id" in {
-    cromwellClient.getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser, mockHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
+    cromwellClient.getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
   }
 
   it should "properly fetch the collection for a workflow with a collection name" in {
-    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, mockHttpRequest).map(c =>
+    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(c =>
       assert(c.name == CollectionName)
     )
   }
 
   it should "throw an exception if the workflow doesn't have a collection" in {
     recoverToExceptionIf[IllegalArgumentException] {
-      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, mockHttpRequest)
+      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, fakeHttpRequest)
     } map { exception =>
       assert(exception.getMessage == s"Workflow $WorkflowIdWithoutCollection has no associated collection")
     }

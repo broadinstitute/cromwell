@@ -1,8 +1,7 @@
 package cromiam.webservice
 
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.testkit.TestDuration
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromiam.server.config.SwaggerOauthConfig
 import io.swagger.models.properties.RefProperty
 import io.swagger.parser.SwaggerParser
@@ -14,14 +13,11 @@ import org.yaml.snakeyaml.nodes.MappingNode
 import org.yaml.snakeyaml.{Yaml => SnakeYaml}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 
 class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRouteTest with Matchers
   with TableDrivenPropertyChecks {
   def actorRefFactory = system
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
-
-  implicit val timeout = RouteTestTimeout(10.seconds.dilated)
 
   behavior of "SwaggerService"
 

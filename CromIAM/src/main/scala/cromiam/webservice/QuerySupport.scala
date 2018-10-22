@@ -21,8 +21,6 @@ trait QuerySupport extends RequestSupport {
 
   val log: LoggingAdapter
 
-  val queryRoute: String = "api-workflows-v1-query"
-
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: ActorMaterializer
 
@@ -55,12 +53,10 @@ trait QuerySupport extends RequestSupport {
     * directive
     */
   private def preprocessQuery(method: String): Directive[(User, List[Collection], HttpRequest)] = {
-    extractUser flatMap  { user =>
+    extractUserAndRequest tflatMap { case (user, cromIamRequest) =>
       log.info("Received query " + method + " request for user " + user.userId)
 
-      val statsdPath = NonEmptyList.of(queryRoute, method)
-
-      onComplete(samClient.collectionsForUser(user, statsdPath)) flatMap {
+      onComplete(samClient.collectionsForUser(user, cromIamRequest)) flatMap {
         case Success(collections) =>
           toStrictEntity(Timeout) tflatMap { _ =>
             extractStrictRequest flatMap { request =>

@@ -43,14 +43,14 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
   }
 
   it should "properly fetch the collection for a workflow with a collection name" in {
-    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser).map(c =>
+    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, HttpRequest.apply()).map(c =>
       assert(c.name == CollectionName)
     )
   }
 
   it should "throw an exception if the workflow doesn't have a collection" in {
     recoverToExceptionIf[IllegalArgumentException] {
-      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser)
+      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, HttpRequest.apply())
     } map { exception =>
       assert(exception.getMessage == s"Workflow $WorkflowIdWithoutCollection has no associated collection")
     }

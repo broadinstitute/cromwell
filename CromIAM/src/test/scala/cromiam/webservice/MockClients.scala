@@ -5,7 +5,6 @@ import akka.event.NoLogging
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.http.scaladsl.model.StatusCodes._
 import akka.stream.ActorMaterializer
-import cats.data.NonEmptyList
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
@@ -25,7 +24,7 @@ class MockSamClient()(implicit system: ActorSystem,
                       ece: ExecutionContextExecutor,
                       materializer: ActorMaterializer)
   extends SamClient("http", "bar", 1, NoLogging, ActorRef.noSender)(system, ece, materializer) {
-  override def collectionsForUser(user: User, statsdPath: NonEmptyList[String]): Future[List[Collection]] = {
+  override def collectionsForUser(user: User, httpRequest: HttpRequest): Future[List[Collection]] = {
     Future.successful(List(Collection("col1"), Collection("col2")))
   }
 }

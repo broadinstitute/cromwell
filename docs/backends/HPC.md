@@ -67,7 +67,7 @@ backend {
   providers {
     <backend name> {
       config {
-        exit-code-timeout-seconds = 120 # in seconds
+        exit-code-timeout-seconds = 120
         # other config options
       }
     }

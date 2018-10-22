@@ -24,7 +24,6 @@ trait CromIamInstrumentation extends CromwellInstrumentation {
   val userCollectionPrefix = NonEmptyList.one("user-collection")
   val authCollectionPrefix = NonEmptyList.one("auth-collection")
   val registerCollectionPrefix = NonEmptyList.one("register-collection")
-
   val rootWfIdPrefix = NonEmptyList.one("root-workflow-id")
   val wfCollectionPrefix = NonEmptyList.one("workflow-collection")
 

@@ -8,7 +8,6 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.ActorMaterializer
-import cats.data.NonEmptyList
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient._

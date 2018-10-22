@@ -27,7 +27,7 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
 
   val cromwellClient = new MockCromwellClient()
 
-  val mockHttpRequest = HttpRequest.apply()
+  val mockHttpRequest = HttpRequest()
 
   override protected def afterAll(): Unit = {
     actorSystem.terminate()
@@ -43,14 +43,14 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
   }
 
   it should "properly fetch the collection for a workflow with a collection name" in {
-    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, HttpRequest.apply()).map(c =>
+    cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, mockHttpRequest).map(c =>
       assert(c.name == CollectionName)
     )
   }
 
   it should "throw an exception if the workflow doesn't have a collection" in {
     recoverToExceptionIf[IllegalArgumentException] {
-      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, HttpRequest.apply())
+      cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, mockHttpRequest)
     } map { exception =>
       assert(exception.getMessage == s"Workflow $WorkflowIdWithoutCollection has no associated collection")
     }

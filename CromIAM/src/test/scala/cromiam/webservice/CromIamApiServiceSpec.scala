@@ -4,6 +4,7 @@ import akka.event.NoLogging
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+
 import cromiam.server.status.StatusService
 import org.scalatest._
 

@@ -1,3 +1,4 @@
+import ContinuousIntegration._
 import Dependencies._
 import GenerateRestApiDocs._
 import Merging.customMergeStrategy
@@ -9,7 +10,6 @@ import sbt._
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin
-import sbtdocker.DockerPlugin.autoImport._
 import sbtrelease.ReleasePlugin
 
 object Settings {
@@ -189,6 +189,7 @@ object Settings {
           .disablePlugins(AssemblyPlugin)
           .settings(publish := {})
           .settings(generateRestApiDocsSettings)
+          .settings(ciSettings)
           .settings(rootArtifactorySettings)
       )
 

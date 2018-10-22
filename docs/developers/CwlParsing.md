@@ -14,10 +14,10 @@ The process looks like:
 
 1. Write the workflow source file to disk
 1. Make sure the dependencies are unzipped next to it
-1. SALAD and flatten:
+1. `SALAD and flatten`:
     - Run `cwltool --print-pre` against the source file to get a canonicalize JSON representation (aka `SALAD`) it.
         - NB: `cwltool --print-pre` must be able to resolve dependencies but it does not flatten them into the file.
-    - Recursively SALAD and flatten and references into their own JSON representations of the contents.
+    - Recursively `SALAD and flatten` any references into their own JSON representations of the contents.
     - Replace every reference in-place with the expanded JSON content.
 1. At the end of this process we will have:
     - A single flat JSON 

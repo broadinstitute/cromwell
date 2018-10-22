@@ -7,6 +7,35 @@
 The value `exit-code-timeout-seconds` can now set in a backend configuration.
 Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
 
+#### Extra configuration options for Firecloud
+
+In addition to a "PAPI" status key, the FC custom health monitor now supports "PAPIV1" and "PAPIV2" status keys.
+
+### AWS S3 file transfers are now encrypted.
+
+Please see the [relevant PR](https://github.com/broadinstitute/cromwell/pull/4264).
+
+### Bug fixes
+
+#### Metadata Request Coalescing
+
+Coalesce metadata requests to eliminate expensive and redundant queries and metadata construction.
+
+#### Eliminate redundant SFS logging and metadata 
+
+Eliminate superfluous logging and metadata publishing in the shared filesystem backend on poll intervals where there was not a state change.
+
+#### AWS region configuration respected throughout
+
+Previously US-EAST-1 was hardcoded in places.
+
+#### Server jar back under 200MB
+
+Removed a large number of unused AWS dependencies.
+
+#### Sub-workflows logging to the correct file
+
+Sub-workflow logs are always written to the root-workflow's log instead of a separate log file that used to leak file pointers. 
 
 ## 35 Release Notes
 

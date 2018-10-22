@@ -28,6 +28,8 @@ object Testing {
       .map(_.split(",").toList.map(_.trim))
       .getOrElse(AllTestTags)
 
+  private val spanScaleFactor: String = sys.env.getOrElse("CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR", "1")
+
   /*
   The arguments that will be added to the default test config, but removed from all other configs.
   `sbt coverage test` adds other arguments added to generate the coverage reports.
@@ -36,7 +38,7 @@ object Testing {
   private val excludeTestArgs = excludeTestTags.map(Tests.Argument(TestFrameworks.ScalaTest, "-l", _))
 
   private val TestReportArgs =
-    Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports", "-u", "target/test-reports")
+    Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports", "-u", "target/test-reports", "-F", spanScaleFactor)
 
   val testSettings = List(
     libraryDependencies ++= testDependencies.map(_ % Test),

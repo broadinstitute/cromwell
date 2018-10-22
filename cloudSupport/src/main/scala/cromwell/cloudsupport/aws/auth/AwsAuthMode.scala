@@ -71,18 +71,22 @@ sealed trait AwsAuthMode {
     * All traits in this file are sealed, all classes final, meaning things
     * like Mockito or other java/scala overrides cannot work.
     */
-   private[auth] var credentialValidation: ((AwsCredentials, String) => Unit) =
-     (credentials: AwsCredentials, region: String) => {
-       STSClient
-          .builder
-          .region(Region.of(region))
-          .credentialsProvider(StaticCredentialsProvider.create(credentials))
-          .build
-          .getCallerIdentity(GetCallerIdentityRequest.builder.build)
+   private[auth] var credentialValidation: ((AwsCredentials, Option[String]) => Unit) =
+     (credentials: AwsCredentials, region: Option[String]) => {
+       val builder = STSClient.builder
+
+       //If the region argument exists in config, set it in the builder.
+       //Otherwise it is left unset and the AwsCredential builder will look in various places to supply,
+       //ultimately using US-EAST-1 if none is found
+       region.map(Region.of).foreach(builder.region)
+
+       builder.credentialsProvider(StaticCredentialsProvider.create(credentials))
+         .build
+         .getCallerIdentity(GetCallerIdentityRequest.builder.build)
        ()
      }
 
-  protected def validateCredential(credential: AwsCredentials, region: String) = {
+  protected def validateCredential(credential: AwsCredentials, region: Option[String]) = {
     Try(credentialValidation(credential, region)) match {
       case Failure(ex) => throw new RuntimeException(s"Credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
@@ -103,7 +107,7 @@ object CustomKeyMode
 final case class CustomKeyMode(override val name: String,
                                     accessKey: String,
                                     secretKey: String,
-                                    region: String
+                                    region: Option[String]
                                     ) extends AwsAuthMode {
   private lazy val _credential: AwsCredentials = {
     // Validate credentials synchronously here, without retry.
@@ -115,7 +119,7 @@ final case class CustomKeyMode(override val name: String,
   override def credential(options: OptionLookup): AwsCredentials = _credential
 }
 
-final case class DefaultMode(override val name: String, region: String) extends AwsAuthMode {
+final case class DefaultMode(override val name: String, region: Option[String]) extends AwsAuthMode {
   private lazy val _credential: AwsCredentials = {
     //
     // The ProfileCredentialsProvider will return your [default]
@@ -137,7 +141,7 @@ final case class AssumeRoleMode(override val name: String,
                           baseAuthName: String,
                           roleArn: String,
                           externalId: String,
-                          region: String
+                          region: Option[String]
                           ) extends AwsAuthMode {
 
   private lazy val _credential: AwsCredentials = {
@@ -153,7 +157,8 @@ final case class AssumeRoleMode(override val name: String,
     if (! externalId.isEmpty) requestBuilder.externalId(externalId)
     val request = requestBuilder.build
 
-    val builder = STSClient.builder.region(Region of region)
+    val builder = STSClient.builder
+    region.foreach(str => builder.region(Region.of(str)))
     // See comment above regarding builder
     baseAuthObj match{
       case Some(auth) => builder.credentialsProvider(StaticCredentialsProvider.create(auth.credential(_ => "")))

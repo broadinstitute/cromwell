@@ -2,10 +2,11 @@ package cromwell.core.io
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{TestActorRef, TestProbe}
+import common.util.Backoff
 import cromwell.core.TestKitSuite
 import cromwell.core.io.DefaultIoCommand.DefaultIoSizeCommand
 import cromwell.core.path.Path
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpecLike, Matchers}
 

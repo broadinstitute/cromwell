@@ -50,17 +50,16 @@ object S3Storage {
       .build
   }
 
-  def s3Client(configuration: S3AdvancedConfiguration, credentials: AwsCredentials): S3Client = {
-    S3Client.builder
+  def s3Client(configuration: S3AdvancedConfiguration, credentials: AwsCredentials, region: Option[Region]): S3Client = {
+    val builder = S3Client.builder
       .advancedConfiguration(configuration)
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
-      //TODO: setting this to get past batch job unit test, should be configured externally
-      .region(Region.US_EAST_1)
-      .build
+      region.foreach(builder.region)
+      builder.build
   }
 
-  def s3Client(credentials: AwsCredentials): S3Client = {
-    s3Client(s3AdvancedConfiguration(), credentials)
+  def s3Client(credentials: AwsCredentials, region: Option[Region]): S3Client = {
+    s3Client(s3AdvancedConfiguration(), credentials, region)
   }
 
   def s3AdvancedConfiguration(accelerateModeEnabled: Boolean = false,

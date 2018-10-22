@@ -9,6 +9,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.Localizat
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.Value
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
@@ -16,6 +17,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+
 object Delocalization {
   private val logsRoot = "/google/logs"
   val plainTextContentType = Option(ContentTypes.`text/plain(UTF-8)`)
@@ -82,7 +84,7 @@ trait Delocalization {
          * sh -c 'gsutil cp % $(echo % | sed -e "s/^\///")'
          */
         s""" | xargs -I % sh -c '${recoverRequesterPaysError(cloudCallRoot)(gsutilCommand)}'"""
-    
+
     ActionBuilder.cloudSdkShellAction(command)(mounts)
   }
 
@@ -104,8 +106,10 @@ trait Delocalization {
     val parseAction = parseOutputJsonAction(callExecutionContainerRoot.pathAsString, temporaryFofnDirectoryForCwlOutputJson, temporaryFofnForCwlOutputJson, mounts)
     val delocalizeAction = delocalizeOutputJsonFilesAction(cloudCallRoot, temporaryFofnForCwlOutputJson, createPipelineParameters.cloudWorkflowRoot.pathAsString, mounts)
 
-    createPipelineParameters.outputParameters.flatMap(_.toActions(mounts).toList) ++
-      List(parseAction, delocalizeAction) :+
+    ActionBuilder.annotateTimestampedActions("delocalization", Value.Delocalization)(
+      createPipelineParameters.outputParameters.flatMap(_.toActions(mounts).toList) ++
+        List(parseAction, delocalizeAction)
+    ) :+
       copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath) :+
       copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot, createPipelineParameters.logGcsPath) :+
       delocalizeLogsAction(gcsLogDirectoryPath)

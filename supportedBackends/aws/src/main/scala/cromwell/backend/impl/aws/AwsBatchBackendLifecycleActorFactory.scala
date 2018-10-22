@@ -66,19 +66,22 @@ case class AwsBatchBackendLifecycleActorFactory(
   val configuration = new AwsBatchConfiguration(configurationDescriptor)
 
   override def workflowInitializationActorParams(
-    workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
-    calls: Set[CommandCallNode], serviceRegistryActor: ActorRef,
-    restart: Boolean): StandardInitializationActorParams = {
+                                                  workflowDescriptor: BackendWorkflowDescriptor,
+                                                  ioActor: ActorRef,
+                                                  calls: Set[CommandCallNode],
+                                                  serviceRegistryActor: ActorRef,
+                                                  restart: Boolean): StandardInitializationActorParams = {
     Log.debug("Initializing AwsBatchBackendLifecycleActorFactory")
-    AwsBatchInitializationActorParams(workflowDescriptor, ioActor, calls,
-      configuration, serviceRegistryActor, restart)
+    AwsBatchInitializationActorParams(workflowDescriptor, ioActor, calls, configuration, serviceRegistryActor, restart)
   }
 
   override def workflowFinalizationActorParams(
-    workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef,
-    calls: Set[CommandCallNode], jobExecutionMap: JobExecutionMap,
-    workflowOutputs: CallOutputs, initializationDataOption: Option[BackendInitializationData]):
-  StandardFinalizationActorParams = {
+                                                workflowDescriptor: BackendWorkflowDescriptor,
+                                                ioActor: ActorRef,
+                                                calls: Set[CommandCallNode],
+                                                jobExecutionMap: JobExecutionMap,
+                                                workflowOutputs: CallOutputs,
+                                                initializationDataOption: Option[BackendInitializationData]): StandardFinalizationActorParams = {
     // The `AwsBatchInitializationActor` will only return a non-`Empty`
     // `AwsBatchBackendInitializationData` from a successful `beforeAll`
     // invocation.  HOWEVER, the finalization actor is created regardless
@@ -87,10 +90,6 @@ case class AwsBatchBackendLifecycleActorFactory(
     // `AwsBatchBackendInitializationData` option, and there is no `.get`
     // on the initialization data as there is with the execution or cache
     // hit copying actor methods.
-    AwsBatchFinalizationActorParams(workflowDescriptor, ioActor, calls,
-      configuration, jobExecutionMap, workflowOutputs, initializationDataOption)
+    AwsBatchFinalizationActorParams(workflowDescriptor, ioActor, calls, configuration, jobExecutionMap, workflowOutputs, initializationDataOption)
   }
-}
-
-object AwsBatchBackendLifecycleActorFactory {
 }

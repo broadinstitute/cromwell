@@ -67,7 +67,8 @@ case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
     val pathBuilderWithAuth = S3PathBuilder.fromCredentials(
       credentials,
       S3Storage.DefaultConfiguration,
-      workflowOptions
+      workflowOptions,
+      configuration.awsConfig.region
     )
 
     val authBucket = pathBuilderWithAuth.build(bucket) recover {

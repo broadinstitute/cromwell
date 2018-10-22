@@ -8,6 +8,7 @@ import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.validation.ErrorOr._
 import common.validation.Parse._
+import common.validation.Validation.ValidationChecked
 import cwl.preprocessor.CwlPreProcessor
 import io.circe.Json
 
@@ -38,7 +39,7 @@ object CwlDecoder {
     }
   }
 
-  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).leftMap(_.prepend(s"error when parsing file $file")))
+  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).contextualizeErrors(s"parse '$file'"))
 
   /**
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
@@ -50,10 +51,10 @@ object CwlDecoder {
       parsedCwl <- parseJson(standaloneWorkflow, fileName)
     } yield parsedCwl
 
-  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None): Parse[Cwl] = {
+  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None, cwlFilename: String = "cwl_temp_file"): Parse[Cwl] = {
     for {
-      parentDir <- goParse(BFile.newTemporaryDirectory("cwl.temp."))
-      file <- fromEither[IO](BFile.newTemporaryFile("temp.", ".cwl", Option(parentDir)).write(cwl).asRight)
+      parentDir <- goParse(BFile.newTemporaryDirectory("cwl_temp_dir_")) // has a random long appended like `cwl_temp_dir_100000000000`
+      file <- fromEither[IO](parentDir./(cwlFilename + ".cwl").write(cwl).asRight) // serves as the basis for the output directory name; must remain stable across restarts
       _ <- zipOption match {
         case Some(zip) => goParse(zip.unzipTo(parentDir))
         case None => Monad[Parse].unit

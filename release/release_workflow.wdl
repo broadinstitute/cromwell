@@ -18,7 +18,7 @@ task do_major_release {
      set -x 
 
      # Clone repo and checkout develop
-     git clone https://github.com/~{organization}/cromwell.git -b develop cromwell
+     git clone git@github.com:~{organization}/cromwell.git -b develop cromwell
      cd cromwell
 
      # Merge develop into master
@@ -73,7 +73,7 @@ task do_minor_release {
      set -x 
 
      # Clone repo and checkout hotfix branch
-     git clone https://github.com/~{organization}/cromwell.git -b ~{hotfixBranchName} cromwell
+     git clone git@github.com:~{organization}/cromwell.git -b ~{hotfixBranchName} cromwell
      cd cromwell
 
      # Make sure tests pass
@@ -176,8 +176,8 @@ task publishGithubRelease {
     String cromwellJarName = basename(cromwellJar)
     String womtoolJarName = basename(womtoolJar)
 
-    String cromwell_upload_url = "~{upload_url}?name=~{cromwellJarName}?label=~{cromwellJarName}"
-    String womtool_upload_url = "~{upload_url}?name=~{womtoolJarName}?label=~{womtoolJarName}"
+    String cromwell_upload_url = "~{upload_url}?name=~{cromwellJarName}&label=~{cromwellJarName}"
+    String womtool_upload_url = "~{upload_url}?name=~{womtoolJarName}&label=~{womtoolJarName}"
 
     command <<<
         set -e
@@ -237,7 +237,7 @@ task releaseHomebrew {
         set -x 
 
         # Clone the homebrew fork
-        git clone https://github.com/~{organization}/homebrew-core.git --depth=100
+        git clone git@github.com:~{organization}/homebrew-core.git --depth=100
         cd homebrew-core
         
         # See https://help.github.com/articles/syncing-a-fork/

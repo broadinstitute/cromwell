@@ -3,8 +3,9 @@ package cromwell.engine.workflow
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
+import common.util.Backoff
 import cromwell.core.actor.StreamIntegration.BackPressure
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry

@@ -2,8 +2,9 @@ package cromwell.core.io
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.typesafe.config.{Config, ConfigFactory}
+import common.util.Backoff
 import cromwell.core.actor.RobustClientHelper
-import cromwell.core.retry.{Backoff, SimpleExponentialBackoff}
+import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.concurrent.duration._
 import net.ceedubs.ficus.Ficus._

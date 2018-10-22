@@ -11,14 +11,14 @@ import cromwell.core.TestKitSuite
 import cromwell.services.healthmonitor.HealthMonitorServiceActor._
 import cromwell.services.healthmonitor.HealthMonitorServiceActorSpec._
 import org.scalatest.{Assertion, FlatSpecLike}
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{Eventually, ScaledTimeSpans}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
 class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Eventually {
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(scaled(5.seconds))
   final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
     Executors.newCachedThreadPool()
   )
@@ -104,13 +104,13 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
         Future.successful(OkStatus)
       } else {
         Future {
-          Thread.sleep(10000)
+          Thread.sleep(scaled(10.seconds).toMillis)
           OkStatus
         }
       }
     }
 
-    val timeoutSubsystem = MonitoredSubsystem("Timeout", timeOutCheck _)
+    val timeoutSubsystem = MonitoredSubsystem("Timeout", () => timeOutCheck())
 
     val hm = TestActorRef(new TestHealthMonitorActor {
       override def subsystems: Set[MonitoredSubsystem] = Set(timeoutSubsystem)
@@ -136,7 +136,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
           Future.failed(new RuntimeException("womp womp"))
         case _ =>
           Future {
-            Thread.sleep(5000L)
+            Thread.sleep(scaled(5.seconds).toMillis)
             SubsystemStatus(ok = true, messages = None)
           }
       }
@@ -144,7 +144,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
 
     var statusStores = List.empty[SubsystemStatus]
 
-    val failAndCountSubsystem = MonitoredSubsystem("FailAndCountSubsystem", okThenFailThenHangStatusChecker _)
+    val failAndCountSubsystem = MonitoredSubsystem("FailAndCountSubsystem", () => okThenFailThenHangStatusChecker())
 
     val hm = TestActorRef(new TestHealthMonitorActor {
       override def subsystems: Set[MonitoredSubsystem] = Set(failAndCountSubsystem)
@@ -173,18 +173,19 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
 }
 
 object HealthMonitorServiceActorSpec {
-  val SuccessSubsystem = MonitoredSubsystem("Success", mockCheckSuccess _)
-  val FailureSubsystem = MonitoredSubsystem("Failure", mockCheckFailure _)
+  val SuccessSubsystem = MonitoredSubsystem("Success", () => mockCheckSuccess())
+  val FailureSubsystem = MonitoredSubsystem("Failure", () => mockCheckFailure())
   val MultipleSubsystems = Set(SuccessSubsystem, FailureSubsystem)
 
   val FailedStatus = SubsystemStatus(ok = false, Option(List("womp womp")))
   val TimedOutStatus = SubsystemStatus(ok = false, Option(List("Timed out")))
 
-  abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty()) extends HealthMonitorServiceActor {
-    override lazy val staleThreshold = 3 seconds
-    override lazy val failureRetryInterval = 100 milliseconds
-    override lazy val sweepInterval = 200 milliseconds
-    override lazy val futureTimeout = 1 second
+  abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty())
+    extends HealthMonitorServiceActor with ScaledTimeSpans {
+    override lazy val staleThreshold = scaled(3.seconds)
+    override lazy val failureRetryInterval = scaled(100.milliseconds)
+    override lazy val sweepInterval = scaled(200.milliseconds)
+    override lazy val futureTimeout = scaled(1.second)
   }
 
   private def mockCheckSuccess(): Future[SubsystemStatus] = {

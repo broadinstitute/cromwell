@@ -8,8 +8,9 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.biscayne.ast2wdlom._
 import wom.expression.NoIoFunctionSet
-import wom.values.{WomArray, WomInteger, WomMap, WomPair, WomString}
+import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 import common.assertion.ManyTimes.intWithTimes
+import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
 
 class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
 
@@ -115,6 +116,24 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
         case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
       }
       ()
+    }
+  }
+
+  it should "evaluate a map literal mixing String?s and Int?s" in {
+    val str = """ { "i": i_in, "s": s_in } """
+    val inputs = Map(
+      "i_in" -> WomOptionalValue(WomIntegerType, Some(WomInteger(1))),
+      "s_in" -> WomOptionalValue(WomStringType, Some(WomString("two")))
+    )
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedMap: WomMap = WomMap(WomMapType(WomStringType, WomOptionalType(WomStringType)), Map (
+      WomString("i") -> WomOptionalValue(WomStringType, Some(WomString("1"))),
+      WomString("s") -> WomOptionalValue(WomStringType, Some(WomString("two")))
+    ))
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 

@@ -1,5 +1,6 @@
 package cromwell.engine.io
 
+import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
 
 import akka.NotUsed
@@ -208,6 +209,7 @@ object IoActor {
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
+    case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
     case other => isTransient(other)
   }
 

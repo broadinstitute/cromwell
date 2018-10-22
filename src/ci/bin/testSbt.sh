@@ -14,6 +14,7 @@ case "${CROMWELL_BUILD_PROVIDER}" in
         ;;
     "${CROMWELL_BUILD_PROVIDER_JENKINS}")
         CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DockerTest,GcsIntegrationTest"
+        CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR=10
         ;;
     *)
         # Use the full list of excludes listed in Testing.scala
@@ -21,6 +22,7 @@ case "${CROMWELL_BUILD_PROVIDER}" in
         ;;
 esac
 export CROMWELL_SBT_TEST_EXCLUDE_TAGS
+export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 
 sbt -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 

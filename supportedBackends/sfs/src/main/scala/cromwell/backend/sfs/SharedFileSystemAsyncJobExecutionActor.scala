@@ -16,7 +16,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(status: String, date: Calendar) {
+case class SharedFileSystemRunState(status: String, date: Calendar) {
   override def toString: String = status
 
   def expired(timeoutInSeconds: Long): Boolean = {
@@ -27,8 +27,8 @@ case class SharedFileSystemRunStatus(status: String, date: Calendar) {
   }
 }
 
-object SharedFileSystemRunStatus {
-  def apply(status: String): SharedFileSystemRunStatus = SharedFileSystemRunStatus(status, Calendar.getInstance())
+object SharedFileSystemRunState {
+  def apply(status: String): SharedFileSystemRunState = SharedFileSystemRunState(status, Calendar.getInstance())
 }
 
 object SharedFileSystemAsyncJobExecutionActor {
@@ -64,7 +64,12 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override type StandardAsyncRunInfo = Any
 
-  override type StandardAsyncRunStatus = SharedFileSystemRunStatus
+  override type StandardAsyncRunState = SharedFileSystemRunState
+
+  /** True if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
+    * in the state type.
+    */
+  override def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz.status == that.status
 
   override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
@@ -132,7 +137,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def execute(): ExecutionHandle = {
-    if (isDockerRun) jobPaths.callExecutionRoot.createPermissionedDirectories() 
+    if (isDockerRun) jobPaths.callExecutionRoot.createPermissionedDirectories()
     else jobPaths.callExecutionRoot.createDirectories()
     writeScriptContents().fold(
       identity,
@@ -174,7 +179,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   override def reconnectAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
     Future.successful(reconnectToExistingJob(job))
   }
-  
+
   override def reconnectToAbortAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
     Future.successful(reconnectToExistingJob(job, forceAbort = true))
   }
@@ -238,12 +243,12 @@ trait SharedFileSystemAsyncJobExecutionActor
     ()
   }
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    if (jobPaths.returnCode.exists) SharedFileSystemRunStatus("Done")
-    else SharedFileSystemRunStatus("WaitingForReturnCode")
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+    if (jobPaths.returnCode.exists) SharedFileSystemRunState("Done")
+    else SharedFileSystemRunState("WaitingForReturnCode")
   }
 
-  override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
+  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
     runStatus.status == "Done"
   }
 

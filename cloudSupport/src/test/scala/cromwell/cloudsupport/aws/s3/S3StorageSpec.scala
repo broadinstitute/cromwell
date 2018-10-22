@@ -31,6 +31,7 @@
 package cromwell.cloudsupport.aws.s3
 import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
 import org.scalatest.{FlatSpec, Matchers, Tag}
+import software.amazon.awssdk.core.regions.Region
 
 class S3StorageSpec extends FlatSpec with Matchers {
 
@@ -51,7 +52,7 @@ class S3StorageSpec extends FlatSpec with Matchers {
   }
 
   it should "build s3 client with credentials" taggedAs S3StorageSpecUtils.AwsTest in {
-    S3Storage.s3Client(AnonymousCredentialsProvider.create.getCredentials)
+    S3Storage.s3Client(AnonymousCredentialsProvider.create.getCredentials, Option(Region.US_EAST_1))
   }
 
 }

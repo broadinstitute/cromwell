@@ -256,22 +256,22 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     timeout
   }
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    (handle.previousStatus, exitCodeTimeout.flatMap(t => handle.previousStatus.map(_.expired(t)))) match {
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+    (handle.previousState, exitCodeTimeout.flatMap(t => handle.previousState.map(_.expired(t)))) match {
       case (None, _) =>
         // Is not set yet the status will be set default to running
-        SharedFileSystemRunStatus("Running")
+        SharedFileSystemRunState("Running")
       case (Some(s), _) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
         // If exitcode file does exists status will be set to Done always
-        SharedFileSystemRunStatus("Done")
-      case (Some(s), Some(false)) => s
+        SharedFileSystemRunState("Done")
+      case (Some(s), Some(false)) => s // No action required if state is not yet expired
       case (Some(s), Some(true)) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
         if (isAlive(handle.pendingJob).fold({ e =>
               log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
               true
-            }, x => x)) SharedFileSystemRunStatus("Running")
-            else SharedFileSystemRunStatus("WaitingForReturnCode")
+            }, x => x)) SharedFileSystemRunState("Running")
+            else SharedFileSystemRunState("WaitingForReturnCode")
       case (Some(s), Some(true)) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore
         // `isAlive` is not called anymore from this point
@@ -282,13 +282,13 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         // 137 does mean a external kill -9, this is a assumption but easy workaround for now
         writer.println(9)
         writer.close()
-        SharedFileSystemRunStatus("Failed")
+        SharedFileSystemRunState("Failed")
       case (Some(s), _) if s.status == "Done" => s // Nothing to be done here
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }
   }
 
-  override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
+  override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = {
     runStatus.status == "Done" || runStatus.status == "Failed"
   }
 

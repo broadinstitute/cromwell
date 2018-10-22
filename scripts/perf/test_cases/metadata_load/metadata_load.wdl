@@ -14,7 +14,7 @@ task curl_metadata {
         curl -s 600 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
         # Possibly the curls above will timeout, but that's not what we're testing for. We want to check that Cromwell
         # doesn't fall over even if it can't build the metadata under the timeout limit. So exit 0 to make the task succeed 
-        exit 0
+        # exit 0
     }
 }
 

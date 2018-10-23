@@ -48,7 +48,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
   }
 
   // Fuzzy packets are metrics which we expect to see but for which cannot determine the exact values for asynchronous reasons
-  case class StatsDTestBit(description: String, metric: CromwellMetric, expectedExactPackets: Set[String], expectedFuzzyPackets: Set[String] = Set.empty)
+  final case class StatsDTestBit(description: String, metric: CromwellMetric, expectedExactPackets: Set[String], expectedFuzzyPackets: Set[String] = Set.empty)
   
   // Note: The current StatsD implementation sends everything as StatsD gauges so we expect all packets to be "...|g"
   List(

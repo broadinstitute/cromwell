@@ -19,7 +19,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.metadata.MetadataBuilderActor
+import cromwell.webservice.metadata.{MetadataBuilderActor, MetadataBuilderRegulatorActor}
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.routes.CromwellApiService.{EnhancedThrowable, InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowId}
 import cromwell.webservice.routes.MetadataRouteSupport._
@@ -36,25 +36,27 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 
   implicit val timeout: Timeout
 
+  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
+
   val metadataRoutes = concat(
     path("workflows" / Segment / Segment / "status") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetStatus(w), serviceRegistryActor)
+          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetStatus(w), serviceRegistryActor, metadataBuilderRegulatorActor)
         }
       }
     },
     path("workflows" / Segment / Segment / "outputs") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w), serviceRegistryActor)
+          metadataLookup(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w), serviceRegistryActor, metadataBuilderRegulatorActor)
         }
       }
     },
     path("workflows" / Segment / Segment / "logs") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLogs(w), serviceRegistryActor)
+          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLogs(w), serviceRegistryActor, metadataBuilderRegulatorActor)
         }
       }
     },
@@ -73,7 +75,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
               case (_, _) =>
                 metadataLookup(possibleWorkflowId,
                   (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
-                  serviceRegistryActor)
+                  serviceRegistryActor, metadataBuilderRegulatorActor)
             }
           }
         }
@@ -83,7 +85,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
       concat(
         get {
           instrumentRequest {
-            metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLabels(w), serviceRegistryActor)
+            metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLabels(w), serviceRegistryActor, metadataBuilderRegulatorActor)
           }
         },
         patch {
@@ -133,11 +135,12 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 object MetadataRouteSupport {
   def metadataLookup(possibleWorkflowId: String,
                      request: WorkflowId => ReadAction,
-                     serviceRegistryActor: ActorRef)
+                     serviceRegistryActor: ActorRef,
+                     metadataBuilderRegulatorActor: ActorRef)
                     (implicit actorRefFactory: ActorRefFactory,
                      timeout: Timeout,
                      ec: ExecutionContext): Route = {
-    completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor))
+    completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor, metadataBuilderRegulatorActor))
   }
 
   def queryMetadata(parameters: Seq[(String, String)],
@@ -147,14 +150,12 @@ object MetadataRouteSupport {
 
   def metadataBuilderActorRequest(possibleWorkflowId: String,
                                   request: WorkflowId => ReadAction,
-                                  serviceRegistryActor: ActorRef)
+                                  serviceRegistryActor: ActorRef,
+                                  metadataBuilderRegulatorActor: ActorRef)
                                  (implicit actorRefFactory: ActorRefFactory,
                                   timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
-    import CromwellApiService.validateWorkflowId
-
-    val metadataBuilderActor = actorRefFactory.actorOf(MetadataBuilderActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName)
-    validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+    validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
   }
 
   def completeMetadataBuilderResponse(response: Future[MetadataBuilderActorResponse]): Route = {

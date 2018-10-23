@@ -23,7 +23,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
   override implicit def executionContext = scala.concurrent.ExecutionContext.Implicits.global
 
   def sleepAndThrow: Nothing = {
-    Thread.sleep(5 * 1000L)
+    Thread.sleep(30.seconds.dilated.toMillis)
     throw new RuntimeException("test should have timed out")
   }
 
@@ -132,7 +132,8 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
         }
       }
       val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
-      val request = FetchStartableWorkflows(1, s"test $description fetchStartableWorkflows", 1.second)
+      val heartbeatTtlNotReallyUsed = 1.second
+      val request = FetchStartableWorkflows(1, s"test $description fetchStartableWorkflows", heartbeatTtlNotReallyUsed)
       implicit val timeout: Timeout = Timeout(2.seconds.dilated)
       actor.ask(request).failed map { actual =>
         actual.getMessage should startWith(expectedMessagePrefix)

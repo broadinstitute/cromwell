@@ -18,22 +18,20 @@ import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
-  behavior of "MetadataParser"
+  behavior of "MetadataBuilderActor"
 
-  val defaultTimeout = 200 millis
+  val defaultTimeout: FiniteDuration = 1.second.dilated
   implicit val timeout: Timeout = defaultTimeout
-
-  val mockServiceRegistry = TestProbe()
 
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
                              expectedRes: String): Future[Assertion] = {
+    val mockServiceRegistry = TestProbe()
     val mba = system.actorOf(MetadataBuilderActor.props(mockServiceRegistry.ref))
     val response = mba.ask(action).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, action)
@@ -462,6 +460,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val subQueryAction = GetMetadataQueryAction(subQuery)
     
     val parentProbe = TestProbe()
+    val mockServiceRegistry = TestProbe()
+
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, mainQueryAction)
@@ -506,6 +506,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val queryNoExpandAction = GetMetadataQueryAction(queryNoExpand)
     
     val parentProbe = TestProbe()
+    val mockServiceRegistry = TestProbe()
+
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, queryNoExpandAction)

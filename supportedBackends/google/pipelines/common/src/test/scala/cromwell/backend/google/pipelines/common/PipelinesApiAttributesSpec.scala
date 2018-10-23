@@ -82,7 +82,7 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
     errorsList should contain("No configuration setting found for key 'root'")
     errorsList should contain("No configuration setting found for key 'genomics.auth'")
     errorsList should contain("No configuration setting found for key 'filesystems'")
-    errorsList should contain("URI is not absolute")
+    errorsList should contain("String: 2: genomics.endpoint-url has type String rather than java.net.URL")
   }
 
   def configString(preemptible: String = "", genomics: String = ""): String =

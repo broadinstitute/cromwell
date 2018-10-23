@@ -137,8 +137,7 @@ object MetadataRouteSupport {
                      request: WorkflowId => ReadAction,
                      serviceRegistryActor: ActorRef,
                      metadataBuilderRegulatorActor: ActorRef)
-                    (implicit actorRefFactory: ActorRefFactory,
-                     timeout: Timeout,
+                    (implicit timeout: Timeout,
                      ec: ExecutionContext): Route = {
     completeMetadataBuilderResponse(metadataBuilderActorRequest(possibleWorkflowId, request, serviceRegistryActor, metadataBuilderRegulatorActor))
   }

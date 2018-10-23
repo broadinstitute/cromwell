@@ -19,7 +19,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.metadata.{MetadataBuilderActor, MetadataBuilderRegulatorActor}
+import cromwell.webservice.metadata.MetadataBuilderRegulatorActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.routes.CromwellApiService.{EnhancedThrowable, InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowId}
 import cromwell.webservice.routes.MetadataRouteSupport._
@@ -152,8 +152,7 @@ object MetadataRouteSupport {
                                   request: WorkflowId => ReadAction,
                                   serviceRegistryActor: ActorRef,
                                   metadataBuilderRegulatorActor: ActorRef)
-                                 (implicit actorRefFactory: ActorRefFactory,
-                                  timeout: Timeout,
+                                 (implicit timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
     validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
   }

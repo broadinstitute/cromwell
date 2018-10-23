@@ -58,5 +58,5 @@ workflow metadata_load {
         call metadata_ab as metadata_ab_large { input: workflowId = largeWorkflowId, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 500, concurrency = 10 }
     }
     
-    call metadata_ab as metadata_ab_small { input: workflowId = smallWorkflowId, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 10000, concurrency = 100 }
+    call metadata_ab as metadata_ab_small { input: workflowId = smallWorkflowId, endpointVersion = "v1", start = install_ab.done, nbRequests = 10000, concurrency = 100 }
 }

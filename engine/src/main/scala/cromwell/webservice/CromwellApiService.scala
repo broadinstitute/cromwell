@@ -33,7 +33,6 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.metadata.{MetadataBuilderActor, StreamMetadataBuilder}
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.metadata.MetadataBuilderRegulatorActor
 import net.ceedubs.ficus.Ficus._
@@ -59,7 +58,6 @@ trait CromwellApiService extends HttpInstrumentation {
   implicit val duration = config.as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
   
-  private val streamMetadataBuilder = new StreamMetadataBuilder(duration)
   private val metadataStreamingEnabledByDefault = config.as[Boolean]("system.metadata-streaming-enabled-by-default")
 
   val engineRoutes = concat(
@@ -87,13 +85,13 @@ trait CromwellApiService extends HttpInstrumentation {
       get { instrumentRequest { complete(ToResponseMarshallable(backendResponse)) } }
     } ~
     path("workflows" / Segment / Segment / "status") { (_, possibleWorkflowId) =>
-      get {  instrumentRequest { nonStreamedMetadataRequestRoute(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) } }
+      get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetStatus(w)) } }
     } ~
     path("workflows" / Segment / Segment / "outputs") { (_, possibleWorkflowId) =>
-      get {  instrumentRequest { nonStreamedMetadataRequestRoute(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w)) } }
+      get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w)) } }
     } ~
     path("workflows" / Segment / Segment / "logs") { (_, possibleWorkflowId) =>
-      get {  instrumentRequest { nonStreamedMetadataRequestRoute(possibleWorkflowId, (w: WorkflowId) => WorkflowLogs(w)) } }
+      get {  instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLogs(w)) } }
     } ~
     path("workflows" / Segment / "query") { _ =>
       get {
@@ -127,8 +125,8 @@ trait CromwellApiService extends HttpInstrumentation {
               case (Some(_), Some(_)) =>
                 val e = new IllegalArgumentException("includeKey and excludeKey may not be specified together")
                 e.failRequest(StatusCodes.BadRequest)
-              case (_, _) if metadataStreamingEnabledByDefault || version == "v1s" => streamedIfPossibleMetadataRequestRoute(possibleWorkflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
-              case (_, _) => nonStreamedMetadataRequestRoute(possibleWorkflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+              case (_, _) if metadataStreamingEnabledByDefault || version == "v1s" => metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => StreamedGetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+              case (_, _) => metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows))
             }
           }
         }
@@ -198,7 +196,7 @@ trait CromwellApiService extends HttpInstrumentation {
     } ~
     path("workflows" / Segment / Segment / "labels") { (_, possibleWorkflowId) =>
       get {
-        instrumentRequest { nonStreamedMetadataRequestRoute(possibleWorkflowId, (w: WorkflowId) => GetLabels(w)) }
+        instrumentRequest { metadataBuilderRequest(possibleWorkflowId, (w: WorkflowId) => GetLabels(w)) }
       } ~
       patch {
         entity(as[Map[String, String]]) { parameterMap =>
@@ -330,29 +328,11 @@ trait CromwellApiService extends HttpInstrumentation {
     }
   }
 
-  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
+  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor, duration))
 
-  private def nonStreamedMetadataRequestRoute(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
-    processMetadataResponse(processMetadataRequest(possibleWorkflowId, request))
-  }
+  private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
+    val response = validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
 
-  private def processMetadataRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction) = {
-      validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
-  }
-
-  private def streamedIfPossibleMetadataRequestRoute(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
-    val result = validateWorkflowId(possibleWorkflowId).map(request) flatMap {
-      case action: GetSingleWorkflowMetadataAction =>
-        streamMetadataBuilder.workflowMetadataQuery(action).unsafeToFuture().map(BuiltMetadataResponse.apply)
-      case GetMetadataQueryAction(query) =>
-        streamMetadataBuilder.workflowMetadataQuery(query).unsafeToFuture().map(BuiltMetadataResponse.apply)
-      case _ => processMetadataRequest(possibleWorkflowId, request)
-    }
-
-    processMetadataResponse(result)
-  }
-
-  private def processMetadataResponse(response: Future[MetadataBuilderActorResponse]) = {
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.response)
       case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)

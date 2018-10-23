@@ -27,7 +27,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLabels(workflowId) => queryLabelsAndRespond(workflowId)
-    case WorkflowLogs(workflowId) => queryLogsAndRespond(workflowId)
+    case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
     case query: WorkflowQuery => queryWorkflowsAndRespond(query.parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
   }

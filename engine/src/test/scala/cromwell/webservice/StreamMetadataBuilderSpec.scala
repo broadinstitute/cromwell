@@ -25,8 +25,10 @@ class StreamMetadataBuilderSpec extends MetadataBuilderActorSpec("StreamMetadata
       override def queryToPublisher(query: MetadataQuery) = IO.pure(publisher)
     }
     val result = action match {
-      case singleAction: GetSingleWorkflowMetadataAction => metadataStreamer.workflowMetadataQuery(singleAction)
-      case queryAction: GetMetadataQueryAction => metadataStreamer.workflowMetadataQuery(queryAction.key)
+      case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) => 
+        metadataStreamer.workflowMetadataQuery(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows)
+      case queryAction: GetMetadataQueryAction => 
+        metadataStreamer.workflowMetadataQuery(queryAction.key)
       case _ => fail(s"Unstreamable action: ${action.getClass.getSimpleName}")
     }
     result.unsafeToFuture() map { b => b shouldBe expectedRes.parseJson}

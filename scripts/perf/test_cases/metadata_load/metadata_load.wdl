@@ -1,20 +1,26 @@
 version 1.0
 
-task curl_metadata {
+task install_ab {
+    command {
+        apt-get install --assume-yes apache2-utils
+    }
+    output {
+        Boolean done = true
+    }
+}
+
+task metadata_ab {
     input {
+        Boolean start
         String workflowId
         String endpointVersion
+        Int nbRequests
+        Int concurrency
+        Int timeout = 70
     }
 
     command {
-        curl -s 600 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
-        curl -s 600 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
-        curl -s 600 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
-        curl -s 600 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
-        curl -s 600 http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata > /dev/null
-        # Possibly the curls above will timeout, but that's not what we're testing for. We want to check that Cromwell
-        # doesn't fall over even if it can't build the metadata under the timeout limit. So exit 0 to make the task succeed 
-        # exit 0
+        ab -n ~{nbRequests} -c ~{concurrency} -s ~{timeout} http://localhost:8000/api/workflows/~{endpointVersion}/~{workflowId}/metadata
     }
 }
 
@@ -22,7 +28,9 @@ workflow metadata_load {
     input {
         String endpointVersion
     }
-    Array[String] workflowIds = [
+
+    # 100 000 rows each
+    Array[String] largeWorkflowIds = [
         "00b3e3ea-8a9f-4b88-a530-16a155a26db2",
         "02a26bbe-f898-432a-a8c1-4525e54c5389",
         "0315d2d2-3d23-4c7f-a12b-621a1bf850bd",
@@ -37,25 +45,17 @@ workflow metadata_load {
         "0eec8fa6-840c-47d9-bcfd-bc36de59f90b",
         "0ef72cbe-8154-462d-9de4-7fb9e5c6b5a1",
         "0fcff475-f062-471a-9e09-fe02332c068c",
-        "118a62c9-19c0-4dab-a4e6-328dd26447cf",
-        "120c4859-0bf7-47de-b426-01c502ebe6ad",
-        "128ad78d-27b9-4044-a5c4-a8310a628f11",
-        "149edef4-3af1-4773-9373-a7fa4f8b5930",
-        "14f97a3b-d3ac-4ec5-9d85-5ece7d9f7fa7",
-        "15602fa5-d337-4a72-a7e0-ec3766fc0450",
-        "17262d7a-addc-45c2-bd02-ad0d612a802d",
-        "17a9f931-5194-4948-909b-ee1c5b8449b3",
-        "17b76b73-682e-46c6-871f-dacf0fb6a99b",
-        "1b0573e5-719f-4566-969b-c271528eecdc",
-        "1be5d749-765f-4bd6-8605-c0bfce2ae4b4",
-        "21b297f6-643a-4c75-8000-38ae57ef642f",
-        "23766f7c-1459-45d6-808b-c6c7343b680c",
-        "2551d04c-38ed-424b-a614-fa9900aaf808",
-        "29da3bf9-959b-4308-b504-63c2d3794a98",
-        "2b75c685-76ff-49a0-802a-ef0eddc4b793"
+        "118a62c9-19c0-4dab-a4e6-328dd26447cf"
     ]
     
-    scatter(id in workflowIds) {
-        call curl_metadata { input: workflowId = id, endpointVersion = endpointVersion }
+    # 1500 rows
+    String smallWorkflowId = "7a35b251-8083-481a-9089-085e04314258"
+    
+    call install_ab
+
+    scatter(id in largeWorkflowIds) {
+        call metadata_ab { input: workflowId = id, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 1000, concurrency = 50 }
     }
+    
+    call metadata_ab { input: workflowId = smallWorkflowId, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 10000, concurrency = 100 }
 }

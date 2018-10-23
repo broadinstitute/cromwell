@@ -7,13 +7,14 @@ services:
     image: "${CROMWELL_IMAGE}"
     volumes:
       - ${CROMWELL_CONF_DIR}:/conf
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - CROMWELL_PROJECT
       - CROMWELL_EXECUTION_ROOT
       - CROMWELL_STATSD_PREFIX
       - CLOUD_SQL_DB_USER
       - CLOUD_SQL_DB_PASSWORD
-      - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf -Xmx12G
+      - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf -Xmx40G
     command: ["server"]
     depends_on:
       - statsd-proxy

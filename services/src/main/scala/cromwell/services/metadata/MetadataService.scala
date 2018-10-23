@@ -7,7 +7,6 @@ import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
-import slick.basic.DatabasePublisher
 import wom.core._
 import wom.values._
 
@@ -39,6 +38,7 @@ object MetadataService {
     def serviceName = MetadataServiceName
   }
   trait ReadAction extends MetadataServiceAction
+  trait StreamedReadAction extends ReadAction
   object PutMetadataAction {
     def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
   }
@@ -83,12 +83,17 @@ object MetadataService {
                                              excludeKeysOption: Option[NonEmptyList[String]],
                                              expandSubWorkflows: Boolean) extends ReadAction
 
+  final case class StreamedGetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
+                                                   excludeKeysOption: Option[NonEmptyList[String]],
+                                                   expandSubWorkflows: Boolean) extends StreamedReadAction
+
   final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
+  final case class StreamedGetMetadataQueryAction(key: MetadataQuery) extends StreamedReadAction
   final case class GetStatus(workflowId: WorkflowId) extends ReadAction
   final case class GetLabels(workflowId: WorkflowId) extends ReadAction
   final case class WorkflowQuery(parameters: Seq[(String, String)]) extends ReadAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends ReadAction
-  final case class WorkflowLogs(workflowId: WorkflowId) extends ReadAction
+  final case class GetLogs(workflowId: WorkflowId) extends ReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit
@@ -108,7 +113,6 @@ object MetadataService {
   }
 
   final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
-  final case class StreamedMetadataLookupResponse(query: MetadataQuery, events: DatabasePublisher[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
 
   final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse

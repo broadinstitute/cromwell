@@ -1,5 +1,6 @@
 package cromwell.webservice.metadata
 
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.IO._
 import cats.instances.tuple._
@@ -9,7 +10,6 @@ import com.typesafe.scalalogging.LazyLogging
 import common.validation.Validation._
 import cromwell.core.WorkflowId
 import cromwell.services.MetadataServicesStore
-import cromwell.services.metadata.MetadataService.GetSingleWorkflowMetadataAction
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.StreamMetadataDatabaseAccess
 import cromwell.webservice.metadata.MetadataComponent._
@@ -28,7 +28,7 @@ import scala.concurrent.duration._
 class StreamMetadataBuilder(requestTimeout: FiniteDuration) extends StreamMetadataDatabaseAccess with MetadataServicesStore with LazyLogging {
   // A MetadataComponent for the workflow id
   private def workflowIdComponent(id: WorkflowId): MetadataComponent = MetadataObject("id" -> MetadataPrimitive(MetadataValue(id.toString)))
-  
+
   // An empty calls section
   private val emptyCallSection: MetadataComponent = MetadataObject(CallsKey -> MetadataEmptyComponent)
 
@@ -42,10 +42,12 @@ class StreamMetadataBuilder(requestTimeout: FiniteDuration) extends StreamMetada
   /**
     * Builds the json corresponding to the provided GetSingleWorkflowMetadataAction
     */
-  def workflowMetadataQuery(action: GetSingleWorkflowMetadataAction)(implicit ec: ExecutionContext): IO[JsObject] = action match {
-    case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
-      val includeKeys = if (expandSubWorkflows) includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) } else includeKeysOption
-      workflowMetadataQuery(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
+  def workflowMetadataQuery(workflowId: WorkflowId,
+                            includeKeysOption: Option[NonEmptyList[String]],
+                            excludeKeysOption: Option[NonEmptyList[String]],
+                            expandSubWorkflows: Boolean)(implicit ec: ExecutionContext): IO[JsObject] = {
+    val includeKeys = if (expandSubWorkflows) includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) } else includeKeysOption
+    workflowMetadataQuery(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
   }
 
   /**
@@ -86,7 +88,7 @@ class StreamMetadataBuilder(requestTimeout: FiniteDuration) extends StreamMetada
       .mapAccumulate[Vector[WorkflowId], MetadataComponent](Vector.empty[WorkflowId])(mapEvent)
       .compile
       .foldMonoid
-    
+
     def addExtraComponents(component: MetadataComponent) = component match {
       // If the stream was empty, result should be empty json, no extras
       case MetadataEmptyComponent => component

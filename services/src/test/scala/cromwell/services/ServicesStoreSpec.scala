@@ -3,7 +3,6 @@ package cromwell.services
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.sql.Connection
 import java.time.OffsetDateTime
-import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 
 import better.files._
 import com.typesafe.config.ConfigFactory
@@ -15,6 +14,7 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
+import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
@@ -22,7 +22,6 @@ import org.hsqldb.persist.HsqlDatabaseProperties
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta._
@@ -38,7 +37,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
   implicit val ec = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   behavior of "ServicesStore"
 
@@ -71,7 +70,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           _ = queried.get.jobStoreEntry.workflowExecutionUuid should be(workflowUuid)
         } yield ()
       }
-      Future.sequence(futures).futureValue(Timeout(10.seconds))
+      Future.sequence(futures).futureValue(Timeout(scaled(30.seconds)))
     }
   }
 

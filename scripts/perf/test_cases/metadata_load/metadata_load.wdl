@@ -2,6 +2,7 @@ version 1.0
 
 task install_ab {
     command {
+        apt-get update
         apt-get install --assume-yes apache2-utils
     }
     output {

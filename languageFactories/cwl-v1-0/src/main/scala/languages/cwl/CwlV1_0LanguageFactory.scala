@@ -50,22 +50,12 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    // Use the resolvers to snag the contents of specific files relative to the root workflow
-    // Problem: file name to snag is not available until after CWL decoding (catch-22)
-    //    val x: CheckedAtoB[ImportResolutionRequest, ImportResolver.ResolvedImportBundle] = CheckedAtoB.firstSuccess(importResolvers.map(_.resolver), "a")
-    //    val y: Checked[ImportResolver.ResolvedImportBundle] = x.run(ImportResolutionRequest("bogus.cwl", importResolvers))
-    //    val z = y.getOrElse(???).source
-    //    println(z)
+    val workflowDir: Path = importResolvers(2).asInstanceOf[ImportResolver.DirectoryResolver].directory
+    val workflowDirZipped = File(workflowDir.zip().toFile.toPath)
 
-    val rootDir: Path = importResolvers(2).asInstanceOf[ImportResolver.DirectoryResolver].directory
-
-//    import better.files.File.apply
-    val rootDirZipped = File(rootDir.zip().toFile.toPath)
-
-    val cwlParseAttempt: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource, Option(rootDirZipped))
+    val cwlParseAttempt: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource, Option(workflowDirZipped))
 
     import cwl.AcceptAllRequirements
-
     val callableIO: EitherT[IO, NonEmptyList[String], Either[NonEmptyList[String], Callable]] = for {
       cwl <- cwlParseAttempt
     } yield {

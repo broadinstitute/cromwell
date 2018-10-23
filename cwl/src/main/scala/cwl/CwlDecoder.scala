@@ -64,15 +64,5 @@ object CwlDecoder {
     } yield out
   }
 
-  //This is used when traversing over Cwl and replacing links w/ embedded data
-  private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {
-    //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.
-    val bFileName = fileName.stripPrefix("file://")
-
-    decodeCwlFile(BFile(bFileName)).
-      map(fileName.toString -> _).
-      value.
-      map(_.toValidated)
-  }
 }
 

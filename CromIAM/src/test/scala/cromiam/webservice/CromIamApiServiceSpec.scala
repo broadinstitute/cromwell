@@ -4,7 +4,7 @@ import akka.event.NoLogging
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-
+import com.typesafe.config.Config
 import cromiam.server.status.StatusService
 import org.scalatest._
 
@@ -13,6 +13,8 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
   val log = NoLogging
   // We need an auth object, but it's never used, so...
   val emptyAuthObject = new Authorization(null)
+
+  override def rootConfig: Config = throw new NotImplementedError("This spec shouldn't need to access the real config")
 
   override def configuration = throw new NotImplementedError("This spec shouldn't need to access the real interface/port")
 

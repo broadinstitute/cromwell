@@ -22,7 +22,7 @@ trait HttpInstrumentation extends CromwellInstrumentation {
   private def makeRequestPath(httpRequest: HttpRequest, httpResponse: HttpResponse): InstrumentationPath = NonEmptyList.of(
     // Returns the path of the URI only, without query parameters (e.g: api/engine/workflows/metadata)
     httpRequest.uri.path.toString().stripPrefix("/")
-      // Replace UUIDs with [id] to keep paths unique regardless of the workflow
+      // Replace UUIDs with [id] to keep paths same regardless of the workflow
       .replaceAll(HttpInstrumentation.UUIDRegex, "[id]"),
     // Name of the method (e.g: GET)
     httpRequest.method.value,

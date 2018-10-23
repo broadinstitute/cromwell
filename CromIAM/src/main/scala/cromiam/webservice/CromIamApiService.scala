@@ -10,7 +10,7 @@ import akka.stream.ActorMaterializer
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.Config
 import cromiam.auth.Collection.validateLabels
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
@@ -39,10 +39,10 @@ trait CromIamApiService extends RequestSupport
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: ActorMaterializer
 
+  protected def rootConfig: Config
   protected def configuration: CromIamServerConfig
 
-  val config = ConfigFactory.load()
-  override lazy val serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(config), "ServiceRegistryActor")
+  override lazy val serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(rootConfig), "ServiceRegistryActor")
 
   val log: LoggingAdapter
 

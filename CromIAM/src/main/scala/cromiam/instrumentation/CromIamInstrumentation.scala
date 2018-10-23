@@ -31,7 +31,7 @@ trait CromIamInstrumentation extends CromwellInstrumentation {
   def convertRequestToPath(httpRequest: HttpRequest): NonEmptyList[String] = NonEmptyList.of(
     // Returns the path of the URI only, without query parameters (e.g: api/engine/workflows/metadata)
     httpRequest.uri.path.toString().stripPrefix("/")
-      // Replace UUIDs with [id] to keep paths unique regardless of the workflow
+      // Replace UUIDs with [id] to keep paths same regardless of the workflow
       .replaceAll(CromIamInstrumentation.UUIDRegex, "[id]"),
     // Name of the method (e.g: GET)
     httpRequest.method.value
@@ -57,7 +57,7 @@ trait CromIamInstrumentation extends CromwellInstrumentation {
     funcResponseFuture.onComplete {
       case Success(response: HttpResponse) => sendTimingApi(makePathFromRequestAndResponse(httpRequest, response), (System.currentTimeMillis - startTimestamp).millis, prefix)
       case Success(_) => sendTimingApi(makePathFromRequestAndResponseString(httpRequest, "success"), (System.currentTimeMillis - startTimestamp).millis, prefix)
-      case Failure(_) => sendTimingApi(makePathFromRequestAndResponseString(httpRequest, "failed"), (System.currentTimeMillis - startTimestamp).millis, prefix)
+      case Failure(_) => sendTimingApi(makePathFromRequestAndResponseString(httpRequest, "failure"), (System.currentTimeMillis - startTimestamp).millis, prefix)
     }
 
     funcResponseFuture

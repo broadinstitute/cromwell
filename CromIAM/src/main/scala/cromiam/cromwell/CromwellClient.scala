@@ -16,7 +16,6 @@ import cromwell.api.{CromwellClient => CromwellApiClient}
 import cromiam.server.status.StatusCheckedSubsystem
 import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata}
 import spray.json._
-import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 /**
@@ -43,21 +42,15 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
 
     log.info("Requesting collection for " + workflowId + " for user " + user.userId + " from metadata")
 
-    val startTimestamp = System.currentTimeMillis
-
     // Look up in Cromwell what the collection is for this workflow. If it doesn't exist, fail the Future
-    cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers = List(user.authorization)) flatMap {
+    val cromwellApiLabelFunc = () => cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers = List(user.authorization)) flatMap {
       _.caasCollection match {
-        case Some(c) => {
-          sendTimingApi(makePathFromRequestAndResponseString(cromIamRequest, "success"), (System.currentTimeMillis - startTimestamp).millis, wfCollectionPrefix)
-          Future.successful(c)
-        }
-        case None => {
-          sendTimingApi(makePathFromRequestAndResponseString(cromIamRequest, "failed"), (System.currentTimeMillis - startTimestamp).millis, wfCollectionPrefix)
-          Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
-        }
+        case Some(c) => Future.successful(c)
+        case None => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
       }
     }
+
+    instrumentRequest(cromwellApiLabelFunc, cromIamRequest, wfCollectionPrefix)
   }
 
   def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
@@ -92,11 +85,13 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
       Grab the metadata from Cromwell filtered down to the rootWorkflowId. Then transform the response to get just the
       root workflow ID itself
      */
-    val cromwellResponseFunc = () => cromwellApiClient.metadata(WorkflowId.fromString(workflowId),
-                                      args = Option(Map("includeKey" -> List("rootWorkflowId"))),
-                                      headers = List(user.authorization)).map(metadataToRootWorkflowId)
+    val cromwellApiMetadataFunc = () => cromwellApiClient.metadata(
+      WorkflowId.fromString(workflowId),
+      args = Option(Map("includeKey" -> List("rootWorkflowId"))),
+      headers = List(user.authorization)).map(metadataToRootWorkflowId
+    )
 
-    instrumentRequest(cromwellResponseFunc, cromIamRequest, rootWfIdPrefix)
+    instrumentRequest(cromwellApiMetadataFunc, cromIamRequest, rootWfIdPrefix)
   }
 }
 

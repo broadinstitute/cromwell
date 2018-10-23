@@ -9,14 +9,16 @@ import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
 import common.validation.Parse.Parse
+import cromwell.core.path.Path
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
-import cromwell.languages.util.LanguageFactoryUtil
+import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cwl.{Cwl, CwlDecoder}
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
-import wom.executable.{Executable, WomBundle}
+import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
+
 
 class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactory {
 
@@ -48,7 +50,19 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
-    val cwlParseAttempt: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource)
+    // Use the resolvers to snag the contents of specific files relative to the root workflow
+    // Problem: file name to snag is not available until after CWL decoding (catch-22)
+    //    val x: CheckedAtoB[ImportResolutionRequest, ImportResolver.ResolvedImportBundle] = CheckedAtoB.firstSuccess(importResolvers.map(_.resolver), "a")
+    //    val y: Checked[ImportResolver.ResolvedImportBundle] = x.run(ImportResolutionRequest("bogus.cwl", importResolvers))
+    //    val z = y.getOrElse(???).source
+    //    println(z)
+
+    val rootDir: Path = importResolvers(2).asInstanceOf[ImportResolver.DirectoryResolver].directory
+
+//    import better.files.File.apply
+    val rootDirZipped = File(rootDir.zip().toFile.toPath)
+
+    val cwlParseAttempt: Parse[Cwl] = CwlDecoder.decodeCwlString(workflowSource, Option(rootDirZipped))
 
     import cwl.AcceptAllRequirements
 
@@ -71,9 +85,8 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
     }
   }
 
-  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
-    ???
-  }
+  override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
+    enabledCheck flatMap { _ => "No createExecutable method implemented in CWL v1".invalidNelCheck }
 
   override def looksParsable(content: String): Boolean = content.lines.exists { l =>
     val trimmed = l.trim.stripSuffix(",")

@@ -78,8 +78,7 @@ class StreamMetadataBuilder(requestTimeout: FiniteDuration) extends StreamMetada
       if (event.isSubWorkflowId)
         (event.extractSubWorkflowId.map(subWorkflowIds.:+(_)).getOrElse(subWorkflowIds), toMetadataComponent(event))
       else{
-        val a = (subWorkflowIds, toMetadataComponent(event))
-        a
+        (subWorkflowIds, toMetadataComponent(event))
       }
     }
 

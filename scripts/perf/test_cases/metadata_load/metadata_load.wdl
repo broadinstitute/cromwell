@@ -53,8 +53,8 @@ workflow metadata_load {
     
     call install_ab
 
-    scatter(id in largeWorkflowIds) {
-        call metadata_ab { input: workflowId = id, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 1000, concurrency = 50 }
+    scatter(largeWorkflowId in largeWorkflowIds) {
+        call metadata_ab { input: workflowId = largeWorkflowId, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 500, concurrency = 10 }
     }
     
     call metadata_ab { input: workflowId = smallWorkflowId, endpointVersion = endpointVersion, start = install_ab.done, nbRequests = 10000, concurrency = 100 }

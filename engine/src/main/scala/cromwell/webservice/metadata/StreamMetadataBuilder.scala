@@ -51,6 +51,19 @@ class StreamMetadataBuilder(requestTimeout: FiniteDuration) extends StreamMetada
   }
 
   /**
+    * Builds the json corresponding to the provided GetSingleWorkflowMetadataAction
+    */
+  def workflowMetadataQuery(workflowId: WorkflowId, events: Seq[MetadataEvent],
+                            expandSubWorkflows: Boolean)(implicit ec: ExecutionContext): JsObject = {
+      FStream.emits(events)
+        .interruptWhen[IO]((FStream.sleep_[IO](requestTimeout) ++ FStream(true)) through logTimeout(Option(workflowId)))
+        .map(toMetadataComponent)
+        .compile
+        .foldMonoid
+        .toJson.asJsObject
+  }
+
+  /**
     * Builds the JsObject corresponding to a MetadataQuery, in a streaming fashion.
     * Uses a reactive stream publisher that gets turned into an fs2 stream which we use to pull the metadata rows from the database
     * and build a MetadataComponent as the rows get pulled. Use the MetadataComponent Monoid to fold them into one.

@@ -3,10 +3,10 @@ package cromwell.engine.workflow.workflowstore
 import java.util.UUID
 
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.generic.auto._
-import io.circe.literal._
-import io.circe.syntax._
+import cromwell.engine.workflow.workflowstore.WorkflowHeartbeatConfig._
 import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.syntax._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -28,16 +28,19 @@ case class WorkflowHeartbeatConfig(
                                     writeBatchSize: Int,
                                     writeThreshold: Int)
 {
-
-  // An `Encoder[FiniteDuration]` is needed for the `.asJson.toString()` shenanigans below. Unfortunately the compiler
-  // appears to get confused about this encoder actually being used. If this is made fully private or a local the compiler
-  // wrongly emits a warning about it being unused, which our compiler flag settings then promote to an error.
-  private [engine] implicit val finiteDurationEncoder: Encoder[FiniteDuration] = (d: FiniteDuration) => d.toString.asJson
-
-  override def toString: String = this.asJson.toString()
+  override def toString: String = this.asInstanceOf[WorkflowHeartbeatConfig].asJson.spaces2
 }
 
 object WorkflowHeartbeatConfig {
+
+  // NOTE: If these are made fully private the compiler wrongly emits a warning about them being unused, which our
+  // compiler flag settings then promote to an error.
+
+  // NOTE: This is a different encoding than circe's finiteDurationEncoder: https://github.com/circe/circe/pull/978
+  private[engine] implicit lazy val encodeFiniteDuration: Encoder[FiniteDuration] = {
+    Encoder.encodeString.contramap(_.toString)
+  }
+  private[engine] implicit lazy val encodeWorkflowHeartbeatConfig: Encoder[WorkflowHeartbeatConfig] = deriveEncoder
 
   def apply(config: Config): WorkflowHeartbeatConfig = {
     val cromwellId: String = config.as[Option[String]]("system.cromwell_id").getOrElse("cromid-" + UUID.randomUUID().toString.take(7))

@@ -1,11 +1,18 @@
 # Cromwell Change Log
 
+## 37 Release Notes
+
+### Changing configuration options
+
+When the value `exit-code-timeout-seconds` is set, `isAlive` is only called only each interval instead on each poll.
+
+
 ## 36 Release Notes
 
 ### Extra configuration options
 
 The value `exit-code-timeout-seconds` can now set in a backend configuration.
-Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
+Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#exit-code-timeout)
 
 ### [AWS S3 file transfers are now encrypted](https://github.com/broadinstitute/cromwell/pull/4264)
 

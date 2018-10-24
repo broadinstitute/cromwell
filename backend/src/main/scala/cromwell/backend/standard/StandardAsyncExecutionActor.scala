@@ -1006,8 +1006,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
       // the state names.
       // This logging and metadata publishing assumes that StandardAsyncRunState subtypes `toString` nicely to state names.
       val prevStatusName = previousState.map(_.toString).getOrElse("-")
-      if (prevStatusName == state.toString) jobLogger.debug(s"Status change from $prevStatusName to $state")
-      else jobLogger.info(s"Status change from $prevStatusName to $state")
+      jobLogger.info(s"Status change from $prevStatusName to $state")
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> state))
     }
 

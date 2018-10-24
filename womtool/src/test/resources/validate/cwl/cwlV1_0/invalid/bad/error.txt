@@ -1,0 +1,8 @@
+while scanning a simple key
+ in 'reader', line 3, column 1:
+    a
+    ^
+could not find expected ':'
+ in 'reader', line 5, column 1:
+    aaah
+    ^

@@ -140,7 +140,7 @@ object GenerateRestApiDocs {
   }
 
   // Returns a settings including the `generateRestApiDocs` task.
-  val generateRestApiDocsSettings = List[Setting[_]](
+  val generateRestApiDocsSettings: Seq[Setting[_]] = List(
     generateRestApiDocs := writeModifiedMarkdown()
   )
 }

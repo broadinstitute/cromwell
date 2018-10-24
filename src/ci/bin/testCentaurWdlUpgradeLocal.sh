@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_OPTIONAL_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null

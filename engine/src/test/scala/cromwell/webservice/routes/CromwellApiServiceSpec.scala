@@ -1,17 +1,13 @@
-package cromwell.webservice
+package cromwell.webservice.routes
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import akka.http.scaladsl.coding.{Decoder, Gzip}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
-import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import common.util.VersionUtil
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.core._
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow, WorkflowOnHoldToSubmittedCommand}
@@ -21,6 +17,7 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.webservice.EngineStatsActor
 import mouse.boolean._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._
@@ -72,47 +69,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
   }
 
-    behavior of "REST API /status endpoint"
-    it should "return 200 for get of a known workflow id" in {
-      val workflowId = CromwellApiServiceSpec.ExistingWorkflowId
-
-      Get(s"/workflows/$version/$workflowId/status") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-            status should be(StatusCodes.OK)
-            // Along w/ checking value, ensure it is valid JSON despite the requested content type
-            responseAs[JsObject].fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
-        }
-    }
-
-    it should "return 404 for get of unknown workflow" in {
-      val workflowId = CromwellApiServiceSpec.UnrecognizedWorkflowId
-      Get(s"/workflows/$version/$workflowId/status") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.NotFound) {
-            status
-          }
-        }
-    }
-
-    it should "return 400 for get of a malformed workflow id's status" in {
-      Get(s"/workflows/$version/foobar/status") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.BadRequest) {
-            status
-          }
-          assertResult(
-            """{
-               |  "status": "fail",
-               |  "message": "Invalid workflow ID: 'foobar'."
-               |}""".stripMargin
-          ) {
-            responseAs[String]
-          }
-        }
-    }
 
     behavior of "REST API /abort endpoint"
     it should "return 404 for abort of unknown workflow" in {
@@ -453,139 +409,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
-    behavior of "REST API /outputs endpoint"
-    it should "return 200 with GET of outputs on successful execution of workflow" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/outputs") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          responseAs[JsObject].fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
-        }
-    }
-
-    it should "return 404 with outputs on unknown workflow" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.UnrecognizedWorkflowId}/outputs") ~>
-        akkaHttpService.workflowRoutes ~>
-      check {
-        assertResult(StatusCodes.NotFound) {
-          status
-        }
-      }
-    }
-
-    it should "return 405 with POST of outputs on successful execution of workflow" in {
-      Post(s"/workflows/$version/${CromwellApiServiceSpec.UnrecognizedWorkflowId}/outputs") ~>
-        Route.seal(akkaHttpService.workflowRoutes) ~>
-        check {
-          assertResult(StatusCodes.MethodNotAllowed) {
-            status
-          }
-        }
-    }
-
-    behavior of "REST API /logs endpoint"
-    it should "return 200 with paths to stdout/stderr/backend log" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/logs") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-
-          val call = responseAs[JsObject].fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
-          call.fields("stdout") should be(JsString("stdout.txt"))
-          call.fields("stderr") should be(JsString("stderr.txt"))
-          call.fields("stdout") should be(JsString("stdout.txt"))
-          call.fields("backendLogs").convertTo[JsObject].fields("log") should be (JsString("backend.log"))
-        }
-    }
-
-    it should "return 404 with logs on unknown workflow" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.UnrecognizedWorkflowId}/logs") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.NotFound) {
-            status
-          }
-        }
-    }
-
-    behavior of "REST API /metadata endpoint"
-    it should "return with full metadata from the metadata route" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          val result = responseAs[JsObject]
-          result.fields.keys should contain allOf("testKey1", "testKey2")
-          result.fields.keys shouldNot contain("testKey3")
-          result.fields("testKey1") should be(JsString("myValue1"))
-          result.fields("testKey2") should be(JsString("myValue2"))
-        }
-    }
-
-    it should "return with gzip encoding when requested" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          response.headers.find(_.name == "Content-Encoding").get.value should be("gzip")
-        }
-    }
-
-    it should "not return with gzip encoding when not requested" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          response.headers.find(_.name == "Content-Encoding") shouldBe None
-        }
-    }
-
-    it should "return with included metadata from the metadata route" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&includeKey=testKey2a") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          val result = responseAs[JsObject]
-          result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
-          result.fields.keys should contain noneOf("testKey2b", "testKey3")
-          result.fields("testKey1a") should be(JsString("myValue1a"))
-          result.fields("testKey1b") should be(JsString("myValue1b"))
-          result.fields("testKey2a") should be(JsString("myValue2a"))
-        }
-    }
-
-    it should "return with excluded metadata from the metadata route" in {
-     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?excludeKey=testKey2b&excludeKey=testKey3") ~>
-       akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          val result = responseAs[JsObject]
-          result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
-          result.fields.keys should contain noneOf("testKey2b", "testKey3")
-          result.fields("testKey1a") should be(JsString("myValue1a"))
-          result.fields("testKey1b") should be(JsString("myValue1b"))
-          result.fields("testKey2a") should be(JsString("myValue2a"))
-        }
-    }
-
-    it should "return an error when included and excluded metadata requested from the metadata route" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey2") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.BadRequest) {
-            status
-          }
-
-          val decoder: Decoder = Gzip
-          Unmarshal(decoder.decodeMessage(response)).to[String] map { r =>
-            assertResult(
-              s"""{
-                  |  "status": "fail",
-                  |  "message": "includeKey and excludeKey may not be specified together"
-                  |}""".stripMargin
-            ) { r }
-          }
-        }
-    }
-
     behavior of "REST API /timing endpoint"
     it should "return 200 with an HTML document for the timings route" in {
       Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/timing") ~>
@@ -595,143 +418,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult("<html>") {
             responseAs[String].substring(0, 6)
           }
-        }
-    }
-
-    behavior of "REST API /query GET endpoint"
-    it should "return good results for a good query" in {
-      Get(s"/workflows/$version/query?status=Succeeded&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          contentType should be(ContentTypes.`application/json`)
-          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
-          results.head.fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
-          results.head.fields("status") should be(JsString("Succeeded"))
-        }
-    }
-
-    it should "return labels if specified in additionalQueryResultFields param" in {
-      Get(s"/workflows/$version/query?additionalQueryResultFields=labels&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          contentType should be(ContentTypes.`application/json`)
-          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
-          val fields = results.head.fields
-          fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
-          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
-          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
-        }
-    }
-
-    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
-      Get(s"/workflows/$version/query?additionalQueryResultFields=parentWorkflowId&id=${CromwellApiServiceSpec.ExistingWorkflowId}") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status should be(StatusCodes.OK)
-          contentType should be(ContentTypes.`application/json`)
-          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
-          val fields = results.head.fields
-          fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
-          fields(WorkflowMetadataKeys.ParentWorkflowId) should be(JsString("pid"))
-        }
-    }
-
-    behavior of "REST API /query POST endpoint"
-    it should "return good results for a good query map body" in {
-      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.OK) {
-            status
-          }
-          assertResult(true) {
-            entityAs[String].contains("\"status\":\"Succeeded\"")
-          }
-        }
-    }
-
-    it should "return labels if specified in additionalQueryResultFields param" in {
-      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"labels"}]""")) ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.OK) {
-            status
-          }
-          val results = responseAs[JsObject].fields("results").convertTo[Seq[JsObject]]
-          val fields = results.head.fields
-          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
-          fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key2") should be(JsString("label2"))
-        }
-    }
-
-    it should "return parentWorkflowId if specified in additionalQueryResultFields param" in {
-      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"additionalQueryResultFields":"parentWorkflowId"}]""")) ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.OK) {
-            status
-          }
-          assertResult(true) {
-            entityAs[String].contains("\"parentWorkflowId\":\"pid\"")
-          }
-        }
-    }
-
-    it should "include totalResultCount in workflow query response" in {
-      Post(s"/workflows/$version/query", HttpEntity(ContentTypes.`application/json`, """[{"status":"Succeeded"}]""")) ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          val result = responseAs[JsObject]
-          status should be(StatusCodes.OK)
-          result.fields("totalResultsCount") should be(JsNumber("1"))
-        }
-    }
-
-    behavior of "REST API /labels GET endpoint"
-    it should "return labels for a workflow ID" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/labels") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          val result = responseAs[JsObject]
-          status should be(StatusCodes.OK)
-          result.fields(WorkflowMetadataKeys.Labels).asJsObject.fields("key1") should be(JsString("label1"))
-        }
-    }
-
-    behavior of "REST API /labels PATCH endpoint"
-    it should "return successful status response when assigning valid labels to an existing workflow ID" in {
-
-      val validLabelsJson =
-        """
-          |{
-          |  "label-key-1":"label-value-1",
-          |  "label-key-2":"label-value-2"
-          |}
-        """.stripMargin
-
-      val workflowId = CromwellApiServiceSpec.ExistingWorkflowId
-
-      Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          status shouldBe StatusCodes.OK
-          val actualResult = responseAs[JsObject]
-          val expectedResults =
-            s"""
-              |{
-              |  "id": "$workflowId",
-              |  "labels": {
-              |    "key1": "label1",
-              |    "key2": "label2",
-              |    "label-key-1":"label-value-1",
-              |    "label-key-2":"label-value-2"
-              |  }
-              |}
-            """.stripMargin.parseJson
-
-          actualResult shouldBe expectedResults
         }
     }
 }

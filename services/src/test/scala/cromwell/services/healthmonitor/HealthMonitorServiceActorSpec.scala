@@ -71,6 +71,12 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
   it should "fail if any subsystems fail but correctly bin them" in {
     val hm = TestActorRef(new TestHealthMonitorActor {
       override def subsystems: Set[MonitoredSubsystem] = Set(SuccessSubsystem, FailureSubsystem)
+      /*
+      Unlike success-statuses, failure-statuses retry a number of times before storing their values.
+      While the failures-status is retrying, the success-status ends up becoming "stale", and flips to "unknown".
+      So, increase the timeout for marking the success-status as stale.
+       */
+      override lazy val staleThreshold = scaled(10.seconds)
     })
     eventualStatus(hm, ok = false, (SuccessSubsystem, OkStatus), (FailureSubsystem, FailedStatus))
   }

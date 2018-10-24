@@ -2,7 +2,7 @@ package cromiam.cromwell
 
 import java.net.URL
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
@@ -11,11 +11,11 @@ import akka.stream.ActorMaterializer
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient._
+import cromiam.instrumentation.CromIamInstrumentation
 import cromwell.api.{CromwellClient => CromwellApiClient}
 import cromiam.server.status.StatusCheckedSubsystem
 import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata}
 import spray.json._
-
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 /**
@@ -23,30 +23,34 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
   *
   * FIXME: Look for ways to synch this up with the mothership
   */
-class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingAdapter)(implicit system: ActorSystem,
+class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingAdapter, serviceRegistryActorRef: ActorRef)(implicit system: ActorSystem,
                                                                                         ece: ExecutionContextExecutor,
                                                                                         materializer: ActorMaterializer)
-  extends SprayJsonSupport with DefaultJsonProtocol with StatusCheckedSubsystem {
+  extends SprayJsonSupport with DefaultJsonProtocol with StatusCheckedSubsystem with CromIamInstrumentation{
 
   val cromwellUrl = new URL(s"$scheme://$interface:$port")
   val cromwellApiVersion = "v1"
 
   override val statusUri = uri"$cromwellUrl/engine/$cromwellApiVersion/status"
 
+  override val serviceRegistryActor: ActorRef = serviceRegistryActorRef
+
   val cromwellApiClient: CromwellApiClient = new CromwellApiClient(cromwellUrl, cromwellApiVersion)
 
-  def collectionForWorkflow(workflowId: String, user: User): Future[Collection] = {
+  def collectionForWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[Collection] = {
     import CromwellClient.EnhancedWorkflowLabels
 
     log.info("Requesting collection for " + workflowId + " for user " + user.userId + " from metadata")
 
     // Look up in Cromwell what the collection is for this workflow. If it doesn't exist, fail the Future
-    cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers = List(user.authorization)) flatMap {
+    val cromwellApiLabelFunc = () => cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers = List(user.authorization)) flatMap {
       _.caasCollection match {
         case Some(c) => Future.successful(c)
         case None => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
       }
     }
+
+    instrumentRequest(cromwellApiLabelFunc, cromIamRequest, wfCollectionPrefix)
   }
 
   def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
@@ -62,7 +66,7 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
   /**
     * Retrieve the root workflow ID for a workflow ID. This is used in case the user is inquiring about a subworkflow.
     */
-  def getRootWorkflow(workflowId: String, user: User): Future[String] = {
+  def getRootWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[String] = {
     def metadataToRootWorkflowId(metadata: WorkflowMetadata): String = {
       import spray.json._
       /*
@@ -81,9 +85,13 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
       Grab the metadata from Cromwell filtered down to the rootWorkflowId. Then transform the response to get just the
       root workflow ID itself
      */
-    cromwellApiClient.metadata(WorkflowId.fromString(workflowId),
+    val cromwellApiMetadataFunc = () => cromwellApiClient.metadata(
+      WorkflowId.fromString(workflowId),
       args = Option(Map("includeKey" -> List("rootWorkflowId"))),
-      headers = List(user.authorization)).map(metadataToRootWorkflowId)
+      headers = List(user.authorization)).map(metadataToRootWorkflowId
+    )
+
+    instrumentRequest(cromwellApiMetadataFunc, cromIamRequest, rootWfIdPrefix)
   }
 }
 

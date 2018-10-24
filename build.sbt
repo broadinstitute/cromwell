@@ -270,6 +270,7 @@ lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a can
   .withExecutableSettings("cromiam", cromiamDependencies, cromiamSettings)
   .dependsOn(common)
   .dependsOn(cromwellApiClient)
+  .dependsOn(services)
 
 lazy val wes2cromwell = project
   .withExecutableSettings("wes2cromwell", wes2cromwellDependencies, buildDocker = false)
@@ -375,6 +376,7 @@ lazy val root = (project in file("."))
   .aggregate(jesBackend)
   .aggregate(languageFactoryCore)
   .aggregate(ossFileSystem)
+  .aggregate(perf)
   .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)

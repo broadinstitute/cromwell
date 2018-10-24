@@ -26,7 +26,7 @@ trait QuerySupport extends RequestSupport {
 
   def queryGetRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     get {
-      preprocessQuery("GET") { (user, collections, request) =>
+      preprocessQuery { (user, collections, request) =>
         processLabelsForGetQuery(user, collections) { uri =>
           val requestToForward = HttpRequest(HttpMethods.GET, uri, request.headers)
           complete {
@@ -39,7 +39,7 @@ trait QuerySupport extends RequestSupport {
 
   def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     post {
-      preprocessQuery("GET") { (user, collections, request) =>
+      preprocessQuery { (user, collections, request) =>
         processLabelsForPostQuery(user, collections) { entity =>
           complete { cromwellClient.forwardToCromwell(request.withEntity(entity)) }
         }
@@ -52,11 +52,11 @@ trait QuerySupport extends RequestSupport {
     * retrieves the collections for the user, grabs the underlying HttpRequest and forwards it on to the specific
     * directive
     */
-  private def preprocessQuery(method: String): Directive[(User, List[Collection], HttpRequest)] = {
-    extractUser flatMap  { user =>
-      log.info("Received query " + method + " request for user " + user.userId)
+  private def preprocessQuery: Directive[(User, List[Collection], HttpRequest)] = {
+    extractUserAndRequest tflatMap { case (user, cromIamRequest) =>
+      log.info("Received query " + cromIamRequest.method.value + " request for user " + user.userId)
 
-      onComplete(samClient.collectionsForUser(user)) flatMap {
+      onComplete(samClient.collectionsForUser(user, cromIamRequest)) flatMap {
         case Success(collections) =>
           toStrictEntity(Timeout) tflatMap { _ =>
             extractStrictRequest flatMap { request =>

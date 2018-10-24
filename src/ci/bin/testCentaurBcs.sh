@@ -5,7 +5,7 @@
 # - https://github.com/broadinstitute/cromwell/issues/3554
 exit 0
 
-set -e
+set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null

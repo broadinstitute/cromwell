@@ -47,19 +47,18 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
     super.afterAll()
   }
 
-  case class StatsDTestBit(description: String, metric: CromwellMetric, expectedPackets: Set[String])
+  // Fuzzy packets are metrics which we expect to see but for which cannot determine the exact values for asynchronous reasons
+  case class StatsDTestBit(description: String, metric: CromwellMetric, expectedExactPackets: Set[String], expectedFuzzyPackets: Set[String] = Set.empty)
   
   // Note: The current StatsD implementation sends everything as StatsD gauges so we expect all packets to be "...|g"
   List(
     StatsDTestBit("increment counters", CromwellIncrement(testBucket),
-      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.samples:1|g",
-        "prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate:0.00|g"
-      )
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.samples:1|g"),
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate")
     ),
     StatsDTestBit("add count", CromwellCount(testBucket, 80),
-      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.samples:81|g",
-        "prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate:0.00|g"
-      )
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.samples:81|g"),
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.m1_rate")
     ),
     StatsDTestBit("set gauges", CromwellGauge(testGaugeBucket, 89),
       Set("prefix_value.cromwell.test_prefix.test.gauge.metric.bucket:89|g")
@@ -68,12 +67,12 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
       Set("prefix_value.cromwell.test_prefix.test.metric.bucket.timing.stddev:0.00|g",
         "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.samples:1|g",
         "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.p95:5000.00|g",
-        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.mean:5000.00|g",
-        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.m1_rate:0.00|g"
-      )
+        "prefix_value.cromwell.test_prefix.test.metric.bucket.timing.mean:5000.00|g"
+      ),
+      Set("prefix_value.cromwell.test_prefix.test.metric.bucket.timing.m1_rate")
     )
   ) foreach {
-    case StatsDTestBit(description, metric, expectedPackets) =>
+    case StatsDTestBit(description, metric, expectedExactPackets, expectedFuzzyPackets) =>
       it should description in {
         val instrumentationActor = TestActorRef(new StatsDInstrumentationServiceActor(config, ConfigFactory.load(), registryProbe))
         instrumentationActor ! InstrumentationServiceMessage(metric)
@@ -81,7 +80,8 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
           case Udp.Received(data, _) => data.utf8String
         }
 
-        expectedPackets foreach { packet => if (!received.contains(packet)) fail(s"Missing packet: $packet") }
+        expectedExactPackets foreach { packet => if (!received.contains(packet)) fail(s"Missing packet: $packet") }
+        expectedFuzzyPackets foreach { packet => if (!received.exists(_.contains(packet))) fail(s"Missing fuzzy packet: $packet") }
       }
   }
   

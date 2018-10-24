@@ -6,7 +6,7 @@ import akka.event.Logging
 import akka.http.scaladsl.server.{HttpApp, Route}
 import akka.stream.ActorMaterializer
 import cats.data.Validated.{Invalid, Valid}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import common.util.VersionUtil
 import cromiam.server.config.{CromIamServerConfig, SwaggerOauthConfig}
 import cromiam.server.status.StatusService
@@ -18,7 +18,9 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Pro
 
 object CromIamServer extends HttpApp with CromIamApiService with SwaggerService {
 
-  final val configuration: CromIamServerConfig = CromIamServerConfig.getFromConfig(ConfigFactory.load()) match {
+  final val rootConfig: Config = ConfigFactory.load()
+
+  final val configuration: CromIamServerConfig = CromIamServerConfig.getFromConfig(rootConfig) match {
     case Valid(c) => c
     case Invalid(errors) => throw new Exception("Bad CromIAM configuration:" + errors.toList.mkString("\n", "\n", "\n"))
   }

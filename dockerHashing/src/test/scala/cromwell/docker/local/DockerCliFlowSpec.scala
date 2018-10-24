@@ -36,20 +36,20 @@ class DockerCliFlowSpec extends DockerFlowSpec("DockerCliFlowSpec") with FlatSpe
     val notFound = makeRequest("ubuntu:nonexistingtag")
     dockerActor ! notFound
 
-    expectMsgClass(5.seconds, classOf[DockerHashNotFound])
+    expectMsgClass(30.seconds, classOf[DockerHashNotFound])
   }
 
   it should "send image not found if the user doesn't have permission on this image" taggedAs IntegrationTest in {
     val unauthorized = makeRequest("tjeandet/sinatra:v1")
     dockerActor ! unauthorized
 
-    expectMsgClass(5.seconds, classOf[DockerHashNotFound])
+    expectMsgClass(30.seconds, classOf[DockerHashNotFound])
   }
 
   it should "send image not found for an unrecognized host" taggedAs IntegrationTest in {
     val unauthorized = makeRequest("unknown.io/image:v1")
     dockerActor ! unauthorized
 
-    expectMsgClass(5.seconds, classOf[DockerHashNotFound])
+    expectMsgClass(30.seconds, classOf[DockerHashNotFound])
   }
 }

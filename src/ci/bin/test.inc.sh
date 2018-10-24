@@ -39,9 +39,9 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
-    if [ "${TRAVIS}" = "true" ]; then
+    if [ "${TRAVIS-false}" = "true" ]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
-    elif [ "${JENKINS}" = "true" ]; then
+    elif [ "${JENKINS-false}" = "true" ]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
@@ -50,7 +50,7 @@ cromwell::private::create_build_variables() {
     # simplified from https://stackoverflow.com/a/18434831/3320205
     CROMWELL_BUILD_OS_DARWIN="darwin";
     CROMWELL_BUILD_OS_LINUX="linux";
-    case "${OSTYPE}" in
+    case "${OSTYPE-unknown}" in
         darwin*)  CROMWELL_BUILD_OS="${CROMWELL_BUILD_OS_DARWIN}" ;;
         linux*)   CROMWELL_BUILD_OS="${CROMWELL_BUILD_OS_LINUX}" ;;
         *)        CROMWELL_BUILD_OS="unknown_os" ;;
@@ -83,7 +83,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_URL="https://travis-ci.org/${TRAVIS_REPO_SLUG}/jobs/${TRAVIS_JOB_ID}"
             CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.org"
             CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
-            CROMWELL_BUILD_VAULT_TOKEN="${CROMWELL_BUILD_HOME_DIRECTORY}/.vault-token"
             CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
             CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
             CROMWELL_BUILD_MYSQL_PORT="3306"
@@ -104,7 +103,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_URL="${BUILD_URL}"
             CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
             CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
-            CROMWELL_BUILD_VAULT_TOKEN="/dev/null"
             CROMWELL_BUILD_HEARTBEAT_MESSAGE="…\n"
             CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
             CROMWELL_BUILD_MYSQL_PORT="3306"
@@ -124,7 +122,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_URL=""
             CROMWELL_BUILD_GIT_USER_EMAIL="unknown.git.user@example.org"
             CROMWELL_BUILD_GIT_USER_NAME="Unknown Git User"
-            CROMWELL_BUILD_VAULT_TOKEN="${CROMWELL_BUILD_HOME_DIRECTORY}/.vault-token"
             CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
             CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
             CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
@@ -159,15 +156,15 @@ cromwell::private::create_build_variables() {
 
     CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
 
-    if [ -z "${CROMWELL_BUILD_OPTIONAL_SECURE}" ]; then
+    if [ -z "${CROMWELL_BUILD_OPTIONAL_SECURE-}" ]; then
         CROMWELL_BUILD_OPTIONAL_SECURE=false
     fi
 
-    if [ -z "${CROMWELL_BUILD_REQUIRES_SECURE}" ]; then
+    if [ -z "${CROMWELL_BUILD_REQUIRES_SECURE-}" ]; then
         CROMWELL_BUILD_REQUIRES_SECURE=false
     fi
 
-    if [ -z "${JES_TOKEN}" ]; then
+    if [ -z "${JES_TOKEN-}" ]; then
         JES_TOKEN="jes token is not set as an environment variable"
     fi
 
@@ -215,7 +212,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_TAG
     export CROMWELL_BUILD_TYPE
     export CROMWELL_BUILD_URL
-    export CROMWELL_BUILD_VAULT_TOKEN
     export CROMWELL_BUILD_WAIT_FOR_IT_BRANCH
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
@@ -242,7 +238,7 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION="integration"
     CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE="engineUpgrade"
 
-    if [ -z "${CROMWELL_BUILD_CENTAUR_TYPE}" ]; then
+    if [ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]; then
         if [[ "${CROMWELL_BUILD_TYPE}" = centaurEngineUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}"
         else
@@ -439,13 +435,7 @@ cromwell::private::vault_login() {
 }
 
 cromwell::private::render_secure_resources() {
-    docker run --rm \
-        -v "${CROMWELL_BUILD_VAULT_TOKEN}:/root/.vault-token" \
-        -v "${CROMWELL_BUILD_RESOURCES_DIRECTORY}:/resources" \
-        -e ENVIRONMENT=not_used \
-        -e INPUT_PATH=/resources \
-        -e OUT_PATH=/resources \
-        broadinstitute/dsde-toolbox render-templates.sh \
+    sbt renderCiResources \
     || if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
         echo
         echo "Continuing without rendering secure resources."
@@ -462,6 +452,10 @@ cromwell::private::render_secure_resources() {
     fi
 }
 
+cromwell::private::copy_all_resources() {
+    sbt copyCiResources
+}
+
 cromwell::private::setup_secure_resources() {
     if [ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ] || [ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
@@ -471,11 +465,14 @@ cromwell::private::setup_secure_resources() {
                 cromwell::private::docker_login
                 ;;
             "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+                cromwell::private::copy_all_resources
                 ;;
             *)
                 cromwell::private::render_secure_resources
                 ;;
         esac
+    else
+        cromwell::private::copy_all_resources
     fi
 }
 
@@ -485,7 +482,6 @@ cromwell::private::make_build_directories() {
     fi
     mkdir -p "${CROMWELL_BUILD_LOG_DIRECTORY}"
     mkdir -p "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"
-    cp -r "${CROMWELL_BUILD_RESOURCES_SOURCES}"/* "${CROMWELL_BUILD_RESOURCES_DIRECTORY}"
 }
 
 cromwell::private::find_cromwell_jar() {
@@ -493,7 +489,7 @@ cromwell::private::find_cromwell_jar() {
         find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \
         | head -n 1 \
         2> /dev/null \
-        )"
+        || true)"
     export CROMWELL_BUILD_CROMWELL_JAR
 }
 

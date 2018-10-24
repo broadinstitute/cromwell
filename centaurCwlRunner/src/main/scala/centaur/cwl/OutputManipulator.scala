@@ -2,18 +2,17 @@ package centaur.cwl
 
 import common.util.StringUtil._
 import cromwell.core.path.{Path, PathBuilder}
+import cwl.CwlCodecs._
 import cwl.command.ParentName
 import cwl.ontology.Schema
 import cwl.{File => CwlFile, _}
-import io.circe.generic.auto._
 import io.circe.literal._
-import io.circe.shapes._
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
+import mouse.all._
 import org.apache.commons.codec.digest.DigestUtils
 import shapeless.{Inl, Poly1}
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
-import mouse.all._
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
@@ -171,6 +170,13 @@ object OutputManipulator extends Poly1 {
                                        (jsValue: JsValue,
                                         pathBuilder: PathBuilder,
                                         schemaOption: Option[Schema]): Json = {
+    def sprayJsonToCirce(jsValue: JsValue): Json = {
+      import io.circe.parser._
+      val jsonString = jsValue.compactPrint
+      parse(jsonString).getOrElse(
+        sys.error(s"Failed to parse Json output as Json... something is very wrong: '$jsonString'")
+      )
+    }
 
     (jsValue, moits) match {
       //CWL expects quite a few enhancements to the File structure, hence...
@@ -178,8 +184,7 @@ object OutputManipulator extends Poly1 {
       // If it's a JsObject it means it's already in the right format, we just want to fill in some values that might not
       // have been populated like "checksum" and "size"
       case (obj: JsObject, a) if a.contains(Inl(CwlType.File)) || a.contains(Inl(CwlType.Directory)) =>
-        import io.circe.parser._
-        val json: Json = parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
+        val json: Json = sprayJsonToCirce(obj)
         val fileExists = (for {
           o <- json.asObject
           l <- o.kleisli("location")
@@ -197,11 +202,9 @@ object OutputManipulator extends Poly1 {
       //The Anys.  They have to be done for each type so that the asJson can use this type information when going back to Json representation
       case (JsString(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
       case (JsNumber(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
-      case (obj: JsObject, Array(Inl(CwlType.Any))) =>
-        import io.circe.parser._
-        parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
+      case (obj: JsObject, Array(Inl(CwlType.Any))) => sprayJsonToCirce(obj)
       case (JsBoolean(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
-      case (JsArray(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
+      case (array: JsArray, Array(Inl(CwlType.Any))) => sprayJsonToCirce(array)
       case (JsNull, a) if a.contains(Inl(CwlType.Any)) || a.contains(Inl(CwlType.Null)) => Json.Null
 
       case (JsArray(metadata), Array(tpe)) if tpe.select[OutputArraySchema].isDefined =>

@@ -9,6 +9,7 @@ import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import io.circe._
+import io.circe.java8.time._
 import io.circe.parser._
 
 /**
@@ -39,7 +40,6 @@ object CallAttemptFailure {
     IO.fromEither(decode[Vector[CallAttemptFailure]](json))
   }
 
-  private implicit val decodeOffsetDateTime: Decoder[OffsetDateTime] = Decoder.decodeString.map(OffsetDateTime.parse)
   private implicit val decodeFailures: Decoder[Vector[CallAttemptFailure]] = {
     Decoder.instance { c =>
       for {

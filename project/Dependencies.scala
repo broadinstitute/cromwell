@@ -14,8 +14,8 @@ object Dependencies {
   private val betterFilesV = "2.17.1"
   private val catsEffectV = "1.0.0"
   private val catsV = "1.3.1"
-  private val circeV = "0.9.3"
-  private val circeYamlV = "0.8.0"
+  private val circeV = "0.10.0"
+  private val circeYamlV = "0.9.0"
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8"
@@ -330,6 +330,7 @@ object Dependencies {
     "parser",
     "generic",
     "generic-extras",
+    "java8",
     "shapes",
     "refined",
     "literal"
@@ -518,7 +519,6 @@ object Dependencies {
   // Version of the swagger UI to write into config files
   val swaggerUiVersion = swaggerUiV
 
-  val perfDependencies = List(
-    "io.circe" %% "circe-java8" % circeV
-  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
+  val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
+    googleApiClientDependencies ++ googleCloudDependencies
 }

@@ -4,7 +4,7 @@
 
 ### Changing configuration options
 
-When the value `exit-code-timeout-seconds` is set, `isAlive` is only called only each interval instead on each poll.
+When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
 
 
 ## 36 Release Notes

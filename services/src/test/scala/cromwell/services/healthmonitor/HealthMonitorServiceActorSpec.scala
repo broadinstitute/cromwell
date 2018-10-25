@@ -190,8 +190,8 @@ object HealthMonitorServiceActorSpec {
   abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty())
     extends HealthMonitorServiceActor with ScaledTimeSpans {
     override lazy val staleThreshold = scaled(3.seconds)
-    override lazy val failureRetryInterval = 100.milliseconds
-    override lazy val sweepInterval = 200.milliseconds
+    override lazy val failureRetryInterval = scaled(100.milliseconds)
+    override lazy val sweepInterval = scaled(200.milliseconds)
     override lazy val futureTimeout = scaled(1.second)
   }
 

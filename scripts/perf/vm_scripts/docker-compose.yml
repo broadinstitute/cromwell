@@ -4,7 +4,7 @@ networks:
      driver: bridge
 services:
   cromwell:
-    image: "broadinstitute/cromwell:${CROMWELL_VERSION_TAG}"
+    image: "${CROMWELL_DOCKER_IMAGE}"
     volumes:
       - ${CROMWELL_CONF_DIR}:/conf
     environment:
@@ -44,6 +44,6 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     container_name: cloudsql-db
-    command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCES}=tcp:0.0.0.0:3306"]
+    command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCE}=tcp:0.0.0.0:3306"]
     networks:
       mysql_net:

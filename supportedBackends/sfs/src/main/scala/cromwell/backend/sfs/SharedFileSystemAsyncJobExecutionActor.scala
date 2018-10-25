@@ -1,6 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.FileAlreadyExistsException
+import java.time.{LocalDateTime, ZoneId}
 import java.util.Calendar
 
 import cromwell.backend._
@@ -17,6 +18,13 @@ import scala.util.{Failure, Success, Try}
 
 case class SharedFileSystemRunState(status: String, date: Calendar) {
   override def toString: String = status
+
+  def expired(timeoutInSeconds: Long): Boolean = {
+    LocalDateTime
+      .ofInstant(date.toInstant, ZoneId.systemDefault())
+      .plusSeconds(timeoutInSeconds)
+      .isBefore(LocalDateTime.now())
+  }
 }
 
 object SharedFileSystemRunState {

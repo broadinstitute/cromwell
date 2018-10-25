@@ -74,9 +74,10 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
       /*
       Unlike success-statuses, failure-statuses retry a number of times before storing their values.
       While the failures-status is retrying, the success-status ends up becoming "stale", and flips to "unknown".
-      So, increase the timeout for marking the success-status as stale.
+      So, increase the timeout for marking the success-status as stale and set the failureRetryCount to 0
        */
       override lazy val staleThreshold = scaled(10.seconds)
+      override lazy val failureRetryCount = 0
     })
     eventualStatus(hm, ok = false, (SuccessSubsystem, OkStatus), (FailureSubsystem, FailedStatus))
   }
@@ -189,8 +190,8 @@ object HealthMonitorServiceActorSpec {
   abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty())
     extends HealthMonitorServiceActor with ScaledTimeSpans {
     override lazy val staleThreshold = scaled(3.seconds)
-    override lazy val failureRetryInterval = scaled(100.milliseconds)
-    override lazy val sweepInterval = scaled(200.milliseconds)
+    override lazy val failureRetryInterval = 100.milliseconds
+    override lazy val sweepInterval = 200.milliseconds
     override lazy val futureTimeout = scaled(1.second)
   }
 

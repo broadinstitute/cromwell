@@ -52,7 +52,7 @@ object Dependencies {
   private val liquibaseV = "3.5.5"
   private val logbackV = "1.2.3"
   private val metrics3StatsdV = "4.2.0"
-  private val metricsScalaV = "4.0.0"
+  private val metrics3ScalaV = "3.5.9" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.4.1"
   private val mongoJavaDriverV = "3.8.1"
@@ -353,7 +353,7 @@ object Dependencies {
     refinedTypeDependenciesList
 
   val statsDDependencies = List(
-    "nl.grons" %% "metrics-scala" % metricsScalaV,
+    "nl.grons" %% "metrics-scala" % metrics3ScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
   )
 

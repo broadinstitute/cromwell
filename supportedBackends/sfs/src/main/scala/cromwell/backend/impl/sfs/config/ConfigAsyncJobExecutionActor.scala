@@ -1,8 +1,6 @@
 package cromwell.backend.impl.sfs.config
 
 import java.io.PrintWriter
-import java.lang.IllegalArgumentException
-import java.util.Calendar
 
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
@@ -252,54 +250,45 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     jobScriptArgs(job, "kill", KillTask)
   }
 
-  protected lazy val exitCodeTimeout: Option[Int] = {
-    val timeout = configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig)
+  protected lazy val exitCodeTimeout: Option[Long] = {
+    val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
     timeout.foreach{x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")}
     timeout
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
-    handle.previousState match {
-      case None =>
+    (handle.previousState, exitCodeTimeout.flatMap(t => handle.previousState.map(_.expired(t)))) match {
+      case (None, _) =>
         // Is not set yet the status will be set default to running
         SharedFileSystemRunState("Running")
-      case Some(s) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
+      case (Some(s), _) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
         // If exitcode file does exists status will be set to Done always
         SharedFileSystemRunState("Done")
-      case Some(s) if s.status == "Running" =>
+      case (Some(s), Some(false)) => s // No action required if state is not yet expired
+      case (Some(s), Some(true)) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
-        if (exitCodeTimeout.isEmpty) s
-        else if (isAlive(handle.pendingJob).fold({ e =>
-          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
-          true
-        }, x => x)) s
-        else SharedFileSystemRunState("WaitingForReturnCode")
-      case Some(s) if s.status == "WaitingForReturnCode" =>
+        if (isAlive(handle.pendingJob).fold({ e =>
+              log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
+              true
+            }, x => x)) SharedFileSystemRunState("Running")
+            else SharedFileSystemRunState("WaitingForReturnCode")
+      case (Some(s), Some(true)) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore
         // `isAlive` is not called anymore from this point
 
         // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
-        exitCodeTimeout match {
-          case Some(timeout) =>
-            val currentDate = Calendar.getInstance()
-            currentDate.add(Calendar.SECOND, -timeout)
-            if (s.date.after(currentDate)) s
-            else {
-              jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
-              val writer = new PrintWriter(jobPaths.returnCode.toFile)
-              // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-              writer.println(9)
-              writer.close()
-              SharedFileSystemRunState("Failed")
-            }
-          case _ => s
-        }
-      case Some(s) if s.status == "Done" => s // Nothing to be done here
+        jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse("-")} seconds, assuming external kill")
+        val writer = new PrintWriter(jobPaths.returnCode.toFile)
+        // 137 does mean a external kill -9, this is a assumption but easy workaround for now
+        writer.println(9)
+        writer.close()
+        SharedFileSystemRunState("Failed")
+      case (Some(s), _) if s.status == "Done" => s // Nothing to be done here
       case _ => throw new NotImplementedError("This should not happen, please report this")
     }
   }
 
-  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
+  override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = {
     runStatus.status == "Done" || runStatus.status == "Failed"
   }
 

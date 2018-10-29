@@ -107,7 +107,7 @@ trait CromIamApiService extends RequestSupport
   def workflowOutputsRoute: Route = workflowGetRouteWithId("outputs")
   def workflowLogsRoute: Route = workflowGetRouteWithId("logs")
   def metadataRoute: Route = workflowGetRouteWithId("metadata")
-  def timingRoute: Route = workflowGetRouteWithId("metadata")
+  def timingRoute: Route = workflowGetRouteWithId("timing")
   def statusRoute: Route = workflowGetRouteWithId("status")
   def labelGetRoute: Route = workflowGetRouteWithId(Labels)
 

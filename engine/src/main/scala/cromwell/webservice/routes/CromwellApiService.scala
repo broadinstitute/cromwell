@@ -32,7 +32,6 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
 import cromwell.webservice.WorkflowJsonSupport._
 import net.ceedubs.ficus.Ficus._
-//import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}

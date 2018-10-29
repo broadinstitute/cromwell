@@ -18,7 +18,7 @@ DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 
 docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf/service-account-deployer | jq -r '.data.service_account' > mnt/sa.json
 	
-function join { local IFS=","; echo "$*"; }
+function join() { local IFS=","; echo "$*"; }
 
 CLOUD_SQL_INSTANCE=cromwell-db-perf-test-$BUILD_TAG
 

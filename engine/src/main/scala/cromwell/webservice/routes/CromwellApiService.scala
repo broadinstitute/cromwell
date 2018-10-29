@@ -32,6 +32,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
 import cromwell.webservice.WorkflowJsonSupport._
 import net.ceedubs.ficus.Ficus._
+//import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
@@ -173,6 +174,19 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
       }
     }
   } ~ metadataRoutes
+
+  val womtoolRoutes =
+    path("womtool" / Segment / "describe") { _ =>
+      post {
+        entity(as[Multipart.FormData]) { _: Multipart.FormData =>
+          completeResponse(
+            StatusCodes.NotImplemented,
+            APIResponse.fail(new RuntimeException(s"Not yet implemented, but we got your workflow.")),
+            warnings = Seq.empty
+          )
+        }
+      }
+    }
 
   private def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)

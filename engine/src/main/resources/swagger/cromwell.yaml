@@ -611,6 +611,38 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
+  '/api/womtool/{version}/describe':
+    post:
+      operationId: describe
+      summary: Machine-readable description of a workflow, including inputs and outputs
+      consumes:
+        - multipart/form-data
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - name: workflowSource
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
+          type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowInputs
+          description: JSON or YAML file containing the inputs as an object.
+          required: false
+          type: file
+          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
+        - $ref: '#/parameters/workflowTypeVersionParam'
+      responses:
+        '200':
+          description: Workflow description.
+          schema:
+            type: object
+      tags:
+        - Womtool
   '/engine/{version}/version':
     get:
       operationId: version

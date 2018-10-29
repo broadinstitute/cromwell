@@ -201,13 +201,13 @@ object WomType {
       if (asArrayTypes.forall(_.isDefined)) {
         val arrs = asArrayTypes.map(_.get)
 
-        /**
-          * WomNothingType is not coercible to any other type, yet a empty array of type WomArrayType(WomNothingType) is
-          * compatible with every other array type. Detect this here so we don't attempt primitive coercion on a type
-          * that cannot be coerced.
-          *
-          * Equivalent to logic found in typeSpecificIsCoerceableFrom on WomArrayType.
-          */
+        /*
+        WomNothingType is not coercible to any other type, yet a empty array of type WomArrayType(WomNothingType) is
+        compatible with every other array type. Detect this here so we don't attempt primitive coercion on a type
+        that cannot be coerced.
+
+        Equivalent to logic found in typeSpecificIsCoerceableFrom on WomArrayType.
+        */
         val memberType = lowestCommonSubtype(arrs.map(_.memberType).filterNot(_.equals(WomNothingType)))
         Some(WomArrayType(memberType))
       } else None

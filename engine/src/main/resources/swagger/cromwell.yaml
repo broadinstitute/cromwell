@@ -611,19 +611,6 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
-  '/engine/{version}/stats':
-    get:
-      operationId: stats
-      summary: Returns basic statistics from this Cromwell server.
-      parameters:
-        - $ref: '#/parameters/versionParam'
-      tags:
-        - Engine
-      responses:
-        '200':
-          description: Successful Request
-          schema:
-            $ref: '#/definitions/StatsResponse'
   '/engine/{version}/version':
     get:
       operationId: version
@@ -948,18 +935,6 @@ definitions:
       defaultBackend:
         type: string
         description: The default backend of this server
-  StatsResponse:
-    description: Provides engine level statistics for things running inside the system
-    required:
-      - workflows
-      - jobs
-    properties:
-      workflows:
-        type: integer
-        description: The number of currently running workflows
-      jobs:
-        type: integer
-        description: The number of currently running jobs
   VersionResponse:
     description: Returns the version of Cromwell
     properties:

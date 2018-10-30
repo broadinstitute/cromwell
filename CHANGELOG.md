@@ -6,6 +6,9 @@
 
 When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
 
+### Bug fixes
+
+- Fixed a regression in Cromwell 36 that could cause operations on empty arrays to fail with a spurious type error (closes [#4318](https://github.com/broadinstitute/cromwell/issues/4318))
 
 ## 36 Release Notes
 

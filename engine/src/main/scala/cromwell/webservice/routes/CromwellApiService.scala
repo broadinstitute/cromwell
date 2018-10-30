@@ -172,7 +172,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
         }
       }
     }
-  } ~ metadataRoutes ~ womtoolRoutes
+  } ~ metadataRoutes
 
   private def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)

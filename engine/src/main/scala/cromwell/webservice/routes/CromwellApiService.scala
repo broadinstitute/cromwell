@@ -37,7 +37,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success, Try}
 
-trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
+trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport {
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
@@ -172,20 +172,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
         }
       }
     }
-  } ~ metadataRoutes
-
-  val womtoolRoutes =
-    path("womtool" / Segment / "describe") { _ =>
-      post {
-        entity(as[Multipart.FormData]) { _: Multipart.FormData =>
-          completeResponse(
-            StatusCodes.NotImplemented,
-            APIResponse.fail(new RuntimeException(s"Not yet implemented, but we got your workflow.")),
-            warnings = Seq.empty
-          )
-        }
-      }
-    }
+  } ~ metadataRoutes ~ womtoolRoutes
 
   private def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)

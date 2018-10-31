@@ -9,69 +9,75 @@ extract_metadata() {
   curl "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1" -H "Metadata-Flavor: Google"
 }
 
+# Exports an env var and also adds it to the root bashrc. This way if there is a need to ssh onto the machine
+# for debugging one will have the env variables already set when using root
+addVar() {
+  export $1
+  echo "export $1" >> /root/.bashrc
+}
+
 # Make sure ip forwarding is enabled by default so that docker doesn't loses connectivity
 echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
 
 # Set up env variables
-export CROMWELL_BRANCH=$(extract_metadata CROMWELL_BRANCH_NAME)
-export WORKFLOW_SCRIPT_NAME=$(extract_metadata WORKFLOW_SCRIPT)
-export BUILD_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google")
-export CLOUD_SQL_DB_USER=$(extract_metadata CROMWELL_DB_USER)
-export CLOUD_SQL_DB_PASSWORD=$(extract_metadata CROMWELL_DB_PASS)
-export CLOUD_SQL_INSTANCES=$(extract_metadata CLOUD_SQL_INSTANCE)
-export CROMWELL_VERSION_TAG=$(extract_metadata CROMWELL_VERSION)
-export CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
-export CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
-export CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
-export CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
-export CROMWELL_STATSD_PREFIX=$(extract_metadata CROMWELL_STATSD_PREFIX)
-# Use the instance name as statsd prefix to avoid metrics collisions
-export CROMWELL_STATSD_PREFIX=${BUILD_ID}
-export REPORT_BUCKET=cromwell-perf-test-reporting
+addVar CROMWELL_BRANCH=$(extract_metadata CROMWELL_PERF_SCRIPTS_BRANCH)
+addVar TEST_CASE_DIRECTORY=$(extract_metadata TEST_CASE_DIRECTORY)
+addVar CLOUD_SQL_DB_USER=$(extract_metadata CROMWELL_DB_USER)
+addVar CLOUD_SQL_DB_PASSWORD=$(extract_metadata CROMWELL_DB_PASS)
+addVar CLOUD_SQL_INSTANCE=$(extract_metadata CLOUD_SQL_INSTANCE)
+addVar CROMWELL_DOCKER_IMAGE=$(extract_metadata CROMWELL_DOCKER_IMAGE)
+addVar CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
+addVar CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
+addVar CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
+addVar CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
+addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
+addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
+addVar BUILD_ID=$(extract_metadata BUILD_TAG)
+addVar CLEAN_UP=$(extract_metadata CLEAN_UP)
 
-export CROMWELL_ROOT=/app
-export PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
-export TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
+# Use the instance name as statsd prefix to avoid metrics collisions
+addVar CROMWELL_STATSD_PREFIX=${BUILD_ID}
+addVar REPORT_BUCKET=cromwell-perf-test-reporting
+
+addVar CROMWELL_ROOT=/app
+addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+addVar TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
 
 # Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
 git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
 
 source ${PERF_ROOT}/helper.inc.sh
 
-if [ -n "$WORKFLOW_SCRIPT_NAME" ]
+if [ -n "${TEST_CASE_DIRECTORY}" ]
 then
     # Must be a directory
-    TEST_WORKFLOW_DIR=${TEST_WORKFLOW_ROOT}/${WORKFLOW_SCRIPT_NAME}
+    TEST_WORKFLOW_DIR=${TEST_WORKFLOW_ROOT}/${TEST_CASE_DIRECTORY}
     
     # If it contains a custom cromwell configuration, use that 
     if [ -f "${TEST_WORKFLOW_DIR}/cromwell.conf" ]
     then
-        export CROMWELL_CONF_DIR=${TEST_WORKFLOW_DIR}
+        addVar CROMWELL_CONF_DIR=${TEST_WORKFLOW_DIR}
         # copy the default one next to it so we can include it
         cp ${PERF_ROOT}/vm_scripts/cromwell/cromwell.conf ${CROMWELL_CONF_DIR}/cromwell_default.conf
     else
         # Otherwise use the default one
-        export CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
+        addVar CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
     fi
     
     # If it contains a custom centaur configuration, use that 
     if [ -f "${TEST_WORKFLOW_DIR}/centaur.conf" ]
     then
-        export CENTAUR_CONF_DIR=${TEST_WORKFLOW_DIR}
+        addVar CENTAUR_CONF_DIR=${TEST_WORKFLOW_DIR}
         # copy the default one next to it so we can include it
         cp ${PERF_ROOT}/vm_scripts/centaur/centaur.conf ${CENTAUR_CONF_DIR}/centaur_default.conf
     else
         # Otherwise use the default one
-        export CENTAUR_CONF_DIR=${PERF_ROOT}/vm_scripts/centaur
+        addVar CENTAUR_CONF_DIR=${PERF_ROOT}/vm_scripts/centaur
     fi
     
-    export CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
+    addVar CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
     sed -i "s/\$BRANCH/${CROMWELL_BRANCH}/" ${CENTAUR_TEST_FILE}
 fi
-
-# Clone the CloudSQL DB
-gcloud --project broad-dsde-cromwell-perf sql instances clone cromwell-perf-testing-base-09-24-18 cromwell-db-${BUILD_ID}
-gcloud --project broad-dsde-cromwell-perf sql users create cromwell --instance=cromwell-db-${BUILD_ID} --password=${CLOUD_SQL_DB_PASSWORD}
 
 # Start cromwell and cloud sql proxy
 prepare_statsd_proxy

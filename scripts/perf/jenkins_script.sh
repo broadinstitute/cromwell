@@ -30,7 +30,7 @@ SQL_OPERATION=$(docker run --name perf_sql_create_gcloud_$BUILD_NUMBER -v "$(pwd
     gcloud --project broad-dsde-cromwell-perf sql instances clone --async cromwell-perf-testing-base-09-24-18 ${CLOUD_SQL_INSTANCE} --format='value(name)'")
 
 # The cloning itself sometimes takes a long time and the clone command errors out when that happens.
-# Instead use the --async flag in the clone command above and then explicitly wait for the operation to be done. TImeout 15 minutes
+# Instead use the --async flag in the clone command above and then explicitly wait for the operation to be done. Timeout 15 minutes
 docker run --name perf_sql_create_gcloud_$BUILD_NUMBER -v "$(pwd)"/mnt:$DOCKER_ETC_PATH -e DOCKER_ETC_PATH --rm google/cloud-sdk:slim /bin/bash -c "\
     gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/sa.json &&\
     gcloud beta sql operations wait --timeout=900 --project broad-dsde-cromwell-perf $SQL_OPERATION"

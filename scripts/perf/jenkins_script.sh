@@ -67,7 +67,7 @@ gcloud \
     instances \
     create $BUILD_TAG \
     --zone us-central1-c \
-    --source-instance-template cromwell-perf-template-09-18 \
+    --source-instance-template $INSTANCE_TEMPLATE \
     --metadata-from-file startup-script=$DOCKER_ETC_PATH/startup_script.sh \
     --metadata \
         $(join ${metadata[@]})"

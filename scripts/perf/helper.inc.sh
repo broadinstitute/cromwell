@@ -57,7 +57,7 @@ prepare_statsd_proxy() {
 clean_up() {
     if [ "${CLEAN_UP}" = true ]
     then
-        gcloud sql instances delete cromwell-db-${BUILD_ID}
+        gcloud sql instances delete ${CLOUD_SQL_INSTANCE}
         gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
     fi
 }

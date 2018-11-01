@@ -9,7 +9,7 @@ import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import common.exception.AggregatedException
 import org.scalatest.Matchers
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{ScalaFutures, ScaledTimeSpans}
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
@@ -21,9 +21,9 @@ import wom.graph.{CommandCallNode, OptionalGraphInputNodeWithDefault}
 import wom.values.WomValue
 import wom.transforms.WomExecutableMaker.ops._
 
-trait BackendSpec extends ScalaFutures with Matchers with Mockito {
+trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTimeSpans {
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(10, Seconds), interval = Span(500, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
 
   def testWorkflow(workflow: TestWorkflow, backend: BackendJobExecutionActor, inputs: Map[String, WomValue] = Map.empty) = {
     executeJobAndAssertOutputs(backend, workflow.expectedResponse)

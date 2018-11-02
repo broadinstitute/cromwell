@@ -10,6 +10,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 import cromwell.webservice.SwaggerService
 import cromwell.webservice.routes.CromwellApiService
+import cromwell.webservice.routes.wes.WesRouteSupport
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -26,7 +27,9 @@ object CromwellServer {
 
 class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(override implicit val materializer: ActorMaterializer)
   extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate, serverMode = true)
-    with CromwellApiService with CromwellInstrumentationActor
+    with CromwellApiService
+    with CromwellInstrumentationActor
+    with WesRouteSupport
     with SwaggerService
     with ActorLogging {
   implicit val actorSystem = context.system
@@ -43,7 +46,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     * actual cromwell+swagger+oauth+/api support is needed.
     */
   val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes))
-  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
+  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute, wesRoutes)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
   val serverBinding = Http().bindAndHandle(allRoutes, interface, port)

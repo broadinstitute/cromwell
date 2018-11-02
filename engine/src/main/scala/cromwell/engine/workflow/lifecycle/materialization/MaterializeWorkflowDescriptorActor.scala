@@ -5,7 +5,7 @@ import akka.pattern.pipe
 import cats.Monad
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
-import cats.data.{EitherT, NonEmptyList}
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.either._
@@ -43,6 +43,7 @@ import wom.core.{WorkflowSource, WorkflowUrl}
 import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
+import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.{WomString, WomValue}
 
 import scala.concurrent.Future
@@ -245,8 +246,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
       }
     }
-
-    def buildValidatedNamespace(workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): EitherT[IO, NonEmptyList[String], ValidatedWomNamespace] = {
+    
+    def findFactory(workflowSource: WorkflowSource): ErrorOr[LanguageFactory] = {
       def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(workflowSource))
 
       val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
@@ -267,8 +268,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
         pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
       }
+      
+      factory
+    }
 
-      errorOrParse(factory).flatMap(_.validateNamespace(
+    def buildValidatedNamespace(factory: LanguageFactory, workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+      factory.validateNamespace(
         sourceFiles,
         workflowSource,
         workflowOptions,
@@ -276,7 +281,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         workflowId,
         engineIoFunctions,
         importResolvers
-      ))
+      )
     }
 
     val localFilesystemResolvers =
@@ -296,9 +301,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
-      validatedNamespace <- buildValidatedNamespace(sourceAndResolvers._1, sourceAndResolvers._2)
+      factory <- errorOrParse(findFactory(sourceAndResolvers._1))
+      outputRuntimeExtractor <- errorOrParse(factory.womOutputRuntimeExtractor.toValidated)
+      validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)
-      ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
+      ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toEither)
     } yield ewd
   }
 
@@ -384,7 +391,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       labels: Labels,
                                       conf: Config,
-                                      pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
+                                      pathBuilders: List[PathBuilder],
+                                      outputRuntimeExtractor: Option[WomOutputRuntimeExtractor]): ErrorOr[EngineWorkflowDescriptor] = {
     val taskCalls = womNamespace.executable.graph.allNodes collect { case taskNode: CommandCallNode => taskNode }
     val defaultBackendName = conf.as[Option[String]]("backend.default")
 
@@ -396,7 +404,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation) mapN {
       case (failureMode, backendAssignments, callCachingMode) =>
         val callable = womNamespace.executable.entryPoint
-        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels)
+        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, outputRuntimeExtractor)
         EngineWorkflowDescriptor(callable, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
     }
   }

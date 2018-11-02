@@ -1,13 +1,12 @@
 package cromwell.backend.impl.bcs
 
-import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.batchcompute.model.v20151111._
 import com.aliyuncs.batchcompute.pojo.v20151111._
 import cromwell.core.ExecutionEvent
 import cromwell.core.path.Path
 
 import collection.JavaConverters._
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object BcsJob{
   val BcsDockerImageEnvKey = "BATCH_COMPUTE_DOCKER_IMAGE"
@@ -23,7 +22,7 @@ final case class BcsJob(name: String,
                   runtime: BcsRuntimeAttributes,
                   stdoutPath: Option[Path],
                   stderrPath: Option[Path],
-                  batchCompute: BatchComputeClient) {
+                  backend: BcsAsyncBackendJobExecutionActor) {
 
   lazy val lazyDisks = new Disks
   lazy val lazyConfigs = new Configs
@@ -35,20 +34,23 @@ final case class BcsJob(name: String,
   def submit(): Try[String] = Try{
     val request: CreateJobRequest = new CreateJobRequest
     request.setJobDescription(jobDesc)
-    val response: CreateJobResponse = batchCompute.createJob(request)
+    val response: CreateJobResponse = backend.bcsClient.createJob(request)
     val jobId = response.getJobId
     jobId
   }
 
-  def getStatus(jobId: String): Try[RunStatus] = {
+  def getStatus(jobId: String): Try[RunStatus] = Try{
     val request: GetJobRequest = new GetJobRequest
     request.setJobId(jobId)
-    val response: GetJobResponse = batchCompute.getJob(request)
+    val response: GetJobResponse = backend.bcsClient.getJob(request)
     val job = response.getJob
     val status = job.getState
     val message = job.getMessage
     val eventList = Seq[ExecutionEvent]()
-    RunStatusFactory.getStatus(jobId, status, Some(message), Some(eventList))
+    RunStatusFactory.getStatus(jobId, status, Some(message), Some(eventList)) match {
+      case Success(status) => status
+      case Failure(e) => throw e
+    }
   }
 
   def cancel(jobId: String): Unit = {

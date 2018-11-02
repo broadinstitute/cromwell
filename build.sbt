@@ -107,6 +107,7 @@ lazy val jesBackend = (project in backendRoot / "jes")
 
 lazy val bcsBackend = (project in backendRoot / "bcs")
   .withLibrarySettings("cromwell-bcs-backend", bcsBackendDependencies)
+  .dependsOn(engine)
   .dependsOn(backend)
   .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)

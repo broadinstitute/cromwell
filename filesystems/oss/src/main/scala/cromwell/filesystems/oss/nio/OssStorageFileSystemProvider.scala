@@ -18,7 +18,7 @@ import collection.mutable.ArrayBuffer
 
 
 final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) extends FileSystemProvider {
-  lazy val ossClient: OSSClient = config.newOssClient()
+  def ossClient: OSSClient = config.newOssClient()
 
   class PathIterator(ossClient: OSSClient, prefix: OssStoragePath, filter: DirectoryStream.Filter[_ >: Path]) extends AbstractIterator[Path] {
     var nextMarker: Option[String] = None

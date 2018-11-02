@@ -194,7 +194,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     }
   }
 
-  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+  private[bcs] def mapWomFile(womFile: WomFile): WomFile = {
     getPath(womFile.valueString) match {
       case Success(ossPath: OssPath) =>
         WomFile(WomSingleFileType, localizeOssPath(ossPath))
@@ -203,6 +203,10 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
       case _ => womFile
     }
   }
+
+  override def preProcessWomFile(womFile: WomFile): WomFile = mapWomFile(womFile)
+
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = mapWomFile(womFile)
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
@@ -266,17 +270,19 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
     setBcsVerbose()
 
+    val envs = bcsEnvs
+
     val bcsJob = new BcsJob(
           jobName,
           jobTag,
           bcsCommandLine,
           uploadBcsWorkerPackage,
           bcsMounts,
-          bcsEnvs,
+          envs,
           runtimeAttributes,
           Some(bcsJobPaths.bcsStdoutPath),
           Some(bcsJobPaths.bcsStderrPath),
-          bcsClient)
+          this)
 
     for {
       jobId <- Future.fromTry(bcsJob.submit())
@@ -336,6 +342,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     throwable match {
       case _: ServerException => true
       case e: ClientException if e.getErrCode == "InternalError" => true
+      case e: ClientException if e.getErrCode.startsWith("Throttling") => true
       case _ => false
     }
   }
@@ -347,16 +354,17 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     }
   }
 
-  private[bcs] lazy val bcsEnvs: Map[String, String] = Map(
+  private[bcs] lazy val bcsEnvs: Map[String, String] =
+  {
+    val mount = ossPathToMount(bcsJobPaths.script.asInstanceOf[OssPath])
+
+    Map(
       BcsJobPaths.BcsEnvCwdKey -> commandDirectory.pathAsString,
-      BcsJobPaths.BcsEnvExecKey -> bcsJobPaths.script.pathAsString,
+      BcsJobPaths.BcsEnvExecKey -> mount.dest.pathAsString,
       BcsJobPaths.BcsEnvStdoutKey -> commandDirectory.resolve(bcsJobPaths.stdoutFilename).pathAsString,
-      BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.stderrFilename).pathAsString,
-      BcsConfiguration.OssEndpointKey -> bcsConfiguration.ossEndpoint,
-      BcsConfiguration.OssIdKey -> bcsConfiguration.ossAccessId,
-      BcsConfiguration.OssSecretKey -> bcsConfiguration.ossAccessKey,
-      BcsConfiguration.OssTokenKey -> bcsConfiguration.ossSecurityToken
-  )
+      BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.stderrFilename).pathAsString
+    )
+  }
 
   private[bcs] lazy val bcsMounts: Seq[BcsMount] ={
     generateBcsInputs(jobDescriptor)

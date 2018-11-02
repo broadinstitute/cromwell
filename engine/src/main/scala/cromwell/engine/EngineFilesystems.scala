@@ -14,6 +14,7 @@ import cromwell.filesystems.gcs.GcsPathBuilderFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import cromwell.filesystems.oss.OssPathBuilderFactory
+import cromwell.filesystems.oss.nio.EngineTTLOssStorageConfiguration
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,12 +43,7 @@ object EngineFilesystems {
   }
 
   private val ossPathBuilderFactory: Try[Option[OssPathBuilderFactory]] = Try {
-    for {
-      endpoint <- config.as[Option[String]]("engine.filesystems.oss.auth.endpoint")
-      accessId <- config.as[Option[String]]("engine.filesystems.oss.auth.access-id")
-      accessKey <- config.as[Option[String]]("engine.filesystems.oss.auth.access-key")
-      securityToken = config.as[Option[String]]("engine.filesystems.oss.auth.security-token")
-    } yield OssPathBuilderFactory(endpoint, accessId, accessKey, securityToken)
+    Some(OssPathBuilderFactory(new EngineTTLOssStorageConfiguration))
   }
 
   private val defaultFileSystem =

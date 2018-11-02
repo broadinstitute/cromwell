@@ -2,12 +2,12 @@ package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
-import cromwell.backend.BackendSpec.{buildWdlWorkflowDescriptor}
+import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
-import cromwell.filesystems.oss.nio.OssStorageConfiguration
+import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.scalatest.mockito.MockitoSugar
@@ -117,7 +117,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   }
 
   val jobId = "test-bcs-job"
-  val mockOssConf = OssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
+  val mockOssConf = DefaultOssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
   val mockPathBuiler = OssPathBuilder(mockOssConf)
   val mockPathBuilders = List(mockPathBuiler)
   lazy val workflowDescriptor =  buildWdlWorkflowDescriptor(

@@ -1,8 +1,13 @@
 package cromwell.backend.impl.bcs
 
-import com.aliyuncs.batchcompute.main.v20151111.{BatchComputeClient}
+import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendConfigurationDescriptor
 import net.ceedubs.ficus.Ficus._
+import cromwell.engine.backend.{BackendConfigurationEntry}
+import scala.collection.JavaConverters._
+
+import scala.util.{Failure, Success, Try}
 
 
 object BcsConfiguration{
@@ -10,28 +15,64 @@ object BcsConfiguration{
   val OssIdKey = "ossId"
   val OssSecretKey = "ossSecret"
   val OssTokenKey = "ossToken"
+  val clientExpireTime: Long = 30 * 60
+  def currentTimestamp = System.currentTimeMillis / 1000
+
+  private def BackendConfig = {
+    ConfigFactory.invalidateCaches
+    ConfigFactory.load.getConfig("backend")
+  }
+
+  private def BackendProviders = BackendConfig.getConfig("providers")
+
+  private def BackendNames: Set[String] = BackendProviders.entrySet().asScala.map(_.getKey.split("\\.").toSeq.head).toSet
+
+  def AllBackendEntries: List[BackendConfigurationEntry] = BackendNames.toList map { backendName =>
+    val entry = BackendProviders.getConfig(backendName)
+    BackendConfigurationEntry(
+      backendName,
+      entry.getString("actor-factory"),
+      entry.as[Option[Config]]("config").getOrElse(ConfigFactory.empty("empty"))
+    )
+  }
+
+  def backendConfigurationDescriptor(backendName: String): Try[BackendConfigurationDescriptor] = {
+    AllBackendEntries.collect({case entry if entry.name.equalsIgnoreCase(backendName) => entry.asBackendConfigurationDescriptor}).headOption match {
+      case Some(descriptor) => Success(descriptor)
+      case None => Failure(new Exception(s"invalid backend: $backendName"))
+    }
+  }
+
+  def bcsConfig: Option[Config] = BcsConfiguration.backendConfigurationDescriptor("BCS") match {
+    case Success(conf) => Some(conf.backendConfig)
+    case Failure(_) => None
+  }
 }
 
 final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
   val runtimeConfig = configurationDescriptor.backendRuntimeConfig
+
+
   val bcsRegion: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("region")
 
   val bcsUserDefinedRegion: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("user-defined-region")
 
   val bcsUserDefinedDomain: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("user-defined-domain")
 
-  val bcsAccessId: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("access-id")
+  def bcsAccessId: Option[String] = BcsConfiguration.bcsConfig flatMap {c => c.as[Option[String]]("access-id")}
 
-  val bcsAccessKey: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("access-key")
+  def bcsAccessKey: Option[String] = BcsConfiguration.bcsConfig flatMap {c => c.as[Option[String]]("access-key")}
 
-  val bcsSecurityToken: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("security-token")
+  def bcsSecurityToken: Option[String] = BcsConfiguration.bcsConfig flatMap {c => c.as[Option[String]]("security-token")}
+
+  def bcsRefreshInterval: Long = BcsConfiguration.bcsConfig flatMap {c => c.as[Option[Long]]("refresh-interval")} getOrElse(BcsConfiguration.clientExpireTime)
 
   val ossEndpoint =  configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.endpoint").getOrElse("")
   val ossAccessId = configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.access-id").getOrElse("")
   val ossAccessKey = configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.access-key").getOrElse("")
   val ossSecurityToken = configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.security-token").getOrElse("")
 
-  val bcsClient: Option[BatchComputeClient] = {
+  def newBcsClient: Option[BatchComputeClient] = {
     val userDefinedRegion = for {
       region <- bcsUserDefinedRegion
       domain <- bcsUserDefinedDomain
@@ -40,10 +81,39 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
       region
     }
 
-    for {
-      region <- userDefinedRegion orElse bcsRegion
-      id <- bcsAccessId
-      key <- bcsAccessKey
-    } yield new BatchComputeClient(region, id, key)
+    bcsSecurityToken match {
+      case Some(token) =>
+        for {
+          region <- userDefinedRegion orElse bcsRegion
+          id <- bcsAccessId
+          key <- bcsAccessKey
+        } yield new BatchComputeClient(region, id, key, token)
+      case None =>
+        for {
+          region <- userDefinedRegion orElse bcsRegion
+          id <- bcsAccessId
+          key <- bcsAccessKey
+        } yield new BatchComputeClient(region, id, key)
+    }
   }
+
+  var oldBcsClient: Option[BatchComputeClient] = None
+  var lastClientUpdateTime: Long = 0
+
+  def bcsClient = {
+    val current = BcsConfiguration.currentTimestamp
+
+    synchronized {
+      if (lastClientUpdateTime == 0 || current - lastClientUpdateTime > bcsRefreshInterval) {
+        Try {
+          oldBcsClient = newBcsClient
+        }
+
+        lastClientUpdateTime = current
+      }
+    }
+
+    oldBcsClient
+  }
+
 }

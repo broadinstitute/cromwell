@@ -78,14 +78,8 @@ object OssPathBuilder {
     nioPath.getFileSystem.provider().getScheme.equalsIgnoreCase(URI_SCHEME)
   }
 
-  def fromConfiguration(endpoint: String,
-                        accessId: String,
-                        accessKey: String,
-                        securityToken: Option[String],
+  def fromConfiguration(configuration: OssStorageConfiguration,
                         options: WorkflowOptions): OssPathBuilder = {
-
-    val configuration = OssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
-
     OssPathBuilder(configuration)
   }
 }

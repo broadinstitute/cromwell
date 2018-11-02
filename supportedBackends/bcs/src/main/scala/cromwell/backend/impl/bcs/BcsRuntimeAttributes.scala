@@ -327,7 +327,7 @@ object DockerValidation {
 
 class DockerValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDocker] with OptionalWithDefault[BcsDocker]
 {
-  override def key: String = "docker"
+  override def key: String = "dockerTag"
   override def coercion: Traversable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsDocker]] = {
     case WomString(s) => BcsDocker.parse(s.toString) match {

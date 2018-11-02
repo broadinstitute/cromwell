@@ -11,7 +11,7 @@ trait BcsJobCachingActorHelper extends StandardCachingActorHelper {
     backendInitializationDataAs[BcsBackendInitializationData]
   }
 
-  lazy val bcsClient = initializationData.bcsConfiguration.bcsClient.getOrElse(throw new RuntimeException("no bcs client available"))
+  def bcsClient = initializationData.bcsConfiguration.bcsClient.getOrElse(throw new RuntimeException("no bcs client available"))
 
   lazy val bcsWorkflowPaths: BcsWorkflowPaths = workflowPaths.asInstanceOf[BcsWorkflowPaths]
 

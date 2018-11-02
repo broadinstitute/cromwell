@@ -75,9 +75,9 @@ object Dependencies {
   val swaggerParserV = "1.0.22"
   val swaggerUiV = "3.2.2"
   val typesafeConfigV = "1.3.1"
-  val alibabaCloudCoreV = "3.2.3"
+  val alibabaCloudCoreV = "3.5.1"
   val alibabaCloudOssV = "2.8.3"
-  val alibabaCloudBcsV = "5.1.0"
+  val alibabaCloudBcsV = "5.3.1"
 
 
   /*

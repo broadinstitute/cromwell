@@ -4,10 +4,7 @@ import akka.event.{LoggingAdapter, NoLogging}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import cromwell.util.SampleWdl.HelloWorld
 import org.scalatest.{FlatSpec, Matchers}
-import spray.json.DefaultJsonProtocol._
-import spray.json._
 
 class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
   override val cromwellClient = new MockCromwellClient()
@@ -20,9 +17,25 @@ class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTe
 
   val submitPath: String = "/api/workflows/v1"
 
-  val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(HelloWorld.workflowSource()))
-  val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString))
-  val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity()
+  val helloWorldWdl =
+    s"""
+       |task hello {
+       |  String addressee
+       |  command {
+       |    echo "Hello World!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |  RUNTIME
+       |}
+       |
+        |workflow wf_hello {
+       |  call hello
+       |}
+      """.stripMargin
+  val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(helloWorldWdl))
+  val formData = Multipart.FormData(workflowSource).toEntity()
 
 
   "Submit query" should "forward the request to Cromwell for authorized SAM user" in {

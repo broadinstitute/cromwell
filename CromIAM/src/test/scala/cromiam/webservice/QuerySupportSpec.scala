@@ -80,7 +80,7 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
   }
 
   it should "reject requests that contain labelOrs" in {
-    Get(badGetQuery).withHeaders(authHeaders) ~> Route.seal(queryGetRoute) ~> check {
+    Get(badGetQuery).withHeaders(authHeaders) ~> queryGetRoute ~> check {
       status shouldEqual StatusCodes.InternalServerError
     }
   }

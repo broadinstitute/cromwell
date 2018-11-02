@@ -165,8 +165,6 @@ trait QuerySupport extends RequestSupport {
 }
 
 object QuerySupport {
-  def hasCollectionLabel(labels: Iterable[String]): Boolean = labels exists { _.startsWith(s"$CollectionLabelName:") }
-
   final case class InvalidQueryException(e: Throwable) extends
     Exception(s"Invalid JSON in query POST body: ${e.getMessage}", e)
 

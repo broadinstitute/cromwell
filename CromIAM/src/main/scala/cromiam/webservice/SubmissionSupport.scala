@@ -49,15 +49,17 @@ trait SubmissionSupport extends RequestSupport {
     def registerWithSam(collection: Collection, httpRequest: HttpRequest): Future[Unit] = {
       samClient.requestSubmission(user, collection, httpRequest) recoverWith {
         case SamDenialException => Future.failed(SamDenialException)
+        case SamRegisterCollectionException(statusCode) => Future.failed(SamRegisterCollectionException(statusCode))
         case e => Future.failed(SamConnectionFailure("new workflow registration", e))
       }
     }
 
     (for {
-      resp <- cromwellClient.forwardToCromwell(submissionRequest)
       _ <- registerWithSam(collection, submissionRequest)
+      resp <- cromwellClient.forwardToCromwell(submissionRequest)
     } yield resp) recover {
       case SamDenialException => SamDenialResponse
+      case SamRegisterCollectionException(statusCode) => SamRegisterCollectionExceptionResp(statusCode)
     }
   }
 }

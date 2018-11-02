@@ -20,16 +20,14 @@ class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTe
 
   val submitPath: String = "/api/workflows/v1"
 
-  val helloWorldWdl = HelloWorld.workflowSource()
-  val helloWorldInputs = HelloWorld.rawInputs
-
-  val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, helloWorldWdl))
-  val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, helloWorldInputs.toJson.toString))
+  val workflowSource = Multipart.FormData.BodyPart("workflowSource", HttpEntity(HelloWorld.workflowSource()))
+  val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, HelloWorld.rawInputs.toJson.toString))
   val formData = Multipart.FormData(workflowSource, workflowInputs).toEntity()
+
 
   "Submit query" should "forward the request to Cromwell for authorized SAM user" in {
     Post(submitPath).withHeaders(goodAuthHeaders).withEntity(formData) ~> submitRoute ~> check {
-      status shouldEqual StatusCodes.InternalServerError
+      status shouldEqual StatusCodes.OK
     }
   }
 

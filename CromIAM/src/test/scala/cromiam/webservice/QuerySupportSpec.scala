@@ -15,7 +15,7 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
   override val log: LoggingAdapter = NoLogging
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
-  val authHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", "123456789"))
+  val authHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.authorizedUserCollectionStr))
 
   val queryPath = "/api/workflows/v1/query"
   val getQuery = s"$queryPath?status=Submitted&label=foo:bar&label=foo:baz"

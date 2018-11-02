@@ -3,18 +3,13 @@ package cromiam.webservice
 import akka.event.{LoggingAdapter, NoLogging}
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader, StatusCodes}
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromiam.auth.{Collection, User}
 import cromiam.webservice.QuerySupport.LabelContainsOrException
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.duration._
-
 class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest with QuerySupport {
-  implicit def default = RouteTestTimeout(5.seconds)
-
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging

@@ -5,6 +5,7 @@ import org.scalatest.Tag
 object Tags {
   object DockerTest extends Tag("DockerTest")
   object IntegrationTest extends Tag("CromwellIntegrationTest")
+  object SingleActorSystemTest extends Tag("SingleActorSystem")
   object DbmsTest extends Tag("DbmsTest")
   object PostWomTest extends Tag("PostWomTest")
   object AwsTest extends Tag("AwsTest")

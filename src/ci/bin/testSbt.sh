@@ -27,7 +27,7 @@ esac
 export CROMWELL_SBT_TEST_EXCLUDE_TAGS
 export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 
-sbt -Dakka.actor.debug.lifecycle=on -Dakka.loglevel="DEBUG" -Dakka.log-config-on-start=on -Dsbt.log.noformat=true -Dakka.test.timefactor=${CROMWELL_AKKA_TEST_TIME_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
+sbt -Dakka.loglevel=DEBUG -Dakka.stdout-loglevel=DEBUG -Dakka.actor.debug.lifecycle=on -Dakka.log-config-on-start=on -Dsbt.log.noformat=true -Dakka.test.timefactor=${CROMWELL_AKKA_TEST_TIME_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage "testOnly *CromwellTestKitSpec *KeyValueServiceActorSpec"
 
 cromwell::build::generate_code_coverage
 

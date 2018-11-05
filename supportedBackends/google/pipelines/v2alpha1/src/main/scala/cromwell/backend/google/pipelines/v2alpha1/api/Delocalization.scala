@@ -87,19 +87,17 @@ trait Delocalization {
     /*
      * Delocalize all the files returned by the runtime output extractor
      */
-    s"""
-       |#! /bin/bash
-       |
-       |set -x
-       |
-       |if [ -f $fofnPath ]; then
-       |  while IFS= read line
-       |  do
-       |    gcs_path=$$(echo $$line | $prefixFilters)
-       |    ${recoverRequesterPaysError(cloudCallRoot)(gsutilCommand)}
-       |  done  <$fofnPath
-       |fi
-     """.stripMargin
+    s"""|#!/bin/bash
+        |
+        |set -x
+        |
+        |if [ -f $fofnPath ]; then
+        |  while IFS= read line
+        |  do
+        |    gcs_path=$$(echo $$line | $prefixFilters)
+        |    ${recoverRequesterPaysError(cloudCallRoot)(gsutilCommand)}
+        |  done  <$fofnPath
+        |fi""".stripMargin
   }
 
   private def delocalizeRuntimeOutputsAction(cloudCallRoot: Path, inputFile: String, workflowRoot: Path, mounts: List[Mount]): Action = {

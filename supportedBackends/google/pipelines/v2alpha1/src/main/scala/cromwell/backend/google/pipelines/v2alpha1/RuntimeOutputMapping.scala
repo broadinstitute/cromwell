@@ -14,7 +14,7 @@ object RuntimeOutputMapping {
     * 
     * For instance:
     * 
-    * file:////cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+    * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
     *  ->
     * call-A/file.txt
     * 

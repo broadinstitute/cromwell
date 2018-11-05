@@ -246,7 +246,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
       }
     }
-    
+
     def findFactory(workflowSource: WorkflowSource): ErrorOr[LanguageFactory] = {
       def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(workflowSource))
 

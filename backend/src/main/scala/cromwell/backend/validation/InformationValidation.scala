@@ -62,14 +62,14 @@ object InformationValidation {
     validateInteger(attributeName, wdlInteger.value, defaultUnit, allowZero)
 
   private[validation] def validateInteger(attributeName: String, value: Int, defaultUnit: MemoryUnit, allowZero: Boolean): ErrorOr[MemorySize] = {
-    if (value <= 0 && !allowZero)
+    if (value < 0 || (value == 0 && !allowZero))
       wrongAmountFormat.format(attributeName, value).invalidNel
     else
       MemorySize(value.toDouble, defaultUnit).to(MemoryUnit.GB).validNel
   }
 
   def validateLong(attributeName: String, value: Long, defaultUnit: MemoryUnit, allowZero: Boolean): ErrorOr[MemorySize] = {
-    if (value <= 0 && !allowZero)
+    if (value < 0 || (value == 0 && !allowZero))
       wrongAmountFormat.format(attributeName, value).invalidNel
     else
       MemorySize(value.toDouble, defaultUnit).to(MemoryUnit.GB).validNel

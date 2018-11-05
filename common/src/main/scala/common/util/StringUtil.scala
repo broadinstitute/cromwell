@@ -20,29 +20,29 @@ object StringUtil {
     /**
       * Ensure string does not start with a /
       */
-    def ensureNoSlashPrefix: String = string.stripPrefix("/")
+    def ensureNoLeadingSlash: String = string.stripPrefix("/")
 
     /**
       * Escape for shell use
       */
-    def shellEscaped: String = StringEscapeUtils.escapeXSI(string)
+    def ensureShellEscaped: String = StringEscapeUtils.escapeXSI(string)
 
     /**
       * Escape / with \/
       */
-    def slashEscaped: String = string.replaceAll("/", "\\\\/")
+    def ensureSlashEscaped: String = string.replaceAll("/", "\\\\/")
 
     /**
       * Escape the string for use in shell and also escape slashes so it can be used in a sed expression while keeping
       * / as a sed separator
       */
-    def sedEscaped: String = string.shellEscaped.slashEscaped
+    def ensureSedEscaped: String = string.ensureShellEscaped.ensureSlashEscaped
 
     /**
       * Makes the string look like a relative directory.
       * i.e no slash prefix and a slash suffix
       * e.g: /root/some/dir -> root/some/dir/
       */
-    def relativeDirectory = string.ensureNoSlashPrefix.ensureSlashed
+    def relativeDirectory = string.ensureNoLeadingSlash.ensureSlashed
   }
 }

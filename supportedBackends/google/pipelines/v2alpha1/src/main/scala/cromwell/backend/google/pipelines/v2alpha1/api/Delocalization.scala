@@ -76,7 +76,7 @@ trait Delocalization {
       s"""gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
     }
     
-    def sedStripPrefix(prefix: String) = s"""sed -e "s/^${prefix.sedEscaped}//""""
+    def sedStripPrefix(prefix: String) = s"""sed -e "s/^${prefix.ensureSedEscaped}//""""
     
     // See RuntimeOutputMapping.prefixFilters for more info on why this is needed
     val prefixFilters = RuntimeOutputMapping

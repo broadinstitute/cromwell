@@ -295,7 +295,7 @@ cromwell::private::verify_secure_build() {
 cromwell::private::export_conformance_variables() {
     CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
     CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20180601100346"
-    CROMWELL_BUILD_CWL_TEST_COMMIT="eb73b5e70e65ab9303a814bd1c230b927018da8f" # use known git hash to avoid changes
+    CROMWELL_BUILD_CWL_TEST_COMMIT="622134ebc48980676b7e53fe39405c428920c03e" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
     CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
     CROMWELL_BUILD_CWL_TEST_RESOURCES="${CROMWELL_BUILD_CWL_TEST_DIRECTORY}/v1.0/v1.0"

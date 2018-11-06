@@ -12,6 +12,7 @@ import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActo
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import com.typesafe.config.ConfigFactory
 import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
 import spray.json._
 
@@ -343,5 +344,6 @@ object MetadataRouteSupportSpec {
     override val ec = system.dispatcher
     override val timeout = routeTestTimeout.duration
     override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
+    override def config = ConfigFactory.load
   }
 }

@@ -14,7 +14,6 @@ import akka.stream.ActorMaterializer
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.AggregatedMessageException
 import common.util.VersionUtil
 import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortingResponse}
@@ -47,8 +46,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
   val workflowStoreActor: ActorRef
   val workflowManagerActor: ActorRef
   val serviceRegistryActor: ActorRef
-
-  val config: Config = ConfigFactory.load()
 
   // Derive timeouts (implicit and not) from akka http's request timeout since there's no point in being higher than that
   implicit val duration = config.as[FiniteDuration]("akka.http.server.request-timeout")

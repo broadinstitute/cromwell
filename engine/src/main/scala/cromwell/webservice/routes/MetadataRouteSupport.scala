@@ -38,7 +38,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 
   implicit val timeout: Timeout
 
-  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
+  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor, timeout.duration))
 
   private val metadataStreamingEnabledByDefault = config.as[Boolean]("system.metadata-streaming-enabled-by-default")
 
@@ -65,7 +65,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
       }
     },
     encodeResponse {
-      path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
+      path("workflows" / Segment / Segment / "metadata") { (version, possibleWorkflowId) =>
         instrumentRequest {
           parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
             val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)

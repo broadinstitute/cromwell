@@ -59,7 +59,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   val _ = CromwellFileSystems.instance
 
   private val logger = Logging(context.system, this)
-  protected val config = ConfigFactory.load()
+  val config = ConfigFactory.load()
   private implicit val system = context.system
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)

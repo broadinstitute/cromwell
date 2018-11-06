@@ -5,6 +5,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.stream.ActorMaterializer
+import com.typesafe.config.ConfigFactory
 import common.util.VersionUtil
 import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
@@ -436,6 +437,7 @@ object CromwellApiServiceSpec {
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
     override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
     override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
+    override def config = ConfigFactory.load
   }
 
   object MockServiceRegistryActor {

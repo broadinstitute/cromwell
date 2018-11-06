@@ -15,9 +15,8 @@ import cromwell.webservice.metadata.MetadataBuilderActor._
 import org.slf4j.LoggerFactory
 import spray.json._
 
-import scala.concurrent.duration._
+
 object MetadataBuilderActor {
-  val stream = new StreamMetadataBuilder(55.seconds)
   sealed abstract class MetadataBuilderActorResponse
   case class BuiltMetadataResponse(response: JsObject) extends MetadataBuilderActorResponse
   case class FailedMetadataResponse(reason: Throwable) extends MetadataBuilderActorResponse
@@ -254,7 +253,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
     else {
       query match {
-        case MetadataQuery(w, _, _, _, _, _) => stream.workflowMetadataQuery(query.workflowId, eventsList, expandSubWorkflows = true)
+        case MetadataQuery(w, _, _, _, _, _) => workflowMetadataResponse(w, eventsList, includeCallsIfEmpty = true, expandedValues)
         case _ => MetadataBuilderActor.parse(eventsList, expandedValues)
       }
     }

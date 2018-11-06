@@ -15,6 +15,7 @@ files {
     cwl/bcbio/gvcf-joint-workflow/wf-jointcall.cwl,
     cwl/bcbio/gvcf-joint-workflow/wf-variantcall.cwl
   ]
+  options: cwl/bcbio/bcbio.options
 }
 
 metadata {

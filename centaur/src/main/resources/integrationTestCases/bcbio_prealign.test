@@ -12,6 +12,7 @@ files {
       cwl/bcbio/prealign-workflow/steps,
       cwl/bcbio/prealign-workflow/wf-variantcall.cwl
     ]
+  options: cwl/bcbio/bcbio.options
 }
 
 metadata {

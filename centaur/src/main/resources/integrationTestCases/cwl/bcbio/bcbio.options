@@ -1,0 +1,5 @@
+{
+  "default-runtime-attributes": {
+    "bootDiskSizeGb": 20
+  }
+}

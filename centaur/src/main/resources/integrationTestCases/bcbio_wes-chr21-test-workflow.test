@@ -15,6 +15,7 @@ files {
     cwl/bcbio/wes_chr21_test-workflow-gcp/wf-svcall.cwl,
     cwl/bcbio/wes_chr21_test-workflow-gcp/wf-variantcall.cwl
   ]
+  options: cwl/bcbio/bcbio.options
 }
 
 metadata {

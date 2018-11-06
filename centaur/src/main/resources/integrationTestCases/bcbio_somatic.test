@@ -14,6 +14,7 @@ files {
     cwl/bcbio/somatic-workflow/wf-svcall.cwl,
     cwl/bcbio/somatic-workflow/wf-variantcall.cwl
   ]
+  options: cwl/bcbio/bcbio.options
 }
 
 metadata {

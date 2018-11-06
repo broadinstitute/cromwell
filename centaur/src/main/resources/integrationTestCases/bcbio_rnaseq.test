@@ -12,6 +12,7 @@ files {
   imports: [
     cwl/bcbio/rnaseq-workflow/steps
   ]
+  options: cwl/bcbio/bcbio.options
 }
 
 metadata {

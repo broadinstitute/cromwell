@@ -1,7 +1,8 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated._
-import cats.syntax.apply._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
@@ -109,11 +110,11 @@ object PipelinesApiRuntimeAttributes {
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MiB)
+    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MiB, allowZero = true)
   }
 
   private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MiB)
+    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MiB, allowZero = true)
   }
 
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {
@@ -216,9 +217,8 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[PipelinesApiAttac
   }
 
   private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
-    val diskNels: Seq[ErrorOr[PipelinesApiAttachedDisk]] = disks map validateLocalDisk
-    val sequenced: ErrorOr[Seq[PipelinesApiAttachedDisk]] = sequenceNels(diskNels)
-    val defaulted: ErrorOr[Seq[PipelinesApiAttachedDisk]] = addDefault(sequenced)
+    val diskNels: ErrorOr[Seq[PipelinesApiAttachedDisk]] = disks.toList.traverse[ErrorOr, PipelinesApiAttachedDisk](validateLocalDisk)
+    val defaulted: ErrorOr[Seq[PipelinesApiAttachedDisk]] = addDefault(diskNels)
     defaulted
   }
 
@@ -227,14 +227,6 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[PipelinesApiAttac
       case scala.util.Success(attachedDisk) => attachedDisk.validNel
       case scala.util.Failure(ex) => ex.getMessage.invalidNel
     }
-  }
-
-  private def sequenceNels(nels: Seq[ErrorOr[PipelinesApiAttachedDisk]]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
-    val emptyDiskNel: ErrorOr[Vector[PipelinesApiAttachedDisk]] = Vector.empty[PipelinesApiAttachedDisk].validNel
-    val disksNel: ErrorOr[Vector[PipelinesApiAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
-      (acc, v) => (acc, v) mapN { (a, v) => a :+ v }
-    }
-    disksNel
   }
 
   private def addDefault(disksNel: ErrorOr[Seq[PipelinesApiAttachedDisk]]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {

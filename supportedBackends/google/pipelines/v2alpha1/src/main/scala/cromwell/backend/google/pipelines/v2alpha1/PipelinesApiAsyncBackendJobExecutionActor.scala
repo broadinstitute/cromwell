@@ -73,7 +73,29 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       } getOrElse {
         GcsPathBuilder.validateGcsPath(path) match {
           case _: ValidFullGcsPath => path
-          case _ => (callRootPath / path.stripPrefix("file://").stripPrefix("/")).pathAsString
+
+          /*
+            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
+            * For instance
+            * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+            *
+            * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * call-A/file.txt
+            *
+            * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
+            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths 
+            * (as they were created by the cwl tool).
+            * In order to keep things working we need to map those local paths to where they were actually delocalized,
+            * which is determined in cromwell.backend.google.pipelines.v2alpha1.api.Delocalization.
+            */
+          case _ => (callRootPath / 
+            RuntimeOutputMapping
+                .prefixFilters(workflowPaths.workflowRoot)
+                .foldLeft(path)({
+                  case (newPath, prefix) => newPath.stripPrefix(prefix)
+                })
+            ).pathAsString
         }
       }
     }

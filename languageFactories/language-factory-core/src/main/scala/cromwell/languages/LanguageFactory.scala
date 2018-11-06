@@ -9,6 +9,7 @@ import cromwell.languages.util.ImportResolver.ImportResolver
 import wom.core._
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
+import wom.runtime.WomOutputRuntimeExtractor
 
 trait LanguageFactory {
 
@@ -26,6 +27,11 @@ trait LanguageFactory {
 
 
   lazy val strictValidation: Boolean = !config.as[Option[Boolean]]("strict-validation").contains(false)
+
+  lazy val womOutputRuntimeExtractor: Checked[Option[WomOutputRuntimeExtractor]] = config.getAs[Config]("output-runtime-extractor") match {
+    case Some(c) => WomOutputRuntimeExtractor.fromConfig(c).map(Option.apply).toEither
+    case _ => None.validNelCheck
+  }
 
   def getWomBundle(workflowSource: WorkflowSource,
                    workflowOptionsJson: WorkflowOptionsJson,

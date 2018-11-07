@@ -24,6 +24,7 @@ class MockCromwellClient()(implicit system: ActorSystem,
   val subworkflowId = "58114f5c-f439-4488-8d73-092273cf92d9"
   val rootWorkflowIdWithCollection = "998d137e-7213-44ac-8f6f-24e6e23adaa5"
   val workflowIdWithoutCollection = "472234d-7213-44ac-8f6f-24e6e23adaa5"
+  val anotherRootWorkflowIdWithCollection = "12b9a7c1-84b0-451e-96d7-a389315a2fa9"
 
   val userCollection = Collection("foo")
 
@@ -33,11 +34,11 @@ class MockCromwellClient()(implicit system: ActorSystem,
     userIdHeader match {
       case Some(header) => {
         header.value match {
-          case s if s.equalsIgnoreCase(authorizedUserCollectionStr) => Future.successful(HttpResponse(status = OK))
+          case s if s.equalsIgnoreCase(authorizedUserCollectionStr) => Future.successful(HttpResponse(status = OK, entity = "Response from Cromwell"))
           case s => Future.failed(new Exception(s"This is unexpected! Cromwell should not receive request from unauthorized user! OIDC_CLAIM_user_id: $s is not authorized."))
         }
       }
-      case None => Future.failed(new Exception("No OIDC_CLAIM_user_id provided for authorization!"))
+      case None => Future.failed(new Exception("This is unexpected! No OIDC_CLAIM_user_id provided for authorization!"))
     }
   }
 
@@ -46,7 +47,7 @@ class MockCromwellClient()(implicit system: ActorSystem,
 
     httpRequest.uri.path.toString match {
       //version endpoint doesn't require authentication
-      case `versionRoutePath` => Future.successful(HttpResponse(status = OK))
+      case `versionRoutePath` => Future.successful(HttpResponse(status = OK, entity = "Response from Cromwell"))
       case _ => checkHeaderAuthorization(httpRequest)
     }
   }
@@ -54,13 +55,14 @@ class MockCromwellClient()(implicit system: ActorSystem,
   override def getRootWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[String] = {
     workflowId match {
       case `subworkflowId` | `rootWorkflowIdWithCollection` => Future.successful(rootWorkflowIdWithCollection)
+      case  `anotherRootWorkflowIdWithCollection` => Future.successful(anotherRootWorkflowIdWithCollection)
       case _ => Future.successful(workflowIdWithoutCollection)
     }
   }
 
   override def collectionForWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[Collection] = {
     workflowId match {
-      case `rootWorkflowIdWithCollection` => Future.successful(userCollection)
+      case `rootWorkflowIdWithCollection` | `anotherRootWorkflowIdWithCollection` => Future.successful(userCollection)
       case _ => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
     }
   }
@@ -73,6 +75,8 @@ class MockSamClient()(implicit system: ActorSystem,
 
   val authorizedUserCollectionStr: String = "123456789"
   val unauthorizedUserCollectionStr: String = "987654321"
+
+  val notWhitelistedUser: String = "ABC123"
 
   override def collectionsForUser(user: User, httpRequest: HttpRequest): Future[List[Collection]] = {
     Future.successful(List(Collection("col1"), Collection("col2")))
@@ -87,7 +91,8 @@ class MockSamClient()(implicit system: ActorSystem,
   }
 
   override def isSubmitWhitelisted(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
-    Future.successful(true)
+    if (user.userId.value.equalsIgnoreCase(notWhitelistedUser)) Future.successful(false)
+    else Future.successful(true)
   }
 
   override def requestAuth(authorizationRequest: CollectionAuthorizationRequest, cromIamRequest: HttpRequest): Future[Unit] = {

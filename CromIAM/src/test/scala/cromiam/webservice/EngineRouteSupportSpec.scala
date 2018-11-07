@@ -29,6 +29,7 @@ class EngineRouteSupportSpec extends FlatSpec with Matchers with ScalatestRouteT
   "Version endpoint" should "return 200 without authorization" in {
     Get(versionRoutePath) ~> engineRoutes ~> check {
       status shouldBe OK
+      responseAs[String] shouldBe "Response from Cromwell"
     }
   }
 

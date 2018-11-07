@@ -70,7 +70,7 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
 
   "GET query" should "peacefully forward to Cromwell if nothing is untoward" in {
     Get(getQuery).withHeaders(authHeaders) ~> queryGetRoute ~> check {
-      responseAs[String] shouldEqual ""
+      responseAs[String] shouldBe "Response from Cromwell"
     }
   }
 
@@ -82,7 +82,7 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
 
   "POST query" should "peacefully forward to Cromwell is nothing is untoward" in {
     Post(queryPath).withHeaders(authHeaders).withEntity(goodPostEntity) ~> queryPostRoute ~> check {
-      responseAs[String] shouldEqual ""
+      responseAs[String] shouldBe "Response from Cromwell"
     }
   }
 

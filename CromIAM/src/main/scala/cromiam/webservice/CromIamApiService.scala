@@ -200,10 +200,8 @@ trait CromIamApiService extends RequestSupport
       _ <- collections traverse authForCollection
       resp <- cromwellRequestClient.forwardToCromwell(request)
     } yield resp) recover {
-      case SamDenialException =>
-        SamDenialResponse
-      case other =>
-        HttpResponse(status = InternalServerError, entity = s"CromIAM unexpected error: $other")
+      case SamDenialException => SamDenialResponse
+      case other => HttpResponse(status = InternalServerError, entity = s"CromIAM unexpected error: $other")
     }
   }
 

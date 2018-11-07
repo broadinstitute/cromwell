@@ -78,8 +78,12 @@ class MockSamClient()(implicit system: ActorSystem,
 
   val notWhitelistedUser: String = "ABC123"
 
+  val userCollectionList: List[Collection] = List(Collection("col1"), Collection("col2"))
+
   override def collectionsForUser(user: User, httpRequest: HttpRequest): Future[List[Collection]] = {
-    Future.successful(List(Collection("col1"), Collection("col2")))
+    val userId = user.userId.value
+    if (userId.equalsIgnoreCase(unauthorizedUserCollectionStr)) Future.failed(new Exception(s"Unable to look up collections for user $userId!"))
+    else Future.successful(userCollectionList)
   }
 
   override def requestSubmission(user: User, collection: Collection, cromIamRequest: HttpRequest): Future[Unit] = {
@@ -98,7 +102,7 @@ class MockSamClient()(implicit system: ActorSystem,
   override def requestAuth(authorizationRequest: CollectionAuthorizationRequest, cromIamRequest: HttpRequest): Future[Unit] = {
     authorizationRequest.user.userId.value match {
       case `authorizedUserCollectionStr` => Future.successful(())
-      case _ => Future.failed(SamDenialException)
+      case _ => Future.failed(new SamDenialException)
     }
   }
 }

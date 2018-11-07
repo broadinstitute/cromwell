@@ -186,7 +186,7 @@ trait CromIamApiService extends RequestSupport
                                              cromwellRequestClient: CromwellClient): Future[HttpResponse] = {
     def authForCollection(collection: Collection): Future[Unit] = {
       samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action), request) recoverWith {
-        case SamDenialException => Future.failed(SamDenialException)
+        case e: SamDenialException => Future.failed(e)
         case e =>
           log.error(e, "Unable to connect to Sam {}", e)
           Future.failed(SamConnectionFailure("authorization", e))
@@ -200,7 +200,7 @@ trait CromIamApiService extends RequestSupport
       _ <- collections traverse authForCollection
       resp <- cromwellRequestClient.forwardToCromwell(request)
     } yield resp) recover {
-      case SamDenialException => SamDenialResponse
+      case _: SamDenialException => SamDenialResponse
       case other => HttpResponse(status = InternalServerError, entity = s"CromIAM unexpected error: $other")
     }
   }

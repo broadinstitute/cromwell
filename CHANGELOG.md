@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 36.1 Release Notes
+
+### Call cache blacklisting
+
+The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.
+More info [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-copy-authorization-failure-prefix-blacklisting).
+
 ## 36 Release Notes
 
 ### Extra configuration options

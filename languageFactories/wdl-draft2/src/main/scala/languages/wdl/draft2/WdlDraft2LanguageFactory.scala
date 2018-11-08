@@ -1,7 +1,7 @@
 package languages.wdl.draft2
 
 import java.security.MessageDigest
-import java.util.concurrent.{Callable, TimeUnit}
+import java.util.concurrent.Callable
 
 import cats.data.EitherT.fromEither
 import cats.effect.IO
@@ -35,7 +35,8 @@ import wom.transforms.WomBundleMaker.ops._
 import wom.transforms.WomExecutableMaker.ops._
 import wom.values._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFactory {
 
@@ -143,14 +144,11 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     for {
       _ <- enabled.option(())
       caching <- config.as[Option[Config]]("caching")
-      _ <- caching.as[Option[Boolean]]("enabled").contains(true).option(())
-      ttl = caching.as[Option[FiniteDuration]]("ttl").getOrElse(FiniteDuration.apply(20, TimeUnit.MINUTES))
-      concurrency = caching.as[Option[Int]]("concurrency").getOrElse(2)
-      size = caching.as[Option[Long]]("size").getOrElse(1000L)
-    } yield CacheConfig(concurrency = concurrency, size = size, ttl = ttl)
+      cc <- CacheConfig.fromConfig(caching, defaultConcurrency = 2, defaultSize = 1000L, defaultTtl = 20 minutes)
+    } yield cc
   }
 
-  private[draft2] lazy val namespaceCache: Option[Cache[WorkflowSource, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
+  private[draft2] lazy val namespaceCache: Option[Cache[String, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
     CacheBuilder.newBuilder()
       .concurrencyLevel(c.concurrency)
       .expireAfterAccess(c.ttl.length, c.ttl.unit)

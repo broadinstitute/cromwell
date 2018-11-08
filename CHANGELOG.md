@@ -7,6 +7,10 @@
 The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.
 More info [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-copy-authorization-failure-prefix-blacklisting).
 
+### CWL
+
+Support `InputResourceRequirement` hint
+
 ### Changing configuration options
 
 When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.

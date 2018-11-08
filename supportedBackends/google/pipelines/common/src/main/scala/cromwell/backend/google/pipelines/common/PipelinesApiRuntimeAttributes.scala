@@ -117,6 +117,10 @@ object PipelinesApiRuntimeAttributes {
     InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MiB, allowZero = true)
   }
 
+  private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.InputDirMinKey, MemoryUnit.MiB, allowZero = true)
+  }
+
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = jesConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
@@ -134,7 +138,8 @@ object PipelinesApiRuntimeAttributes {
       noAddressValidation(runtimeConfig),
       dockerValidation,
       outDirMinValidation,
-      tmpDirMinValidation
+      tmpDirMinValidation,
+      inputDirMinValidation
     )
   }
 
@@ -164,8 +169,9 @@ object PipelinesApiRuntimeAttributes {
 
     val outDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
     val tmpDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
+    val inputDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(inputDirMinValidation.key, validatedRuntimeAttributes)
 
-    val totalExecutionDiskSizeBytes = List(outDirMin.map(_.bytes), tmpDirMin.map(_.bytes)).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
+    val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes), outDirMin.map(_.bytes), tmpDirMin.map(_.bytes)).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
     val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
 
     val adjustedDisks = disks.map({

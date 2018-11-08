@@ -43,6 +43,7 @@ trait TypeAliases {
       ScatterFeatureRequirement :+:
       MultipleInputFeatureRequirement :+:
       StepInputExpressionRequirement :+:
+      InputResourceRequirement :+:
       CNil
 
   type Hint =

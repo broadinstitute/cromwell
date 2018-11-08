@@ -1,6 +1,6 @@
 package cwl.requirement
 
-import cwl.{InputResourceRequirement, _}
+import cwl._
 import shapeless.Poly1
 import wom.RuntimeAttributesKeys._
 import wom.expression.{ValueAsAnExpression, WomExpression}

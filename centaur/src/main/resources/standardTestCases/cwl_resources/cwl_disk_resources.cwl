@@ -1,4 +1,11 @@
 cwlVersion: v1.0
+# Asks for 10 GB (~=9540 MiB) of output dir, tmp dir and input dir.
+# Unfortunately the internal metadata from the VM, despite having some information about the disks doesn't give their size.
+# To avoid possibly unreliable computations based on free or other tool, instead use the GCE API directly to look up the disk info.
+# To do that we need project name, zone and name of the disk which we all obtain via the internal metadata
+# Of importance is the assumption that <disk name> == <instance name>-1
+# Note the "-1" after the instance name. That is because the disk just named <instance name> is the boot disk. The working disk has a "-1" suffix
+# The test expectation ensures that the output is 30, which means all 3 resources have been taken into account.
 $namespaces:
   dx: https://www.dnanexus.com/cwl#
 $graph:  
@@ -8,14 +15,14 @@ $graph:
   doc: "Asks for disk minimums"
   requirements:
     ResourceRequirement:
-      outdirMin: 9536
-      tmpdirMin: 9536
+      outdirMin: 9540
+      tmpdirMin: 9540
   hints:
   - class: ShellCommandRequirement
   - class: DockerRequirement
     dockerPull: google/cloud-sdk:slim
   - class: dx:InputResourceRequirement
-    indirMin: 9536
+    indirMin: 9540
   inputs: []
   outputs:
     disk_size:

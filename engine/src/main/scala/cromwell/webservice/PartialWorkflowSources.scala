@@ -167,10 +167,19 @@ object PartialWorkflowSources {
     import _root_.io.circe.Printer
     import cats.syntax.validated._
 
-    yaml.parser.parse(data) match {
-      // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
-      case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
-      case Left(error) => s"Input file is not valid yaml nor json: ${error.getMessage}".invalidNel
+    val parseInputsTry = Try {
+      yaml.parser.parse(data) match {
+        // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
+        case Right(json) =>
+          json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
+        case Left(error) =>
+          s"Input file is not a valid yaml or json. Error: ${error.getMessage}".invalidNel
+      }
+    }
+
+    parseInputsTry match {
+      case Success(v) => v
+      case Failure(e) => s"Input file is not a valid yaml or json. Error: ${e.getMessage}".invalidNel
     }
   }
 
@@ -268,7 +277,7 @@ object PartialWorkflowSources {
       case Some(inputs: String) => inputs.parseJson match {
         case JsObject(inputMap) => inputMap.validNel
         case _ =>
-          s"Submitted input $inputs couldn't be processed, please check for syntactical errors".invalidNel
+          s"Submitted input $inputs is not a valid json. Please check for syntactical errors".invalidNel
       }
       case None => Map.empty[String, JsValue].validNel
     }

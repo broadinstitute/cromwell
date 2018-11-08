@@ -13,6 +13,7 @@ CROMWELL_AKKA_TEST_TIME_FACTOR=1
 case "${CROMWELL_BUILD_PROVIDER}" in
     "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
         CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,GcsIntegrationTest"
+        CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR=2
         ;;
     "${CROMWELL_BUILD_PROVIDER_JENKINS}")
         CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DockerTest,GcsIntegrationTest"

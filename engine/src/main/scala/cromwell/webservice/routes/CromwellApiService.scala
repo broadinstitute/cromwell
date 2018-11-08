@@ -223,6 +223,8 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
             askSubmit(
               WorkflowStoreActor.BatchSubmitWorkflows(NonEmptyList.fromListUnsafe(workflowSourceFiles.toList)),
               warnings, getWorkflowState(workflowSourceFiles.head.workflowOnHold))
+          case Failure(e: RuntimeException) =>
+            e.failRequest(StatusCodes.NotFound)
           case Failure(t) => t.failRequest(StatusCodes.BadRequest)
         }
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)

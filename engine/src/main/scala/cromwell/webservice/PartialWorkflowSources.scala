@@ -4,7 +4,7 @@ import java.net.URL
 
 import _root_.io.circe.yaml
 import akka.util.ByteString
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated._
 import cats.instances.list._
 import cats.instances.option._
@@ -182,7 +182,16 @@ object PartialWorkflowSources {
         case (true, false) => "No inputs were provided".invalidNel
         case _ =>
           val sortedInputAuxes = pws.workflowInputsAux.toSeq.sortBy { case (index, _) => index } map { case(_, inputJson) => Option(inputJson) }
-          (pws.workflowInputs map { workflowInputSet: WorkflowJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
+//          (pws.workflowInputs map { workflowInputSet: WorkflowJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
+          val a = pws.workflowInputs.toList traverse  { workflowInputSet: WorkflowJson =>
+            val b: ErrorOr[JsObject] = mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes)
+            val c: Validated[NonEmptyList[NonEmptyList[String]], String] = b match {
+              case Valid(validMergedMap) => validMergedMap.toString.validNel
+              case Invalid(error) => error.invalidNel
+            }
+            c
+          }
+          a
       }
 
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
@@ -231,9 +240,13 @@ object PartialWorkflowSources {
     }
   }
 
-  def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {
-    val convertToMap = allInputs.map(x => toMap(x))
-    JsObject(convertToMap reduce (_ ++ _))
+  def mergeMaps(allInputs: Seq[Option[String]]): ErrorOr[JsObject] = {
+    val convertToMap = allInputs.toList.traverse(toMap)
+
+    convertToMap match {
+      case Valid(validMapSeq) => JsObject(validMapSeq reduce (_ ++ _)).validNel
+      case Invalid(error) => error.invalid
+    }
   }
 
   def validateWorkflowUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
@@ -249,15 +262,15 @@ object PartialWorkflowSources {
     else convertStringToUrl(workflowUrl)
   }
 
-  private def toMap(someInput: Option[String]): Map[String, JsValue] = {
+  private def toMap(someInput: Option[String]): ErrorOr[Map[String, JsValue]] = {
     import spray.json._
     someInput match {
       case Some(inputs: String) => inputs.parseJson match {
-        case JsObject(inputMap) => inputMap
+        case JsObject(inputMap) => inputMap.validNel
         case _ =>
-          throw new RuntimeException(s"Submitted inputs couldn't be processed, please check for syntactical errors")
+          s"Submitted input $inputs couldn't be processed, please check for syntactical errors".invalidNel
       }
-      case None => Map.empty
+      case None => Map.empty[String, JsValue].validNel
     }
   }
 }

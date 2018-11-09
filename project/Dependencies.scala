@@ -20,13 +20,12 @@ object Dependencies {
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8"
   private val commonsLoggingV = "1.2"
-  private val commonsTextV = "1.4"
+  private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.9"
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.3"
   private val fs2V = "1.0.0-M5"
-  private val ftpFsV = "1.2.1"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.25.0"
   private val googleCloudCoreV = "1.43.0"
@@ -38,7 +37,7 @@ object Dependencies {
   private val googleOauth2V = "0.11.0"
   private val grpcV = "1.15.0"
   private val guavaV = "26.0-jre"
-  private val heterodonV = "1.0.0-beta1"
+  private val heterodonV = "1.0.0-beta2"
   private val hsqldbV = "2.4.1"
   private val http4sVersion = "0.19.0-M2"
   private val jacksonV = "2.9.6"
@@ -143,6 +142,7 @@ object Dependencies {
     "io.spray" %% "spray-json" % sprayJsonV,
     "joda-time" % "joda-time" % jodaTimeV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "org.apache.commons" % "commons-text" % commonsTextV,
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpcore" % apacheHttpCoreV,
     "org.mongodb" % "mongo-java-driver" % mongoJavaDriverV,
@@ -342,6 +342,7 @@ object Dependencies {
     "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "org.apache.commons" % "commons-text" % commonsTextV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV
@@ -379,7 +380,6 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "org.apache.commons" % "commons-text" % commonsTextV,
     "com.github.mpilquist" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
     "eu.timepit" %% "refined" % refinedV

@@ -3,6 +3,7 @@ package cromwell.backend
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPathsWithDocker
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
@@ -85,7 +86,7 @@ trait BackendLifecycleActorFactory {
     *
     * Simples!
     */
-  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = None
+  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, Option[BlacklistCache]) => Props] = None
 
   /* ****************************** */
   /*              Misc.             */

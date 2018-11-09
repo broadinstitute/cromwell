@@ -29,7 +29,7 @@ private object IoInstrumentationImplicits {
       */
     def toPath: InstrumentationPath = ioResult match {
       case (_: IoSuccess[_], ioCommandContext) => ioCommandContext.request.successPath
-      case (f: IoFailure[_], ioCommandContext) => ioCommandContext.request.failedPath(f.failure)
+      case (f: IoFailAck[_], ioCommandContext) => ioCommandContext.request.failedPath(f.failure)
     }
   }
 

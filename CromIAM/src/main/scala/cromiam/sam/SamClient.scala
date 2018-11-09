@@ -67,7 +67,7 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
       if (byteString.utf8String == "true") Future.successful(())
       else {
         log.warning("Sam denied " + logString)
-        Future.failed(SamDenialException)
+        Future.failed(new SamDenialException)
       }
     }
 
@@ -86,9 +86,10 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
 
   /**
       - Try to create the collection
+        - If 204 (NoContent) is the response, the collection was successfully created
         - If 409 is the response, it already exists - check to see if user has 'add' permission
-        - else we're good
-      - If the result of the above is ok then we're ok.
+            - If user has the 'add' permission we're ok
+        - else fail the future
    */
   def requestSubmission(user: User, collection: Collection, cromIamRequest: HttpRequest): Future[Unit] = {
     log.info("Verifying user " + user.userId + " can submit a workflow to collection " + collection.name)
@@ -96,7 +97,8 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
 
     createCollection flatMap {
       case r if r.status == StatusCodes.Conflict => requestAuth(CollectionAuthorizationRequest(user, collection, "add"), cromIamRequest)
-      case _ => Future.successful(())
+      case r if r.status == StatusCodes.NoContent => Future.successful(())
+      case r => Future.failed(SamRegisterCollectionException(r.status))
     }
   }
 
@@ -122,11 +124,18 @@ class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapte
 }
 
 object SamClient {
-  case object SamDenialException extends Exception("Access Denied")
+  import akka.http.scaladsl.model.StatusCode
 
-  val SamDenialResponse = HttpResponse(status = StatusCodes.Forbidden, entity = SamDenialException.getMessage)
+  class SamDenialException extends Exception("Access Denied")
+
   final case class SamConnectionFailure(phase: String, f: Throwable) extends Exception(s"Unable to connect to Sam during $phase (${f.getMessage})", f)
 
+  final case class SamRegisterCollectionException(errorCode: StatusCode) extends Exception(s"Can't register collection with Sam. Status code: ${errorCode.value}")
+
   final case class CollectionAuthorizationRequest(user: User, collection: Collection, action: String)
+
+  val SamDenialResponse = HttpResponse(status = StatusCodes.Forbidden, entity = new SamDenialException().getMessage)
+
+  def SamRegisterCollectionExceptionResp(statusCode: StatusCode) = HttpResponse(status = statusCode, entity = SamRegisterCollectionException(statusCode).getMessage)
 
 }

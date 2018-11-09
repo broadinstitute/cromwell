@@ -27,12 +27,18 @@ wait_for_cromwell() {
 }
 
 export_logs() {
+    export REPORT_URL="gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}"
+
     # Copy the cromwell container logs
     gsutil -h "Content-Type:text/plain" cp $(docker inspect --format='{{.LogPath}}' cromwell) "${REPORT_URL}/cromwell.log" || true
     # Copy the docker daemon logs
     gsutil -h "Content-Type:text/plain" cp /var/log/daemon.log "${REPORT_URL}/daemon.log" || true
     # Copy the statsd logs
     gsutil -h "Content-Type:text/plain" cp "${STATSD_PROXY_APP_DIR}/statsd.log" "${REPORT_URL}/statsd.log" || true
+    # Copy centaur log
+    gsutil -h "Content-Type:text/plain" cp "${CROMWELL_ROOT}/centaur.log" "${REPORT_URL}/centaur.log" || true
+    # Copy test_rc.log
+    echo $TEST_RC > test_rc.txt && gsutil -h "Content-Type:text/plain" cp test_rc.txt "${REPORT_URL}/test_rc.txt" || true
 }
 
 prepare_statsd_proxy() {
@@ -49,18 +55,23 @@ prepare_statsd_proxy() {
 }
 
 clean_up() {
-    gcloud sql instances delete cromwell-db-${BUILD_ID}
-    gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
+    if [ "${CLEAN_UP}" = true ]
+    then
+        gcloud sql instances delete ${CLOUD_SQL_INSTANCE}
+        gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
+    fi
 }
 
 run_test() {
     cd ${CROMWELL_ROOT}
 
-    export CENTAUR_TEST_NAME=$(grep name: ${CENTAUR_TEST_FILE} | cut -d ' ' -f 2)
-    export REPORT_PATH="${CENTAUR_TEST_NAME}/${CROMWELL_VERSION}/${BUILD_ID}"
-    export REPORT_URL="gs://${REPORT_BUCKET}/${REPORT_PATH}"
-    
-    sbt -Dconfig.file=${CENTAUR_CONF_DIR}/centaur.conf "centaur/it:testOnly centaur.ExternalTestCaseSpec"
+    if [ -z ${GCS_REPORT_PATH} ]
+    then
+        export GCS_REPORT_PATH="${TEST_CASE_DIRECTORY}/${CROMWELL_VERSION}/${BUILD_ID}"
+    fi
+
+    sbt -Dconfig.file=${CENTAUR_CONF_DIR}/centaur.conf "centaur/it:testOnly centaur.ExternalTestCaseSpec" | tee centaur.log
+    export TEST_RC=$?
 }
 
 shutdown() {

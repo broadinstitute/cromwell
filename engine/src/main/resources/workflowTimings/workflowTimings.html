@@ -51,7 +51,7 @@
                     // add the index of the shard if there is one
                     var callLqn = (index == -1 ? callName : callName + "." + index);
 
-                    // add the retry number, unless this was a successfuly first attempt (for brevity)
+                    // add the retry number, unless this was a successful first attempt (for brevity)
                     callLqn = ( callStatus == "Done" && attempt == 1 ? callLqn : callLqn + ".retry-" + attempt);
 
                     // Remove the workflow name

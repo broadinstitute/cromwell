@@ -146,6 +146,7 @@ trait IoCommandContext[T] extends StreamContext {
   def request: IoCommand[T]
   def replyTo: ActorRef
   def fail(failure: Throwable): IoResult = (request.fail(failure), this)
+  def failForbidden(failure: Throwable, forbiddenPath: String): IoResult = (request.failReadForbidden(failure, forbiddenPath), this)
   def success(value: T): IoResult = (request.success(value), this)
 }
 

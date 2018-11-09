@@ -91,7 +91,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
     // Hash Failure
-    case (fileHashRequest: FileHashContext, IoFailure(_, failure: Throwable)) =>
+    case (fileHashRequest: FileHashContext, IoFailAck(_, failure: Throwable)) =>
       context.parent ! HashingFailedMessage(fileHashRequest.file, failure)
 
     case other =>

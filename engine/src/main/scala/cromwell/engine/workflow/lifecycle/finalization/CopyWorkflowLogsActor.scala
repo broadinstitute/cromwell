@@ -74,14 +74,14 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, overrid
       updateLogsPathInMetadata(workflowId, copy.destination)
       deleteLog(copy.source)
       
-    case (workflowId: WorkflowId, IoFailure(copy: IoCopyCommand, failure)) =>
+    case (workflowId: WorkflowId, IoFailAck(copy: IoCopyCommand, failure)) =>
       pushWorkflowFailures(workflowId, List(new IOException("Could not copy workflow logs", failure)))
       log.error(failure, s"Failed to copy workflow logs from ${copy.source.pathAsString} to ${copy.destination.pathAsString}")
       deleteLog(copy.source)
       
     case IoSuccess(_: IoDeleteCommand, _) => removeWork()
       
-    case IoFailure(delete: IoDeleteCommand, failure) =>
+    case IoFailAck(delete: IoDeleteCommand, failure) =>
       removeWork()
       log.error(failure, s"Failed to delete workflow logs from ${delete.file.pathAsString}")
 

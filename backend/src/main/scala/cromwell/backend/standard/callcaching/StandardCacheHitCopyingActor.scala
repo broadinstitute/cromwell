@@ -198,10 +198,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         path = f.forbiddenPath,
         andThen = failAndAwaitPendingResponses(f.failure, f.command, data)
       )
-    case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
+    case Event(IoFailAck(command: IoCommand[_], failure), Some(data)) =>
       failAndAwaitPendingResponses(failure, command, data)
     // Should not be possible
-    case Event(IoFailure(_: IoCommand[_], failure), None) => failAndStop(failure)
+    case Event(IoFailAck(_: IoCommand[_], failure), None) => failAndStop(failure)
   }
 
   when(FailedState) {

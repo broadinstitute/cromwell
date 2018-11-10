@@ -178,7 +178,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
   private def failReadForbidden(context: GcsBatchCommandContext[_, _], failure: Throwable, forbiddenPath: String) = {
     Future.successful(
       GcsBatchTerminal(
-        context.failForbidden(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure), forbiddenPath)
+        context.failReadForbidden(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure), forbiddenPath)
       )
     )
   }

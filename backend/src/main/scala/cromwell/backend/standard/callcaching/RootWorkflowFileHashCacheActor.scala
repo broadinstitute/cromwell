@@ -59,7 +59,7 @@ class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef) ext
         cache.put(hashContext.file, FileHashSuccess(value))
       }
     // Hash Failure
-    case (hashContext: FileHashContext, failure: IoFailure[_]) =>
+    case (hashContext: FileHashContext, failure: IoFailAck[_]) =>
       handleHashResult(failure, hashContext) { requesters =>
         requesters.toList foreach { case FileHashRequester(replyTo, fileHashContext, ioCommand) =>
           replyTo ! Tuple2(fileHashContext, IoFailure(ioCommand, failure.failure))

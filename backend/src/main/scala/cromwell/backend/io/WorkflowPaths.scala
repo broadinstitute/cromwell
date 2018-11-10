@@ -19,8 +19,10 @@ trait WorkflowPaths extends PathFactory {
 
   /**
     * Path (as a String) of the root directory Cromwell should use for ALL workflows.
+    * Allow for setting the root (cromwell-executions) folder in workflowOptions(option.json)
     */
-  protected lazy val executionRootString: String = config.as[Option[String]]("root").getOrElse(WorkflowPaths.DefaultExecutionRootString)
+  protected lazy val executionRootString: String = workflowDescriptor.workflowOptions.getOrElse("root",
+    config.as[Option[String]]("root").getOrElse(WorkflowPaths.DefaultExecutionRootString))
 
   /**
     * Implementers of this trait might override this to provide an appropriate prefix corresponding to the execution root

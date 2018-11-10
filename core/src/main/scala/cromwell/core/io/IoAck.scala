@@ -19,6 +19,16 @@ case class IoSuccess[T](command: IoCommand[T], result: T) extends IoAck[T] {
   override def toTry = Success(result)
 }
 
+object IoFailAck {
+  def unapply(any: Any): Option[(IoCommand[_], Throwable)] = {
+    any match {
+      case f: IoFailAck[_] =>
+        Option((f.command, f.failure))
+      case _ => None
+    }
+  }
+}
+
 trait IoFailAck[T] extends IoAck[T] {
   val failure: Throwable
   override def toTry = Failure(failure)

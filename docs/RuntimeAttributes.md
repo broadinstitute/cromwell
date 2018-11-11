@@ -313,7 +313,7 @@ This runtime attribute adds support to disable assigning external IP addresses t
 For example, the task below will succeed:
 ```
 command {
-  echo "hello!
+  echo "hello!"
   
 }
 

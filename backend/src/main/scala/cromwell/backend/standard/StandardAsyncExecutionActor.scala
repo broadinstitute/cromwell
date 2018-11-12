@@ -15,6 +15,7 @@ import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -36,7 +37,6 @@ import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
 import wom.graph.LocalName
-import wom.values.LazyWomFile._
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
@@ -475,10 +475,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val evaluateAndInitialize = (containerizedInputExpression: ContainerizedInputExpression) => for {
       mapped <- mappedInputs
-      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toEither
-      initialized <- evaluated.traverse[ErrorOr, AdHocValue]({ adHocValue =>
-        adHocValue.womValue.initializeWomFile(backendEngineFunctions).map(i => adHocValue.copy(womValue = i))
-      }).toEither
+      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toChecked
+      initialized <- evaluated.traverse[IOChecked, AdHocValue]({ adHocValue =>
+        adHocValue.womValue.initialize(backendEngineFunctions).map({
+          case file: WomFile => adHocValue.copy(womValue = file)
+          case _ => adHocValue
+        })
+      }).toChecked
     } yield initialized
 
     callable.adHocFileCreation.toList

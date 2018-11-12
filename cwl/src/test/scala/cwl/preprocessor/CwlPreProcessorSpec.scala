@@ -2,7 +2,7 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
-import common.validation.Parse.Parse
+import common.validation.IOChecked._
 import io.circe.Printer
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
@@ -88,11 +88,11 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
                   root: Option[String],
                   expectedFailure: Option[NonEmptyList[String]] = None,
                   uuidExtractor: Option[String] = None
-                 )(additionalValidation: MockFunction1[CwlReference, Parse[String]] => T) = {
+                 )(additionalValidation: MockFunction1[CwlReference, IOChecked[String]] => T) = {
     val rootWorkflowReference = CwlFileReference(testRoot / "root_workflow.cwl", root)
 
     // Mocking the salad function allows us to validate how many times it is called exactly and with which parameters
-    val mockSaladingFunction = mockFunction[CwlReference, Parse[String]]
+    val mockSaladingFunction = mockFunction[CwlReference, IOChecked[String]]
     val preProcessor = new CwlPreProcessor(mockSaladingFunction)
 
     val saladExpectations = additionalValidation

@@ -3,9 +3,12 @@ package wom.values
 import cats.Applicative
 import cats.instances.list._
 import cats.syntax.traverse._
+import cats.syntax.functor._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked.IOChecked
 import wom.TsvSerializable
+import wom.expression.IoFunctionSet
 import wom.types._
 import wom.util.FileUtil
 
@@ -39,6 +42,8 @@ trait WomObjectLike extends WomValue {
       }
     }
   }
+
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(_.initialize(ioFunctionSet)).widen
 }
 
 object WomObject {
@@ -91,7 +96,7 @@ object WomObject {
   
   def apply(values: Map[String, WomValue]) = new WomObject(values, WomObjectType)
   
-  def withType(values: Map[String, Any], objectTypeLike: WomObjectTypeLike) = {
+  def withTypeUnsafe(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): WomObject = {
     import common.validation.Validation._
     withTypeErrorOr(values, objectTypeLike).toTry.get
   }

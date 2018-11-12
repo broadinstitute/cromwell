@@ -1,6 +1,7 @@
 package wom.values
 
 import cats.Applicative
+import cats.syntax.functor._
 import common.util.TryUtil
 import wom.TsvSerializable
 import wom.types._
@@ -8,6 +9,9 @@ import wom.util.FileUtil
 import wom.values.WomArray.WomArrayLike
 import cats.syntax.traverse._
 import cats.instances.list._
+import common.validation.IOChecked.IOChecked
+import wom.expression.IoFunctionSet
+
 import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
 
@@ -98,6 +102,8 @@ final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomVal
     }
     collected.flatten.toSeq
   }
+
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverseValues(_.initialize(ioFunctionSet)).widen
 
   // For WomArrayLike:
   override lazy val arrayType: WomArrayType = WomArrayType(WomPairType(womType.keyType, womType.valueType))

@@ -1,10 +1,12 @@
 package cwl
 
-import cats.syntax.either._
+import cats.instances.option._
+import cats.syntax.functor._
+import cats.syntax.parallel._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cats.instances.option._
 import common.validation.ErrorOr._
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cwl.FileParameter._
 import cwl.ontology.Schema
@@ -12,7 +14,7 @@ import shapeless.Poly1
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.IoFunctionSet
 import wom.types.{WomSingleFileType, WomType}
-import wom.values.{WomArray, WomMaybePopulatedFile, WomObject, WomObjectLike, WomOptionalValue, WomValue}
+import wom.values.{WomArray, WomMaybeListedDirectory, WomMaybePopulatedFile, WomObject, WomObjectLike, WomOptionalValue, WomValue}
 
 trait InputParameter {
   def id: String
@@ -132,8 +134,9 @@ object InputParameter {
                        expressionLib: ExpressionLib,
                        schemaOption: Option[Schema]): InputValueMapper = {
     ioFunctionSet: IoFunctionSet => {
+      import ioFunctionSet.cs
 
-      def populateFiles(womValue: WomValue): ErrorOr[WomValue] = {
+      def populateFiles(womValue: WomValue): IOChecked[WomValue] = {
         womValue match {
           case womMaybePopulatedFile: WomMaybePopulatedFile =>
             // Don't include the secondary files in the self variables
@@ -145,14 +148,14 @@ object InputParameter {
                 .traverse(_.fold(InputParameterFormatPoly).apply(parameterContext))
 
             for {
-              inputFormatsOption <- inputFormatsErrorOr
-              _ <- checkFormat(womMaybePopulatedFile, inputFormatsOption, schemaOption)
+              inputFormatsOption <- inputFormatsErrorOr.toIOChecked
+              _ <- checkFormat(womMaybePopulatedFile, inputFormatsOption, schemaOption).toIOChecked
               contentsOption <- FileParameter.maybeLoadContents(
                 womMaybePopulatedFile,
                 ioFunctionSet,
                 inputParameter.loadContents
-              )
-              withSize <- sync(womMaybePopulatedFile.withSize(ioFunctionSet)).toErrorOr
+              ).to[IOChecked]
+              withSize <- womMaybePopulatedFile.withSize(ioFunctionSet).to[IOChecked]
               loaded = withSize.copy(contentsOption = contentsOption)
               secondaries <- FileParameter.secondaryFiles(
                 loaded,
@@ -164,23 +167,21 @@ object InputParameter {
               )
               updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++  secondaries)
             } yield updated
-
-          case WomArray(_, values) => values.toList.traverse(populateFiles).map(WomArray(_))
+          case womMaybeListedDirectory: WomMaybeListedDirectory => womMaybeListedDirectory.withSize(ioFunctionSet).to[IOChecked].widen
+          case WomArray(_, values) => values.toList.parTraverse[IOChecked, IOCheckedPar, WomValue](populateFiles).map(WomArray(_))
           case WomOptionalValue(_, Some(innerValue)) => populateFiles(innerValue).map(WomOptionalValue(_))
           case obj: WomObjectLike =>
             // Map the values
-            obj.values.toList.traverse({
+            val populated: IOChecked[WomObject] = obj.values.toList.parTraverse[IOChecked, IOCheckedPar, (String, WomValue)]({
               case (key, value) => populateFiles(value).map(key -> _)
             })
-              .map(_.toMap)
-              // transform to Either so we can flatMap
-              .toEither
-              // Validate new types are still valid w.r.t the object
-              .flatMap(WomObject.withTypeChecked(_, obj.womObjectTypeLike))
-              // re-transform to ErrorOr
-              .toValidated
+            .map(_.toMap)
+            // Validate new types are still valid w.r.t the object
+            .flatMap(WomObject.withTypeChecked(_, obj.womObjectTypeLike).toIOChecked)
+            
+            populated.widen[WomValue]
           case womValue: WomValue =>
-            womValue.valid
+            pure(womValue)
         }
       }
 

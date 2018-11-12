@@ -9,7 +9,6 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Parse.Parse
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -67,7 +66,6 @@ object Validation {
       Either.fromTry(t).leftMap { ex => NonEmptyList.one(throwableToStringFunction(ex)) }
     }
 
-    def toCheckedWithContext(context: String): Checked[A] = toCheckedWithContext(context, defaultThrowableToString)
     def toCheckedWithContext(context: String, throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
   }
 
@@ -91,7 +89,6 @@ object Validation {
       val total = errors.size
       errors.zipWithIndex map { case (err, i) => s"Failed to $s (reason ${i + 1} of $total): $err" }
     }
-
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {
@@ -101,10 +98,6 @@ object Validation {
 
     def toChecked(errorMessage: String): Checked[A] = {
       Either.fromOption(o, NonEmptyList.of(errorMessage))
-    }
-
-    def toParse(errorMessage: String): Parse[A] = {
-      Parse.checkedParse(Either.fromOption(o, NonEmptyList.of(errorMessage)))
     }
   }
 }

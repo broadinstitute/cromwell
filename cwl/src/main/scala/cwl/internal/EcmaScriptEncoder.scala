@@ -2,19 +2,15 @@ package cwl.internal
 
 import cats.data.Validated.Valid
 import common.validation.ErrorOr.ErrorOr
-import cwl.FileParameter._
 import cwl.internal.EcmaScriptUtil.{ECMAScriptVariable, ESArray, ESObject, ESPrimitive}
 import cwl.{Directory, File}
 import mouse.all._
-import wom.expression.IoFunctionSet
 import wom.values._
 
 /**
   * Converts a WomValue into a javascript compatible value.
-  *
-  * @param ioFunctionSet Used for filling in the size of cwl files.
   */
-class EcmaScriptEncoder(ioFunctionSet: IoFunctionSet) {
+class EcmaScriptEncoder {
 
   /**
     * Base implementation converts any WomPrimitive (except WomFile) into a javascript compatible value.
@@ -106,10 +102,7 @@ class EcmaScriptEncoder(ioFunctionSet: IoFunctionSet) {
       Option("nameroot" -> (File.nameroot(file.value) |> ESPrimitive)),
       Option("nameext" -> (File.nameext(file.value) |> ESPrimitive)),
       file.checksumOption.map("checksum" -> ESPrimitive(_)),
-      if (withSize) 
-        sync(file.withSize(ioFunctionSet)).toOption.flatMap(_.sizeOption).map(Long.box).map("size" -> ESPrimitive(_))
-      else
-        None,
+      file.sizeOption.map(Long.box).map("size" -> ESPrimitive(_)),
       Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles, withSize = false)),
       file.formatOption.map("format" -> ESPrimitive(_)),
       file.contentsOption.map("contents" -> ESPrimitive(_))

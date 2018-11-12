@@ -6,9 +6,8 @@ import cats.effect.IO
 import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.validation.ErrorOr._
-import common.validation.Validation._
-import common.validation.Parse._
-import common.validation.Validation.ValidationChecked
+import common.validation.IOChecked._
+import common.validation.Validation.{ValidationChecked, _}
 import cwl.preprocessor.{CwlFileReference, CwlPreProcessor, CwlReference}
 import io.circe.Json
 
@@ -18,7 +17,7 @@ object CwlDecoder {
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
-  def saladCwlFile(reference: CwlReference): Parse[String] = {
+  def saladCwlFile(reference: CwlReference): IOChecked[String] = {
     val cwlToolResult =
       Try(CwltoolRunner.instance.salad(reference))
         .toCheckedWithContext(s"run cwltool on file ${reference.pathAsString}", throwableToStringFunction = t => t.toString)
@@ -32,19 +31,19 @@ object CwlDecoder {
   // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.
   // All callers to this method should be fixed around the same time.
   // https://github.com/broadinstitute/cromwell/issues/3186
-  def todoDeleteCwlFileParentDirectory(cwlFile: BFile): Parse[Unit] = {
-    goParse {
+  def todoDeleteCwlFileParentDirectory(cwlFile: BFile): IOChecked[Unit] = {
+    goIOChecked {
       //cwlFile.parent.delete(swallowIOExceptions = true)
     }
   }
 
-  def parseJson(json: Json, from: String): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).contextualizeErrors(s"parse '$from'"))
+  def parseJson(json: Json, from: String): IOChecked[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).contextualizeErrors(s"parse '$from'"))
 
   /**
     * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
     */
-  def decodeCwlReference(reference: CwlReference)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] = {
-    def makeStandaloneWorkflow(): Parse[Json] = processor.preProcessCwl(reference)
+  def decodeCwlReference(reference: CwlReference)(implicit processor: CwlPreProcessor = cwlPreProcessor): IOChecked[Cwl] = {
+    def makeStandaloneWorkflow(): IOChecked[Json] = processor.preProcessCwl(reference)
 
     for {
       standaloneWorkflow <- makeStandaloneWorkflow()
@@ -59,13 +58,13 @@ object CwlDecoder {
   def decodeCwlString(cwl: String,
                       zipOption: Option[BFile] = None,
                       rootName: Option[String] = None,
-                      cwlFilename: String = "cwl_temp_file"): Parse[Cwl] = {
+                      cwlFilename: String = "cwl_temp_file"): IOChecked[Cwl] = {
     for {
-      parentDir <- goParse(BFile.newTemporaryDirectory("cwl_temp_dir_")) // has a random long appended like `cwl_temp_dir_100000000000`
+      parentDir <- goIOChecked(BFile.newTemporaryDirectory("cwl_temp_dir_")) // has a random long appended like `cwl_temp_dir_100000000000`
       file <- fromEither[IO](parentDir./(cwlFilename + ".cwl").write(cwl).asRight) // serves as the basis for the output directory name; must remain stable across restarts
       _ <- zipOption match {
-        case Some(zip) => goParse(zip.unzipTo(parentDir))
-        case None => Monad[Parse].unit
+        case Some(zip) => goIOChecked(zip.unzipTo(parentDir))
+        case None => Monad[IOChecked].unit
       }
       out <- decodeCwlFile(file, rootName)
       _ <- todoDeleteCwlFileParentDirectory(file)
@@ -73,7 +72,7 @@ object CwlDecoder {
   }
 
   //This is used when traversing over Cwl and replacing links w/ embedded data
-  private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {
+  private[cwl] def decodeCwlAsValidated(fileName: String): IOCheckedValidated[(String, Cwl)] = {
     //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.
     val bFileName = fileName.stripPrefix("file://")
 

@@ -1,8 +1,14 @@
 package wom.expression
 
+import java.util.concurrent.Executors
+
 import wom.values.WomSingleFile
 
 import scala.concurrent.{ExecutionContext, Future}
+
+object EmptyIoFunctionSet {
+  lazy val singleThreadEc = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+}
 
 class EmptyIoFunctionSet extends IoFunctionSet {
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = Future.failed(new NotImplementedError("readFile is not available here"))
@@ -22,7 +28,7 @@ class EmptyIoFunctionSet extends IoFunctionSet {
 
   override def size(path: String): Future[Long] = Future.failed(new NotImplementedError("size is not available here"))
 
-  override implicit def ec: ExecutionContext = null
+  override implicit def ec: ExecutionContext = EmptyIoFunctionSet.singleThreadEc
   override def pathFunctions = NoPathFunctionSet
   override def listDirectory(path: String)(visited: Vector[String] = Vector.empty) = throw new NotImplementedError("listDirectory is not available here")
   override def isDirectory(path: String): Future[Boolean] = throw new NotImplementedError("isDirectory is not available here")

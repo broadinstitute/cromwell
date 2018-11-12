@@ -1,9 +1,11 @@
 package cwl.preprocessor
 
+import java.util.concurrent.Executors
+
 import cats.data.NonEmptyList
+import cats.effect.{ContextShift, IO}
 import cats.syntax.either._
-import common.validation.Parse
-import common.validation.Parse._
+import common.validation.IOChecked._
 import cwl.CwlDecoder
 import cwl.ontology.Schema
 import cwl.preprocessor.CwlPreProcessor.{PrintableJson, _}
@@ -12,6 +14,8 @@ import io.circe.optics.JsonPath._
 import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._
 import org.slf4j.LoggerFactory
+
+import scala.concurrent.ExecutionContext
 
 /**
   * Class to create a standalone version of a CWL file.
@@ -22,6 +26,9 @@ import org.slf4j.LoggerFactory
   */
 class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
 
+  private val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(5))
+  private implicit val cs = IO.contextShift(ec)
+  
   /**
     * This is THE main entry point into the CWL pre-processor. Takes a CWL reference and
     * returns a canonical JSON version with all references resolved.
@@ -29,7 +36,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
     * @param ref The reference to the CWL to pre-process
     * @return A canonical JSON representation of the CWL with all internal references expanded in-place
     */
-  def preProcessCwl(ref: CwlReference): Parse[Json] = ref match {
+  def preProcessCwl(ref: CwlReference): IOChecked[Json] = ref match {
     case file: CwlFileReference => preProcessCwlFile(file)
     case other => preProcessRemoteCwl(other)
   }
@@ -37,9 +44,9 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
   /**
     * Convenience method to get the processed workflow as a string.
     */
-  def preProcessCwlToString(cwlReference: CwlReference): Parse[String] = preProcessCwl(cwlReference).map(_.printCompact)
+  def preProcessCwlToString(cwlReference: CwlReference): IOChecked[String] = preProcessCwl(cwlReference).map(_.printCompact)
 
-  def preProcessInputFiles(inputContent: String, mappingFunction: String => String): Parse[String] = for {
+  def preProcessInputFiles(inputContent: String, mappingFunction: String => String): IOChecked[String] = for {
     parsed <- parseYaml(inputContent)
     mapped = parsed |> mapFilesAndDirectories(mappingFunction) |> mapNumbers
   } yield mapped.printCompact
@@ -63,7 +70,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
     *     This is used to be able to detect circular dependencies (if the cwlReference being processed is in that set, then we have a circular dependency) .
     *
     */
-  private def preProcessCwlFile(reference: CwlFileReference): Parse[Json] = {
+  private def preProcessCwlFile(reference: CwlFileReference): IOChecked[Json] = {
 
     def absoluteSchemaPaths(json: Json): Json = {
       json mapArray {
@@ -75,8 +82,8 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
 
     // NB the JSON here is only used to decide whether or not to flatten. If we do decide to flatten we throw away the
     // json and request a canonical version from the CwlCanonicalizer.
-    def flattenOrByPass(json: Json): Parse[Json] = {
-      def flatten(json: Json): Parse[Json] = {
+    def flattenOrByPass(json: Json): IOChecked[Json] = {
+      def flatten(json: Json): IOChecked[Json] = {
         val cwlReferenceFlattener = new CwlCanonicalizer(saladFunction)
         val namespacesJsonOption: Option[Json] = json.asObject.flatMap(_.kleisli(JsonKeyNamespaces))
         val schemasJsonOption: Option[Json] = json.asObject.flatMap(_.kleisli(JsonKeySchemas)).map(absoluteSchemaPaths)
@@ -88,7 +95,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
         )
       }
 
-      def bypass(alreadyCanonicalJson: Json): Parse[Json] = alreadyCanonicalJson.validParse
+      def bypass(alreadyCanonicalJson: Json): IOChecked[Json] = alreadyCanonicalJson.validIOChecked
 
       val fileContentReference = for {
         asObject <- json.asObject
@@ -112,7 +119,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
   }
 
   // Like 'File', except that we don't read any contents before passing the path over to cwltool to canonicalize.
-  private def preProcessRemoteCwl(reference: CwlReference): Parse[Json] = {
+  private def preProcessRemoteCwl(reference: CwlReference)(implicit cs: ContextShift[IO]): IOChecked[Json] = {
     val cwlCanonicalizer = new CwlCanonicalizer(saladFunction)
     cwlCanonicalizer.getCanonicalCwl(reference)
   }
@@ -121,7 +128,7 @@ class CwlPreProcessor(saladFunction: SaladFunction = saladCwlFile) {
 object CwlPreProcessor {
   private val Log = LoggerFactory.getLogger("CwlPreProcessor")
 
-  private [preprocessor] type SaladFunction = CwlReference => Parse[String]
+  private [preprocessor] type SaladFunction = CwlReference => IOChecked[String]
   private [preprocessor] val JsonKeyNamespaces = s"$$namespaces"
   private [preprocessor] val JsonKeySchemas = s"$$schemas"
 
@@ -206,12 +213,12 @@ object CwlPreProcessor {
     )
   }
 
-  private [preprocessor] def parseJson(in: String): Parse[Json] = {
-    Parse.checkedParse(io.circe.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)))
+  private [preprocessor] def parseJson(in: String): IOChecked[Json] = {
+    io.circe.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)).toIOChecked
   }
 
-  private [preprocessor] def parseYaml(in: String): Parse[Json] = {
-    Parse.checkedParse(io.circe.yaml.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)))
+  private [preprocessor] def parseYaml(in: String): IOChecked[Json] = {
+   io.circe.yaml.parser.parse(in).leftMap(error => NonEmptyList.one(error.message)).toIOChecked
   }
 
   /**

@@ -72,7 +72,7 @@ object ExpressionEvaluator {
       script,
       rawVals,
       mapVals,
-      new EcmaScriptEncoder(parameterContext.ioFunctionSet),
+      new EcmaScriptEncoder(),
       cwlJsDecoder
     )
   }

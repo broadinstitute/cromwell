@@ -13,6 +13,7 @@ import com.typesafe.config.Config
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
@@ -310,7 +311,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
-    import LazyWomFile._
     import WorkflowExecutionActor.EnhancedWorkflowOutputs
     import cats.instances.list._
     import cats.syntax.traverse._
@@ -353,10 +353,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map(outputNode =>
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
-      .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
+      .toList.traverse[IOChecked, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => value.initialize(data.expressionLanguageFunctions).map(name -> _)
       case (name, None) =>
-        s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
+        s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidIOChecked
     })
       // Convert the list of tuples to a Map
       .map(_.toMap)
@@ -364,6 +364,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     workflowOutputValuesValidation
       .map(handleSuccessfulWorkflowOutputs)
       .valueOr(handleWorkflowOutputsFailure)
+      .unsafeRunSync()
   }
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData,

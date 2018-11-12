@@ -17,7 +17,7 @@ import common.exception.{AggregatedMessageException, MessageAggregation}
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr._
-import common.validation.Parse._
+import common.validation.IOChecked._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
@@ -231,7 +231,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       conf: Config,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
-                                      engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
+                                      engineIoFunctions: EngineIoFunctions): IOChecked[EngineWorkflowDescriptor] = {
 
     def findWorkflowSource(workflowSource: Option[WorkflowSource],
                            workflowUrl: Option[WorkflowUrl],
@@ -272,7 +272,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       factory
     }
 
-    def buildValidatedNamespace(factory: LanguageFactory, workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+    def buildValidatedNamespace(factory: LanguageFactory, workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
       factory.validateNamespace(
         sourceFiles,
         workflowSource,
@@ -288,7 +288,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
       else List.empty
 
-    val zippedResolverCheck: Parse[Option[DirectoryResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
+    val zippedResolverCheck: IOChecked[Option[DirectoryResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck
       case Some(zipContent) => zippedImportResolver(zipContent, workflowId).toEither.map(Option.apply)
     })
@@ -301,11 +301,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
-      factory <- errorOrParse(findFactory(sourceAndResolvers._1))
-      outputRuntimeExtractor <- errorOrParse(factory.womOutputRuntimeExtractor.toValidated)
+      factory <- findFactory(sourceAndResolvers._1).toIOChecked
+      outputRuntimeExtractor <- factory.womOutputRuntimeExtractor.toValidated.toIOChecked
       validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)
-      ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toEither)
+      ewd <- buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toIOChecked
     } yield ewd
   }
 
@@ -374,10 +374,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): IOChecked[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
     val customLabels = labels.asMap
-    Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
+    Monad[IOChecked].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {

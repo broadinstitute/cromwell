@@ -24,7 +24,7 @@ hints:
   ramMin: 3072
   tmpdirMin: 30
 - class: dx:InputResourceRequirement
-  indirMin: 4687
+  indirMin: 54687
 inputs:
 - id: vc_rec
   type:

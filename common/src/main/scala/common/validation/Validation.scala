@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 
 object Validation {
 
-  private def throwableToString(t: Throwable): String = s"${t.getClass.getSimpleName} '${t.getMessage}' ($t)"
+  private def throwableToString(t: Throwable): String = t.getMessage
 
   def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)

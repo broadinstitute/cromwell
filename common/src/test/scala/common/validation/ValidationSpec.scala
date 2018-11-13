@@ -59,7 +59,7 @@ class ValidationSpec extends FlatSpec with Matchers with Mockito {
 
   it should "fail to validate an invalid value" in {
     val result = validate(throw new RuntimeException("fail"))
-    result should be("RuntimeException 'fail' (java.lang.RuntimeException: fail)".invalidNel)
+    result should be("fail".invalidNel)
   }
 
   it should "convert a Try to an ErrorOr" in {
@@ -67,7 +67,7 @@ class ValidationSpec extends FlatSpec with Matchers with Mockito {
     val failure = Failure(new Exception(":("))
     import common.validation.Validation._
     success.toErrorOr shouldBe Valid("yeah")
-    failure.toErrorOr shouldBe Invalid(NonEmptyList.of("Exception ':(' (java.lang.Exception: :()"))
+    failure.toErrorOr shouldBe Invalid(NonEmptyList.of(":("))
   }
 
   it should "convert a Try to a Checked" in {
@@ -75,7 +75,7 @@ class ValidationSpec extends FlatSpec with Matchers with Mockito {
     val failure = Failure(new Exception(":("))
     import common.validation.Validation._
     success.toChecked shouldBe Right("yeah")
-    failure.toChecked shouldBe Left(NonEmptyList.of("Exception ':(' (java.lang.Exception: :()"))
+    failure.toChecked shouldBe Left(NonEmptyList.of(":("))
   }
 
   it should "convert an ErrorOr to a Try" in {

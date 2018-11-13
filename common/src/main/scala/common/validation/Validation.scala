@@ -16,6 +16,9 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object Validation {
+
+  private def throwableToString(t: Throwable): String = s"${t.getClass.getSimpleName} '${t.getMessage}' ($t)"
+
   def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)
     if (unrecognizedKeys.nonEmpty) {
@@ -25,7 +28,7 @@ object Validation {
   
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
-    case Failure(f) => f.getMessage.invalidNel
+    case Failure(f) => throwableToString(f).invalidNel
   }
 
   implicit class ValidationOps[B,A](val v: ValidatedNel[B, A]) {
@@ -41,7 +44,7 @@ object Validation {
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {
     def toErrorOr: ErrorOr[A] = {
-      Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
+      Validated.fromTry(t).leftMap(throwableToString).toValidatedNel[String, A]
     }
 
     def toErrorOrWithContext(context: String): ErrorOr[A] = toChecked
@@ -56,7 +59,7 @@ object Validation {
       .toValidated
 
     def toChecked: Checked[A] = {
-      Either.fromTry(t).leftMap { ex => NonEmptyList.one(s"${ex.getClass.getSimpleName}: ${ex.getMessage}: $ex") }
+      Either.fromTry(t).leftMap { ex => NonEmptyList.one(throwableToString(ex)) }
     }
 
     def toCheckedWithContext(context: String): Checked[A] = toErrorOrWithContext(context).toEither

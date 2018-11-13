@@ -39,9 +39,9 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
                                        namespacesJsonOption: Option[Json],
                                        schemasJsonOption: Option[Json]
                                       ): Parse[ProcessedJsonAndDependencies] = {
-    /**
-      * Salad and parse from a CWL reference into a Json object
-      */
+    /*
+     * Salad and parse from a CWL reference into a Json object
+     */
     def saladAndParse(ref: CwlReference): Parse[Json] =  for {
       saladed <- saladFunction(ref)
       saladedJson <- parseJson(saladed)

@@ -325,7 +325,7 @@ runtime {
 
 The task below will fail for two reasons:
  1. The command is accessing an external service, in this case GitHub.
- 2. The docker image is available in DockerHub and not the Google Container Registry. b 
+ 2. The docker image is available in DockerHub and not the Google Container Registry. 
 ```
 command {
   git clone https://github.com/broadinstitute/cromwell.git

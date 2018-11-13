@@ -4,13 +4,16 @@ import akka.event.{LoggingAdapter, NoLogging}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
 import akka.http.scaladsl.server.AuthorizationFailedRejection
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import org.scalatest.{FlatSpec, Matchers}
+import scala.concurrent.duration._
 
 class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging
+
+  implicit val routeTestTimeout = new RouteTestTimeout(10.seconds)
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
   val badAuthHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.unauthorizedUserCollectionStr))

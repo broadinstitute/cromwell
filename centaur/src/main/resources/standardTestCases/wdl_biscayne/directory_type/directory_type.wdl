@@ -1,4 +1,4 @@
-version biscayne
+version development
 
 workflow directory_type {
   input {

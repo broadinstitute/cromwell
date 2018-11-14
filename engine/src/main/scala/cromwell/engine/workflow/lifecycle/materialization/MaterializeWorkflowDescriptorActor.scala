@@ -306,7 +306,16 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)
       ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toEither)
-    } yield ewd
+    } yield {
+
+      // Debugging #4117 - make sure we are creating an importable directory out of the zip (AEN 2018-11-14)
+      zippedImportResolver match {
+        case Some(zir) => workflowLogger.info(s"Using zip import resolver '${zir.name}')")
+        case None => workflowLogger.info("No zipped import resolver available.")
+      }
+
+      ewd
+    }
   }
 
   private def publishWorkflowSourceToMetadata(id: WorkflowId, workflowSource: WorkflowSource): Unit = {

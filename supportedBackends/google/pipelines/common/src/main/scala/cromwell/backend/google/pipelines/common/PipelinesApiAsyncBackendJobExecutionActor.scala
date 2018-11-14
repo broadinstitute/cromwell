@@ -413,7 +413,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           backendLabels,
           preemptible,
           pipelinesConfiguration.jobShell,
-          dockerKeyAndToken
+          dockerKeyAndToken,
+          jobDescriptor.workflowDescriptor.outputRuntimeExtractor
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

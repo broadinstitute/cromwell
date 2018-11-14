@@ -4,7 +4,6 @@ backends: [Papiv2]
 workflowType: CWL
 workflowTypeVersion: v1.0
 tags: [bcbio]
-ignore: true
 
 files {
   workflow: cwl/bcbio/svcall-workflow/main-svcall.cwl

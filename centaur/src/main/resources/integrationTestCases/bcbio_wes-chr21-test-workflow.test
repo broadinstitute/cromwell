@@ -4,7 +4,6 @@ backends: [Papiv2]
 workflowType: CWL
 workflowTypeVersion: v1.0
 tags: [bcbio]
-ignore: true
 
 files {
   workflow: cwl/bcbio/wes_chr21_test-workflow-gcp/main-wes_chr21_test.cwl

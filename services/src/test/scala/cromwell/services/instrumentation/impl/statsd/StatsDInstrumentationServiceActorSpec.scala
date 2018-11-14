@@ -80,7 +80,13 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
           case Udp.Received(data, _) => data.utf8String
         }
 
-        expectedExactPackets foreach { packet => if (!received.contains(packet)) fail(s"Missing packet: $packet") }
+        expectedExactPackets foreach { packet => if (!received.contains(packet)) {
+          val prefix = packet.split(":").head
+          received.find(_.startsWith(prefix)) match {
+            case Some(sharedPrefix) => fail(s"Missing packet: $packet, but found: $sharedPrefix")
+            case None => fail(s"Missing packet: $packet, and no packets received with prefix $prefix")
+          }
+        }}
         expectedFuzzyPackets foreach { packet => if (!received.exists(_.contains(packet))) fail(s"Missing fuzzy packet: $packet") }
       }
   }

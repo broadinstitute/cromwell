@@ -3,8 +3,8 @@ $namespaces:
   edam: http://edamontology.org/
   gx: http://galaxyproject.org/formats/
 $schemas:
-  - file:./cwl/src/test/resources/cwl/ontology/EDAM.owl
-  - file:./cwl/src/test/resources/cwl/ontology/gx_edam.ttl
+  - https://raw.githubusercontent.com/broadinstitute/cromwell/develop/cwl/src/test/resources/cwl/ontology/EDAM.owl
+  - https://raw.githubusercontent.com/broadinstitute/cromwell/develop/cwl/src/test/resources/cwl/ontology/gx_edam.ttl
 $graph:
 - id: main
   class: CommandLineTool

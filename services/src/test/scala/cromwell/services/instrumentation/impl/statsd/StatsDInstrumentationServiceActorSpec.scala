@@ -83,7 +83,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
         expectedExactPackets foreach { packet => if (!received.contains(packet)) {
           val prefix = packet.split(":").head
           received.find(_.startsWith(prefix)) match {
-            case Some(sharedPrefix) => fail(s"Missing packet: $packet, but found: $sharedPrefix")
+            case Some(sharedPrefix) => fail(s"Missing packet: $packet, but found: $sharedPrefix. Should this be a fuzzy packet?")
             case None => fail(s"Missing packet: $packet, and no packets received with prefix $prefix")
           }
         }}

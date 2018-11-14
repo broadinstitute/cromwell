@@ -310,7 +310,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
       // Debugging #4117 - make sure we are creating an importable directory out of the zip (AEN 2018-11-14)
       zippedImportResolver match {
-        case Some(zir) => workflowLogger.info(s"Using zip import resolver '${zir.name}')")
+        case Some(zir) => workflowLogger.info(s"Using zip import resolver '${zir.name}'")
         case None => workflowLogger.info("No zipped import resolver available.")
       }
 

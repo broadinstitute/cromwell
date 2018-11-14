@@ -56,7 +56,7 @@ object CwlReference {
     def stripFilePrefix = id.stripPrefix(LocalScheme)
   }
 
-  val ReferenceRegex = "(.*://)([^#]*)(#(.*))?".r
+  val ReferenceRegex = "(.*://)?([^#]*)(#(.*))?".r
 
   def fromString(in: String): Option[CwlReference] = {
     in match {

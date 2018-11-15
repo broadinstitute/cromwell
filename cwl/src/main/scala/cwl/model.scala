@@ -7,6 +7,8 @@ import cwl.WorkflowStepInput.InputSource
 import cwl.command.ParentName
 import cwl.internal.GigabytesToBytes
 import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.string.MatchesRegex
 import shapeless.syntax.singleton._
 import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Poly1, Witness}
 import wom.types.WomType
@@ -272,6 +274,16 @@ case class ResourceRequirement(
   def effectiveOutdirMin = outdirMin.orElse(outdirMax)
   def effectiveOutdirMax = outdirMax.orElse(outdirMin)
 }
+
+/**
+  * This promotes InputResourceRequirement to a first class citizen requirement, which it really isn't.
+  * Since it's the only one for now it's not a big deal but if more of these pop up we might want to treat custom requirements
+  * in a different way
+  */
+case class InputResourceRequirement(
+                                     `class`: String Refined MatchesRegex[W.`".*InputResourceRequirement"`.T],
+                                     indirMin: Option[Long]
+                                   )
 
 case class SubworkflowFeatureRequirement(
   `class`: W.`"SubworkflowFeatureRequirement"`.T)

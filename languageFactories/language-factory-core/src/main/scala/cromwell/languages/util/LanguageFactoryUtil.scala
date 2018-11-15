@@ -27,7 +27,7 @@ object LanguageFactoryUtil {
   def createImportsDirectory(zipContents: Array[Byte], workflowId: WorkflowId): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {
-     DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
+      DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
     }
 
     def unZipFile(f: Path) = Try(f.unzip)

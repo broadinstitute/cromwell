@@ -32,7 +32,7 @@ final class CwltoolProcess extends CwltoolRunner {
       case 0 => commandResult.out.string
       case error =>
         throw new RuntimeException(
-          s"running CwlTool on file $reference resulted in exit code $error and stderr ${commandResult.err.string}")
+          s"running CwlTool on file ${reference.pathAsString} resulted in exit code $error and stderr ${commandResult.err.string}")
     }
   }
 }

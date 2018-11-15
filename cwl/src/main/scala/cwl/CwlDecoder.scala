@@ -21,7 +21,7 @@ object CwlDecoder {
   def saladCwlFile(reference: CwlReference): Parse[String] = {
     val cwlToolResult =
       Try(CwltoolRunner.instance.salad(reference))
-        .toCheckedWithContext(s"run cwltool on file $reference", throwableToStringFunction = t => t.toString)
+        .toCheckedWithContext(s"run cwltool on file ${reference.pathAsString}", throwableToStringFunction = t => t.toString)
 
     fromEither[IO](cwlToolResult)
   }

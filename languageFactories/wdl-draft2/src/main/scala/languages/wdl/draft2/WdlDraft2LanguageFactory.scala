@@ -69,16 +69,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     }
 
     def validationCallable = new Callable[ErrorOr[WdlNamespaceWithWorkflow]] {
-      def call: ErrorOr[WdlNamespaceWithWorkflow] = source match {
-        case w: WorkflowSourceFilesWithDependenciesZip =>
-          for {
-            importsDir <- LanguageFactoryUtil.createImportsDirectory(w.importsZip)
-            wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
-            _ = importsDir.delete(swallowIOExceptions = true)
-          } yield wf
-        case _: WorkflowSourceFilesWithoutImports =>
-          WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
-      }
+      def call: ErrorOr[WdlNamespaceWithWorkflow] = WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
     }
 
     lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = namespaceCache.map(_.get(workflowHashKey, validationCallable)).getOrElse(validationCallable.call)

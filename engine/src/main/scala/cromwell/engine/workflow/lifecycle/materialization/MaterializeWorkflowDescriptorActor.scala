@@ -290,7 +290,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck
-      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
+      case Some(zipContent) => zippedImportResolver(zipContent, workflowId).toEither.map(Option.apply)
     })
 
     val labels = convertJsonToLabels(sourceFiles.labelsJson)
@@ -298,6 +298,11 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       _ <- publishLabelsToMetadata(id, labels)
       zippedImportResolver <- zippedResolverCheck
+      // Debugging #4117 - make sure we are creating an importable directory out of the zip (AEN 2018-11-14)
+      _ = zippedImportResolver match {
+        case Some(zir: ImportResolver) => workflowLogger.info(s"Using zip import resolver '${zir.name}'")
+        case None => workflowLogger.info("No zipped import resolver available.")
+      }
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
@@ -306,16 +311,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
       _ = pushNamespaceMetadata(validatedNamespace)
       ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toEither)
-    } yield {
-
-      // Debugging #4117 - make sure we are creating an importable directory out of the zip (AEN 2018-11-14)
-      zippedImportResolver match {
-        case Some(zir) => workflowLogger.info(s"Using zip import resolver '${zir.name}'")
-        case None => workflowLogger.info("No zipped import resolver available.")
-      }
-
-      ewd
-    }
+    } yield ewd
   }
 
   private def publishWorkflowSourceToMetadata(id: WorkflowId, workflowSource: WorkflowSource): Unit = {

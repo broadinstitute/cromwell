@@ -5,6 +5,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
+import cromwell.core.WorkflowId
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.languages.ValidatedWomNamespace
@@ -24,10 +25,15 @@ object LanguageFactoryUtil {
     * @param parentPath if specified, where to unzip to. Otherwise it'll end up somewhere random
     * @return where the imports were unzipped to
     */
-  def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
+  def createImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None, workflowId: Option[WorkflowId] = None): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {
-      DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
+      val prefix = workflowId match {
+        case Some(id) => s"imports_workflow_${id}_"
+        case None => "imports_"
+      }
+
+      DefaultPathBuilder.createTempFile(prefix, ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
     }
 
     def unZipFile(f: Path) = Try(f.unzipTo(parentPath))

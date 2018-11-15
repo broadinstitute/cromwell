@@ -72,7 +72,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
       def call: ErrorOr[WdlNamespaceWithWorkflow] = source match {
         case w: WorkflowSourceFilesWithDependenciesZip =>
           for {
-            importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
+            importsDir <- LanguageFactoryUtil.createImportsDirectory(w.importsZip)
             wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
             _ = importsDir.delete(swallowIOExceptions = true)
           } yield wf

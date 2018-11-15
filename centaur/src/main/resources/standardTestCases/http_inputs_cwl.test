@@ -1,5 +1,5 @@
 name: http_inputs_cwl
-# backends: [Local, Papiv2]
+backends: [Local, Papiv2]
 testFormat: workflowsuccess
 workflowRoot: http_inputs
 

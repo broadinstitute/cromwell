@@ -22,21 +22,15 @@ object LanguageFactoryUtil {
   /**
     * Unzip the imports.zip and validate that it was good.
     * @param zipContents the zip contents
-    * @param parentPath if specified, where to unzip to. Otherwise it'll end up somewhere random
     * @return where the imports were unzipped to
     */
-  def createImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None, workflowId: Option[WorkflowId] = None): ErrorOr[Path] = {
+  def createImportsDirectory(zipContents: Array[Byte], workflowId: WorkflowId): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {
-      val prefix = workflowId match {
-        case Some(id) => s"imports_workflow_${id}_"
-        case None => "imports_"
-      }
-
-      DefaultPathBuilder.createTempFile(prefix, ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
+     DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
     }
 
-    def unZipFile(f: Path) = Try(f.unzipTo(parentPath))
+    def unZipFile(f: Path) = Try(f.unzip)
 
     val importsFile = for {
       zipFile <- makeZipFile

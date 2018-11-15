@@ -2,7 +2,8 @@ package cromwell.engine.workflow.workflowstore
 
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowSubmissionResponse
 
 import scala.concurrent.duration.FiniteDuration
@@ -14,7 +15,10 @@ trait WorkflowStore {
 
   def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit]
 
-  def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]]
+  /**
+    * Mark a workflow as aborting, unless the row is OnHold, in which case the row is deleted.
+    */
+  def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
 
   def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]]
 
@@ -31,8 +35,6 @@ trait WorkflowStore {
   def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId])(implicit ec: ExecutionContext): Future[Int]
-
-  def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean]
 
   def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit]
 }

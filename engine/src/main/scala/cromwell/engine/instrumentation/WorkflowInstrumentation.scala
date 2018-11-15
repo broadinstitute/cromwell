@@ -4,8 +4,8 @@ import akka.actor.Actor
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowState
 import cromwell.core.instrumentation.InstrumentationPrefixes._
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.engine.instrumentation.WorkflowInstrumentation._
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 

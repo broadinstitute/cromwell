@@ -12,7 +12,6 @@ import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase, SlickDatabase}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
 import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 import liquibase.diff.DiffResult
@@ -310,7 +309,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowUrl = None,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
-        workflowState = WorkflowStoreState.Submitted,
+        workflowState = "Submitted",
         cromwellId = None,
         heartbeatTimestamp = None,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
@@ -373,7 +372,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       // See notes in BytesToBlobOption
       import eu.timepit.refined.auto._
 
-      val submittedWorkflowState = WorkflowStoreState.Submitted
+      val submittedWorkflowState = "Submitted"
       val clob = "".toClob(default = "{}")
       val clobOption = "{}".toClobOption
 
@@ -433,10 +432,15 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val future = for {
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
-        queried <- dataAccess.fetchStartableWorkflows(
+        queried <- dataAccess.fetchWorkflowsInState(
           limit = Int.MaxValue,
           cromwellId = "crom-f00ba4",
-          heartbeatTtl = 1.hour)
+          heartbeatTimestampTimedOut = 1.hour.ago,
+          heartbeatTimestampTo = OffsetDateTime.now.toSystemTimestamp,
+          workflowStateFrom = "Submitted",
+          workflowStateTo = "Running",
+          workflowStateExcluded = "On Hold"
+        )
 
         _ = {
           val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get

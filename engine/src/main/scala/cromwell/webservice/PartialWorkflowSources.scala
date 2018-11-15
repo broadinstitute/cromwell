@@ -268,7 +268,7 @@ object PartialWorkflowSources {
       case Some(input: String) =>  {
         Try(input.parseJson).toErrorOrWithContext(s"parse input: '$input', which is not a valid json. Please check for syntactical errors.") flatMap {
           case JsObject(inputMap) => inputMap.validNel
-          case j: JsValue => s"Submitted input '$input' belongs to ${j.getClass}, which is not a valid json object.".invalidNel
+          case j: JsValue => s"Submitted input '$input' of type ${j.getClass.getSimpleName} is not a JSON object.".invalidNel
         }
       }
       case None => Map.empty[String, JsValue].validNel

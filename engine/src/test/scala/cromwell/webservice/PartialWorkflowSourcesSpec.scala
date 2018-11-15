@@ -14,23 +14,22 @@ class PartialWorkflowSourcesSpec extends FlatSpec with Matchers {
     val overrideInput1 = Map("wf.a2" -> "universe").toJson.toString
     val mergedMapsErrorOr = PartialWorkflowSources.mergeMaps(Seq(Option(input1), Option(input2), Option(overrideInput1)))
 
-    mergedMapsErrorOr.isValid shouldBe true
-
-    mergedMapsErrorOr.map(inputs => {
-      inputs.fields.keys should contain allOf("wf.a1", "wf.a2")
-      inputs.fields("wf.a2") should be(JsString("universe"))
-    })
+    mergedMapsErrorOr match {
+      case Valid(inputs) => {
+        inputs.fields.keys should contain allOf("wf.a1", "wf.a2")
+        inputs.fields("wf.a2") should be(JsString("universe"))
+      }
+      case Invalid(error) => fail(s"This is unexpected! This test should pass! Error: $error")
+    }
   }
 
   it should "return error when workflow input is not a valid json object" in {
     val invalidJsonInput = "\"invalidInput\""
     val mergedMapsErrorOr = PartialWorkflowSources.mergeMaps(Seq(Option(invalidJsonInput)))
 
-    mergedMapsErrorOr.isValid shouldBe false
-
     mergedMapsErrorOr match {
-      case Valid(_) => "This is unexpected! This test is designed to fail!"
-      case Invalid(error) => error.head shouldBe "Submitted input '\"invalidInput\"' belongs to class spray.json.JsString, which is not a valid json object."
+      case Valid(_) => fail("This is unexpected! This test is designed to fail!")
+      case Invalid(error) => error.head shouldBe "Submitted input '\"invalidInput\"' of type JsString is not a JSON object."
     }
   }
 
@@ -39,10 +38,8 @@ class PartialWorkflowSourcesSpec extends FlatSpec with Matchers {
     val invalidAuxJsonInput = "invalidInput"
     val mergedMapsErrorOr = PartialWorkflowSources.mergeMaps(Seq(Option(validInput), Option(invalidAuxJsonInput)))
 
-    mergedMapsErrorOr.isValid shouldBe false
-
     mergedMapsErrorOr match {
-      case Valid(_) => "This is unexpected! This test is designed to fail!"
+      case Valid(_) => fail("This is unexpected! This test is designed to fail!")
       case Invalid(error) => error.head shouldBe "Failed to parse input: 'invalidInput', which is not a valid json. Please check for syntactical errors. (reason 1 of 1): Unexpected character 'i' at input index 0 (line 1, position 1), expected JSON Value:\ninvalidInput\n^\n"
     }
   }

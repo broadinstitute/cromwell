@@ -76,7 +76,7 @@ to the same directory that contains your sample WDL, inputs and Cromwell jar.
 
 Replace in the configuration file:
 
-* `<your-region` with the region where your resources are launched (e.g. "us-east-1")
+* `<your-region>` with the region where your resources are launched (e.g. "us-east-1")
 * `<s3-bucket-name>` with the appropriate bucket name
 * `<your queue arn here>` with either your default or high priority queue ARN
 

@@ -301,7 +301,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       // Debugging #4117 - make sure we are creating an importable directory out of the zip (AEN 2018-11-14)
       _ = zippedImportResolver match {
         case Some(dr: DirectoryResolver) =>
-          workflowLogger.info(s"Importing from unzip directory '${dr.name}' with files [${dr.directory.list.map(_.pathAsString).mkString(", ")}]")
+          workflowLogger.info(s"Importing from unzip directory '${dr.name}' with files [${dr.directory.list.map(_.toFile.getName).mkString(", ")}]")
         case None =>
           workflowLogger.info("No zipped import resolver available.")
       }

@@ -8,16 +8,16 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-CROMWELL_AKKA_TEST_TIME_FACTOR=1
+CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR=1
 
 case "${CROMWELL_BUILD_PROVIDER}" in
     "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
         CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,GcsIntegrationTest"
+        CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR=2
         ;;
     "${CROMWELL_BUILD_PROVIDER_JENKINS}")
         CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DockerTest,GcsIntegrationTest"
         CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR=10
-        CROMWELL_AKKA_TEST_TIME_FACTOR=10
         ;;
     *)
         # Use the full list of excludes listed in Testing.scala
@@ -27,7 +27,7 @@ esac
 export CROMWELL_SBT_TEST_EXCLUDE_TAGS
 export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 
-sbt -Dakka.test.timefactor=${CROMWELL_AKKA_TEST_TIME_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
+sbt -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 
 cromwell::build::generate_code_coverage
 

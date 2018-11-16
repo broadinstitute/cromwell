@@ -1,0 +1,16 @@
+name: cwl_disk_resources_papiv2
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: cwl_resources/cwl_disk_resources.cwl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.diskSizeTool.disk_size": 30
+}
+
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: diskSizeTool

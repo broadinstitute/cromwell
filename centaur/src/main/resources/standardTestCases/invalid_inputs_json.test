@@ -10,6 +10,6 @@ submit {
   statusCode: 400
   message: """{
   "status": "fail",
-  "message": "Error(s): Input file is not valid yaml nor json: while parsing a flow mapping\n in 'reader', line 1, column 1:\n    {\n    ^\nexpected ',' or '}', but got <stream end>\n in 'reader', line 3, column 1:\n    \n    ^\n"
+  "message": "Error(s): Input file is not a valid yaml or json. Inputs data: '{\n  \"intentionally_missing_the_close_brace\": \"oh the humanity\"\n'. Error: ParsingFailure: while parsing a flow mapping\n in 'reader', line 1, column 1:\n    {\n    ^\nexpected ',' or '}', but got <stream end>\n in 'reader', line 3, column 1:\n    \n    ^\n."
 }"""
 }

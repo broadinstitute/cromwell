@@ -2,6 +2,13 @@
 
 ## 37 Release Notes
 
+### Instance independent abort
+
+For multi-instance Cromwell deployments sharing a single database, earlier versions of Cromwell required abort
+requests to be sent specifically to the instance that was running the targeted workflow. Cromwell 37 now
+allows abort commands to be sent to any Cromwell instance in the shared-database deployment. Configuration details
+[here](https://cromwell.readthedocs.io/en/develop/Configuring/abort-configuration).
+
 ### Call cache blacklisting
 
 The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.

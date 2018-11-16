@@ -6,6 +6,7 @@ import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import mouse.all._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -27,25 +28,24 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
                                              workflowStateToDelete1: String,
                                              workflowStateToDelete2: String,
                                              workflowStateForUpdate: String)
-                                            (implicit ec: ExecutionContext): Future[(Int, Option[Boolean])] = {
-    val action =  for {
-      restarted <- dataAccess.heartbeatClearedForWorkflowId(workflowExecutionUuid).result.headOption
-      // First, delete all rows in either of our states to be deleted
+                                            (implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+    val action = for {
+      // First, delete all rows in either of our states to be deleted.
       deleted <- dataAccess
         .workflowStoreEntryForWorkflowExecutionUUidAndWorkflowStates(
           (workflowExecutionUuid, workflowStateToDelete1, workflowStateToDelete2)
         )
         .delete
-      // Second, for any single row still present, update its state
-      _ <-
+      // Second, for any single row still present update its state.
+      updated <-
         deleted match {
           case 0 =>
             dataAccess.workflowStateForWorkflowExecutionUUid(workflowExecutionUuid).update(workflowStateForUpdate)
           case _ => assertUpdateCount("deleteOrUpdateWorkflowToState", deleted, 1)
         }
-    } yield (deleted, restarted)
+    } yield (deleted, updated)
     
-    runTransaction(action)
+    runTransaction(action) map { case (deleted, updated) => if (deleted == 0 && updated == 0) None else Option(deleted > 0) }
   }
 
   override def addWorkflowStoreEntries(workflowStoreEntries: Iterable[WorkflowStoreEntry])
@@ -138,5 +138,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     } yield updated
 
     runTransaction(action)
+  }
+
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]] = {
+    dataAccess.findWorkflowsWithAbortRequested(cromwellId).result |> runTransaction
   }
 }

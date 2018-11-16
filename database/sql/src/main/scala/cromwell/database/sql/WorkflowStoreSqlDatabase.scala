@@ -40,15 +40,13 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * @param workflowStateToDelete2 Also delete rows with this state.
     * @param workflowStateForUpdate Update other rows to this state.
     * @param ec                     The execution context where to run asynchronous operations.
-    * @return Number of rows deleted, plus Some(heartbeatTimestampIsEmpty) if the workflow exists in the store, where
-    *         heartbeatTimestampIsEmpty is true if the workflow's heartbeat timestamp is empty, and None if the workflow
-    *         does not exist.
+    * @return None if no rows were matched, Some(true) if a row was deleted or Some(false) if a row was updated.
     */
   def deleteOrUpdateWorkflowToState(workflowExecutionUuid: String,
                                     workflowStateToDelete1: String,
                                     workflowStateToDelete2: String,
                                     workflowStateForUpdate: String)
-                                   (implicit ec: ExecutionContext): Future[(Int, Option[Boolean])]
+                                   (implicit ec: ExecutionContext): Future[Option[Boolean]]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store.
@@ -101,4 +99,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     */
   def updateWorkflowState(workflowExecutionUuid: String, fromWorkflowState: String, toWorkflowState: String)
                          (implicit ec: ExecutionContext): Future[Int]
+
+  def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
+
 }

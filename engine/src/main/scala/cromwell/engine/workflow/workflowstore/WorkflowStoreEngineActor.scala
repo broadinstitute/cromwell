@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortingResponse}
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortRequestedResponse}
 import cromwell.core.{WorkflowAborted, WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
@@ -109,6 +109,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
           }
           sndr ! nwm
         }
+      case FindWorkflowsWithAbortRequested(cromwellId) =>
+        store.findWorkflowsWithAbortRequested(cromwellId) map {
+          ids => sndr ! FindWorkflowsWithAbortRequestedSuccess(ids)
+        } recover {
+          case t => sndr ! FindWorkflowsWithAbortRequestedFailure(t)
+        }
       case AbortWorkflowCommand(id) =>
         store.aborting(id) map { workflowStoreAbortResponse =>
           log.info(s"Abort requested for workflow $id.")
@@ -117,12 +123,9 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
           case WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted =>
             pushCurrentStateToMetadataService(id, WorkflowAborted)
             sndr ! WorkflowAbortedResponse(id)
-          case WorkflowStoreAbortResponse.AbortingHeartbeatTimestampIsEmpty =>
+          case WorkflowStoreAbortResponse.AbortRequested =>
             pushCurrentStateToMetadataService(id, WorkflowAborting)
-            sndr ! WorkflowAbortingResponse(id, restarted = true)
-          case WorkflowStoreAbortResponse.AbortingHeartbeatTimestampNonEmpty =>
-            pushCurrentStateToMetadataService(id, WorkflowAborting)
-            sndr ! WorkflowAbortingResponse(id, restarted = false)
+            sndr ! WorkflowAbortRequestedResponse(id)
           case WorkflowStoreAbortResponse.NotFound =>
             sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
         } recover {

@@ -23,8 +23,8 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
                          |RC_GSUTIL=$?
                          |if [ "$RC_GSUTIL" != "0" ]; then
                          |  echo "gsutil command failed"
-                         |  # Print the reason of the failure
-                         |  cat gsutil_output.txt
+                         |  # Print the reason of the failure to stderr
+                         |  cat gsutil_output.txt 1>&2
                          |  
                          |  # Check if it matches the BucketIsRequesterPaysErrorMessage
                          |  grep "Bucket is requester pays bucket but no user project provided." gsutil_output.txt

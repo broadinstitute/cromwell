@@ -39,6 +39,8 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
       val statesMap = stats.withDefault(_ => 0)
       updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
       updateWorkflowsRunning(statesMap(WorkflowStoreState.Running))
+      updateWorkflowsOnHold(statesMap(WorkflowStoreState.OnHold))
+      updateWorkflowsAborting(statesMap(WorkflowStoreState.Aborting))
     }
     ()
   }

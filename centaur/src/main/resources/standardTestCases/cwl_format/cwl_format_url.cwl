@@ -6,7 +6,7 @@ $schemas:
   # Relative path:
   - ../../../../../../cwl/src/test/resources/cwl/ontology/EDAM.owl
   # Absolute (remote) path:
-  - https://raw.githubusercontent.com/broadinstitute/cromwell/cjl_cwl_relative_imports/cwl/src/test/resources/cwl/ontology/gx_edam.ttl
+  - https://raw.githubusercontent.com/broadinstitute/cromwell/develop/cwl/src/test/resources/cwl/ontology/gx_edam.ttl
 $graph:
 - id: main
   class: CommandLineTool

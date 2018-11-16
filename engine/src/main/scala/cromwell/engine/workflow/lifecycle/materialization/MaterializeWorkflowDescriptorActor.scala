@@ -288,7 +288,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
       else List.empty
 
-    val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
+    val zippedResolverCheck: Parse[Option[DirectoryResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck
       case Some(zipContent) => zippedImportResolver(zipContent, workflowId).toEither.map(Option.apply)
     })
@@ -300,8 +300,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       zippedImportResolver <- zippedResolverCheck
       // Debugging #4117 - make sure we are creating an importable directory out of the zip (AEN 2018-11-14)
       _ = zippedImportResolver match {
-        case Some(zir: ImportResolver) => workflowLogger.info(s"Using zip import resolver '${zir.name}'")
-        case None => workflowLogger.info("No zipped import resolver available.")
+        case Some(dr: DirectoryResolver) =>
+          workflowLogger.info(s"Importing from unzip directory '${dr.name}' with files [${dr.directory.list.map(_.pathAsString).mkString(", ")}]")
+        case None =>
+          workflowLogger.info("No zipped import resolver available.")
       }
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))

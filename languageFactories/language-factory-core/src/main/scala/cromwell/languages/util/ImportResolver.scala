@@ -129,7 +129,7 @@ object ImportResolver {
     }
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[ImportResolver] = {
+  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
     LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
       DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
     }

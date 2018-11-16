@@ -17,20 +17,20 @@ import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
 import common.util.VersionUtil
-import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortingResponse}
+import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortingResponse}
 import cromwell.core.{path => _, _}
-import cromwell.database.slick.WorkflowStoreSlickDatabase.NotInOnHoldStateException
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, WorkflowNotFoundException}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
-import cromwell.webservice._
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -114,6 +114,8 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
             val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflowCommand(workflowId)).mapTo[AbortResponse]
 
             onComplete(response) {
+              case Success(WorkflowAbortedResponse(id)) =>
+                complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
               case Success(WorkflowAbortingResponse(id, restarted)) =>
                 workflowManagerActor ! AbortWorkflowCommand(id, restarted)
                 complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))

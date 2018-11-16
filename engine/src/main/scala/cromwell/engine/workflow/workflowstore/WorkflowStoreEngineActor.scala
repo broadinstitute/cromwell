@@ -5,15 +5,15 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortingResponse}
+import cromwell.core.{WorkflowAborted, WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.WorkflowMetadataHelper
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -101,12 +101,20 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
           sndr ! nwm
         }
       case AbortWorkflowCommand(id) =>
-        store.aborting(id) map {
-          case Some(restarted) =>
-            sndr ! WorkflowAbortingResponse(id, restarted)
+        store.aborting(id) map { workflowStoreAbortResponse =>
+          log.info(s"Abort requested for workflow $id.")
+          workflowStoreAbortResponse
+        } map {
+          case WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted =>
+            pushCurrentStateToMetadataService(id, WorkflowAborted)
+            sndr ! WorkflowAbortedResponse(id)
+          case WorkflowStoreAbortResponse.AbortingHeartbeatTimestampIsEmpty =>
             pushCurrentStateToMetadataService(id, WorkflowAborting)
-            log.info(s"Abort requested for workflow $id.")
-          case None =>
+            sndr ! WorkflowAbortingResponse(id, restarted = true)
+          case WorkflowStoreAbortResponse.AbortingHeartbeatTimestampNonEmpty =>
+            pushCurrentStateToMetadataService(id, WorkflowAborting)
+            sndr ! WorkflowAbortingResponse(id, restarted = false)
+          case WorkflowStoreAbortResponse.NotFound =>
             sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
         } recover {
           case t =>

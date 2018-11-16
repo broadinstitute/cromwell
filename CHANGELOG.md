@@ -13,7 +13,18 @@ Support `InputResourceRequirement` hint
 
 ### Changing configuration options
 
-When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
+- The HTTP filesystem is now enabled for engine use by default. To continue without an HTTP filesystem, you can add the 
+following content into the appropriate stanza of your configuration file:
+```
+engine {
+  filesystems {
+    http { 
+      enabled: false 
+    }
+  }
+}
+``` 
+- When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
 
 ### Bug fixes
 

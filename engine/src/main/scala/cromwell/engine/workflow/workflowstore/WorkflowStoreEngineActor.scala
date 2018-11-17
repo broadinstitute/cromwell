@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
+import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props, Timers}
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
@@ -26,14 +26,14 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
                                                   serviceRegistryActor: ActorRef,
                                                   abortAllJobsOnTerminate: Boolean,
                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
-  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper with Timers {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))
   self ! InitializerCommand
 
-  scheduleInstrumentation {
+  val instrumentationAction = () => {
     store.stats map { stats: Map[WorkflowStoreState, Int] =>
       // Update the count for Submitted and Running workflows, defaulting to 0
       val statesMap = stats.withDefault(_ => 0)
@@ -44,6 +44,13 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
     }
     ()
   }
+
+  override def preStart() = {
+    startInstrumentationTimer()
+    super.preStart()
+  }
+  
+  override def receive = instrumentationReceive(instrumentationAction).orElse(super.receive)
 
   when(Unstarted) {
     case Event(InitializerCommand, _) =>

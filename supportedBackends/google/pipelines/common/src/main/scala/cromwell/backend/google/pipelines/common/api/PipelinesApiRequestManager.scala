@@ -115,7 +115,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     case other => log.error(s"Unexpected message to JesPollingManager: $other")
   }
 
-  override def receive = requestManagerReceive.orElse(instrumentationReceive(monitorQueueSize _))
+  override def receive = instrumentationReceive(monitorQueueSize _).orElse(requestManagerReceive)
 
   private def abort(workflowId: WorkflowId) = {
     def aborted(query: PAPIRunCreationRequest) = query.requester ! PipelinesApiRunCreationQueryFailed(query, JobAbortedException)

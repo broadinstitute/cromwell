@@ -20,6 +20,8 @@ object WorkflowInstrumentation {
   // Use "Queued" instead of "Submitted" as it seems to reflect better the actual state
   private val SubmittedPath = NonEmptyList.of("Queued")
   private val RunningPath = NonEmptyList.of(WorkflowStoreState.Running.toString)
+  private val OnHoldPath = NonEmptyList.of(WorkflowStoreState.OnHold.toString)
+  private val AbortingPath = NonEmptyList.of(WorkflowStoreState.Aborting.toString)
 }
 
 /**
@@ -73,4 +75,14 @@ trait WorkflowInstrumentation extends CromwellInstrumentationActor { this: Actor
     * Set the current number of running workflows
     */
   def updateWorkflowsRunning(count: Int) = sendGaugeWorkflow(RunningPath, count.toLong)
+
+  /**
+    * Set the current number of on hold workflows
+    */
+  def updateWorkflowsOnHold(count: Int) = sendGaugeWorkflow(OnHoldPath, count.toLong)
+
+  /**
+    * Set the current number of aborting workflows
+    */
+  def updateWorkflowsAborting(count: Int) = sendGaugeWorkflow(AbortingPath, count.toLong)
 }

@@ -487,6 +487,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     returnExecutionToken()
     instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
+    recordExecutionStepTiming(stateName.toString, currentStateDuration)
     context stop self
     stay()
   }
@@ -496,6 +497,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     returnExecutionToken()
     instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)
+    recordExecutionStepTiming(stateName.toString, currentStateDuration)
     context stop self
     stay()
   }

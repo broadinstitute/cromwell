@@ -17,11 +17,11 @@ import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
 import common.util.VersionUtil
-import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortingResponse}
+import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortRequestedResponse}
 import cromwell.core.{path => _, _}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
-import cromwell.engine.workflow.WorkflowManagerActor.{AbortWorkflowCommand, WorkflowNotFoundException}
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
@@ -116,8 +116,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
             onComplete(response) {
               case Success(WorkflowAbortedResponse(id)) =>
                 complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
-              case Success(WorkflowAbortingResponse(id, restarted)) =>
-                workflowManagerActor ! AbortWorkflowCommand(id, restarted)
+              case Success(WorkflowAbortRequestedResponse(id)) =>
                 complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))
               case Success(WorkflowAbortFailureResponse(_, e: IllegalStateException)) =>
                 /*

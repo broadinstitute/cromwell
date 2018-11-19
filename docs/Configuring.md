@@ -148,6 +148,32 @@ On every poll, Cromwell will take at limited number of new submissions, provided
 system.max-workflow-launch-count = 50
 ```
 
+***Abort configuration***
+
+Cromwell will scan for abort requests using default configuration values equivalent to those below. In most circumstances
+there shouldn't be a need to override these defaults.
+
+```hocon
+system {
+  abort {
+    # How frequently Cromwell should scan for aborts.
+    scan-frequency: 30 seconds
+
+    # The cache of in-progress aborts. Cromwell will add entries to this cache once a WorkflowActor has been messaged to abort.
+    # If on the next scan an 'Aborting' status is found for a workflow that has an entry in this cache, Cromwell will not ask
+    # the associated WorkflowActor to abort again.
+    cache {
+      # Guava cache concurrency.
+      concurrency: 1
+      # How long entries in the cache should live from the time they are added to the cache.
+      ttl: 20 minutes
+      # Maximum number of entries in the cache.
+      size: 100000
+    }
+  }
+}
+```
+
 ### Database
 
 **Using a MySQL Database**

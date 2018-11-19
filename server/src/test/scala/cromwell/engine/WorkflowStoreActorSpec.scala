@@ -4,7 +4,7 @@ import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
-import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortingResponse}
+import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortRequestedResponse}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.engine.WorkflowStoreActorSpec._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
@@ -296,9 +296,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
 
         storeActor ! AbortWorkflowCommand(workflowId)
         val abortResponse = expectMsgType[AbortResponse](10.seconds)
-        abortResponse should be(a[WorkflowAbortingResponse])
-        abortResponse.asInstanceOf[WorkflowAbortingResponse].workflowId should be(workflowId)
-        abortResponse.asInstanceOf[WorkflowAbortingResponse].restarted should be(true)
+        abortResponse should be(a[WorkflowAbortRequestedResponse])
+        abortResponse.asInstanceOf[WorkflowAbortRequestedResponse].workflowId should be(workflowId)
       }
     }
 
@@ -329,9 +328,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with Matchers with 
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)
         val abortResponse = expectMsgType[AbortResponse](10.seconds)
-        abortResponse should be(a[WorkflowAbortingResponse])
-        abortResponse.asInstanceOf[WorkflowAbortingResponse].workflowId should be(workflowId)
-        abortResponse.asInstanceOf[WorkflowAbortingResponse].restarted should be(false)
+        abortResponse should be(a[WorkflowAbortRequestedResponse])
+        abortResponse.asInstanceOf[WorkflowAbortRequestedResponse].workflowId should be(workflowId)
       }
     }
 

@@ -100,7 +100,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
             WorkflowStoreState.Running.toString
           )
           workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
-          _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortingHeartbeatTimestampIsEmpty)
+          _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
         } yield ()).futureValue
       }
     }
@@ -121,7 +121,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
           )
           _ <- workflowStore.writeWorkflowHeartbeats(Set(abortWorkflowId))
           workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
-          _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortingHeartbeatTimestampNonEmpty)
+          _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
         } yield ()).futureValue
       }
     }

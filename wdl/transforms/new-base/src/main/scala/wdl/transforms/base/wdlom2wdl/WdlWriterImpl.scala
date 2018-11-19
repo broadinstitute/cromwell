@@ -407,6 +407,7 @@ object WdlWriterImpl {
         case _: Ceil         => "ceil"
         case _: Round        => "round"
         case _: Glob         => "glob"
+        case _: Keys         => "keys"
         case _: AsMap        => "as_map"
         case _: AsPairs      => "as_pairs"
         case _: CollectByKey => "collect_by_key"

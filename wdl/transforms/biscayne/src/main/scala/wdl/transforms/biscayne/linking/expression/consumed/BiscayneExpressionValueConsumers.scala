@@ -1,10 +1,16 @@
 package wdl.transforms.biscayne.linking.expression.consumed
 
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey}
+import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys}
 import wdl.model.draft3.graph.{ExpressionValueConsumer, UnlinkedConsumedValueHook}
 
 object BiscayneExpressionValueConsumers {
+  implicit val keysExpressionValueConsumer: ExpressionValueConsumer[Keys] = new ExpressionValueConsumer[Keys] {
+    override def expressionConsumedValueHooks(a: Keys)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
+      expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)
+    }
+  }
+
   implicit val asMapExpressionValueConsumer: ExpressionValueConsumer[AsMap] = new ExpressionValueConsumer[AsMap] {
     override def expressionConsumedValueHooks(a: AsMap)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
       expressionValueConsumer.expressionConsumedValueHooks(a.param)(expressionValueConsumer)

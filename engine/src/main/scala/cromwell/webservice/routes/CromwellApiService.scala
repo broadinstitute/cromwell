@@ -31,10 +31,12 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStat
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice._
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
+import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
@@ -102,7 +104,9 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
     path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
       instrumentRequest {
         onComplete(validateWorkflowId(possibleWorkflowId, serviceRegistryActor)) {
-          case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
+          case Success(workflowId) => completeTimingRouteResponse(metadataLookupForTimingRoute(workflowId))
+          case Failure(e: UnrecognizedWorkflowException) => e.errorRequest(StatusCodes.NotFound)
+          case Failure(e: InvalidWorkflowException) => e.errorRequest(StatusCodes.BadRequest)
           case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
         }
       }
@@ -174,6 +178,29 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
       }
     }
   } ~ metadataRoutes
+
+
+  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataBuilderActorResponse] = {
+    val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
+    val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
+
+    metadataBuilderRegulatorActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
+  }
+
+  private def completeTimingRouteResponse(metadataResponse: Future[MetadataBuilderActorResponse]) = {
+    onComplete(metadataResponse) {
+      case Success(r: BuiltMetadataResponse) => {
+        Try(Source.fromResource("workflowTimings/workflowTimings.html").mkString) match {
+          case Success(wfTimingsContent) => complete(wfTimingsContent.replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.response.toString))
+          case Failure(e) => completeResponse(StatusCodes.InternalServerError, APIResponse.fail(new RuntimeException("Error while loading workflowTimings.html", e)), Seq.empty)
+        }
+      }
+      case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+      case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+      case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
+    }
+  }
 
   private def toResponse(workflowId: WorkflowId, workflowState: WorkflowState): WorkflowSubmitResponse = {
     WorkflowSubmitResponse(workflowId.toString, workflowState.toString)

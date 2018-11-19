@@ -105,8 +105,8 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
       instrumentRequest {
         onComplete(validateWorkflowId(possibleWorkflowId, serviceRegistryActor)) {
           case Success(workflowId) => completeTimingRouteResponse(metadataLookupForTimingRoute(workflowId))
-          case Failure(e: UnrecognizedWorkflowException) => e.errorRequest(StatusCodes.NotFound)
-          case Failure(e: InvalidWorkflowException) => e.errorRequest(StatusCodes.BadRequest)
+          case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
+          case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
           case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
         }
       }

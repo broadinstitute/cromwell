@@ -10,14 +10,14 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
+import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
-import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
-import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
+import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined.api.Refined
@@ -74,7 +74,6 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   // 
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
-  scheduleInstrumentation { updateQueueSize(workQueue.size) }
 
   // workQueue is protected for the unit tests, not intended to be generally overridden
   protected[api] var workQueue: Queue[PAPIApiRequest] = Queue.empty
@@ -90,18 +89,17 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
 
   override def preStart() = {
     log.info("{} Running with {} workers", self.path.name, requestWorkers.value)
-    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
+    startInstrumentationTimer()
     super.preStart()
   }
 
   def monitorQueueSize() = {
     val load = if (workQueue.size > LoadConfig.PAPIThreshold) HighLoad else NormalLoad
     serviceRegistryActor ! LoadMetric("PAPIQueryManager", load)
-    timers.startSingleTimer(QueueMonitoringTimerKey, QueueMonitoringTimerAction, CromwellInstrumentation.InstrumentationRate)
+    updateQueueSize(workQueue.size)
   }
 
-  override def receive = {
-    case QueueMonitoringTimerAction => monitorQueueSize()
+  val requestManagerReceive: Receive = {
     case BackendSingletonActorAbortWorkflow(id) => abort(id)
     case status: PAPIStatusPollRequest => workQueue :+= status
     case create: PAPIRunCreationRequest =>
@@ -116,6 +114,8 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("Polling stopped itself unexpectedly"))
     case other => log.error(s"Unexpected message to JesPollingManager: $other")
   }
+
+  override def receive = instrumentationReceive(monitorQueueSize _).orElse(requestManagerReceive)
 
   private def abort(workflowId: WorkflowId) = {
     def aborted(query: PAPIRunCreationRequest) = query.requester ! PipelinesApiRunCreationQueryFailed(query, JobAbortedException)

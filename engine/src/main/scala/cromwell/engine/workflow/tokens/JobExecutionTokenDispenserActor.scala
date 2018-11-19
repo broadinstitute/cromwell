@@ -26,7 +26,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   var currentTokenQueuePointer: Int = 0
   var tokenAssignments: Map[ActorRef, Lease[JobExecutionToken]] = Map.empty
 
-  scheduleInstrumentation {
+  val instrumentationAction = () => {
     sendGaugeJob(ExecutionStatus.Running.toString, tokenAssignments.size.toLong)
     sendGaugeJob(ExecutionStatus.QueuedInCromwell.toString, tokenQueues.values.map(_.size).sum.toLong)
   }
@@ -34,10 +34,11 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   override def preStart() = {
     ratePreStart()
     serviceRegistryActor ! ListenToLoadController
+    startInstrumentationTimer()
     super.preStart()
   }
 
-  override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive)
+  override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
 
   private def tokenDistributionReceive: Receive = {
     case JobExecutionTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup, tokenType)

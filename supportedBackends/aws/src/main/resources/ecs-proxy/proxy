@@ -93,8 +93,8 @@ copyfiles() {
 
 copyToS3() {
   if [ ! -z "${1}" ]; then
-    echo "aws s3 cp --no-progress ${1} ${2}"
-    aws s3 cp --no-progress "${1}" "${2}"
+    echo "aws s3 cp --sse AES256 --no-progress ${1} ${2}"
+    aws s3 cp --sse AES256 --no-progress "${1}" "${2}"
   else
     echo "Variable defining file to be copied does not exist"
   fi

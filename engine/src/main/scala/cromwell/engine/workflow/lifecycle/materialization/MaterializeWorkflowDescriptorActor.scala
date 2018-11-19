@@ -288,9 +288,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
       else List.empty
 
-    val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
+    val zippedResolverCheck: Parse[Option[DirectoryResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck
-      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
+      case Some(zipContent) => zippedImportResolver(zipContent, workflowId).toEither.map(Option.apply)
     })
 
     val labels = convertJsonToLabels(sourceFiles.labelsJson)

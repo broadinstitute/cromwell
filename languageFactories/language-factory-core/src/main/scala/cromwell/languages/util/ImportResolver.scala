@@ -18,6 +18,7 @@ import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import java.nio.file.{Path => NioPath}
 
+import cromwell.core.WorkflowId
 import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
@@ -128,8 +129,8 @@ object ImportResolver {
     }
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[ImportResolver] = {
-    LanguageFactoryUtil.validateImportsDirectory(zippedImports) map { dir =>
+  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
+    LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
       DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
     }
   }

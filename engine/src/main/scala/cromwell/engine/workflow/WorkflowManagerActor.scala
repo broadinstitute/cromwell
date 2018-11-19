@@ -215,9 +215,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       scheduleNextNewWorkflowPoll()
       runningAndNotStartingNewWorkflowsStateFunction(event)
   }
-  
+
   when (Running) (scheduleNextNewWorkflowPollStateFunction.orElse(runningAndNotStartingNewWorkflowsStateFunction))
-  
+
   when (RunningAndNotStartingNewWorkflows) (runningAndNotStartingNewWorkflowsStateFunction)
 
   when (Aborting) {
@@ -289,6 +289,13 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag Restarting workflow UUID($workflowId) in ${workflow.state.toString} state")
     } else {
       logger.info(s"$tag Starting workflow UUID($workflowId)")
+    }
+
+    // Debugging #4117 - if there are imports present at this point, they were received by Cromwell and written
+    // into the workflow store. (AEN 2018-11-14)
+    workflow.sources.importsZipFileOption match {
+      case Some(zip) => logger.info(s"$tag Found imports zip on workflow $workflowId, size ${zip.length} bytes.")
+      case None => logger.info(s"$tag No imports zip on workflow $workflowId.")
     }
 
     val wfProps = WorkflowActor.props(

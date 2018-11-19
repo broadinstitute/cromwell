@@ -128,7 +128,7 @@ object ImportResolver {
     }
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[ImportResolver] = {
+  def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[DirectoryResolver] = {
     LanguageFactoryUtil.validateImportsDirectory(zippedImports) map { dir =>
       DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
     }

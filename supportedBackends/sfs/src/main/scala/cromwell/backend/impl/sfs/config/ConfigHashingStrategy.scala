@@ -77,6 +77,15 @@ final case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashin
   override val description = "hash file path"
 }
 
+final case class HashPathModTimeStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+  override def hash(file: Path): Try[String] = {
+    // Add the last modified date here to make sure these are the files we are looking for.
+    Try(DigestUtils.md5Hex(file.toAbsolutePath.pathAsString + file.lastModifiedTime.toString))
+  }
+
+  override val description = "hash file path and last modified time"
+}
+
 final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     tryWithResource(() => file.newInputStream) { DigestUtils.md5Hex }

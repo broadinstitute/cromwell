@@ -27,9 +27,9 @@ filesystems {
 ```
 
 It defines the filesystems that can be accessed by Cromwell.
-Those filesystems can be referenced by their name (`gcs`, `oss`, `s3`, and `local`) in other parts of the configuration.
+Those filesystems can be referenced by their name (`gcs`, `oss`, `s3`, `http` and `local`) in other parts of the configuration.
 
-Note that the OSS and S3 filesystems are experimental.
+**Note that the OSS and S3 filesystems are experimental.**
 
 Also note that the local filesystem (the one on which Cromwell runs on) is implicitly accessible but can be disabled. 
 To do so, add the following to any `filesystems` stanza in which the local filesystem should be disabled: `local.enabled: false`.
@@ -80,6 +80,54 @@ workflow my_workflow {
     }
 }
 ```
+
+#### Default "engine" Filesystems
+
+If you don't change anything in your own configuration file, the following default is inherited from `reference.conf`:
+```
+engine {
+  filesystems {
+    local {
+      enabled: true
+    }
+    http {
+      enabled: true
+    }
+  }
+}
+```
+
+**Note**: since our configuration files are HOCON, to disable filesystems you *must* add `enabled: false` into your 
+overriding configuration file. It is **not** sufficient to simply omit a filesystem from your stanza. 
+
+For example: adding this to your configuration file will remove the `http` filesystem and leave `local` for use in the 
+engine:
+```
+engine {
+  filesystems {
+    http {
+      enabled: false
+    }
+  }
+}
+```
+
+Whereas this example will leave `http` unchanged and merely re-assert the default enabling of `local`. In other
+words, **this will do nothing**:
+```
+engine {
+  filesystems {
+    local {
+      enabled: true
+    }
+  }
+}
+```
+
+#### Engine filesystems and CWL
+
+Note that CWL *always* needs to access file attributes from within the engine, so if you are using CWL, please make sure
+that **every filesystem you might use** is added to the `engine.filesystems` stanza.
 
 ### Backend Filesystems
 

@@ -24,6 +24,7 @@ object ConfigHashingStrategy {
       hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
         case "path" => HashPathStrategy(checkSiblingMd5)
         case "file" => HashFileStrategy(checkSiblingMd5)
+        case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)

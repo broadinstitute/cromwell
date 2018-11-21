@@ -16,9 +16,11 @@ trait WorkflowStore {
   def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit]
 
   /**
-    * Mark a workflow as aborting, unless the row is OnHold, in which case the row is deleted.
+    * Mark a workflow as aborting, unless the row is OnHold or Submitted, in which case the row is deleted.
     */
   def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
+
+  def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]]
 
   def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]]
 

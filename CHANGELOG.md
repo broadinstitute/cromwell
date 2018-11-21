@@ -6,6 +6,14 @@
 
 Call caching hashes with this new strategy are based on the path and the last modified time of the file.
 
+### Instance independent abort
+
+For multi-instance Cromwell deployments sharing a single database, earlier versions of Cromwell required abort
+requests to be sent specifically to the instance that was running the targeted workflow. Cromwell 37 now
+allows abort commands to be sent to any Cromwell instance in the shared-database deployment. Configuration details
+[here](https://cromwell.readthedocs.io/en/develop/Configuring/abort-configuration).
+
+
 ### Call cache blacklisting
 
 The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.
@@ -17,7 +25,18 @@ Support `InputResourceRequirement` hint
 
 ### Changing configuration options
 
-When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
+- The HTTP filesystem is now enabled for engine use by default. To continue without an HTTP filesystem, you can add the 
+following content into the appropriate stanza of your configuration file:
+```
+engine {
+  filesystems {
+    http { 
+      enabled: false 
+    }
+  }
+}
+``` 
+- When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
 
 ### Bug fixes
 

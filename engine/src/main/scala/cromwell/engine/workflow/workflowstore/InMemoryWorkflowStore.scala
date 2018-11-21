@@ -66,7 +66,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
       case Some((workflowIdAndSources, _)) =>
         workflowStore += workflowIdAndSources -> WorkflowStoreState.Aborting
         // In memory workflows can never be restarted (since this is destroyed on a server restart)
-        Future.successful(WorkflowStoreAbortResponse.AbortingHeartbeatTimestampNonEmpty)
+        Future.successful(WorkflowStoreAbortResponse.AbortRequested)
       case None =>
         Future.successful(WorkflowStoreAbortResponse.NotFound)
     }
@@ -76,6 +76,8 @@ class InMemoryWorkflowStore extends WorkflowStore {
     Future.successful(workflowIds.size)
 
   override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
+
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(List.empty)
 }
 
 final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

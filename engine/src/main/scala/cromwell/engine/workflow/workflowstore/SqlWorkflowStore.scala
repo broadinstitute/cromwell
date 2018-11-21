@@ -40,8 +40,7 @@ object SqlWorkflowStore {
     type WorkflowStoreAbortResponse = Value
     val NotFound = Value("NotFound")
     val AbortedOnHoldOrSubmitted = Value("AbortedOnHoldOrSubmitted")
-    val AbortingHeartbeatTimestampIsEmpty = Value("AbortingRestarted")
-    val AbortingHeartbeatTimestampNonEmpty = Value("AbortingNotRestarted")
+    val AbortRequested = Value("AbortRequested")
   }
 }
 
@@ -59,15 +58,17 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       workflowStateToDelete2 = WorkflowStoreState.Submitted.toString,
       workflowStateForUpdate = WorkflowStoreState.Aborting.toString
     ) map {
-      case (deletedCount, _) if deletedCount > 0 =>
+      case Some(true) =>
         WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted
-      case (_, None) =>
+      case Some(false) =>
+        WorkflowStoreAbortResponse.AbortRequested
+      case None =>
         WorkflowStoreAbortResponse.NotFound
-      case (_, Some(true)) =>
-        WorkflowStoreAbortResponse.AbortingHeartbeatTimestampIsEmpty
-      case (_, Some(false)) =>
-        WorkflowStoreAbortResponse.AbortingHeartbeatTimestampNonEmpty
     }
+  }
+
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = {
+    sqlDatabase.findWorkflowsWithAbortRequested(cromwellId) map { _ map WorkflowId.fromString }
   }
   
   override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {

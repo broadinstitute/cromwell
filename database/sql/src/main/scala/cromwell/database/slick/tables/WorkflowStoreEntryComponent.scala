@@ -176,13 +176,10 @@ trait WorkflowStoreEntryComponent {
     }
   )
 
-  /**
-    * Useful for checking if the heartbeat timestamp was cleared for a given workflow id.
-    */
-  val heartbeatClearedForWorkflowId = Compiled(
-    (workflowId: Rep[String]) => for {
+  val findWorkflowsWithAbortRequested = Compiled(
+    (cromwellId: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
-      if workflowStoreEntry.workflowExecutionUuid === workflowId
-    } yield workflowStoreEntry.heartbeatTimestamp.isEmpty
+      if workflowStoreEntry.workflowState === "Aborting" && workflowStoreEntry.cromwellId === cromwellId
+    } yield workflowStoreEntry.workflowExecutionUuid
   )
 }

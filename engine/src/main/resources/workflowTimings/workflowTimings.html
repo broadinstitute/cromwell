@@ -5,13 +5,14 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script type="text/javascript">
 
+        var metadataJson = "{{REPLACE_THIS_WITH_METADATA}}";
         var parentWorkflowNames = [];
         var expandedParentWorkflows = [];
         var chartView;
         
         google.charts.load('current', {packages: ['timeline']});
         google.charts.setOnLoadCallback(drawChart);
-        
+
         function addDataTableRow(dataTable, callName, callPartName, startDate, endDate, ancestry) {
             if (startDate <= endDate) {
                 newRow = dataTable.addRow([callName, callPartName, startDate, endDate]);
@@ -132,47 +133,44 @@
         }
 
         function drawChart() {
-            var includeKeys = ["start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata"];
-            $.getJSON("./metadata?expandSubWorkflows=true&includeKey=" + includeKeys.join("&includeKey="), function(data) {
-                var dataTable = new google.visualization.DataTable();
-                dataTable.addColumn({ type: 'string', id: 'Position' });
-                dataTable.addColumn({ type: 'string', id: 'Name' });
-                dataTable.addColumn({ type: 'date', id: 'Start' });
-                dataTable.addColumn({ type: 'date', id: 'End' });
+            var dataTable = new google.visualization.DataTable();
+            dataTable.addColumn({ type: 'string', id: 'Position' });
+            dataTable.addColumn({ type: 'string', id: 'Name' });
+            dataTable.addColumn({ type: 'date', id: 'Start' });
+            dataTable.addColumn({ type: 'date', id: 'End' });
 
-                var executionCallsCount =  parseMetadata(data, dataTable, []);
+            var executionCallsCount =  parseMetadata(metadataJson, dataTable, []);
 
-                var options = {
-                    colors: ['#33178f', '#c5bc12', '#5e8229', '#9a03f8', '#9e4653', '#4ef2ca', '#2dd801', '#3f7b49', '#763097', '#bc8b28', '#cb716f', '#adce53', '#c3768d', '#fdf92a'],
-                    height: executionCallsCount * 18 + 60,
-                    timeline: {
-                        avoidOverlappingGridLines: false,
-                        showBarLabels: false,
-                        rowLabelStyle: { fontName: 'Helvetica', fontSize: 10, color: '#603913' },
-                        // Although bar labels are unshown, they still affect the height of each row. So make it small.
-                        barLabelStyle: { fontName: 'Helvetica', fontSize: 5, color: '#603913' },
-                    },
-                    tooltip: {isHtml: true}
-                };
-                
-                var container = document.getElementById('chart_div');
-                var chart = new google.visualization.Timeline(container);
-                chartView = hideAllSubWorkflows(dataTable);
-                
-                chart.draw(chartView, options);
-                
-                google.visualization.events.addListener(chart, 'select', selectHandler);
+            var options = {
+                colors: ['#33178f', '#c5bc12', '#5e8229', '#9a03f8', '#9e4653', '#4ef2ca', '#2dd801', '#3f7b49', '#763097', '#bc8b28', '#cb716f', '#adce53', '#c3768d', '#fdf92a'],
+                height: executionCallsCount * 18 + 60,
+                timeline: {
+                    avoidOverlappingGridLines: false,
+                    showBarLabels: false,
+                    rowLabelStyle: { fontName: 'Helvetica', fontSize: 10, color: '#603913' },
+                    // Although bar labels are unshown, they still affect the height of each row. So make it small.
+                    barLabelStyle: { fontName: 'Helvetica', fontSize: 5, color: '#603913' },
+                },
+                tooltip: {isHtml: true}
+            };
 
-                function selectHandler(e) {
-                    var selectedItem = chart.getSelection()[0];
-                    if (selectedItem) {
-                        chartView = toggleSubWorkflowRows(dataTable, selectedItem.row);
-                        chart.draw(chartView, options);
-                        // For some reason the tooltip gets stuck and doesn't disappear by itself, so remove it explicitly from the DOM
-                        $( ".google-visualization-tooltip" ).remove();
-                    }
+            var container = document.getElementById('chart_div');
+            var chart = new google.visualization.Timeline(container);
+            chartView = hideAllSubWorkflows(dataTable);
+
+            chart.draw(chartView, options);
+
+            google.visualization.events.addListener(chart, 'select', selectHandler);
+
+            function selectHandler(e) {
+                var selectedItem = chart.getSelection()[0];
+                if (selectedItem) {
+                    chartView = toggleSubWorkflowRows(dataTable, selectedItem.row);
+                    chart.draw(chartView, options);
+                    // For some reason the tooltip gets stuck and doesn't disappear by itself, so remove it explicitly from the DOM
+                    $( ".google-visualization-tooltip" ).remove();
                 }
-            });
+            }
         }
 
         function toggleSubWorkflowRows(dt, selectedRow) {

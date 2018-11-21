@@ -17,6 +17,15 @@ object ExpressionElement {
     */
   final case class StringPlaceholder(expr: ExpressionElement) extends StringPiece
 
+  sealed trait StringEscapeSequence extends StringPiece
+  case object NewlineEscape extends StringEscapeSequence
+  case object TabEscape extends StringEscapeSequence
+  case object DoubleQuoteEscape extends StringEscapeSequence
+  case object SingleQuoteEscape extends StringEscapeSequence
+  case object BackslashEscape extends StringEscapeSequence
+  final case class AsciiCharacterEscape(codePoint: Byte) extends StringEscapeSequence
+  final case class UnicodeCharacterEscape(codePoint: String) extends StringEscapeSequence
+
 
   final case class KvPair(key: String, value: ExpressionElement)
   final case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement

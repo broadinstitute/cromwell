@@ -5,6 +5,7 @@ import java.sql.Connection
 import java.time.OffsetDateTime
 
 import better.files._
+import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 import cromwell.core.Tags._
@@ -14,6 +15,8 @@ import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase, Slic
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
+import eu.timepit.refined.collection.NonEmpty
+import eu.timepit.refined.refineMV
 import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
@@ -89,6 +92,94 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         case Failure(throwable) =>
           logger.error("Failed deadlock-test")
           throw throwable
+      }
+    }
+  }
+
+  it should "deadlock when rapidly checking a large number of mysql heartbeats" in {
+    // Thanks: https://www.xaprb.com/blog/2006/08/08/how-to-deliberately-cause-a-deadlock-in-mysql/
+    lazy val databaseConfig = ConfigFactory.load.getConfig("database-test-mysql")
+    val logger = Logger(LoggerFactory.getLogger(getClass.getName))
+    import ServicesStore.EnhancedSqlDatabase
+    logger.info("Initializing heartbeat-deadlock-test database")
+    for {
+      database <- new EngineSlickDatabase(databaseConfig)
+        .initialized(EngineServicesStore.EngineLiquibaseSettings).autoClosed
+    } {
+      val entries = (1 to 10).map { _ =>
+        WorkflowStoreEntry(
+          workflowExecutionUuid = WorkflowId.randomId().toString,
+          workflowDefinition = s"workflow heartbeat_deadlock_test {}".toClobOption,
+          workflowUrl = None,
+          workflowRoot = None,
+          workflowType = None,
+          workflowTypeVersion = None,
+          workflowInputs = None,
+          workflowOptions = None,
+          workflowState = "Submitted",
+          submissionTime = OffsetDateTime.now().toSystemTimestamp,
+          importsZip = None,
+          customLabels = "{}".toClob(refineMV[NonEmpty]("{}")),
+          cromwellId = None,
+          heartbeatTimestamp = Option(OffsetDateTime.now().toSystemTimestamp)
+        )
+      }
+      database.addWorkflowStoreEntries(entries).futureValue
+
+      def runDbFuture(futureNumber: Int): Future[Unit] = {
+        for {
+          // Alternates between running the pair sql statements listed in the deadlock report here:
+          // https://docs.google.com/document/d/1kNFz7CtGZ0BCkPP0XdwyQu3Bg1PKXR9qxZa4rkC27Js/edit
+          _ <- futureNumber % 2 match {
+            case 0 =>
+              logger.info(s"Selecting heartbeat-deadlock-test future #$futureNumber")
+              // select `WORKFLOW_EXECUTION_UUID`, `WORKFLOW_DEFINITION`, `WORKFLOW_ROOT`, `WORKFLOW_TYPE`, `WORKFLOW_TYPE_VERSION`, `WORKFLOW_INPUTS`, `WORKFLOW_OPTIONS`, `WORKFLOW_STATE`, `SUBMISSION_TIME`, `IMPORTS_ZIP`, `CUSTOM_LABELS`, `CROMWELL_ID`, `HEARTBEAT_TIMESTAMP`, `WORKFLOW_STORE_ENTRY_ID` from `WORKFLOW_STORE_ENTRY` where ((`HEARTBEAT_TIMESTAMP` is null) or (`HEARTBEAT_TIMESTAMP` < '2018-06-08 15:41:18.43')) and (not (`WORKFLOW_STATE` = 'On Hold')) order by `SUBMISSION_TIME` limit 50 for update
+              // select `WORKFLOW_EXECUTION_UUID`, `WORKFLOW_DEFINITION`, `WORKFLOW_ROOT`, `WORKFLOW_TYPE`, `WORKFLOW_TYPE_VERSION`, `WORKFLOW_INPUTS`, `WORKFLOW_OPTIONS`, `WORKFLOW_STATE`, `SUBMISSION_TIME`, `IMPORTS_ZIP`, `CUSTOM_LABELS`, `CROMWELL_ID`, `HEARTBEAT_TIMESTAMP`, `WORKFLOW_STORE_ENTRY_ID` from `WORKFLOW_STORE_ENTRY` where ((`HEARTBEAT_TIMESTAMP` is null) or (`HEARTBEAT_TIMESTAMP` < '2018-06-08 20:07:18.16')) and (not (`WORKFLOW_STATE` = 'On Hold')) order by `SUBMISSION_TIME` limit 50 for update
+              database.fetchWorkflowsInState(
+                limit = 50,
+                cromwellId = "heartbeat_deadlock_test",
+                heartbeatTimestampTimedOut = 30.seconds.ago,
+                heartbeatTimestampTo = OffsetDateTime.now.toSystemTimestamp,
+                workflowStateFrom = "Submitted",
+                workflowStateTo = "Running",
+                workflowStateExcluded = "On Hold"
+              )
+            case _ =>
+              logger.info(s"Updating heartbeat-deadlock-test future #$futureNumber")
+              // update `WORKFLOW_STORE_ENTRY` set `HEARTBEAT_TIMESTAMP` = '2018-06-08 15:51:17.661' where `WORKFLOW_STORE_ENTRY`.`WORKFLOW_EXECUTION_UUID` = '856a5363-4d6e-4c84-aafa-4cc94fb9c75b'
+              // update `WORKFLOW_STORE_ENTRY` set `HEARTBEAT_TIMESTAMP` = '2018-06-08 20:17:17.661' where `WORKFLOW_STORE_ENTRY`.`WORKFLOW_EXECUTION_UUID` = '4216b0cc-3b5e-4751-a3f5-24bfa5f7139a'
+              database.writeWorkflowHeartbeats(
+                workflowExecutionUuids = entries.take(10).map(_.workflowExecutionUuid).toSet,
+                heartbeatTimestampOption = Option(OffsetDateTime.now.toSystemTimestamp)
+              )
+          }
+          _ = logger.info(s"Successful check of heartbeat-deadlock-test future #$futureNumber")
+        } yield {}
+      }
+
+      logger.info(s"Initialized heartbeat-deadlock-test database: ${database.connectionDescription}")
+      val futures = 1 to 1000 map { count =>
+        val future = runDbFuture(count)
+        logger.info(s"Created heartbeat-deadlock-test future #$count")
+        future
+      }
+
+      logger.info("Futures created for heartbeat-deadlock-test. Waiting for sequence to complete…")
+      Try(Future.sequence(futures).futureValue(Timeout(scaled(120.seconds)))) match {
+        case Success(_) =>
+          val message = "Did not create a deadlock in heartbeat-deadlock-test"
+          logger.info(message)
+          fail(message)
+        case Failure(throwable) =>
+          Option(throwable.getCause) match {
+            case Some(rollbackException: MySQLTransactionRollbackException) =>
+              rollbackException.getMessage should be(
+                "Deadlock found when trying to get lock; try restarting transaction"
+              )
+            case _ =>
+              logger.error(s"Failing heartbeat-deadlock-test ${throwable.getMessage}")
+              throw throwable
+          }
       }
     }
   }

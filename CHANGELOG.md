@@ -2,6 +2,10 @@
 
 ## 37 Release Notes
 
+### Added new call cache path+modtime hashing strategy.
+
+Call caching hashes with this new strategy are based on the path and the last modified time of the file.
+
 ### Call cache blacklisting
 
 The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.

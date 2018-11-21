@@ -25,7 +25,6 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   val file = DefaultPathBuilder.createTempFile()
   val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
   val pathHash = DigestUtils.md5Hex(file.pathAsString)
-  val pathModTimeHash = DigestUtils.md5Hex(file.pathAsString + file.lastModifiedTime.toString)
   val md5File = file.sibling(s"${file.name}.md5")
   // Not the md5 value of "Steak". This is intentional so we can verify which hash is used depending on the strategy
   val md5FileHash = "103508832bace55730c8ee8d89c1a45f"
@@ -50,7 +49,6 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
-
     SingleFileHashRequest(null, null, WomSingleFile(requestFile.pathAsString), Option(initData))
   }
 
@@ -116,12 +114,14 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     val dontCheckSibling = makeStrategy("path+modtime", Option(false))
 
-    dontCheckSibling.isInstanceOf[HashPathStrategy] shouldBe true
+    dontCheckSibling.isInstanceOf[HashPathModTimeStrategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
     dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file path and last modified time."
   }
 
   it should "have a path+modtime hashing strategy and use md5 sibling file when appropriate" in {
+    // Have to define this here to make sure the timestamp is correct. Since the beforeAll() function modifies the file.
+    val pathModTimeHash = DigestUtils.md5Hex(file.pathAsString + file.lastModifiedTime.toString)
     val table = Table(
       ("check", "withMd5", "expected"),
       (true, true, md5FileHash),

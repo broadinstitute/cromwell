@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="tjeandet" id="docker_hash_store_entry_add_size_column">
+        <comment>
+            Add a size column corresponding to the sum of all the layers size from the manifest
+        </comment>
+        <addColumn
+                tableName="DOCKER_HASH_STORE_ENTRY">
+            <column name="DOCKER_SIZE" type="BIGINT" defaultValue="NULL">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

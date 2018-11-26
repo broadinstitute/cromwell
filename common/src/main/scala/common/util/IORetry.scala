@@ -14,6 +14,8 @@ object IORetry {
     }
   }
 
+  implicit val noopUnitState = IORetry.StatefulIoError.noop[Unit]
+
   /**
     * When we reach a point where we need to fail the IO (because we ran out of retries, or exception was fatal etc...)
     * This provides a method to generate a Throwable from the current state and the last failure.
@@ -40,7 +42,8 @@ object IORetry {
     def fail(throwable: Throwable) = IO.raiseError(statefulIoException.toThrowable(state, throwable))
 
     io handleErrorWith {
-      case throwable if isFatal(throwable) => fail(throwable)
+      case throwable if isFatal(throwable) => 
+        fail(throwable)
       case NonFatal(throwable) =>
         val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
 

@@ -1,0 +1,22 @@
+name: bcbio_svcall
+testFormat: workflowsuccess
+backends: [Papiv2]
+workflowType: CWL
+workflowTypeVersion: v1.0
+tags: [bcbio]
+
+files {
+  workflow: cwl/bcbio/svcall-workflow/main-svcall.cwl
+  inputs: cwl/bcbio/svcall-workflow/main-svcall-samples.json
+  imports: [
+    cwl/bcbio/svcall-workflow/steps,
+    cwl/bcbio/svcall-workflow/wf-alignment.cwl,
+    cwl/bcbio/svcall-workflow/wf-svcall.cwl,
+    cwl/bcbio/svcall-workflow/wf-variantcall.cwl
+  ]
+  options: cwl/bcbio/bcbio.options
+}
+
+metadata {
+  status: Succeeded
+}

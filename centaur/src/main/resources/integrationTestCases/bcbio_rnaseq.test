@@ -1,0 +1,19 @@
+name: bcbio_rnaseq
+testFormat: workflowsuccess
+backends: [Papiv2]
+workflowType: CWL
+workflowTypeVersion: v1.0
+tags: [bcbio]
+
+files {
+  workflow: cwl/bcbio/rnaseq-workflow/main-rnaseq.cwl
+  inputs: cwl/bcbio/rnaseq-workflow/main-rnaseq-samples.json
+  imports: [
+    cwl/bcbio/rnaseq-workflow/steps
+  ]
+  options: cwl/bcbio/bcbio.options
+}
+
+metadata {
+  status: Succeeded
+}

@@ -1,6 +1,7 @@
 package cromwell.database.slick
 
 import java.sql.{Connection, PreparedStatement, Statement}
+import java.util.concurrent.{ExecutorService, Executors}
 
 import com.typesafe.config.Config
 import cromwell.database.slick.tables.DataAccessComponent
@@ -74,6 +75,63 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")
 
+  /**
+    * Original as of Slick 3.1.0:
+    * ---------------------------
+    * Create a special execution context, a fixed thread pool, to run each of our composite database actions. Running
+    * each composite action as a runnable within the pool will ensure that-- at most-- the same number of actions are
+    * running as there are available connections. Thus there should never be a connection deadlock, as outlined in
+    * - https://github.com/slick/slick/issues/1274
+    * - https://groups.google.com/d/msg/scalaquery/5MCUnwaJ7U0/NLLMotX9BQAJ
+    *
+    * Custom future thread pool based on:
+    * - http://stackoverflow.com/questions/15285284/how-to-configure-a-fine-tuned-thread-pool-for-futures#comment23278672_15285441
+    *
+    * Database config parameter defaults based on: (expand the `forConfig` scaladoc for a full list of values)
+    * - http://slick.typesafe.com/doc/3.1.0/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(path:String,config:com.typesafe.config.Config,driver:java.sql.Driver,classLoader:ClassLoader):JdbcBackend.this.Database
+    *
+    * Reuses the error reporter from the database's executionContext.
+    *
+    * Update as of Slick 3.2.3:
+    * -------------------------
+    * Even though https://github.com/slick/slick/issues/1274 has been marked resolved, we are still seeing sporadic
+    * deadlocks in ServicesStoreSpec's `it should "not deadlock"` with Slick 3.2.3. The deadlocks all seem to appear
+    * shortly after the logged error "count cannot be increased".
+    *
+    * Based on logs, this error does not appear in production, only in tests.
+    * Also, "count cannot be decreased" is likely a **different** error.
+    *
+    * Among many possibilities:
+    * - The test configuration is overly conservative with the two db threads and two db connections.
+    * - Similarly, it's possible that by switching to this other thread pool for transactions it ends up freeing Slick's
+    *   internal thread pool just enough to fix the problem.
+    * - Or perhaps this doesn't fix the problem at all and we will see the failures in tests again soon.
+    *
+    * Further reading:
+    * - https://github.com/broadinstitute/cromwell/issues/4328#issuecomment-439187592
+    * - https://github.com/slick/slick/pull/1914
+    * - https://github.com/slick/slick/issues/1614
+    * - https://github.com/brettwooldridge/HikariCP/issues/1084
+    * - https://github.com/slick/slick/issues/1807#issuecomment-358244898
+    *
+    * Database config parameter defaults updated to use the Slick 3.2.3 values:
+    * (expand the `forConfig` scaladoc for a full list of values)
+    * - http://slick.typesafe.com/doc/3.2.3/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(path:String,config:com.typesafe.config.Config,driver:java.sql.Driver,classLoader:ClassLoader):JdbcBackend.this.Database
+    *
+    * Specifically, maxConnections has been lowered from (numThreads * 5) down to (numThreads * 1) to match:
+    * https://github.com/slick/slick/commit/c79d50c55747515314f26b5f4749bb2b22084fe0
+    */
+  private val actionThreadPool: ExecutorService = {
+    val dbNumThreads = databaseConfig.getOrElse("db.numThreads", 20)
+    val dbMaximumPoolSize = databaseConfig.getOrElse("db.maxConnections", dbNumThreads)
+    val actionThreadPoolSize = databaseConfig.getOrElse("actionThreadPoolSize", dbNumThreads) min dbMaximumPoolSize
+    Executors.newFixedThreadPool(actionThreadPoolSize)
+  }
+
+  private val actionExecutionContext: ExecutionContext = ExecutionContext.fromExecutor(
+    actionThreadPool, database.executor.executionContext.reportFailure
+  )
+
   protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
 
   protected[this] lazy val useSlickUpserts =
@@ -97,11 +155,13 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   }
 
   override def close(): Unit = {
+    actionThreadPool.shutdown()
     database.close()
   }
 
   protected[this] def runTransaction[R](action: DBIO[R]): Future[R] = {
-    database.run(action.transactionally)
+    //database.run(action.transactionally) <-- See comment above private val actionThreadPool
+    Future(Await.result(database.run(action.transactionally), Duration.Inf))(actionExecutionContext)
   }
 
   /*

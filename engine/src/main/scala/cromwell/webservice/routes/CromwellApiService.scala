@@ -40,8 +40,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-trait CromwellApiService extends HttpInstrumentation
-  with MetadataRouteSupport {
+trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory

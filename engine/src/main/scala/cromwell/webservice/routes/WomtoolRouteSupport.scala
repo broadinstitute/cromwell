@@ -8,7 +8,7 @@ import akka.util.Timeout
 import cromwell.webservice.FormDataSupport
 import spray.json.{JsObject, JsString}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 trait WomtoolRouteSupport extends FormDataSupport {
 
@@ -21,12 +21,12 @@ trait WomtoolRouteSupport extends FormDataSupport {
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           complete {
+            // After much discussion, it was resolved that returning Future(something) is the right way to do
+            // things in Akka HTTP, when no legacy or migration constraints funnel one into using PerRequest
             materializeFormData(formData) map { formData: MaterializedFormData =>
-
-              // After much discussion, it was resolved that returning Future(something) is the right way to do
-              // things in Akka HTTP, when no legacy or migration constraints funnel one into using PerRequest
-              Future(JsObject(Map("form size" -> JsString(formData.size.toString)))) }
+              JsObject(Map("form size" -> JsString(formData.size.toString)))
             }
+          }
         }
       }
     }

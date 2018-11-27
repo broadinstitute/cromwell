@@ -33,7 +33,20 @@ case class CacheConfig(concurrency: Int, size: Long, ttl: FiniteDuration)
 
 import net.ceedubs.ficus.Ficus._
 object CacheConfig {
-  def fromConfig(caching: Config, defaultConcurrency: Int, defaultSize: Long, defaultTtl: FiniteDuration): Option[CacheConfig] = {
+  /**
+    * From an optional `Config` entry and specified defaults, always return a `CacheConfig` object.
+    */
+  def config(caching: Option[Config], defaultConcurrency: Int, defaultSize: Long, defaultTtl: FiniteDuration): CacheConfig = {
+    caching flatMap { c =>
+      optionalConfig(c, defaultConcurrency = defaultConcurrency, defaultSize = defaultSize, defaultTtl = defaultTtl)
+    } getOrElse CacheConfig(concurrency = defaultConcurrency, size = defaultSize, ttl = defaultTtl)
+  }
+
+  /**
+    * From a non-optional `Config` and specified defaults, if caching is enabled return a `CacheConfig` object wrapped in a `Some`,
+    * otherwise return `None`.
+    */
+  def optionalConfig(caching: Config, defaultConcurrency: Int, defaultSize: Long, defaultTtl: FiniteDuration): Option[CacheConfig] = {
     val cachingEnabled = caching.getOrElse("enabled", false)
 
     cachingEnabled.option(

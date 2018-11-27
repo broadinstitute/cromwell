@@ -7,7 +7,7 @@ import akka.http.scaladsl.Http
 import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
@@ -26,6 +26,7 @@ import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDispenserActor}
+import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
@@ -154,6 +155,29 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
       serverMode = serverMode,
       workflowHeartbeatConfig = workflowHeartbeatConfig),
     "WorkflowManagerActor")
+
+  val abortRequestScanningActor = {
+    val abortConfigBlock = config.as[Option[Config]]("system.abort")
+
+    val abortCacheConfig = CacheConfig.config(caching = abortConfigBlock.flatMap { _.as[Option[Config]]("cache") },
+                                              defaultConcurrency = 1,
+                                              defaultSize = 100000L,
+                                              defaultTtl = 20 minutes)
+
+    val abortConfig = AbortConfig(
+      scanFrequency = abortConfigBlock.flatMap { _.as[Option[FiniteDuration]]("scan-frequency") } getOrElse (30 seconds),
+      cacheConfig = abortCacheConfig
+    )
+
+    context.actorOf(
+      AbortRequestScanningActor.props(
+        abortConfig = abortConfig,
+        workflowStoreActor = workflowStoreActor,
+        workflowManagerActor = workflowManagerActor,
+        workflowHeartbeatConfig = workflowHeartbeatConfig
+      )
+    )
+  }
 
   if (gracefulShutdown) {
     // If abortJobsOnTerminate is true, aborting all workflows will be handled by the graceful shutdown process

@@ -90,7 +90,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
               case (call, assignment) if call.callable.name.equals("hello") => assignment shouldBe "Local"
               case (call, _) => fail(s"Unexpected call: ${call.callable.name}")
             }
-            wfDesc.pathBuilders.size shouldBe 1
+            wfDesc.pathBuilders.size shouldBe 2 // one each for the local and http filesystems
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -126,7 +126,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.knownValues.head._2 shouldBe WomInteger(5)
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe None
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
-            wfDesc.pathBuilders.size shouldBe 1
+            wfDesc.pathBuilders.size shouldBe 2 // // one each for the local and http filesystems
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")

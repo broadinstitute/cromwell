@@ -44,13 +44,7 @@ object WorkflowActor {
   case object AbortWorkflowCommand extends WorkflowActorCommand
   case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
 
-  /**
-    * Responses from the WorkflowActor
-    */
-  sealed trait WorkflowActorResponse
-  case class WorkflowSucceededResponse(workflowId: WorkflowId) extends WorkflowActorResponse
-  case class WorkflowAbortedResponse(workflowId: WorkflowId) extends WorkflowActorResponse
-  case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable]) extends Exception with WorkflowActorResponse
+  case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable])
 
   /**
     * States for the WorkflowActor FSM

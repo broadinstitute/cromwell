@@ -36,7 +36,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 
   implicit val timeout: Timeout
 
-  private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
+  lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
 
   val metadataRoutes = concat(
     path("workflows" / Segment / Segment / "status") { (_, possibleWorkflowId) =>

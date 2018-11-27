@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -64,7 +66,7 @@ object WorkflowStoreActor {
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand
   final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorSubmitCommand
 
-  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId)
+  case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
 
   def props(
              workflowStoreDatabase: WorkflowStore,

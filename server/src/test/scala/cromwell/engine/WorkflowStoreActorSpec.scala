@@ -1,5 +1,7 @@
 package cromwell.engine
 
+import java.time.OffsetDateTime
+
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -104,7 +106,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 2
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, sources, state) =>
+            case WorkflowToStart(id, _, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloWorldSourceFiles)
               state shouldBe Submitted
@@ -117,7 +119,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 1
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, sources, state) =>
+            case WorkflowToStart(id, _, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloCwlWorldSourceFiles)
               state shouldBe Submitted
@@ -148,7 +150,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size should be(1)
           checkDistinctIds(workflowNel.toList) should be(true)
           workflowNel.toList.foreach {
-            case WorkflowToStart(id, sources, state) =>
+            case WorkflowToStart(id, _, sources, state) =>
               insertedIds.contains(id) should be(true)
               sources.workflowSource should be(optionedSourceFiles.workflowSource)
               sources.inputsJson should be(optionedSourceFiles.inputsJson)
@@ -190,7 +192,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 3
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, sources, state) =>
+            case WorkflowToStart(id, _, sources, state) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe prettyOptions(helloWorldSourceFiles)
               state shouldBe Submitted
@@ -257,7 +259,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         ))
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
-        coordinatedAccess.actor ! WriteHeartbeats(NonEmptyVector.of(workflowId))
+        coordinatedAccess.actor ! WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())))
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)
         val abortResponse = expectMsgType[AbortResponse](10.seconds)
@@ -316,7 +318,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
         Await.result(futureUpdate, 10.seconds.dilated) should be(1)
 
-        coordinatedAccess.actor ! WriteHeartbeats(NonEmptyVector.of(workflowId))
+        coordinatedAccess.actor ! WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())))
 
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)

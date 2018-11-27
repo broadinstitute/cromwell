@@ -166,7 +166,7 @@ object WomValueBuilder {
             .getOrElse(k, throw new RuntimeException(s"Field $k is not a declared field of composite type $composite. Cannot build a WomValue from the simpletons."))
           k -> toWomValue(valueType, ss) 
         }
-        WomObject.withType(map, composite)
+        WomObject.withTypeUnsafe(map, composite)
       case WomMaybeListedDirectoryType =>
         val directoryValues = components.asMap
 

@@ -2,10 +2,14 @@ package wom.executable
 
 import cats.data.NonEmptyList
 import cats.data.Validated.Invalid
+import cats.instances.list._
 import cats.syntax.apply._
+import cats.syntax.parallel._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr._
+import common.validation.IOChecked
+import common.validation.IOChecked._
 import shapeless.Coproduct
 import wom.callable.ExecutableCallable
 import wom.executable.Executable.ResolvedExecutableInputs
@@ -38,33 +42,41 @@ object Executable {
   type ResolvedExecutableInputs = Map[OutputPort, ResolvedExecutableInput]
 
   def withInputs(entryPoint: ExecutableCallable, inputParsingFunction: InputParsingFunction, inputFile: Option[String], ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
-    validateExecutable(entryPoint, inputParsingFunction, parseGraphInputs(strictValidation), inputFile, ioFunctions)
+    validateExecutable(entryPoint, inputParsingFunction, parseGraphInputs(strictValidation), inputFile, ioFunctions).toChecked
   }
 
   /**
     * Given the graph and the Map[String, DelayedCoercionFunction], attempts to find a value in the map for each ExternalGraphInputNode of the graph
     */
-  private def parseGraphInputs(strictValidation: Boolean)(graph: Graph, inputCoercionMap: Map[String, DelayedCoercionFunction], ioFunctions: IoFunctionSet): ErrorOr[ResolvedExecutableInputs] = {
-    def fromInputMapping(gin: ExternalGraphInputNode): Option[ErrorOr[ResolvedExecutableInput]] = {
+  private def parseGraphInputs(strictValidation: Boolean)(graph: Graph, inputCoercionMap: Map[String, DelayedCoercionFunction], ioFunctions: IoFunctionSet): IOChecked[ResolvedExecutableInputs] = {
+    import ioFunctions.cs
+
+    def fromInputMapping(gin: ExternalGraphInputNode): Option[IOChecked[ResolvedExecutableInput]] = {
       inputCoercionMap
         .get(gin.nameInInputSet)
-        .map { _.apply(gin.womType)
+        .map { _.apply(gin.womType).toIOChecked
           .flatMap(gin.valueMapper(ioFunctions)(_))
+          .contextualizeErrors(s"evaluate input '${gin.localName}'")
           .map(Coproduct[ResolvedExecutableInput](_))
         }
     }
 
-    def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedExecutableInput] = gin match {
-      case required: RequiredGraphInputNode => s"Required workflow input '${required.nameInInputSet}' not specified".invalidNel
-      case optionalWithDefault: OptionalGraphInputNodeWithDefault => Coproduct[ResolvedExecutableInput](optionalWithDefault.default).validNel
-      case optional: OptionalGraphInputNode => Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue).validNel
+    def fallBack(gin: ExternalGraphInputNode): IOChecked[ResolvedExecutableInput] = gin match {
+      case required: RequiredGraphInputNode => s"Required workflow input '${required.nameInInputSet}' not specified".invalidIOChecked
+      case optionalWithDefault: OptionalGraphInputNodeWithDefault =>
+        for {
+          evaluatedDefault <- optionalWithDefault.default.evaluateValue(Map.empty, ioFunctions).toIOChecked
+          mapped <- optionalWithDefault.valueMapper(ioFunctions)(evaluatedDefault)
+        } yield Coproduct[ResolvedExecutableInput](mapped)
+      case optional: OptionalGraphInputNode => IOChecked.pure(Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue))
     }
 
-    val providedInputsValidation = graph.inputNodes.collect({
+    val providedInputsValidation: IOChecked[ResolvedExecutableInputs] = graph.inputNodes.toList.parTraverse[IOChecked, IOCheckedPar, Option[(OutputPort, ResolvedExecutableInput)]]({
       case gin: ExternalGraphInputNode =>
         // The compiler needs the type ascription for some reason
-        (gin.singleOutputPort: OutputPort) -> fromInputMapping(gin).getOrElse(fallBack(gin))
-    }).toMap.sequence
+        fromInputMapping(gin).getOrElse(fallBack(gin)).map((gin.singleOutputPort: OutputPort) -> _).map(Option(_))
+      case _ => Option.empty[(OutputPort, ResolvedExecutableInput)].validIOChecked
+    }).map(_.flatten).map(_.toMap)
 
     val unwantedInputs = if (strictValidation) inputCoercionMap.keySet.diff(graph.externalInputNodes.map(_.nameInInputSet)) else Set.empty
 
@@ -73,7 +85,7 @@ object Executable {
       case Some(unwanteds) => Invalid(unwanteds.map(unwanted => s"WARNING: Unexpected input provided: $unwanted"))
     }
 
-    (providedInputsValidation, wantedInputsValidation) mapN { (providedInputs, _) => providedInputs }
+    (providedInputsValidation, wantedInputsValidation.toIOChecked) mapN { (providedInputs, _) => providedInputs }
   }
 }
 

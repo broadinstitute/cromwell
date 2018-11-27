@@ -73,7 +73,7 @@ private [cwl] object CwlJsonToDelayedCoercionFunction extends Json.Folder[Delaye
           }).getOrElse(s"Input field $k is not defined in the composite input type $composite".invalidNel)
       }).map(_.toMap[String, WomValue])
 
-      foldedMap.map(WomObject.withType(_, composite))
+      foldedMap.map(WomObject.withTypeUnsafe(_, composite))
     case WomObjectType =>
       val foldedMap = value.toList.traverse[ErrorOr, (String, WomValue)]({
         case (k, v) => v.foldWith(this).apply(WomAnyType).map(k -> _)

@@ -1,32 +1,26 @@
 package cwl
 
+import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
-import cats.syntax.validated._
 import common.validation.ErrorOr._
-import common.validation.Validation.validate
+import common.validation.IOChecked._
+import common.validation.Validation._
 import cwl.ontology.Schema
 import shapeless.Poly1
 import wom.expression.IoFunctionSet
 import wom.types.{WomFileType, WomMaybePopulatedFileType}
 import wom.values.{WomArray, WomFile, WomMaybePopulatedFile, WomValue}
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
-import scala.util.Try
-
 object FileParameter {
   private val ReadLimit = Option(64 * 1024)
-  val ReadTimeout = 60.seconds
-
-  def sync[A](f: Future[A]): Try[A] = Try(Await.result(f, FileParameter.ReadTimeout))
 
   def populateSecondaryFiles(womValue: WomValue,
                              secondaryFilesCoproduct: Option[SecondaryFiles],
                              formatOption: Option[String],
                              parameterContext: ParameterContext,
                              expressionLib: ExpressionLib,
-                             ioFunctions: IoFunctionSet): ErrorOr[WomValue] = {
+                             ioFunctions: IoFunctionSet): IOChecked[WomValue] = {
 
     womValue match {
 
@@ -49,7 +43,7 @@ object FileParameter {
           populateSecondaryFiles(_, secondaryFilesCoproduct, formatOption, parameterContext, expressionLib, ioFunctions)
         ).map(WomArray(_))
 
-      case womValue: WomValue => womValue.valid
+      case womValue: WomValue => womValue.validIOChecked
     }
   }
 
@@ -77,20 +71,16 @@ object FileParameter {
     */
   def maybeLoadContents(womMaybePopulatedFile: WomMaybePopulatedFile,
                         ioFunctionSet: IoFunctionSet,
-                        loadContents: Boolean): ErrorOr[Option[String]] = {
+                        loadContents: Boolean): IO[Option[String]] = {
     womMaybePopulatedFile.contentsOption match {
-      case someContents@Some(_) => someContents.valid
-      case None if !loadContents => None.valid
+      case someContents@Some(_) => IO.pure(someContents)
+      case None if !loadContents => IO.pure(None)
       case _ => FileParameter.load64KiB(womMaybePopulatedFile.value, ioFunctionSet).map(Option(_))
     }
   }
 
-  def load64KiB(path: String, ioFunctionSet: IoFunctionSet): ErrorOr[String] = {
-    // TODO: WOM: propagate Future (or IO?) signature
-    validate {
-      val content = ioFunctionSet.readFile(path, ReadLimit, failOnOverflow = false)
-      Await.result(content, ReadTimeout)
-    }
+  def load64KiB(path: String, ioFunctionSet: IoFunctionSet): IO[String] = {
+    IO.fromFuture(IO { ioFunctionSet.readFile(path, ReadLimit, failOnOverflow = false) })
   }
 
   /**
@@ -101,10 +91,10 @@ object FileParameter {
                      secondaryFilesOption: Option[SecondaryFiles],
                      parameterContext: ParameterContext,
                      expressionLib: ExpressionLib,
-                     ioFunctions: IoFunctionSet): ErrorOr[List[WomFile]] = {
+                     ioFunctions: IoFunctionSet): IOChecked[List[WomFile]] = {
     secondaryFilesOption
       .map(secondaryFiles(primaryWomFile, stringWomFileType, _, parameterContext, expressionLib, ioFunctions))
-      .getOrElse(Nil.valid)
+      .getOrElse(List.empty[WomFile].validIOChecked)
   }
 
   /**
@@ -115,13 +105,13 @@ object FileParameter {
                      secondaryFiles: SecondaryFiles,
                      parameterContext: ParameterContext,
                      expressionLib: ExpressionLib,
-                     ioFunctions: IoFunctionSet): ErrorOr[List[WomFile]] = {
+                     ioFunctions: IoFunctionSet): IOChecked[List[WomFile]] = {
     secondaryFiles
       .fold(SecondaryFilesPoly)
       .apply(primaryWomFile, stringWomFileType, parameterContext, expressionLib, ioFunctions)
   }
 
-  type SecondaryFilesFunction = (WomFile, WomFileType, ParameterContext, ExpressionLib, IoFunctionSet) => ErrorOr[List[WomFile]]
+  type SecondaryFilesFunction = (WomFile, WomFileType, ParameterContext, ExpressionLib, IoFunctionSet) => IOChecked[List[WomFile]]
 
   object SecondaryFilesPoly extends Poly1 {
     implicit def caseStringOrExpression: Case.Aux[StringOrExpression, SecondaryFilesFunction] = {
@@ -134,7 +124,7 @@ object FileParameter {
       at {
         expression =>
           (primaryWomFile, stringWomFileType, parameterContext, expressionLib, ioFunctions) =>
-            File.secondaryExpressionFiles(primaryWomFile, stringWomFileType, expression, parameterContext, expressionLib, ioFunctions)
+            File.secondaryExpressionFiles(primaryWomFile, stringWomFileType, expression, parameterContext, expressionLib, ioFunctions).toIOChecked
       }
     }
 

@@ -10,7 +10,7 @@ class WomCompositeTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoerc
 
   "WomObject with composite type" should "fail to build invalid values" in {
     val wrongType = the[Exception] thrownBy {
-      WomObject.withType(
+      WomObject.withTypeUnsafe(
         Map(
           "a" -> WomString("a")
         ),
@@ -25,7 +25,7 @@ class WomCompositeTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoerc
     wrongType.getMessage shouldBe "Error(s):\nNo coercion defined from wom value(s) '\"a\"' of type 'String' to 'Boolean'."
 
     val missingValues = the[Exception] thrownBy {
-      WomObject.withType(
+      WomObject.withTypeUnsafe(
         Map.empty,
         WomCompositeType(
           Map(
@@ -45,16 +45,16 @@ private object WomCompositeTypeSpecDefs {
   val stringIntCompositeType = WomCompositeType(Map("a" -> WomStringType, "b" -> WomIntegerType))
   val nestedStringIntCompositeType = WomCompositeType(Map("nested_a" -> WomStringType, "nested_b" -> WomIntegerType))
   val complexNestedCompositeType = WomCompositeType(Map("a" -> WomArrayType(WomStringType), "b" -> nestedStringIntCompositeType))
-  val simpleCompositeValue = WomObject.withType(
+  val simpleCompositeValue = WomObject.withTypeUnsafe(
     Map("a" -> WomString("0"), "b" -> WomInteger(1)),
     stringIntCompositeType
   )
-  val complexCompositeValue = WomObject.withType(
+  val complexCompositeValue = WomObject.withTypeUnsafe(
     Map(
       // Field "a" is an array of string
       "a" -> WomArray(WomArrayType(WomStringType), List(WomString("5"))),
       // Field "b" is a composite type itself
-      "b" -> WomObject.withType(Map("nested_a" -> WomString("8"), "nested_b" -> WomInteger(2)), nestedStringIntCompositeType)
+      "b" -> WomObject.withTypeUnsafe(Map("nested_a" -> WomString("8"), "nested_b" -> WomInteger(2)), nestedStringIntCompositeType)
     ),
     complexNestedCompositeType
   )
@@ -98,7 +98,7 @@ private object WomCompositeTypeSpecDefs {
     ("""{ "a": ["5"], "b": { "nested_a": "8", "nested_b": 2 } }""".parseJson, complexCompositeValue),
     // Inner values coercion (field types do not match the composite types but can be coerced to it)
     (
-      WomObject.withType(
+      WomObject.withTypeUnsafe(
         Map(
           // Array of int will be coerced to array of strings
           "a" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(5))),
@@ -121,8 +121,8 @@ private object WomCompositeTypeSpecDefs {
     ),
     // Automatic optional none default
     (
-      WomObject.withType(Map.empty, WomCompositeType(Map("a" -> WomOptionalType(WomStringType)))),
-      WomObject.withType(Map("a" -> WomOptionalValue.none(WomStringType)), WomCompositeType(Map("a" -> WomOptionalType(WomStringType))))
+      WomObject.withTypeUnsafe(Map.empty, WomCompositeType(Map("a" -> WomOptionalType(WomStringType)))),
+      WomObject.withTypeUnsafe(Map("a" -> WomOptionalValue.none(WomStringType)), WomCompositeType(Map("a" -> WomOptionalType(WomStringType))))
     )
   )
 
@@ -130,12 +130,12 @@ private object WomCompositeTypeSpecDefs {
     ("fromValue", "toType"),
     // Missing fields
     (
-      WomObject.withType(Map.empty, WomCompositeType(Map.empty)),
+      WomObject.withTypeUnsafe(Map.empty, WomCompositeType(Map.empty)),
       stringIntCompositeType
     ),
     // Non coerceable field types
     (
-      WomObject.withType(
+      WomObject.withTypeUnsafe(
         Map(
           "a" -> WomString("0"),
           "b" -> WomBoolean(false)

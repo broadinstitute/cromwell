@@ -240,7 +240,7 @@ trait SharedFileSystem extends PathFactory {
       result.get
     }
     val sized = localized collect {
-      case womMaybePopulatedFile@WomMaybePopulatedFile(Some(path), _, None, _, _, _) =>
+      case womMaybePopulatedFile@WomMaybePopulatedFile(Some(path), _, None, _, _, _, _) =>
         val pair = toDestPath(womMaybePopulatedFile)(path).get
         val srcSize = pair.src.size
         womMaybePopulatedFile.copy(sizeOption = Option(srcSize))

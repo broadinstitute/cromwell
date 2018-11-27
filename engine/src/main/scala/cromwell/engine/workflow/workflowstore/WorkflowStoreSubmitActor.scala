@@ -9,7 +9,7 @@ import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
-import common.validation.Parse._
+import common.validation.IOChecked._
 import cromwell.core.Dispatcher._
 import cromwell.core._
 import cromwell.engine.instrumentation.WorkflowInstrumentation
@@ -120,9 +120,9 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     }
   }
 
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, customLabels: Map[String, String]): Parse[Unit] = {
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, customLabels: Map[String, String]): IOChecked[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
-    Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
+    Monad[IOChecked].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {

@@ -7,7 +7,7 @@ import cats.effect.IO
 import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
@@ -29,11 +29,11 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
                                  ioFunctions: IoFunctionSet,
-                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+                                 importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
 
-    def parse(): Parse[Cwl] = source.workflowUrl match {
+    def parse(): IOChecked[Cwl] = source.workflowUrl match {
       case Some(url) => for {
-        reference <- fromEither[IO](CwlReference.fromString(url).map(Right(_)).getOrElse(Left(NonEmptyList.one(s"Invalid workflow reference: $url")))): Parse[CwlReference]
+        reference <- fromEither[IO](CwlReference.fromString(url).map(Right(_)).getOrElse(Left(NonEmptyList.one(s"Invalid workflow reference: $url")))): IOChecked[CwlReference]
         parsed <- CwlDecoder.decodeCwlReference(reference.changePointer(source.workflowRoot))
       } yield parsed
       case None =>

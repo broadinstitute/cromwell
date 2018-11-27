@@ -2,7 +2,7 @@ package centaur.cwl
 
 import centaur.api.CentaurCromwellClient
 import centaur.test.metadata.WorkflowFlatMetadata._
-import common.validation.Parse._
+import common.validation.IOChecked._
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
 import cwl.ontology.Schema
@@ -29,7 +29,7 @@ object Outputs {
     metadata.get("submittedFiles.workflow") match {
       case Some(JsString(workflow)) =>
 
-        val parseCwl: Parse[Cwl] = CwlDecoder.decodeCwlString(
+        val parseCwl: IOChecked[Cwl] = CwlDecoder.decodeCwlString(
           workflow,
           submittedWorkflow.workflow.zippedImports,
           submittedWorkflow.workflow.workflowRoot

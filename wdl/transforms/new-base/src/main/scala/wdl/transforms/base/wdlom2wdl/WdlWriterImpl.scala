@@ -26,6 +26,12 @@ object WdlWriterImpl {
     override def toWdlV1(a: StringPiece): String = a match {
       case a: StringLiteral     => a.value
       case a: StringPlaceholder => "~{" + a.expr.toWdlV1 + "}"
+      case NewlineEscape => "\\n"
+      case TabEscape => "\\t"
+      case BackslashEscape => "\\\\"
+      case SingleQuoteEscape => "\\'"
+      case DoubleQuoteEscape => "\\\""
+      case UnicodeCharacterEscape(codePoint) => s"\\u${"%04x".format(codePoint)}"
     }
   }
 

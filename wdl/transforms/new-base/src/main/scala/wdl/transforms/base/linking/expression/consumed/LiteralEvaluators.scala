@@ -46,8 +46,8 @@ object LiteralEvaluators {
     override def expressionConsumedValueHooks(a: StringExpression)
                                              (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] =
       a.pieces.flatMap {
-        case StringLiteral(_) => List.empty
         case StringPlaceholder(expr) => expr.expressionConsumedValueHooks.toList
+        case _ => List.empty
       }.toSet
   }
 }

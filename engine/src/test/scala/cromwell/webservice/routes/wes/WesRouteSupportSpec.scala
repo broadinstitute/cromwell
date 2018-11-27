@@ -2,6 +2,7 @@ package cromwell.webservice.routes.wes
 
 import akka.actor.Props
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromwell.webservice.routes.CromwellApiServiceSpec
 
@@ -9,6 +10,7 @@ import scala.concurrent.duration._
 import cromwell.webservice.routes.CromwellApiServiceSpec.{MockServiceRegistryActor, MockWorkflowManagerActor, MockWorkflowStoreActor}
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import WesResponseJsonSupport._
+import akka.http.scaladsl.server.MethodRejection
 
 class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers with WesRouteSupport {
   val actorRefFactory = system
@@ -124,6 +126,14 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
         assertResult(StatusCodes.OK) {
           status
         }
+      }
+  }
+
+  it should "fail if you submit via GET" in {
+    Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.ExistingWorkflowId}/cancel") ~>
+      wesRoutes ~>
+      check {
+        rejection shouldEqual MethodRejection(POST)
       }
   }
 }

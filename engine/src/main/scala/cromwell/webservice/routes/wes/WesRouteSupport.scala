@@ -29,6 +29,13 @@ trait WesRouteSupport extends HttpInstrumentation {
   implicit val timeout: Timeout
 
   /*
+    Defines routes intended to sit alongside the primary Cromwell REST endpoints. For instance, we'll now have:
+    GET /api/workflows/v1/ID/status
+    GET /ga4gh/wes/v1/runs/ID
+
+    POST /api/workflows/v1/ID/abort
+    POST /ga4gh/wes/v1/runs/ID/cancel
+
     These routes are not currently going through the MetadataBuilderRegulator/MetadataBuilder. This is for two reasons:
       - It'd require a fairly substantial refactor of the MetadataBuilderActor to be more general
       - It's expected that for now the usage of these endpoints will not be extensive, so the protections of the regulator
@@ -56,11 +63,13 @@ trait WesRouteSupport extends HttpInstrumentation {
               }
             },
             path(Segment / "cancel") { possibleWorkflowId =>
-              CromwellApiService.abortWorkflow(possibleWorkflowId,
-                workflowStoreActor,
-                workflowManagerActor,
-                successHandler = WesAbortSuccessHandler,
-                errorHandler = WesAbortErrorHandler)
+              post {
+                  CromwellApiService.abortWorkflow(possibleWorkflowId,
+                    workflowStoreActor,
+                    workflowManagerActor,
+                    successHandler = WesAbortSuccessHandler,
+                    errorHandler = WesAbortErrorHandler)
+              }
             }
           )
         }

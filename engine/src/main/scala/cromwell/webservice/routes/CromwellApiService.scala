@@ -285,6 +285,11 @@ object CromwellApiService {
     */
   private def standardAbortErrorHandler: PartialFunction[Throwable, Route] = {
     case e: InvalidWorkflowException => e.failRequest(StatusCodes.BadRequest)
+    /*
+       FIXME:
+       Note that the following condition is currently impossible to reach. There's a test for this condition however,
+       so will remove in a subsequent PR as it's topically different than this PR
+     */
     case e: IllegalStateException => e.errorRequest(StatusCodes.Forbidden)
     case e: WorkflowNotFoundException => e.errorRequest(StatusCodes.NotFound)
     case _: AskTimeoutException if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse

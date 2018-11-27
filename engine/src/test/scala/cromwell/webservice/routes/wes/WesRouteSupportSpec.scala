@@ -105,23 +105,23 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
       }
   }
 
-  it should "return 403 for abort of a workflow in a terminal state" in {
+  it should "return 200 for abort of an aborted workflow" in {
     Post(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.AbortedWorkflowId}/cancel") ~>
       wesRoutes ~>
       check {
-        assertResult(StatusCodes.Forbidden) {
+        responseAs[WesRunId] shouldEqual WesRunId(CromwellApiServiceSpec.AbortedWorkflowId.toString)
+
+        assertResult(StatusCodes.OK) {
           status
         }
-
-        responseAs[WesErrorResponse] shouldEqual WesErrorResponse(s"Workflow ID '${CromwellApiServiceSpec.AbortedWorkflowId}' is in terminal state 'Aborted' and cannot be aborted.", StatusCodes.Forbidden.intValue)
       }
   }
 
-  it should "return 200 for abort of a known workflow id" in {
-    Post(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.ExistingWorkflowId}/cancel") ~>
+  it should "return 200 for abort of an aborting workflow" in {
+    Post(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.AbortingWorkflowId}/cancel") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunId] shouldEqual WesRunId(CromwellApiServiceSpec.ExistingWorkflowId.toString)
+        responseAs[WesRunId] shouldEqual WesRunId(CromwellApiServiceSpec.AbortingWorkflowId.toString)
 
         assertResult(StatusCodes.OK) {
           status

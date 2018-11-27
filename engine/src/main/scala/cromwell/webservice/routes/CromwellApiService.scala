@@ -11,7 +11,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.{AskTimeoutException, ask}
 import akka.stream.ActorMaterializer
-import akka.util.{ByteString, Timeout}
+import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
@@ -39,7 +39,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport {
+trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport with FormDataSupport {
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
@@ -207,9 +207,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   }
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
-    val allParts: Future[Map[String, ByteString]] = formData.parts.mapAsync[(String, ByteString)](1) {
-      bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
-    }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
@@ -235,7 +232,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
       }
     }
 
-    onComplete(allParts) {
+    onComplete(materializeFormData(formData)) {
       case Success(data) =>
         PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>

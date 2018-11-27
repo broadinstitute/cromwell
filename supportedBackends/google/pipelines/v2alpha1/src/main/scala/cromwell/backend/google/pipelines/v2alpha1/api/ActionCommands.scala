@@ -80,7 +80,8 @@ object ActionCommands {
        |done""".stripMargin
 
   def retry(f: => String)(implicit localizationConfiguration: LocalizationConfiguration, wait: FiniteDuration) = {
-    s"""for i in `seq ${localizationConfiguration.localizationAttempts}`; do
+    s"""for i in $$(seq ${localizationConfiguration.localizationAttempts}); do
+       |  echo "Attempt $$i"
        |  (
        |    $f
        |  )

@@ -146,10 +146,11 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     "\\150\\145\\154\\154\\157" -> "hello",
     "\\x68\\x65\\x6C\\x6c\\x6F" -> "hello",
     "\\u0068\\U00000065\\u006C\\U0000006C\\u006F" -> "hello",
+    "\\u03A9 (omega)" -> "Ω (omega)"
   )
 
   escapeTests foreach { case (sequence, expected) =>
-    it should s"evaluate the escape sequence $sequence as $expected" in {
+    it should s"""evaluate the escape sequence $sequence as "$expected"""" in {
       val str = s""""$sequence""""
       val expectedEvaluation = WomString(expected)
       val expr = fromString[ExpressionElement](str, parser.parse_e)

@@ -58,7 +58,7 @@ object IOChecked {
 
   /**
     * Derived type class of Parallel for IOChecked, using IOCheckedPar as the applicative
-    * This allows to evaluate IOCheckeds in parallels by evaluating their underlying IO in Parallel.
+    * This allows to evaluate IOCheckeds in parallel by evaluating their underlying IO in Parallel.
     * We can't simply use IO.Par to evaluate them because IO.Par stops the evaluation as soon as an IO fails (actually cancels the other one)
     * This is not what we want because we want to keep the "ErrorOr" behavior where we accumulate all the errors.
     * Instead, we use IOCheckedPar which works on an Attempt[A]. The attempt corresponds to an IO[A].attempt, which will always yield a successful IO

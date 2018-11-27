@@ -7,7 +7,7 @@ import cats.syntax.either._
 import cats.{Applicative, Monad}
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
-import common.validation.Validation.{ValidationChecked, _}
+import common.validation.Validation._
 import cwl.preprocessor.{CwlFileReference, CwlPreProcessor, CwlReference}
 import io.circe.Json
 

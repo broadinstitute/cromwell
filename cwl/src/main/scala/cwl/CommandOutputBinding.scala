@@ -231,7 +231,7 @@ object CommandOutputBinding {
         val globs: IOChecked[Seq[String]] = 
           ioFunctionSet.glob(cwlPath).toIOChecked
               .map({
-                _ //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3472 which will redeem me of this mortal sin.
+                _ //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3092 which will redeem me of this mortal sin.
                 .filterNot{s =>
                   s.endsWith("rc.tmp") || s.endsWith("docker_cid") || s.endsWith("script") || s.endsWith("script.background") || s.endsWith("script.submit") || s.endsWith("stderr") || s.endsWith("stderr.background") || s.endsWith("stdout") || s.endsWith("stdout.background")
                 }

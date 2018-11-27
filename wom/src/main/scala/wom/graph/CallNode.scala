@@ -5,7 +5,7 @@ import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
 import cats.syntax.validated._
-import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._

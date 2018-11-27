@@ -8,7 +8,7 @@ import cats.syntax.either._
 import common.validation.IOChecked._
 import cwl.CwlDecoder
 import cwl.ontology.Schema
-import cwl.preprocessor.CwlPreProcessor.{PrintableJson, _}
+import cwl.preprocessor.CwlPreProcessor._
 import cwl.preprocessor.CwlReference.EnhancedCwlId
 import io.circe.optics.JsonPath._
 import io.circe.{Json, JsonNumber, JsonObject}

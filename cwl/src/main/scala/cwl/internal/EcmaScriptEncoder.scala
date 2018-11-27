@@ -33,7 +33,7 @@ class EcmaScriptEncoder {
     */
   def encode(value: WomValue): ECMAScriptVariable = {
     value match {
-      case file: WomFile => encodeFileOrDirectory(file, withSize = true)
+      case file: WomFile => encodeFileOrDirectory(file)
       case WomOptionalValue(_, None) => ESPrimitive(null)
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
       case WomString(string) => string |> ESPrimitive
@@ -72,27 +72,27 @@ class EcmaScriptEncoder {
   /**
     * Encodes a sequence of wom file or directory values.
     */
-  def encodeFileOrDirectories(values: Seq[WomFile], withSize: Boolean): ESArray = {
-    ESArray(values.toList.map(encodeFileOrDirectory(_, withSize)).toArray)
+  def encodeFileOrDirectories(values: Seq[WomFile]): ESArray = {
+    ESArray(values.toList.map(encodeFileOrDirectory).toArray)
   }
 
   /**
     * Encodes a wom file or directory value.
     */
-  def encodeFileOrDirectory(value: WomFile, withSize: Boolean): ECMAScriptVariable = {
+  def encodeFileOrDirectory(value: WomFile): ECMAScriptVariable = {
     value match {
       case directory: WomUnlistedDirectory => encodeDirectory(WomMaybeListedDirectory(directory.value))
-      case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value), withSize)
-      case glob: WomGlobFile => encodeFile(WomMaybePopulatedFile(glob.value), withSize)
+      case file: WomSingleFile => encodeFile(WomMaybePopulatedFile(file.value))
+      case glob: WomGlobFile => encodeFile(WomMaybePopulatedFile(glob.value))
       case directory: WomMaybeListedDirectory => encodeDirectory(directory)
-      case file: WomMaybePopulatedFile => encodeFile(file, withSize)
+      case file: WomMaybePopulatedFile => encodeFile(file)
     }
   }
 
   /**
     * Encodes a wom file.
     */
-  def encodeFile(file: WomMaybePopulatedFile, withSize: Boolean): ECMAScriptVariable =
+  def encodeFile(file: WomMaybePopulatedFile): ECMAScriptVariable =
     List(
       Option("class" -> ESPrimitive("File")),
       file.valueOption.map("location" -> ESPrimitive(_)),
@@ -103,7 +103,7 @@ class EcmaScriptEncoder {
       Option("nameext" -> (File.nameext(file.value) |> ESPrimitive)),
       file.checksumOption.map("checksum" -> ESPrimitive(_)),
       file.sizeOption.map(Long.box).map("size" -> ESPrimitive(_)),
-      Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles, withSize = false)),
+      Option("secondaryFiles" -> encodeFileOrDirectories(file.secondaryFiles)),
       file.formatOption.map("format" -> ESPrimitive(_)),
       file.contentsOption.map("contents" -> ESPrimitive(_))
     ).flatten.toMap |> ESObject
@@ -117,7 +117,7 @@ class EcmaScriptEncoder {
       directory.valueOption.map("location" -> ESPrimitive(_)),
       Option(directory.value).map("path" -> ESPrimitive(_)),
       Option("basename" -> ESPrimitive(Directory.basename(directory.value))),
-      directory.listingOption.map(encodeFileOrDirectories(_, withSize = true)).map("listing" -> _)
+      directory.listingOption.map(encodeFileOrDirectories).map("listing" -> _)
     ).flatten.toMap |> ESObject
   }
 }

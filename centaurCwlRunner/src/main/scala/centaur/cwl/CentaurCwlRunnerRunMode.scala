@@ -3,7 +3,7 @@ package centaur.cwl
 import better.files.File
 import cloud.nio.impl.ftp.FtpFileSystems
 import com.typesafe.config.Config
-import common.validation.IOChecked.{IOChecked, _}
+import common.validation.IOChecked._
 import cromwell.core.path.Obsolete.Paths
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.filesystems.ftp.{CromwellFtpFileSystems, FtpPathBuilderFactory}

@@ -5,7 +5,7 @@ import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.syntax.validated._
-import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import eu.timepit.refined._
 import mouse.all._

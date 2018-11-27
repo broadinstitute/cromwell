@@ -2,7 +2,7 @@ package wdl.model.draft3.elements
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import wdl.model.draft3.elements.ExpressionElement.{AsciiCharacterEscape, BackslashEscape, DoubleQuoteEscape, NewlineEscape, SingleQuoteEscape, StringEscapeSequence, TabEscape, UnicodeCharacterEscape}
+import wdl.model.draft3.elements.ExpressionElement.{BackslashEscape, DoubleQuoteEscape, NewlineEscape, SingleQuoteEscape, StringEscapeSequence, TabEscape, UnicodeCharacterEscape}
 
 object StringEscapeSequence {
   val Octal = "\\\\([0-7]{3})".r
@@ -16,8 +16,8 @@ object StringEscapeSequence {
     case "\\\"" => DoubleQuoteEscape.validNel
     case "\\'" => SingleQuoteEscape.validNel
     case "\\\\" => BackslashEscape.validNel
-    case Octal(codePoint) => AsciiCharacterEscape(BigInt(codePoint, 8).byteValue()).validNel
-    case Hex(codePoint) => AsciiCharacterEscape(BigInt(codePoint, 16).byteValue()).validNel
+    case Octal(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 8).intValue).validNel
+    case Hex(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
     case FourDigitUnicode(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
     case EightDigitUnicode(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
 

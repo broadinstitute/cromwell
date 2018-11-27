@@ -97,12 +97,12 @@ object WdlFileToWdlomSpec {
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "octal_hello",
-              StringExpression(Vector(AsciiCharacterEscape(104), AsciiCharacterEscape(101), AsciiCharacterEscape(108), AsciiCharacterEscape(108), AsciiCharacterEscape(111)))
+              StringExpression(Vector(UnicodeCharacterEscape(104), UnicodeCharacterEscape(101), UnicodeCharacterEscape(108), UnicodeCharacterEscape(108), UnicodeCharacterEscape(111)))
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "hex_hello",
-              StringExpression(Vector(AsciiCharacterEscape(104), AsciiCharacterEscape(101), AsciiCharacterEscape(108), AsciiCharacterEscape(108), AsciiCharacterEscape(111)))
+              StringExpression(Vector(UnicodeCharacterEscape(104), UnicodeCharacterEscape(101), UnicodeCharacterEscape(108), UnicodeCharacterEscape(108), UnicodeCharacterEscape(111)))
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),

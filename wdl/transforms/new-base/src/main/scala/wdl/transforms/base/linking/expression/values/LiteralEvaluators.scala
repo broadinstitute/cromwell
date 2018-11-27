@@ -49,9 +49,7 @@ object LiteralEvaluators {
         case DoubleQuoteEscape => EvaluatedValue(WomString("\""), Seq.empty).validNel
         case SingleQuoteEscape => EvaluatedValue(WomString("'"), Seq.empty).validNel
         case TabEscape => EvaluatedValue(WomString("\t"), Seq.empty).validNel
-        case AsciiCharacterEscape(codePoint) => EvaluatedValue(WomString(codePoint.toChar.toString), Seq.empty).validNel
-        case UnicodeCharacterEscape(codePoint) =>
-          EvaluatedValue(WomString(codePoint.toChar.toString), Seq.empty).validNel
+        case UnicodeCharacterEscape(codePoint) => EvaluatedValue(WomString(codePoint.toChar.toString), Seq.empty).validNel
         case _ => "Nope".invalidNel
 
       }

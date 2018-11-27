@@ -23,7 +23,6 @@ object ExpressionElement {
   case object DoubleQuoteEscape extends StringEscapeSequence
   case object SingleQuoteEscape extends StringEscapeSequence
   case object BackslashEscape extends StringEscapeSequence
-  final case class AsciiCharacterEscape(codePoint: Byte) extends StringEscapeSequence
   final case class UnicodeCharacterEscape(codePoint: Int) extends StringEscapeSequence
 
 

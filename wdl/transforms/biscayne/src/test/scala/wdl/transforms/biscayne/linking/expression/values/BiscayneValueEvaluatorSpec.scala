@@ -150,13 +150,15 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
   )
 
   escapeTests foreach { case (sequence, expected) =>
-    it should s"""evaluate the escape sequence $sequence as "$expected"""" in {
-      val str = s""""$sequence""""
-      val expectedEvaluation = WomString(expected)
-      val expr = fromString[ExpressionElement](str, parser.parse_e)
+    List("\"", "'") foreach { quote =>
+      it should s"evaluate the escaping string $quote$sequence$quote as: $expected" in {
+        val str = s"$quote$sequence$quote"
+        val expectedEvaluation = WomString(expected)
+        val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-      expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
+        expr.shouldBeValidPF {
+          case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
+        }
       }
     }
   }

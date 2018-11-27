@@ -92,7 +92,7 @@ class CloudPreprocessor(config: Config, prefixConfigPath: String) {
       .getOrElse(workflow.deepMerge(DefaultDockerHintList))
   } else workflow
   
-  private val prefixDefaultFilesInCwl = cwlPreProcessor.mapFilesAndDirectories(prefixLocation) _
+  private val prefixDefaultFilesInCwl = CwlPreProcessor.mapFilesAndDirectories(prefixLocation) _
 
   /**
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one

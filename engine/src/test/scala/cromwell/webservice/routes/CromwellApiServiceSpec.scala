@@ -7,7 +7,7 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.stream.ActorMaterializer
 import common.util.VersionUtil
 import cromwell.core._
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow, WorkflowOnHoldToSubmittedCommand}
@@ -420,6 +420,45 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           }
         }
     }
+
+    it should "return 200 with an HTML document that contains static metadata json" in {
+      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/timing") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.OK) { status }
+          assert(responseAs[String].contains("var metadataJson = {\"testKey1b\":\"myValue1b\",\"calls\":{},\"testKey1a\":\"myValue1a\",\"id\":\"c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5\",\"testKey2a\":\"myValue2a\"};"))
+        }
+    }
+
+    it should "return 404 when unrecognized workflow id is submitted" in {
+      Get(s"/workflows/$version/${CromwellApiServiceSpec.UnrecognizedWorkflowId}/timing") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.NotFound) { status }
+          assertResult(
+            s"""{
+               |  "status": "fail",
+               |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
+               |}""".stripMargin) {
+            responseAs[String].parseJson.prettyPrint
+          }
+        }
+    }
+
+    it should "return 400 when invalid workflow id is submitted" in {
+      Get(s"/workflows/$version/foo/timing") ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          assertResult(StatusCodes.BadRequest) { status }
+          assertResult(
+            s"""{
+               |  "status": "fail",
+               |  "message": "Invalid workflow ID: 'foo'."
+               |}""".stripMargin) {
+            responseAs[String].parseJson.prettyPrint
+          }
+        }
+    }
 }
 
 object CromwellApiServiceSpec {
@@ -512,7 +551,7 @@ object CromwellApiServiceSpec {
         sender ! response
       case AbortWorkflowCommand(id) =>
         val message = id match {
-          case ExistingWorkflowId => WorkflowAbortingResponse(id, restarted = false)
+          case ExistingWorkflowId => WorkflowAbortRequestedResponse(id)
           case UnrecognizedWorkflowId => WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case AbortedWorkflowId =>
             WorkflowAbortFailureResponse(id, new IllegalStateException(s"Workflow ID '$id' is in terminal state 'Aborted' and cannot be aborted."))

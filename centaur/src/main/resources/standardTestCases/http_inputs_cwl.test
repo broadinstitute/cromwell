@@ -1,0 +1,14 @@
+name: http_inputs_cwl
+backends: [Local, Papiv2]
+testFormat: workflowsuccess
+workflowRoot: http_inputs
+
+files {
+  workflow: http_inputs/http_inputs.cwl
+  inputs: http_inputs/http_inputs_cwl.inputs
+}
+
+metadata {
+  status: Succeeded
+  "outputs.http_inputs.md5": "6cb875b80d51f9a26eb05db7f9779011\n"
+}

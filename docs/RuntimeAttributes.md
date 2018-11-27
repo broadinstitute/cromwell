@@ -305,6 +305,41 @@ runtime {
 ```
 
 Defaults to 0.
+
+## `noAddress`
+
+This runtime attribute adds support to disable assigning external IP addresses to VMs provisioned by the Google backend. If set to true, the VM will NOT be provided with a public IP address, and only contain an internal IP. If this option is enabled, the associated job can only load docker images from Google Container Registry, and the job executable cannot use external services other than Google APIs.
+
+For example, the task below will succeed:
+```
+command {
+  echo "hello!"
+  
+}
+
+runtime {
+  docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest"
+  noAddress: true
+}
+```
+
+The task below will fail for two reasons:
+ 1. The command is accessing an external service, in this case GitHub.
+ 2. The docker image is available in DockerHub and not the Google Container Registry. 
+```
+command {
+  git clone https://github.com/broadinstitute/cromwell.git
+  
+}
+
+runtime {
+  docker: "docker.io/alpine/git:latest"
+  noAddress: true
+}
+```
+
+
+
 ## Backend Support
 
 [Backends](backends/Backends) only support certain attributes. See table below:
@@ -321,6 +356,8 @@ Defaults to 0.
 | [preemptible](#preemptible)                    |       |   x   |       |
 | [bootDiskSizeGb](#bootdisksizegb)              |       |   x   |       |
 | [maxRetries](#maxRetries)                      |   x   |   x   |   x   |
+| [noAddress](#noAddress)                        |       |   x   |       |
+
 
 
 [Shared Filesystem backend](backends/HPC#shared-filesystem) is fully configurable and thus these attributes do not apply universally.

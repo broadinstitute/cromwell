@@ -27,7 +27,7 @@ class PipelinesApiExpressionFunctions(standardParams: StandardExpressionFunction
     GcsPathBuilder.validateGcsPath(str) match {
       case _: ValidFullGcsPath => str
       case PossiblyValidRelativeGcsPath => callContext.root.resolve(str.stripPrefix("/")).pathAsString
-      case invalid: InvalidGcsPath => throw new IllegalArgumentException(invalid.errorMessage)
+      case _: InvalidGcsPath => str
     }
   }
 

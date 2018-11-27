@@ -212,7 +212,7 @@ paths:
     post:
       operationId: abort
       summary: Abort a running workflow
-      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will make a best effort attempt to immediately halt any currently running jobs from this workflow.
+      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will schedule a halt of all currently running jobs from this workflow.
       parameters:
         - $ref: '#/parameters/versionParam'
         - $ref: '#/parameters/singleId'

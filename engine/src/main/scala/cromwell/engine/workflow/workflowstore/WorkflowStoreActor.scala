@@ -54,6 +54,11 @@ object WorkflowStoreActor {
   case object InitializerCommand extends WorkflowStoreActorEngineCommand
   case object WorkDone extends WorkflowStoreActorEngineCommand
   case object AbortAllRunningWorkflowsCommandAndStop extends WorkflowStoreActorEngineCommand
+  final case class FindWorkflowsWithAbortRequested(cromwellId: String) extends WorkflowStoreActorEngineCommand
+
+  sealed trait WorkflowStoreActorEngineResponse
+  case class FindWorkflowsWithAbortRequestedSuccess(ids: Iterable[WorkflowId]) extends WorkflowStoreActorEngineResponse
+  case class FindWorkflowsWithAbortRequestedFailure(t: Throwable) extends WorkflowStoreActorEngineResponse
 
   sealed trait WorkflowStoreActorSubmitCommand
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand

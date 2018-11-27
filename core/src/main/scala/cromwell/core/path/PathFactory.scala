@@ -1,9 +1,15 @@
 package cromwell.core.path
 
+import cats.data.NonEmptyList
+import cats.syntax.validated._
+import cats.data.Validated.{Invalid, Valid}
+import common.validation.Validation._
+import common.validation.ErrorOr._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.path.PathFactory.PathBuilders
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Convenience trait delegating to the PathFactory singleton
@@ -34,12 +40,21 @@ object PathFactory {
   type PathBuilders = List[PathBuilder]
 
   @tailrec
-  private def findFirstSuccess(string: String, pathBuilders: PathBuilders, failures: Vector[Throwable]): (Option[Path], Vector[Throwable]) = pathBuilders match {
-    case Nil => None -> failures
-    case pb :: rest => pb.build(string) match {
-      case Success(path) => Option(path) -> Vector.empty
-      case Failure(f) => findFirstSuccess(string, rest, failures :+ f)
+  private def findFirstSuccess(string: String,
+                               pathBuilders: PathBuilders,
+                               failures: Vector[String]): ErrorOr[Path] = pathBuilders match {
+    case Nil => NonEmptyList.fromList(failures.toList) match {
+      case Some(errors) => Invalid(errors)
+      case None => s"Could not parse '$string' to path. No PathBuilders were provided".invalidNel
     }
+    case pb :: rest =>
+      pb.build(string) match {
+        case Success(path) =>
+          path.validNel
+        case Failure(f) =>
+          val newFailure = s"${pb.name}: ${f.getMessage} (${f.getClass.getSimpleName})"
+          findFirstSuccess(string, rest, failures :+ newFailure)
+      }
   }
 
   /**
@@ -49,18 +64,22 @@ object PathFactory {
                 pathBuilders: PathBuilders,
                 preMapping: String => String = identity[String],
                 postMapping: Path => Path = identity[Path]): Path = {
-    val (path, failures) = findFirstSuccess(preMapping(string), pathBuilders, Vector.empty)
 
-    lazy val failuresMessage = failures.zip(pathBuilders).map({
-      case (failure, pathBuilder) => s"${pathBuilder.name}: ${failure.getMessage} (${failure.getClass.getSimpleName})"
-    }).mkString("\n")
+    lazy val pathBuilderNames: String = pathBuilders map { _.name } mkString ", "
 
-    path.map(postMapping) getOrElse {
-      val pathBuilderNames: String = pathBuilders map { _.name } mkString ", "
+    val path = for {
+      preMapped <- Try(preMapping(string)).toErrorOr.contextualizeErrors(s"pre map $string")
+      path <- findFirstSuccess(preMapped, pathBuilders, Vector.empty)
+      postMapped <- Try(postMapping(path)).toErrorOr.contextualizeErrors(s"post map $path")
+    } yield postMapped
+
+    path match {
+      case Valid(v) => v
+      case Invalid(errors) =>
       throw PathParsingException(
         s"""Could not build the path "$string". It may refer to a filesystem not supported by this instance of Cromwell.""" +
           s" Supported filesystems are: $pathBuilderNames." +
-          s" Failures: $failuresMessage" +
+          s" Failures: ${errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}" +
           s" Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems"
       )
     }

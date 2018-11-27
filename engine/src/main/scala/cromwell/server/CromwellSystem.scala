@@ -22,8 +22,8 @@ trait CromwellSystem {
   - https://github.com/broadinstitute/clio/blob/7253ec0/clio-server/src/main/scala/org/broadinstitute/clio/server/service/ServerService.scala#L58-L66
   - https://en.wikipedia.org/wiki/Data_access_object
    */
-  EngineServicesStore
-  MetadataServicesStore
+  EngineServicesStore.engineDatabaseInterface
+  MetadataServicesStore.metadataDatabaseInterface
 
   protected def systemName = "cromwell-system"
   val conf = ConfigFactory.load()

@@ -69,16 +69,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     }
 
     def validationCallable = new Callable[ErrorOr[WdlNamespaceWithWorkflow]] {
-      def call: ErrorOr[WdlNamespaceWithWorkflow] = source match {
-        case w: WorkflowSourceFilesWithDependenciesZip =>
-          for {
-            importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
-            wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
-            _ = importsDir.delete(swallowIOExceptions = true)
-          } yield wf
-        case _: WorkflowSourceFilesWithoutImports =>
-          WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
-      }
+      def call: ErrorOr[WdlNamespaceWithWorkflow] = WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
     }
 
     lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = namespaceCache.map(_.get(workflowHashKey, validationCallable)).getOrElse(validationCallable.call)
@@ -144,7 +135,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     for {
       _ <- enabled.option(())
       caching <- config.as[Option[Config]]("caching")
-      cc <- CacheConfig.fromConfig(caching, defaultConcurrency = 2, defaultSize = 1000L, defaultTtl = 20 minutes)
+      cc <- CacheConfig.optionalConfig(caching, defaultConcurrency = 2, defaultSize = 1000L, defaultTtl = 20 minutes)
     } yield cc
   }
 

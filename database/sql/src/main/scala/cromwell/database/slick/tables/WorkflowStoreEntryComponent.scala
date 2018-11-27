@@ -3,8 +3,6 @@ package cromwell.database.slick.tables
 import java.sql.{Blob, Clob, Timestamp}
 
 import cromwell.database.sql.tables.WorkflowStoreEntry
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 
 trait WorkflowStoreEntryComponent {
 
@@ -12,15 +10,6 @@ trait WorkflowStoreEntryComponent {
 
   import driver.api._
 
-  object WorkflowStoreEntries {
-    implicit val workflowStoreStateMapper = MappedColumnType.base[WorkflowStoreState, String](
-      e => e.toString,
-      s => WorkflowStoreState.withName(s)
-    )
-  }
-
-  import WorkflowStoreEntries._
-  
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE_ENTRY") {
     def workflowStoreEntryId = column[Int]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
@@ -42,7 +31,7 @@ trait WorkflowStoreEntryComponent {
 
     def customLabels = column[Clob]("CUSTOM_LABELS")
 
-    def workflowState = column[WorkflowStoreState]("WORKFLOW_STATE", O.Length(20))
+    def workflowState = column[String]("WORKFLOW_STATE", O.Length(20))
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
@@ -85,22 +74,24 @@ trait WorkflowStoreEntryComponent {
     * Returns up to "limit" startable workflows, sorted by submission time.
     */
   val fetchStartableWorkflows = Compiled(
-    (limit: ConstColumn[Long], heartbeatThreshold: ConstColumn[Timestamp]) => {
+    (limit: ConstColumn[Long],
+     heartbeatTimestampTimedOut: ConstColumn[Timestamp],
+     excludeWorkflowState: Rep[String]
+    ) => {
       val query = for {
         row <- workflowStoreEntries
-        // This looks for:
-        //
-        // 1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
-        // 2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
-        //
-        // Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
-        // locked such that readers are blocked since we will do an update subsequent to this select in the same
-        // transaction that we know will impact those readers.
-        //
-        // The current code only writes heartbeats on initial pickup; this needs to be fixed by instrumenting workflow
-        // heartbeats into Cromwell appropriately.  But in the meantime any other Cromwell's workflows will appear
-        // to be abandoned if they were picked up before `heartbeatThreshold`.
-        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatThreshold) && !(row.workflowState === WorkflowStoreState.OnHold)
+        /*
+        This looks for:
+
+        1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
+        2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
+
+        Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
+        locked such that readers are blocked since we will do an update subsequent to this select in the same
+        transaction that we know will impact those readers.
+         */
+        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
+          (row.workflowState =!= excludeWorkflowState)
       } yield row
       query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
     }
@@ -139,26 +130,16 @@ trait WorkflowStoreEntryComponent {
     * Useful for updating state for all entries matching a given state
     */
   val workflowStateForWorkflowState = Compiled(
-    (workflowState: Rep[WorkflowStoreState]) => for {
+    (workflowState: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowState === workflowState
     } yield workflowStoreEntry.workflowState
   )
 
   /**
-    * Useful for clearing the heartbeat timestamp on server restart.
-    */
-  val heartbeatTimestamp = Compiled(
-    (cromwellId: Rep[Option[String]]) => for {
-      workflowStoreEntry <- workflowStoreEntries
-      if (workflowStoreEntry.cromwellId === cromwellId) || (workflowStoreEntry.cromwellId.isEmpty && cromwellId.isEmpty)
-    } yield workflowStoreEntry.heartbeatTimestamp
-  )
-
-  /**
     * Useful for updating a given workflow to a new state
     */
-  val workflowStateForId = Compiled(
+  val workflowStateForWorkflowExecutionUUid = Compiled(
     (workflowId: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowExecutionUuid === workflowId
@@ -168,23 +149,37 @@ trait WorkflowStoreEntryComponent {
   /**
     * Useful for updating a given workflow to a 'Submitted' state when it's currently 'On Hold'
     */
-  val workflowForIdAndOnHold = Compiled(
-    (workflowId: Rep[String]) => {
-       for {
+  val workflowStateForWorkflowExecutionUUidAndWorkflowState = Compiled(
+    (workflowId: Rep[String], workflowState: Rep[String]) => {
+      for {
         workflowStoreEntry <- workflowStoreEntries
         if workflowStoreEntry.workflowExecutionUuid === workflowId
-        if workflowStoreEntry.workflowState === WorkflowStoreState.OnHold
+        if workflowStoreEntry.workflowState === workflowState
       } yield workflowStoreEntry.workflowState
     }
   )
 
   /**
-    * Useful for checking if the heartbeat timestamp was cleared for a given workflow id.
+    * Useful for deleting a given workflow to a 'Submitted' state when it's currently 'On Hold' or 'Submitted'
     */
-  val heartbeatClearedForWorkflowId = Compiled(
-    (workflowId: Rep[String]) => for {
+  val workflowStoreEntryForWorkflowExecutionUUidAndWorkflowStates = Compiled(
+    (workflowId: Rep[String],
+     workflowStateOr1: Rep[String],
+     workflowStateOr2: Rep[String]
+    ) => {
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowExecutionUuid === workflowId
+        if workflowStoreEntry.workflowState === workflowStateOr1 ||
+          workflowStoreEntry.workflowState === workflowStateOr2
+      } yield workflowStoreEntry
+    }
+  )
+
+  val findWorkflowsWithAbortRequested = Compiled(
+    (cromwellId: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
-      if workflowStoreEntry.workflowExecutionUuid === workflowId
-    } yield workflowStoreEntry.heartbeatTimestamp.isEmpty
+      if workflowStoreEntry.workflowState === "Aborting" && workflowStoreEntry.cromwellId === cromwellId
+    } yield workflowStoreEntry.workflowExecutionUuid
   )
 }

@@ -174,11 +174,7 @@ object PipelinesApiRuntimeAttributes {
     val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes), outDirMin.map(_.bytes), tmpDirMin.map(_.bytes)).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
     val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
 
-    val adjustedDisks = disks.map({
-      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < totalExecutionDiskSize.to(MemoryUnit.GB).amount.toInt =>
-        disk.copy(sizeGb = totalExecutionDiskSize.to(MemoryUnit.GB).amount.toInt)
-      case other => other
-    })
+    val adjustedDisks = disks.adjustWorkingDiskWithNewMin(totalExecutionDiskSize)
 
     new PipelinesApiRuntimeAttributes(
       cpu,

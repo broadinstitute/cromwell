@@ -1,12 +1,12 @@
-name: draft3_nio_file
+name: draft3_nio_file_papi2
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]
-backends: [Papi]
+backends: [Papiv2]
 
 files {
-  workflow: wdl_draft3/draft3_nio_file/draft3_nio_file.wdl
+  workflow: wdl_draft3/draft3_nio_file/draft3_nio_file_papi2.wdl
 }
 
 metadata {

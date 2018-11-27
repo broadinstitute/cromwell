@@ -414,7 +414,18 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           preemptible,
           pipelinesConfiguration.jobShell,
           dockerKeyAndToken,
-          jobDescriptor.workflowDescriptor.outputRuntimeExtractor
+          jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
+          /*
+           * Right now this doesn't cost anything, because sizeOption returns the size if it was previously already fetched
+           * for some reason (expression evaluation for instance), but otherwise does not retrieve it and returns None.
+           * In CWL-land we tend to be aggressive in pre-fetching the size in order to be able to evaluate JS expressions,
+           * but less in WDL as we can get it last minute and on demand because size is a WDL function, whereas in CWL
+           * we don't inspect the JS to know if size is called and therefore always pre-fetch it.
+           * 
+           * We could decide to call withSize before in which case we would retrieve the size for all files and have
+           * a guaranteed more accurate total size, but there might be performance impacts ?
+           */
+          Option(callInputFiles.values.flatMap(_.flatMap(_.sizeOption)).sum)
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

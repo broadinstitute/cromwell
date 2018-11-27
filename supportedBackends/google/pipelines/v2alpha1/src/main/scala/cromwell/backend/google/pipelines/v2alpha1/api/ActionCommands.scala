@@ -126,11 +126,7 @@ object ActionCommands {
        |  cat gsutil_output.txt 1>&2
        |  
        |  # Check if it matches the BucketIsRequesterPaysErrorMessage
-       |  grep "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt
-       |  
-       |  # If it does, grep will return 0
-       |  IS_RP_FAILURE=$$?
-       |  if [ "$$IS_RP_FAILURE" = "0" ]; then
+       |  if grep -q "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; then
        |    echo "Retrying with user project"
        |    ${withProject |> f}
        |  else

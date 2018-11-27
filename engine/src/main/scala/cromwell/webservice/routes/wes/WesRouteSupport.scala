@@ -15,7 +15,7 @@ import WesResponseJsonSupport._
 import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import WesRouteSupport._
-import cromwell.core.WorkflowId
+import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.server.CromwellShutdown
 import cromwell.webservice.routes.CromwellApiService
@@ -80,8 +80,8 @@ trait WesRouteSupport extends HttpInstrumentation {
 object WesRouteSupport {
   val NotFoundError = WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
 
-  def WesAbortSuccessHandler(workflowId: WorkflowId): Route = {
-    complete(WesRunId(workflowId.toString))
+  def WesAbortSuccessHandler: PartialFunction[SuccessfulAbortResponse, Route] = {
+    case response => complete(WesRunId(response.workflowId.toString))
   }
 
   def WesAbortErrorHandler: PartialFunction[Throwable, Route] = {

@@ -256,7 +256,7 @@ object CromwellApiService {
   def abortWorkflow(possibleWorkflowId: String,
                     workflowStoreActor: ActorRef,
                     workflowManagerActor: ActorRef,
-                    successHandler: WorkflowId => Route = standardAbortSuccessHandler,
+                    successHandler: PartialFunction[SuccessfulAbortResponse, Route] = standardAbortSuccessHandler,
                     errorHandler: PartialFunction[Throwable, Route] = standardAbortErrorHandler)
                    (implicit timeout: Timeout): Route = {
     handleExceptions(ExceptionHandler(errorHandler)) {
@@ -264,7 +264,7 @@ object CromwellApiService {
         case Success(workflowId) =>
           val response = workflowStoreActor.ask(WorkflowStoreActor.AbortWorkflowCommand(workflowId)).mapTo[AbortResponse]
           onComplete(response) {
-            case Success(x: SuccesfulAbortResponse) => successHandler(x.workflowId)
+            case Success(x: SuccessfulAbortResponse) => successHandler(x)
             case Success(x: WorkflowAbortFailureResponse) => throw x.failure
             case Failure(e) => throw e
           }
@@ -276,8 +276,9 @@ object CromwellApiService {
   /**
     * The abort success handler for typical cases, i.e. cromwell's API.
     */
-  private def standardAbortSuccessHandler(workflowId: WorkflowId): Route = {
-    complete(ToResponseMarshallable(WorkflowAbortResponse(workflowId.toString, WorkflowAborting.toString)))
+  private def standardAbortSuccessHandler: PartialFunction[SuccessfulAbortResponse, Route] = {
+    case WorkflowAbortedResponse(id) => complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborted.toString)))
+    case WorkflowAbortRequestedResponse(id) => complete(ToResponseMarshallable(WorkflowAbortResponse(id.toString, WorkflowAborting.toString)))
   }
 
   /**

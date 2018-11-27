@@ -8,6 +8,6 @@ sealed trait AbortResponse {
 
 final case class WorkflowAbortFailureResponse(workflowId: WorkflowId, failure: Throwable) extends AbortResponse
 
-sealed trait SuccesfulAbortResponse extends AbortResponse
-final case class WorkflowAbortedResponse(workflowId: WorkflowId) extends SuccesfulAbortResponse
-final case class WorkflowAbortRequestedResponse(workflowId: WorkflowId) extends SuccesfulAbortResponse
+sealed trait SuccessfulAbortResponse extends AbortResponse
+final case class WorkflowAbortedResponse(workflowId: WorkflowId) extends SuccessfulAbortResponse
+final case class WorkflowAbortRequestedResponse(workflowId: WorkflowId) extends SuccessfulAbortResponse

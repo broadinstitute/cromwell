@@ -28,7 +28,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.OnHoldWorkflowId}/status") ~>
       wesRoutes ~>
         check {
-          responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.OnHoldWorkflowId.toString, WesState.PAUSED)
+          responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.OnHoldWorkflowId.toString, WesState.Paused)
         }
   }
 
@@ -36,7 +36,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.ExistingWorkflowId}/status") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.ExistingWorkflowId.toString, WesState.QUEUED)
+        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.ExistingWorkflowId.toString, WesState.Queued)
       }
   }
 
@@ -44,7 +44,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.RunningWorkflowId}/status") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.RunningWorkflowId.toString, WesState.RUNNING)
+        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.RunningWorkflowId.toString, WesState.Running)
       }
   }
 
@@ -52,7 +52,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.AbortingWorkflowId}/status") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.AbortingWorkflowId.toString, WesState.CANCELING)
+        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.AbortingWorkflowId.toString, WesState.Canceling)
       }
   }
 
@@ -60,7 +60,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.AbortedWorkflowId}/status") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.AbortedWorkflowId.toString, WesState.CANCELED)
+        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.AbortedWorkflowId.toString, WesState.Canceled)
       }
   }
 
@@ -68,7 +68,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.SucceededWorkflowId}/status") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.SucceededWorkflowId.toString, WesState.COMPLETE)
+        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.SucceededWorkflowId.toString, WesState.Complete)
       }
   }
 
@@ -76,7 +76,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
     Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.FailedWorkflowId}/status") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.FailedWorkflowId.toString, WesState.EXECUTOR_ERROR)
+        responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.FailedWorkflowId.toString, WesState.ExecutorError)
       }
   }
 

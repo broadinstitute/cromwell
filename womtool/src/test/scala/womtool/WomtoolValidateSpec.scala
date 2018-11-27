@@ -13,7 +13,6 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
 
   behavior of "womtool validate"
 
-
   it should "test at least one version" in {
     languageVersions.isEmpty should be(false)
   }

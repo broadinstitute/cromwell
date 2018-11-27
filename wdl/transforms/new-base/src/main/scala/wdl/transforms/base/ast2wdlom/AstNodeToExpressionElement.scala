@@ -242,22 +242,15 @@ object AstNodeToExpressionElement {
 
   private def handleStringLiteral(ast: GenericAst)
                                  (implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
-    def convertStringPiece(a: GenericAstNode): ErrorOr[StringPiece] = a match {
-      case simple: GenericTerminal if simple.getTerminalStr == "string" => StringLiteral(simple.getSourceString).validNel
-      case escape: GenericTerminal if escape.getTerminalStr == "escape" => StringEscapeSequence.parseEscapeSequence(escape.getSourceString)
-      case expr: GenericAst if expr.getName == "ExpressionPlaceholder" => expr.getAttributeAs[ExpressionElement]("expr").toValidated.map(StringPlaceholder)
 
-      case otherTerminal: GenericTerminal => s"Unexpected parse tree. Expected string piece but found Terminal '${otherTerminal.getTerminalStr}' (${otherTerminal.getSourceString})".invalidNel
-      case otherAst: GenericAst=> s"Unexpected parse tree. Expected string piece but found AST ${otherAst.getName}".invalidNel
-    }
-    implicit val toStringPiece: CheckedAtoB[GenericAstNode, StringPiece] = CheckedAtoB.fromErrorOr(convertStringPiece)
-
+    implicit val astNodeToStringPiece: CheckedAtoB[GenericAstNode, StringPiece] = AstNodeToStringPiece.astNodeToStringPiece(Some(astNodeToExpressionElement))
     ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
       if (pieces.isEmpty) {
         StringLiteral("")
       } else if (pieces.size == 1) {
         pieces.head match {
           case s: StringLiteral => s
+          case e: StringEscapeSequence => StringLiteral(e.unescape)
           case _ => StringExpression(pieces)
         }
       } else {

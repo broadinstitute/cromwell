@@ -17,13 +17,17 @@ object ExpressionElement {
     */
   final case class StringPlaceholder(expr: ExpressionElement) extends StringPiece
 
-  sealed trait StringEscapeSequence extends StringPiece
-  case object NewlineEscape extends StringEscapeSequence
-  case object TabEscape extends StringEscapeSequence
-  case object DoubleQuoteEscape extends StringEscapeSequence
-  case object SingleQuoteEscape extends StringEscapeSequence
-  case object BackslashEscape extends StringEscapeSequence
-  final case class UnicodeCharacterEscape(codePoint: Int) extends StringEscapeSequence
+  sealed trait StringEscapeSequence extends StringPiece {
+    def unescape: String
+  }
+  case object NewlineEscape extends StringEscapeSequence { override val unescape: String = System.lineSeparator }
+  case object TabEscape extends StringEscapeSequence { override val unescape: String = "\t" }
+  case object DoubleQuoteEscape extends StringEscapeSequence { override val unescape: String = "\"" }
+  case object SingleQuoteEscape extends StringEscapeSequence { override val unescape: String = "'" }
+  case object BackslashEscape extends StringEscapeSequence { override val unescape: String = "\\" }
+  final case class UnicodeCharacterEscape(codePoint: Int) extends StringEscapeSequence {
+    override val unescape: String = codePoint.toChar.toString
+  }
 
 
   final case class KvPair(key: String, value: ExpressionElement)

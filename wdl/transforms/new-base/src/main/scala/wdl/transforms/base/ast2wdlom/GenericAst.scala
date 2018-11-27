@@ -12,6 +12,8 @@ import common.transforms.CheckedAtoB
 trait GenericAstNode {
   def astListAsVector: Checked[Vector[GenericAstNode]] = this match {
     case list: GenericAstList => list.astNodeList.toVector.validNelCheck
+    // Parsing for a list of terminals returns a single terminal element if there was only one
+    case t: GenericTerminal => Vector(t).validNelCheck
     case _ => s"Invalid target for astListAsVector: ${getClass.getSimpleName}".invalidNelCheck
   }
 

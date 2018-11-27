@@ -44,14 +44,7 @@ object LiteralEvaluators {
       val evaluatedPieces = a.pieces.toList.traverse {
         case e: StringPlaceholder => e.expr.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case s: StringLiteral => s.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
-        case BackslashEscape => EvaluatedValue(WomString("\\"), Seq.empty).validNel
-        case NewlineEscape => EvaluatedValue(WomString(System.lineSeparator), Seq.empty).validNel
-        case DoubleQuoteEscape => EvaluatedValue(WomString("\""), Seq.empty).validNel
-        case SingleQuoteEscape => EvaluatedValue(WomString("'"), Seq.empty).validNel
-        case TabEscape => EvaluatedValue(WomString("\t"), Seq.empty).validNel
-        case UnicodeCharacterEscape(codePoint) => EvaluatedValue(WomString(codePoint.toChar.toString), Seq.empty).validNel
-        case _ => "Nope".invalidNel
-
+        case e: StringEscapeSequence => EvaluatedValue(WomString(e.unescape), Seq.empty).validNel
       }
 
       evaluatedPieces map { pieces =>

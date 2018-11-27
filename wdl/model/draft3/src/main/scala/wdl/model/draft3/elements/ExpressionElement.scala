@@ -24,7 +24,7 @@ object ExpressionElement {
   case object SingleQuoteEscape extends StringEscapeSequence
   case object BackslashEscape extends StringEscapeSequence
   final case class AsciiCharacterEscape(codePoint: Byte) extends StringEscapeSequence
-  final case class UnicodeCharacterEscape(codePoint: String) extends StringEscapeSequence
+  final case class UnicodeCharacterEscape(codePoint: Int) extends StringEscapeSequence
 
 
   final case class KvPair(key: String, value: ExpressionElement)

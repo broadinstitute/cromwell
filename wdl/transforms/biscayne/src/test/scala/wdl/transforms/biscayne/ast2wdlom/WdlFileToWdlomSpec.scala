@@ -108,11 +108,11 @@ object WdlFileToWdlomSpec {
               PrimitiveTypeElement(WomStringType),
               "unicode_hello",
               StringExpression(Vector(
-                UnicodeCharacterEscape("0068"),
-                UnicodeCharacterEscape("00000065"),
-                UnicodeCharacterEscape("006C"),
-                UnicodeCharacterEscape("0000006C"),
-                UnicodeCharacterEscape("006F")
+                UnicodeCharacterEscape(104),
+                UnicodeCharacterEscape(101),
+                UnicodeCharacterEscape(108),
+                UnicodeCharacterEscape(108),
+                UnicodeCharacterEscape(111)
               ))
             )
           ),

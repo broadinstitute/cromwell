@@ -143,6 +143,9 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     "\\t" -> "\t",
     "\\'" -> "'",
     "\\\"" -> "\"",
+    "\\150\\145\\154\\154\\157" -> "hello",
+    "\\x68\\x65\\x6C\\x6c\\x6F" -> "hello",
+    "\\u0068\\U00000065\\u006C\\U0000006C\\u006F" -> "hello",
   )
 
   escapeTests foreach { case (sequence, expected) =>

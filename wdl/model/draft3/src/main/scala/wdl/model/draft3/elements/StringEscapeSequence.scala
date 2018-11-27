@@ -18,8 +18,8 @@ object StringEscapeSequence {
     case "\\\\" => BackslashEscape.validNel
     case Octal(codePoint) => AsciiCharacterEscape(BigInt(codePoint, 8).byteValue()).validNel
     case Hex(codePoint) => AsciiCharacterEscape(BigInt(codePoint, 16).byteValue()).validNel
-    case FourDigitUnicode(codePoint) => UnicodeCharacterEscape(codePoint).validNel
-    case EightDigitUnicode(codePoint) => UnicodeCharacterEscape(codePoint).validNel
+    case FourDigitUnicode(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
+    case EightDigitUnicode(codePoint) => UnicodeCharacterEscape(BigInt(codePoint, 16).intValue).validNel
 
 
     case _ => s"Unrecognized escape sequence '$seq'".invalidNel

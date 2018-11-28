@@ -101,12 +101,12 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
     }
 
-    it should "return 200 Aborted for abort of a workflow which was already aborted" in {
-      Post(s"/workflows/$version/${CromwellApiServiceSpec.AbortedWorkflowId}/abort") ~>
+    it should "return 200 Aborted for abort of a workflow which a workflow is in OnHold state" in {
+      Post(s"/workflows/$version/${CromwellApiServiceSpec.OnHoldWorkflowId}/abort") ~>
         akkaHttpService.workflowRoutes ~>
       check {
         assertResult(
-          s"""{"id":"${CromwellApiServiceSpec.AbortedWorkflowId.toString}","status":"Aborted"}""") {
+          s"""{"id":"${CromwellApiServiceSpec.OnHoldWorkflowId.toString}","status":"Aborted"}""") {
           responseAs[String]
         }
         assertResult(StatusCodes.OK) {
@@ -114,6 +114,20 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
       }
     }
+
+  it should "return 200 Aborted for abort of a workflow which a workflow is in Submitted state" in {
+    Post(s"/workflows/$version/${CromwellApiServiceSpec.SubmittedWorkflowId}/abort") ~>
+      akkaHttpService.workflowRoutes ~>
+      check {
+        assertResult(
+          s"""{"id":"${CromwellApiServiceSpec.SubmittedWorkflowId.toString}","status":"Aborted"}""") {
+          responseAs[String]
+        }
+        assertResult(StatusCodes.OK) {
+          status
+        }
+      }
+  }
 
     it should "return 200 Aborting for abort of a known workflow id which is currently running" in {
       Post(s"/workflows/$version/${CromwellApiServiceSpec.AbortingWorkflowId}/abort") ~>
@@ -462,6 +476,7 @@ object CromwellApiServiceSpec {
   val AbortedWorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
   val UnrecognizedWorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
   val OnHoldWorkflowId = WorkflowId.fromString("fe6dbaf6-e15c-4438-813c-479b35867142")
+  val SubmittedWorkflowId = WorkflowId.fromString("1d4ec2e2-7c1c-407d-9be8-75b39ab72dfd")
   val RunningWorkflowId = WorkflowId.fromString("dcfea0ab-9a3e-4bc0-ab82-794a37c4d484")
   val AbortingWorkflowId = WorkflowId.fromString("2e3503f5-24f5-4a01-a4d1-bb1088bb5c1e")
   val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
@@ -559,7 +574,7 @@ object CromwellApiServiceSpec {
       case AbortWorkflowCommand(id) =>
         val message = id match {
           case AbortingWorkflowId => WorkflowAbortRequestedResponse(id)
-          case AbortedWorkflowId => WorkflowAbortedResponse(id)
+          case OnHoldWorkflowId | SubmittedWorkflowId => WorkflowAbortedResponse(id)
           case UnrecognizedWorkflowId => WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
           case WorkflowId(_) => throw new Exception("Something untoward happened")
         }

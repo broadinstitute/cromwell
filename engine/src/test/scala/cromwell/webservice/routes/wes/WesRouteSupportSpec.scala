@@ -105,11 +105,23 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
       }
   }
 
-  it should "return 200 for abort of an aborted workflow" in {
-    Post(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.AbortedWorkflowId}/cancel") ~>
+  it should "return 200 for abort of an OnHold workflow" in {
+    Post(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.OnHoldWorkflowId}/cancel") ~>
       wesRoutes ~>
       check {
-        responseAs[WesRunId] shouldEqual WesRunId(CromwellApiServiceSpec.AbortedWorkflowId.toString)
+        responseAs[WesRunId] shouldEqual WesRunId(CromwellApiServiceSpec.OnHoldWorkflowId.toString)
+
+        assertResult(StatusCodes.OK) {
+          status
+        }
+      }
+  }
+
+  it should "return 200 for abort of a workflow in Submitted state" in {
+    Post(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.SubmittedWorkflowId}/cancel") ~>
+      wesRoutes ~>
+      check {
+        responseAs[WesRunId] shouldEqual WesRunId(CromwellApiServiceSpec.SubmittedWorkflowId.toString)
 
         assertResult(StatusCodes.OK) {
           status

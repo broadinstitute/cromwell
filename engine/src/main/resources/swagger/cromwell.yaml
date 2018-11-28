@@ -765,13 +765,67 @@ definitions:
         description: Whether the workflow and inputs as submitted passes validation
       errors:
         type: array
-        items: string
+        items:
+          type: string
+        example:
+          - "Your workflow is bad because ..."
         description: If valid is false, a set of validation failure messages
+      name:
+        type: string
+        description: The name of the workflow in the description file
+        example: my_wf
       inputs:
         description: A list of inputs for this tool
         type: array
         items:
           $ref: '#/definitions/ToolParameter'
+        example:
+          - name: my_wf.string_input
+            valueType:
+              typeName: String
+            optional: false
+          - name: my_wf.array_input
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            optional: false
+          - name: my_wf.optional_input
+            valueType:
+              typeName: Optional
+              optionalType:
+                typeName: String
+            optional: true
+            default: "hello"
+          - name: my_wf.map_input
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            optional: false
+          - name: my_wf.object_input
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+                - fieldName: "int_field"
+                  fieldType:
+                    typeName: Int
+                - fieldName: "int_array_field"
+                  fieldType:
+                    typeName: Array
+                    arrayType:
+                      typeName: Int
+            optional: false
+          - name: my_wf.int_string_pair_input
+            valueType:
+              typeName: Tuple
+              tupleTypes:
+                - typeName: Int
+                - typeName: String
+            optional: false
       images:
         type: array
         items:
@@ -788,20 +842,24 @@ definitions:
         type: array
         description: The type (or types) of descriptors available.
         items:
-          type: array
-          items:
-            type: object
-            required:
-              - name
-              - descriptorType
-              - descriptorTypeVersion
-            properties:
-              name:
-                type: string
-              descriptorType:
-                $ref: '#/definitions/DescriptorType'
-              descriptorTypeVersion:
-                type: string
+          type: object
+          example:
+            descriptorType: WDL
+            descriptorTypeVersion: "1.0"
+          required:
+            - descriptorType
+            - descriptorTypeVersion
+          properties:
+            descriptorType:
+              $ref: '#/definitions/DescriptorType'
+            descriptorTypeVersion:
+              type: string
+      meta:
+        type: object
+        description: An open set of key/value pairs echoing any workflow-level metadata found in the description file.
+        example:
+          author: "Batman"
+          copyright: "BSD 3-clause"
   ToolParameter:
     type: object
     description: >-
@@ -826,6 +884,12 @@ definitions:
       documentation:
         type: string
         description: Documentation for this parameter provided in the tool descriptor file.
+      parameter_meta:
+        type: object
+        description: An open set of key/value pairs echoing any custom parameter information in the description file.
+        example:
+          description: "This input provides the BAM file for processing"
+          localization_optional: true
   ValueType:
     description: The type expected for a given value.
     type: object
@@ -833,7 +897,7 @@ definitions:
     - valueType
     maxProperties: 2
     properties:
-      valueType:
+      typeName:
         type: string
         description: The type of this value
         enum:
@@ -865,7 +929,7 @@ definitions:
           properties:
             fieldName:
               type: string
-            fieldDescription:
+            fieldType:
               $ref: '#/definitions/ValueType'
   MapValueType:
     type: object

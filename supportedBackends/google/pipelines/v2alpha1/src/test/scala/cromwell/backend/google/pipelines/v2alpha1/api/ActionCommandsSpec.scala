@@ -27,11 +27,7 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
                          |  cat gsutil_output.txt 1>&2
                          |  
                          |  # Check if it matches the BucketIsRequesterPaysErrorMessage
-                         |  grep "Bucket is requester pays bucket but no user project provided." gsutil_output.txt
-                         |  
-                         |  # If it does, grep will return 0
-                         |  IS_RP_FAILURE=$?
-                         |  if [ "$IS_RP_FAILURE" = "0" ]; then
+                         |  if grep -q "Bucket is requester pays bucket but no user project provided." gsutil_output.txt; then
                          |    echo "Retrying with user project"
                          |    flag is -u my-project
                          |  else
@@ -44,7 +40,8 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
   
   it should "use LocalizationConfiguration to set the number of localization retries" in {
     implicit val localizationConfiguration = LocalizationConfiguration(refineMV(31380))
-    retry("I'm very flaky") shouldBe """for i in `seq 31380`; do
+    retry("I'm very flaky") shouldBe """for i in $(seq 31380); do
+                                       |  echo "Attempt $i"
                                        |  (
                                        |    I'm very flaky
                                        |  )

@@ -44,32 +44,40 @@ trait WesRouteSupport extends HttpInstrumentation {
   val wesRoutes: Route =
     instrumentRequest {
       concat(
-        pathPrefix("ga4gh" / "wes" / "v1" / "runs") {
+        pathPrefix("ga4gh" / "wes" / "v1") {
           concat(
-            path(Segment / "status") { possibleWorkflowId =>
-              val response  = validateWorkflowId(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
-              // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
-              onComplete(response) {
-                case Success(s: StatusLookupResponse) =>
-                  val wesState = WesState.fromCromwellStatus(s.status)
-                  complete(WesRunStatus(s.workflowId.toString, wesState))
-                case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
-                case Success(m: MetadataServiceResponse) =>
-                  // This should never happen, but ....
-                  val error = new IllegalStateException("Unexpected response from Metadata service: " + m)
-                  error.errorRequest(StatusCodes.InternalServerError)
-                case Failure(_: UnrecognizedWorkflowException) => complete(NotFoundError)
-                case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
-              }
+            path("service-info") {
+              val z = ServiceInfo.toWesResponse(workflowStoreActor)
+              complete(z)
             },
-            path(Segment / "cancel") { possibleWorkflowId =>
-              post {
-                  CromwellApiService.abortWorkflow(possibleWorkflowId,
-                    workflowStoreActor,
-                    workflowManagerActor,
-                    successHandler = WesAbortSuccessHandler,
-                    errorHandler = WesAbortErrorHandler)
-              }
+            pathPrefix("runs") {
+              concat(
+                path(Segment / "status") { possibleWorkflowId =>
+                  val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
+                  // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
+                  onComplete(response) {
+                    case Success(s: StatusLookupResponse) =>
+                      val wesState = WesState.fromCromwellStatus(s.status)
+                      complete(WesRunStatus(s.workflowId.toString, wesState))
+                    case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
+                    case Success(m: MetadataServiceResponse) =>
+                      // This should never happen, but ....
+                      val error = new IllegalStateException("Unexpected response from Metadata service: " + m)
+                      error.errorRequest(StatusCodes.InternalServerError)
+                    case Failure(_: UnrecognizedWorkflowException) => complete(NotFoundError)
+                    case Failure(e) => complete(WesErrorResponse(e.getMessage, StatusCodes.InternalServerError.intValue))
+                  }
+                },
+                path(Segment / "cancel") { possibleWorkflowId =>
+                  post {
+                    CromwellApiService.abortWorkflow(possibleWorkflowId,
+                      workflowStoreActor,
+                      workflowManagerActor,
+                      successHandler = WesAbortSuccessHandler,
+                      errorHandler = WesAbortErrorHandler)
+                  }
+                }
+              )
             }
           )
         }

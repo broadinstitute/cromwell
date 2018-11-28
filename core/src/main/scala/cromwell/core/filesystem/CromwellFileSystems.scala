@@ -36,6 +36,8 @@ class CromwellFileSystems(globalConfig: Config) {
     constructorMap.unsafe("Failed to initialize Cromwell filesystems")
   } else Map.empty
 
+  val supportedFileSystems: Iterable[String] = factoryBuilders.keys
+
   // Generate the appropriate constructor and optional singleton instance for a filesystem
   private def processFileSystem(key: String, fsConfig: ConfigObject): ErrorOr[(String, (Constructor[_], Option[AnyRef]))] = {
     // This is the (optional) singleton instance shared by all factory instances

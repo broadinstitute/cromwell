@@ -24,7 +24,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
           onComplete(materializeFormData(formData)) {
             case Success(data) =>
 
-              // TODO: move constants to FormDataSupport, adopt in PartialWorkflowSources
+              // TODO: move constants to WebServiceUtils, adopt in PartialWorkflowSources
               val workflowSource = data.get("workflowSource").map(_.utf8String)
               val workflowUrl = data.get("workflowUrl").map(_.utf8String)
 

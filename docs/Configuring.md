@@ -316,23 +316,21 @@ Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-option
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
 
-```
+```HOCON
       config {
-        ...
         filesystems {
-          ...
           local {
-            ...
             caching {
               # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
               duplication-strategy: [
                 "hard-link", "soft-link", "copy"
               ]
 
-              # Possible values: file, path
+              # Possible values: file, path, path+modtime
               # "file" will compute an md5 hash of the file content.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
+              # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
               # Default: file
               hashing-strategy: "file"
 

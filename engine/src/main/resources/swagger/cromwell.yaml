@@ -768,8 +768,10 @@ definitions:
         items:
           type: string
         example:
-          - "Your workflow is bad because ..."
-        description: If valid is false, a set of validation failure messages
+          - "The 'errors' field will be filled if 'valid' is false"
+          - "We might also provide warnings to a 'valid' workflow here"
+          - "Otherwise, 'errors' will be empty or unspecified"
+        description: The set of validation failure messages
       name:
         type: string
         description: The name of the workflow in the description file
@@ -838,22 +840,14 @@ definitions:
           All known docker images (and versions/hashes) used by this tool.
           If the tool will have to evaluate one or more docker image strings at runtime, the placeholder
           "EXPRESSION_BASED_IMAGE" will be used.
-      descriptor_types:
+      submitted_descriptor_type:
+        $ref: '#/definitions/DescriptorTypeAndVersion'
+        description: The type of descriptor submitted via the 'workflowSource' or 'workflowUrl' field.
+      imported_descriptor_types:
         type: array
-        description: The type (or types) of descriptors available.
         items:
-          type: object
-          example:
-            descriptorType: WDL
-            descriptorTypeVersion: "1.0"
-          required:
-            - descriptorType
-            - descriptorTypeVersion
-          properties:
-            descriptorType:
-              $ref: '#/definitions/DescriptorType'
-            descriptorTypeVersion:
-              type: string
+          $ref: '#/definitions/DescriptorTypeAndVersion'
+        description: The set of all types imported by the submitted workflow.
       meta:
         type: object
         description: An open set of key/value pairs echoing any workflow-level metadata found in the description file.
@@ -942,12 +936,26 @@ definitions:
         $ref: '#/definitions/ValueType'
       valueType:
         $ref: '#/definitions/ValueType'
+  DescriptorTypeAndVersion:
+    type: object
+    description: >-
+      A descriptor type and version.
+    required:
+      - descriptorType
+      - descriptorTypeVersion
+    properties:
+      descriptorType:
+        $ref: '#/definitions/DescriptorType'
+      descriptorTypeVersion:
+        type: string
+        example: "1.0"
   DescriptorType:
     type: string
     description: >-
       A list of descriptor types that are used tool (e.g. CWL v1.0,
       WDL 1.0). Note that these files can also include associated Docker/container files
       and test parameters that further describe a version of a tool
+    example: "WDL"
     enum:
     - CWL
     - WDL

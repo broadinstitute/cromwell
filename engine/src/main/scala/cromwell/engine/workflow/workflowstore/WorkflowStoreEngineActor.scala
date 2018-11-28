@@ -1,17 +1,15 @@
 package cromwell.engine.workflow.workflowstore
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props, Timers}
-import akka.pattern.ask
-import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortedResponse, WorkflowAbortRequestedResponse}
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
 import cromwell.core.{WorkflowAborted, WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.WorkflowMetadataHelper
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
@@ -22,7 +20,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 final case class WorkflowStoreEngineActor private(store: WorkflowStore,
-                                                  workflowStoreCoordinatedWriteActor: ActorRef,
+                                                  workflowStoreAccess: WorkflowStoreAccess,
                                                   serviceRegistryActor: ActorRef,
                                                   abortAllJobsOnTerminate: Boolean,
                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
@@ -49,7 +47,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
     startInstrumentationTimer()
     super.preStart()
   }
-  
+
   override def receive = instrumentationReceive(instrumentationAction).orElse(super.receive)
 
   when(Unstarted) {
@@ -176,9 +174,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
     def fetchStartableWorkflowsIfNeeded = {
       if (maxWorkflows > 0) {
-        implicit val timeout = Timeout(WorkflowStoreCoordinatedWriteActor.Timeout)
-        val message = WorkflowStoreCoordinatedWriteActor.FetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
-        workflowStoreCoordinatedWriteActor.ask(message).mapTo[List[WorkflowToStart]]
+        workflowStoreAccess.fetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
@@ -199,12 +195,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
 object WorkflowStoreEngineActor {
   def props(
              workflowStore: WorkflowStore,
-             workflowStoreCoordinatedWriteActor: ActorRef,
+             workflowStoreAccess: WorkflowStoreAccess,
              serviceRegistryActor: ActorRef,
              abortAllJobsOnTerminate: Boolean,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig
              ) = {
-    Props(WorkflowStoreEngineActor(workflowStore, workflowStoreCoordinatedWriteActor, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
+    Props(WorkflowStoreEngineActor(workflowStore, workflowStoreAccess, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

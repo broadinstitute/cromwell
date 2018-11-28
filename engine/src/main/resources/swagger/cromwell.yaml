@@ -9,7 +9,7 @@ info:
   license:
     name: BSD
     url: 'https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt'
-  version: '30'
+  version: '36'
 produces:
   - application/json
 paths:
@@ -88,6 +88,46 @@ paths:
         - Workflows
       responses:
         '201':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/WorkflowIdAndStatus'
+        '400':
+          $ref: '#/responses/InvalidSubmission'
+        '500':
+          $ref: '#/responses/ServerError'
+  '/api/workflows/{version}/describe':
+    post:
+      operationId: describe
+      summary: Describe a workflow description
+      description: Analyze a workflow description for validity, input requirements and other metadata
+      consumes:
+      - multipart/form-data
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      - name: workflowSource
+        description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+        required: false
+        type: file
+        in: formData
+      - name: workflowUrl
+        description: URL which points to the workflow. Either workflow source or workflow url is required.
+        required: false
+        type: string
+        in: formData
+      - name: workflowInputs
+        description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+        required: false
+        type: file
+        in: formData
+      - name: workflowDependencies
+        description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to this workflow.
+        required: false
+        type: file
+        in: formData
+      tags:
+      - Workflows
+      responses:
+        '200':
           description: Successful Request
           schema:
             $ref: '#/definitions/WorkflowIdAndStatus'
@@ -716,6 +756,137 @@ definitions:
         type: string
         description: The status of the workflow
         example: Submitted
+  WorkflowDescription:
+    required:
+      - valid
+    properties:
+      valid:
+        type: boolean
+        description: Whether the workflow and inputs as submitted passes validation
+      errors:
+        type: array
+        items: string
+        description: If valid is false, a set of validation failure messages
+      inputs:
+        description: A list of inputs for this tool
+        type: array
+        items:
+          $ref: '#/definitions/ToolParameter'
+      images:
+        type: array
+        items:
+          type: string
+          example:
+          - quay.io/seqware/seqware_full/1.1
+          - ubuntu:latest
+          - EXPRESSION_BASED_IMAGE
+        description: >-
+          All known docker images (and versions/hashes) used by this tool.
+          If the tool will have to evaluate one or more docker image strings at runtime, the placeholder
+          "EXPRESSION_BASED_IMAGE" will be used.
+      descriptor_types:
+        type: array
+        description: The type (or types) of descriptors available.
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - descriptorType
+              - descriptorTypeVersion
+            properties:
+              name:
+                type: string
+              descriptorType:
+                $ref: '#/definitions/DescriptorType'
+              descriptorTypeVersion:
+                type: string
+  ToolParameter:
+    type: object
+    description: >-
+      An input parameter for a tool or workflow.
+    required:
+    - name
+    - valueType
+    - optional
+    properties:
+      name:
+        type: string
+        description: The name of this input value (formatted as expected by the tool)
+      valueType:
+        $ref: '#/definitions/ValueType'
+      optional:
+        type: boolean
+        description: Whether the tool allows this value to not be specified
+      default:
+        type: string
+        description: The in-language expression used to evaluate a default value for this parameter, if
+          none is supplied.
+      documentation:
+        type: string
+        description: Documentation for this parameter provided in the tool descriptor file.
+  ValueType:
+    description: The type expected for a given value.
+    type: object
+    required:
+    - valueType
+    maxProperties: 2
+    properties:
+      valueType:
+        type: string
+        description: The type of this value
+        enum:
+        - String
+        - File
+        - Directory
+        - Float
+        - Int
+        - Boolean
+        - Optional
+        - Array
+        - Tuple
+        - Map
+        - Object
+      optionalType:
+        $ref: '#/definitions/ValueType'
+      arrayType:
+        $ref: '#/definitions/ValueType'
+      mapType:
+        $ref: '#/definitions/MapValueType'
+      tupleTypes:
+        type: array
+        items:
+          $ref: '#/definitions/ValueType'
+      objectFieldTypes:
+        type: array
+        items:
+          type: object
+          properties:
+            fieldName:
+              type: string
+            fieldDescription:
+              $ref: '#/definitions/ValueType'
+  MapValueType:
+    type: object
+    description: A type representing a map from one type to another.
+    required:
+    - keyType
+    - valueType
+    properties:
+      keyType:
+        $ref: '#/definitions/ValueType'
+      valueType:
+        $ref: '#/definitions/ValueType'
+  DescriptorType:
+    type: string
+    description: >-
+      A list of descriptor types that are used tool (e.g. CWL v1.0,
+      WDL 1.0). Note that these files can also include associated Docker/container files
+      and test parameters that further describe a version of a tool
+    enum:
+    - CWL
+    - WDL
   WorkflowMetadataResponse:
     description: Workflow and call level metadata
     required:

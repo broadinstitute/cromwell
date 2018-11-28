@@ -18,11 +18,12 @@ import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
-import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.metadata.MetadataBuilderRegulatorActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
-import cromwell.webservice.routes.CromwellApiService.{EnhancedThrowable, InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowId}
+import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowId}
 import cromwell.webservice.routes.MetadataRouteSupport._
+import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import cromwell.webservice.WorkflowJsonSupport._
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success}

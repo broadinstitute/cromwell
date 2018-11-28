@@ -130,7 +130,7 @@ paths:
         '200':
           description: Successful Request
           schema:
-            $ref: '#/definitions/WorkflowIdAndStatus'
+            $ref: '#/definitions/WorkflowDescription'
         '400':
           $ref: '#/responses/InvalidSubmission'
         '500':

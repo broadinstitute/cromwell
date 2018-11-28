@@ -842,7 +842,6 @@ definitions:
           "EXPRESSION_BASED_IMAGE" will be used.
       submitted_descriptor_type:
         $ref: '#/definitions/DescriptorTypeAndVersion'
-        description: The type of descriptor submitted via the 'workflowSource' or 'workflowUrl' field.
       imported_descriptor_types:
         type: array
         items:
@@ -939,7 +938,7 @@ definitions:
   DescriptorTypeAndVersion:
     type: object
     description: >-
-      A descriptor type and version.
+      A workflow descriptor file type and version.
     required:
       - descriptorType
       - descriptorTypeVersion

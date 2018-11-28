@@ -3,14 +3,14 @@ package cromwell.webservice.routes
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import spray.json.{JsObject, JsString}
-import scala.util.{Failure, Success}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import spray.json.{JsObject, JsString}
 
 import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
 trait WomtoolRouteSupport extends WebServiceUtils {
 

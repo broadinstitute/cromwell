@@ -191,6 +191,10 @@ object Dependencies {
     "org.mockftpserver" % "MockFtpServer" % mockFtpServerV % Test
   )
 
+  val implDrsDependencies = List(
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
+  )
+
   // Internal collections of dependencies
 
   private val betterFilesDependencies = List(

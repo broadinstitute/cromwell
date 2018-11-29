@@ -9,7 +9,7 @@ import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, ActionFlag}
-import cromwell.filesystems.demo.dos.DemoDosPath
+import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import simulacrum.typeclass
@@ -33,20 +33,20 @@ trait PipelinesParameterConversions {
       val labels = ActionBuilder.parameterLabels(fileInput)
       val describeAction = ActionBuilder.describeParameter(fileInput, labels)
       val localizationAction = fileInput.cloudPath match {
-        case _: DemoDosPath =>
+        case drsPath: DrsPath =>
           import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
           import collection.JavaConverters._
 
-          val demoDosDockerImage = config.getString("demo.dos.localization.docker-image")
-          val demoDosCommandTemplate = config.getString("demo.dos.localization.command-template")
-          val demoDosMarthaUrl = config.getString("demo.dos.martha.url")
-          val demoDosCommand = demoDosCommandTemplate
-            .replace(s"$${dosPath}", fileInput.cloudPath.escape)
+          val drsDockerImage = config.getString("drs.localization.docker-image")
+          val drsCommandTemplate = config.getString("drs.localization.command-template")
+          val drsMarthaUrl = drsPath.drsPath.filesystem.provider.config.getString("martha.url")
+          val drsCommand = drsCommandTemplate
+            .replace(s"$${drsPath}", fileInput.cloudPath.escape)
             .replace(s"$${containerPath}", fileInput.containerPath.escape)
-          val marthaEnv = Map("MARTHA_URL" -> demoDosMarthaUrl)
+          val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
           ActionBuilder
-            .withImage(demoDosDockerImage)
-            .withCommand("/bin/sh", "-c", demoDosCommand)
+            .withImage(drsDockerImage)
+            .withCommand("/bin/sh", "-c", drsCommand)
             .withMounts(mounts)
             .setEnvironment(marthaEnv.asJava)
             .withLabels(labels)

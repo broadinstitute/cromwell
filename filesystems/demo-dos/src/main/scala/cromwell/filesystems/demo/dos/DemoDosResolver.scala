@@ -20,9 +20,9 @@ case class DemoDosResolver(config: Config) extends StrictLogging {
   private val GcsScheme = "gs"
   private val DosPathToken = s"$${dosPath}"
   private lazy val objectMapper = new ObjectMapper()
-  private lazy val marthaUri = config.getString("demo.dos.martha.url")
-  private lazy val marthaRequestJsonTemplate = config.getString("demo.dos.martha.request.json-template")
-  private lazy val marthaResponseJqFilterString = config.getString("demo.dos.martha.response.jq-filter")
+  private lazy val marthaUri = config.getString("drs.martha.url")
+  private lazy val marthaRequestJsonTemplate = config.getString("drs.martha.request.json-template")
+  private lazy val marthaResponseJqFilterString = config.getString("drs.martha.response.jq-filter")
   private lazy val marthaResponseJqJsonQuery = JsonQuery.compile(marthaResponseJqFilterString)
   private lazy val marthaResponseJqScope = {
     val scope = Scope.newEmptyScope

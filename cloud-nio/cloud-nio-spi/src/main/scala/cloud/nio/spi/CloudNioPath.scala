@@ -17,7 +17,7 @@ object CloudNioPath {
   }
 }
 
-class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: UnixPath) extends Path {
+class CloudNioPath(val filesystem: CloudNioFileSystem, private[spi] val unixPath: UnixPath) extends Path {
 
   /**
     * WARNING: This is probably NOT what you want.

@@ -21,7 +21,7 @@ object LinkedGraphMaker {
            callables: Map[String, Callable])
           (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[LinkedGraph] = {
 
-    val generatedValuesByGraphNodeValidation = nodes.toList.traverse{ node =>
+    val generatedValuesByGraphNodeValidation: ErrorOr[Map[WorkflowGraphElement, Set[GeneratedValueHandle]]] = nodes.toList.traverse{ node =>
       node.generatedValueHandles(typeAliases, callables).map(node -> _)
     } map (_.toMap)
 
@@ -30,6 +30,7 @@ object LinkedGraphMaker {
     for {
       generatedValuesByGraphNode <- generatedValuesByGraphNodeValidation
       consumedValuesByGraphNode <- consumedValuesByGraphNodeValidation
+      _ = println(consumedValuesByGraphNode)
       graphNodeByGeneratedValue <- reverseMap(generatedValuesByGraphNode)
       allHandles = graphNodeByGeneratedValue.keySet ++ externalHandles
       consumedValueLookup <- makeConsumedValueLookup(nodes, typeAliases, allHandles, callables)
@@ -74,17 +75,25 @@ object LinkedGraphMaker {
       case (UnlinkedIdentifierHook(id1), GeneratedIdentifierValueHandle(id2, _)) => id1 == id2
       case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, _), GeneratedIdentifierValueHandle(id2, _)) if first == id2 => true
       case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first1, second1), GeneratedCallOutputValueHandle(first2, second2, _)) if first1 == first2 && second1 == second2 => true
+      case (UnlinkedAfterCallHook(upstreamCallName), GeneratedCallFinishedHandle(finishedCallName)) if finishedCallName == upstreamCallName => true
       case _ => false
     }
 
     def findHandle(consumedValueHook: UnlinkedConsumedValueHook): ErrorOr[(UnlinkedConsumedValueHook, GeneratedValueHandle)] = {
-      availableHandles collectFirst {
+      val maybeFoundHandle = availableHandles collectFirst {
         case handle if isMatch(consumedValueHook, handle) => handle
-      } match {
-        case Some(foundHandle) => (consumedValueHook -> foundHandle).validNel
-        case None =>
-          val didYouMean = availableHandles.map(h => s"'${h.linkableName}'").mkString("[", ", ", "]")
-          s"Value '${consumedValueHook.linkString}' is never declared. Available values are: $didYouMean".invalidNel
+      }
+
+      (maybeFoundHandle, consumedValueHook) match {
+        case (Some(handle), hook) => (hook -> handle).validNel
+        case (None, UnlinkedAfterCallHook(upstreamCallName)) =>
+            val didYouMean = availableHandles.collect {
+              case after: GeneratedCallFinishedHandle if after.finishedCallName != upstreamCallName => s"'${after.finishedCallName}'"
+            }.mkString("[", ", ", "]")
+            s"Cannot specify 'after $upstreamCallName': no such call exists. Available calls are: $didYouMean".invalidNel
+        case (None, _) =>
+            val didYouMean = availableHandles.map(h => s"'${h.linkableName}'").mkString("[", ", ", "]")
+            s"Cannot lookup value '${consumedValueHook.linkString}', it is never declared. Available values are: $didYouMean".invalidNel
       }
     }
 

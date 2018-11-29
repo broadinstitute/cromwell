@@ -393,6 +393,7 @@ object WomToWdlom {
       CallElement(
         callableName,
         maybeAlias,
+        None, // TODO: rehydrate "after"s
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       ).validNelCheck
     }

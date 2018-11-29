@@ -18,11 +18,39 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
       s"flag is $flag"
     }
     
-    recovered shouldBe "flag is  2> gsutil_output.txt; RC_GSUTIL=$?; if [ \"$RC_GSUTIL\" = \"1\" ]; then\n grep \"Bucket is requester pays bucket but no user project provided.\" gsutil_output.txt && echo \"Retrying with user project\"; flag is -u my-project; fi "
+    recovered shouldBe """flag is  2> gsutil_output.txt
+                         |# Record the exit code of the gsutil command without project flag
+                         |RC_GSUTIL=$?
+                         |if [ "$RC_GSUTIL" != "0" ]; then
+                         |  echo "gsutil command failed"
+                         |  # Print the reason of the failure to stderr
+                         |  cat gsutil_output.txt 1>&2
+                         |  
+                         |  # Check if it matches the BucketIsRequesterPaysErrorMessage
+                         |  if grep -q "Bucket is requester pays bucket but no user project provided." gsutil_output.txt; then
+                         |    echo "Retrying with user project"
+                         |    flag is -u my-project
+                         |  else
+                         |    exit "$RC_GSUTIL"
+                         |  fi
+                         |else
+                         |  exit 0
+                         |fi""".stripMargin
   }
   
   it should "use LocalizationConfiguration to set the number of localization retries" in {
     implicit val localizationConfiguration = LocalizationConfiguration(refineMV(31380))
-    retry("I'm very flaky") shouldBe "retry() { for i in `seq 31380`; do I'm very flaky; RC=$?; if [ \"$RC\" = \"0\" ]; then break; fi; sleep 5; done; return \"$RC\"; }; retry"
+    retry("I'm very flaky") shouldBe """for i in $(seq 31380); do
+                                       |  echo "Attempt $i"
+                                       |  (
+                                       |    I'm very flaky
+                                       |  )
+                                       |  RC=$?
+                                       |  if [ "$RC" = "0" ]; then
+                                       |    break
+                                       |  fi
+                                       |  sleep 5
+                                       |done
+                                       |exit "$RC"""".stripMargin
   }
 }

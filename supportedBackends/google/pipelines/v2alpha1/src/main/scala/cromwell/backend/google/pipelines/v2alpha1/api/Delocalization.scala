@@ -15,7 +15,6 @@ import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import org.apache.commons.codec.binary.Base64
 import wom.runtime.WomOutputRuntimeExtractor
 
 import scala.collection.JavaConverters._
@@ -102,17 +101,6 @@ trait Delocalization {
   }
 
   private def delocalizeRuntimeOutputsAction(cloudCallRoot: Path, inputFile: String, workflowRoot: Path, mounts: List[Mount]): Action = {
-    def multiLineCommand(commandString: String) = {
-      val randomUuid = UUID.randomUUID().toString
-      val base64EncodedScript = Base64.encodeBase64String(commandString.getBytes)
-      val scriptPath = s"/tmp/$randomUuid.sh"
-
-      s"apt-get install --assume-yes coreutils && " +
-        s"echo $base64EncodedScript | base64 --decode > $scriptPath && " +
-        s"chmod u+x $scriptPath && " +
-        s"sh $scriptPath"
-    }
-    
     val command = multiLineCommand(delocalizeRuntimeOutputsScript(inputFile, workflowRoot, cloudCallRoot))
     ActionBuilder.cloudSdkShellAction(command)(mounts, flags = List(ActionFlag.DisableImagePrefetch), labels = Map(Key.Tag -> Value.Delocalization))
   }

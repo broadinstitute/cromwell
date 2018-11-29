@@ -248,21 +248,25 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
 
     def findFactory(workflowSource: WorkflowSource): ErrorOr[LanguageFactory] = {
-      def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(workflowSource))
 
-      val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
-        case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
-          val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
-          sourceFiles.workflowTypeVersion match {
-            case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
-            case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
-            case _ => chooseFactory(language.allVersions.values.toList).getOrElse(language.default).valid
-          }
-        case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
-        case None =>
-          val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
-          chooseFactory(allFactories.toList).getOrElse(CromwellLanguages.instance.default.default).validNel
+      // TODO: refactor me into somewhere central! (see also WomtoolRouteSupport)
+      def chooseFactory(workflowSource: WorkflowSource, wsfc: WorkflowSourceFilesCollection): ErrorOr[LanguageFactory] = {
+        wsfc.workflowType match {
+          case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
+            val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
+            wsfc.workflowTypeVersion match {
+              case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
+              case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
+              case _ => chooseFactory(workflowSource, wsfc).getOrElse(language.default).valid
+            }
+          case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
+          case None =>
+            val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
+            allFactories.find(_.looksParsable(workflowSource)).getOrElse(CromwellLanguages.instance.default.default).validNel
+        }
       }
+
+      val factory = chooseFactory(workflowSource, sourceFiles)
 
       factory foreach { validFactory =>
         workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")

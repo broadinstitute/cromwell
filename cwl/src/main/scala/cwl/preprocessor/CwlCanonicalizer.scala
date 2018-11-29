@@ -1,10 +1,10 @@
 package cwl.preprocessor
 
+import cats.effect.{ContextShift, IO}
 import cats.instances.list._
-import cats.syntax.traverse._
+import cats.syntax.parallel._
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Parse
-import common.validation.Parse._
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cwl.preprocessor.CwlReference.EnhancedCwlId
 import cwl.preprocessor.CwlPreProcessor._
@@ -15,11 +15,11 @@ import cwl.preprocessor.CwlCanonicalizer._
 /**
   * The real guts of the CWL pre-processor is taking a CWL reference and producing a single, self-contained JSON from it.
   */
-private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
+private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction)(implicit cs: ContextShift[IO]) {
 
   def getCanonicalCwl(reference: CwlReference,
                       namespacesJsonOption: Option[Json] = None,
-                      schemasJsonOption: Option[Json] = None) = {
+                      schemasJsonOption: Option[Json] = None): IOChecked[Json] = {
     flattenCwlReferenceInner(
       reference,
       Map.empty,
@@ -37,12 +37,11 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
                                        processedReferences: ProcessedReferences,
                                        breadCrumbs: Set[CwlReference],
                                        namespacesJsonOption: Option[Json],
-                                       schemasJsonOption: Option[Json]
-                                      ): Parse[ProcessedJsonAndDependencies] = {
+                                       schemasJsonOption: Option[Json]): IOChecked[ProcessedJsonAndDependencies] = {
     /*
      * Salad and parse from a CWL reference into a Json object
      */
-    def saladAndParse(ref: CwlReference): Parse[Json] =  for {
+    def saladAndParse(ref: CwlReference): IOChecked[Json] =  for {
       saladed <- saladFunction(ref)
       saladedJson <- parseJson(saladed)
     } yield saladedJson
@@ -55,7 +54,7 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
       // The reference json in the file
       referenceJson <- newUnProcessedReferences
         .collectFirst({ case (ref, json) if ref.pointerWithinFile == cwlReference.pointerWithinFile => json })
-        .toParse(s"Cannot find a tool or workflow with ID '${cwlReference.pointerWithinFile}' in file ${cwlReference.pathAsString}'s set: [${newUnProcessedReferences.keySet.mkString(", ")}]")
+        .toIOChecked(s"Cannot find a tool or workflow with ID '${cwlReference.pointerWithinFile}' in file ${cwlReference.pathAsString}'s set: [${newUnProcessedReferences.keySet.mkString(", ")}]")
       // Process the reference json
       processed <- flattenJson(
         referenceJson,
@@ -87,7 +86,7 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
                           processedReferences: ProcessedReferences,
                           breadCrumbs: Set[CwlReference],
                           namespacesJsonOption: Option[Json],
-                          schemasJsonOption: Option[Json]): Parse[ProcessedJsonAndDependencies] = {
+                          schemasJsonOption: Option[Json]): IOChecked[ProcessedJsonAndDependencies] = {
     /*
      * Given a reference from a step's run field, flattens it and return it
      * @param unProcessedReferences references that have been parsed and saladed (we have the json), but not flattened yet.
@@ -96,11 +95,11 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
      * @return a new ProcessedReferences Map including this cwlReference processed along with all the dependencies
      *         that might have been processed recursively.
      */
-    def processCwlRunReference(checkedProcessedReferences: Parse[ProcessedReferences],
-                               cwlReference: CwlReference): Parse[ProcessedReferences] = {
+    def processCwlRunReference(checkedProcessedReferences: IOChecked[ProcessedReferences],
+                               cwlReference: CwlReference): IOChecked[ProcessedReferences] = {
       def processReference(processedReferences: ProcessedReferences) = {
 
-        val result: Parse[ProcessedJsonAndDependencies] = unProcessedReferences.get(cwlReference) match {
+        val result: IOChecked[ProcessedJsonAndDependencies] = unProcessedReferences.get(cwlReference) match {
           case Some(unProcessedReferenceJson) =>
             // Found the json in the unprocessed map, no need to reparse the file, just flatten this json
             flattenJson(
@@ -129,11 +128,11 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
         }
       }
 
-      def processIfNeeded(processedReferences: ProcessedReferences): Parse[ProcessedReferences] = {
+      def processIfNeeded(processedReferences: ProcessedReferences): IOChecked[ProcessedReferences] = {
         // If the reference has already been processed, no need to do anything
-        if (processedReferences.contains(cwlReference)) processedReferences.validParse
+        if (processedReferences.contains(cwlReference)) processedReferences.validIOChecked
         // If the reference is in the bread crumbs it means we circled back to it: fail the pre-processing
-        else if (breadCrumbs.contains(cwlReference)) s"Found a circular dependency on $cwlReference".invalidParse
+        else if (breadCrumbs.contains(cwlReference)) s"Found a circular dependency on $cwlReference".invalidIOChecked
         // Otherwise let's see if we already have the json for it or if we need to process the file
         else processReference(processedReferences)
       }
@@ -213,7 +212,7 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
             .map(Json.fromJsonObject)
             // Only keep the workflows (CommandLineTools don't have steps so no need to process them)
             .filter(root.`class`.string.exist(_.equalsIgnoreCase("Workflow")))
-            .traverse( obj =>
+            .traverse[ErrorOr, (String, Json)]( obj =>
               // Find the id of the workflow
               root.id.string.getOption(obj)
                 .toErrorOr("Programmer error: Workflow did not contain an id. Make sure the cwl has been saladed")
@@ -225,12 +224,12 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction) {
     // Recursively process the run references (where run is a string pointing to another Workflow / Tool)
     // TODO: it would be nice to accumulate failures here somehow (while still folding and be able to re-use
     // successfully processed references, so I don't know if ErrorOr would work)
-    val processedRunReferences: Parse[ProcessedReferences] = findRunReferences(schemasJson).foldLeft(processedReferences.validParse)(processCwlRunReference)
+    val processedRunReferences: IOChecked[ProcessedReferences] = findRunReferences(schemasJson).foldLeft(processedReferences.validIOChecked)(processCwlRunReference)
 
     // Recursively process the inlined run workflows (where run is a Json object representing a workflow)
-    val processedInlineReferences: Parse[Map[String, ProcessedJsonAndDependencies]] = (for {
-      inlineWorkflowReferences <- Parse.errorOrParse[Map[String, Json]] { findRunInlinedWorkflows(saladedJson) }
-      flattenedWorkflows <- inlineWorkflowReferences.toList.traverse({
+    val processedInlineReferences: IOChecked[Map[String, ProcessedJsonAndDependencies]] = (for {
+      inlineWorkflowReferences <- findRunInlinedWorkflows(saladedJson).toIOChecked
+      flattenedWorkflows <- inlineWorkflowReferences.toList.parTraverse[IOChecked, IOCheckedPar, (String, ProcessedJsonAndDependencies)]({
         case (id, value) => flattenJson(value, unProcessedReferences, processedReferences, breadCrumbs, namespacesJsonOption, schemasJsonOption).map(id -> _)
       })
     } yield flattenedWorkflows).map(_.toMap)

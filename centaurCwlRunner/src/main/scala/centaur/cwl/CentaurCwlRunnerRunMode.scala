@@ -3,7 +3,7 @@ package centaur.cwl
 import better.files.File
 import cloud.nio.impl.ftp.FtpFileSystems
 import com.typesafe.config.Config
-import common.validation.Parse.{Parse, _}
+import common.validation.IOChecked._
 import cromwell.core.path.Obsolete.Paths
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.filesystems.ftp.{CromwellFtpFileSystems, FtpPathBuilderFactory}
@@ -33,7 +33,7 @@ sealed trait CentaurCwlRunnerRunMode {
     *
     * For example, may prefix relative paths so that absolute URLs are used.
     */
-  def preProcessInput(path: File): Parse[String] = path.contentAsString.validParse
+  def preProcessInput(path: File): IOChecked[String] = path.contentAsString.validIOChecked
 }
 
 object CentaurCwlRunnerRunMode {
@@ -59,7 +59,7 @@ case object LocalRunMode extends CentaurCwlRunnerRunMode {
     else file
   }
 
-  override def preProcessInput(input: File): Parse[String] = cwlPreProcessor.preProcessInputFiles(input.contentAsString, inputFilesMapper(input))
+  override def preProcessInput(input: File): IOChecked[String] = cwlPreProcessor.preProcessInputFiles(input.contentAsString, inputFilesMapper(input))
 }
 
 case class PapiRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
@@ -74,7 +74,7 @@ case class PapiRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
 
   override def preProcessWorkflow(workflow: String): String = preprocessor.preProcessWorkflow(workflow)
 
-  override def preProcessInput(input: File): Parse[String] = preprocessor.preProcessInput(input.contentAsString)
+  override def preProcessInput(input: File): IOChecked[String] = preprocessor.preProcessInput(input.contentAsString)
 }
 
 case class TeskRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
@@ -90,5 +90,5 @@ case class TeskRunMode(conf: Config) extends CentaurCwlRunnerRunMode {
 
   override def preProcessWorkflow(workflow: String): String = preprocessor.preProcessWorkflow(workflow)
 
-  override def preProcessInput(input: File): Parse[String] = preprocessor.preProcessInput(input.contentAsString)
+  override def preProcessInput(input: File): IOChecked[String] = preprocessor.preProcessInput(input.contentAsString)
 }

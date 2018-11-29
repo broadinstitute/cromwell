@@ -9,7 +9,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.Callable.InputDefinition
 import wom.callable.{CallableTaskDefinition, RuntimeEnvironment}
-import wom.expression.NoIoFunctionSet
 import wom.graph.OptionalGraphInputNodeWithDefault
 import wom.values.WomValue
 
@@ -26,7 +25,7 @@ class FileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   forAll(fileTests) { (description, filePath, ioFunctionSet, expectedCommand) =>
     it should description in {
       val cwl = decodeCwlFile(rootPath / filePath).value.unsafeRunSync.right.get
-      val executable = cwl.womExecutable(AcceptAllRequirements, None, NoIoFunctionSet, strictValidation = false).right.get
+      val executable = cwl.womExecutable(AcceptAllRequirements, None, ioFunctionSet, strictValidation = false).right.get
       val call = executable.graph.calls.head
       val runtimeEnvironment = RuntimeEnvironment("output/path", "temp/path", refineMV[Positive](1), 2e10, 100, 100)
       val defaultCallInputs = executable.graph.nodes.collect({
@@ -34,7 +33,11 @@ class FileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
           val key: InputDefinition = call.inputDefinitionMappings.toMap.keys.find(
             _.localName == oginwd.identifier.localName
           ).get
-          val value: WomValue = oginwd.default.evaluateValue(Map.empty, ioFunctionSet).toTry.get
+          val value: WomValue = key
+            .valueMapper(ioFunctionSet)(oginwd.default.evaluateValue(Map.empty, ioFunctionSet).toTry.get)
+            .value.unsafeRunSync()
+            .right.get
+
           key -> value
       }).toMap
       val commandEither = call.callable.asInstanceOf[CallableTaskDefinition].instantiateCommand(

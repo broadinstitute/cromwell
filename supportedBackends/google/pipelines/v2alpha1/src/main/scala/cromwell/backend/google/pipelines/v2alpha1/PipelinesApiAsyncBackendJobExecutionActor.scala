@@ -111,11 +111,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   private def maybeListedDirectoryToPipelinesParameters(inputName: String, womMaybeListedDirectory: WomMaybeListedDirectory, localPath: String) = womMaybeListedDirectory match {
     // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _) =>
+    case WomMaybeListedDirectory(Some(path), _, _, _) =>
       List(PipelinesApiDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
 
     // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _) if listing.nonEmpty =>
+    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
       listing.flatMap({
         case womFile: WomFile if isAdHocFile(womFile) =>
           pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)), jobDescriptor)

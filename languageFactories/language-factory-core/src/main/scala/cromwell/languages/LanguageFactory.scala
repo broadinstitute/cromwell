@@ -2,7 +2,7 @@ package cromwell.languages
 
 import com.typesafe.config.Config
 import common.Checked
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import common.validation.Checked._
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
@@ -48,7 +48,7 @@ trait LanguageFactory {
                         importLocalFilesystem: Boolean,
                         workflowIdForLogging: WorkflowId,
                         ioFunctions: IoFunctionSet,
-                        importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace]
+                        importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace]
 
   /**
     * In case no version is specified: does this language factory feel like it might be suitable for this file?

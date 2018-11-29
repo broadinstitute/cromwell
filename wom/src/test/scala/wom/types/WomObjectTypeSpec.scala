@@ -24,7 +24,7 @@ class WomObjectTypeSpec extends FlatSpec with Matchers {
     "c" -> WomString("three")
   ))
 
-  val coerceableTypedObject = WomObject.withType(Map(
+  val coerceableTypedObject = WomObject.withTypeUnsafe(Map(
     "a" -> WomString("one"),
     "b" -> WomInteger(2),
     "c" -> WomString("three")),

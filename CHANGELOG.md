@@ -2,12 +2,17 @@
 
 ## 37 Release Notes
 
+### Added new call cache path+modtime hashing strategy.
+
+Call caching hashes with this new strategy are based on the path and the last modified time of the file.
+
 ### Instance independent abort
 
 For multi-instance Cromwell deployments sharing a single database, earlier versions of Cromwell required abort
 requests to be sent specifically to the instance that was running the targeted workflow. Cromwell 37 now
 allows abort commands to be sent to any Cromwell instance in the shared-database deployment. Configuration details
 [here](https://cromwell.readthedocs.io/en/develop/Configuring/abort-configuration).
+
 
 ### Call cache blacklisting
 

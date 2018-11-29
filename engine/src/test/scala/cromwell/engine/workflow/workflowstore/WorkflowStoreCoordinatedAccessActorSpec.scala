@@ -7,14 +7,14 @@ import akka.testkit._
 import akka.util.Timeout
 import cats.data.NonEmptyVector
 import cromwell.core.{TestKitSuite, WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedWriteActor.{FetchStartableWorkflows, WriteHeartbeats}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{FetchStartableWorkflows, WriteHeartbeats}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStoreCoordinatedWriteActorSpec")
+class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStoreCoordinatedWriteActorSpec")
   with AsyncFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WorkflowStoreCoordinatedWriteActor"
@@ -35,7 +35,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
         Future.successful(expected)
       }
     }
-    val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
+    val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = WriteHeartbeats(NonEmptyVector.of(WorkflowId.randomId()))
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[Int] map { actual =>
@@ -64,7 +64,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
         Future.successful(expected)
       }
     }
-    val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
+    val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows success", 1.second)
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[List[WorkflowToStart]] map { actual =>
@@ -93,7 +93,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
         Future.successful(expected)
       }
     }
-    val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
+    val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
     val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows with workflow url success", 1.second)
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[List[WorkflowToStart]] map { actual =>
@@ -115,7 +115,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
           result()
         }
       }
-      val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
+      val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
       val request = WriteHeartbeats(NonEmptyVector.of(WorkflowId.randomId()))
       implicit val timeout: Timeout = Timeout(2.seconds.dilated)
       actor.ask(request).failed map { actual =>
@@ -131,7 +131,7 @@ class WorkflowStoreCoordinatedWriteActorSpec extends TestKitSuite("WorkflowStore
           result()
         }
       }
-      val actor = TestActorRef(new WorkflowStoreCoordinatedWriteActor(workflowStore))
+      val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
       val heartbeatTtlNotReallyUsed = 1.second
       val request = FetchStartableWorkflows(1, s"test $description fetchStartableWorkflows", heartbeatTtlNotReallyUsed)
       implicit val timeout: Timeout = Timeout(2.seconds.dilated)

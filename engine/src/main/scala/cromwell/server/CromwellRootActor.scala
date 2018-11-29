@@ -71,11 +71,21 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val numberOfWorkflowLogCopyWorkers = systemConfig.as[Option[Int]]("number-of-workflow-log-copy-workers").getOrElse(DefaultNumberOfWorkflowLogCopyWorkers)
 
   lazy val workflowStore: WorkflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val workflowStoreCoordinatedWriteActor: ActorRef = context.actorOf(WorkflowStoreCoordinatedWriteActor.props(workflowStore))
+
+  val workflowStoreAccess: WorkflowStoreAccess = {
+    val coordinatedWorkflowStoreAccess = config.as[Option[Boolean]]("system.coordinated-workflow-store-access")
+    coordinatedWorkflowStoreAccess match {
+      case Some(false) => UncoordinatedWorkflowStoreAccess(workflowStore)
+      case _ =>
+        val coordinatedWorkflowStoreAccessActor: ActorRef = context.actorOf(WorkflowStoreCoordinatedAccessActor.props(workflowStore))
+        CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor)
+    }
+  }
+
   lazy val workflowStoreActor =
     context.actorOf(WorkflowStoreActor.props(
       workflowStoreDatabase = workflowStore,
-      workflowStoreCoordinatedWriteActor = workflowStoreCoordinatedWriteActor,
+      workflowStoreAccess = workflowStoreAccess,
       serviceRegistryActor = serviceRegistryActor,
       abortAllJobsOnTerminate = abortJobsOnTerminate,
       workflowHeartbeatConfig = workflowHeartbeatConfig),

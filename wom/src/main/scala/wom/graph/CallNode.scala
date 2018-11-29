@@ -3,9 +3,10 @@ package wom.graph
 import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.kernel.Monoid
-import cats.syntax.validated._
 import cats.syntax.foldable._
-import common.validation.ErrorOr.ErrorOr
+import cats.syntax.validated._
+import common.validation.ErrorOr._
+import common.validation.IOChecked._
 import shapeless.{:+:, CNil, Coproduct}
 import wom.callable.Callable._
 import wom.callable.CommandTaskDefinition.OutputFunctionResponse
@@ -103,9 +104,9 @@ object TaskCall {
     val inputDefinitionFold = taskDefinition.inputs.foldMap({ inputDef =>
     {
       val newNode: Option[ExternalGraphInputNode] = inputDef match {
-        case RequiredInputDefinition(name, womType, _, _) => Some(RequiredGraphInputNode(identifier(name), womType, name.value))
-        case InputDefinitionWithDefault(name, womType, default, _, _) => Some(OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value))
-        case OptionalInputDefinition(name, womType, _, _) => Some(OptionalGraphInputNode(identifier(name), womType, name.value))
+        case RequiredInputDefinition(name, womType, valueMapper, _) => Some(RequiredGraphInputNode(identifier(name), womType, name.value, valueMapper))
+        case InputDefinitionWithDefault(name, womType, default, valueMapper, _) => Some(OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value, valueMapper))
+        case OptionalInputDefinition(name, womType, valueMapper, _) => Some(OptionalGraphInputNode(identifier(name), womType, name.value, valueMapper))
         case _: FixedInputDefinition => None
       }
 
@@ -144,9 +145,6 @@ object CallNode {
   def resolveAndEvaluateInputs(callNode: CallNode,
                                expressionLanguageFunctions: IoFunctionSet,
                                outputStoreLookup: OutputPort => ErrorOr[WomValue]): ErrorOr[WomEvaluatedCallInputs] = {
-    import common.validation.Validation._
-    import common.validation.ErrorOr._
-    
     callNode.inputDefinitionMappings.foldLeft(Map.empty[InputDefinition, ErrorOr[WomValue]]) {
       case (accumulatedInputsSoFar, (inputDefinition, pointer)) =>
         // We could have a commons method for this kind of "filtering valid values"
@@ -156,11 +154,11 @@ object CallNode {
 
         val coercedValue = pointer.fold(InputPointerToWomValue).apply(
           validInputsAccumulated, expressionLanguageFunctions, outputStoreLookup, inputDefinition
-        ) flatMap(inputDefinition.womType.coerceRawValue(_).toErrorOr)
+        ) flatMap(inputDefinition.womType.coerceRawValue(_).toIOChecked)
 
         val contextualizedValue = coercedValue.contextualizeErrors(s"evaluate input '${inputDefinition.localName.value}'")
 
-        accumulatedInputsSoFar + (inputDefinition -> contextualizedValue)
+        accumulatedInputsSoFar + (inputDefinition -> contextualizedValue.toErrorOr)
     }.sequence
   }
   

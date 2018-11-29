@@ -9,10 +9,8 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWr
 import cromwell.services.EnhancedBatchActor
 
 import scala.concurrent.Future
-import akka.pattern.ask
-import akka.util.Timeout
 
-case class WorkflowStoreHeartbeatWriteActor(workflowStoreCoordinatedWriteActor: ActorRef,
+case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAccess,
                                             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                                             override val serviceRegistryActor: ActorRef)
 
@@ -28,8 +26,7 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreCoordinatedWriteActor: 
     * @return the number of elements processed
     */
   override protected def process(data: NonEmptyVector[WorkflowId]): Future[Int] = instrumentedProcess {
-    implicit val timeout = Timeout(WorkflowStoreCoordinatedWriteActor.Timeout)
-    workflowStoreCoordinatedWriteActor.ask(WorkflowStoreCoordinatedWriteActor.WriteHeartbeats(data)).mapTo[Int]
+    workflowStoreAccess.writeWorkflowHeartbeats(data)
   }
 
   override def receive = enhancedReceive.orElse(super.receive)
@@ -43,13 +40,13 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreCoordinatedWriteActor: 
 
 object WorkflowStoreHeartbeatWriteActor {
   def props(
-             workflowStoreCoordindatedWriteActor: ActorRef,
+             workflowStoreAccess: WorkflowStoreAccess,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig,
              serviceRegistryActor: ActorRef
            ): Props =
     Props(
       WorkflowStoreHeartbeatWriteActor(
-        workflowStoreCoordinatedWriteActor = workflowStoreCoordindatedWriteActor,
+        workflowStoreAccess = workflowStoreAccess,
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         serviceRegistryActor = serviceRegistryActor
       )).withDispatcher(EngineDispatcher)

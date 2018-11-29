@@ -6,7 +6,7 @@ import cats.instances.either._
 import com.typesafe.config.Config
 import common.Checked
 import common.transforms.CheckedAtoB
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import cromwell.core._
 import cromwell.languages.util.ImportResolver._
 import cromwell.languages.util.LanguageFactoryUtil
@@ -32,7 +32,7 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
                                  ioFunctions: IoFunctionSet,
-                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+                                 importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
 
     val factories: List[LanguageFactory] = List(this)
 

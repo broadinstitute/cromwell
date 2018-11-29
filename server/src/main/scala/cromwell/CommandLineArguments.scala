@@ -8,7 +8,7 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Parse._
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command

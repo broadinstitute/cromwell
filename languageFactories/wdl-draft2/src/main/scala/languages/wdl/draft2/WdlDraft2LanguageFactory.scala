@@ -14,7 +14,7 @@ import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr._
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver}
@@ -49,7 +49,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
                                  ioFunctions: IoFunctionSet,
-                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+                                 importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)

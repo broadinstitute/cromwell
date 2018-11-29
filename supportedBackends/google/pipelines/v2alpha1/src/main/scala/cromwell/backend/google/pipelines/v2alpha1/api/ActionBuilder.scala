@@ -90,7 +90,7 @@ object ActionBuilder {
 
   def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action =
     cloudSdkAction
-      .withCommand("/bin/sh", "-c", shellCommand)
+      .withCommand("/bin/sh", "-c", if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand)
       .withFlags(flags)
       .withMounts(mounts)
       .withLabels(labels)

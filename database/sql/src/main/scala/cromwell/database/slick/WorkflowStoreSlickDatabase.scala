@@ -116,7 +116,7 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
         dataAccess.heartbeatForWorkflowStoreEntry(workflowExecutionUuid).update(heartbeatTimestampOption)
       })
     } yield counts.sum
-    runTransaction(action)
+    runAutocommit(action)
   }
 
   override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {

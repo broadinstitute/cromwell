@@ -165,6 +165,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     Future(Await.result(database.run(dbio), Duration.Inf))(actionExecutionContext)
   }
 
+  protected[this] def runAutocommit[R](action: DBIO[R]): Future[R] = {
+    Future(Await.result(database.run(action), Duration.Inf))(actionExecutionContext)
+  }
+
   /*
     * Upsert the provided values in batch.
     * Fails the query if one or more upsert failed.

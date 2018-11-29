@@ -18,6 +18,7 @@ import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
+import common.validation.Validation.OptionValidation
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
@@ -257,7 +258,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
             wsfc.workflowTypeVersion match {
               case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
               case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
-              case _ => chooseFactory(workflowSource, wsfc).getOrElse(language.default).valid
+              case _ => language.allVersions.values.toList.find(_.looksParsable(workflowSource)).toErrorOr("Language appears to be unsupported.")
             }
           case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
           case None =>

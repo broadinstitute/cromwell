@@ -85,8 +85,6 @@ trait WomtoolRouteSupport extends WebServiceUtils {
     chooseFactory(workflow, workflowSourceFilesCollection) match {
       case Valid(factory: LanguageFactory) =>
         // Why do we pass in the rest of the language factories here? I cannot figure out what we ever use them for.
-        Future(factory.getWomBundle(workflow, "{}", List.empty, List.empty).isRight)
-
         Future {
           factory.getWomBundle(workflow, "{}", List.empty, List.empty) match {
             case Right(_) => (true, List.empty)

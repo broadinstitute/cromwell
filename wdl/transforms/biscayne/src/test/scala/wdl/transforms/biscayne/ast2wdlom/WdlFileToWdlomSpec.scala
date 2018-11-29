@@ -2,6 +2,7 @@ package wdl.transforms.biscayne.ast2wdlom
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.model.draft3.elements.{ExpressionElement, _}
 import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
@@ -58,7 +59,7 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-          graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          graphElements = Set(CallElement("in_n_out", None, None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
@@ -75,6 +76,36 @@ object WdlFileToWdlomSpec {
             StringCommandPartElement("echo "),
             PlaceholderCommandPartElement(IdentifierLookup("total"), PlaceholderAttributeSet.empty),
             StringCommandPartElement(" ")
+          )))),
+          runtimeSection = None,
+          metaSection = None,
+          parameterMetaSection = None
+        ))
+      ),
+    "afters" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "afters",
+          inputsSection = None,
+          graphElements = Set(
+            CallElement("foo", None, None, Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(5))))))),
+            CallElement("foo", Some("foo2"), Some("foo"), Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(6)))))))
+          ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
+        tasks = Vector(TaskDefinitionElement(
+          name = "foo",
+          inputsSection = Some(InputsSectionElement(Vector(
+            InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "i", None)))),
+          declarations = Vector.empty,
+          outputsSection = None,
+          commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(
+            StringCommandPartElement("cat \"hello "),
+            PlaceholderCommandPartElement(IdentifierLookup("i"), PlaceholderAttributeSet.empty),
+            StringCommandPartElement("\" > /tmp/helloFile")
           )))),
           runtimeSection = None,
           metaSection = None,

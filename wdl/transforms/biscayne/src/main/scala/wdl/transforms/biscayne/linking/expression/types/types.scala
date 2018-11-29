@@ -100,6 +100,7 @@ package object types {
         case a: StdoutElement.type => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StderrElement.type => a.evaluateType(linkedValues)(typeEvaluator)
 
+        case a: Keys => a.evaluateType(linkedValues)(typeEvaluator)
         case a: AsMap => a.evaluateType(linkedValues)(typeEvaluator)
         case a: AsPairs => a.evaluateType(linkedValues)(typeEvaluator)
         case a: CollectByKey => a.evaluateType(linkedValues)(typeEvaluator)

@@ -1,1 +1,1 @@
-Failed to process task definition 'oopsie' (reason 1 of 1): Value 'docker_image' is never declared. Available values are: ['str']
+Failed to process task definition 'oopsie' (reason 1 of 1): Cannot lookup value 'docker_image', it is never declared. Available values are: ['str']

@@ -289,9 +289,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     } yield BlacklistCache(cacheConfig)
 
     val wfProps = WorkflowActor.props(
-      workflowId = workflowId,
-      startMode = workflow.state,
-      workflowSourceFilesCollection = workflow.sources,
+      workflowToStart = workflow,
       conf = config,
       ioActor = params.ioActor,
       serviceRegistryActor = params.serviceRegistryActor,

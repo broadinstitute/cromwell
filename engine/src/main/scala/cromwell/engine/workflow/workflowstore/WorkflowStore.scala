@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
@@ -36,7 +38,7 @@ trait WorkflowStore {
     */
   def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
-  def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId])(implicit ec: ExecutionContext): Future[Int]
+  def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int]
 
   def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit]
 }

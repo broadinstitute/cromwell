@@ -1,5 +1,6 @@
 package cromwell.engine.workflow
 
+import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorRef, Props}
@@ -18,7 +19,7 @@ import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
-import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig}
+import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
@@ -198,9 +199,10 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         workflowStoreActor: ActorRef,
                         workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                         totalJobsByRootWf: AtomicInteger) extends WorkflowActor(
-  workflowId = workflowId,
-  initialStartableState = startState,
-  workflowSourceFilesCollection = workflowSources,
+  workflowToStart = WorkflowToStart(id = workflowId,
+    submissionTime = OffsetDateTime.now,
+    state = startState,
+    sources = workflowSources),
   conf = conf,
   ioActor = ioActor,
   serviceRegistryActor = serviceRegistryActor,

@@ -18,7 +18,6 @@ import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
-import common.validation.Validation.OptionValidation
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}

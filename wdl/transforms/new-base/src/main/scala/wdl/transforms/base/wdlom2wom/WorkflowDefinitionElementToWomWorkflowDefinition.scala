@@ -11,7 +11,7 @@ import wdl.transforms.base.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphE
 import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.expression.AnonymousExpressionNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{GraphNode, WomIdentifier, Graph => WomGraph}
+import wom.graph.{CallNode, GraphNode, WomIdentifier, Graph => WomGraph}
 import wom.types.WomType
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
@@ -93,9 +93,13 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
           port <- node.outputPorts
         } yield outputName(node, port) -> port).toMap
 
+        val upstreamGraphNodes = (currentList collect {
+          case node: CallNode => node.localName -> node
+        }).toMap
+
         val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] =
           WorkflowGraphElementToGraphNode.convert(
-            GraphNodeMakerInputs(next, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
+            GraphNodeMakerInputs(next, upstreamGraphNodes, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, callables))
         generatedGraphNodesValidation map { nextGraphNodes: Set[GraphNode] => currentList ++ nextGraphNodes }
       }
     }

@@ -132,7 +132,7 @@ object ScatterElementToGraphNode {
       }
       val mapping = mappingAndPorts.map(_._1)
       val inputPorts = mappingAndPorts.map(_._2).toSet
-      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), (_, localName) => WomIdentifier(localName))
+      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), Set.empty, (_, localName) => WomIdentifier(localName))
       graphNodeSetter._graphNode = result.node
       result.copy(newInputs = result.newInputs ++ newInputNodes.values)
     }

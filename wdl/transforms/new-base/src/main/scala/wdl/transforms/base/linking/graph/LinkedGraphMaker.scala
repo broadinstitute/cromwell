@@ -13,6 +13,8 @@ import wom.callable.Callable
 import wom.types.WomType
 import scalax.collection.Graph
 import scalax.collection.GraphEdge.DiEdge
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.graphElementWriter
 
 object LinkedGraphMaker {
   def make(nodes: Set[WorkflowGraphElement],
@@ -43,7 +45,7 @@ object LinkedGraphMaker {
     val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }
 
     Graph.from[WorkflowGraphElement, DiEdge](linkedGraph.elements, edges).topologicalSort match {
-      case Left(cycleNode) => s"This workflow contains a cyclic dependency on ${cycleNode.value}".invalidNel
+      case Left(cycleNode) => s"This workflow contains a cyclic dependency starting on '${cycleNode.value.toWdlV1.lines.toList.head}'".invalidNel
       // This asInstanceOf is not required, but it suppresses an incorrect intelliJ error highlight:
       case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).asInstanceOf[List[WorkflowGraphElement]].validNel
     }

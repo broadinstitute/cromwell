@@ -10,6 +10,7 @@ task foo {
     Int i
   }
   command <<<
-    cat "hello ~{i}" > /tmp/helloFile
+    sleep 10
+    echo "hello ~{i}" > /tmp/helloFile
   >>>
 }

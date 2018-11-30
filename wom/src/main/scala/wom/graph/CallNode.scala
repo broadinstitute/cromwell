@@ -26,6 +26,8 @@ sealed abstract class CallNode extends GraphNode {
 
   def inputDefinitionMappings: InputDefinitionMappings
   def mustFollow: Set[GraphNode]
+
+  override lazy val upstreamPorts = calculateUpstreamPorts ++ mustFollow.map(_.completionPort)
 }
 
 final case class ExpressionCallNode private(override val identifier: WomIdentifier,

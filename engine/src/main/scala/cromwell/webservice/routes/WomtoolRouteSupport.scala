@@ -5,6 +5,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
+import akka.pattern.ask
 import akka.util.Timeout
 //import cats.data.Validated.{Invalid, Valid}
 //import cats.syntax.validated._
@@ -13,11 +14,10 @@ import cromwell.core.WorkflowSourceFilesCollection
 //import cromwell.engine.language.CromwellLanguages
 //import cromwell.languages.LanguageFactory
 import cromwell.services.womtool.WomtoolServiceMessages.{Describe, DescribeResult}
+import cromwell.services.womtool.WomtoolServiceMessages.JsonSupport.describeResultFormat
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
-import spray.json.{JsArray, JsBoolean, JsObject, JsString}
 //import wom.core.WorkflowSource
-import akka.pattern.ask
 
 //import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.ExecutionContext
@@ -69,12 +69,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
                   complete {
                     serviceRegistryActor.ask(Describe(source, wsfc)) map {
                       case result: DescribeResult =>
-                        JsObject(
-                          Map(
-                            "valid" -> JsBoolean(result.valid),
-                            "errors" -> JsArray(result.errors.map(JsString(_)).toVector)
-                          )
-                        )
+                        result
                     }
 
                     // !!! The following is no longer true after service registry integration !!!

@@ -161,6 +161,8 @@ object ActionBuilder {
       action.scalaLabels
     )
   }
+  
+  def timestampedMessage(message: String) = s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${quoted(message)}"""
 
   /**
     * Creates an Action that logs the time as UTC plus prints the message. The original actionLabels will also be
@@ -176,7 +178,7 @@ object ActionBuilder {
                                    actionLabels: Map[String, String]): Action = {
     // Uses the cloudSdk image as that image will be used for other operations as well.
     cloudSdkShellAction(
-      s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${quoted(message)}"""
+      timestampedMessage(message)
     )(
       flags = actionFlags,
       labels = actionLabels collect {

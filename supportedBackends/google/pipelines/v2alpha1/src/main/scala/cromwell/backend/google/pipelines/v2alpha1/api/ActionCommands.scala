@@ -4,6 +4,7 @@ import java.util.UUID
 import akka.http.scaladsl.model.ContentType
 import common.util.StringUtil._
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.RequesterPaysErrors._
@@ -75,13 +76,12 @@ object ActionCommands {
     s"""while true; do
        |  (
        |    $f
-       |  ) 2> /dev/null
+       |  ) > /dev/null 2>&1
        |  sleep ${duration.toSeconds}
        |done""".stripMargin
 
   def retry(f: => String)(implicit localizationConfiguration: LocalizationConfiguration, wait: FiniteDuration) = {
     s"""for i in $$(seq ${localizationConfiguration.localizationAttempts}); do
-       |  echo "Attempt $$i"
        |  (
        |    $f
        |  )
@@ -89,7 +89,10 @@ object ActionCommands {
        |  if [ "$$RC" = "0" ]; then
        |    break
        |  fi
-       |  sleep ${wait.toSeconds}
+       |  if [ $$i -lt ${localizationConfiguration.localizationAttempts} ]; then
+       |    ${s"""Waiting ${wait.toSeconds} seconds and retrying""" |> timestampedMessage}
+       |    sleep ${wait.toSeconds}
+       |  fi
        |done
        |exit "$$RC"""".stripMargin
   }
@@ -115,21 +118,21 @@ object ActionCommands {
   }
   
   def recoverRequesterPaysError(path: Path)(f: String => String) = {
-    val withoutProject = ""
-    val withProject = s"-u ${path.projectId}"
+    val commandWithoutProject = f("")
+    val commandWithProject = f(s"-u ${path.projectId}")
 
-    s"""${withoutProject |> f} 2> gsutil_output.txt
+    s"""$commandWithoutProject > gsutil_output.txt 2>&1
        |# Record the exit code of the gsutil command without project flag
        |RC_GSUTIL=$$?
        |if [ "$$RC_GSUTIL" != "0" ]; then
-       |  echo "gsutil command failed"
-       |  # Print the reason of the failure to stderr
-       |  cat gsutil_output.txt 1>&2
+       |  ${s"$commandWithoutProject failed" |> timestampedMessage}
+       |  # Print the reason of the failure
+       |  cat gsutil_output.txt
        |  
        |  # Check if it matches the BucketIsRequesterPaysErrorMessage
        |  if grep -q "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; then
-       |    echo "Retrying with user project"
-       |    ${withProject |> f}
+       |    ${"Retrying with user project" |> timestampedMessage}
+       |    $commandWithProject
        |  else
        |    exit "$$RC_GSUTIL"
        |  fi

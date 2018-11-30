@@ -4,7 +4,9 @@ import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.validated._
+import cats.syntax.traverse._
 import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.Validation.OptionValidation
 import shapeless.Coproduct
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.{CallElement, ExpressionElement}
@@ -173,17 +175,27 @@ object CallElementToGraphNode {
       ()
     }
 
+    def findUpstreamCall(callName: String): ErrorOr[GraphNode] = {
+      a.upstreamCalls.get(callName).toErrorOr(s"No such upstream call '$callName' found in available set: [${a.upstreamCalls.keySet.mkString(", ")}]")
+    }
+
+    def findUpstreamCalls(callNames: List[String]): ErrorOr[Set[GraphNode]] = {
+      callNames.traverse(findUpstreamCall _).map(_.toSet)
+    }
+
     for {
       callable <- callableValidation
       mappings <- expressionNodeMappings(callable)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
-      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable))
+      upstream <- findUpstreamCalls(a.node.after.toList)
+      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream)
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
   }
 }
 
 case class CallNodeMakerInputs(node: CallElement,
+                               upstreamCalls: Map[String, CallNode],
                                linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                linkablePorts: Map[String, OutputPort],
                                availableTypeAliases: Map[String, WomType],

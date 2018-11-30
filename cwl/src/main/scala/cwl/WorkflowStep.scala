@@ -454,7 +454,7 @@ case class WorkflowStep(
         // Assign each of the callable's input definition to an output port from the pointer map
         inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(aggregatedMapForInputDefinitions)).toEither
         // Build the call node
-        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold)
+        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold, Set.empty)
         // Depending on whether the step is being scattered, invoke the scatter node builder or not
 
         /* ************************************ */

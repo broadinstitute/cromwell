@@ -1,26 +1,28 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
-import cromwell.filesystems.demo.dos.DemoDosPathBuilder
+import cromwell.filesystems.drs.DrsPathBuilder
+import eu.timepit.refined.refineMV
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
-import eu.timepit.refined.refineMV
 
 class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
   implicit val localizationConfiguration = LocalizationConfiguration(refineMV(1))
 
-  it should "create a Demo DOS input parameter" in {
-    val demoDosPathBuilder = new DemoDosPathBuilder
-    val demoDosPath = demoDosPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
+  it should "create a DRS input parameter" in {
+    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(ConfigFactory.empty))
+    val drsPath = drsPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)
-    val input = PipelinesApiFileInput("example", demoDosPath, containerRelativePath, mount)
+    val input = PipelinesApiFileInput("example", drsPath, containerRelativePath, mount)
     val actions = PipelinesConversions.inputToParameter.toActions(input, Nil)
     actions.size should be(2)
 

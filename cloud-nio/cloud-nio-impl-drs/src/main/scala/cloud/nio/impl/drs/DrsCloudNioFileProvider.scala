@@ -13,7 +13,7 @@ import scala.util.Try
 
 class DrsCloudNioFileProvider(config: Config, scheme: String) extends CloudNioFileProvider {
 
-  private val marthaResolver: MarthaResolver = MarthaResolver(config)
+  private val drsPathResolver: DrsPathResolver = DrsPathResolver(config)
 
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
@@ -21,7 +21,7 @@ class DrsCloudNioFileProvider(config: Config, scheme: String) extends CloudNioFi
     val httpClient: CloseableHttpClient = HttpClientBuilder.create().build()
 
     try {
-      val marthaResponse: CloseableHttpResponse = marthaResolver.contactMartha(drsPath, httpClient)
+      val marthaResponse: CloseableHttpResponse = drsPathResolver.contactMartha(drsPath, httpClient)
 
       try {
         marthaResponse.getStatusLine.getStatusCode == HttpStatus.SC_OK

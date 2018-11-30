@@ -53,7 +53,8 @@ trait GraphNode {
     * The set of all OuterGraphInputNodes which are somewhere upstream of this Node (in the same graph)
     */
   lazy val upstreamOuterGraphInputNodes: Set[OuterGraphInputNode] = upstreamAncestry.filterByType[OuterGraphInputNode]
-  lazy val upstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  protected def calculateUpstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  lazy val upstreamPorts: Set[OutputPort] = calculateUpstreamPorts
   lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)
 }
 

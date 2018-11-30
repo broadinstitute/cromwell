@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, Props, Status}
 import cats.data.NonEmptyVector
 import cromwell.core.{Dispatcher, WorkflowId}
@@ -36,7 +38,7 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
 }
 
 object WorkflowStoreCoordinatedAccessActor {
-  final case class WriteHeartbeats(workflowIds: NonEmptyVector[WorkflowId])
+  final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)])
   final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
 
   val Timeout = 1 minute

@@ -76,6 +76,7 @@ object ExpressionElement {
 
   // 1-param functions
   sealed trait OneParamFunctionCallElement extends FunctionCallElement { def param: ExpressionElement }
+  final case class Keys(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class AsMap(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class AsPairs(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class CollectByKey(param: ExpressionElement) extends OneParamFunctionCallElement

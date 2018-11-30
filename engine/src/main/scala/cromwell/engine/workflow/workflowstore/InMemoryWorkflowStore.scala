@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
@@ -36,7 +38,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     workflowStore = workflowStore ++ updatedWorkflows
 
     val workflowsToStart = startableWorkflows map {
-      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, workflow.sources, Submitted)
+      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, OffsetDateTime.now, workflow.sources, Submitted)
       case _ => throw new IllegalArgumentException("This workflow is not currently in a startable state")
     }
 
@@ -72,7 +74,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     }
   }
 
-  override def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId])(implicit ec: ExecutionContext): Future[Int] =
+  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int] =
     Future.successful(workflowIds.size)
 
   override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())

@@ -1,1 +1,1 @@
-Failed to process workflow definition 'bad_after' (reason 1 of 1): This workflow contains a cyclic dependency
+Failed to process workflow definition 'after_circle' (reason 1 of 1): This workflow contains a cyclic dependency starting on 'call foo as foo1 after foo2 {'

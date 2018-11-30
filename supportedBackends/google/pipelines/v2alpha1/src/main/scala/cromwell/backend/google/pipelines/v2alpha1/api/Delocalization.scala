@@ -58,7 +58,7 @@ trait Delocalization {
       // Create the directory where the fofn will be written
       s"mkdir -p $$(dirname $outputFile) && " +
       s"cd $containerCallRoot && " +
-      s"${womOutputRuntimeExtractor.command} > $outputFile"
+      s"${womOutputRuntimeExtractor.command} | tee $outputFile"
     )
 
     ActionBuilder

@@ -18,17 +18,17 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
       s"flag is $flag"
     }
     
-    recovered shouldBe """flag is  2> gsutil_output.txt
+    recovered shouldBe """flag is  > gsutil_output.txt 2>&1
                          |# Record the exit code of the gsutil command without project flag
                          |RC_GSUTIL=$?
                          |if [ "$RC_GSUTIL" != "0" ]; then
-                         |  echo "gsutil command failed"
-                         |  # Print the reason of the failure to stderr
-                         |  cat gsutil_output.txt 1>&2
+                         |  printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" flag\ is\ \ failed
+                         |  # Print the reason of the failure
+                         |  cat gsutil_output.txt
                          |  
                          |  # Check if it matches the BucketIsRequesterPaysErrorMessage
                          |  if grep -q "Bucket is requester pays bucket but no user project provided." gsutil_output.txt; then
-                         |    echo "Retrying with user project"
+                         |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Retrying\ with\ user\ project
                          |    flag is -u my-project
                          |  else
                          |    exit "$RC_GSUTIL"
@@ -41,7 +41,6 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
   it should "use LocalizationConfiguration to set the number of localization retries" in {
     implicit val localizationConfiguration = LocalizationConfiguration(refineMV(31380))
     retry("I'm very flaky") shouldBe """for i in $(seq 31380); do
-                                       |  echo "Attempt $i"
                                        |  (
                                        |    I'm very flaky
                                        |  )
@@ -49,7 +48,10 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
                                        |  if [ "$RC" = "0" ]; then
                                        |    break
                                        |  fi
-                                       |  sleep 5
+                                       |  if [ $i -lt 31380 ]; then
+                                       |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Waiting\ 5\ seconds\ and\ retrying
+                                       |    sleep 5
+                                       |  fi
                                        |done
                                        |exit "$RC"""".stripMargin
   }

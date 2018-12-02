@@ -35,7 +35,6 @@ import io.circe.syntax._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import scala.util.{Try, Success, Failure}
-
 import scala.concurrent.duration._
 import org.http4s.client._
 
@@ -65,7 +64,6 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
     marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
-    _ = println(s"***** GCS Url from Martha: $gcsUrl")
     _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
   } yield()
 
@@ -106,7 +104,6 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
       headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)
-    _ = println(s"Http response from Martha: $httpResponse")
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
   } yield marthaResObj
 
@@ -129,16 +126,11 @@ def downloadFileFromGcs(gcsUrl: String, serviceAccount: String, downloadLoc: Str
   val fileToBeLocalized = gcsUrlArray(1)
   val gcsBucket = gcsUrlArray(0)
 
-  println(s"**** File to be localized: $fileToBeLocalized")
-  println(s"**** GCS Bucket: $gcsBucket")
-
   Try {
     val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
       .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
-    println(s"**** Storage: $storage")
     val blob = storage.get(gcsBucket, fileToBeLocalized)
-    println(s"**** Blob: $blob")
     val readChannel = blob.reader()
     Files.createDirectories(Paths.get(downloadLoc).getParent)
     val fileOuputStream = new FileOutputStream(downloadLoc)

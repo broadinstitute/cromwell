@@ -32,7 +32,6 @@ object LinkedGraphMaker {
     for {
       generatedValuesByGraphNode <- generatedValuesByGraphNodeValidation
       consumedValuesByGraphNode <- consumedValuesByGraphNodeValidation
-      _ = println(consumedValuesByGraphNode)
       graphNodeByGeneratedValue <- reverseMap(generatedValuesByGraphNode)
       allHandles = graphNodeByGeneratedValue.keySet ++ externalHandles
       consumedValueLookup <- makeConsumedValueLookup(nodes, typeAliases, allHandles, callables)

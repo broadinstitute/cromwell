@@ -6,10 +6,10 @@ workflow afters {
   }
 
   # Should not impact 'read' because it happens before the second read:
-  call write_to_shared { input: i = 5, where = where }
+  call write_to_shared as foo1 { input: i = 5, where = where }
 
   # This value should always be the value we get from the read:
-  call write_to_shared as foo2 after foo { input: i = 6, where = where }
+  call write_to_shared as foo2 after foo1 { input: i = 6, where = where }
 
   # The call to 'read':
   call read_from_shared after foo2 { input: where = where }
@@ -29,8 +29,11 @@ task write_to_shared {
   }
   command <<<
     sleep 10
-    echo "hello ~{i}" > /tmp/helloFile
+    echo "~{i}" > /tmp/helloFile
   >>>
+  runtime {
+    backend: "LocalNoDocker"
+  }
 }
 
 task read_from_shared {
@@ -38,9 +41,12 @@ task read_from_shared {
     String where
   }
   command <<<
-    cat ${where}
+    cat "~{where}"
   >>>
   output {
     Int read_result = read_int(stdout())
+  }
+  runtime {
+    backend: "LocalNoDocker"
   }
 }

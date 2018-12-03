@@ -39,7 +39,7 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
       }
     }
 
-    // Mirror of womtool.validate.Validate
+    // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // Why do we pass in the rest of the language factories here? I cannot figure out what we ever use them for.
       createResponse(factory.getWomBundle(workflow, "{}", List.empty, List.empty))

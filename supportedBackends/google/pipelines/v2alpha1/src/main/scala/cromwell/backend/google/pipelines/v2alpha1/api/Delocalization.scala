@@ -58,7 +58,8 @@ trait Delocalization {
       // Create the directory where the fofn will be written
       s"mkdir -p $$(dirname $outputFile) && " +
       s"cd $containerCallRoot && " +
-      s"${womOutputRuntimeExtractor.command} > $outputFile"
+      """echo "Runtime output files to be delocalized:" && """ +
+      s"${womOutputRuntimeExtractor.command} | tee $outputFile"
     )
 
     ActionBuilder
@@ -71,7 +72,7 @@ trait Delocalization {
       .withLabels(Map(Key.Tag -> Value.Delocalization))
   }
   
-  private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path) = {
+  private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     val gsutilCommand: String => String = { flag =>
       s"""gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
     }
@@ -95,12 +96,14 @@ trait Delocalization {
         |  while IFS= read line
         |  do
         |    gcs_path=$$(echo $$line | $prefixFilters)
-        |    ${recoverRequesterPaysError(cloudCallRoot)(gsutilCommand)}
+        |    (
+        |       ${retry(recoverRequesterPaysError(cloudCallRoot)(gsutilCommand))}
+        |    )
         |  done  <$fofnPath
         |fi""".stripMargin
   }
 
-  private def delocalizeRuntimeOutputsAction(cloudCallRoot: Path, inputFile: String, workflowRoot: Path, mounts: List[Mount]): Action = {
+  private def delocalizeRuntimeOutputsAction(cloudCallRoot: Path, inputFile: String, workflowRoot: Path, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     val command = multiLineCommand(delocalizeRuntimeOutputsScript(inputFile, workflowRoot, cloudCallRoot))
     ActionBuilder.cloudSdkShellAction(command)(mounts, flags = List(ActionFlag.DisableImagePrefetch), labels = Map(Key.Tag -> Value.Delocalization))
   }
@@ -114,17 +117,16 @@ trait Delocalization {
     val gcsLegacyLogPath = createPipelineParameters.logGcsPath
 
     /*
-     * CWL specific delocalization. For now this always runs, even for WDL jobs.
-     * Ideally temporaryFofnForCwlOutputJson should be somewhere else than the execution directory (we could mount anther directory)
+     * Ideally temporaryFofnForRuntimeOutputFiles should be somewhere else than the execution directory (we could mount anther directory)
      * However because it runs after everything else there's no risk of polluting the task's results and the random ID ensures we don't override anything
      */
-    val temporaryFofnDirectoryForCwlOutputJson = callExecutionContainerRoot.pathAsString.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
-    val temporaryFofnForCwlOutputJson = temporaryFofnDirectoryForCwlOutputJson + "/cwl_output_json_references.txt"
+    val temporaryFofnDirectoryForRuntimeOutputFiles = callExecutionContainerRoot.pathAsString.ensureSlashed + UUID.randomUUID().toString.split("-")(0)
+    val temporaryFofnForRuntimeOutputFiles = temporaryFofnDirectoryForRuntimeOutputFiles + "/runtime_output_files.txt"
 
     val runtimeExtractionActions = createPipelineParameters.womOutputRuntimeExtractor.toList flatMap { extractor =>
       List (
-        runtimeOutputExtractorAction(callExecutionContainerRoot.pathAsString, temporaryFofnForCwlOutputJson, mounts, extractor),
-        delocalizeRuntimeOutputsAction(cloudCallRoot, temporaryFofnForCwlOutputJson, createPipelineParameters.cloudWorkflowRoot, mounts)
+        runtimeOutputExtractorAction(callExecutionContainerRoot.pathAsString, temporaryFofnForRuntimeOutputFiles, mounts, extractor),
+        delocalizeRuntimeOutputsAction(cloudCallRoot, temporaryFofnForRuntimeOutputFiles, createPipelineParameters.cloudWorkflowRoot, mounts)
       )
     }
 
@@ -133,7 +135,7 @@ trait Delocalization {
         runtimeExtractionActions
     ) :+
       copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath) :+
-      copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot, createPipelineParameters.logGcsPath) :+
+      copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot, gcsLegacyLogPath) :+
       delocalizeLogsAction(gcsLogDirectoryPath)
   }
 }

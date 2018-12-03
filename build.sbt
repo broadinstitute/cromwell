@@ -158,6 +158,7 @@ lazy val services = project
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)
   .dependsOn(dockerHashing)
+  .dependsOn(languageFactoryCore)
   .dependsOn(core % "test->test")
 
 lazy val backendRoot = Path("supportedBackends")

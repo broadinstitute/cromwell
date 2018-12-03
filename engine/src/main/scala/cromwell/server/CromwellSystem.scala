@@ -5,7 +5,7 @@ import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import cromwell.engine.language.{CromwellLanguages, LanguageConfiguration}
+import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 
 import scala.concurrent.Future

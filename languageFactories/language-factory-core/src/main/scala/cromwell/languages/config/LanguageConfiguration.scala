@@ -1,9 +1,9 @@
-package cromwell.engine.language
+package cromwell.languages.config
 
 import java.util.Map.Entry
 
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.engine.language.CromwellLanguages.{CromwellLanguageName, CromwellLanguageVersion}
+import cromwell.languages.config.CromwellLanguages.{CromwellLanguageName, CromwellLanguageVersion}
 
 import scala.collection.JavaConverters._
 

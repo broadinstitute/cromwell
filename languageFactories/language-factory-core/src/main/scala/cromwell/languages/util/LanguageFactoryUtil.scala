@@ -5,10 +5,12 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.languages.ValidatedWomNamespace
+import cromwell.languages.config.CromwellLanguages
+import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import wom.core.WorkflowSource
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.IoFunctionSet
@@ -90,5 +92,22 @@ object LanguageFactoryUtil {
     val start = trimStart.next.dropWhile(_.isWhitespace)
     startsWithOptions.exists(start.startsWith)
 
+  }
+
+  def chooseFactory(workflowSource: WorkflowSource, wsfc: WorkflowSourceFilesCollection): ErrorOr[LanguageFactory] = {
+    wsfc.workflowType match {
+      case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
+        val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
+        wsfc.workflowTypeVersion match {
+          case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
+          case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
+          case _ =>
+            language.allVersions.values.toList.find(_.looksParsable(workflowSource)).getOrElse(language.default).valid
+        }
+      case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
+      case None =>
+        val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
+        allFactories.find(_.looksParsable(workflowSource)).getOrElse(CromwellLanguages.instance.default.default).validNel
+    }
   }
 }

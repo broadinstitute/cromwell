@@ -29,11 +29,10 @@ import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._

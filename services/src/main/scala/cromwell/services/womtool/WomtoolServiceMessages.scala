@@ -13,10 +13,10 @@ object WomtoolServiceMessages {
     override def serviceName: String = WomtoolServiceName
   }
 
-  case class Describe(workflow: WorkflowSource, filesCollection: WorkflowSourceFilesCollection) extends WomtoolServiceMessage
-  case class DescribeResult(valid: Boolean, errors: List[String])
+  case class DescribeRequest(workflow: WorkflowSource, filesCollection: WorkflowSourceFilesCollection) extends WomtoolServiceMessage
+  case class DescribeResponse(valid: Boolean, errors: List[String])
 
   object JsonSupport extends DefaultJsonProtocol {
-    implicit val describeResultFormat = jsonFormat2(DescribeResult)
+    implicit val describeResponseFormat = jsonFormat2(DescribeResponse)
   }
 }

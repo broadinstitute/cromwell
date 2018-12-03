@@ -1,7 +1,7 @@
-package cromwell.engine.language
+package cromwell.languages.config
 
 import com.typesafe.config.Config
-import cromwell.engine.language.CromwellLanguages._
+import cromwell.languages.config.CromwellLanguages.{CromwellLanguageName, CromwellLanguageVersion}
 import cromwell.languages.LanguageFactory
 
 // Construct a singleton instance of this class using 'initLanguages' below.

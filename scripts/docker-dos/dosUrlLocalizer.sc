@@ -67,7 +67,6 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
   } yield()
 
-
   dosResloverObj match {
     case Success(_) =>
     case Failure(e) => {

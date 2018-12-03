@@ -1,0 +1,12 @@
+name: afters
+testFormat: workflowsuccess
+
+files {
+  workflow: afters/afters.wdl
+}
+
+metadata {
+  workflowName: afters
+  status: Succeeded
+  "outputs.afters.read_result": 6
+}

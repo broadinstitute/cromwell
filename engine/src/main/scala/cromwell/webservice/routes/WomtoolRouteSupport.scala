@@ -9,10 +9,13 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.languages.util.ImportResolver.HttpResolver
+import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeRequest, DescribeResponse}
 import cromwell.services.womtool.WomtoolServiceMessages.JsonSupport.describeResponseFormat
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import wom.core.WorkflowSource
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -61,27 +64,18 @@ trait WomtoolRouteSupport extends WebServiceUtils {
       warnings = Seq.empty
     )
 
-    // TODO: would be nice to reuse findWorkflowSource
-    (workflowSource, workflowUrl) match {
-      case (Some(_), Some(_)) =>
-        new IllegalArgumentException("Expected either workflow source or workflow URL, received both.").failRequest(StatusCodes.BadRequest)
-      case (None, Some(_)) =>
-        new Exception("URL submissions are not yet supported.").failRequest(StatusCodes.NotImplemented)
-      case (Some(source), None) =>
+    LanguageFactoryUtil.findWorkflowSource(workflowSource, workflowUrl, List(HttpResolver(None, Map.empty))) match {
+      case Right(sourceAndResolvers: (WorkflowSource, List[ImportResolver.ImportResolver])) =>
         complete {
-          // !!! The following is no longer true after service registry integration !!!
-          // !!! Perhaps another discussions is required? !!!
-
-          // After much discussion, it was resolved that returning Future(something) is the right way to do
-          // things in Akka HTTP, when no legacy or migration constraints funnel one into using PerRequest
-
-          serviceRegistryActor.ask(DescribeRequest(source, wsfc)) map {
+          serviceRegistryActor.ask(DescribeRequest(sourceAndResolvers._1, wsfc)) map {
             case result: DescribeResponse =>
               result
           }
         }
-      case (None, None) =>
-        new IllegalArgumentException("Expected either workflow source or workflow URL, received neither.").failRequest(StatusCodes.BadRequest)
+      case Left(errors) =>
+        complete {
+          DescribeResponse(valid = false, errors.toList)
+        }
     }
   }
 

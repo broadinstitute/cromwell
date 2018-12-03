@@ -12,9 +12,7 @@ import cats.syntax.either._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import common.Checked
 import common.exception.{AggregatedMessageException, MessageAggregation}
-import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
@@ -39,7 +37,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import wom.core.{WorkflowSource, WorkflowUrl}
+import wom.core.WorkflowSource
 import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
@@ -233,20 +231,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): IOChecked[EngineWorkflowDescriptor] = {
 
-    def findWorkflowSource(workflowSource: Option[WorkflowSource],
-                           workflowUrl: Option[WorkflowUrl],
-                           resolvers: List[ImportResolver]): Checked[(WorkflowSource, List[ImportResolver])] = {
-      (workflowSource, workflowUrl) match {
-        case (Some(source), None) => (source, resolvers).validNelCheck
-        case (None, Some(url)) =>
-          val compoundImportResolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.firstSuccess(resolvers.map(_.resolver), s"resolve workflowUrl '$url'")
-          val wfSourceAndResolvers: Checked[ResolvedImportBundle] = compoundImportResolver.run(ImportResolutionRequest(url, resolvers))
-          wfSourceAndResolvers map { v => (v.source, v.newResolvers) }
-        case (Some(_), Some(_)) => "Both workflow source and url can't be supplied".invalidNelCheck
-        case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
-      }
-    }
-
     def findFactory(workflowSource: WorkflowSource): ErrorOr[LanguageFactory] = {
 
       val factory = LanguageFactoryUtil.chooseFactory(workflowSource, sourceFiles)
@@ -286,7 +270,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       _ <- publishLabelsToMetadata(id, labels)
       zippedImportResolver <- zippedResolverCheck
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
-      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
+      sourceAndResolvers <- fromEither[IO](LanguageFactoryUtil.findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
       factory <- findFactory(sourceAndResolvers._1).toIOChecked
       outputRuntimeExtractor <- factory.womOutputRuntimeExtractor.toValidated.toIOChecked

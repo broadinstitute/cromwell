@@ -3,14 +3,17 @@ package cromwell.languages.util
 import cats.data.NonEmptyList
 import cats.syntax.validated._
 import common.Checked
+import common.transforms.CheckedAtoB
+import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.languages.config.CromwellLanguages
+import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver, ResolvedImportBundle}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-import wom.core.WorkflowSource
+import wom.core.{WorkflowSource, WorkflowUrl}
 import wom.executable.Executable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.expression.IoFunctionSet
@@ -108,6 +111,20 @@ object LanguageFactoryUtil {
       case None =>
         val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
         allFactories.find(_.looksParsable(workflowSource)).getOrElse(CromwellLanguages.instance.default.default).validNel
+    }
+  }
+
+  def findWorkflowSource(workflowSource: Option[WorkflowSource],
+                         workflowUrl: Option[WorkflowUrl],
+                         resolvers: List[ImportResolver]): Checked[(WorkflowSource, List[ImportResolver])] = {
+    (workflowSource, workflowUrl) match {
+      case (Some(source), None) => (source, resolvers).validNelCheck
+      case (None, Some(url)) =>
+        val compoundImportResolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.firstSuccess(resolvers.map(_.resolver), s"resolve workflowUrl '$url'")
+        val wfSourceAndResolvers: Checked[ResolvedImportBundle] = compoundImportResolver.run(ImportResolutionRequest(url, resolvers))
+        wfSourceAndResolvers map { v => (v.source, v.newResolvers) }
+      case (Some(_), Some(_)) => "Both workflow source and url can't be supplied".invalidNelCheck
+      case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
     }
   }
 }

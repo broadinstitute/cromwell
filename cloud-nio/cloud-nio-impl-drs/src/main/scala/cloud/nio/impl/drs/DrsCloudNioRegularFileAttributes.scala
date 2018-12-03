@@ -12,20 +12,39 @@ class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String) extends 
 
   private val drsPathResolver: DrsPathResolver = DrsPathResolver(config)
 
-  override def fileHash: Option[String] = {
-    val checksumsArray = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.checksums
+  private def runtimeException(missingKey: String) = {
+    throw new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
+  }
 
-    checksumsArray.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
+  override def fileHash: Option[String] = {
+    val checksumsArrayOption = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.checksums
+
+    checksumsArrayOption match {
+      case Some(checksumsArray) => checksumsArray.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
+      case None => None
+    }
   }
 
   override def lastModifiedTime(): FileTime = {
-    val lastModifiedInString = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.updated
-    val lastModifiedInDuration = Duration.apply(lastModifiedInString).toMillis
+    val lastModifiedInStringOption = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.updated
 
-    FileTime.fromMillis(lastModifiedInDuration)
+    lastModifiedInStringOption match {
+      case Some(lastModifiedInString) => {
+        val lastModifiedInDuration = Duration.apply(lastModifiedInString).toMillis
+        FileTime.fromMillis(lastModifiedInDuration)
+      }
+      case None => runtimeException("updated")
+    }
   }
 
-  override def size(): Long = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.size
+  override def size(): Long = {
+    val sizeOption = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.size
+
+    sizeOption match {
+      case Some(size) => size
+      case None => runtimeException("size")
+    }
+  }
 
   override def fileKey(): String = drsPath
 }

@@ -1,14 +1,15 @@
 package cloud.nio.impl.drs
 
 import com.typesafe.config.Config
-import org.apache.http.HttpStatus
+import org.apache.http.{HttpStatus, StatusLine}
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.util.EntityUtils
 import spray.json._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 
 case class DrsPathResolver(config: Config) {
@@ -28,8 +29,8 @@ case class DrsPathResolver(config: Config) {
   def resolveDrsThroughMartha(drsPath: String): MarthaResponse = {
     import MarthaResponseJsonSupport._
 
-    def unexpectedExceptionResponse = {
-      throw new RuntimeException(s"Unexpected response looking up $drsPath from $marthaUri.")
+    def unexpectedExceptionResponse(status: StatusLine) = {
+      throw new RuntimeException(s"Unexpected response resolving $drsPath through Martha url $marthaUri. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
     }
 
     val httpClient: CloseableHttpClient = HttpClientBuilder.create().build()
@@ -39,13 +40,19 @@ case class DrsPathResolver(config: Config) {
       val marthaResponseEntityOption = Option(marthaResponse.getEntity).map(EntityUtils.toString)
 
       try {
-        val responseContent = if (marthaResponse.getStatusLine.getStatusCode == HttpStatus.SC_OK) {
-          marthaResponseEntityOption.getOrElse(unexpectedExceptionResponse)
+        val responseStatusLine = marthaResponse.getStatusLine
+        val responseContent = if (responseStatusLine.getStatusCode == HttpStatus.SC_OK) {
+          marthaResponseEntityOption.getOrElse(unexpectedExceptionResponse(responseStatusLine))
         } else {
-          unexpectedExceptionResponse
+          unexpectedExceptionResponse(responseStatusLine)
         }
 
-        responseContent.parseJson.convertTo[MarthaResponse]
+        Try(responseContent.parseJson.convertTo[MarthaResponse]) match {
+          case Success(marthaObj) =>
+            marthaObj
+          case Failure(e) =>
+            throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
+        }
       } finally {
         Try(marthaResponse.close())
         ()
@@ -63,26 +70,18 @@ object MarthaResponseJsonSupport extends DefaultJsonProtocol {
   implicit val checksumFormat: JsonFormat[ChecksumObject] = jsonFormat2(ChecksumObject)
   implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat4(DosDataObject)
   implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
-  //  implicit val googleServiceAccountFormat: JsonFormat[GoogleServiceAccount] = jsonFormat1(GoogleServiceAccount)
-  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
+  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat1(MarthaResponse)
 }
 
 case class Url(url: String)
 
 case class ChecksumObject(checksum: String, `type`: String)
 
-case class DosDataObject(size: Long,
-                         checksums: Array[ChecksumObject],
-                         updated: String,
+case class DosDataObject(size: Option[Long],
+                         checksums: Option[Array[ChecksumObject]],
+                         updated: Option[String],
                          urls: Array[Url])
 
 case class DosObject(data_object: DosDataObject)
 
-//DO NOT MERGE IF BELOW CODE IS COMMENTED OUT
-//The Martha response from prod/dev url does contain `data` key inside googleServiceAccount,
-//but currently for testing purposes since mock martha doesn't have `data` key it is commented out
-//case class GoogleServiceAccount(data: JsObject)
-//case class MarthaResponse(dos: DosObject, googleServiceAccount: GoogleServiceAccount)
-
-
-case class MarthaResponse(dos: DosObject, googleServiceAccount: JsObject)
+case class MarthaResponse(dos: DosObject)

@@ -4,13 +4,11 @@ import com.google.api.client.http.HttpRequest
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk._
+import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
-import wdl4s.parser.MemoryUnit
-import wom.format.MemorySize
 import wom.runtime.WomOutputRuntimeExtractor
 
 /**
@@ -77,15 +75,10 @@ object PipelinesApiRequestFactory {
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
-                                      inputFileSize: Option[Long]) {
+                                      adjustedSizeDisks: Seq[PipelinesApiAttachedDisk]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters
     def allParameters = inputParameters ++ outputParameters
-
-    // Attempt to adjust the disk size by taking into account the size of input files
-    def adjustedSizeDisks = inputFileSize.map(size => MemorySize.apply(size.toDouble, MemoryUnit.Bytes)) map { inputFileSizeInformation =>
-      runtimeAttributes.disks.adjustWorkingDiskWithNewMin(inputFileSizeInformation)
-    } getOrElse runtimeAttributes.disks
   }
 }

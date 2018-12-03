@@ -60,8 +60,9 @@ object PipelinesApiAttachedDisk {
   }
   
   implicit class EnhancedDisks(val disks: Seq[PipelinesApiAttachedDisk]) extends AnyVal {
-    def adjustWorkingDiskWithNewMin(minimum: MemorySize): Seq[PipelinesApiAttachedDisk] = disks map {
+    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[PipelinesApiAttachedDisk] = disks map {
       case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
+        onAdjustment
         disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
       case other => other
     }

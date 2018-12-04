@@ -14,7 +14,6 @@ import wom.core.WorkflowSource
 import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 
-// TODO: I think this new actor is screwing up Cromwell's shutdown routine, need to look at this.
 class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends WomtoolServiceActor {
 
   override def receive: Receive = {

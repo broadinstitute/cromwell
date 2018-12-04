@@ -26,13 +26,16 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
   behavior of "/describe endpoint"
 
   object BodyParts {
-    val workflowSource  = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, "This is not a WDL, but that's OK for this test."))
+    val workflowSource  = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, "This is not a WDL, but that's OK for this test of request routing."))
     val workflowUrl     = Multipart.FormData.BodyPart("workflowUrl", HttpEntity(MediaTypes.`application/json`,
       "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
     val workflowUrlNotFound = Multipart.FormData.BodyPart("workflowUrl", HttpEntity(MediaTypes.`application/json`,
       "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow"))
     val workflowUrlBadHost  = Multipart.FormData.BodyPart("workflowUrl", HttpEntity(MediaTypes.`application/json`, "https://zardoz.zardoz"))
     val workflowNotAUrl = Multipart.FormData.BodyPart("workflowUrl", HttpEntity(MediaTypes.`application/json`, "Zardoz"))
+    val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, "{\"a\":\"is for apple\"}"))
+    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity(MediaTypes.`application/json`, "WDL"))
+    val workflowVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity(MediaTypes.`application/json`, "1.0"))
   }
 
   it should "return OK for a workflow source request" in {
@@ -42,7 +45,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          DescribeResponse(valid = false, List("this is fake data", "from the mock SR actor"))
+          DescribeResponse(valid = true, List("this is fake data", "from the mock SR actor", "workflow hashcode: 580529622, inputs: , type: None, version: None"))
         } { responseAs[DescribeResponse] }
       }
   }
@@ -54,7 +57,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          DescribeResponse(valid = false, List("this is fake data", "from the mock SR actor"))
+          DescribeResponse(valid = true, List("this is fake data", "from the mock SR actor", "workflow hashcode: -1015985683, inputs: , type: None, version: None"))
         } { responseAs[DescribeResponse] }
       }
   }
@@ -136,6 +139,18 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
              |}""".stripMargin) {
           responseAs[String]
         }
+      }
+  }
+
+  it should "include inputs, workflow type, and workflow version in the WorkflowSourceFilesCollection" in {
+    Post(s"/womtool/$version/describe", Multipart.FormData(BodyParts.workflowSource, BodyParts.workflowInputs, BodyParts.workflowType, BodyParts.workflowVersion).toEntity()) ~>
+      akkaHttpService.womtoolRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        assertResult {
+          DescribeResponse(valid = true, List("this is fake data", "from the mock SR actor", "workflow hashcode: 580529622, inputs: {\"a\":\"is for apple\"}, type: Some(WDL), version: Some(1.0)"))
+        } { responseAs[DescribeResponse] }
       }
   }
 }

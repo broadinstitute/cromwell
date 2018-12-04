@@ -559,8 +559,9 @@ object CromwellApiServiceSpec {
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }
-      case DescribeRequest(_, _) =>
-        sender ! DescribeResponse(valid = false, List("this is fake data", "from the mock SR actor"))
+      case DescribeRequest(workflow, sourceFiles) =>
+        val readBack = s"workflow hashcode: ${workflow.hashCode}, inputs: ${sourceFiles.inputsJson}, type: ${sourceFiles.workflowType}, version: ${sourceFiles.workflowTypeVersion}"
+        sender ! DescribeResponse(valid = true, List("this is fake data", "from the mock SR actor", readBack))
     }
   }
 

@@ -16,6 +16,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{Workflow
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import cromwell.services.womtool.WomtoolServiceMessages.{DescribeRequest, DescribeResponse}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.EngineStatsActor
 import mouse.boolean._
@@ -558,6 +559,8 @@ object CromwellApiServiceSpec {
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }
+      case DescribeRequest(_, _) =>
+        sender ! DescribeResponse(valid = false, List("this is fake data", "from the mock SR actor"))
     }
   }
 

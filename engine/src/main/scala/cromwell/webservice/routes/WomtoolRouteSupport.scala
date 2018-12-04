@@ -1,6 +1,6 @@
 package cromwell.webservice.routes
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
@@ -22,6 +22,7 @@ import scala.util.{Failure, Success}
 
 trait WomtoolRouteSupport extends WebServiceUtils {
 
+  implicit def actorRefFactory: ActorRefFactory
   implicit val ec: ExecutionContext
   implicit val materializer: ActorMaterializer
   implicit val timeout: Timeout

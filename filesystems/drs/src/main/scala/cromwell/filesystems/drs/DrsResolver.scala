@@ -1,10 +1,9 @@
 package cromwell.filesystems.drs
 
 import cloud.nio.impl.drs.{MarthaResponse, Url}
-import com.typesafe.scalalogging.StrictLogging
 
 
-object DrsResolver extends StrictLogging {
+object DrsResolver {
   private val GcsScheme: String = "gs"
 
   private def extractPathRelativeToScheme(drsPath: String, urlArray: Array[Url], scheme: String): String = {

@@ -47,8 +47,7 @@ trait WesRouteSupport extends HttpInstrumentation {
         pathPrefix("ga4gh" / "wes" / "v1") {
           concat(
             path("service-info") {
-              val z = ServiceInfo.toWesResponse(workflowStoreActor)
-              complete(z)
+              complete(ServiceInfo.toWesResponse(workflowStoreActor))
             },
             pathPrefix("runs") {
               concat(

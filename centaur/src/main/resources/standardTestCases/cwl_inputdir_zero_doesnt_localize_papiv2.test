@@ -1,0 +1,16 @@
+name: cwl_inputdir_zero_doesnt_localize_papiv2
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: cwl_resources/cwl_inputdir_zero_doesnt_localize.cwl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.inputdir_zero_doesnt_localize.errors": ""
+}
+
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: inputdir_zero_doesnt_localize

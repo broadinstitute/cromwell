@@ -54,6 +54,9 @@ object Callable {
     def apply(name: String, womType: WomType, parameterMeta: Option[MetaValueElement]): RequiredInputDefinition = {
       RequiredInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, parameterMeta)
     }
+    def apply(name: String, womType: WomType, valueMapper: InputValueMapper, parameterMeta: Option[MetaValueElement]): RequiredInputDefinition = {
+      RequiredInputDefinition(LocalName(name), womType, valueMapper, parameterMeta)
+    }
   }
   final case class RequiredInputDefinition(localName: LocalName,
                                            womType: WomType,
@@ -69,6 +72,9 @@ object Callable {
     }
     def apply(name: String, womType: WomType, default: WomExpression, valueMapper: InputValueMapper): InputDefinitionWithDefault = {
       InputDefinitionWithDefault(LocalName(name), womType, default, valueMapper, None)
+    }
+    def apply(name: String, womType: WomType, default: WomExpression, valueMapper: InputValueMapper, parameterMeta: Option[MetaValueElement]): InputDefinitionWithDefault = {
+      InputDefinitionWithDefault(LocalName(name), womType, default, valueMapper, parameterMeta)
     }
   }
 
@@ -103,6 +109,7 @@ object Callable {
     def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, None)
     def apply(name: String, womType: WomOptionalType, parameterMeta: Option[MetaValueElement]): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, parameterMeta)
     def apply(name: String, womType: WomOptionalType, valueMapper: InputValueMapper): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, valueMapper, None)
+    def apply(name: String, womType: WomOptionalType, valueMapper: InputValueMapper, parameterMeta: Option[MetaValueElement]): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, valueMapper, parameterMeta)
   }
   final case class OptionalInputDefinition(localName: LocalName,
                                            womType: WomOptionalType,

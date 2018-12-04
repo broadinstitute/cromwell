@@ -16,8 +16,8 @@ import scala.util.Try
 trait PipelinesUtilityConversions {
   def toAccelerator(gpuResource: GpuResource) = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
   def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes) = MachineConstraints.machineType(attributes.memory, attributes.cpu, jobLogger)
-  def toMounts(parameters: CreatePipelineParameters): List[Mount] = parameters.runtimeAttributes.disks.map(toMount).toList
-  def toDisks(parameters: CreatePipelineParameters): List[Disk] = parameters.runtimeAttributes.disks.map(toDisk).toList
+  def toMounts(parameters: CreatePipelineParameters): List[Mount] = parameters.adjustedSizeDisks.map(toMount).toList
+  def toDisks(parameters: CreatePipelineParameters): List[Disk] = parameters.adjustedSizeDisks.map(toDisk).toList
   def toMount(disk: PipelinesApiAttachedDisk) = new Mount()
     .setDisk(disk.name)
     .setPath(disk.mountPoint.pathAsString)

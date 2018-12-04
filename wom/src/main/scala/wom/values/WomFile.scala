@@ -108,6 +108,8 @@ sealed trait WomFile extends WomValue {
     * If relevant, load the size of the file.
     */
   def withSize(ioFunctionSet: IoFunctionSet): IO[WomFile] = IO.pure(this)
+  
+  def sizeOption: Option[Long] = None
 
   protected def recoverFileNotFound[A](fallback: A)(t: Throwable): IO[A] = {
     if (isFileNotFound(t)) IO.pure(fallback) else IO.raiseError(t)
@@ -296,6 +298,8 @@ case class WomMaybeListedDirectory(valueOption: Option[String] = None,
   }
 
   override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = initializeFunction(this)(ioFunctionSet)
+  
+  override def sizeOption = listingOption.map(_.flatMap(_.sizeOption).sum)
 }
 
 object WomMaybeListedDirectory {
@@ -314,7 +318,7 @@ object WomMaybeListedDirectory {
   */
 case class WomMaybePopulatedFile(valueOption: Option[String] = None,
                                  checksumOption: Option[String] = None,
-                                 sizeOption: Option[Long] = None,
+                                 override val sizeOption: Option[Long] = None,
                                  formatOption: Option[String] = None,
                                  contentsOption: Option[String] = None,
                                  secondaryFiles: Seq[WomFile] = Vector.empty,

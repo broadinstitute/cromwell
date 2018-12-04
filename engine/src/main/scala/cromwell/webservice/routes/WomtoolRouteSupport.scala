@@ -75,9 +75,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
           }
         }
       case Left(errors) =>
-        complete {
-          DescribeResponse(valid = false, errors.toList)
-        }
+        new Exception(errors.toList.mkString(", ")).failRequest(StatusCodes.BadRequest)
     }
   }
 

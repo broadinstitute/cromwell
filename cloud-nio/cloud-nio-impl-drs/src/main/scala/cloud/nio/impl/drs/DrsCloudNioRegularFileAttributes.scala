@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 
 class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathResolver: DrsPathResolver) extends CloudNioRegularFileAttributes{
 
-  private def runtimeException(missingKey: String) = {
+  private def throwRuntimeException(missingKey: String) = {
     throw new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
   }
 
@@ -31,7 +31,7 @@ class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathR
         val lastModifiedInDuration = Duration.apply(lastModifiedInString).toMillis
         FileTime.fromMillis(lastModifiedInDuration)
       }
-      case None => runtimeException("updated")
+      case None => throwRuntimeException("updated")
     }
   }
 
@@ -40,7 +40,7 @@ class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathR
 
     sizeOption match {
       case Some(size) => size
-      case None => runtimeException("size")
+      case None => throwRuntimeException("size")
     }
   }
 

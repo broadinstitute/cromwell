@@ -108,7 +108,7 @@ class NioFlow(parallelism: Int,
   private def hash(hash: IoHashCommand): IO[String] = {
     hash.file match {
       case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
-      case _: DrsPath => ??? //IMPLEMENT IT ???
+      case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case path => IO.fromEither(
         tryWithResource(() => path.newInputStream) { inputStream =>
           org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
@@ -163,6 +163,23 @@ class NioFlow(parallelism: Int,
         throw new IOException(s"File $file is larger than $l Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
       case Some(l) => bytesArray.take(l)
       case _ => bytesArray
+    }
+  }
+
+  private def getFileHashForDrsPath(drsPath: DrsPath): IO[String] = {
+    //Since this does not actually do any IO work it is not wrapped in IO
+    val fileAttributesOption = drsPath.drsPath.filesystem.provider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
+
+    fileAttributesOption match {
+      case Some(fileAttributes) => {
+        val fileHashIO = IO { fileAttributes.fileHash }
+
+        fileHashIO.flatMap({
+          case Some(fileHash) => IO.pure(fileHash)
+          case None => IO.raiseError(new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file."))
+        })
+      }
+      case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
     }
   }
 }

@@ -48,7 +48,7 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
     require(uriAsString.startsWith(getScheme + "://"), s"Scheme does not match $getScheme")
 
     //In some cases for a URI, the host name is null. For example, for DRS urls like 'dos://dg.123/123-123-123',
-    //even though 'dg.123' is a valid host, since it does not conform to URI's standards, uri.getHost returns null. In such
+    //even though 'dg.123' is a valid host, somehow since it does not conform to URI's standards, uri.getHost returns null. In such
     //cases, authority is used instead of host.
     val uri = new URI(uriAsString)
     val host = uri.getHost

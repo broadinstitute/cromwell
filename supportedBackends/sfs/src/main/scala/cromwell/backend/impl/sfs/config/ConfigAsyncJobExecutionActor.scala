@@ -211,6 +211,8 @@ class BackgroundConfigAsyncJobExecutionActor(override val standardParams: Standa
 class DispatchedConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends ConfigAsyncJobExecutionActor {
 
+  lazy val jobIdRegexString = configurationDescriptor.backendConfig.getString(JobIdRegexConfig)
+
   /**
     * Retrieves the DispatchedConfigJob from the stdout using the job-id-regex from the config.
     *
@@ -219,16 +221,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @param stderr    The stderr from dispatching the job.
     * @return The wrapped job id.
     */
-  override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob = {
-    val jobIdRegex = configurationDescriptor.backendConfig.getString(JobIdRegexConfig).r
-    val output = stdout.contentAsString.stripLineEnd
-    output match {
-      case jobIdRegex(jobId) => StandardAsyncJob(jobId)
-      case _ =>
-        throw new RuntimeException("Could not find job ID from stdout file. " +
-          s"Check the stderr file for possible errors: $stderr")
-    }
-  }
+  override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob =
+    DispatchedConfigAsyncJobExecutionActor.getJob(stdout.contentAsString, stderr, jobIdRegexString)
 
   /**
     * Checks if the job is alive using the command from the config.
@@ -252,7 +246,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
 
   protected lazy val exitCodeTimeout: Option[Long] = {
     val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
-    timeout.foreach{x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")}
+    timeout.foreach { x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher") }
     timeout
   }
 
@@ -268,10 +262,10 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
       case (Some(s), Some(true)) if s.status == "Running" =>
         // Exitcode file does not exist at this point, checking is jobs is still alive
         if (isAlive(handle.pendingJob).fold({ e =>
-              log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
-              true
-            }, x => x)) SharedFileSystemRunState("Running")
-            else SharedFileSystemRunState("WaitingForReturnCode")
+          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
+          true
+        }, x => x)) SharedFileSystemRunState("Running")
+        else SharedFileSystemRunState("WaitingForReturnCode")
       case (Some(s), Some(true)) if s.status == "WaitingForReturnCode" =>
         // Can only enter this state when the exit code does not exist and the job is not alive anymore
         // `isAlive` is not called anymore from this point
@@ -291,5 +285,19 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
   override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = {
     runStatus.status == "Done" || runStatus.status == "Failed"
   }
-
 }
+
+
+object DispatchedConfigAsyncJobExecutionActor {
+  def getJob(stdoutContent: String, stderr: Path, jobIdRegexString: String): StandardAsyncJob = {
+    val jobIdRegex = jobIdRegexString.r
+    val output = stdoutContent.stripLineEnd
+    jobIdRegex findFirstIn output match {
+      case Some(jobIdRegex(jobId)) => StandardAsyncJob(jobId)
+      case _ =>
+        throw new RuntimeException("Could not find job ID from stdout file." +
+          s"Check the stderr file for possible errors: $stderr")
+    }
+  }
+}
+

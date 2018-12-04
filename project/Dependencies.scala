@@ -367,10 +367,6 @@ object Dependencies {
 
   val httpFileSystemDependencies = akkaHttpDependencies
 
-  val demoDosFileSystemDependencies = List(
-    "net.thisptr" % "jackson-jq" % jacksonJqV
-  )
-
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )

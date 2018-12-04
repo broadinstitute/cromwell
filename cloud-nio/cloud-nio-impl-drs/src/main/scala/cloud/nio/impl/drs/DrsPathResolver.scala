@@ -17,8 +17,8 @@ case class DrsPathResolver(config: Config) {
   private lazy val marthaUri = config.getString("martha.url")
   private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
 
-  //RENAME THIS??
-  def contactMartha(drsPath: String, httpClient: CloseableHttpClient): CloseableHttpResponse = {
+
+  def makeHttpRequestToMartha(drsPath: String, httpClient: CloseableHttpClient): CloseableHttpResponse = {
     val postRequest = new HttpPost(marthaUri)
     val requestJson = marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
@@ -36,7 +36,7 @@ case class DrsPathResolver(config: Config) {
     val httpClient: CloseableHttpClient = HttpClientBuilder.create().build()
 
     try {
-      val marthaResponse: CloseableHttpResponse = contactMartha(drsPath, httpClient)
+      val marthaResponse: CloseableHttpResponse = makeHttpRequestToMartha(drsPath, httpClient)
       val marthaResponseEntityOption = Option(marthaResponse.getEntity).map(EntityUtils.toString)
 
       try {
@@ -48,10 +48,8 @@ case class DrsPathResolver(config: Config) {
         }
 
         Try(responseContent.parseJson.convertTo[MarthaResponse]) match {
-          case Success(marthaObj) =>
-            marthaObj
-          case Failure(e) =>
-            throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
+          case Success(marthaObj) => marthaObj
+          case Failure(e) => throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
         }
       } finally {
         Try(marthaResponse.close())

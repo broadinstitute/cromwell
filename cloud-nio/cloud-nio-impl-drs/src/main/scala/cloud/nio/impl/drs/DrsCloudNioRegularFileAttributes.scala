@@ -8,9 +8,7 @@ import com.typesafe.config.Config
 import scala.concurrent.duration._
 
 
-class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String) extends CloudNioRegularFileAttributes{
-
-  private val drsPathResolver: DrsPathResolver = DrsPathResolver(config)
+class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathResolver: DrsPathResolver) extends CloudNioRegularFileAttributes{
 
   private def runtimeException(missingKey: String) = {
     throw new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")

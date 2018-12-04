@@ -11,9 +11,7 @@ import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import scala.util.Try
 
 
-class DrsCloudNioFileProvider(config: Config, scheme: String) extends CloudNioFileProvider {
-
-  private val drsPathResolver: DrsPathResolver = DrsPathResolver(config)
+class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: DrsPathResolver) extends CloudNioFileProvider {
 
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
@@ -21,7 +19,7 @@ class DrsCloudNioFileProvider(config: Config, scheme: String) extends CloudNioFi
     val httpClient: CloseableHttpClient = HttpClientBuilder.create().build()
 
     try {
-      val marthaResponse: CloseableHttpResponse = drsPathResolver.contactMartha(drsPath, httpClient)
+      val marthaResponse: CloseableHttpResponse = drsPathResolver.makeHttpRequestToMartha(drsPath, httpClient)
 
       try {
         marthaResponse.getStatusLine.getStatusCode == HttpStatus.SC_OK
@@ -59,5 +57,5 @@ class DrsCloudNioFileProvider(config: Config, scheme: String) extends CloudNioFi
     throw new UnsupportedOperationException("DRS currently doesn't support write.")
 
   override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
-    Option(new DrsCloudNioRegularFileAttributes(config, getDrsPath(cloudHost,cloudPath)))
+    Option(new DrsCloudNioRegularFileAttributes(config, getDrsPath(cloudHost,cloudPath), drsPathResolver))
 }

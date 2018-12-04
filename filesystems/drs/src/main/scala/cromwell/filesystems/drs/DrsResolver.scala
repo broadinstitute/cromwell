@@ -1,10 +1,10 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{DrsPathResolver, MarthaResponse, Url}
+import cloud.nio.impl.drs.{MarthaResponse, Url}
 import com.typesafe.scalalogging.StrictLogging
 
 
-class DrsResolver extends StrictLogging {
+object DrsResolver extends StrictLogging {
   private val GcsScheme: String = "gs"
 
   private def extractPathRelativeToScheme(drsPath: String, urlArray: Array[Url], scheme: String): String = {
@@ -17,10 +17,7 @@ class DrsResolver extends StrictLogging {
   }
 
   def getContainerRelativePath(drsPath: DrsPath): String = {
-    val drsFileSystemGlobalConfig = drsPath.drsPath.filesystem.provider.config
-    val drsPathResolver: DrsPathResolver = DrsPathResolver(drsFileSystemGlobalConfig)
-
-    val marthaResponseObj: MarthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
+    val marthaResponseObj: MarthaResponse = drsPath.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
 
     //Currently, Martha only supports resolving DRS paths to GCS paths
     extractPathRelativeToScheme(drsPath.pathAsString, marthaResponseObj.dos.data_object.urls, GcsScheme)

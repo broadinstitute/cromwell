@@ -26,7 +26,7 @@ import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActo
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.drs.DrsPath
+import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.filesystems.http.HttpPath
@@ -165,7 +165,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(drsPath: DrsPath) => drsResolver.getContainerRelativePath(drsPath)
+        case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath)
         case Success(path) => path.pathWithoutScheme
         case _ => value
       }
@@ -175,7 +175,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(drsPath: DrsPath) => DefaultPathBuilder.get(drsResolver.getContainerRelativePath(drsPath)).name
+        case Success(drsPath: DrsPath) => DefaultPathBuilder.get(DrsResolver.getContainerRelativePath(drsPath)).name
         case Success(path) => path.name
         case _ => value
       }
@@ -690,7 +690,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         case (Success(path @ ( _: GcsPath | _: HttpPath)), _) =>
           workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
         case (Success(drsPath: DrsPath), _) =>
-          val filePath = drsResolver.getContainerRelativePath(drsPath)
+          val filePath = DrsResolver.getContainerRelativePath(drsPath)
           workingDisk.mountPoint.resolve(filePath).pathAsString
         case (Success(sraPath: SraPath), _) =>
           workingDisk.mountPoint.resolve(s"sra-${sraPath.accession}/${sraPath.pathWithoutScheme}").pathAsString
@@ -704,7 +704,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
         case Success(drsPath: DrsPath) =>
-          val filePath = drsResolver.getContainerRelativePath(drsPath)
+          val filePath = DrsResolver.getContainerRelativePath(drsPath)
           workingDisk.mountPoint.resolve(filePath).pathAsString
         case _ => value
       }

@@ -9,7 +9,7 @@ class DrsPathBuilderFactorySpec extends FlatSpec with Matchers{
   behavior of "DrsPathBuilderFactory"
 
   it should "create a drs filesystem from a config" in {
-    val globalConfig = ConfigFactory.parseString(
+    val globalFileSystemConfig = ConfigFactory.parseString(
       """|filesystems {
          |  drs {
          |    class = "cromwell.filesystems.drs.DrsPathBuilderFactory"
@@ -26,13 +26,15 @@ class DrsPathBuilderFactorySpec extends FlatSpec with Matchers{
          |}
          |""".stripMargin
     )
+
     val fileSystemConfig = ConfigFactory.parseString(
       """|filesystems {
          |  drs {}
          |}
          |""".stripMargin
     )
-    val fileSystems = new CromwellFileSystems(globalConfig).factoriesFromConfig(fileSystemConfig).right.get
+
+    val fileSystems = new CromwellFileSystems(globalFileSystemConfig).factoriesFromConfig(fileSystemConfig).right.get
     fileSystems.keys should contain theSameElementsAs List("drs")
     fileSystems("drs") should be(a[DrsPathBuilderFactory])
   }

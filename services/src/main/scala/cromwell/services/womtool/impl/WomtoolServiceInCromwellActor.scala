@@ -9,6 +9,7 @@ import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.services.womtool.WomtoolServiceActor
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeRequest, DescribeResponse}
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wom.core.WorkflowSource
 import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
@@ -19,6 +20,9 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
   override def receive: Receive = {
     case DescribeRequest(workflow, filesCollection) =>
       sender ! describeWorkflow(workflow, filesCollection)
+    case ShutdownCommand =>
+      // This service doesn't do any work on shutdown but the service registry pattern requires it (see #2575)
+      context.stop(self)
   }
 
   def describeWorkflow(workflow: WorkflowSource, workflowSourceFilesCollection: WorkflowSourceFilesCollection): DescribeResponse = {

@@ -56,6 +56,13 @@ trait GraphNode {
   protected def calculateUpstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
   lazy val upstreamPorts: Set[OutputPort] = calculateUpstreamPorts
   lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)
+
+  def containedCalls: Set[CallNode] = this match {
+    case c: CallNode => Set(c)
+    case s: ScatterNode => s.innerGraph.nodes.flatMap(_.containedCalls)
+    case c: ConditionalNode => c.innerGraph.nodes.flatMap(_.containedCalls)
+    case _ => Set.empty
+  }
 }
 
 object GraphNode {

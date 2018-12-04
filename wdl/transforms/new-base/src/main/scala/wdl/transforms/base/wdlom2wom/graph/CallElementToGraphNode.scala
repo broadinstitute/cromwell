@@ -21,6 +21,7 @@ import wom.graph._
 import wom.types.{WomOptionalType, WomType}
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.CallElementWriter
 
 object CallElementToGraphNode {
   def convert(a: CallNodeMakerInputs)
@@ -183,7 +184,7 @@ object CallElementToGraphNode {
       callNames.traverse(findUpstreamCall _).map(_.toSet)
     }
 
-    for {
+    val result = for {
       callable <- callableValidation
       mappings <- expressionNodeMappings(callable)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
@@ -191,6 +192,8 @@ object CallElementToGraphNode {
       result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream)
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
+
+    result.contextualizeErrors(s"process '${CallElementWriter.withoutBody(a.node)}'")
   }
 }
 

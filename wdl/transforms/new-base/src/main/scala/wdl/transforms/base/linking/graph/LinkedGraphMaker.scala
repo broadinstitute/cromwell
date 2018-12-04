@@ -89,7 +89,7 @@ object LinkedGraphMaker {
         case (Some(handle), hook) => (hook -> handle).validNel
         case (None, UnlinkedAfterCallHook(upstreamCallName)) =>
             val didYouMean = availableHandles.collect {
-              case after: GeneratedCallFinishedHandle if after.finishedCallName != upstreamCallName => s"'${after.finishedCallName}'"
+              case after: GeneratedCallFinishedHandle => s"'${after.finishedCallName}'"
             }.mkString("[", ", ", "]")
             s"Cannot specify 'after $upstreamCallName': no such call exists. Available calls are: $didYouMean".invalidNel
         case (None, _) =>

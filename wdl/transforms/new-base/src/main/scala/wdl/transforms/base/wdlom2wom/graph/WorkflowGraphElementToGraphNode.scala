@@ -50,11 +50,11 @@ object WorkflowGraphElementToGraphNode {
       result.contextualizeErrors(s"process declaration '${typeElement.toWdlV1} $name = ${expr.toWdlV1}'")
 
     case se: ScatterElement =>
-      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
       ScatterElementToGraphNode.convert(scatterMakerInputs)
 
     case ie: IfElement =>
-      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
+      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.callables)
       IfElementToGraphNode.convert(ifMakerInputs)
 
     case ce: CallElement =>

@@ -1,10 +1,10 @@
-name: afters
+name: afters_and_scatters
 testFormat: workflowsuccess
 backends: [LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  workflow: afters/afters.wdl
+  workflow: afters/afters_and_scatters.wdl
   options: afters/afters.options.json
 }
 

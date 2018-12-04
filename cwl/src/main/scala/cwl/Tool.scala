@@ -124,7 +124,8 @@ trait Tool {
       )
 
       // If input dir min == 0 that's a signal not to localize the input files
-      val localizationOptional = runtimeAttributes.attributes.get(RuntimeAttributesKeys.InputDirMinKey) match {
+      // https://github.com/dnanexus/dx-cwl/blob/fca163d825beb62f8a3004f2e0a6742805e6218c/dx-cwl#L426
+      val localizationOptional = runtimeAttributes.attributes.get(RuntimeAttributesKeys.DnaNexusInputDirMinKey) match {
         case Some(ValueAsAnExpression(WomInteger(0))) => Option(localizationOptionalMetaObject)
         case Some(ValueAsAnExpression(WomLong(0L))) => Option(localizationOptionalMetaObject)
         case Some(ValueAsAnExpression(WomString("0"))) => Option(localizationOptionalMetaObject)

@@ -276,11 +276,11 @@ case class ResourceRequirement(
 }
 
 /**
-  * This promotes InputResourceRequirement to a first class citizen requirement, which it really isn't.
+  * This promotes DNA Nexus InputResourceRequirement to a first class citizen requirement, which it really isn't.
   * Since it's the only one for now it's not a big deal but if more of these pop up we might want to treat custom requirements
   * in a different way
   */
-case class InputResourceRequirement(
+case class DnaNexusInputResourceRequirement(
                                      `class`: String Refined MatchesRegex[W.`".*InputResourceRequirement"`.T],
                                      indirMin: Option[Long]
                                    )

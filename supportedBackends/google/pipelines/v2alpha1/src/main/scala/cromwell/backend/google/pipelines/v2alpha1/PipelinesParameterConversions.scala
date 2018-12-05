@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import cats.data.NonEmptyList
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
@@ -37,9 +38,11 @@ trait PipelinesParameterConversions {
           import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
           import collection.JavaConverters._
 
+          val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
+
           val drsDockerImage = config.getString("drs.localization.docker-image")
           val drsCommandTemplate = config.getString("drs.localization.command-template")
-          val drsMarthaUrl = drsPath.drsPath.filesystem.provider.config.getString("martha.url")
+          val drsMarthaUrl = drsFileSystemProvider.config.getString("martha.url")
           val drsCommand = drsCommandTemplate
             .replace(s"$${drsPath}", fileInput.cloudPath.escape)
             .replace(s"$${containerPath}", fileInput.containerPath.escape)

@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets
 import akka.actor.Scheduler
 import akka.stream.scaladsl.Flow
 import cats.effect.IO
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
@@ -167,8 +168,10 @@ class NioFlow(parallelism: Int,
   }
 
   private def getFileHashForDrsPath(drsPath: DrsPath): IO[String] = {
+    val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
+
     //Since this does not actually do any IO work it is not wrapped in IO
-    val fileAttributesOption = drsPath.drsPath.filesystem.provider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
+    val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
 
     fileAttributesOption match {
       case Some(fileAttributes) => {

@@ -13,10 +13,12 @@ import scala.util.Try
 
 class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: DrsPathResolver) extends CloudNioFileProvider {
 
+  private lazy val httpClientBuilder = HttpClientBuilder.create()
+
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
   private def checkIfPathExistsThroughMartha(drsPath: String): Boolean = {
-    val httpClient: CloseableHttpClient = HttpClientBuilder.create().build()
+    val httpClient: CloseableHttpClient = httpClientBuilder.build()
 
     try {
       val marthaResponse: CloseableHttpResponse = drsPathResolver.makeHttpRequestToMartha(drsPath, httpClient)

@@ -25,7 +25,7 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider) ext
         } else if (uri.getPath == null || uri.getPath.isEmpty || uri.getPath.equalsIgnoreCase("/")) {
           Failure(new IllegalArgumentException(s"$pathAsString does not have a valid path. DRS doesn't support a host only path."))
         } else {
-          Try(DrsPath(fileSystemProvider.getPath(uri), fileSystemProvider.drsPathResolver))
+          Try(DrsPath(fileSystemProvider.getPath(uri)))
         }
       }
     } else {

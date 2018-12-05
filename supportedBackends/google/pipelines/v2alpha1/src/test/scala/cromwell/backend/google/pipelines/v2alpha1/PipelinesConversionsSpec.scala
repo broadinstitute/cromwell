@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
@@ -17,8 +17,16 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
   behavior of "PipelinesConversions"
   implicit val localizationConfiguration = LocalizationConfiguration(refineMV(1))
 
+  private val marthaConfig: Config = ConfigFactory.parseString(
+    """martha {
+      |   url = "http://matha-url"
+      |   request.json-template = "{"key": "${holder}"}"
+      |}
+      |""".stripMargin
+  )
+
   it should "create a DRS input parameter" in {
-    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(ConfigFactory.empty))
+    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig))
     val drsPath = drsPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)

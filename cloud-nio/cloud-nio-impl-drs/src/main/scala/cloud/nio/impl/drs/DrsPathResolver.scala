@@ -17,6 +17,8 @@ case class DrsPathResolver(config: Config) {
   private lazy val marthaUri = config.getString("martha.url")
   private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
 
+  private lazy val httpClientBuilder = HttpClientBuilder.create()
+
 
   def makeHttpRequestToMartha(drsPath: String, httpClient: CloseableHttpClient): CloseableHttpResponse = {
     val postRequest = new HttpPost(marthaUri)
@@ -26,6 +28,10 @@ case class DrsPathResolver(config: Config) {
   }
 
 
+  /***
+    * Resolves the DRS path through Martha url provided in the config.
+    * Please note, this method makes a synchronous HTTP request to Martha.
+    */
   def resolveDrsThroughMartha(drsPath: String): MarthaResponse = {
     import MarthaResponseJsonSupport._
 
@@ -33,7 +39,7 @@ case class DrsPathResolver(config: Config) {
       throw new RuntimeException(s"Unexpected response resolving $drsPath through Martha url $marthaUri. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
     }
 
-    val httpClient: CloseableHttpClient = HttpClientBuilder.create().build()
+    val httpClient: CloseableHttpClient = httpClientBuilder.build()
 
     try {
       val marthaResponse: CloseableHttpResponse = makeHttpRequestToMartha(drsPath, httpClient)

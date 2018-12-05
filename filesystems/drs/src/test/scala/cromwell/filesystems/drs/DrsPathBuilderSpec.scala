@@ -3,7 +3,7 @@ package cromwell.filesystems.drs
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
-import cromwell.core.path.{BadPath, _}
+import cromwell.core.path._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -179,6 +179,20 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       isAbsolute = true),
 
     GoodPath(
+      description = "a bucket with a normalized path ..",
+      path = s"dos://$bucket/..",
+      normalize = true,
+      pathAsString = s"dos://$bucket/",
+      pathWithoutScheme = s"$bucket/",
+      parent = null,
+      getParent = null,
+      root = s"dos://$bucket/",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false),
+
+    GoodPath(
       description = "a bucket including . in the normalized path",
       path = s"dos://$bucket/hello/./world",
       normalize = true,
@@ -218,6 +232,34 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"dos://hello_underscore/world",
       getNameCount = 1,
+      isAbsolute = true),
+
+    GoodPath(
+      description = "a bucket named .",
+      path = s"dos://./hello/world",
+      normalize = true,
+      pathAsString = s"dos://./hello/world",
+      pathWithoutScheme = s"./hello/world",
+      parent = s"dos://./hello/",
+      getParent = s"dos://./hello/",
+      root = s"dos://./",
+      name = "world",
+      getFileName = s"dos://./world",
+      getNameCount = 2,
+      isAbsolute = true),
+
+    GoodPath(
+      description = "a non ascii bucket name",
+      path = s"dos://nonasciibucket£€/hello/world",
+      normalize = true,
+      pathAsString = s"dos://nonasciibucket£€/hello/world",
+      pathWithoutScheme = s"nonasciibucket£€/hello/world",
+      parent = s"dos://nonasciibucket£€/hello/",
+      getParent = s"dos://nonasciibucket£€/hello/",
+      root = s"dos://nonasciibucket£€/",
+      name = "world",
+      getFileName = s"dos://nonasciibucket£€/world",
+      getNameCount = 2,
       isAbsolute = true)
   )
 

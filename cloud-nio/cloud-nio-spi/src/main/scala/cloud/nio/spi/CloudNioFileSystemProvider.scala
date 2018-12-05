@@ -47,15 +47,11 @@ abstract class CloudNioFileSystemProvider extends FileSystemProvider {
   def getHost(uriAsString: String): String = {
     require(uriAsString.startsWith(getScheme + "://"), s"Scheme does not match $getScheme")
 
-    //In some cases for a URI, the host name is null. For example, for DRS urls like 'dos://dg.123/123-123-123',
-    //even though 'dg.123' is a valid host, somehow since it does not conform to URI's standards, uri.getHost returns null. In such
-    //cases, authority is used instead of host.
-    val uri = new URI(uriAsString)
-    val host = uri.getHost
-    val hostOrAuthority = if (host == null) uri.getAuthority else host
-    require(!hostOrAuthority.isEmpty, s"Bucket/Host is empty")
+    // TODO: Do NOT convert to a URI. Do soft parsing.
+    val host = new URI(uriAsString).getHost
+    require(!host.isEmpty, s"Bucket/Host is empty")
 
-    hostOrAuthority
+    host
   }
 
   override def newFileSystem(uri: URI, env: java.util.Map[String, _]): CloudNioFileSystem = {

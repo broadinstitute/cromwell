@@ -1,6 +1,6 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{MarthaResponse, Url}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse, Url}
 
 
 object DrsResolver {
@@ -16,7 +16,8 @@ object DrsResolver {
   }
 
   def getContainerRelativePath(drsPath: DrsPath): String = {
-    val marthaResponseObj: MarthaResponse = drsPath.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
+    val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
+    val marthaResponseObj: MarthaResponse = drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
 
     //Currently, Martha only supports resolving DRS paths to GCS paths
     extractPathRelativeToScheme(drsPath.pathAsString, marthaResponseObj.dos.data_object.urls, GcsScheme)

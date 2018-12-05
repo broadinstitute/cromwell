@@ -192,7 +192,7 @@ object Dependencies {
   )
 
   val implDrsDependencies = List(
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "io.spray" %% "spray-json" % sprayJsonV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V
   )
 

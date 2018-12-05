@@ -66,6 +66,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
     )
 
     // The HTTP resolver is used to pull down workflows submitted by URL
+    // TODO: we are potentially tying up the web thread here making a request to the workflow URL?
     LanguageFactoryUtil.findWorkflowSource(workflowSource, workflowUrl, List(HttpResolver(None, Map.empty))) match {
       case Right(sourceAndResolvers: (WorkflowSource, List[ImportResolver.ImportResolver])) =>
         complete {

@@ -10,6 +10,7 @@ import cromwell.services.womtool.WomtoolServiceMessages.JsonSupport.describeResp
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.WomtoolRouteSupportSpec.MockWomtoolRouteSupport
 import org.scalatest.{AsyncFlatSpec, Matchers}
+import spray.json._
 
 import scala.concurrent.duration._
 
@@ -116,13 +117,16 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
       check {
         status should be(StatusCodes.BadRequest)
 
-        assertResult(
-          s"""{
-             |  "status": "fail",
-             |  "message": "Failed to resolve 'https://zardoz.zardoz' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://zardoz.zardoz (reason 1 of 1): HTTP resolver with headers had an unexpected error (zardoz.zardoz: nodename nor servname provided, or not known)"
-             |}""".stripMargin) {
-          responseAs[String]
-        }
+        val responseJson: JsObject = responseAs[String].parseJson.asJsObject
+
+        responseJson.fields("status") shouldBe JsString("fail")
+
+        // The error is from the OS network stack and differs between Mac and Linux
+        responseJson.fields("message") should (
+          be(JsString("Failed to resolve 'https://zardoz.zardoz' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://zardoz.zardoz (reason 1 of 1): HTTP resolver with headers had an unexpected error (zardoz.zardoz: Name or service not known)"))
+          or
+          be(JsString("Failed to resolve 'https://zardoz.zardoz' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://zardoz.zardoz (reason 1 of 1): HTTP resolver with headers had an unexpected error (zardoz.zardoz: nodename nor servname provided, or not known)"))
+        )
       }
   }
 

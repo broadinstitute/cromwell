@@ -46,6 +46,9 @@ trait WebServiceUtils {
 
 object WebServiceUtils extends WebServiceUtils {
 
+  // Q: Why are we responding with a String of pretty-printed JSON instead of a JsObject?
+  // A: There are customers who rely on the pretty printing to display the error directly in a terminal or GUI.
+  // AEN 2018-12-05
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
     def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
       completeResponse(statusCode, APIResponse.fail(e).toJson.prettyPrint, warnings)

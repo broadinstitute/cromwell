@@ -592,16 +592,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
   private def startEJEA(jobKey: BackendJobDescriptorKey,
-                        backendFactory: BackendLifecycleActorFactory,
+                        backendLifecycleActorFactory: BackendLifecycleActorFactory,
                         command: BackendJobExecutionActorCommand): WorkflowExecutionDiff = {
     val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-    val backendName = backendFactory.name
+    val backendName = backendLifecycleActorFactory.name
     val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
     val ejeaProps = EngineJobExecutionActor.props(
       self,
       jobKey,
       workflowDescriptor,
-      backendFactory,
+      backendLifecycleActorFactory,
       params.initializationData.get(backendName),
       restarting = params.startState.restarted,
       serviceRegistryActor = serviceRegistryActor,
@@ -612,7 +612,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       workflowDockerLookupActor = params.workflowDockerLookupActor,
       jobTokenDispenserActor = params.jobTokenDispenserActor,
       backendSingleton,
-      backendName,
       workflowDescriptor.callCachingMode,
       command,
       fileHashCacheActor = params.fileHashCacheActor,

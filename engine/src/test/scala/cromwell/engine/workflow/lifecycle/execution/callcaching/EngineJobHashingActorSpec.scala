@@ -213,7 +213,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     fileHashingActorProps = fileHashingActorProps,
     callCacheReadingJobActorProps = callCacheReadingJobActorProps,
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-    backendName = backendName,
+    backendNameForCallCachingPurposes = backendName,
     activity = activity,
     callCachingEligible = callCachingEligible,
     callCachePathPrefixes = None) {

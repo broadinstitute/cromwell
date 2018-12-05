@@ -62,7 +62,6 @@ object CentaurConfig {
   lazy val metadataConsistencyTimeout = conf.getDuration("metadataConsistencyTimeout").toScala
 
   lazy val standardTestCasePath = Paths.get(conf.getString("standardTestCasePath"))
-  lazy val callCacheTestCasePath = Paths.get(conf.getString("callCacheTestCasePath"))
 
   // If provided, any tests will be appended to the tests in standardTestCasePath
   lazy val optionalTestPath: Option[Path] = conf.get[Option[Path]]("optionalTestPath") valueOrElse None

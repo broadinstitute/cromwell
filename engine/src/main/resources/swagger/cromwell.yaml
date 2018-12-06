@@ -642,7 +642,7 @@ paths:
           schema:
             type: object
       tags:
-        - Womtool
+        - "Womtool (beta)"
   '/engine/{version}/version':
     get:
       operationId: version

@@ -43,6 +43,7 @@ object CentaurTestFormat {
   case object RunFailingTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunFailingTwiceExpectingNoCallCaching")
   case object SubmitFailureTest extends CentaurTestFormat("SubmitFailure")
   case object InstantAbort extends CentaurTestFormat("InstantAbort")
+  case object PapiUpgradeTest extends CentaurTestFormat("PapiUpgrade") with RestartFormat
   
   object CromwellRestartWithRecover extends CentaurTestFormat("CromwellRestartWithRecover") with WithCallMarker {
     val build = CromwellRestartWithRecover.apply _
@@ -72,8 +73,9 @@ object CentaurTestFormat {
   object WorkflowFailureRestartWithoutRecover extends CentaurTestFormat("WorkflowFailureRestartWithoutRecover") with WithCallMarker {
     val build = WorkflowFailureRestartWithoutRecover.apply _
   }
+
   case class WorkflowFailureRestartWithoutRecover(callMarker: CallMarker) extends CentaurTestFormat(WorkflowFailureRestartWithoutRecover.name) with RestartFormat
-  
+
   def fromConfig(conf: Config): Checked[CentaurTestFormat] = {
     
     CallMarker.fromConfig(conf).toEither flatMap { callMarker =>

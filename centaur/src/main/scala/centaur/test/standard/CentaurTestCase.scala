@@ -33,6 +33,7 @@ case class CentaurTestCase(workflow: Workflow,
     case CromwellRestartWithoutRecover(callMarker) => TestFormulas.workflowRestart(workflow, callMarker, recover = false, finalStatus = Succeeded)
     case ScheduledAbort(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = false)
     case ScheduledAbortWithRestart(callMarker) => TestFormulas.scheduledAbort(workflow, callMarker, restart = true)
+    case PapiUpgradeTest => TestFormulas.papiUpgrade(workflow)
     case other => Test.invalidTestDefinition(s"Invalid test format $other", workflow)
   }
 
@@ -45,6 +46,8 @@ case class CentaurTestCase(workflow: Workflow,
 
     testOptions.ignore || !backendSupported
   }
+
+  def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
 }
 
 object CentaurTestCase {

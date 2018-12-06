@@ -16,7 +16,7 @@
 #     Variables for use in other scripts.
 #
 #   - crmdbg
-#     Quick debug scripts. Example: `crmdbg=y src/ci/bin/testCentaulLocal.sh`
+#     Quick debug scripts. Example: `crmdbg=y src/ci/bin/testCentaurLocal.sh`
 #
 #   - crmcit
 #     Simulate a centaur integration test build. Example: `crmcit=y src/ci/bin/testCentaurPapiV2.sh`
@@ -148,6 +148,7 @@ cromwell::private::create_build_variables() {
     local backend_type
     backend_type="${CROMWELL_BUILD_TYPE}"
     backend_type="${backend_type#centaurEngineUpgrade}"
+    backend_type="${backend_type#centaurPapiUpgrade}"
     backend_type="${backend_type#centaurWdlUpgrade}"
     backend_type="${backend_type#centaur}"
     backend_type="${backend_type#conformance}"
@@ -237,10 +238,13 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_STANDARD="standard"
     CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION="integration"
     CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE="engineUpgrade"
+    CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE="papiUpgrade"
 
     if [ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]; then
         if [[ "${CROMWELL_BUILD_TYPE}" = centaurEngineUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}"
+        elif [[ "${CROMWELL_BUILD_TYPE}" = centaurPapiUpgrade* ]]; then
+            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}"
         else
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_STANDARD}"
         fi
@@ -493,6 +497,15 @@ cromwell::private::find_cromwell_jar() {
     export CROMWELL_BUILD_CROMWELL_JAR
 }
 
+cromwell::private::setup_prior_papi_version_resources() {
+    local prior_config
+    prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_application.conf"
+    if [ -f "${prior_config}" ]; then
+        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
+        export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
+    fi
+}
+
 cromwell::private::setup_prior_version_resources() {
     local current_version
     local prior_version
@@ -709,7 +722,9 @@ cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
     if [ "${CROMWELL_BUILD_CENTAUR_TYPE}" = "${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}" ]; then
         cromwell::private::setup_prior_version_resources
-    fi
+    elif [ "${CROMWELL_BUILD_CENTAUR_TYPE}" = "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]; then
+        cromwell::private::setup_prior_papi_version_resources
+    fi;
     cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail

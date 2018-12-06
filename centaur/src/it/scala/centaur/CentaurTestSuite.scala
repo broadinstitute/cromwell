@@ -29,9 +29,11 @@ object CentaurTestSuite {
     case _ => false
   }
 
-  def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.testOptions.tags.contains("wdl_upgrade")
+  def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("wdl_upgrade")
 
-  def isEngineUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.testOptions.tags.contains("engine_upgrade")
+  def isEngineUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("engine_upgrade")
+
+  def isPapiUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("papi_upgrade")
 
   def runParallel(testCase: CentaurTestCase) = !runSequential(testCase)
 }

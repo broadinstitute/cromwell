@@ -5,7 +5,7 @@ import java.net.URL
 import akka.actor.ActorRef
 import akka.util.Timeout
 import cromwell.core.filesystem.CromwellFileSystems
-import cromwell.engine.language.CromwellLanguages
+import cromwell.languages.config.CromwellLanguages
 import cromwell.webservice.routes.CromwellApiService
 import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.ConfigFactory

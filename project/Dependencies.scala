@@ -191,6 +191,11 @@ object Dependencies {
     "org.mockftpserver" % "MockFtpServer" % mockFtpServerV % Test
   )
 
+  val implDrsDependencies = List(
+    "io.spray" %% "spray-json" % sprayJsonV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V
+  )
+
   // Internal collections of dependencies
 
   private val betterFilesDependencies = List(
@@ -361,10 +366,6 @@ object Dependencies {
   val gcsFileSystemDependencies = akkaHttpDependencies
 
   val httpFileSystemDependencies = akkaHttpDependencies
-
-  val demoDosFileSystemDependencies = List(
-    "net.thisptr" % "jackson-jq" % jacksonJqV
-  )
 
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV

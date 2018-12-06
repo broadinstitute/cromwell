@@ -240,7 +240,7 @@ lazy val engine = project
   .dependsOn(drsFileSystem)
   .dependsOn(sraFileSystem)
   .dependsOn(awsS3FileSystem % "test->test")
-  .dependsOn(demoDosFileSystem % "test->test")
+  .dependsOn(drsFileSystem % "test->test")
   .dependsOn(httpFileSystem % "test->test")
   .dependsOn(ftpFileSystem % "test->test")
   .dependsOn(`cloud-nio-spi`)

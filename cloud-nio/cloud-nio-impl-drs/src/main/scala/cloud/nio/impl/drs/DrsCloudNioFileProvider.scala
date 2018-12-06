@@ -39,12 +39,14 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
   override def existsPath(cloudHost: String, cloudPath: String): Boolean =
     checkIfPathExistsThroughMartha(getDrsPath(cloudHost, cloudPath))
 
-  //This method is used to check if the given path is a directory or not. Since DRS currently doesn't
-  //support resolving url to directories, it is false
-  override def existsPaths(cloudHost: String, cloudPathPrefix: String): Boolean = false
+  override def existsPaths(cloudHost: String, cloudPathPrefix: String): Boolean =
+    existsPath(cloudHost, cloudPathPrefix)
 
-  override def listObjects(cloudHost: String, cloudPathPrefix: String, markerOption: Option[String]): CloudNioFileList =
-    throw new UnsupportedOperationException("DRS currently doesn't support listObjects.")
+  override def listObjects(cloudHost: String, cloudPathPrefix: String, markerOption: Option[String]): CloudNioFileList = {
+    val exists = existsPath(cloudHost, cloudPathPrefix)
+    val list = if (exists) List(cloudPathPrefix) else Nil
+    CloudNioFileList(list, None)
+  }
 
   override def copy(sourceCloudHost: String, sourceCloudPath: String, targetCloudHost: String, targetCloudPath: String): Unit =
     throw new UnsupportedOperationException("DRS currently doesn't support copy.")

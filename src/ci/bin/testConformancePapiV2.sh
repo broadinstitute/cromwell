@@ -10,6 +10,9 @@ cromwell::build::setup_common_environment
 
 cromwell::build::setup_conformance_environment
 
+# Override of the default sbt assembly command which is just `assembly`.
+# The conformance runs only need these two subprojects so save a couple of minutes and skip the rest.
+CROMWELL_SBT_ASSEMBLY_COMMAND="server/assembly centaurCwlRunner/assembly"
 cromwell::build::assemble_jars
 
 CENTAUR_CWL_RUNNER_MODE="papi"

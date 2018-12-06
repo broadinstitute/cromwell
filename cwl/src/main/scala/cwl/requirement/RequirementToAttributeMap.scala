@@ -57,8 +57,8 @@ object RequirementToAttributeMap extends Poly1 {
       ).flatten.toMap
   }
 
-  implicit def fromInputResourceRequirement: Case.Aux[InputResourceRequirement, ResourcesToExpressionMap] = at[InputResourceRequirement] {
-    case InputResourceRequirement(_, indirMin) => (_,_) => indirMin.map(value => ValueAsAnExpression(WomLong(value))).map(InputDirMinKey -> _).toMap
+  implicit def fromInputResourceRequirement: Case.Aux[DnaNexusInputResourceRequirement, ResourcesToExpressionMap] = at[DnaNexusInputResourceRequirement] {
+    case DnaNexusInputResourceRequirement(_, indirMin) => (_, _) => indirMin.map(value => ValueAsAnExpression(WomLong(value))).map(DnaNexusInputDirMinKey -> _).toMap
   }
 
   implicit def fromSubWorkflow: Case.Aux[SubworkflowFeatureRequirement, ResourcesToExpressionMap] = at[SubworkflowFeatureRequirement] {

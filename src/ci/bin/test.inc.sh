@@ -525,7 +525,9 @@ cromwell::private::exists_cromwell_jar() {
 }
 
 cromwell::private::assemble_jars() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage assembly -error
+    # CROMWELL_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
+    # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_SBT_ASSEMBLY_COMMAND:-assembly} -error
 }
 
 cromwell::private::generate_code_coverage() {

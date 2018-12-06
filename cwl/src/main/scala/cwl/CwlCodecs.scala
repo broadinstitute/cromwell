@@ -77,7 +77,7 @@ object CwlCodecs {
   implicit lazy val decodeInputEnumSchema: Decoder[InputEnumSchema] = deriveDecoder
   implicit lazy val decodeInputRecordField: Decoder[InputRecordField] = deriveDecoder
   implicit lazy val decodeInputRecordSchema: Decoder[InputRecordSchema] = deriveDecoder
-  implicit lazy val decodeInputResourceRequirement: Decoder[InputResourceRequirement] = deriveDecoder
+  implicit lazy val decodeInputResourceRequirement: Decoder[DnaNexusInputResourceRequirement] = deriveDecoder
   implicit lazy val decodeIwdrListingArrayEntry: Decoder[IwdrListingArrayEntry] = decodeCCons
   implicit lazy val decodeLinkMergeMethod: Decoder[LinkMergeMethod] = Decoder.enumDecoder(LinkMergeMethod)
   implicit lazy val decodeMultipleInputFeatureRequirement: Decoder[MultipleInputFeatureRequirement] = deriveDecoder
@@ -141,7 +141,7 @@ object CwlCodecs {
   implicit lazy val encodeInputEnumSchema: Encoder[InputEnumSchema] = deriveEncoder
   implicit lazy val encodeInputRecordField: Encoder[InputRecordField] = deriveEncoder
   implicit lazy val encodeInputRecordSchema: Encoder[InputRecordSchema] = deriveEncoder
-  implicit lazy val encodeInputResourceRequirement: Encoder[InputResourceRequirement] = deriveEncoder
+  implicit lazy val encodeInputResourceRequirement: Encoder[DnaNexusInputResourceRequirement] = deriveEncoder
   implicit lazy val encodeIwdrListingArrayEntry: Encoder[IwdrListingArrayEntry] = encodeCCons
   implicit lazy val encodeLinkMergeMethod: Encoder[LinkMergeMethod] = Encoder.enumEncoder(LinkMergeMethod)
   implicit lazy val encodeMultipleInputFeatureRequirement: Encoder[MultipleInputFeatureRequirement] = deriveEncoder

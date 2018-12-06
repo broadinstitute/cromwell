@@ -26,7 +26,7 @@ import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActo
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.filesystems.demo.dos.DemoDosPath
+import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.filesystems.http.HttpPath
@@ -35,12 +35,14 @@ import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import shapeless.Coproduct
+import wdl4s.parser.MemoryUnit
 import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
+import wom.format.MemorySize
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
@@ -163,8 +165,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(demoDosPath: DemoDosPath) =>
-          demoDosResolver.getContainerRelativePath(demoDosPath)
+        case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath)
         case Success(path) => path.pathWithoutScheme
         case _ => value
       }
@@ -174,8 +175,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(demoDosPath: DemoDosPath) =>
-          DefaultPathBuilder.get(demoDosResolver.getContainerRelativePath(demoDosPath)).name
+        case Success(drsPath: DrsPath) => DefaultPathBuilder.get(DrsResolver.getContainerRelativePath(drsPath)).name
         case Success(path) => path.name
         case _ => value
       }
@@ -399,6 +399,26 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           token <- data.privateDockerEncryptedToken
         } yield CreatePipelineDockerKeyAndToken(key, token)
 
+        /*
+           * Right now this doesn't cost anything, because sizeOption returns the size if it was previously already fetched
+           * for some reason (expression evaluation for instance), but otherwise does not retrieve it and returns None.
+           * In CWL-land we tend to be aggressive in pre-fetching the size in order to be able to evaluate JS expressions,
+           * but less in WDL as we can get it last minute and on demand because size is a WDL function, whereas in CWL
+           * we don't inspect the JS to know if size is called and therefore always pre-fetch it.
+           * 
+           * We could decide to call withSize before in which case we would retrieve the size for all files and have
+           * a guaranteed more accurate total size, but there might be performance impacts ?
+           */
+        val inputFileSize = Option(callInputFiles.values.flatMap(_.flatMap(_.sizeOption)).sum)
+
+        // Attempt to adjust the disk size by taking into account the size of input files
+        val adjustedSizeDisks = inputFileSize.map(size => MemorySize.apply(size.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB)) map { inputFileSizeInformation =>
+          runtimeAttributes.disks.adjustWorkingDiskWithNewMin(
+            inputFileSizeInformation,
+            jobLogger.info(s"Adjusted working disk size to ${inputFileSizeInformation.amount} GB to account for input files")
+          )
+        } getOrElse runtimeAttributes.disks
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -414,7 +434,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           preemptible,
           pipelinesConfiguration.jobShell,
           dockerKeyAndToken,
-          jobDescriptor.workflowDescriptor.outputRuntimeExtractor
+          jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
+          adjustedSizeDisks
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -668,8 +689,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
         case (Success(path @ ( _: GcsPath | _: HttpPath)), _) =>
           workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
-        case (Success(demoDosPath: DemoDosPath), _) =>
-          val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
+        case (Success(drsPath: DrsPath), _) =>
+          val filePath = DrsResolver.getContainerRelativePath(drsPath)
           workingDisk.mountPoint.resolve(filePath).pathAsString
         case (Success(sraPath: SraPath), _) =>
           workingDisk.mountPoint.resolve(s"sra-${sraPath.accession}/${sraPath.pathWithoutScheme}").pathAsString
@@ -682,8 +703,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     womFile.mapFile(value =>
       getPath(value) match {
         case Success(gcsPath: GcsPath) => workingDisk.mountPoint.resolve(gcsPath.pathWithoutScheme).pathAsString
-        case Success(demoDosPath: DemoDosPath) =>
-          val filePath = demoDosResolver.getContainerRelativePath(demoDosPath)
+        case Success(drsPath: DrsPath) =>
+          val filePath = DrsResolver.getContainerRelativePath(drsPath)
           workingDisk.mountPoint.resolve(filePath).pathAsString
         case _ => value
       }

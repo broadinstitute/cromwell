@@ -1,30 +1,30 @@
-package cromwell.filesystems.demo.dos
+package cromwell.filesystems.drs
 
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.core.path._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
 
-class DemoDosPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
+class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
 
-  behavior of "DemoDosPathBuilder"
+  behavior of "DrsPathBuilder"
 
-  it should behave like truncateCommonRoots(pathBuilder, pathsToTruncate)
+  it should behave like truncateCommonRoots(drsPathBuilder, pathsToTruncate)
 
   goodPaths foreach { goodPath =>
-    it should behave like buildGoodPath(pathBuilder, goodPath)
+    it should behave like buildGoodPath(drsPathBuilder, goodPath)
   }
 
   badPaths foreach { badPath =>
-    it should behave like buildBadPath(pathBuilder, badPath)
+    it should behave like buildBadPath(drsPathBuilder, badPath)
   }
 
   private def pathsToTruncate = Table(
     ("context", "file", "relative"),
-    ("dos://bucket", "dos://bucket/path/to/file", "path/to/file"),
     ("dos://bucket/path/to/my/dir", "dos://bucket/path/to/my/dir/file", "file"),
     ("dos://bucket/path/to/my/dir", "dos://bucket/path/to/my/dir//file", "file"),
-    // NOTE: Next two are different from the DefaultPathBuilder. "//" doesn't build to "/" in the GcsPathBuilder
     ("dos://bucket/path/to/my//dir", "dos://bucket/path/to/my/dir/file", "dir/file"),
     ("dos://bucket/path/to/my//dir", "dos://bucket/path/to/my/dir//file", "dir//file"),
     ("dos://bucket/path/to/my/dir", "dos://bucket/path/./to/my/dir/file", "./to/my/dir/file"),
@@ -74,34 +74,6 @@ class DemoDosPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matcher
       name = "encoded%20spaces",
       getFileName = s"dos://$bucket/encoded%20spaces",
       getNameCount = 3,
-      isAbsolute = true),
-
-    GoodPath(
-      description = "a bucket only path",
-      path = s"dos://$bucket",
-      normalize = false,
-      pathAsString = s"dos://$bucket/",
-      pathWithoutScheme = s"$bucket/",
-      parent = null,
-      getParent = null,
-      root = s"dos://$bucket/",
-      name = "",
-      getFileName = s"dos://$bucket/",
-      getNameCount = 1,
-      isAbsolute = false),
-
-    GoodPath(
-      description = "a bucket only path ending in a /",
-      path = s"dos://$bucket/",
-      normalize = false,
-      pathAsString = s"dos://$bucket/",
-      pathWithoutScheme = s"$bucket/",
-      parent = null,
-      getParent = null,
-      root = s"dos://$bucket/",
-      name = "",
-      getFileName = null,
-      getNameCount = 0,
       isAbsolute = true),
 
     GoodPath(
@@ -216,18 +188,9 @@ class DemoDosPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matcher
       getParent = null,
       root = s"dos://$bucket/",
       name = "",
-      /*
-      Begin DOS/GCS differences after normalize
-
-      Has to do with how the paths are converted to strings and then re-parsed. After re-parsing the internal `"../"` is
-      lost and converted to `""`.
-      */
       getFileName = null,
-      getNameCount = 0,
-      isAbsolute = true),
-      /*
-      End DOS/GCS differences after normalize
-      */
+      getNameCount = 1,
+      isAbsolute = false),
 
     GoodPath(
       description = "a bucket including . in the normalized path",
@@ -269,22 +232,56 @@ class DemoDosPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matcher
       name = "world",
       getFileName = s"dos://hello_underscore/world",
       getNameCount = 1,
+      isAbsolute = true),
+
+    GoodPath(
+      description = "a bucket named .",
+      path = s"dos://./hello/world",
+      normalize = true,
+      pathAsString = s"dos://./hello/world",
+      pathWithoutScheme = s"./hello/world",
+      parent = s"dos://./hello/",
+      getParent = s"dos://./hello/",
+      root = s"dos://./",
+      name = "world",
+      getFileName = s"dos://./world",
+      getNameCount = 2,
+      isAbsolute = true),
+
+    GoodPath(
+      description = "a non ascii bucket name",
+      path = s"dos://nonasciibucket£€/hello/world",
+      normalize = true,
+      pathAsString = s"dos://nonasciibucket£€/hello/world",
+      pathWithoutScheme = s"nonasciibucket£€/hello/world",
+      parent = s"dos://nonasciibucket£€/hello/",
+      getParent = s"dos://nonasciibucket£€/hello/",
+      root = s"dos://nonasciibucket£€/",
+      name = "world",
+      getFileName = s"dos://nonasciibucket£€/world",
+      getNameCount = 2,
       isAbsolute = true)
   )
 
   private def badPaths = Seq(
-    BadPath("an empty path", "", " does not have a dos scheme"),
-    BadPath("a GCS path", s"gs://$bucket/hello/world", "gs://mymadeupbucket/hello/world does not have a dos scheme"),
-    BadPath("an bucketless path", "dos://", "The specified DOS path 'dos://' does not parse as a URI.\nExpected authority at index 5: dos://"),
-    BadPath("a bucket named .", "dos://./hello/world", "The path 'dos://./hello/world' does not seem to be a valid DOS path. Please check that it starts with dos:// and that the bucket and object follow DOS naming guidelines at https://cloud.google.com/storage/docs/naming."),
-    BadPath("a non ascii bucket name", "dos://nonasciibucket£€/hello/world",
-      "The path 'dos://nonasciibucket£€/hello/world' does not seem to be a valid DOS path. Please check that it starts with dos:// and that the bucket and object follow DOS naming guidelines at https://cloud.google.com/storage/docs/naming."),
-    BadPath("a https path", "https://hello/world", "https://hello/world does not have a dos scheme"),
-    BadPath("a file uri path", "file:///hello/world", "file:///hello/world does not have a dos scheme"),
-    BadPath("a relative file path", "hello/world", "hello/world does not have a dos scheme"),
-    BadPath("an absolute file path", "/hello/world", "/hello/world does not have a dos scheme")
+    BadPath("an empty path", "", " does not have a dos scheme."),
+    BadPath("a GCS path", s"gs://$bucket/hello/world", "gs://mymadeupbucket/hello/world does not have a dos scheme."),
+    BadPath("an bucketless path", "dos://", "Expected authority at index 6: dos://"),
+    BadPath("a https path", "https://hello/world", "https://hello/world does not have a dos scheme."),
+    BadPath("a file uri path", "file:///hello/world", "file:///hello/world does not have a dos scheme."),
+    BadPath("a relative file path", "hello/world", "hello/world does not have a dos scheme."),
+    BadPath("an absolute file path", "/hello/world", "/hello/world does not have a dos scheme."),
+    BadPath("a bucket only path ending in a /", s"dos://$bucket/", s"dos://$bucket/ does not have a valid path. DRS doesn't support a host only path."),
+    BadPath("a bucket only path", s"dos://$bucket", s"dos://$bucket does not have a valid path. DRS doesn't support a host only path.")
   )
 
-  private lazy val pathBuilder = new DemoDosPathBuilder()
+  private val marthaConfig: Config = ConfigFactory.parseString(
+    """martha {
+      |   url = "http://matha-url"
+      |   request.json-template = "{"key": "${holder}"}"
+      |}
+      |""".stripMargin
+  )
 
+  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig))
 }

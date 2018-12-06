@@ -32,7 +32,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
-  override protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
+  override protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
     case (key, womFile) =>
       key -> womFile.collectAsSeq({
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile

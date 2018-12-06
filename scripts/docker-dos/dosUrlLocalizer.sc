@@ -4,13 +4,13 @@ interp.repositories() ++= Seq(
   coursier.maven.MavenRepository("https://oss.sonatype.org/content/repositories/snapshots/"))
 
 @
-import $ivy.`org.http4s::http4s-dsl:0.19.0-SNAPSHOT`
-import $ivy.`org.http4s::http4s-blaze-server:0.19.0-SNAPSHOT`
-import $ivy.`org.http4s::http4s-blaze-client:0.19.0-SNAPSHOT`
+import $ivy.`org.http4s::http4s-dsl:0.18.17`
+import $ivy.`org.http4s::http4s-blaze-server:0.18.17`
+import $ivy.`org.http4s::http4s-blaze-client:0.18.17`
 import $ivy.`com.google.cloud:google-cloud-storage:1.35.0`
 import $ivy.`com.google.oauth-client:google-oauth-client:1.23.0`
 import $ivy.`com.google.auth:google-auth-library-credentials:0.9.1`
-import $ivy.`org.http4s::http4s-circe:0.19.0-SNAPSHOT`
+import $ivy.`org.http4s::http4s-circe:0.18.17`
 import $ivy.`io.circe::circe-literal:0.7.0`
 import $ivy.`io.spray::spray-json:1.3.4`
 
@@ -24,6 +24,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.ArrayList
 import org.http4s.client.blaze._
 import cats.effect._
 import org.http4s.dsl.io._
@@ -34,6 +35,9 @@ import io.circe.syntax._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 import scala.util.{Try, Success, Failure}
+import scala.concurrent.duration._
+import org.http4s.client._
+
 
 object MarthaResponseJsonSupport extends DefaultJsonProtocol {
   implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
@@ -78,16 +82,26 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
   import MarthaResponseJsonSupport._
 
   val requestBody = json"""{"url":$dosUrl}"""
+  val scopes = Lists.newArrayList("https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile")
 
   val credentials = GoogleCredentials.getApplicationDefault()
-  val accessToken = credentials.refreshAccessToken().getTokenValue()
+  val scopedCredentials = credentials.createScoped(scopes)
+  val accessToken = scopedCredentials.refreshAccessToken().getTokenValue()
+
+  val longTimeoutConfig =
+    BlazeClientConfig
+      .defaultConfig
+      .copy(idleTimeout = 5.minutes,
+        responseHeaderTimeout = 5.minutes,
+        requestTimeout = 5.minutes)
 
   val marthaResponseIo: IO[MarthaResponse] = for {
-    httpClient <- Http1Client[IO]()
+    httpClient <- Http1Client[IO](config = longTimeoutConfig)
     postRequest <- Request[IO](method = Method.POST,
-                               uri = marthaUrl,
-                               headers = Headers(Header("Authorization", s"bearer $accessToken")))
-                              .withBody(requestBody)
+      uri = marthaUrl,
+      headers = Headers(Header("Authorization", s"bearer $accessToken")))
+      .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
   } yield marthaResObj

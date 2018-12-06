@@ -16,7 +16,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{Workflow
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import cromwell.services.womtool.WomtoolServiceMessages.{DescribeRequest, DescribeResponse}
+import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess, WorkflowDescription}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.EngineStatsActor
 import mouse.boolean._
@@ -559,9 +559,25 @@ object CromwellApiServiceSpec {
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }
-      case DescribeRequest(workflow, sourceFiles) =>
-        val readBack = s"workflow hashcode: ${workflow.hashCode}, inputs: ${sourceFiles.inputsJson}, type: ${sourceFiles.workflowType}, version: ${sourceFiles.workflowTypeVersion}"
-        sender ! DescribeResponse(valid = true, List("this is fake data", "from the mock SR actor", readBack))
+      case DescribeRequest(sourceFiles) =>
+        sourceFiles.workflowSource match {
+          case Some("fail to describe") =>
+            sender ! DescribeFailure("as requested, failing to describe")
+          case Some("actor asplode") =>
+            throw new Exception("asploding now!")
+          case _ =>
+            val readBack = List(
+              "this is fake data from the mock SR actor",
+              s"workflow hashcode: ${sourceFiles.workflowSource.map(_.hashCode)}",
+              s"workflow url: ${sourceFiles.workflowUrl}",
+              s"inputs: ${sourceFiles.inputsJson}",
+              s"type: ${sourceFiles.workflowType}",
+              s"version: ${sourceFiles.workflowTypeVersion}"
+            )
+
+            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, readBack))
+        }
+
     }
   }
 

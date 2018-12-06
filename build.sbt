@@ -159,6 +159,10 @@ lazy val services = project
   .dependsOn(cloudSupport)
   .dependsOn(dockerHashing)
   .dependsOn(languageFactoryCore)
+  .dependsOn(wdlDraft2LanguageFactory % "test->test") // because the WaaS tests init language config with all languages
+  .dependsOn(wdlDraft3LanguageFactory % "test->test")
+  .dependsOn(wdlBiscayneLanguageFactory % "test->test")
+  .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
 
 lazy val backendRoot = Path("supportedBackends")

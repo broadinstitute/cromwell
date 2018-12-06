@@ -40,39 +40,42 @@ trait WesRunRoutes extends RequestSupport {
   lazy val runRoutes: Route =
     optionalHeaderValue(extractAuthorizationHeader) { authHeader =>
       val cromwellRequestHeaders = authHeader.toList
-
-      pathPrefix("ga4gh" / "wes" / "v1" / "runs") {
+      pathPrefix("ga4gh" / "wes" / "v1") {
         concat(
-          pathEnd {
+          pathPrefix("runs") {
             concat(
-              get {
-                parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
-                  completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders))
-                }
-              },
-              post {
-                extractStrictRequest { request =>
-                  extractSubmission() { submission =>
-                    completeCromwellResponse(wes2CromwellInterface.runWorkflow(submission, cromwellRequestHeaders))
+              pathEnd {
+                concat(
+                  get {
+                    parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
+                      completeCromwellResponse(wes2CromwellInterface.listRuns(pageSize, pageToken, cromwellRequestHeaders))
+                    }
+                  },
+                  post {
+                    extractStrictRequest { request =>
+                      extractSubmission() { submission =>
+                        completeCromwellResponse(wes2CromwellInterface.runWorkflow(submission, cromwellRequestHeaders))
+                      }
+                    }
                   }
+                )
+              },
+              path(Segment) { workflowId =>
+                concat(
+                  get {
+                    completeCromwellResponse(wes2CromwellInterface.runLog(workflowId, cromwellRequestHeaders))
+                  },
+                  delete {
+                    completeCromwellResponse(wes2CromwellInterface.cancelRun(workflowId, cromwellRequestHeaders))
+                  }
+                )
+              },
+              path(Segment / "status") { workflowId =>
+                get {
+                  completeCromwellResponse(wes2CromwellInterface.runStatus(workflowId, cromwellRequestHeaders))
                 }
               }
             )
-          },
-          path(Segment) { workflowId =>
-            concat(
-              get {
-                completeCromwellResponse(wes2CromwellInterface.runLog(workflowId, cromwellRequestHeaders))
-              },
-              delete {
-                completeCromwellResponse(wes2CromwellInterface.cancelRun(workflowId, cromwellRequestHeaders))
-              }
-            )
-          },
-          path(Segment / "status") { workflowId =>
-            get {
-              completeCromwellResponse(wes2CromwellInterface.runStatus(workflowId, cromwellRequestHeaders))
-            }
           }
         )
       }

@@ -3,6 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
@@ -17,6 +18,8 @@ final case class WorkflowStoreActor private(
                                              workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends Actor with ActorLogging with GracefulShutdownHelper {
   import WorkflowStoreActor._
+
+  implicit val ec = context.dispatcher
 
   lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(
     WorkflowStoreSubmitActor.props(
@@ -45,6 +48,11 @@ final case class WorkflowStoreActor private(
     case cmd: WorkflowStoreActorSubmitCommand => workflowStoreSubmitActor forward cmd
     case cmd: WorkflowStoreActorEngineCommand => workflowStoreEngineActor forward cmd
     case cmd: WorkflowStoreWriteHeartbeatCommand => workflowStoreHeartbeatWriteActor forward cmd
+    case GetWorkflowStoreStats =>
+      // Retrieve the workflow store stats, convert the WorkflowStoreStates to WorkflowStates
+      val stats = workflowStore.stats.map(m => m.map(e => WorkflowState.withName(e._1.toString) -> e._2))
+      stats pipeTo sender
+      ()
   }
 }
 
@@ -65,6 +73,8 @@ object WorkflowStoreActor {
   sealed trait WorkflowStoreActorSubmitCommand
   final case class SubmitWorkflow(source: WorkflowSourceFilesCollection) extends WorkflowStoreActorSubmitCommand
   final case class BatchSubmitWorkflows(sources: NonEmptyList[WorkflowSourceFilesCollection]) extends WorkflowStoreActorSubmitCommand
+
+  final case object GetWorkflowStoreStats
 
   case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
 

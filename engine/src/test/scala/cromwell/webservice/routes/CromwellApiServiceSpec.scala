@@ -10,7 +10,7 @@ import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{AbortWorkflowCommand, BatchSubmitWorkflows, SubmitWorkflow, WorkflowOnHoldToSubmittedCommand}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowOnHoldToSubmittedFailure, WorkflowOnHoldToSubmittedSuccess}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
@@ -579,6 +579,7 @@ object CromwellApiServiceSpec {
           case WorkflowId(_) => throw new Exception("Something untoward happened")
         }
         sender ! message
+      case GetWorkflowStoreStats => sender ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
     }
   }
   

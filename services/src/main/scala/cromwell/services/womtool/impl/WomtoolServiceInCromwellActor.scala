@@ -3,7 +3,6 @@ package cromwell.services.womtool.impl
 import akka.actor.{ActorRef, Props}
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.Config
-import common.Checked
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.HttpResolver
@@ -13,7 +12,6 @@ import cromwell.services.womtool.WomtoolServiceActor
 import cromwell.services.womtool.WomtoolServiceMessages._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wom.core.WorkflowSource
-import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 
 class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends WomtoolServiceActor {

@@ -36,7 +36,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |  call hello
          |}
          |""".stripMargin
-    val helloWorldInputs = """{"test.hello.name": "World"}"""
+    val helloWorldInputs = """{"wf_hello.hello.addressee": "World"}"""
     val bogusInputs = """{"foo.bar": "World"}"""
     val wdlInvalid = "This is not a valid WDL."
   }
@@ -57,12 +57,12 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = true, errors = List.empty)))
     }
 
-    // TODO: needs fixing in describeWorkflowInner - false positive with bad inputs
-    "return invalid for a valid workflow with the wrong inputs" ignore {
+    "return invalid for a valid workflow with the wrong inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Some(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
-      check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = false, errors = List("TBD"))))
+      check(DescribeRequest(wsfc), DescribeSuccess(
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
     }
 
     "return valid for a valid workflow URL" in {

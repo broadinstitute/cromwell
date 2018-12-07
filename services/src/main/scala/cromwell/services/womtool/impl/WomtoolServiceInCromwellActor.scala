@@ -7,7 +7,7 @@ import common.Checked
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.HttpResolver
-import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import cromwell.languages.LanguageFactory
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.services.womtool.WomtoolServiceActor
 import cromwell.services.womtool.WomtoolServiceMessages._
@@ -51,25 +51,22 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
   // By this point there are no "out of band" errors that can occur (i.e. those that would indicate a BadRequest, versus just showing up in the `errors` list)
   private def describeWorkflowInner(factory: LanguageFactory, workflow: WorkflowSource, workflowSourceFilesCollection: WorkflowSourceFilesCollection): WorkflowDescription = {
 
-    def createResponse(checked: Checked[_]): WorkflowDescription = {
-      checked match {
+    // Mirror of the inputs/no inputs fork in womtool.validate.Validate
+    if (workflowSourceFilesCollection.inputsJson.isEmpty) {
+      factory.getWomBundle(workflow, "{}", List.empty, List.empty) match {
         case Right(_) => WorkflowDescription(valid = true, List.empty)
         case Left(errors) => WorkflowDescription(valid = false, errors.toList)
       }
-    }
-
-    // Mirror of the inputs/no inputs fork in womtool.validate.Validate
-    if (workflowSourceFilesCollection.inputsJson.isEmpty) {
-      // Why do we pass in the rest of the language factories here? I cannot figure out what we ever use them for.
-      createResponse(factory.getWomBundle(workflow, "{}", List.empty, List.empty))
     } else {
-      createResponse {
-        factory.getWomBundle(workflow, "{}", List.empty, List.empty) map { bundle: WomBundle =>
-          val maybeExecutable: Checked[ValidatedWomNamespace] =
-            factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet)
+      val maybeWomBundle: Checked[WomBundle] = factory.getWomBundle(workflow, "{}", List.empty, List.empty)
 
-          maybeExecutable // TODO: bad inputs correctly making this a Left, does not get passed up the stack
-        }
+      maybeWomBundle match {
+        case Right(bundle) =>
+          factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
+            case Right(_) => WorkflowDescription(valid = true, List.empty)
+            case Left(errors) => WorkflowDescription(valid = false, errors.toList)
+          }
+        case Left(errors) => WorkflowDescription(valid = false, errors.toList)
       }
     }
 

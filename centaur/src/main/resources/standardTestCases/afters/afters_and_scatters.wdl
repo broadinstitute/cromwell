@@ -14,7 +14,12 @@ workflow afters {
   }
 
   # The call to 'read':
-  call read_from_shared after foo2 { input: where = where }
+  call read_from_shared
+    after foo2
+    { input:
+      where = where
+#      , ready = foo2.done[0]
+    }
 
   # Should not impact 'read' because it happens afterwards:
   call write_to_shared as foo3 after read_from_shared { input: i = 77, where = where }
@@ -36,11 +41,15 @@ task write_to_shared {
   runtime {
     backend: "LocalNoDocker"
   }
+  output {
+    Boolean done = true
+  }
 }
 
 task read_from_shared {
   input {
     String where
+    Boolean ready = true
   }
   command <<<
     cat "~{where}"

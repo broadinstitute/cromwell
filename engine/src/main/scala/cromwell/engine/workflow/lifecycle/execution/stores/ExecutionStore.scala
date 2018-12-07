@@ -14,7 +14,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{appl
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.{ConditionalOutputPort, NodeCompletionPort, OutputPort, ScatterGathererPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNodeLike
 
@@ -32,7 +32,13 @@ object ExecutionStore {
     def allDependenciesAreIn(statusTable: Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]) = {
       def chooseIndex(port: OutputPort) = port match {
         case _: ScatterGathererPort => None
+        case _: NodeCompletionPort => None
         case _ => key.index
+      }
+
+      def isPortReady(p: OutputPort, totalIndices: Int) = p match {
+        case c: NodeCompletionPort => statusTable.row(c.executionNode).size == totalIndices
+        case other => other.executionNode.isInStatus(chooseIndex(other), statusTable)
       }
 
       key match {
@@ -44,7 +50,16 @@ object ExecutionStore {
           val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
-        case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
+        case jobKey =>
+          println(s"***** Checking completion of ${key.node.localName}'s upstreams: ${key.node.upstreamPorts.map(p => {
+            val indexOfUpstream = chooseIndex(p)
+            s"${p.getClass.getSimpleName} ${p.identifier.fullyQualifiedName} from ${p.executionNode.fullyQualifiedName} (index=$indexOfUpstream) -> ${p.executionNode.isInStatus(indexOfUpstream, statusTable)}"
+          }).mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}")
+          key.node.upstreamPorts forall {
+            p =>
+              val status = isPortReady(p, jobKey.totalIndices)
+              status
+          }
       }
     }
 

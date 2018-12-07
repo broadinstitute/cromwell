@@ -36,12 +36,9 @@ object ExecutionStore {
         case _ => key.index
       }
 
-      def isPortReady(p: OutputPort, totalIndices: Int) = p match {
-        case c: NodeCompletionPort => statusTable.row(c.executionNode).size == totalIndices
-        case other => other.executionNode.isInStatus(chooseIndex(other), statusTable)
-      }
-
       key match {
+        case scatteredCallCompletion: ScatteredCallCompletionKey =>
+          statusTable.row(scatteredCallCompletion.node).size == scatteredCallCompletion.totalIndices
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
           // find the node which will have entries in the execution store. If that has 'n' entries, then we're good to start collecting,
@@ -50,15 +47,13 @@ object ExecutionStore {
           val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
-        case jobKey =>
+        case _ =>
           println(s"***** Checking completion of ${key.node.localName}'s upstreams: ${key.node.upstreamPorts.map(p => {
             val indexOfUpstream = chooseIndex(p)
             s"${p.getClass.getSimpleName} ${p.identifier.fullyQualifiedName} from ${p.executionNode.fullyQualifiedName} (index=$indexOfUpstream) -> ${p.executionNode.isInStatus(indexOfUpstream, statusTable)}"
           }).mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}")
-          key.node.upstreamPorts forall {
-            p =>
-              val status = isPortReady(p, jobKey.totalIndices)
-              status
+          key.node.upstreamPorts forall { p =>
+              p.executionNode.isInStatus(chooseIndex(p), statusTable)
           }
       }
     }
@@ -165,8 +160,8 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
-  def keyForNode(node: GraphNode): Option[JobKey] = {
-    statusStore.keys collectFirst { case k if k.node eq node => k }
+  def keysForNode(node: GraphNode): Iterable[JobKey] = {
+    statusStore.keys collect { case k if k.node eq node => k }
   }
 
   /**

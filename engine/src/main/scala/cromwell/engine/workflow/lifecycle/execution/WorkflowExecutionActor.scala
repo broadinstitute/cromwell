@@ -522,6 +522,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
       case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
+      case key: ScatteredCallCompletionKey => key.processRunnable(data)
       case key: ScatterKey => key.processRunnable(data, self, MaxScatterWidth)
       case other =>
         workflowLogger.error(s"${other.tag} is not a runnable key")
@@ -545,8 +546,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val taskCallNode = expressionNode.taskCallNodeReceivingInput.get(())
 
     (for {
-      jobKey <- data.executionStore.keyForNode(taskCallNode).toChecked(s"No job key found for call node $taskCallNode")
-      backendJobDescriptorKey <- Option(jobKey) collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job key not a BackendJobDescriptorKey: $jobKey"
+      jobKeys <- NonEmptyList.fromList(data.executionStore.keysForNode(taskCallNode).toList).toChecked(s"No job key found for call node $taskCallNode")
+      backendJobDescriptorKey <- jobKeys.toList collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job keys included no BackendJobDescriptorKeys: ${jobKeys.toList.mkString(", ")}"
       factory <- backendFactoryForTaskCallNode(taskCallNode)
       backendInitializationData = params.initializationData.get(factory.name)
       functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData, params.ioActor, ioEc)

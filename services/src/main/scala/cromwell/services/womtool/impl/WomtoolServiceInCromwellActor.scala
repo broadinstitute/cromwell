@@ -37,11 +37,15 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
               description = describeWorkflowInner(factory, sourceAndResolvers._1, wsfc)
             )
           case Invalid(e) =>
+            // This is not really likely to happen because we always choose a default factory even if it might not make sense.
+            // It could happen if there's a problem loading the factories themselves or the language configuration, however.
+            // We still call it a BadRequest because ultimately the user submitted something we could not understand.
             DescribeFailure(
               reason = e.toList.mkString(", ")
             )
         }
       case Left(errors) =>
+        // Likely reasons: no workflow provided, workflow URL could not be read
         DescribeFailure(
           reason = errors.toList.mkString(", ")
         )
@@ -53,14 +57,14 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
 
     // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
+      // No inputs: just load up the WomBundle
       factory.getWomBundle(workflow, "{}", List.empty, List.empty) match {
         case Right(_) => WorkflowDescription(valid = true, List.empty)
         case Left(errors) => WorkflowDescription(valid = false, errors.toList)
       }
     } else {
-      val maybeWomBundle: Checked[WomBundle] = factory.getWomBundle(workflow, "{}", List.empty, List.empty)
-
-      maybeWomBundle match {
+      // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
+      factory.getWomBundle(workflow, "{}", List.empty, List.empty) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             case Right(_) => WorkflowDescription(valid = true, List.empty)

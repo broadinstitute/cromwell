@@ -120,6 +120,11 @@ final class DockerInfoActor(
       IO.pure(())
   }
 
+  /*
+   * Create a stream, a queue and start the stream.
+   * The registry and queue are returned.
+   * To send requests to the stream, simply enqueue a request message.
+   */
   private def startAndRegisterStream(registry: DockerRegistry): IO[(DockerRegistry, StreamQueue)] = {
     implicit val timer = IO.timer(registry.config.executionContext)
     implicit val cs = IO.contextShift(registry.config.executionContext)
@@ -139,8 +144,7 @@ final class DockerInfoActor(
 
       val stream = clientStream.flatMap({ client =>
         throttledSource
-          // Zip the client stream so we can pass the client to the run method
-          // Run the request with the client - allow nbThreads max concurrent requests - order doesn't matter
+          // Run requests in parallel - allow nbThreads max concurrent requests - order doesn't matter
           .parEvalMapUnordered(registry.config.nbThreads)({ request => registry.run(request)(client) })
           // Send to the sink for finalization of the result
           .to(streamSink)

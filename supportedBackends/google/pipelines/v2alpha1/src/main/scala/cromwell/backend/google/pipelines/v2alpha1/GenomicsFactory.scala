@@ -90,8 +90,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
        */
       val adjustedBootDiskSize = {
         /*
-         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB).
-         * ~= 1 GB, + 1GB for extra margin to be safe
+         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB) ~= 1 GB
          */
         val cromwellImagesSize = 2
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize

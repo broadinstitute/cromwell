@@ -37,7 +37,7 @@ object DockerConfiguration {
       case "remote" => DockerRemoteLookup
       case other => throw new IllegalArgumentException(s"Unrecognized docker hash lookup method: $other")
     }
-    val sizeCompressionFactor = validate { dockerHashLookupConfig.as[Int]("size-compression-factor") }
+    val sizeCompressionFactor = validate { dockerHashLookupConfig.as[Double]("size-compression-factor") }
     val maxTimeBetweenRetries = validate { dockerHashLookupConfig.as[FiniteDuration]("max-time-between-retries") }
     val maxRetries = validate { dockerHashLookupConfig.as[Int]("max-retries") }
 
@@ -58,7 +58,7 @@ case class DockerConfiguration(
                                 cacheEntryTtl: FiniteDuration,
                                 cacheSize: Long,
                                 method: DockerHashLookupMethod,
-                                sizeCompressionFactor: Int,
+                                sizeCompressionFactor: Double,
                                 maxTimeBetweenRetries: FiniteDuration,
                                 maxRetries: Int
                               )

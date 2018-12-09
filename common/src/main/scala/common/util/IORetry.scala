@@ -42,8 +42,7 @@ object IORetry {
     def fail(throwable: Throwable) = IO.raiseError(statefulIoException.toThrowable(state, throwable))
 
     io handleErrorWith {
-      case throwable if isFatal(throwable) => 
-        fail(throwable)
+      case throwable if isFatal(throwable) => fail(throwable)
       case NonFatal(throwable) =>
         val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
 

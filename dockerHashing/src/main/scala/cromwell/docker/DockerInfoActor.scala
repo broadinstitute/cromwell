@@ -177,7 +177,7 @@ object DockerInfoActor {
   }
 
   case class DockerSize(compressedSize: Long) {
-    def toFullSize(factor: Int) = compressedSize * factor
+    def toFullSize(factor: Double): Long = (compressedSize * factor).toLong
   }
 
   case class DockerInformation(dockerHash: DockerHashResult, dockerCompressedSize: Option[DockerSize])

@@ -90,9 +90,9 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
        */
       val adjustedBootDiskSize = {
         /*
-         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB) ~= 1 GB
+         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
          */
-        val cromwellImagesSize = 2
+        val cromwellImagesSize = 1
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
         // Compute the decompressed size based on the compressed based on the information available
         val actualSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)

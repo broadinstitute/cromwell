@@ -35,9 +35,10 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
               description = describeWorkflowInner(factory, sourceAndResolvers._1, wsfc)
             )
           case Invalid(e) =>
-            // This is not really likely to happen because we always choose a default factory even if it might not make sense.
-            // It could happen if there's a problem loading the factories themselves or the language configuration, however.
-            // We still call it a BadRequest because ultimately the user submitted something we could not understand.
+            // `chooseFactory` generally should not fail, because we still choose the default factory even if `looksParsable`
+            // returns uniformly `false`. (If the user submits gibberish, we will use the default factory and fail elsewhere.)
+            // We could get here if there's a problem loading the factories' classes or the language configuration, however.
+            // It is a BadRequest because ultimately the user submitted something we could not understand.
             DescribeFailure(
               reason = e.toList.mkString(", ")
             )

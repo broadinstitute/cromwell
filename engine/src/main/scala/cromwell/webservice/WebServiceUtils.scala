@@ -8,7 +8,9 @@ import akka.http.scaladsl.server.Directives.complete
 import akka.stream.Materializer
 import akka.util.{ByteString, Timeout}
 import cromwell.webservice.routes.CromwellApiService._
-import io.circe._, io.circe.generic.auto._, io.circe.syntax._
+import io.circe._
+import io.circe.generic.auto._
+import io.circe.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 

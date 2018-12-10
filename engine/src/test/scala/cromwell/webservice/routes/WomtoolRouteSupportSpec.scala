@@ -26,17 +26,17 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
   behavior of "/describe endpoint"
 
   object BodyParts {
-    val workflowSource  = Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, "This is not a WDL, but that's OK for this test of request routing."))
+    val workflowSource  = Multipart.FormData.BodyPart("workflowSource", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "This is not a WDL, but that's OK for this test of request routing."))
     val workflowUrl     = Multipart.FormData.BodyPart("workflowUrl", HttpEntity(MediaTypes.`application/json`,
       "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl"))
     val workflowInputs = Multipart.FormData.BodyPart("workflowInputs", HttpEntity(MediaTypes.`application/json`, "{\"a\":\"is for apple\"}"))
-    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity(MediaTypes.`application/json`, "WDL"))
-    val workflowVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity(MediaTypes.`application/json`, "1.0"))
+    val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "WDL"))
+    val workflowVersion = Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "1.0"))
 
     val workflowSourceTriggerDescribeFailure =
-      Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, "fail to describe"))
+      Multipart.FormData.BodyPart("workflowSource", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "fail to describe"))
     val workflowSourceTriggerActorException =
-      Multipart.FormData.BodyPart("workflowSource", HttpEntity(MediaTypes.`application/json`, "actor asplode"))
+      Multipart.FormData.BodyPart("workflowSource", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "actor asplode"))
   }
 
   it should "return Bad Request if the actor returns DescribeFailure" in {

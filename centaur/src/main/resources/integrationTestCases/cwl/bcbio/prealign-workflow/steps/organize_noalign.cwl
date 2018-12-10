@@ -21,10 +21,10 @@ hints:
 - class: ResourceRequirement
   coresMin: 1
   outdirMin: 1024
-  ramMin: 2048
+  ramMin: 3072
   tmpdirMin: 0
 - class: dx:InputResourceRequirement
-  indirMin: 0
+  indirMin: 4
 inputs:
 - id: files
   type:

@@ -8,8 +8,7 @@ import akka.http.scaladsl.server.Directives.complete
 import akka.stream.Materializer
 import akka.util.{ByteString, Timeout}
 import cromwell.webservice.routes.CromwellApiService._
-import cromwell.webservice.WorkflowJsonSupport.errorResponse
-import spray.json._
+import io.circe._, io.circe.generic.auto._, io.circe.syntax._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -51,11 +50,16 @@ object WebServiceUtils extends WebServiceUtils {
   // AEN 2018-12-05
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
     def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
-      completeResponse(statusCode, APIResponse.fail(e).toJson.prettyPrint, warnings)
+      completeResponse(statusCode, prettyPrint(APIResponse.fail(e)), warnings)
     }
     def errorRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
-      completeResponse(statusCode, APIResponse.error(e).toJson.prettyPrint, warnings)
+      completeResponse(statusCode, prettyPrint(APIResponse.error(e)), warnings)
     }
+  }
+
+  private def prettyPrint(failureResponse: FailureResponse): String ={
+    // .asJson cannot live inside a value class like `EnhancedThrowable`, hence the object method
+    failureResponse.asJson.pretty(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
   }
 
 }

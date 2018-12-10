@@ -12,6 +12,7 @@ import common.validation.Validation._
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.docker.DockerInfoActor._
+import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.gcr.GcrRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
@@ -22,7 +23,7 @@ import org.http4s.client.blaze.BlazeClientBuilder
 import org.http4s.client.middleware.{Retry, RetryPolicy}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 
 final class DockerInfoActor(
                              dockerRegistryFlows: Seq[DockerRegistry],
@@ -158,6 +159,9 @@ final class DockerInfoActor(
   }
 
   override def preStart() = {
+    // Force initialization of the header constants to make sure they're valid
+    locally(DockerRegistryV2Abstract)
+    
     val registries =
       dockerRegistryFlows.toList
         .parTraverse(startAndRegisterStream)

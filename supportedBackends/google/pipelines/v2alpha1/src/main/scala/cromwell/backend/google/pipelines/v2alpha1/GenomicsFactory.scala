@@ -86,7 +86,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .gpuResource.map(toAccelerator).toList.asJava
       
       /*
-       * Adjust using docker images used by Cromwell as well as 
+       * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */
       val adjustedBootDiskSize = {
         /*
@@ -94,7 +94,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
          */
         val cromwellImagesSize = 1
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
-        // Compute the decompressed size based on the compressed based on the information available
+        // Compute the decompressed size based on the information available
         val actualSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
         val actualSizeInGB = MemorySize(actualSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
         val actualSizeRoundedUpInGB = actualSizeInGB.ceil.toInt

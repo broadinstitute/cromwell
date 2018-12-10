@@ -259,7 +259,7 @@ object WorkflowDockerLookupActor {
   object WorkflowDockerLookupActorData {
     def empty = WorkflowDockerLookupActorData(hashRequests = Map.empty, mappings = Map.empty, failureCause = None)
   }
-  
+
   final case class WorkflowDockerLookupActorData(hashRequests: Map[DockerInfoRequest, List[ActorRef]],
                                                  mappings: Map[DockerImageIdentifier, DockerInformation],
                                                  failureCause: Option[Throwable]) {

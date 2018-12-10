@@ -20,7 +20,7 @@ object DockerRegistryConfig {
 
   def fromConfig(config: Config): ErrorOr[DockerRegistryConfig] = {
     val throttle = validate { config.getAs[Throttle]("throttle") }
-    val threads = validate { config.as[Int]("nb-threads") }
+    val threads = validate { config.as[Int]("num-threads") }
    
     (throttle, threads) mapN DockerRegistryConfig.apply
   }

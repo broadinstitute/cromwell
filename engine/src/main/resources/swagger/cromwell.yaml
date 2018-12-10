@@ -640,7 +640,7 @@ paths:
         '200':
           description: Workflow description.
           schema:
-            type: object
+            $ref: '#/definitions/WorkflowDescription'
       tags:
         - "Womtool (beta)"
   '/engine/{version}/version':
@@ -839,6 +839,22 @@ definitions:
         type: string
         format: date-time
         description: The time at which this failure occurred
+  WorkflowDescription:
+    required:
+      - valid
+    properties:
+      valid:
+        type: boolean
+        description: Whether the workflow and inputs as submitted passes validation
+      errors:
+        type: array
+        items:
+          type: string
+        example:
+          - "The 'errors' field will be filled if 'valid' is false"
+          - "We might also provide warnings to a 'valid' workflow here"
+          - "Otherwise, 'errors' will be empty or unspecified"
+        description: The set of validation failure messages
   WorkflowQueryParameter:
     description: Workflow query parameters
     minProperties: 1

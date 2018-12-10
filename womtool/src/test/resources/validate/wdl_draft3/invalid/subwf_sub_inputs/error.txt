@@ -1,1 +1,2 @@
-Cannot call 'import_me.sub_wf'. To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: sub_wf.foo.x
+Failed to process workflow definition 'main' (reason 1 of 2): Failed to process 'call import_me.sub_wf' (reason 1 of 2): To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: sub_wf.foo.x
+Failed to process workflow definition 'main' (reason 2 of 2): Failed to process 'call import_me.sub_wf' (reason 2 of 2): To be called as a sub-workflow it must specify all outputs using an output section. This workflow may wish to declare outputs for: sub_wf.foo.y

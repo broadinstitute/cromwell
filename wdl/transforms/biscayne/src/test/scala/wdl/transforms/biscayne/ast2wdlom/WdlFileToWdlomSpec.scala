@@ -59,7 +59,7 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-          graphElements = Set(CallElement("in_n_out", None, None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
@@ -90,8 +90,8 @@ object WdlFileToWdlomSpec {
           name = "afters",
           inputsSection = None,
           graphElements = Set(
-            CallElement("foo", None, None, Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(5))))))),
-            CallElement("foo", Some("foo2"), Some("foo"), Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(6)))))))
+            CallElement("foo", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(5))))))),
+            CallElement("foo", Some("foo2"), Vector("foo"), Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(6)))))))
           ),
           outputsSection = None,
           metaSection = None,

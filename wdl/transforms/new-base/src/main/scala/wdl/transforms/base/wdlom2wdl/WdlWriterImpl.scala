@@ -143,10 +143,7 @@ object WdlWriterImpl {
         case None => ""
       }
 
-      val afterExpression = a.after match {
-        case Some(after) => s" after $after"
-        case None => ""
-      }
+      val afterExpression = if (a.afters.nonEmpty) a.afters.map(after => s" after $after").mkString(" ") else ""
 
       s"call ${a.callableReference}$aliasExpression$afterExpression"
     }
@@ -164,7 +161,7 @@ object WdlWriterImpl {
         case None => ""
       }
 
-      s"call ${CallElementWriter.withoutBody(a)}$bodyExpression"
+      s"${CallElementWriter.withoutBody(a)}$bodyExpression"
     }
   }
 

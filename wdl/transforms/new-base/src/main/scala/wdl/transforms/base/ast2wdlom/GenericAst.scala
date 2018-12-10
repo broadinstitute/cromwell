@@ -3,8 +3,6 @@ package wdl.transforms.base.ast2wdlom
 import cats.instances.vector._
 import cats.syntax.either._
 import cats.syntax.traverse._
-
-import common.validation.Validation._
 import common.validation.Checked._
 import common.Checked
 import common.transforms.CheckedAtoB
@@ -41,12 +39,13 @@ trait GenericAst extends GenericAstNode {
   def getAttributes: Map[String, GenericAstNode]
   def getName: String
 
-  private def getAttributeAsAstNodeVector(attr: String): Checked[Vector[GenericAstNode]] = for {
-    // Note: if you see one of these in the wild and can recreate it, you might want to try switching in this more complete message:
-    //  "No attribute '$attr' found on Ast of type $getName. Did you mean: ${getAttributes.keys.mkString(", ")}"
-    attributeNode <- Option(getAttribute(attr)).toChecked(s"No expected attribute '$attr' found")
-    asVector <- attributeNode.astListAsVector
-  } yield asVector
+  private def getAttributeAsAstNodeVector(attr: String, optional: Boolean): Checked[Vector[GenericAstNode]] = {
+    Option(getAttribute(attr)) match {
+      case Some(attributeNode) => attributeNode.astListAsVector
+      case None if optional => Vector.empty.validNelCheck
+      case None => s"No expected attribute '$attr' found".invalidNelCheck
+    }
+  }
 
   /**
     * Will get an attribute on this Ast as an AstNode and then convert that into a single element of
@@ -63,9 +62,9 @@ trait GenericAst extends GenericAstNode {
     * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
     * @param attr The attribute to read from this Ast
     */
-  def getAttributeAsVector[A](attr: String)(implicit toA: CheckedAtoB[GenericAstNode, A]): Checked[Vector[A]] = {
+  def getAttributeAsVector[A](attr: String, optional: Boolean = false)(implicit toA: CheckedAtoB[GenericAstNode, A]): Checked[Vector[A]] = {
     for {
-      asVector <- getAttributeAsAstNodeVector(attr)
+      asVector <- getAttributeAsAstNodeVector(attr, optional)
       // This toValidated/toEither dance is necessary to
       // (1) collect all errors from the traverse as an ErrorOr, then
       // (2) convert back into a Checked for the flatMap
@@ -77,9 +76,9 @@ trait GenericAst extends GenericAstNode {
     * Will get an attribute on this Ast as an AstList and then convert that into a vector of Ast
     * @param attr The attribute to read from this Ast
     */
-  def getAttributeAsVectorF[A](attr: String)(toA: GenericAstNode => Checked[A]): Checked[Vector[A]] = {
+  def getAttributeAsVectorF[A](attr: String, optional: Boolean = false)(toA: GenericAstNode => Checked[A]): Checked[Vector[A]] = {
     for {
-      asVector <- getAttributeAsAstNodeVector(attr)
+      asVector <- getAttributeAsAstNodeVector(attr, optional)
       // This toValidated/toEither dance is necessary to
       // (1) collect all errors from the traverse as an ErrorOr, then
       // (2) convert back into a Checked for the flatMap

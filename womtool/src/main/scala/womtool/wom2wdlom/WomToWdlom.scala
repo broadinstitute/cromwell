@@ -390,10 +390,12 @@ object WomToWdlom {
       else
         None
 
+      val afters = call.mustFollow.map(_.localName).toVector
+
       CallElement(
         callableName,
         maybeAlias,
-        None, // TODO: rehydrate "after"s
+        afters,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       ).validNelCheck
     }

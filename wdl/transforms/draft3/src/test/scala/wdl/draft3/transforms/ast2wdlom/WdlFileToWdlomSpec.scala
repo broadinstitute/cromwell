@@ -261,7 +261,7 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-          graphElements = Set(CallElement("in_n_out", None, None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
@@ -359,7 +359,7 @@ object WdlFileToWdlomSpec {
         workflows = Vector(WorkflowDefinitionElement(
           name = "no_input_no_output",
           inputsSection = None,
-          graphElements = Set(CallElement("no_inputs", None, None, None)),
+          graphElements = Set(CallElement("no_inputs", None, Vector.empty, None)),
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None)),
@@ -775,7 +775,7 @@ object WdlFileToWdlomSpec {
       workflows = Vector(WorkflowDefinitionElement(
         "my_workflow",
         None,
-        Set(CallElement("my_task", None, None, None)),
+        Set(CallElement("my_task", None, Vector.empty, None)),
         None,
         None,
         None
@@ -799,11 +799,11 @@ object WdlFileToWdlomSpec {
         "same_named_inputs_priority",
         None,
         Set(
-          CallElement("echo", Some("b"), None, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2"))))))),
-          CallElement("echo", Some("a"), None, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1"))))))),
+          CallElement("echo", Some("b"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2"))))))),
+          CallElement("echo", Some("a"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1"))))))),
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "out", StringLiteral("hello")),
-          CallElement("echo", Some("d"), None, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4"))))))),
-          CallElement("echo", Some("c"), None, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))))
+          CallElement("echo", Some("d"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4"))))))),
+          CallElement("echo", Some("c"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))))
         ),
         None,
         None,
@@ -831,7 +831,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), None, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -852,7 +852,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), None, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -873,7 +873,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), None, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -894,7 +894,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), None, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -916,7 +916,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), None, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)

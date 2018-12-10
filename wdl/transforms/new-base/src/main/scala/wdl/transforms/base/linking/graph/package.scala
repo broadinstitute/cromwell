@@ -94,7 +94,7 @@ package object graph {
         case None => Set.empty[UnlinkedConsumedValueHook]
       }
 
-      val consumedByAfterRequirement: Option[UnlinkedConsumedValueHook] = a.after map UnlinkedAfterCallHook.apply
+      val consumedByAfterRequirement: Vector[UnlinkedConsumedValueHook] = a.afters map UnlinkedAfterCallHook.apply
 
       (consumedByInputSection ++ consumedByAfterRequirement).validNel
     }

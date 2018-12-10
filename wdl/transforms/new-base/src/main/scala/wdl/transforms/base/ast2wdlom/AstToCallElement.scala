@@ -24,10 +24,7 @@ object AstToCallElement {
       case None => None.validNel
     }
 
-    val afterValidation: ErrorOr[Option[String]] = Option(ast.getAttribute("after")) match {
-      case Some(a) => astNodeToString(a).map(Some.apply).toValidated
-      case None => None.validNel
-    }
+    val afterValidation: ErrorOr[Vector[String]] = ast.getAttributeAsVector[String]("after", optional = true).toValidated
 
     implicit val astNodeToCallBodyElement: CheckedAtoB[GenericAstNode, CallBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(convertBodyElement _)
 

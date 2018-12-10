@@ -72,8 +72,10 @@ object ScatterElementToGraphNode {
 
       (required, generated) mapN { (r, g) =>
         val requiredOuterValues = r collect {
-          case hook@UnlinkedIdentifierHook(id) if !g.exists(_.linkableName == id) => makeLink(hook)
-          case hook@UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") => makeLink(hook)
+          case hook@UnlinkedIdentifierHook(id) if id != scatterVariableName && !g.exists(_.linkableName == id) =>
+            makeLink(hook)
+          case hook@UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if first != scatterVariableName && !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") =>
+            makeLink(hook)
         }
         val requiredCompletionPorts = r collect {
           case UnlinkedAfterCallHook(upstreamCallName) if !g.exists {

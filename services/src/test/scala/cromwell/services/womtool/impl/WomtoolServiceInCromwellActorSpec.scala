@@ -45,21 +45,21 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
     "return valid for a valid workflow" in {
 
-      val wsfc = wsfcConjurer(workflowSource = Some(TestData.wdlValid))
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid))
 
       check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = true, errors = List.empty)))
     }
 
     "return valid for a valid workflow with matching inputs" in {
 
-      val wsfc = wsfcConjurer(workflowSource = Some(TestData.wdlValid), inputsJson = TestData.helloWorldInputs)
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.helloWorldInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = true, errors = List.empty)))
     }
 
     "return invalid for a valid workflow with the wrong inputs" in {
 
-      val wsfc = wsfcConjurer(workflowSource = Some(TestData.wdlValid), inputsJson = TestData.bogusInputs)
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
         description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
@@ -67,7 +67,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
     "return valid for a valid workflow URL" in {
 
-      val wsfc = wsfcConjurer(workflowUrl = Some(TestData.workflowUrlValid))
+      val wsfc = wsfcConjurer(workflowUrl = Option(TestData.workflowUrlValid))
 
       check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = true, errors = List.empty)))
     }
@@ -81,14 +81,14 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
     "return an error when both workflow URL and workflow source specified" in {
 
-      val wsfc = wsfcConjurer(workflowSource = Some(TestData.wdlInvalid), workflowUrl = Some(TestData.workflowUrlValid))
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlInvalid), workflowUrl = Option(TestData.workflowUrlValid))
 
       check(DescribeRequest(wsfc), DescribeFailure("Both workflow source and url can't be supplied"))
     }
 
     "return an error when the workflow URL is a 404" in {
 
-      val wsfc = wsfcConjurer(workflowUrl = Some(TestData.workflowUrlNotFound))
+      val wsfc = wsfcConjurer(workflowUrl = Option(TestData.workflowUrlNotFound))
 
       check(DescribeRequest(wsfc),
         DescribeFailure(
@@ -97,7 +97,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
     "return an error when the workflow URL's host can't be resolved" in {
 
-      val wsfc = wsfcConjurer(workflowUrl = Some(TestData.workflowUrlBadHost))
+      val wsfc = wsfcConjurer(workflowUrl = Option(TestData.workflowUrlBadHost))
 
       // The error is from the OS network stack and differs between Mac and Linux
       (for {
@@ -112,7 +112,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
     "return an error when the workflow URL is not a URL" in {
 
-      val wsfc = wsfcConjurer(workflowUrl = Some(TestData.workflowUrlNotAUrl))
+      val wsfc = wsfcConjurer(workflowUrl = Option(TestData.workflowUrlNotAUrl))
 
       // The HTTP resolver has figured out that you have not given it a URL and assumes it's a relative path
       check(DescribeRequest(wsfc), DescribeFailure("Failed to resolve 'Zardoz' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Relative path"))

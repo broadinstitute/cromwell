@@ -1,5 +1,5 @@
 cwlVersion: v1.0
-# Asks for 10 GB (~=9540 MiB) of output dir, tmp dir and input dir.
+# Asks for 10 GB (~=10240 MB) of output dir, tmp dir and input dir.
 # Unfortunately the internal metadata from the VM, despite having some information about the disks doesn't give their size.
 # To avoid possibly unreliable computations based on free or other tool, instead use the GCE API directly to look up the disk info.
 # To do that we need project name, zone and name of the disk which we all obtain via the internal metadata
@@ -15,14 +15,14 @@ $graph:
   doc: "Asks for disk minimums"
   requirements:
     ResourceRequirement:
-      outdirMin: 9540
-      tmpdirMin: 9540
+      outdirMin: 10240
+      tmpdirMin: 10240
   hints:
   - class: ShellCommandRequirement
   - class: DockerRequirement
     dockerPull: google/cloud-sdk:slim
   - class: dx:InputResourceRequirement
-    indirMin: 9540
+    indirMin: 10240
   inputs: []
   outputs:
     disk_size:

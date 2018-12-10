@@ -14,11 +14,7 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
       (MemorySize(10, MemoryUnit.KB), "10 KB"),
       (MemorySize(10, MemoryUnit.MB), "10 MB"),
       (MemorySize(10, MemoryUnit.GB), "10 GB"),
-      (MemorySize(10, MemoryUnit.TB), "10 TB"),
-      (MemorySize(10, MemoryUnit.KiB), "10 KiB"),
-      (MemorySize(10, MemoryUnit.MiB), "10 MiB"),
-      (MemorySize(10, MemoryUnit.GiB), "10 GiB"),
-      (MemorySize(10, MemoryUnit.TiB), "10 TiB")
+      (MemorySize(10, MemoryUnit.TB), "10 TB")
     )
 
     forAll(memTable) { (memorySize, memorySizeString) =>
@@ -32,11 +28,7 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
       (MemorySize(10.5, MemoryUnit.KB), "10.5 KB"),
       (MemorySize(10.5, MemoryUnit.MB), "10.5 MB"),
       (MemorySize(10.5, MemoryUnit.GB), "10.5 GB"),
-      (MemorySize(10.5, MemoryUnit.TB), "10.5 TB"),
-      (MemorySize(10.5, MemoryUnit.KiB), "10.5 KiB"),
-      (MemorySize(10.5, MemoryUnit.MiB), "10.5 MiB"),
-      (MemorySize(10.5, MemoryUnit.GiB), "10.5 GiB"),
-      (MemorySize(10.5, MemoryUnit.TiB), "10.5 TiB")
+      (MemorySize(10.5, MemoryUnit.TB), "10.5 TB")
     )
 
     forAll(memTable) { (memorySize, memorySizeString) =>
@@ -47,14 +39,10 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
   it should "convert to bytes properly" in {
     val memTable = Table(
       ("memorySize", "bytes"),
-      (MemorySize(10.5, MemoryUnit.KB), 10500.0),
-      (MemorySize(10.5, MemoryUnit.MB), 10500000.0),
-      (MemorySize(10.5, MemoryUnit.GB), 10500000000.0),
-      (MemorySize(10.5, MemoryUnit.TB), 10500000000000.0),
-      (MemorySize(10.5, MemoryUnit.KiB), 10752.0),
-      (MemorySize(10.5, MemoryUnit.MiB), 11010048.0),
-      (MemorySize(10.5, MemoryUnit.GiB), 11274289152.0),
-      (MemorySize(10.5, MemoryUnit.TiB), 11544872091648.0)
+      (MemorySize(10.5, MemoryUnit.KB), 10752.0),
+      (MemorySize(10.5, MemoryUnit.MB), 11010048.0),
+      (MemorySize(10.5, MemoryUnit.GB), 11274289152.0),
+      (MemorySize(10.5, MemoryUnit.TB), 11544872091648.0)
     )
 
     forAll(memTable) { (memorySize, bytes) =>
@@ -65,16 +53,22 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
   it should "convert to other units properly" in {
     val memTable = Table(
       ("memorySize", "newUnit", "result"),
-      (MemorySize(1000, MemoryUnit.Bytes), MemoryUnit.KB, MemorySize(1, MemoryUnit.KB)),
-      (MemorySize(1000000, MemoryUnit.Bytes), MemoryUnit.MB, MemorySize(1, MemoryUnit.MB)),
-      (MemorySize(1024, MemoryUnit.Bytes), MemoryUnit.KiB, MemorySize(1, MemoryUnit.KiB)),
-      (MemorySize(1, MemoryUnit.KB), MemoryUnit.Bytes, MemorySize(1000, MemoryUnit.Bytes)),
-      (MemorySize(1, MemoryUnit.MB), MemoryUnit.Bytes, MemorySize(1000000, MemoryUnit.Bytes)),
-      (MemorySize(1, MemoryUnit.KiB), MemoryUnit.Bytes, MemorySize(1024, MemoryUnit.Bytes))
+      (MemorySize(1024, MemoryUnit.Bytes), MemoryUnit.KB, MemorySize(1, MemoryUnit.KB)),
+      (MemorySize(1048576, MemoryUnit.Bytes), MemoryUnit.MB, MemorySize(1, MemoryUnit.MB)),
+      (MemorySize(1, MemoryUnit.KB), MemoryUnit.Bytes, MemorySize(1024, MemoryUnit.Bytes)),
+      (MemorySize(1, MemoryUnit.MB), MemoryUnit.Bytes, MemorySize(1048576, MemoryUnit.Bytes))
     )
 
     forAll(memTable) { (memorySize, newUnit, result) =>
       memorySize.to(newUnit) shouldEqual result
+    }
+  }
+  
+  it should "round trip" in {
+    List(
+      "2 GB"
+    ) foreach { memory =>
+      MemorySize.parse(memory).get.to(MemoryUnit.Bytes).to(MemoryUnit.GB).toString shouldBe memory
     }
   }
 
@@ -84,7 +78,7 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
       ("1000 B", MemorySize(1000, MemoryUnit.Bytes)),
       ("100KB", MemorySize(100, MemoryUnit.KB)),
       ("10.2MB", MemorySize(10.2, MemoryUnit.MB)),
-      ("10.2MiB", MemorySize(10.2, MemoryUnit.MiB)),
+      ("10.2MiB", MemorySize(10.2, MemoryUnit.MB)),
       ("1.5 GB", MemorySize(1.5, MemoryUnit.GB))
     )
 
@@ -99,8 +93,8 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
       (MemorySize(1000, MemoryUnit.Bytes), "1000 B"),
       (MemorySize(100, MemoryUnit.KB), "100 KB"),
       (MemorySize(10.2, MemoryUnit.MB), "10.2 MB"),
-      (MemorySize(10.2, MemoryUnit.MiB), "10.2 MiB"),
-      (MemorySize(1.5, MemoryUnit.GB), "1.5 GB")
+      (MemorySize(1.5, MemoryUnit.GB), "1.5 GB"),
+      (MemorySize(2, MemoryUnit.GB), "2 GB")
     )
 
     forAll(memTable) { (memorySize, string) =>
@@ -121,14 +115,14 @@ class MemorySizeSpec extends FlatSpec with Matchers with TryValues {
       (MemoryUnit.GB, "GB"),
       (MemoryUnit.TB, "T"),
       (MemoryUnit.TB, "TB"),
-      (MemoryUnit.KiB, "Ki"),
-      (MemoryUnit.KiB, "KiB"),
-      (MemoryUnit.MiB, "Mi"),
-      (MemoryUnit.MiB, "MiB"),
-      (MemoryUnit.GiB, "Gi"),
-      (MemoryUnit.GiB, "GiB"),
-      (MemoryUnit.TiB, "Ti"),
-      (MemoryUnit.TiB, "TiB")
+      (MemoryUnit.KB, "Ki"),
+      (MemoryUnit.KB, "KiB"),
+      (MemoryUnit.MB, "Mi"),
+      (MemoryUnit.MB, "MiB"),
+      (MemoryUnit.GB, "Gi"),
+      (MemoryUnit.GB, "GiB"),
+      (MemoryUnit.TB, "Ti"),
+      (MemoryUnit.TB, "TiB")
     )
 
     forAll(memTable) { (unit, suffix) =>

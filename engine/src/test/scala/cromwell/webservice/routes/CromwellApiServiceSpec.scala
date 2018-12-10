@@ -3,6 +3,7 @@ package cromwell.webservice.routes
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.stream.ActorMaterializer
 import common.util.VersionUtil
@@ -426,17 +427,10 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         akkaHttpService.workflowRoutes ~>
         check {
           assertResult(StatusCodes.OK) { status }
+          assertResult(`text/html(UTF-8)`) { contentType }
           assertResult("<html>") {
             responseAs[String].substring(0, 6)
           }
-        }
-    }
-
-    it should "return 200 with an HTML document that contains static metadata json" in {
-      Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/timing") ~>
-        akkaHttpService.workflowRoutes ~>
-        check {
-          assertResult(StatusCodes.OK) { status }
           assert(responseAs[String].contains("var metadataJson = {\"testKey1b\":\"myValue1b\",\"calls\":{},\"testKey1a\":\"myValue1a\",\"id\":\"c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5\",\"testKey2a\":\"myValue2a\"};"))
         }
     }

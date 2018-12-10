@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
@@ -167,7 +168,9 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) => {
         Try(Source.fromResource("workflowTimings/workflowTimings.html").mkString) match {
-          case Success(wfTimingsContent) => complete(wfTimingsContent.replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.response.toString))
+          case Success(wfTimingsContent) =>
+            val response = HttpResponse(entity = wfTimingsContent.replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.response.toString))
+            complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))
           case Failure(e) => completeResponse(StatusCodes.InternalServerError, APIResponse.fail(new RuntimeException("Error while loading workflowTimings.html", e)), Seq.empty)
         }
       }

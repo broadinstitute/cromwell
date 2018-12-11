@@ -3,7 +3,6 @@ package cromwell.server
 import akka.actor.SupervisorStrategy.{Escalate, Restart}
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy}
 import akka.event.Logging
-import akka.http.scaladsl.Http
 import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
@@ -12,13 +11,9 @@ import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.io.Throttle
-import cromwell.docker.DockerHashActor
-import cromwell.docker.DockerHashActor.DockerHashContext
+import cromwell.core.io.Throttle._
+import cromwell.docker.DockerInfoActor
 import cromwell.docker.local.DockerCliFlow
-import cromwell.docker.registryv2.flows.HttpFlowWithRetry.ContextWithRequest
-import cromwell.docker.registryv2.flows.dockerhub.DockerHubFlow
-import cromwell.docker.registryv2.flows.gcr.GoogleFlow
-import cromwell.docker.registryv2.flows.quay.QuayFlow
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -61,7 +56,6 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 
   private val logger = Logging(context.system, this)
   protected val config = ConfigFactory.load()
-  private implicit val system = context.system
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
   logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
@@ -98,11 +92,9 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
   // Io Actor
-  lazy val throttleElements = systemConfig.as[Option[Int]]("io.number-of-requests").getOrElse(100000)
-  lazy val throttlePer = systemConfig.as[Option[FiniteDuration]]("io.per").getOrElse(100 seconds)
   lazy val nioParallelism = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
   lazy val gcsParallelism = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
-  lazy val ioThrottle = Throttle(throttleElements, throttlePer, throttleElements)
+  lazy val ioThrottle = systemConfig.getAs[Throttle]("io").getOrElse(Throttle(100000, 100.seconds, 100000))
   lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor), "IoActor")
   lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
@@ -126,18 +118,14 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   // Sets the number of requests that the docker actor will accept before it starts backpressuring (modulo the number of in flight requests)
   lazy val dockerActorQueueSize = 500
 
-  lazy val dockerHttpPool = Http().superPool[ContextWithRequest[DockerHashContext]]()
-  lazy val googleFlow = new GoogleFlow(dockerHttpPool, dockerConf.gcrApiQueriesPer100Seconds)(ioEc, materializer, system.scheduler)
-  lazy val dockerHubFlow = new DockerHubFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
-  lazy val quayFlow = new QuayFlow(dockerHttpPool)(ioEc, materializer, system.scheduler)
-  lazy val dockerCliFlow = new DockerCliFlow()(ioEc, system.scheduler)
+  lazy val dockerCliFlow = new DockerCliFlow()(ioEc)
   lazy val dockerFlows = dockerConf.method match {
     case DockerLocalLookup => Seq(dockerCliFlow)
-    case DockerRemoteLookup => Seq(dockerHubFlow, googleFlow, quayFlow)
+    case DockerRemoteLookup => DockerInfoActor.remoteRegistriesFromConfig(DockerConfiguration.dockerHashLookupConfig)
   }
 
-  lazy val dockerHashActor = context.actorOf(DockerHashActor.props(dockerFlows, dockerActorQueueSize,
-    dockerConf.cacheEntryTtl, dockerConf.cacheSize)(materializer), "DockerHashActor")
+  lazy val dockerHashActor = context.actorOf(DockerInfoActor.props(dockerFlows, dockerActorQueueSize,
+    dockerConf.cacheEntryTtl, dockerConf.cacheSize), "DockerHashActor")
 
   lazy val backendSingletons = CromwellBackends.instance.get.backendLifecycleActorFactories map {
     case (name, factory) => name -> (factory.backendSingletonActorProps(serviceRegistryActor) map { context.actorOf(_, s"$name-Singleton") })

@@ -12,9 +12,10 @@ object Dependencies {
   private val apacheHttpCoreV = "4.4.6"
   private val awsSdkV = "2.0.0-preview-9"
   private val betterFilesV = "2.17.1"
-  private val catsEffectV = "1.0.0"
-  private val catsV = "1.3.1"
-  private val circeV = "0.10.0"
+  private val catsEffectV = "1.1.0"
+  private val catsV = "1.5.0"
+  private val circeV = "0.10.1"
+  private val circeOpticsV = "0.10.0"
   private val circeYamlV = "0.9.0"
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
@@ -25,7 +26,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.9"
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.3"
-  private val fs2V = "1.0.0-M5"
+  private val fs2V = "1.0.2"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.25.0"
   private val googleCloudCoreV = "1.43.0"
@@ -37,11 +38,10 @@ object Dependencies {
   private val googleOauth2V = "0.11.0"
   private val grpcV = "1.15.0"
   private val guavaV = "26.0-jre"
-  private val heterodonV = "1.0.0-beta2"
+  private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
-  private val http4sVersion = "0.19.0-M2"
+  private val http4sVersion = "0.20.0-M4"
   private val jacksonV = "2.9.6"
-  private val jacksonJqV = "0.0.9"
   private val janinoV = "3.0.9"
   private val jodaTimeV = "2.9.4"
   private val jsr305V = "3.0.0"
@@ -55,16 +55,17 @@ object Dependencies {
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.4.1"
   private val mongoJavaDriverV = "3.8.1"
-  private val mouseV = "0.18"
+  private val mouseV = "0.19"
   private val mysqlV = "5.1.47"
   private val nettyHandlerV = "4.1.22.Final"
-  private val owlApiV = "5.1.7"
+  private val owlApiV = "5.1.8"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   private val protoGoogleCommonProtosV = "0.1.21"
   private val protoGoogleIamV1V = "0.1.21"
   private val protobufJavaV = "3.3.1"
   private val reactiveStreamsV = "1.0.1"
+  private val rdf4jV = "2.4.2"
   private val refinedV = "0.9.2"
   private val rhinoV = "1.7.10"
   private val s3fsV = "1.0.1"
@@ -146,6 +147,31 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpcore" % apacheHttpCoreV,
     "org.mongodb" % "mongo-java-driver" % mongoJavaDriverV,
+    /*
+    Yes. All of these are required to lock in the rdf4j version.
+
+    Feel free to update versions but do not remove these overrides unless and until an updated
+    owl-api is no longer pulling in vulnerable rdf4j dependencies.
+
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1000644
+
+    See comment mentioning "OSGI" further below for more info on the bundling of dependencies.
+     */
+    "org.eclipse.rdf4j" % "rdf4j-model" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-api" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-binary" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-datatypes" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-jsonld" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-languages" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-n3" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-nquads" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-ntriples" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-rdfjson" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-rdfxml" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-trig" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-trix" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-turtle" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-util" % rdf4jV,
     "org.reactivestreams" % "reactive-streams" % reactiveStreamsV,
     "org.scala-lang.modules" %% "scala-xml" % scalaXmlV,
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -153,10 +179,11 @@ object Dependencies {
     "org.typelevel" %% "cats-kernel" % catsV,
     "org.yaml" % "snakeyaml" % snakeyamlV
   )
-  
+
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-circe" % http4sVersion
   )
 
   private val googleApiClientDependencies = List(
@@ -183,7 +210,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV % Test
   )
 
-  val implFtpDependencies = List (
+  val implFtpDependencies = List(
     "commons-net" % "commons-net" % apacheCommonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
     "com.google.guava" % "guava" % guavaV,
@@ -367,10 +394,10 @@ object Dependencies {
 
   val httpFileSystemDependencies = akkaHttpDependencies
 
-  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
+  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List(
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
-  
+
   val statsDProxyDependencies = List(
     "co.fs2" %% "fs2-io" % fs2V,
     "com.iheart" %% "ficus" % ficusV,
@@ -429,7 +456,7 @@ object Dependencies {
     "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "io.circe" %% "circe-optics" % circeV,
+    "io.circe" %% "circe-optics" % circeOpticsV,
     "org.mozilla" % "rhino" % rhinoV,
     "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
@@ -441,7 +468,7 @@ object Dependencies {
 
   val centaurCwlRunnerDependencies = List(
     "com.github.scopt" %% "scopt" % scoptV,
-    "io.circe" %% "circe-optics" % circeV
+    "io.circe" %% "circe-optics" % circeOpticsV
   ) ++ slf4jBindingDependencies ++ circeDependencies
 
   val coreDependencies = List(
@@ -460,7 +487,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = akkaHttpDependencies
+  val dockerHashingDependencies = http4sDependencies ++ circeDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,

@@ -1,17 +1,17 @@
 package cromwell.docker.local
 
 import cromwell.core.Tags.IntegrationTest
-import cromwell.docker.DockerHashActor.DockerHashFailedResponse
-import cromwell.docker.{DockerFlow, DockerFlowSpec}
+import cromwell.docker.DockerInfoActor.DockerInfoFailedResponse
+import cromwell.docker.{DockerRegistry, DockerRegistrySpec}
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-class DockerCliTimeoutFlowSpec extends DockerFlowSpec("DockerCliTimeoutFlowSpec") with FlatSpecLike with Matchers {
+class DockerCliTimeoutSpec extends DockerRegistrySpec("DockerCliTimeoutFlowSpec") with FlatSpecLike with Matchers {
   behavior of "A DockerCliFlow that times out"
 
-  override protected def registryFlows: Seq[DockerFlow] = Seq(new DockerCliFlow {
+  override protected def registryFlows: Seq[DockerRegistry] = Seq(new DockerCliFlow {
     override lazy val firstLookupTimeout = 0.seconds
   })
 
@@ -19,7 +19,7 @@ class DockerCliTimeoutFlowSpec extends DockerFlowSpec("DockerCliTimeoutFlowSpec"
     dockerActor ! makeRequest("ubuntu:latest")
 
     expectMsgPF(5.seconds) {
-      case DockerHashFailedResponse(exception: TimeoutException, _) =>
+      case DockerInfoFailedResponse(exception: TimeoutException, _) =>
         exception.getMessage should be(
           """|Timeout while looking up hash of ubuntu:latest.
              |Ensure that docker is running correctly.
@@ -31,7 +31,7 @@ class DockerCliTimeoutFlowSpec extends DockerFlowSpec("DockerCliTimeoutFlowSpec"
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
 
     expectMsgPF(5.seconds) {
-      case DockerHashFailedResponse(exception: TimeoutException, _) =>
+      case DockerInfoFailedResponse(exception: TimeoutException, _) =>
         exception.getMessage should be(
           """|Timeout while looking up hash of gcr.io/google-containers/alpine-with-bash:1.0.
              |Ensure that docker is running correctly.
@@ -45,7 +45,7 @@ class DockerCliTimeoutFlowSpec extends DockerFlowSpec("DockerCliTimeoutFlowSpec"
     dockerActor ! notFound
 
     expectMsgPF(5.seconds) {
-      case DockerHashFailedResponse(exception: TimeoutException, _) =>
+      case DockerInfoFailedResponse(exception: TimeoutException, _) =>
         exception.getMessage should be(
           """|Timeout while looking up hash of ubuntu:nonexistingtag.
              |Ensure that docker is running correctly.
@@ -58,7 +58,7 @@ class DockerCliTimeoutFlowSpec extends DockerFlowSpec("DockerCliTimeoutFlowSpec"
     dockerActor ! unauthorized
 
     expectMsgPF(5.seconds) {
-      case DockerHashFailedResponse(exception: TimeoutException, _) =>
+      case DockerInfoFailedResponse(exception: TimeoutException, _) =>
         exception.getMessage should be(
           """|Timeout while looking up hash of tjeandet/sinatra:v1.
              |Ensure that docker is running correctly.
@@ -71,7 +71,7 @@ class DockerCliTimeoutFlowSpec extends DockerFlowSpec("DockerCliTimeoutFlowSpec"
     dockerActor ! unauthorized
 
     expectMsgPF(5.seconds) {
-      case DockerHashFailedResponse(exception: TimeoutException, _) =>
+      case DockerInfoFailedResponse(exception: TimeoutException, _) =>
         exception.getMessage should be(
           """|Timeout while looking up hash of unknown.io/library/image:v1.
              |Ensure that docker is running correctly.

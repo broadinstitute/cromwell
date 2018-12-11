@@ -562,11 +562,11 @@ object CromwellApiServiceSpec {
           case _ =>
             val readBack = List(
               "this is fake data from the mock SR actor",
-              s"workflow hashcode: ${sourceFiles.workflowSource.map(_.hashCode)}",
-              s"workflow url: ${sourceFiles.workflowUrl}",
-              s"inputs: ${sourceFiles.inputsJson}",
-              s"type: ${sourceFiles.workflowType}",
-              s"version: ${sourceFiles.workflowTypeVersion}"
+              s"[reading back DescribeRequest contents] workflow hashcode: ${sourceFiles.workflowSource.map(_.hashCode)}",
+              s"[reading back DescribeRequest contents] workflow url: ${sourceFiles.workflowUrl}",
+              s"[reading back DescribeRequest contents] inputs: ${sourceFiles.inputsJson}",
+              s"[reading back DescribeRequest contents] type: ${sourceFiles.workflowType}",
+              s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}"
             )
 
             sender ! DescribeSuccess(description = WorkflowDescription(valid = true, readBack))

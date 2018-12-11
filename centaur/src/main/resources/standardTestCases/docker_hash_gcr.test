@@ -10,4 +10,10 @@ files {
 metadata {
   "calls.docker_hash_gcr.gcr.runtimeAttributes.docker": "gcr.io/google-containers/ubuntu-slim:0.14",
   "calls.docker_hash_gcr.gcr.dockerImageUsed": "gcr.io/google-containers/ubuntu-slim@sha256:1d5c0118358fc7651388805e404fe491a80f489bf0e7c5f8ae4156250d6ec7d8"  
+  "calls.docker_hash_gcr.gcr_eu.runtimeAttributes.docker": "eu.gcr.io/google-containers/ubuntu-slim:0.14",
+  "calls.docker_hash_gcr.gcr_eu.dockerImageUsed": "eu.gcr.io/google-containers/ubuntu-slim@sha256:1d5c0118358fc7651388805e404fe491a80f489bf0e7c5f8ae4156250d6ec7d8"  
+  "calls.docker_hash_gcr.gcr_us.runtimeAttributes.docker": "us.gcr.io/google-containers/ubuntu-slim:0.14",
+  "calls.docker_hash_gcr.gcr_us.dockerImageUsed": "us.gcr.io/google-containers/ubuntu-slim@sha256:1d5c0118358fc7651388805e404fe491a80f489bf0e7c5f8ae4156250d6ec7d8"  
+  "calls.docker_hash_gcr.gcr_asia.runtimeAttributes.docker": "asia.gcr.io/google-containers/ubuntu-slim:0.14",
+  "calls.docker_hash_gcr.gcr_asia.dockerImageUsed": "asia.gcr.io/google-containers/ubuntu-slim@sha256:1d5c0118358fc7651388805e404fe491a80f489bf0e7c5f8ae4156250d6ec7d8"  
 }

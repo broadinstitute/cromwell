@@ -2,6 +2,14 @@
 
 ## 36.1 Release Notes
 
+### Docker
+
+- Adds support for retrieving docker digests of asia.gcr.io images
+- Adds configuration settings for docker digest lookups. See the `docker` section of the `reference.conf` for more information 
+- Attempt to automatically adjust the boot disk size on the Google Cloud Backend (version 2) if the size of the image is greater than the default disk size or the required disk size in the runtime attributes.
+Only works for registries that support the version 2 of the manifest schema (https://docs.docker.com/registry/spec/manifest-v2-2/)
+At this date (12/09/18) this includes GCR and Dockerhub.
+
 ### Call cache blacklisting
 
 The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.

@@ -17,7 +17,9 @@ trait DockerHashStoreEntryComponent {
 
     def dockerHash = column[String]("DOCKER_HASH", O.Length(255))
 
-    override def * = (workflowExecutionUuid, dockerTag, dockerHash, dockerHashStoreEntryId.?) <> (DockerHashStoreEntry.tupled, DockerHashStoreEntry.unapply)
+    def dockerSize = column[Option[Long]]("DOCKER_SIZE", O.Default(None))
+
+    override def * = (workflowExecutionUuid, dockerTag, dockerHash, dockerSize, dockerHashStoreEntryId.?) <> (DockerHashStoreEntry.tupled, DockerHashStoreEntry.unapply)
 
     def ucDockerHashStoreEntryWeuDt = index("UC_DOCKER_HASH_STORE_ENTRY_WEU_DT", (workflowExecutionUuid, dockerTag), unique = true)
   }

@@ -1,15 +1,15 @@
 package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import common.util.TryUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{Dispatcher, WorkflowId}
 import cromwell.database.sql.EngineSqlDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
-import cromwell.docker.DockerHashActor.{DockerHashFailureResponse, DockerHashSuccessResponse}
-import cromwell.docker.{DockerClientHelper, DockerHashRequest, DockerHashResult, DockerImageIdentifier}
+import cromwell.docker.DockerInfoActor.{DockerHashFailureResponse, DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.{DockerClientHelper, DockerHashResult, DockerImageIdentifier, DockerInfoRequest}
 import cromwell.engine.workflow.WorkflowDockerLookupActor._
 import cromwell.services.EngineServicesStore
-import common.util.TryUtil
 
 import scala.util.{Failure, Success}
 
@@ -53,7 +53,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
   // request before trying to load the docker hash mappings.  This is so we'll have at least one `JobPreparationActor`
   // reference available to message with a terminal failure in case the reading or parsing of these mappings fails.
   when(AwaitingFirstRequestOnRestart) {
-    case Event(request: DockerHashRequest, data) =>
+    case Event(request: DockerInfoRequest, data) =>
       loadDockerHashStoreEntries()
       goto(LoadingCache) using data.addHashRequest(request, sender())
   }
@@ -62,24 +62,24 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
   when(LoadingCache) {
     case Event(DockerHashStoreLoadingSuccess(dockerHashEntries), data) =>
       loadCacheAndHandleHashRequests(dockerHashEntries, data)
-    case Event(request: DockerHashRequest, data) =>
+    case Event(request: DockerInfoRequest, data) =>
       stay using data.addHashRequest(request, sender())
   }
 
   // This is the normal operational mode.
   when(Running) {
     // This tag has already been looked up and its hash is in the mappings cache.
-    case Event(request: DockerHashRequest, data) if data.mappings.contains(request.dockerImageID) =>
-      sender ! DockerHashSuccessResponse(data.mappings(request.dockerImageID), request)
+    case Event(request: DockerInfoRequest, data) if data.mappings.contains(request.dockerImageID) =>
+      sender ! DockerInfoSuccessResponse(data.mappings(request.dockerImageID), request)
       stay()
     // A request for the hash for this tag has already been made to the hashing actor.  Don't request the hash again,
     // just add this sender to the list of replyTos for when the hash arrives.
-    case Event(request: DockerHashRequest, data) if data.hashRequests.contains(request) =>
+    case Event(request: DockerInfoRequest, data) if data.hashRequests.contains(request) =>
       stay using data.addHashRequest(request, sender())
     // This tag has not (successfully) been looked up before, so look it up now.
-    case Event(request: DockerHashRequest, data) =>
+    case Event(request: DockerInfoRequest, data) =>
       requestDockerHash(request, data)
-    case Event(dockerResponse: DockerHashSuccessResponse, data) =>
+    case Event(dockerResponse: DockerInfoSuccessResponse, data) =>
       persistDockerHash(dockerResponse, data)
       stay()
     case Event(dockerResponse: DockerHashFailureResponse, data) =>
@@ -92,7 +92,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
 
   // In state Terminal we reject all requests with the cause set in the state data.
   when(Terminal) {
-    case Event(request: DockerHashRequest, data) =>
+    case Event(request: DockerInfoRequest, data) =>
       sender() ! WorkflowDockerLookupFailure(data.failureCause.orNull, request)
       stay()
   }
@@ -118,9 +118,12 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     * Load mappings from the database into the state data, reply to queued requests which have mappings, and initiate
     * hash lookups for requests which don't have mappings.
     */
-  private def loadCacheAndHandleHashRequests(hashEntries: Map[String, String], data: WorkflowDockerLookupActorData): State = {
+  private def loadCacheAndHandleHashRequests(hashEntries: Map[String, DockerHashStoreEntry], data: WorkflowDockerLookupActorData): State = {
     val dockerMappingsTry = hashEntries map {
-      case (dockerTag, dockerHash) => DockerImageIdentifier.fromString(dockerTag) -> DockerHashResult.fromString(dockerHash)
+      case (dockerTag, entry) => (
+        DockerImageIdentifier.fromString(dockerTag),
+        DockerHashResult.fromString(entry.dockerHash) map { hash => DockerInformation(hash, entry.dockerSize.map(DockerSize.apply)) }
+      )
     }
 
     TryUtil.sequenceKeyValues(dockerMappingsTry) match {
@@ -131,7 +134,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
         // The requests which have mappings receive success responses.
         hasMappings foreach { case (request, replyTos) =>
           val result = dockerMappings(request.dockerImageID)
-          replyTos foreach { _ ! DockerHashSuccessResponse(result, request)}
+          replyTos foreach { _ ! DockerInfoSuccessResponse(result, request)}
         }
 
         // The requests without mappings need to be looked up.
@@ -146,24 +149,27 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     }
   }
 
-  private def requestDockerHash(request: DockerHashRequest, data: WorkflowDockerLookupActorData): State = {
+  private def requestDockerHash(request: DockerInfoRequest, data: WorkflowDockerLookupActorData): State = {
     sendDockerCommand(request)
     val replyTo = sender()
     val updatedData = data.copy(hashRequests = data.hashRequests + (request -> List(replyTo)))
     stay using updatedData
   }
 
-  private def recordMappingAndRespond(response: DockerHashSuccessResponse, data: WorkflowDockerLookupActorData): State = {
+  private def recordMappingAndRespond(response: DockerInfoSuccessResponse, data: WorkflowDockerLookupActorData): State = {
     // Add the new label to hash mapping to the current set of mappings.
     val request = response.request
-    data.hashRequests(request) foreach { _ ! DockerHashSuccessResponse(response.dockerHash, request) }
-    val updatedData = data.copy(hashRequests = data.hashRequests - request, mappings = data.mappings + (request.dockerImageID -> response.dockerHash))
+    data.hashRequests.get(request) match {
+      case Some(actors) => actors foreach { _ ! DockerInfoSuccessResponse(response.dockerInformation, request) }
+      case None => fail(new Exception(s"Could not find the actors associated with $request. Available requests are ${data.hashRequests.keys.mkString(", ")}"))
+    } 
+    val updatedData = data.copy(hashRequests = data.hashRequests - request, mappings = data.mappings + (request.dockerImageID -> response.dockerInformation))
     stay using updatedData
   }
 
   private def respondToAllRequests(reason: Throwable,
                                    data: WorkflowDockerLookupActorData,
-                                   messageBuilder: (Throwable, DockerHashRequest) => WorkflowDockerLookupResponse): WorkflowDockerLookupActorData = {
+                                   messageBuilder: (Throwable, DockerInfoRequest) => WorkflowDockerLookupResponse): WorkflowDockerLookupActorData = {
     data.hashRequests foreach { case (request, replyTos) =>
       replyTos foreach { _ ! messageBuilder(reason, request) }
     }
@@ -174,8 +180,8 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     respondToAllRequests(reason, data, WorkflowDockerTerminalFailure.apply)
   }
 
-  private def persistDockerHash(response: DockerHashSuccessResponse, data: WorkflowDockerLookupActorData): Unit = {
-    val dockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, response.request.dockerImageID.fullName, response.dockerHash.algorithmAndHash)
+  private def persistDockerHash(response: DockerInfoSuccessResponse, data: WorkflowDockerLookupActorData): Unit = {
+    val dockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, response.request.dockerImageID.fullName, response.dockerInformation.dockerHash.algorithmAndHash, response.dockerInformation.dockerCompressedSize.map(_.compressedSize))
     databaseInterface.addDockerHashStoreEntry(dockerHashStoreEntry) onComplete {
       case Success(_) => self ! DockerHashStoreSuccess(response)
       case Failure(ex) => self ! DockerHashStoreFailure(response.request, ex)
@@ -193,7 +199,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     stay using updatedData
   }
 
-  private def handleStoreFailure(dockerHashRequest: DockerHashRequest, reason: Throwable, data: WorkflowDockerLookupActorData): State = {
+  private def handleStoreFailure(dockerHashRequest: DockerInfoRequest, reason: Throwable, data: WorkflowDockerLookupActorData): State = {
     data.hashRequests(dockerHashRequest) foreach { _ ! WorkflowDockerLookupFailure(reason, dockerHashRequest) }
     // Remove these requesters from the collection of those awaiting hashes.
     stay() using data.copy(hashRequests = data.hashRequests - dockerHashRequest)
@@ -202,7 +208,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
   def loadDockerHashStoreEntries(): Unit = {
     databaseInterface.queryDockerHashStoreEntries(workflowId.toString) onComplete {
       case Success(dockerHashEntries) =>
-        val dockerMappings = dockerHashEntries.map(entry => entry.dockerTag -> entry.dockerHash).toMap
+        val dockerMappings = dockerHashEntries.map(entry => entry.dockerTag -> entry).toMap
         self ! DockerHashStoreLoadingSuccess(dockerMappings)
       case Failure(ex) =>
         fail(new RuntimeException("Failed to load docker tag -> hash mappings from DB", ex))
@@ -211,7 +217,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     message match {
-      case r: DockerHashRequest => self ! DockerHashActorTimeout(r)
+      case r: DockerInfoRequest => self ! DockerHashActorTimeout(r)
     }
   }
 }
@@ -227,12 +233,12 @@ object WorkflowDockerLookupActor {
     new Exception(s"The WorkflowDockerLookupActor has failed. Subsequent docker tags for this workflow will not be resolved.")
 
   /* Internal ADTs */
-  final case class DockerRequestContext(dockerHashRequest: DockerHashRequest, replyTo: ActorRef)
+  final case class DockerRequestContext(dockerHashRequest: DockerInfoRequest, replyTo: ActorRef)
   sealed trait DockerHashStoreResponse
-  final case class DockerHashStoreSuccess(successResponse: DockerHashSuccessResponse) extends DockerHashStoreResponse
-  final case class DockerHashStoreFailure(dockerHashRequest: DockerHashRequest, reason: Throwable) extends DockerHashStoreResponse
-  final case class DockerHashStoreLoadingSuccess(dockerMappings: Map[String, String])
-  final case class DockerHashActorTimeout(request: DockerHashRequest)
+  final case class DockerHashStoreSuccess(successResponse: DockerInfoSuccessResponse) extends DockerHashStoreResponse
+  final case class DockerHashStoreFailure(dockerHashRequest: DockerInfoRequest, reason: Throwable) extends DockerHashStoreResponse
+  final case class DockerHashStoreLoadingSuccess(dockerMappings: Map[String, DockerHashStoreEntry])
+  final case class DockerHashActorTimeout(request: DockerInfoRequest)
 
   /* Messages */
   sealed trait WorkflowDockerLookupActorMessage
@@ -240,8 +246,8 @@ object WorkflowDockerLookupActor {
 
   /* Responses */
   sealed trait WorkflowDockerLookupResponse
-  final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerHashRequest) extends WorkflowDockerLookupResponse
-  final case class WorkflowDockerTerminalFailure(reason: Throwable, request: DockerHashRequest) extends WorkflowDockerLookupResponse
+  final case class WorkflowDockerLookupFailure(reason: Throwable, request: DockerInfoRequest) extends WorkflowDockerLookupResponse
+  final case class WorkflowDockerTerminalFailure(reason: Throwable, request: DockerInfoRequest) extends WorkflowDockerLookupResponse
 
   def props(workflowId: WorkflowId,
             dockerHashingActor: ActorRef,
@@ -254,8 +260,8 @@ object WorkflowDockerLookupActor {
     def empty = WorkflowDockerLookupActorData(hashRequests = Map.empty, mappings = Map.empty, failureCause = None)
   }
 
-  final case class WorkflowDockerLookupActorData(hashRequests: Map[DockerHashRequest, List[ActorRef]],
-                                                 mappings: Map[DockerImageIdentifier, DockerHashResult],
+  final case class WorkflowDockerLookupActorData(hashRequests: Map[DockerInfoRequest, List[ActorRef]],
+                                                 mappings: Map[DockerImageIdentifier, DockerInformation],
                                                  failureCause: Option[Throwable]) {
     /**
       * Add the specified request and replyTo to this state data.
@@ -264,7 +270,7 @@ object WorkflowDockerLookupActor {
       * @param replyTo The actor to be informed of the hash or the failure to look up the hash.
       * @return State data with the added request and replyTo.
       */
-    def addHashRequest(request: DockerHashRequest, replyTo: ActorRef): WorkflowDockerLookupActorData = {
+    def addHashRequest(request: DockerInfoRequest, replyTo: ActorRef): WorkflowDockerLookupActorData = {
       // Prepend this `ActorRef` to the list of `ActorRef`s awaiting the hash for this request, or to Nil if this is the first.
       val alreadyAwaiting = hashRequests.getOrElse(request, Nil)
       this.copy(hashRequests = hashRequests + (request -> (replyTo :: alreadyAwaiting)))

@@ -14,6 +14,7 @@ private [execution] case class ScatteredCallCompletionKey(call: CallNode,
   override val node: GraphNode = call
   override val index = None
   override val attempt = 1
+  override val totalIndices = scatterWidth
   override val tag = s"CallCompletion-${node.localName}"
 
   def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {

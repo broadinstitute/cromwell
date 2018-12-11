@@ -38,6 +38,7 @@ object ExecutionStore {
 
       key match {
         case scatteredCallCompletion: ScatteredCallCompletionKey =>
+          println(s"${statusTable.row(scatteredCallCompletion.node).size} == ${scatteredCallCompletion.totalIndices}?")
           statusTable.row(scatteredCallCompletion.node).size == scatteredCallCompletion.totalIndices
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
@@ -48,10 +49,6 @@ object ExecutionStore {
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
         case _ =>
-          println(s"***** Checking completion of ${key.node.localName}'s upstreams: ${key.node.upstreamPorts.map(p => {
-            val indexOfUpstream = chooseIndex(p)
-            s"${p.getClass.getSimpleName} ${p.identifier.fullyQualifiedName} from ${p.executionNode.fullyQualifiedName} (index=$indexOfUpstream) -> ${p.executionNode.isInStatus(indexOfUpstream, statusTable)}"
-          }).mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator)}")
           key.node.upstreamPorts forall { p =>
               p.executionNode.isInStatus(chooseIndex(p), statusTable)
           }

@@ -216,6 +216,12 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     NonTerminalStatuses.map(keysWithStatus).forall(_.isEmpty)
   }
 
+  def isStalled: Boolean = {
+    !isDone && !needsUpdate && ActiveStatuses.map(keysWithStatus).forall(_.isEmpty)
+  }
+
+  def unstarted = keysWithStatus(NotStarted)
+
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
 
   def startedJobs: List[BackendJobDescriptorKey] = {

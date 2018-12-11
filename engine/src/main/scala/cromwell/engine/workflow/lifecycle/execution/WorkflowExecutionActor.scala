@@ -188,6 +188,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       val newData = startRunnableNodes(data)
       sendHeartBeat()
       stay() using newData
+    case Event(ExecutionHeartBeat, data) if data.stalled =>
+      handleWorkflowStalled(data)
     case Event(ExecutionHeartBeat, _) =>
       sendHeartBeat()
       stay()
@@ -365,6 +367,15 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map(handleSuccessfulWorkflowOutputs)
       .valueOr(handleWorkflowOutputsFailure)
       .unsafeRunSync()
+  }
+
+  def handleWorkflowStalled(data: WorkflowExecutionActorData): State = {
+    val notStarted = data.executionStore.unstarted.mkString(System.lineSeparator, System.lineSeparator, "")
+    context.parent ! WorkflowExecutionFailedResponse(
+      data.jobExecutionMap,
+      new Exception(s"Workflow is making no progress but has the following unstarted job keys: $notStarted")
+    )
+    goto(WorkflowExecutionFailedState)
   }
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData,

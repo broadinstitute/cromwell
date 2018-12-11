@@ -16,8 +16,7 @@ inputs:
         type: string
       - name: config__algorithm__vcfanno
         type:
-        - 'null'
-        - items: 'null'
+          items: File
           type: array
       - name: config__algorithm__variantcaller
         type:
@@ -30,8 +29,6 @@ inputs:
         type:
         - string
         - 'null'
-      - name: genome_resources__variation__train_hapmap
-        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -45,10 +42,10 @@ inputs:
         - 'null'
         - string
       - name: config__algorithm__min_allele_fraction
-        type: long
+        type: double
       - name: vrn_file
         type: File
-      - name: reference__twobit
+      - name: genome_resources__variation__train_hapmap
         type: File
       - name: reference__genome_context
         type:
@@ -67,6 +64,8 @@ inputs:
       - name: genome_build
         type: string
       - name: genome_resources__variation__exac
+        type: File
+      - name: genome_resources__variation__gnomad_exome
         type: File
       - name: genome_resources__aliases__human
         type:
@@ -175,8 +174,7 @@ outputs:
         type: string
       - name: config__algorithm__vcfanno
         type:
-        - 'null'
-        - items: 'null'
+          items: File
           type: array
       - name: config__algorithm__variantcaller
         type:
@@ -192,7 +190,7 @@ outputs:
         - 'null'
         - string
       - name: config__algorithm__min_allele_fraction
-        type: long
+        type: double
       - name: reference__genome_context
         type:
           items: File

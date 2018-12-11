@@ -842,6 +842,7 @@ definitions:
   WorkflowDescription:
     required:
       - valid
+      - errors
     properties:
       valid:
         type: boolean
@@ -853,7 +854,7 @@ definitions:
         example:
           - "The 'errors' field will be filled if 'valid' is false"
           - "We might also provide warnings to a 'valid' workflow here"
-          - "Otherwise, 'errors' will be empty or unspecified"
+          - "Otherwise, 'errors' will be the empty array"
         description: The set of validation failure messages
   WorkflowQueryParameter:
     description: Workflow query parameters

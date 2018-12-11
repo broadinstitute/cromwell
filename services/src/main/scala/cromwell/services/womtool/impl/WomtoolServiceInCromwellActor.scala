@@ -78,5 +78,6 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
 }
 
 object WomtoolServiceInCromwellActor {
-  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new WomtoolServiceInCromwellActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) =
+    Props(new WomtoolServiceInCromwellActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 }

@@ -12,9 +12,10 @@ object Dependencies {
   private val apacheHttpCoreV = "4.4.6"
   private val awsSdkV = "2.0.0-preview-9"
   private val betterFilesV = "2.17.1"
-  private val catsEffectV = "1.0.0"
-  private val catsV = "1.3.1"
-  private val circeV = "0.10.0"
+  private val catsEffectV = "1.1.0"
+  private val catsV = "1.5.0"
+  private val circeV = "0.10.1"
+  private val circeOpticsV = "0.10.0"
   private val circeYamlV = "0.9.0"
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
@@ -25,7 +26,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.9"
   private val errorProneAnnotationsV = "2.0.19"
   private val ficusV = "1.4.3"
-  private val fs2V = "1.0.0-M5"
+  private val fs2V = "1.0.2"
   private val gaxV = "1.28.0"
   private val googleApiClientV = "1.25.0"
   private val googleCloudCoreV = "1.43.0"
@@ -39,7 +40,7 @@ object Dependencies {
   private val guavaV = "26.0-jre"
   private val heterodonV = "1.0.0-beta2"
   private val hsqldbV = "2.4.1"
-  private val http4sVersion = "0.19.0-M2"
+  private val http4sVersion = "0.20.0-M4"
   private val jacksonV = "2.9.6"
   private val janinoV = "3.0.9"
   private val jodaTimeV = "2.9.4"
@@ -54,7 +55,7 @@ object Dependencies {
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.4.1"
   private val mongoJavaDriverV = "3.8.1"
-  private val mouseV = "0.18"
+  private val mouseV = "0.19"
   private val mysqlV = "5.1.47"
   private val nettyHandlerV = "4.1.22.Final"
   private val owlApiV = "5.1.8"
@@ -181,7 +182,8 @@ object Dependencies {
 
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-circe" % http4sVersion
   )
 
   private val googleApiClientDependencies = List(
@@ -454,7 +456,7 @@ object Dependencies {
     "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "io.circe" %% "circe-optics" % circeV,
+    "io.circe" %% "circe-optics" % circeOpticsV,
     "org.mozilla" % "rhino" % rhinoV,
     "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
@@ -466,7 +468,7 @@ object Dependencies {
 
   val centaurCwlRunnerDependencies = List(
     "com.github.scopt" %% "scopt" % scoptV,
-    "io.circe" %% "circe-optics" % circeV
+    "io.circe" %% "circe-optics" % circeOpticsV
   ) ++ slf4jBindingDependencies ++ circeDependencies
 
   val coreDependencies = List(
@@ -485,7 +487,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = akkaHttpDependencies
+  val dockerHashingDependencies = http4sDependencies ++ circeDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,

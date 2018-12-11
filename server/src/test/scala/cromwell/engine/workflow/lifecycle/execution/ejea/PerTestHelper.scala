@@ -55,7 +55,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     knownValues = null,
     workflowOptions = WorkflowOptions.empty,
     customLabels = null)
-  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), Map.empty)
+  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), None, Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet

@@ -15,8 +15,11 @@ import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.core.DockerConfiguration
 import cromwell.core.logging.JobLogger
 import mouse.all._
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 
 import scala.collection.JavaConverters._
 
@@ -83,11 +86,26 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .gpuResource.map(toAccelerator).toList.asJava
       
       /*
-       * Adjust for the additional docker images Cromwell uses for (de)localization
-       * At the moment, google/cloud-sdk:slim (173MB) and stedolan/jq:latest (182MB)
-       * Round it up to 1GB
+       * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */
-      val adjustedBootDiskSize = createPipelineParameters.runtimeAttributes.bootDiskSize + 1
+      val adjustedBootDiskSize = {
+        /*
+         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
+         */
+        val cromwellImagesSize = 1
+        val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
+        // Compute the decompressed size based on the information available
+        val actualSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
+        val actualSizeInGB = MemorySize(actualSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
+        val actualSizeRoundedUpInGB = actualSizeInGB.ceil.toInt
+
+        // If the size of the image is larger than what is in the runtime attributes, adjust it to uncompressed size
+        if (actualSizeRoundedUpInGB > fromRuntimeAttributes) {
+          jobLogger.info(s"Adjusting boot disk size to $actualSizeRoundedUpInGB GB to account for docker image size")
+        }
+
+        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + cromwellImagesSize
+      }
 
       val virtualMachine = new VirtualMachine()
         .setDisks(disks.asJava)

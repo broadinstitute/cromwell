@@ -14,6 +14,8 @@ object IORetry {
     }
   }
 
+  implicit val noopUnitState = IORetry.StatefulIoError.noop[Unit]
+
   /**
     * When we reach a point where we need to fail the IO (because we ran out of retries, or exception was fatal etc...)
     * This provides a method to generate a Throwable from the current state and the last failure.

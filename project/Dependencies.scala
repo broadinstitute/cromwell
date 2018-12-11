@@ -41,7 +41,6 @@ object Dependencies {
   private val hsqldbV = "2.4.1"
   private val http4sVersion = "0.19.0-M2"
   private val jacksonV = "2.9.6"
-  private val jacksonJqV = "0.0.9"
   private val janinoV = "3.0.9"
   private val jodaTimeV = "2.9.4"
   private val jsr305V = "3.0.0"
@@ -58,13 +57,14 @@ object Dependencies {
   private val mouseV = "0.18"
   private val mysqlV = "5.1.47"
   private val nettyHandlerV = "4.1.22.Final"
-  private val owlApiV = "5.1.7"
+  private val owlApiV = "5.1.8"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   private val protoGoogleCommonProtosV = "0.1.21"
   private val protoGoogleIamV1V = "0.1.21"
   private val protobufJavaV = "3.3.1"
   private val reactiveStreamsV = "1.0.1"
+  private val rdf4jV = "2.4.2"
   private val refinedV = "0.9.2"
   private val rhinoV = "1.7.10"
   private val s3fsV = "1.0.1"
@@ -146,6 +146,31 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpcore" % apacheHttpCoreV,
     "org.mongodb" % "mongo-java-driver" % mongoJavaDriverV,
+    /*
+    Yes. All of these are required to lock in the rdf4j version.
+
+    Feel free to update versions but do not remove these overrides unless and until an updated
+    owl-api is no longer pulling in vulnerable rdf4j dependencies.
+
+    https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1000644
+
+    See comment mentioning "OSGI" further below for more info on the bundling of dependencies.
+     */
+    "org.eclipse.rdf4j" % "rdf4j-model" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-api" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-binary" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-datatypes" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-jsonld" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-languages" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-n3" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-nquads" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-ntriples" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-rdfjson" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-rdfxml" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-trig" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-trix" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-rio-turtle" % rdf4jV,
+    "org.eclipse.rdf4j" % "rdf4j-util" % rdf4jV,
     "org.reactivestreams" % "reactive-streams" % reactiveStreamsV,
     "org.scala-lang.modules" %% "scala-xml" % scalaXmlV,
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -153,7 +178,7 @@ object Dependencies {
     "org.typelevel" %% "cats-kernel" % catsV,
     "org.yaml" % "snakeyaml" % snakeyamlV
   )
-  
+
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sVersion,
     "org.http4s" %% "http4s-blaze-client" % http4sVersion
@@ -183,7 +208,7 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV % Test
   )
 
-  val implFtpDependencies = List (
+  val implFtpDependencies = List(
     "commons-net" % "commons-net" % apacheCommonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
     "com.google.guava" % "guava" % guavaV,
@@ -367,10 +392,10 @@ object Dependencies {
 
   val httpFileSystemDependencies = akkaHttpDependencies
 
-  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
+  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List(
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
-  
+
   val statsDProxyDependencies = List(
     "co.fs2" %% "fs2-io" % fs2V,
     "com.iheart" %% "ficus" % ficusV,

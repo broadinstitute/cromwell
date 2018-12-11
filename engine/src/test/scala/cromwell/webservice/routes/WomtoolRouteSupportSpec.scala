@@ -75,11 +75,11 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
           WorkflowDescription(valid = true,
             List(
               "this is fake data from the mock SR actor",
-              "workflow hashcode: Some(580529622)",
-              "workflow url: None",
-              "inputs: ",
-              "type: None",
-              "version: None"
+              "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
+              "[reading back DescribeRequest contents] workflow url: None",
+              "[reading back DescribeRequest contents] inputs: ",
+              "[reading back DescribeRequest contents] type: None",
+              "[reading back DescribeRequest contents] version: None"
             )
           )
         } { responseAs[WorkflowDescription] }
@@ -96,11 +96,11 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
           WorkflowDescription(valid = true,
             List(
               "this is fake data from the mock SR actor",
-              "workflow hashcode: None",
-              "workflow url: Some(https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl)",
-              "inputs: ",
-              "type: None",
-              "version: None"
+              "[reading back DescribeRequest contents] workflow hashcode: None",
+              "[reading back DescribeRequest contents] workflow url: Some(https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl)",
+              "[reading back DescribeRequest contents] inputs: ",
+              "[reading back DescribeRequest contents] type: None",
+              "[reading back DescribeRequest contents] version: None"
             )
           )
         } { responseAs[WorkflowDescription] }
@@ -117,11 +117,11 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
           WorkflowDescription(valid = true,
             List(
               "this is fake data from the mock SR actor",
-              "workflow hashcode: Some(580529622)",
-              "workflow url: None",
-              "inputs: {\"a\":\"is for apple\"}",
-              "type: Some(WDL)",
-              "version: Some(1.0)"
+              "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
+              "[reading back DescribeRequest contents] workflow url: None",
+              "[reading back DescribeRequest contents] inputs: {\"a\":\"is for apple\"}",
+              "[reading back DescribeRequest contents] type: Some(WDL)",
+              "[reading back DescribeRequest contents] version: Some(1.0)"
             )
           )
         } { responseAs[WorkflowDescription] }

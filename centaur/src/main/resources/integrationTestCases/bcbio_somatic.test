@@ -6,14 +6,8 @@ workflowTypeVersion: v1.0
 tags: [bcbio]
 
 files {
-  workflow: cwl/bcbio/somatic-workflow/main-somatic.cwl
+  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/master/gcp/somatic-workflow/main-somatic.cwl
   inputs: cwl/bcbio/somatic-workflow/main-somatic-samples.json
-  imports: [
-    cwl/bcbio/somatic-workflow/steps,
-    cwl/bcbio/somatic-workflow/wf-alignment.cwl,
-    cwl/bcbio/somatic-workflow/wf-svcall.cwl,
-    cwl/bcbio/somatic-workflow/wf-variantcall.cwl
-  ]
   options: cwl/bcbio/bcbio.options
 }
 

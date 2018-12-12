@@ -6,11 +6,8 @@ workflowTypeVersion: v1.0
 tags: [bcbio]
 
 files {
-  workflow: cwl/bcbio/rnaseq-workflow/main-rnaseq.cwl
+  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/master/rnaseq/rnaseq-workflow/main-rnaseq.cwl
   inputs: cwl/bcbio/rnaseq-workflow/main-rnaseq-samples.json
-  imports: [
-    cwl/bcbio/rnaseq-workflow/steps
-  ]
   options: cwl/bcbio/bcbio.options
 }
 

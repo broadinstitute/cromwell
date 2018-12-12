@@ -7,14 +7,8 @@ tags: [bcbio]
 
 
 files {
-  workflow: cwl/bcbio/gvcf-joint-workflow/main-gvcf-joint.cwl
+  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/master/gvcf_joint/gvcf-joint-workflow/main-gvcf-joint.cwl
   inputs: cwl/bcbio/gvcf-joint-workflow/main-gvcf-joint-samples.json
-  imports: [
-    cwl/bcbio/gvcf-joint-workflow/steps,
-    cwl/bcbio/gvcf-joint-workflow/wf-alignment.cwl,
-    cwl/bcbio/gvcf-joint-workflow/wf-jointcall.cwl,
-    cwl/bcbio/gvcf-joint-workflow/wf-variantcall.cwl
-  ]
   options: cwl/bcbio/bcbio.options
 }
 

@@ -6,7 +6,7 @@ workflowTypeVersion: v1.0
 tags: [bcbio]
 
 files {
-  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/prealign/prealign-workflow/main-prealign.cwl
+  workflowUrl: "https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/prealign/prealign-workflow/main-prealign.cwl"
   inputs: cwl/bcbio/prealign-workflow/main-prealign-samples.json
   options: cwl/bcbio/bcbio.options
 }

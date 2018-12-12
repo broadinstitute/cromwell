@@ -6,7 +6,7 @@ workflowTypeVersion: v1.0
 tags: [bcbio]
 
 files {
-  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/gcp/somatic-workflow/main-somatic.cwl
+  workflowUrl: "https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/gcp/somatic-workflow/main-somatic.cwl"
   inputs: cwl/bcbio/somatic-workflow/main-somatic-samples.json
   options: cwl/bcbio/bcbio.options
 }

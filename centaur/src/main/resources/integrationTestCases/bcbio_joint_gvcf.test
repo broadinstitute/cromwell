@@ -7,7 +7,7 @@ tags: [bcbio]
 
 
 files {
-  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/gvcf_joint/gvcf-joint-workflow/main-gvcf-joint.cwl
+  workflowUrl: "https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/gvcf_joint/gvcf-joint-workflow/main-gvcf-joint.cwl"
   inputs: cwl/bcbio/gvcf-joint-workflow/main-gvcf-joint-samples.json
   options: cwl/bcbio/bcbio.options
 }

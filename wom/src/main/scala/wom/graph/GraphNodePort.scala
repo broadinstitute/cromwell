@@ -81,7 +81,7 @@ object GraphNodePort {
 
   final case class NodeCompletionPort(g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
     override lazy val identifier: WomIdentifier = {
-      val name = "__after" // + graphNode.localName
+      val name = "__after"
       WomIdentifier(LocalName(name), graphNode.identifier.fullyQualifiedName.combine(name))
     }
     override def womType: WomType = WomNothingType

@@ -6,7 +6,7 @@ workflowTypeVersion: v1.0
 tags: [bcbio]
 
 files {
-  workflow: https://raw.githubusercontent.com/bcbio/bcbio_validation_workflows/master/wes-agha-test/wes_chr21_test-workflow-gcp/main-wes_chr21_test.cwl
+  workflow: https://raw.githubusercontent.com/bcbio/bcbio_validation_workflows/98f039d/wes-agha-test/wes_chr21_test-workflow-gcp/main-wes_chr21_test.cwl
   inputs: cwl/bcbio/wes_chr21_test-workflow-gcp/main-wes_chr21_test-samples.json
   options: cwl/bcbio/bcbio.options
 }

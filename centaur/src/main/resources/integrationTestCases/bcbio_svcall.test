@@ -6,7 +6,7 @@ workflowTypeVersion: v1.0
 tags: [bcbio]
 
 files {
-  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/master/svcall/svcall-workflow/main-svcall.cwl
+  workflow: https://raw.githubusercontent.com/bcbio/test_bcbio_cwl/5d37c21/svcall/svcall-workflow/main-svcall.cwl
   inputs: cwl/bcbio/svcall-workflow/main-svcall-samples.json
   options: cwl/bcbio/bcbio.options
 }

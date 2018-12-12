@@ -7,11 +7,13 @@
         [
             "polyx"
         ],
-        []
+        [
+            "polyx"
+        ]
     ],
     "config__algorithm__align_split_size": [
-        "False",
-        "False"
+        null,
+        null
     ],
     "config__algorithm__aligner": [
         "bwa",
@@ -33,8 +35,8 @@
         null
     ],
     "config__algorithm__effects": [
-        "False",
-        "False"
+        "snpeff",
+        "snpeff"
     ],
     "config__algorithm__ensemble": [
         null,
@@ -49,8 +51,8 @@
         "True"
     ],
     "config__algorithm__min_allele_fraction": [
-        10,
-        10
+        10.0,
+        10.0
     ],
     "config__algorithm__nomap_split_size": [
         250,
@@ -87,12 +89,8 @@
         "True"
     ],
     "config__algorithm__tools_off": [
-        [
-            "gemini"
-        ],
-        [
-            "gemini"
-        ]
+        [],
+        []
     ],
     "config__algorithm__tools_on": [
         [
@@ -348,6 +346,28 @@
             ]
         }
     ],
+    "genome_resources__variation__gnomad_exome": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
+                }
+            ]
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
+                }
+            ]
+        }
+    ],
     "genome_resources__variation__lcr": [
         null,
         null
@@ -550,14 +570,14 @@
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/snpeff--hg19-wf.tar.gz"
         }
     ],
-    "reference__twobit": [
+    "reference__versions": [
         {
             "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/ucsc/hg19.2bit"
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
         },
         {
             "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/ucsc/hg19.2bit"
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
         }
     ],
     "resources": [

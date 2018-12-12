@@ -22,11 +22,15 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
     val wdlValid =
       s"""
+         |version 1.0
+         |
          |task hello {
-         |  String addressee
-         |  command {
-         |    echo "Hello World!"
+         |  input {
+         |    String addressee
          |  }
+         |  command <<<
+         |    echo "Hello World!"
+         |  >>>
          |  output {
          |    String salutation = read_string(stdout())
          |  }
@@ -36,6 +40,30 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |  call hello
          |}
          |""".stripMargin
+
+    val wdlHttpImportValid =
+      s"""
+         |version 1.0
+         |
+         |import "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_task.wdl"
+         |
+         |task hello {
+         |  input {
+         |    String addressee
+         |  }
+         |  command <<<
+         |    echo "Hello World!"
+         |  >>>
+         |  output {
+         |    String salutation = read_string(stdout())
+         |  }
+         |}
+         |
+         |workflow wf_hello {
+         |  call hello
+         |}
+         |""".stripMargin
+
     val helloWorldInputs = """{"wf_hello.hello.addressee": "World"}"""
     val bogusInputs = """{"foo.bar": "World"}"""
     val wdlInvalid = "This is not a valid WDL."
@@ -47,6 +75,11 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid))
 
+      check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = true, errors = List.empty)))
+    }
+
+    "return valid for a valid workflow with HTTP imports" in {
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlHttpImportValid))
       check(DescribeRequest(wsfc), DescribeSuccess(description = WorkflowDescription(valid = true, errors = List.empty)))
     }
 

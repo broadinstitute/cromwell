@@ -57,13 +57,13 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
     // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // No inputs: just load up the WomBundle
-      factory.getWomBundle(workflow, "{}", List.empty, List.empty) match {
+      factory.getWomBundle(workflow, "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
         case Right(_) => WorkflowDescription(valid = true, List.empty)
         case Left(errors) => WorkflowDescription(valid = false, errors.toList)
       }
     } else {
       // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
-      factory.getWomBundle(workflow, "{}", List.empty, List.empty) match {
+      factory.getWomBundle(workflow, "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             case Right(_) => WorkflowDescription(valid = true, List.empty)

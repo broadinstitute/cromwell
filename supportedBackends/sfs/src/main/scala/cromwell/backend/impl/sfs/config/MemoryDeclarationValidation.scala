@@ -6,7 +6,6 @@ import wdl.draft2.model.{Declaration, NoLookup, WdlExpression}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.types._
-import wom.types.WomIntegerLike._
 import wom.values._
 
 /**

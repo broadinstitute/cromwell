@@ -87,10 +87,7 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
   private def coerceMemorySize(womType: WomType)(value: MemorySize): WomValue = {
     val amount = value.to(declarationMemoryUnit).amount
     womType match {
-      case WomIntegerType if amount.inIntRange => WomInteger(amount.toInt)
-      // Should we fail here instead ?
-      case WomIntegerType => WomLong(amount.toLong)
-      case WomLongType => WomLong(amount.toLong)
+      case WomIntegerType | WomLongType => WomLong(amount.toLong)
       case WomFloatType => WomFloat(amount)
       case WomOptionalType(optionalType) => coerceMemorySize(optionalType)(value)
       case other => throw new RuntimeException(s"Unsupported wdl type for memory: $other")

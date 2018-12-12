@@ -14,7 +14,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{appl
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.{ConditionalOutputPort, NodeCompletionPort, OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.{ConditionalOutputPort, CallCompletionPort, OutputPort, ScatterGathererPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNodeLike
 
@@ -32,7 +32,7 @@ object ExecutionStore {
     def allDependenciesAreIn(statusTable: Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]) = {
       def chooseIndex(port: OutputPort) = port match {
         case _: ScatterGathererPort => None
-        case _: NodeCompletionPort => None
+        case _: CallCompletionPort => None
         case _ => key.index
       }
 

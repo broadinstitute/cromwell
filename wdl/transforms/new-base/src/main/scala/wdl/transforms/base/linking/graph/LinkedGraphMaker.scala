@@ -76,7 +76,10 @@ object LinkedGraphMaker {
       case (UnlinkedIdentifierHook(id1), GeneratedIdentifierValueHandle(id2, _)) => id1 == id2
       case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, _), GeneratedIdentifierValueHandle(id2, _)) if first == id2 => true
       case (UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first1, second1), GeneratedCallOutputValueHandle(first2, second2, _)) if first1 == first2 && second1 == second2 => true
-      case (UnlinkedAfterCallHook(upstreamCallName), GeneratedCallFinishedHandle(finishedCallName)) if finishedCallName == upstreamCallName => true
+
+      // Both afters and call-output-to-struct-assignment look up 'GeneratedCallOutputAsStructHandle's
+      case (UnlinkedAfterCallHook(upstreamCallName), GeneratedCallOutputAsStructHandle(finishedCallName, _)) => finishedCallName == upstreamCallName
+      case (UnlinkedIdentifierHook(identifier), GeneratedCallOutputAsStructHandle(finishedCallName, _)) => finishedCallName == identifier
       case _ => false
     }
 
@@ -88,10 +91,10 @@ object LinkedGraphMaker {
       (maybeFoundHandle, consumedValueHook) match {
         case (Some(handle), hook) => (hook -> handle).validNel
         case (None, UnlinkedAfterCallHook(upstreamCallName)) =>
-            val didYouMean = availableHandles.collect {
-              case after: GeneratedCallFinishedHandle => s"'${after.finishedCallName}'"
-            }.mkString("[", ", ", "]")
-            s"Cannot specify 'after $upstreamCallName': no such call exists. Available calls are: $didYouMean".invalidNel
+          val didYouMean = availableHandles.collect {
+            case after: GeneratedCallOutputAsStructHandle => s"'${after.finishedCallName}'"
+          }.mkString("[", ", ", "]")
+          s"Cannot specify 'after $upstreamCallName': no such call exists. Available calls are: $didYouMean".invalidNel
         case (None, _) =>
             val didYouMean = availableHandles.map(h => s"'${h.linkableName}'").mkString("[", ", ", "]")
             s"Cannot lookup value '${consumedValueHook.linkString}', it is never declared. Available values are: $didYouMean".invalidNel

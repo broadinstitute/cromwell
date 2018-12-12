@@ -5,6 +5,7 @@ import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.validated._
 import cats.syntax.traverse._
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation.OptionValidation
 import shapeless.Coproduct
@@ -15,7 +16,7 @@ import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, Un
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
-import wom.graph.GraphNodePort.OutputPort
+import wom.graph.GraphNodePort.{NodeCompletionPort, OutputPort}
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.graph._
 import wom.types.{WomOptionalType, WomType}
@@ -171,7 +172,7 @@ object CallElementToGraphNode {
     }
 
     def findUpstreamCall(callName: String): ErrorOr[GraphNode] = {
-      a.upstreamCalls.get(callName).toErrorOr(s"No such upstream call '$callName' found in available set: [${a.upstreamCalls.keySet.mkString(", ")}]")
+      a.linkablePorts.get(callName).map(_.graphNode).toErrorOr(s"No such upstream call '$callName' found in available set: [${a.linkablePorts.values.filterByType[NodeCompletionPort].map(_.graphNode.localName).mkString(", ")}]")
     }
 
     def findUpstreamCalls(callNames: List[String]): ErrorOr[Set[GraphNode]] = {
@@ -192,7 +193,6 @@ object CallElementToGraphNode {
 }
 
 case class CallNodeMakerInputs(node: CallElement,
-                               upstreamCalls: Map[String, CallNode],
                                linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                linkablePorts: Map[String, OutputPort],
                                availableTypeAliases: Map[String, WomType],

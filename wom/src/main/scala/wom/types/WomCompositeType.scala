@@ -45,9 +45,9 @@ case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectType
 
   override val toDisplayString = {
     val fieldType = typeMap.map({
-      case (key, value) => s"$key -> ${value.toDisplayString}"
-    }).mkString("\n")
+      case (key, value) => s"${value.toDisplayString} $key"
+    }).mkString(", ")
     
-    s"WomCompositeType {\n $fieldType \n}"
+    s"struct { $fieldType }"
   }
 }

@@ -1,7 +1,7 @@
 package wom.graph
 
 import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
-import wom.graph.GraphNodePort.{ConditionalOutputPort, ConnectedInputPort, InputPort, OutputPort}
+import wom.graph.GraphNodePort._
 import wom.graph.expression.ExpressionNode
 import wom.types.WomBooleanType
 import common.collections.EnhancedCollections._
@@ -21,6 +21,8 @@ final case class ConditionalNode private(override val innerGraph: Graph,
 
   override val inputPorts: Set[InputPort] = Set(ConnectedInputPort("condition", WomBooleanType, conditionExpression.singleOutputPort, _ => this))
   override val outputPorts: Set[GraphNodePort.OutputPort] = conditionalOutputPorts.toSet[OutputPort]
+
+  override val completionPorts: Set[NodeCompletionPort] = innerGraph.nodes.flatMap(_.completionPorts).map(p => InnerGraphCallCompletionPort(_ => this, p))
 }
 
 object ConditionalNode  {

@@ -16,6 +16,7 @@ import wom.graph.CallNode._
 import wom.graph.GraphNode.GeneratedNodeAndNewNodes
 import wom.graph.GraphNodePort._
 import wom.graph.expression.{ExpressionNode, ExpressionNodeLike}
+import wom.types.WomCompositeType
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.concurrent.ExecutionContext
@@ -31,7 +32,9 @@ sealed abstract class CallNode extends GraphNode {
     */
   def nonInputBasedPrerequisites: Set[GraphNode]
 
-  override lazy val upstreamPorts = calculateUpstreamPorts ++ nonInputBasedPrerequisites.map(_.completionPort)
+  override lazy val upstreamPorts = calculateUpstreamPorts ++ nonInputBasedPrerequisites.flatMap(_.completionPorts)
+
+  override val completionPorts: Set[NodeCompletionPort] = Set(CallCompletionPort(_ => this, WomCompositeType(callable.outputs.map(o => o.name -> o.womType).toMap)))
 }
 
 final case class ExpressionCallNode private(override val identifier: WomIdentifier,

@@ -56,8 +56,8 @@ object Graph {
       boolToErrorOr(nodes.exists(_ eq upstreamOutputPort.graphNode), s"The input link ${port.name} on ${port.graphNode.localName} is linked to a node outside the graph set (${upstreamOutputPort.name})")
     }
 
-    def portProperlyEmbedded(port: GraphNodePort, portFinder: GraphNode => Set[_ <: GraphNodePort]): ErrorOr[Unit] = {
-      boolToErrorOr(portFinder(port.graphNode).exists(_ eq port), s"The port ${port.name} thinks it belongs to a Node (${port.graphNode}), but that Node doesn't think it owns it.")
+    def portProperlyEmbedded(testName: String, port: GraphNodePort, portFinder: GraphNode => Set[_ <: GraphNodePort]): ErrorOr[Unit] = {
+      boolToErrorOr(portFinder(port.graphNode).exists(_ eq port), s"The $testName ${port.getClass.getSimpleName} '${port.name}' thinks it belongs to a Node (${port.graphNode}), but that Node doesn't think it owns it.")
     }
 
     def outerGraphInputNodePointsHere(ogin: OuterGraphInputNode): ErrorOr[Unit] = {
@@ -71,8 +71,8 @@ object Graph {
 
     def goodLink(port: InputPort): ErrorOr[Unit] = {
       val upstreamNodeValidation = upstreamNodeInGraph(port)
-      val inputPortEmbeddedValidation = portProperlyEmbedded(port, _.inputPorts)
-      val upstreamPortEmbeddedValidation = portProperlyEmbedded(port.upstream, _.outputPorts)
+      val inputPortEmbeddedValidation = portProperlyEmbedded("input", port, _.inputPorts)
+      val upstreamPortEmbeddedValidation = portProperlyEmbedded("upstream", port.upstream, n => n.outputPorts ++ n.completionPorts)
 
       (upstreamNodeValidation, inputPortEmbeddedValidation, upstreamPortEmbeddedValidation).tupled.void
     }

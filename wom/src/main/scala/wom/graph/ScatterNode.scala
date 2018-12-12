@@ -4,14 +4,13 @@ import common.Checked
 import common.collections.EnhancedCollections._
 import common.validation.Checked._
 import wom.graph.GraphNode.{GeneratedNodeAndNewNodes, GraphNodeWithInnerGraph}
-import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort._
 import wom.graph.ScatterNode.{ScatterCollectionFunctionBuilder, ScatterProcessingFunction}
 import wom.graph.expression.ExpressionNode
 import wom.types.WomArrayType
 import wom.values.{WomArray, WomValue}
 
 /**
-  *
   * @param innerGraph Imagine that the contents of a WDL scatter block were a self-contained workflow. That's this Graph
   * @param scatterVariableNodes Inner graph nodes for each scatter collection expression being scattered over. WDL uses exactly one, CWL >= 1.
   * @param outputMapping Output ports for the scatter node, which also link back to GraphOutputNodes of the inner graph.
@@ -39,7 +38,9 @@ final case class ScatterNode private(override val innerGraph: Graph,
   }
   override val outputPorts: Set[GraphNodePort.OutputPort] = outputMapping.toSet[OutputPort]
 
-  lazy val nodes: Set[GraphNode] = scatterCollectionExpressionNodes.toSet + this
+  lazy val nodes: Set[GraphNode] = scatterCollectionExpressionNodes.toSet[GraphNode] + this
+
+  override val completionPorts: Set[NodeCompletionPort] = innerGraph.nodes.flatMap(_.completionPorts).map(p => InnerGraphCallCompletionPort(_ => this, p))
 }
 
 object ScatterNode {

@@ -15,7 +15,7 @@ import wdl.model.draft3.elements.{DeclarationElement, _}
 import wdl.model.draft3.graph._
 import wom.callable.Callable
 import wom.callable.Callable.OutputDefinition
-import wom.types.{WomArrayType, WomOptionalType, WomType}
+import wom.types.{WomArrayType, WomCompositeType, WomOptionalType, WomType}
 
 package object graph {
   implicit val graphElementUnlinkedValueGenerator: UnlinkedValueGenerator[WorkflowGraphElement] = new UnlinkedValueGenerator[WorkflowGraphElement] {
@@ -37,7 +37,7 @@ package object graph {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
         case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomArrayType(womType))
-        case a: GeneratedCallFinishedHandle => a
+        case GeneratedCallOutputAsStructHandle(finishedCallName, womType) => GeneratedCallOutputAsStructHandle(finishedCallName, WomArrayType(womType))
       } }
     }
   }
@@ -47,14 +47,14 @@ package object graph {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType).flatOptionalType)
         case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType).flatOptionalType)
-        case a: GeneratedCallFinishedHandle => a
+        case GeneratedCallOutputAsStructHandle(finishedCallName, womType) => GeneratedCallOutputAsStructHandle(finishedCallName, WomOptionalType(womType).flatOptionalType)
       } }
     }
   }
 
   implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
     override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
-      def callableOutputToHandle(callAlias: String)(callableOutput: OutputDefinition): GeneratedValueHandle = {
+      def callableOutputToHandle(callAlias: String)(callableOutput: OutputDefinition): GeneratedCallOutputValueHandle = {
         GeneratedCallOutputValueHandle(callAlias, callableOutput.name, callableOutput.womType)
       }
 
@@ -62,7 +62,8 @@ package object graph {
         case Some(callable) =>
           val callAlias = a.alias.getOrElse(callable.name)
           val outputs = callable.outputs.map(callableOutputToHandle(callAlias)).toSet
-          (outputs + GeneratedCallFinishedHandle(callAlias)).validNel
+          val callOutputAsStructType = WomCompositeType(outputs.map(o => o.outputName -> o.womType).toMap)
+          (outputs.toSet[GeneratedValueHandle] + GeneratedCallOutputAsStructHandle(callAlias, callOutputAsStructType)).validNel
         case None => s"Cannot generate outputs for 'call ${a.callableReference}'. No such callable exists in [${callables.keySet.mkString(", ")}]".invalidNel
       }
     }

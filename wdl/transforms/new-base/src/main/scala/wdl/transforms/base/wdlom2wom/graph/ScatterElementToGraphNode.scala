@@ -58,9 +58,7 @@ object ScatterElementToGraphNode {
       case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.toDisplayString}".invalidNel
     }
 
-    final case class RequiredOuterPorts(valueGeneratorPorts: Map[String, OutputPort], completionPorts: Map[String, CallNode])
-
-    val foundOuterGeneratorsValidation: ErrorOr[RequiredOuterPorts] = {
+    val foundOuterGeneratorsValidation: ErrorOr[Map[String, OutputPort]] = {
       val required: ErrorOr[Set[UnlinkedConsumedValueHook]] = graphElements.toList.traverse { element => element.graphElementConsumedValueHooks(a.availableTypeAliases, a.callables) }.map(_.toSet.flatten)
       val generated: ErrorOr[Set[GeneratedValueHandle]] = graphElements.toList.traverse { element => element.generatedValueHandles(a.availableTypeAliases, a.callables) }.map(_.toSet.flatten)
 
@@ -71,30 +69,23 @@ object ScatterElementToGraphNode {
       }
 
       (required, generated) mapN { (r, g) =>
-        val requiredOuterValues = r collect {
+        (r collect {
           case hook@UnlinkedIdentifierHook(id) if id != scatterVariableName && !g.exists(_.linkableName == id) =>
             makeLink(hook)
           case hook@UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if first != scatterVariableName && !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") =>
             makeLink(hook)
-        }
-        val requiredCompletionPorts = r collect {
-          case UnlinkedAfterCallHook(upstreamCallName) if !g.exists {
-            case GeneratedCallFinishedHandle(`upstreamCallName`) => true
-            case _ => false
-          } => upstreamCallName -> a.upstreamCalls.values.find(_.localName == upstreamCallName).get
-        }
-
-        RequiredOuterPorts(requiredOuterValues.toMap, requiredCompletionPorts.toMap)
+          case hook@UnlinkedAfterCallHook(upstreamCallName) if !g.exists(_.linkableName == upstreamCallName) => makeLink(hook)
+        }).toMap
       }
     }
 
     (scatterExpressionNodeValidation, scatterVariableTypeValidation, foundOuterGeneratorsValidation) flatMapN { (expressionNode, scatterVariableType, foundOuterGenerators) =>
       val womInnerGraphScatterVariableInput = ScatterVariableNode(WomIdentifier(scatterVariableName), expressionNode, scatterVariableType)
-      val ogins: Set[GraphNode] = (foundOuterGenerators.valueGeneratorPorts.toList map { case (name: String, port: OutputPort) =>
+      val ogins: Set[GraphNode] = (foundOuterGenerators.toList map { case (name: String, port: OutputPort) =>
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = false)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName, insideAScatter = true, a.callables)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), a.availableTypeAliases, a.workflowName, insideAScatter = true, a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -119,7 +110,7 @@ object ScatterElementToGraphNode {
     }
 
     val subWorkflowGraphValidation: ErrorOr[Graph] = subWorkflowInputsValidation flatMap { subWorkflowInputs =>
-      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, Map.empty, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.callables)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.callables)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
@@ -156,7 +147,6 @@ object ScatterElementToGraphNode {
 }
 
 final case class ScatterNodeMakerInputs(node: ScatterElement,
-                                        upstreamCalls: Map[String, CallNode],
                                         linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                         linkablePorts: Map[String, OutputPort],
                                         availableTypeAliases: Map[String, WomType],

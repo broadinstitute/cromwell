@@ -1,6 +1,6 @@
 package wdl.model.draft3.graph
 
-import wom.types.{WomNothingType, WomType}
+import wom.types.WomType
 
 sealed trait GeneratedValueHandle {
   def linkableName: String
@@ -13,17 +13,7 @@ final case class GeneratedCallOutputValueHandle(callName: String, outputName: St
 }
 
 // A handle representing a call's completion
-final case class GeneratedCallFinishedHandle(finishedCallName: String) extends GeneratedValueHandle {
-  override def linkableName: String = s"$finishedCallName.__after"
-  override val womType: WomType = WomNothingType
-}
-
-object GeneratedValueHandle {
-
-  private val DotRegex = "(.*)\\.(.*)".r
-
-  def apply(name: String, womType: WomType): GeneratedValueHandle = name match {
-    case DotRegex(first, second) => GeneratedCallOutputValueHandle(first, second, womType)
-    case _ => GeneratedIdentifierValueHandle(name, womType)
-  }
+final case class GeneratedCallOutputAsStructHandle(finishedCallName: String, structType: WomType) extends GeneratedValueHandle {
+  override def linkableName: String = s"$finishedCallName"
+  override val womType: WomType = structType
 }

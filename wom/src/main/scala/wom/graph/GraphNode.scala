@@ -35,7 +35,10 @@ trait GraphNode {
     */
   def outputPorts: Set[GraphNodePort.OutputPort]
 
-  val completionPort = NodeCompletionPort(_ => this)
+  /**
+    * Call completions which can be
+    */
+  def completionPorts: Set[NodeCompletionPort] = Set.empty
 
   def outputByName(name: String): ErrorOr[GraphNodePort.OutputPort] = {
     outputPorts.find(_.name == name) match {

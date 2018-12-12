@@ -3,13 +3,13 @@ package wom.graph
 import wom.callable.Callable
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.WomExpression
-import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.graph.GraphNodePort._
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomOptionalType, WomType}
 
 sealed trait GraphInputNode extends GraphNodeWithSingleOutputPort {
   def womType: WomType
-  lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(localName, womType, this)
+  lazy val singleOutputPort: OutputPort = GraphNodeOutputPort(localName, womType, this)
 
   override val inputPorts: Set[GraphNodePort.InputPort] = Set.empty
   override val outputPorts: Set[GraphNodePort.OutputPort] = Set(singleOutputPort)
@@ -78,10 +78,13 @@ object OuterGraphInputNode {
   */
 class OuterGraphInputNode protected(override val identifier: WomIdentifier, val linkToOuterGraph: GraphNodePort.OutputPort, val preserveScatterIndex: Boolean) extends GraphInputNode {
   override def womType: WomType = linkToOuterGraph.womType
-  override lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(identifier, womType, this)
+  override lazy val singleOutputPort: OutputPort = linkToOuterGraph match {
+    case ncp: NodeCompletionPort => OuterGraphNodeCompletionPort(_ => this, ncp)
+    case _ => GraphNodeOutputPort(identifier, womType, this)
+  }
   lazy val linkToOuterGraphNode = linkToOuterGraph.graphNode
 
-  lazy val nameToPortMapping: (String, GraphNodeOutputPort) = localName -> singleOutputPort
+  lazy val nameToPortMapping: (String, OutputPort) = localName -> singleOutputPort
 }
 
 /**

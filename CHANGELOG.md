@@ -27,6 +27,11 @@ allows abort commands to be sent to any Cromwell instance in the shared-database
 The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.
 More info [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-copy-authorization-failure-prefix-blacklisting).
 
+### WDL
+
+- All memory units in WDL are now treated as base-2.
+For instance `1 KB == 1 KiB == 1024 Bytes`.
+
 ### CWL
 
 Support `InputResourceRequirement` hint

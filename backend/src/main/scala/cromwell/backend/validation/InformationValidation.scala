@@ -33,7 +33,7 @@ object InformationValidation {
     instance(attributeName, defaultUnit, allowZero).configDefaultValue(config)
   def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String, defaultUnit: MemoryUnit, allowZero: Boolean = false): RuntimeAttributesValidation[MemorySize] = {
     MemorySize.parse(memorySize) match {
-      case Success(memory) => instance(attributeName, defaultUnit, allowZero).withDefault(WomInteger(memory.bytes.toInt))
+      case Success(memory) => instance(attributeName, defaultUnit, allowZero).withDefault(WomLong(memory.bytes.toLong))
       case Failure(_) => instance(attributeName, defaultUnit, allowZero).withDefault(BadDefaultAttribute(WomString(memorySize.toString)))
     }
   }

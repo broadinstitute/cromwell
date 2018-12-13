@@ -110,15 +110,15 @@ object PipelinesApiRuntimeAttributes {
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MiB, allowZero = true)
+    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MB, allowZero = true)
   }
 
   private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MiB, allowZero = true)
+    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MB, allowZero = true)
   }
 
   private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.DnaNexusInputDirMinKey, MemoryUnit.MiB, allowZero = true)
+    InformationValidation.optional(RuntimeAttributesKeys.DnaNexusInputDirMinKey, MemoryUnit.MB, allowZero = true)
   }
 
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {

@@ -35,7 +35,7 @@ task write_to_shared {
     String where
   }
   command <<<
-    sleep 10
+    sleep 2
     echo "~{i}" > /tmp/helloFile
   >>>
   runtime {

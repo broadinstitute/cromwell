@@ -1,6 +1,6 @@
 package cromwell.services.womtool.impl
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.pipe
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.Config
@@ -10,7 +10,6 @@ import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.HttpResolver
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
-import cromwell.services.womtool.WomtoolServiceActor
 import cromwell.services.womtool.WomtoolServiceMessages._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wom.core.WorkflowSource
@@ -18,7 +17,7 @@ import wom.expression.NoIoFunctionSet
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends WomtoolServiceActor with LazyLogging {
+class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with LazyLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 

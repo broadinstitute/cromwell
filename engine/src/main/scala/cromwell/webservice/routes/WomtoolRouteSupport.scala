@@ -1,7 +1,6 @@
 package cromwell.webservice.routes
 
 import akka.actor.{ActorRef, ActorRefFactory}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -10,9 +9,10 @@ import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeResult, DescribeSuccess}
-import cromwell.services.womtool.WomtoolServiceMessages.JsonSupport.workflowDescriptionFormat
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import io.circe.generic.auto._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}

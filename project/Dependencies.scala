@@ -1,6 +1,7 @@
 import sbt._
 
 object Dependencies {
+  private val akkaHttpCirceIntegrationV = "1.22.0"
   private val akkaHttpV = "10.1.5"
   private val akkaV = "2.5.16"
   private val alibabaCloudBcsV = "5.3.2"
@@ -281,6 +282,10 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test
   )
 
+  private val akkaHttpCirceIntegrationDependency = List(
+    "de.heikoseeberger" %% "akka-http-circe" % akkaHttpCirceIntegrationV
+  )
+
   private val swaggerUiDependencies = List(
     "org.webjars" % "swagger-ui" % swaggerUiV,
     "io.swagger" % "swagger-parser" % swaggerParserV % Test,
@@ -510,7 +515,7 @@ object Dependencies {
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
   val serverDependencies = slf4jBindingDependencies
 

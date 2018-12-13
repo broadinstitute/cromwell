@@ -2,7 +2,6 @@ package cromwell.services.womtool
 
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import spray.json.DefaultJsonProtocol
 
 object WomtoolServiceMessages {
 
@@ -19,8 +18,4 @@ object WomtoolServiceMessages {
   case class DescribeFailure(reason: String) extends DescribeResult
 
   case class WorkflowDescription(valid: Boolean, errors: List[String])
-
-  object JsonSupport extends DefaultJsonProtocol {
-    implicit val workflowDescriptionFormat = jsonFormat2(WorkflowDescription)
-  }
 }

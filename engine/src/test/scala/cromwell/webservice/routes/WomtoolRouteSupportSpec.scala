@@ -1,14 +1,15 @@
 package cromwell.webservice.routes
 
 import akka.actor.{ActorSystem, Props}
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
+import akka.http.scaladsl.unmarshalling.Unmarshaller._
 import akka.stream.ActorMaterializer
-import cromwell.services.womtool.WomtoolServiceMessages.JsonSupport.workflowDescriptionFormat
 import cromwell.services.womtool.WomtoolServiceMessages.WorkflowDescription
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.WomtoolRouteSupportSpec.MockWomtoolRouteSupport
+import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import io.circe.generic.auto._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 
 import scala.concurrent.duration._

@@ -2,12 +2,11 @@ package wdl.transforms.biscayne.ast2wdlom
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.model.draft3.elements._
 import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
+import wdl.model.draft3.elements._
 import wdl.model.draft3.elements.ExpressionElement._
-
 import wom.values.WomInteger
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
@@ -81,6 +80,46 @@ object WdlFileToWdlomSpec {
           metaSection = None,
           parameterMetaSection = None
         ))
-      )
+      ),
+    "biscayne_escaping" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "escapes",
+          inputsSection = None,
+          graphElements = Set(
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "backslash", StringExpression(Vector(StringLiteral(" "), BackslashEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "dash", StringExpression(Vector(StringLiteral(" "), SingleQuoteEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "quote", StringExpression(Vector(StringLiteral(" "), DoubleQuoteEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "n", StringExpression(Vector(StringLiteral(" "), NewlineEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "t", StringExpression(Vector(StringLiteral(" "), TabEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "octal_hello",
+              StringExpression(Vector(UnicodeCharacterEscape(104), UnicodeCharacterEscape(101), UnicodeCharacterEscape(108), UnicodeCharacterEscape(108), UnicodeCharacterEscape(111)))
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "hex_hello",
+              StringExpression(Vector(UnicodeCharacterEscape(104), UnicodeCharacterEscape(101), UnicodeCharacterEscape(108), UnicodeCharacterEscape(108), UnicodeCharacterEscape(111)))
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "unicode_hello",
+              StringExpression(Vector(
+                UnicodeCharacterEscape(104),
+                UnicodeCharacterEscape(101),
+                UnicodeCharacterEscape(108),
+                UnicodeCharacterEscape(108),
+                UnicodeCharacterEscape(111)
+              ))
+            )
+          ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None
+        )),
+        tasks = Vector.empty)
   )
 }

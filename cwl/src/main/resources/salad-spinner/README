@@ -1,0 +1,15 @@
+Deploy main.py to a cloud function with
+
+gcloud functions deploy cwltool_salad --runtime python37 --trigger-http
+
+cwltool-runner {
+  class = "cwl.CwltoolHttp"
+  config.url = <your cloud function url>
+}
+
+That's it !
+
+----------------
+
+The local_server.py can be used to debug the function locally.
+Pre-requisite: Python 3.7, Flask

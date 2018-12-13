@@ -462,7 +462,7 @@ object Dependencies {
     "org.scalamock" %% "scalamock" % scalamockV % Test,
     "commons-io" % "commons-io" % commonsIoV % Test
   ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies ++
-    owlApiDependencies
+    owlApiDependencies ++ http4sDependencies
 
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
 

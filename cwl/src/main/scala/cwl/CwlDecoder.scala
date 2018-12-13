@@ -11,18 +11,12 @@ import common.validation.Validation._
 import cwl.preprocessor.{CwlFileReference, CwlPreProcessor, CwlReference}
 import io.circe.Json
 
-import scala.util.Try
-
 object CwlDecoder {
 
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
   def saladCwlFile(reference: CwlReference): IOChecked[String] = {
-    val cwlToolResult =
-      Try(CwltoolRunner.instance.salad(reference))
-        .toCheckedWithContext(s"run cwltool on file ${reference.pathAsString}", throwableToStringFunction = t => t.toString)
-
-    fromEither[IO](cwlToolResult)
+      CwltoolRunner.instance.salad(reference).to[IOChecked]
   }
 
   private lazy val cwlPreProcessor = new CwlPreProcessor()

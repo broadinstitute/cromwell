@@ -7,7 +7,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
-import wom.values.{WomFloat, WomInteger, WomLong}
+import wom.values.{WomFloat, WomLong}
 
 class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "MemoryDeclarationValidation"
@@ -15,13 +15,13 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
   val validDeclaredAmounts = Table(
     ("declaration", "runtimeAmount", "expectedDefaultAmount", "expectedExtracted"),
     ("Int memory", Option(2), None, Option(WomLong(2L * 1024L * 1024L * 1024L))),
-    ("Int memory_gb", Option(2), None, Option(WomInteger(2))),
+    ("Int memory_gb", Option(2), None, Option(WomLong(2))),
     ("Int memory_gb = 3", None, Option(3), None),
-    ("Int memory_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Int memory_gb = 3", Option(2), Option(3), Option(WomLong(2))),
     ("Int? memory_gb", None, None, None),
-    ("Int? memory_gb", Option(2), None, Option(WomInteger(2))),
+    ("Int? memory_gb", Option(2), None, Option(WomLong(2))),
     ("Int? memory_gb = 3", None, Option(3), None),
-    ("Int? memory_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Int? memory_gb = 3", Option(2), Option(3), Option(WomLong(2))),
     ("Float memory", Option(2), None, Option(WomFloat(2F * 1024F * 1024F * 1024F))),
     ("Float memory_gb", Option(2), None, Option(WomFloat(2))),
     ("Float memory_gb = 3.0", None, Option(3), None),
@@ -35,13 +35,13 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
     ("Float? memory_gb = 3", None, Option(3), None),
     ("Float? memory_gb = 3", Option(2), Option(3), Option(WomFloat(2))),
     ("Int memoryMin", Option(2), None, Option(WomLong(2L * 1024L * 1024L * 1024L))),
-    ("Int memoryMin_gb", Option(2), None, Option(WomInteger(2))),
+    ("Int memoryMin_gb", Option(2), None, Option(WomLong(2))),
     ("Int memoryMin_gb = 3", None, Option(3), None),
-    ("Int memoryMin_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Int memoryMin_gb = 3", Option(2), Option(3), Option(WomLong(2))),
     ("Int? memoryMin_gb", None, None, None),
-    ("Int? memoryMin_gb", Option(2), None, Option(WomInteger(2))),
+    ("Int? memoryMin_gb", Option(2), None, Option(WomLong(2))),
     ("Int? memoryMin_gb = 3", None, Option(3), None),
-    ("Int? memoryMin_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Int? memoryMin_gb = 3", Option(2), Option(3), Option(WomLong(2))),
     ("Float memoryMin", Option(2), None, Option(WomFloat(2F * 1024F * 1024F * 1024F))),
     ("Float memoryMin_gb", Option(2), None, Option(WomFloat(2))),
     ("Float memoryMin_gb = 3.0", None, Option(3), None),
@@ -51,13 +51,13 @@ class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableD
     ("Float? memoryMin_gb = 3.0", None, Option(3), None),
     ("Float? memoryMin_gb = 3.0", Option(2), Option(3), Option(WomFloat(2))),
     ("Int memoryMax", Option(2), None, Option(WomLong(2L * 1024L * 1024L * 1024L))),
-    ("Int memoryMax_gb", Option(2), None, Option(WomInteger(2))),
+    ("Int memoryMax_gb", Option(2), None, Option(WomLong(2))),
     ("Int memoryMax_gb = 3", None, Option(3), None),
-    ("Int memoryMax_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Int memoryMax_gb = 3", Option(2), Option(3), Option(WomLong(2))),
     ("Int? memoryMax_gb", None, None, None),
-    ("Int? memoryMax_gb", Option(2), None, Option(WomInteger(2))),
+    ("Int? memoryMax_gb", Option(2), None, Option(WomLong(2))),
     ("Int? memoryMax_gb = 3", None, Option(3), None),
-    ("Int? memoryMax_gb = 3", Option(2), Option(3), Option(WomInteger(2))),
+    ("Int? memoryMax_gb = 3", Option(2), Option(3), Option(WomLong(2))),
     ("Float memoryMax", Option(2), None, Option(WomFloat(2F * 1024F * 1024F * 1024F))),
     ("Float memoryMax_gb", Option(2), None, Option(WomFloat(2))),
     ("Float memoryMax_gb = 3.0", None, Option(3), None),

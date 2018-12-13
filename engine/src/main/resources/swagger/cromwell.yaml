@@ -846,7 +846,7 @@ definitions:
     properties:
       valid:
         type: boolean
-        description: Whether the workflow and inputs as submitted passes validation
+        description: Whether the workflow and inputs as submitted passed validation
       errors:
         type: array
         items:

@@ -615,6 +615,7 @@ paths:
     post:
       operationId: describe
       summary: Machine-readable description of a workflow, including inputs and outputs
+      description: This endpoint is undergoing active development. Its performance has not been validated and it **should not be called on a production instance of Cromwell**.
       consumes:
         - multipart/form-data
       parameters:

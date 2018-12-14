@@ -20,6 +20,7 @@ import cromwell.services.metadata._
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess, WorkflowDescription}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.EngineStatsActor
+import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
 import mouse.boolean._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._
@@ -476,7 +477,8 @@ object CromwellApiServiceSpec {
   val AbortingWorkflowId = WorkflowId.fromString("2e3503f5-24f5-4a01-a4d1-bb1088bb5c1e")
   val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId)
+  val SupWdlWorkflowId = WorkflowId.fromString("cab8b246-8c78-4ca9-b2c3-1c8377da986e")
+  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SupWdlWorkflowId)
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -544,6 +546,7 @@ object CromwellApiServiceSpec {
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! WorkflowOutputsResponse(id, event)
       case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
+      case GetSingleWorkflowMetadataAction(id, Some(_), _, _) if id == SupWdlWorkflowId =>sender ! BuiltMetadataResponse(SupWdlMetadataJson)
       case GetSingleWorkflowMetadataAction(id, None, None, _) => sender ! MetadataLookupResponse(metadataQuery(id), fullMetadataResponse(id))
       case GetSingleWorkflowMetadataAction(id, Some(_), None, _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
       case GetSingleWorkflowMetadataAction(id, None, Some(_), _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
@@ -608,4 +611,55 @@ object CromwellApiServiceSpec {
         sender ! s"Unexpected message received: $unexpected"
     }
   }
+
+  val SupWdlMetadataJson =
+    """
+      |{
+      |  "workflowName": "supsup",
+      |  "actualWorkflowLanguageVersion": "draft-2",
+      |  "submittedFiles": {
+      |    "workflow": "task sup {\n  String addressee\n  command {\n    sleep 10\n    echo \"yo sup ${addressee}!\"\n  }\n  output {\n    String salutation = read_string(stdout())\n  }\n  runtime {\n    docker: \"ubuntu:latest\"\n    preemptible: 1\n  }\n}\n\nworkflow supsup {\n  call sup\n}\n",
+      |    "root": "",
+      |    "options": "{\n\n}",
+      |    "inputs": "{\"supsup.sup.addressee\":\"dog\"}",
+      |    "workflowUrl": "",
+      |    "labels": "{}"
+      |  },
+      |  "calls": {
+      |    "supsup.sup": [
+      |      {
+      |        "stdout": "/Users/jgentry/projects/cromwell/cromwell-executions/supsup/cab8b246-8c78-4ca9-b2c3-1c8377da986e/call-sup/execution/stdout",
+      |        "commandLine": "sleep 10\necho \"yo sup dog!\"",
+      |        "shardIndex": -1,
+      |        "outputs": {
+      |          "salutation": "yo sup dog!"
+      |        },
+      |        "inputs": {
+      |          "addressee": "dog"
+      |        },
+      |        "returnCode": 0,
+      |        "end": "2018-12-14T14:25:24.530-05:00",
+      |        "stderr": "/Users/jgentry/projects/cromwell/cromwell-executions/supsup/cab8b246-8c78-4ca9-b2c3-1c8377da986e/call-sup/execution/stderr",
+      |        "attempt": 1,
+      |        "start": "2018-12-14T14:25:09.376-05:00"
+      |      }
+      |    ]
+      |  },
+      |  "outputs": {
+      |    "supsup.sup.salutation": "yo sup dog!"
+      |  },
+      |  "workflowRoot": "/Users/jgentry/projects/cromwell/cromwell-executions/supsup/cab8b246-8c78-4ca9-b2c3-1c8377da986e",
+      |  "actualWorkflowLanguage": "WDL",
+      |  "id": "cab8b246-8c78-4ca9-b2c3-1c8377da986e",
+      |  "inputs": {
+      |    "supsup.sup.addressee": "dog"
+      |  },
+      |  "labels": {
+      |    "cromwell-workflow-id": "cromwell-cab8b246-8c78-4ca9-b2c3-1c8377da986e"
+      |  },
+      |  "status": "Succeeded",
+      |  "end": "2018-12-14T14:25:25.703-05:00",
+      |  "start": "2018-12-14T14:25:08.124-05:00"
+      |}
+    """.stripMargin.parseJson.asInstanceOf[JsObject]
 }

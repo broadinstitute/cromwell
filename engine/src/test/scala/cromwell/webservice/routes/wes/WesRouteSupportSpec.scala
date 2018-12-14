@@ -11,6 +11,7 @@ import cromwell.webservice.routes.CromwellApiServiceSpec.{MockServiceRegistryAct
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import WesResponseJsonSupport._
 import akka.http.scaladsl.server.MethodRejection
+import spray.json._
 
 class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers with WesRouteSupport {
   val actorRefFactory = system
@@ -19,6 +20,7 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
 
   override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
   override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
+  override val metadataBuilderRegulatorActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor())) // Not using a regulator for tests
   override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
 
   val version = "v1"
@@ -77,6 +79,27 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
       wesRoutes ~>
       check {
         responseAs[WesRunStatus] shouldEqual WesRunStatus(CromwellApiServiceSpec.FailedWorkflowId.toString, WesState.ExecutorError)
+      }
+  }
+
+  behavior of "WES API /{run_id} endpoint"
+  it should "return 404 when requesting an unknown workflow" in {
+    Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.UnrecognizedWorkflowId}") ~>
+      wesRoutes ~>
+      check {
+        assertResult(StatusCodes.NotFound) {
+          status
+        }
+
+        responseAs[WesErrorResponse] shouldEqual WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
+      }
+  }
+
+  it should "correctly return a WES run log for a known workflow" in {
+    Get(s"/ga4gh/wes/$version/runs/${CromwellApiServiceSpec.SupWdlWorkflowId}") ~>
+      wesRoutes ~>
+      check {
+        responseAs[JsObject] shouldEqual WesRouteSupportSpec.Foo
       }
   }
 
@@ -148,4 +171,42 @@ class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Mat
         rejection shouldEqual MethodRejection(POST)
       }
   }
+}
+
+object WesRouteSupportSpec {
+  val Foo = """{
+              |  "request": {
+              |    "workflow_url": "",
+              |    "workflow_engine_parameters": {},
+              |    "workflow_type": "WDL",
+              |    "workflow_params": {
+              |      "supsup.sup.addressee": "dog"
+              |    },
+              |    "tags": {},
+              |    "workflow_type_version": "draft-2"
+              |  },
+              |  "state": "COMPLETE",
+              |  "outputs": {
+              |    "supsup.sup.salutation": "yo sup dog!"
+              |  },
+              |  "run_id": "cab8b246-8c78-4ca9-b2c3-1c8377da986e",
+              |  "task_logs": [
+              |    {
+              |      "name": "supsup.sup",
+              |      "start_time": "2018-12-14T14:25:09.376-05:00",
+              |      "stdout": "/Users/jgentry/projects/cromwell/cromwell-executions/supsup/cab8b246-8c78-4ca9-b2c3-1c8377da986e/call-sup/execution/stdout",
+              |      "end_time": "2018-12-14T14:25:24.530-05:00",
+              |      "exit_code": 0,
+              |      "cmd": [
+              |        "sleep 10\necho \"yo sup dog!\""
+              |      ],
+              |      "stderr": "/Users/jgentry/projects/cromwell/cromwell-executions/supsup/cab8b246-8c78-4ca9-b2c3-1c8377da986e/call-sup/execution/stderr"
+              |    }
+              |  ],
+              |  "run_log": {
+              |    "name": "supsup",
+              |    "start_time": "2018-12-14T14:25:08.124-05:00",
+              |    "end_time": "2018-12-14T14:25:25.703-05:00"
+              |  }
+              |}""".stripMargin.parseJson.asInstanceOf[JsObject]
 }

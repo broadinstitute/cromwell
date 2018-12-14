@@ -3,12 +3,13 @@ package cloud.nio.impl.drs
 import java.net.URI
 
 import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
+import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
 
 
-class DrsCloudNioFileSystemProvider(rootConfig: Config) extends CloudNioFileSystemProvider {
+class DrsCloudNioFileSystemProvider(rootConfig: Config, userSACredentials: OAuth2Credentials) extends CloudNioFileSystemProvider {
 
-  val drsPathResolver = DrsPathResolver(rootConfig)
+  val drsPathResolver = DrsPathResolver(rootConfig, userSACredentials)
 
   override def config: Config = rootConfig
 

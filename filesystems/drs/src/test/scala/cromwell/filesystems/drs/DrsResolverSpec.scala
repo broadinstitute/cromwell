@@ -1,5 +1,8 @@
 package cromwell.filesystems.drs
 
+import java.util.Date
+
+import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -14,7 +17,10 @@ class DrsResolverSpec extends FlatSpec with Matchers {
       |""".stripMargin
   )
 
-  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig)
+  private lazy val fakeAccessToken = new AccessToken("ya29.1234567890qwertyuiopasdfghjklzxcvbnm", new Date())
+  private lazy val fakeOAuth2Creds = OAuth2Credentials.create(fakeAccessToken)
+
+  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeOAuth2Creds)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider)
 
   val gcsRelativePath = "mybucket/foo.txt"
@@ -37,7 +43,7 @@ class DrsResolverSpec extends FlatSpec with Matchers {
   it should "throw GcsUrlNotFoundException when DRS path doesn't resolve to at least one GCS url" in {
     val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToNoGcsPath).get.asInstanceOf[DrsPath]
 
-    the[GcsUrlNotFoundException] thrownBy {
+    the[UrlNotFoundException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath)
     } should have message s"DRS was not able to find a gs url associated with ${drsPath.pathAsString}."
   }

@@ -1,10 +1,12 @@
 package cromwell.filesystems.drs
 
 import cloud.nio.impl.drs._
+import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
+import spray.json.JsObject
 
 
-class MockDrsPathResolver(config: Config) extends DrsPathResolver(config){
+class MockDrsPathResolver(config: Config, credentials: OAuth2Credentials) extends DrsPathResolver(config, credentials){
 
   private lazy val mockMarthaUri = config.getString("martha.url")
 
@@ -29,11 +31,11 @@ class MockDrsPathResolver(config: Config) extends DrsPathResolver(config){
       urls = urlArray
     )
 
-    MarthaResponse(DosObject(dosDataObject))
+    MarthaResponse(DosObject(dosDataObject), Option(SADataObject(JsObject.empty)))
   }
 
 
-  override def resolveDrsThroughMartha(drsPath: String): MarthaResponse = {
+  override def resolveDrsThroughMartha(drsPath: String, needServiceAccount: Boolean = false): MarthaResponse = {
     drsPath match {
       case MockDrsPaths.drsPathResolvingToOneGcsPath => marthaObjWithOneGcsPath
       case MockDrsPaths.drsPathResolvingToNoGcsPath => marthaObjWithNoGcsPath
@@ -45,9 +47,9 @@ class MockDrsPathResolver(config: Config) extends DrsPathResolver(config){
 }
 
 
-class MockDrsCloudNioFileSystemProvider(config: Config) extends DrsCloudNioFileSystemProvider(config) {
+class MockDrsCloudNioFileSystemProvider(config: Config, credentials: OAuth2Credentials) extends DrsCloudNioFileSystemProvider(config, credentials) {
 
-  override val drsPathResolver: DrsPathResolver = new MockDrsPathResolver(config)
+  override val drsPathResolver: DrsPathResolver = new MockDrsPathResolver(config, credentials)
 }
 
 

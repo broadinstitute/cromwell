@@ -1,18 +1,22 @@
 package cloud.nio.impl.drs
 
+import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import com.typesafe.config.Config
-import org.apache.http.{HttpStatus, StatusLine}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.util.EntityUtils
+import org.apache.http.{HttpStatus, StatusLine}
 import spray.json._
 
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 
-case class DrsPathResolver(config: Config) {
+case class DrsPathResolver(config: Config, userSACredentials: OAuth2Credentials) {
+  private val AccessTokenAcceptableTTL = 1.minute
+
   private val DrsPathToken = s"$${drsPath}"
   private lazy val marthaUri = config.getString("martha.url")
   private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
@@ -20,10 +24,30 @@ case class DrsPathResolver(config: Config) {
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
 
-  def makeHttpRequestToMartha(drsPath: String, httpClient: CloseableHttpClient): CloseableHttpResponse = {
+  private def freshAccessToken(credential: OAuth2Credentials): String = {
+    def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
+      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL)
+    }
+
+    Option(credential.getAccessToken) match {
+      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
+      case _ =>
+        credential.refresh()
+        credential.getAccessToken.getTokenValue
+    }
+  }
+
+
+  def makeHttpRequestToMartha(drsPath: String, httpClient: CloseableHttpClient, needServiceAccount: Boolean): CloseableHttpResponse = {
     val postRequest = new HttpPost(marthaUri)
     val requestJson = marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
+
+    if (needServiceAccount) {
+      val accessToken = freshAccessToken(userSACredentials)
+      postRequest.setHeader("Authorization", s"Bearer $accessToken")
+    }
+
     httpClient.execute(postRequest)
   }
 
@@ -32,7 +56,7 @@ case class DrsPathResolver(config: Config) {
     * Resolves the DRS path through Martha url provided in the config.
     * Please note, this method makes a synchronous HTTP request to Martha.
     */
-  def resolveDrsThroughMartha(drsPath: String): MarthaResponse = {
+  def resolveDrsThroughMartha(drsPath: String, needServiceAccount: Boolean = false): MarthaResponse = {
     import MarthaResponseJsonSupport._
 
     def unexpectedExceptionResponse(status: StatusLine) = {
@@ -42,7 +66,7 @@ case class DrsPathResolver(config: Config) {
     val httpClient: CloseableHttpClient = httpClientBuilder.build()
 
     try {
-      val marthaResponse: CloseableHttpResponse = makeHttpRequestToMartha(drsPath, httpClient)
+      val marthaResponse: CloseableHttpResponse = makeHttpRequestToMartha(drsPath, httpClient, needServiceAccount)
       val marthaResponseEntityOption = Option(marthaResponse.getEntity).map(EntityUtils.toString)
 
       try {
@@ -74,7 +98,8 @@ object MarthaResponseJsonSupport extends DefaultJsonProtocol {
   implicit val checksumFormat: JsonFormat[ChecksumObject] = jsonFormat2(ChecksumObject)
   implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat4(DosDataObject)
   implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
-  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat1(MarthaResponse)
+  implicit val saDataObjectFormat: JsonFormat[SADataObject] = jsonFormat1(SADataObject)
+  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
 }
 
 case class Url(url: String)
@@ -88,4 +113,6 @@ case class DosDataObject(size: Option[Long],
 
 case class DosObject(data_object: DosDataObject)
 
-case class MarthaResponse(dos: DosObject)
+case class SADataObject(data: JsObject)
+
+case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[SADataObject])

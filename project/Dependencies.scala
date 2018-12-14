@@ -33,6 +33,7 @@ object Dependencies {
   private val googleCloudCoreV = "1.43.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
   private val googleCloudNioV = "0.61.0-alpha"
+  private val googleCloudStorageV = "1.35.0"
   private val googleCredentialsV = "0.8.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
@@ -221,7 +222,9 @@ object Dependencies {
 
   val implDrsDependencies = List(
     "io.spray" %% "spray-json" % sprayJsonV,
-    "org.apache.commons" % "commons-lang3" % commonsLang3V
+    "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
+    "com.google.oauth-client" % "google-oauth-client" % googleApiClientV
   )
 
   // Internal collections of dependencies

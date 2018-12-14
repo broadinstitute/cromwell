@@ -11,7 +11,7 @@ object DrsResolver {
 
     schemeUrlOption match {
       case Some(schemeUrl) => schemeUrl.url.substring(scheme.length + 3)
-      case None => throw GcsUrlNotFoundException(drsPath, scheme)
+      case None => throw UrlNotFoundException(drsPath, scheme)
     }
   }
 
@@ -25,4 +25,4 @@ object DrsResolver {
 }
 
 
-case class GcsUrlNotFoundException(drsPath: String, scheme: String) extends Exception(s"DRS was not able to find a $scheme url associated with $drsPath.")
+case class UrlNotFoundException(drsPath: String, scheme: String) extends Exception(s"DRS was not able to find a $scheme url associated with $drsPath.")

@@ -28,6 +28,8 @@ cp \
 # Excluded tests:
 # docker_hash_dockerhub_private: https://github.com/broadinstitute/cromwell/issues/3587
 
+echo "CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=$CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS"
+
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \

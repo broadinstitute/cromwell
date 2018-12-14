@@ -5,7 +5,7 @@ services:
       context: ./compose/cromwell
     volumes:
       - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
-    command: ["/wait-for-it/wait-for-it.sh mysql-db:3306 -t 120 -- java -Dconfig.file=/app-config/application.conf -jar /app/cromwell.jar server"]
+    command: ["/wait-for-it/wait-for-it.sh mysql-db:3306 -t 120 -- java -Dconfig.file=/app-config/cromwell-application.conf -jar /app/cromwell.jar server"]
     links:
       - mysql-db
     ports:

@@ -3,7 +3,8 @@ package cromwell.database.slick
 import java.sql.{Connection, PreparedStatement, Statement}
 import java.util.concurrent.{ExecutorService, Executors}
 
-import com.typesafe.config.Config
+import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.DataAccessComponent
 import cromwell.database.sql.SqlDatabase
 import net.ceedubs.ficus.Ficus._
@@ -159,10 +160,30 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     database.close()
   }
 
+  private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
+  private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
+
   protected[this] def runTransaction[R](action: DBIO[R], isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead): Future[R] = {
-    //database.run(action.transactionally) <-- See comment above private val actionThreadPool
-    val dbio = action.transactionally.withTransactionIsolation(isolationLevel)
-    Future(Await.result(database.run(dbio), Duration.Inf))(actionExecutionContext)
+    runAction(action.transactionally.withTransactionIsolation(isolationLevel))
+  }
+
+  protected[this] def runAction[R](action: DBIO[R]): Future[R] = {
+    //database.run(action) <-- See comment above private val actionThreadPool
+    Future {
+      try {
+        Await.result(database.run(action), Duration.Inf)
+      } catch {
+        case rollbackException: MySQLTransactionRollbackException =>
+          debugExitStatusCodeOption match {
+            case Some(status) =>
+              SlickDatabase.log.error("Got a rollback!", rollbackException)
+              System.err.println(s"Exiting with code $status as $debugExitConfigPath is set")
+              System.exit(status)
+            case _ => /* keep going */
+          }
+          throw rollbackException
+      }
+    }(actionExecutionContext)
   }
 
   /*

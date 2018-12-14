@@ -96,6 +96,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE=true
             CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
+            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS}"
             CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
             CROMWELL_BUILD_EVENT=""
             CROMWELL_BUILD_TAG=""
@@ -216,6 +217,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
     export CROMWELL_BUILD_WAIT_FOR_IT_URL
+    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
 }
 
 cromwell::private::echo_build_variables() {

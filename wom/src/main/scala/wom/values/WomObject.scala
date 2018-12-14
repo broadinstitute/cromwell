@@ -6,6 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.functor._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import common.validation.IOChecked.IOChecked
 import wom.TsvSerializable
 import wom.expression.IoFunctionSet
@@ -102,7 +103,7 @@ object WomObject {
   }
 
   def withTypeErrorOr(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): ErrorOr[WomObject] = {
-    objectTypeLike.validateAndCoerceValues(values).map(new WomObject(_, objectTypeLike))
+    objectTypeLike.validateAndCoerceValues(values).map(new WomObject(_, objectTypeLike)).contextualizeErrors(s"build ${objectTypeLike.toDisplayString} using values $values")
   }
 
   def withTypeChecked(values: Map[String, Any], objectTypeLike: WomObjectTypeLike): Checked[WomObject] = {

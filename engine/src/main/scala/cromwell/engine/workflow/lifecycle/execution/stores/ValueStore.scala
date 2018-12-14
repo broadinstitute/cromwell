@@ -2,16 +2,19 @@ package cromwell.engine.workflow.lifecycle.execution.stores
 
 import cats.syntax.validated._
 import cats.syntax.option._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cromwell.core.ExecutionIndex._
 import cromwell.engine.workflow.lifecycle.execution.keys.{ConditionalCollectorKey, ScatterCollectorKey}
 import common.collections.Table
 import common.validation.ErrorOr.ErrorOr
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
-import wom.graph.GraphNodePort.OutputPort
+import wom.graph.GraphNodePort.{CallCompletionPort, OutputPort}
 import wom.graph._
 import wom.values.WomArray.WomArrayLike
-import wom.values.{WomArray, WomOptionalValue, WomValue}
+import wom.values.{WomArray, WomObject, WomOptionalValue, WomValue}
 import common.validation.Validation._
+
 import scala.util.Try
 
 object ValueStore {
@@ -132,6 +135,18 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
       }
     }
 
-    findValueStorePort(outputPort, index)
+    def mapPortToValueStore(p: OutputPort, index: ExecutionIndex): ErrorOr[(String, WomValue)] = {
+      findValueStorePort(p, index) map { v =>
+        p.internalName -> v
+      }
+    }
+
+    outputPort match {
+      case ccp: CallCompletionPort =>
+        val ports = ccp.graphNode.outputPorts
+        val values = ports.toList.traverse(mapPortToValueStore(_, index))
+        values map { vs => WomObject.apply(vs.toMap) }
+      case _ => findValueStorePort(outputPort, index)
+    }
   }
 }

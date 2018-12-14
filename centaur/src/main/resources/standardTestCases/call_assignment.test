@@ -1,0 +1,13 @@
+name: call_assignment
+testFormat: workflowsuccess
+
+files {
+  workflow: call_assignment/call_assignment.wdl
+}
+
+metadata {
+  workflowName: call_assignment
+  status: Succeeded
+  "outputs.call_assignment.harry_p.name": "Harry Potter"
+  "outputs.call_assignment.harry_p.age": 22
+}

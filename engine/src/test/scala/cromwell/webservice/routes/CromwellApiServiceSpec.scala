@@ -17,6 +17,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{Workflow
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess, WorkflowDescription}
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.EngineStatsActor
 import mouse.boolean._
@@ -552,6 +553,25 @@ object CromwellApiServiceSpec {
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }
+      case DescribeRequest(sourceFiles) =>
+        sourceFiles.workflowSource match {
+          case Some("fail to describe") =>
+            sender ! DescribeFailure("as requested, failing to describe")
+          case Some("actor asplode") =>
+            throw new Exception("asploding now!")
+          case _ =>
+            val readBack = List(
+              "this is fake data from the mock SR actor",
+              s"[reading back DescribeRequest contents] workflow hashcode: ${sourceFiles.workflowSource.map(_.hashCode)}",
+              s"[reading back DescribeRequest contents] workflow url: ${sourceFiles.workflowUrl}",
+              s"[reading back DescribeRequest contents] inputs: ${sourceFiles.inputsJson}",
+              s"[reading back DescribeRequest contents] type: ${sourceFiles.workflowType}",
+              s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}"
+            )
+
+            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, readBack))
+        }
+
     }
   }
 

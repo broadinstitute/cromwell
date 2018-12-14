@@ -4,15 +4,14 @@ import java.util.UUID
 
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.marshalling.{ToEntityMarshaller, ToResponseMarshallable}
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.ContentTypes._
-import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
 import akka.stream.ActorMaterializer
-import akka.util.{ByteString, Timeout}
+import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
@@ -31,9 +30,10 @@ import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
-import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice._
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.WebServiceUtils
+import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -41,7 +41,7 @@ import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
+trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport with WebServiceUtils {
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
@@ -186,9 +186,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
   }
 
   private def submitRequest(formData: Multipart.FormData, isSingleSubmission: Boolean): Route = {
-    val allParts: Future[Map[String, ByteString]] = formData.parts.mapAsync[(String, ByteString)](1) {
-      bodyPart => bodyPart.toStrict(duration).map(strict => bodyPart.name -> strict.entity.data)
-    }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)
 
     def getWorkflowState(workflowOnHold: Boolean): WorkflowState = {
       if (workflowOnHold)
@@ -214,7 +211,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
       }
     }
 
-    onComplete(allParts) {
+    onComplete(materializeFormData(formData)) {
       case Success(data) =>
         PartialWorkflowSources.fromSubmitRoute(data, allowNoInputs = isSingleSubmission) match {
           case Success(workflowSourceFiles) if isSingleSubmission && workflowSourceFiles.size == 1 =>
@@ -240,15 +237,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport {
 
 object CromwellApiService {
   import spray.json._
-
-  implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
-    def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
-      completeResponse(statusCode, APIResponse.fail(e).toJson.prettyPrint, warnings)
-    }
-    def errorRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
-      completeResponse(statusCode, APIResponse.error(e).toJson.prettyPrint, warnings)
-    }
-  }
 
   /**
     * Sends a request to abort the workflow. Provides configurable success & error handlers to allow
@@ -306,25 +294,6 @@ object CromwellApiService {
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }
-  }
-
-  def completeResponse[A](statusCode: StatusCode, value: A, warnings: Seq[String])
-                         (implicit mt: ToEntityMarshaller[A]): Route = {
-    val warningHeaders = warnings.toIndexedSeq map { warning =>
-      /*
-      Need a quoted string.
-      https://stackoverflow.com/questions/7886782
-
-      Using a poor version of ~~#!
-      https://github.com/akka/akka-http/blob/v10.0.9/akka-http-core/src/main/scala/akka/http/impl/util/Rendering.scala#L206
-       */
-      val quotedString = "\"" + warning.replaceAll("\"","\\\\\"").replaceAll("[\\r\\n]+", " ").trim + "\""
-
-      // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.46
-      RawHeader("Warning", s"299 cromwell/$cromwellVersion $quotedString")
-    }
-
-    complete((statusCode, warningHeaders, value))
   }
 
   final case class BackendResponse(supportedBackends: List[String], defaultBackend: String)

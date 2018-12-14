@@ -7,7 +7,8 @@ import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.services.metadata.MetadataService.{GetStatus, MetadataServiceResponse, StatusLookupFailed, StatusLookupResponse}
-import cromwell.webservice.routes.CromwellApiService.{EnhancedThrowable, UnrecognizedWorkflowException, validateWorkflowId}
+import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowId}
+import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}

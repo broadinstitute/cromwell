@@ -611,6 +611,39 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
+  '/api/womtool/{version}/describe':
+    post:
+      operationId: describe
+      summary: Machine-readable description of a workflow, including inputs and outputs
+      description: This endpoint is undergoing active development. Its performance has not been validated and it **should not be called on a production instance of Cromwell**.
+      consumes:
+        - multipart/form-data
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - name: workflowSource
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
+          type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowInputs
+          description: JSON or YAML file containing the inputs as an object.
+          required: false
+          type: file
+          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
+        - $ref: '#/parameters/workflowTypeVersionParam'
+      responses:
+        '200':
+          description: Workflow description.
+          schema:
+            $ref: '#/definitions/WorkflowDescription'
+      tags:
+        - "Womtool (beta)"
   '/engine/{version}/version':
     get:
       operationId: version
@@ -807,6 +840,23 @@ definitions:
         type: string
         format: date-time
         description: The time at which this failure occurred
+  WorkflowDescription:
+    required:
+      - valid
+      - errors
+    properties:
+      valid:
+        type: boolean
+        description: Whether the workflow and inputs as submitted passed validation
+      errors:
+        type: array
+        items:
+          type: string
+        example:
+          - "The 'errors' field will be filled if 'valid' is false"
+          - "We might also provide warnings to a 'valid' workflow here"
+          - "Otherwise, 'errors' will be the empty array"
+        description: The set of validation failure messages
   WorkflowQueryParameter:
     description: Workflow query parameters
     minProperties: 1

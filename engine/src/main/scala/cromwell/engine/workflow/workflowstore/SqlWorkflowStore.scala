@@ -3,7 +3,6 @@ package cromwell.engine.workflow.workflowstore
 import java.time.{Instant, OffsetDateTime, ZoneId}
 
 import cats.data.NonEmptyList
-import com.typesafe.config.ConfigFactory
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
@@ -14,7 +13,6 @@ import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreStat
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{NotInOnHoldStateException, WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection._
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -45,8 +43,6 @@ object SqlWorkflowStore {
 }
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
-  lazy val cromwellId = ConfigFactory.load().as[Option[String]]("system.cromwell_id")
-
   /** This is currently hardcoded to success but used to do stuff, left in place for now as a useful
     *  startup initialization hook. */
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
@@ -70,7 +66,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
   override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = {
     sqlDatabase.findWorkflowsWithAbortRequested(cromwellId) map { _ map WorkflowId.fromString }
   }
-  
+
   override def abortAllRunning()(implicit ec: ExecutionContext): Future[Unit] = {
     sqlDatabase.setStateToState(WorkflowStoreState.Running.toString, WorkflowStoreState.Aborting.toString)
   }

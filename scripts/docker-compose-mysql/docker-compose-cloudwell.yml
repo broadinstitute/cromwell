@@ -13,7 +13,7 @@ services:
         condition: service_healthy
     command: ["server"]
     environment:
-      - JAVA_OPTS=-Dconfig.file=/app-config/application.conf
+      - JAVA_OPTS=-Dconfig.file=/app-config/cromwell-application.conf
   mysql-db:
     image: "mysql:5.7"
     environment:

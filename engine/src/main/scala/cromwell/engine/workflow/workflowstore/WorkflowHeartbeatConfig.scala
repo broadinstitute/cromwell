@@ -46,8 +46,8 @@ object WorkflowHeartbeatConfig {
     val cromwellId: String = config.as[Option[String]]("system.cromwell_id").getOrElse("cromid-" + UUID.randomUUID().toString.take(7))
 
     val heartbeats: Config = config.getOrElse("system.workflow-heartbeats", ConfigFactory.empty())
-    // Default to 10 minutes and don't allow values less than 10 seconds even for testing purposes.
-    val minHeartbeatTtl = 10 seconds
+    // Default to 10 mins and don't allow values less than 10 secs except for testing purposes.
+    val minHeartbeatTtl = config.getOrElse("danger.debug.only.minimum-heartbeat-ttl", 10.seconds)
     val ttl: FiniteDuration = heartbeats.getOrElse("ttl", 10 minutes).max(minHeartbeatTtl)
     // Default to one third the TTL and don't allow values less than one third of the minimum heartbeat TTL.
     val heartbeatInterval: FiniteDuration = heartbeats.getOrElse("heartbeat-interval", ttl / 3).max(minHeartbeatTtl / 3)

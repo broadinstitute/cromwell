@@ -5,6 +5,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshaller._
 import akka.stream.ActorMaterializer
+import akka.testkit._
 import cromwell.services.womtool.WomtoolServiceMessages.WorkflowDescription
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.WomtoolRouteSupportSpec.MockWomtoolRouteSupport
@@ -22,7 +23,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
   val akkaHttpService = new MockWomtoolRouteSupport()
   val version = "v1"
 
-  implicit def default = RouteTestTimeout(5.seconds)
+  implicit def default = RouteTestTimeout(10.seconds.dilated)
 
   behavior of "/describe endpoint"
 

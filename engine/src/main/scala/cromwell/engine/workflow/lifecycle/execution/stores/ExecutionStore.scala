@@ -14,7 +14,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{appl
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.{ConditionalOutputPort, CallCompletionPort, OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort._
 import wom.graph._
 import wom.graph.expression.ExpressionNodeLike
 
@@ -66,6 +66,7 @@ object ExecutionStore {
       * Node that should be considered to determine upstream dependencies
       */
     def executionNode: GraphNode = outputPort match {
+      case inner: InnerGraphCallCompletionPort => inner.callCompletionPort.graphNode
       case scatter: ScatterGathererPort => scatter.outputToGather
       case conditional: ConditionalOutputPort => conditional.outputToExpose
       case other => other.graphNode

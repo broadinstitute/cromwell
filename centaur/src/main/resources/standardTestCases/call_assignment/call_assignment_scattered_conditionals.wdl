@@ -5,18 +5,21 @@ struct Person {
     Int age
 }
 
-workflow call_assignment_scattered {
+workflow call_assignment_scattered_conditionals {
     Person harry = object {name: "Harry", age: 11}
     Array[Int] delays = range(5)
 
     scatter(delay in delays) {
-        call myTask { input:
-            a = harry
+        if (delay % 2 == 1) {
+            call myTask { input:
+                a = harry,
+                delay = delay
+            }
         }
     }
 
     output {
-        Array[Person] harry_p = myTask
+        Array[Person?] harry_p = myTask
     }
 }
 
@@ -30,7 +33,7 @@ task myTask {
         echo "hello my name is ~{a.name} and I am ~{a.age} years old"
     >>>
     output {
-        String name = a.name + " Potter"
-        Int age = a.age * 2
+        String name = a.name + " Potter ~{delay}"
+        Int age = a.age + delay
     }
 }

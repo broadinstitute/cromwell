@@ -12,7 +12,8 @@ workflow call_assignment_scattered {
     scatter(delay in delays) {
         if (delay % 2 == 0) {
             call myTask { input:
-                a = harry
+                a = harry,
+                delay = delay
             }
         }
     }

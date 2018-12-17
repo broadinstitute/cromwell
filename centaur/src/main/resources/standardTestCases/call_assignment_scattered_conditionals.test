@@ -1,0 +1,18 @@
+name: call_assignment_scattered_conditionals
+testFormat: workflowsuccess
+
+files {
+  workflow: call_assignment/call_assignment_scattered_conditionals.wdl
+}
+
+metadata {
+  workflowName: call_assignment
+  status: Succeeded
+  "outputs.call_assignment.harry_p.0": null
+  "outputs.call_assignment.harry_p.1": null
+  "outputs.call_assignment.harry_p.3": null
+  "outputs.call_assignment.harry_p.2.name": "Harry Potter"
+  "outputs.call_assignment.harry_p.4.name": "Harry Potter"
+  "outputs.call_assignment.harry_p.2.age": 22
+  "outputs.call_assignment.harry_p.4.age": 22
+}

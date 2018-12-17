@@ -7,9 +7,9 @@ import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
 
 
-class DrsCloudNioFileSystemProvider(rootConfig: Config, userSACredentials: OAuth2Credentials) extends CloudNioFileSystemProvider {
+class DrsCloudNioFileSystemProvider(rootConfig: Config, authCredentials: OAuth2Credentials) extends CloudNioFileSystemProvider {
 
-  val drsPathResolver = DrsPathResolver(rootConfig, userSACredentials)
+  val drsPathResolver = DrsPathResolver(rootConfig, authCredentials)
 
   override def config: Config = rootConfig
 

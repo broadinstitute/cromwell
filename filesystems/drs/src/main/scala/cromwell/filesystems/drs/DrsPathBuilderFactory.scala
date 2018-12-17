@@ -36,8 +36,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       Oauth2Scopes.USERINFO_EMAIL,
       Oauth2Scopes.USERINFO_PROFILE
     ).asJavaCollection
-    val userSACredentials = googleAuthMode.credentials((key: String) => options.get(key).get, marthaScopes)
+    val authCredentials = googleAuthMode.credentials((key: String) => options.get(key).get, marthaScopes)
 
-    Future.successful(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, userSACredentials)))
+    Future.successful(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials)))
   }
 }

@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 
-case class DrsPathResolver(config: Config, userSACredentials: OAuth2Credentials) {
+case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
   private val AccessTokenAcceptableTTL = 1.minute
 
   private val DrsPathToken = s"$${drsPath}"
@@ -24,7 +24,7 @@ case class DrsPathResolver(config: Config, userSACredentials: OAuth2Credentials)
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
 
-  private def freshAccessToken(credential: OAuth2Credentials): String = {
+  private def getFreshAccessToken(credential: OAuth2Credentials): String = {
     def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
       (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL)
     }
@@ -44,7 +44,7 @@ case class DrsPathResolver(config: Config, userSACredentials: OAuth2Credentials)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
 
     if (needServiceAccount) {
-      val accessToken = freshAccessToken(userSACredentials)
+      val accessToken = getFreshAccessToken(authCredentials)
       postRequest.setHeader("Authorization", s"Bearer $accessToken")
     }
 

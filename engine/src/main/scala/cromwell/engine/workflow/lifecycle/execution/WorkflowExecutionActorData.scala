@@ -12,8 +12,9 @@ import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.stores.{ExecutionStore, ValueStore}
 import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
+import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.values.WomValue
+import wom.values.{WomObject, WomValue}
 
 import scala.concurrent.ExecutionContext
 
@@ -90,9 +91,16 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
 
   /** Converts call outputs to a ValueStore entries */
   private def toValuesMap(jobKey: JobKey, outputs: CallOutputs): Map[ValueKey, WomValue] = {
+    val callCompletionValue = jobKey.node match {
+      case ccn: CommandCallNode =>
+        val valueKey = ValueKey(ccn.singleCompletionPort, jobKey.index)
+        Map(valueKey -> WomObject(outputs.outputs.map { case (port, value) => port.internalName -> value }))
+      case _ => Map.empty
+    }
+
     outputs.outputs.map({
       case (outputPort, jobOutput) => ValueKey(outputPort, jobKey.index) -> jobOutput
-    })
+    }) ++ callCompletionValue
   }
 
   def addExecutions(jobExecutionMap: JobExecutionMap): WorkflowExecutionActorData = {

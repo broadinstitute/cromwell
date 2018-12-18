@@ -373,7 +373,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val notStarted = data.executionStore.unstarted.mkString(System.lineSeparator, System.lineSeparator, "")
     context.parent ! WorkflowExecutionFailedResponse(
       data.jobExecutionMap,
-      new Exception(s"Workflow is making no progress but has the following unstarted job keys: $notStarted")
+      new Exception(s"""Workflow is making no progress.
+                        |It has the following unstarted job keys: $notStarted
+                        |It has the following job keys: ${data.executionStore}
+                        |It has the following values: ${data.valueStore}
+                        |""".stripMargin)
     )
     goto(WorkflowExecutionFailedState)
   }

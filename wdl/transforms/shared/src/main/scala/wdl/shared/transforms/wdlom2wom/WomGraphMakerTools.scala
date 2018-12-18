@@ -17,7 +17,7 @@ object WomGraphMakerTools {
     }
 
     Graph(g.nodes.union((g.nodes collect {
-      case node: CallNode => node.outputPorts.map(op => {
+      case node: CallNode => (node.outputPorts + node.singleCompletionPort).map(op => {
         val identifier = makeIdentifier(WomIdentifier(op.identifier.localName.value))
         PortBasedGraphOutputNode(identifier, op.womType, op)
       })

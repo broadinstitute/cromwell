@@ -10,16 +10,21 @@ workflow call_assignment_scattered_conditionals {
     Array[Int] delays = range(5)
 
     scatter(delay in delays) {
-        if (delay % 2 == 1) {
+#        if (delay % 2 == 1) {
+            Int i = delay + 5
             call myTask { input:
                 a = harry,
                 delay = delay
-            }
+#            }
         }
     }
 
     output {
-        Array[Person?] harry_p = myTask
+#        Array[Person?] harry_p = myTask
+#        Array[Int?] is = i
+
+        Array[Person] harry_p = myTask
+        Array[Int] is = i
     }
 }
 

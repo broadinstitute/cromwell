@@ -34,7 +34,9 @@ sealed abstract class CallNode extends GraphNode {
 
   override lazy val upstreamPorts = calculateUpstreamPorts ++ nonInputBasedPrerequisites.flatMap(_.completionPorts)
 
-  override val completionPorts: Set[NodeCompletionPort] = Set(CallCompletionPort(_ => this, WomCompositeType(callable.outputs.map(o => o.name -> o.womType).toMap)))
+  val singleCompletionPort = CallCompletionPort(_ => this, WomCompositeType(callable.outputs.map(o => o.name -> o.womType).toMap))
+
+  override val completionPorts: Set[NodeCompletionPort] = Set(singleCompletionPort)
 }
 
 final case class ExpressionCallNode private(override val identifier: WomIdentifier,

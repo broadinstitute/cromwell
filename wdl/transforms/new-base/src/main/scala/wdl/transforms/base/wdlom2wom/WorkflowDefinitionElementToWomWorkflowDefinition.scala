@@ -98,7 +98,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
         val availableValues: Map[String, OutputPort] = (for {
           // Anonymous expression nodes are one-time-use and do not exist in the universe of available linking candidates (#3999)
           node <- currentList.filterNot(_.isInstanceOf[AnonymousExpressionNode])
-          port <- node.outputPorts ++ node.completionPorts
+          port <- node.outputPorts
         } yield outputName(node, port) -> port).toMap
 
         val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] =

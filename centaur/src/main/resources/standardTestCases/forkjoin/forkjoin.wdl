@@ -5,6 +5,7 @@
 
 task mkFile {
   command {
+    sleep 20
     for i in `seq 1 1000`
     do
       echo $i
@@ -20,6 +21,7 @@ task grep {
   String pattern
   File in_file
   command {
+    sleep 20
     grep '${pattern}' ${in_file} | wc -l
   }
   output {
@@ -31,6 +33,7 @@ task grep {
 task wc {
   File in_file
   command {
+    sleep 20
     cat ${in_file} | wc -l
   }
   output {
@@ -43,6 +46,7 @@ task join {
   Int grepCount
   Int wcCount
   command {
+    sleep 20
     expr ${wcCount} / ${grepCount}
   }
   output {

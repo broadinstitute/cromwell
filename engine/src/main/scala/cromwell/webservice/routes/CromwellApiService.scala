@@ -35,7 +35,7 @@ import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import net.ceedubs.ficus.Ficus._
-import spray.json.JsString
+import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
@@ -203,7 +203,37 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) => {
         val workflowSource: String = r.response.fields("submittedFiles").asJsObject.fields("workflow").convertTo[String]
-        val dag = helpers.GraphPrint.generateWorkflowDagString(workflowSource.toString)
+        var dag = helpers.GraphPrint.generateWorkflowDagString(workflowSource.toString)
+
+        val calls = r.response.fields("calls").asJsObject.fields
+        def callsToFillColors: Map[String, String] = calls map { case (fqn, value) =>
+          val name = fqn.split('.').last
+
+          val array = value.convertTo[List[JsValue]]
+          val fillColor = if (array.size == 1) {
+            array.head.asJsObject.fields("executionStatus").convertTo[String] match {
+              case "Done" => "green"
+              case "Running" => "blue"
+              case other =>
+                println(s"Unknown status $other")
+                "red"
+            }
+          } else {
+            "lightgray"
+          }
+
+          name -> fillColor
+        }
+
+        val callRegex = """"call ([a-zA-Z0-9]+)"""".r
+        dag = dag.lines.map { line => line.trim match {
+          case callRegex(callName) if callsToFillColors.contains(callName) =>
+            s"$line [style=filled fillcolor=${callsToFillColors(callName)}]"
+          case callRegex(_) =>
+            s"$line [style=filled fillcolor=lightgray]"
+          case other =>
+            other
+        }}.mkString(System.lineSeparator)
 
         Try(Source.fromResource("workflowTimings/workflowDag.html").mkString) match {
           case Success(wfTimingsContent) =>

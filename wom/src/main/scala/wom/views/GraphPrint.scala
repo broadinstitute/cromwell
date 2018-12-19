@@ -13,10 +13,7 @@ final class GraphPrint(executableCallable: Executable) {
 
   def dotString = WorkflowDigraph(executableCallable.entryPoint.name, listAllGraphNodes).dotString
 
-  implicit object nodeAndLinkMonoid extends Monoid[NodesAndLinks] {
-    override def empty: NodesAndLinks = NodesAndLinks(Set.empty, Set.empty)
-    override def combine(x: NodesAndLinks, y: NodesAndLinks): NodesAndLinks = NodesAndLinks(x.nodes ++ y.nodes, x.links ++ y.links)
-  }
+  implicit val nodeAndLinkMonoid: Monoid[NodesAndLinks] = cats.derived.MkMonoid[NodesAndLinks]
 
   private def listAllGraphNodes: NodesAndLinks = {
 

@@ -19,8 +19,7 @@ object GraphPrint {
                      |  compound=true;
                      |  ${workflowDigraph.digraph.links.mkString(System.lineSeparator + "  ")}
                      |  ${workflowDigraph.digraph.nodes.mkString(System.lineSeparator + "  ")}
-                     |}
-                     |"""
+                     |}""".stripMargin
 
     result
   }

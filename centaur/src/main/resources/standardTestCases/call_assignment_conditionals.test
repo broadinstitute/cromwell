@@ -1,0 +1,11 @@
+name: call_assignment_conditionals
+testFormat: workflowsuccess
+
+files {
+  workflow: call_assignment/call_assignment_conditionals.wdl
+}
+
+metadata {
+  workflowName: call_assignment_conditionals
+  status: Succeeded
+}

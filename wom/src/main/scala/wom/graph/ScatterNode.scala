@@ -40,7 +40,7 @@ final case class ScatterNode private(override val innerGraph: Graph,
 
   lazy val nodes: Set[GraphNode] = scatterCollectionExpressionNodes.toSet[GraphNode] + this
 
-  override val completionPorts: Set[NodeCompletionPort] = innerGraph.nodes.flatMap(_.completionPorts).map(p => InnerGraphCallCompletionPort(_ => this, p))
+  override val completionPorts: Set[NodeCompletionPort] = Set.empty // innerGraph.nodes.flatMap(_.completionPorts).map(p => InnerGraphCallCompletionPort(_ => this, p))
 }
 
 object ScatterNode {

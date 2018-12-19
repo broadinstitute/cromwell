@@ -1,3 +1,5 @@
+ignore: true
+
 name: refresh_token_no_auth_bucket
 testFormat: workflowfailure
 backends: [Papi-Refresh]

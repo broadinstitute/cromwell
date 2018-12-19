@@ -19,6 +19,8 @@ object WorkflowMetadataKeys {
   val LanguageName = "actualWorkflowLanguage"
   val LanguageVersionName = "actualWorkflowLanguageVersion"
 
+  val Dag = "dag"
+
   val SubmissionSection = "submittedFiles"
   val SubmissionSection_Workflow = "workflow"
   val SubmissionSection_WorkflowUrl = "workflowUrl"

@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
 import cats.data.EitherT._
-import cats.data.Validated.{Invalid, Valid}
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.either._
@@ -38,11 +38,13 @@ import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wom.core.WorkflowSource
+import wom.executable.Executable
 import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.{WomString, WomValue}
+import wom.views.GraphPrint
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -289,7 +291,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val importsMetadata = importedFilesMetadata(validatedNamespace.importedFileContent)
     val wfInputsMetadataEvents = wfInputsMetadata(validatedNamespace.womValueInputs)
     val wfNameMetadataEvent = wfNameMetadata(validatedNamespace.executable.entryPoint.name)
-    serviceRegistryActor ! PutMetadataAction(importsMetadata.toVector ++ wfInputsMetadataEvents :+ wfNameMetadataEvent)
+    val dagEvent = workflowDagEvent(validatedNamespace.executable)
+    serviceRegistryActor ! PutMetadataAction(importsMetadata.toVector ++ wfInputsMetadataEvents :+ wfNameMetadataEvent :+ dagEvent)
+  }
+
+  private def workflowDagEvent(executable: Executable): MetadataEvent = {
+    MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Dag), MetadataValue(new GraphPrint(executable).dotString))
   }
 
   private def pushLanguageToMetadata(languageName: String, languageVersion: String): Unit = {

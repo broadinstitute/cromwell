@@ -193,7 +193,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   }
 
   private def metadataLookupForDagRoute(workflowId: WorkflowId): Future[MetadataBuilderActorResponse] = {
-    val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata", "submittedFiles:workflow")
+    val includeKeys = NonEmptyList.of("dag", "executionStatus")
     val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
 
     metadataBuilderRegulatorActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
@@ -202,8 +202,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   private def completeDagRouteResponse(metadataResponse: Future[MetadataBuilderActorResponse]) = {
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) => {
-        val workflowSource: String = r.response.fields("submittedFiles").asJsObject.fields("workflow").convertTo[String]
-        val dag = helpers.GraphPrint.generateWorkflowDagString(workflowSource.toString)
+        val dag: String = r.response.fields("dag").convertTo[String]
 
         val calls = r.response.fields("calls").asJsObject.fields
         def callsToFillColors: Map[String, JsValue] = calls map { case (fqn, value) =>
@@ -213,6 +212,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
           val fillColor = if (array.size == 1) {
             array.head.asJsObject.fields("executionStatus").convertTo[String] match {
               case "Done" => "green"
+              case "QueuedInCromwell" => "lightblue"
               case "Running" => "blue"
               case other =>
                 println(s"Unknown status $other")
@@ -222,7 +222,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
             "lightgray"
           }
 
-          s"call $name" -> JsString(fillColor)
+          s"CALL_$name" -> JsString(fillColor)
         }
 
         Try(Source.fromResource("workflowTimings/workflowDag.html").mkString) match {

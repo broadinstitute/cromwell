@@ -75,7 +75,9 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             GenomicsFactory.KmsScope,
             // Profile and Email scopes are requirements for interacting with Martha v2
             Oauth2Scopes.USERINFO_EMAIL,
-            Oauth2Scopes.USERINFO_PROFILE
+            Oauth2Scopes.USERINFO_PROFILE,
+            // Monitoring Scopes as POC
+            "https://www.googleapis.com/auth/monitoring.write"
           ).asJava
         )
 

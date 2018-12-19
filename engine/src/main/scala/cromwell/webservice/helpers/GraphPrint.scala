@@ -16,6 +16,7 @@ object GraphPrint {
 
     val workflowDigraph = GraphPrint.generateWorkflowDigraph(workflowSource)
     val result = s"""|digraph ${workflowDigraph.workflowName} {
+                     |  rankdir=LR;
                      |  compound=true;
                      |  ${workflowDigraph.digraph.links.mkString(System.lineSeparator + "  ")}
                      |  ${workflowDigraph.digraph.nodes.mkString(System.lineSeparator + "  ")}

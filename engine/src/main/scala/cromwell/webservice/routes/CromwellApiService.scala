@@ -203,10 +203,10 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) => {
         val workflowSource: String = r.response.fields("submittedFiles").asJsObject.fields("workflow").convertTo[String]
-        var dag = helpers.GraphPrint.generateWorkflowDagString(workflowSource.toString)
+        val dag = helpers.GraphPrint.generateWorkflowDagString(workflowSource.toString)
 
         val calls = r.response.fields("calls").asJsObject.fields
-        def callsToFillColors: Map[String, String] = calls map { case (fqn, value) =>
+        def callsToFillColors: Map[String, JsValue] = calls map { case (fqn, value) =>
           val name = fqn.split('.').last
 
           val array = value.convertTo[List[JsValue]]
@@ -222,23 +222,13 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
             "lightgray"
           }
 
-          name -> fillColor
+          s"call $name" -> JsString(fillColor)
         }
-
-        val callRegex = """"call ([a-zA-Z0-9]+)"""".r
-        dag = dag.lines.map { line => line.trim match {
-          case callRegex(callName) if callsToFillColors.contains(callName) =>
-            s"$line [style=filled fillcolor=${callsToFillColors(callName)}]"
-          case callRegex(_) =>
-            s"$line [style=filled fillcolor=lightgray]"
-          case other =>
-            other
-        }}.mkString(System.lineSeparator)
 
         Try(Source.fromResource("workflowTimings/workflowDag.html").mkString) match {
           case Success(wfTimingsContent) =>
             val response = HttpResponse(entity = wfTimingsContent
-              .replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.response.toString)
+              .replace("\"{{REPLACE_THIS_WITH_CALL_METADATA}}\"", JsObject.apply(callsToFillColors).toString)
               .replace("\"{{REPLACE_THIS_WITH_DAG}}\"", JsString(dag).toString)
             )
             complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))

@@ -6,7 +6,19 @@
 <script src="https://unpkg.com/d3-graphviz@1.4.0/build/d3-graphviz.min.js"></script>
 <div id="graph" style="text-align: center;"></div>
 <script>
+  var calls=new Map(Object.entries("{{REPLACE_THIS_WITH_CALL_METADATA}}"));
+
 d3.select("#graph").graphviz()
-    .fade(false)
+    .attributer(function(d) {
+        if (d.tag == "ellipse") {
+            let color = calls.get(d.parent.key)
+
+            if (color) {
+                d.attributes.fill = color
+            } else {
+                d.attributes.fill = "lightgray"
+            }
+        }
+    })
     .renderDot("{{REPLACE_THIS_WITH_DAG}}");
 </script>

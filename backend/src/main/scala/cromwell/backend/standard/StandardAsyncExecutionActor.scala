@@ -908,6 +908,7 @@ trait StandardAsyncExecutionActor
     }
   }
 
+
   /**
     * Process an unsuccessful run, as defined by `isDone`.
     *
@@ -1064,6 +1065,7 @@ trait StandardAsyncExecutionActor
     }
   }
 
+  //Bad Decision #6 -- Added the retry abstraction in such a place that applies to all backends, even ones that can't set memory!
   /**
     * Process an execution result.
     *
@@ -1077,35 +1079,60 @@ trait StandardAsyncExecutionActor
     val stderr = jobPaths.standardPaths.error
     lazy val stderrAsOption: Option[Path] = Option(stderr)
 
-    val stderrSizeAndReturnCode = for {
+    val stderrSizeAndReturnCodeAndisOOM = for {
       returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
-    } yield (stderrSize, returnCodeAsString)
+      //Bad Decision #1 -- Reading in the entire stderr in memory...WELP!
+      //Bad Decision #2 -- Accessing the same file TWICE?
+      //Bad Decision #3 -- Expensive to always check Stderr, regardless of whether this info will be used.
+      stderrContents <- asyncIo.contentAsStringAsync(stderr, None, failOnOverflow = false)
+    } yield (returnCodeAsString, stderrSize, stderrContents)
 
-    stderrSizeAndReturnCode flatMap {
-      case (stderrSize, returnCodeAsString) =>
+    stderrSizeAndReturnCodeAndisOOM flatMap {
+      case (returnCodeAsString, stderrSize, stderrContents) =>
         val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+
+        //Bad Decision #4 -- Looking for a single string
+        //Bad Decision #5 -- Single string is not yet configurable
+        val isOOM = stderrContents.contains("OutOfMemory")
 
         if (isDone(status)) {
           tryReturnCodeAsInt match {
+            //If the return code is an abort code, please abort
+            case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
+              Future.successful(AbortedExecutionHandle)
+            //If failOnStderr applies, please fail (regardless of OOM)
             case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
-            case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
-              Future.successful(AbortedExecutionHandle)
+            //If ContinueOnReturnCode doesn't apply, please fail
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
+            //If job failed due to OOM, please retry!
+            case Success(returnCodeAsInt) if isOOM =>
+              println(s"RUCHI:: DONE BUT FOUND OOM MESSAGE IN STDERR!")
+              val failureStatus = handleExecutionFailure(status, Option(returnCodeAsInt))
+              retryElseFail(status, failureStatus)
+            //If none of those above apply, you've succeeded!
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>
               Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
           }
         } else {
-          val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-          retryElseFail(status, failureStatus)
+          //If not Done & OOM
+          if (isOOM) {
+            println(s"RUCHI:: NOT DONE BUT FOUND OOM MESSAGE IN STDERR!")
+            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
+            retryElseFail(status, failureStatus)
+          }
+          else {
+            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
+            retryElseFail(status, failureStatus)
+          }
         }
     } recoverWith {
       case exception =>

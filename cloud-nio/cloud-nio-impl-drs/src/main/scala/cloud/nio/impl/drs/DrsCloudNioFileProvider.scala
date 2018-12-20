@@ -63,12 +63,14 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
 
 
   private def inputStream(url: String, serviceAccount: String, scheme: String): ReadChannel = {
-    val urlArray = url.replace(s"$scheme://", "").split("/", 2)
-    val fileToBeLocalized = urlArray(1)
-    val bucket = urlArray(0)
-
     scheme match {
-      case GcsScheme => gcsInputStream(bucket, fileToBeLocalized, serviceAccount)
+      case GcsScheme => {
+        val urlArray = url.replace(s"$scheme://", "").split("/", 2)
+        val fileToBeLocalized = urlArray(1)
+        val bucket = urlArray(0)
+
+        gcsInputStream(bucket, fileToBeLocalized, serviceAccount)
+      }
       case otherScheme => throw new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme.")
     }
   }

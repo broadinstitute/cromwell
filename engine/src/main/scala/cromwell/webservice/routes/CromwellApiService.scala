@@ -205,30 +205,11 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
         val dag: String = r.response.fields("dag").convertTo[String]
 
         val calls = r.response.fields("calls").asJsObject.fields
-        def callsToFillColors: Map[String, JsValue] = calls map { case (fqn, value) =>
-          val name = fqn.split('.').last
-
-          val array = value.convertTo[List[JsValue]]
-          val fillColor = if (array.size == 1) {
-            array.head.asJsObject.fields("executionStatus").convertTo[String] match {
-              case "Done" => "green"
-              case "QueuedInCromwell" => "lightblue"
-              case "Running" => "blue"
-              case other =>
-                println(s"Unknown status $other")
-                "red"
-            }
-          } else {
-            "lightgray"
-          }
-
-          s"CALL_$name" -> JsString(fillColor)
-        }
 
         Try(Source.fromResource("workflowTimings/workflowDag.html").mkString) match {
           case Success(wfTimingsContent) =>
             val response = HttpResponse(entity = wfTimingsContent
-              .replace("\"{{REPLACE_THIS_WITH_CALL_METADATA}}\"", JsObject.apply(callsToFillColors).toString)
+              .replace("\"{{REPLACE_THIS_WITH_CALL_METADATA}}\"", JsObject.apply(DagAssembly.callsToFillColors(calls)).toString)
               .replace("\"{{REPLACE_THIS_WITH_DAG}}\"", JsString(dag).toString)
             )
             complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))

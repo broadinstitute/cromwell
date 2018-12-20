@@ -77,7 +77,7 @@ object GraphPrint {
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks) {
     def dotString: String =
       s"""|digraph $workflowName {
-          |  rankdir=LR;
+          |  #rankdir=LR;
           |  compound=true;
           |
           |  # Links
@@ -116,7 +116,6 @@ object GraphPrint {
   final case class DotScatterNode(id: String, nodes: Set[DotNode]) extends DotNode {
     override def dotString: String =
       s"""subgraph $id {
-          |  rankdir=TB;
           |  style="filled,solid";
           |  fillcolor=white;
           |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
@@ -178,18 +177,6 @@ object GraphPrint {
         case gatherPort: ScatterGathererPort =>
           relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)
         case other => relevantAsUpstream(other.graphNode)
-//        case CommandCallOutputPort(commandCallNode) =>
-//          relevantAsUpstream(commandCallNode)
-//        case ExposedExpressionOutputPort(exposedExpressionNode) =>
-//          relevantAsUpstream(exposedExpressionNode)
-//        case ExpressionOutputPort(expressionNode) =>
-//          relevantAsUpstream(expressionNode)
-//        case ScatterVariablePort(scatterVariableNode) =>
-//          relevantAsUpstream(scatterVariableNode)
-//        case OuterGraphInputPort(outerGraphInputNode) =>
-//          relevantAsUpstream(outerGraphInputNode.linkToOuterGraph.graphNode)
-//
-//        case _ => Set.empty[DotNode]
       }
     }
 

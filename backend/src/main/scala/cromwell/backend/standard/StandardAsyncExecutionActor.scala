@@ -620,6 +620,11 @@ trait StandardAsyncExecutionActor
     case _ => 0
   }
 
+  lazy val previousOOMRetries: Int = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.OOMCountKey) match {
+    case Some(KvPair(_, v)) => v.toInt
+    case _ => 0
+  }
+
   /**
     * Execute the job specified in the params. Should return a `StandardAsyncPendingExecutionHandle`, or a
     * `FailedExecutionHandle`.
@@ -908,6 +913,26 @@ trait StandardAsyncExecutionActor
     }
   }
 
+  def retryOOMElseFail(runStatus: StandardAsyncRunState,
+                    backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
+    println(s"--------------------------------")
+    println(s"RUCHI:: Inside RetryOOMElseFail")
+    println(s"--------------------------------")
+
+    println(s"--------------------------------")
+    println(s"RUCHI:: PreviousOOMRetries = ${previousOOMRetries}")
+    println(s"--------------------------------")
+
+    val retryable = previousOOMRetries < maxRetries
+
+    backendExecutionStatus flatMap {
+      case failed: FailedNonRetryableExecutionHandle if retryable =>
+        incrementOOMRetryCount map { _ =>
+          FailedRetryableExecutionHandle(failed.throwable, failed.returnCode)
+        }
+      case _ => backendExecutionStatus
+    }
+  }
 
   /**
     * Process an unsuccessful run, as defined by `isDone`.
@@ -917,7 +942,7 @@ trait StandardAsyncExecutionActor
     */
   def handleExecutionFailure(runStatus: StandardAsyncRunState,
                              returnCode: Option[Int]): Future[ExecutionHandle] = {
-    val exception = new RuntimeException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: $runStatus")
+    val exception = new RuntimeException(s"Task ${jobDescriptor.key.tag} failed for unknown reason with status: $runStatus")
     Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
   }
 
@@ -1113,11 +1138,16 @@ trait StandardAsyncExecutionActor
               retryElseFail(status, executionHandle)
             //If job failed due to OOM, please retry!
             case Success(returnCodeAsInt) if isOOM =>
+              println(s"--------------------------------")
               println(s"RUCHI:: DONE BUT FOUND OOM MESSAGE IN STDERR!")
-              val failureStatus = handleExecutionFailure(status, Option(returnCodeAsInt))
-              retryElseFail(status, failureStatus)
+              println(s"--------------------------------")
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OOM(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
+              retryOOMElseFail(status, executionHandle)
             //If none of those above apply, you've succeeded!
-            case Success(returnCodeAsInt) =>
+            case Success(returnCodeAsInt) if !isOOM =>
+              println(s"--------------------------------")
+              println(s"RUCHI:: HITING SUCCESS!")
+              println(s"--------------------------------")
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>
               Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
@@ -1125,9 +1155,11 @@ trait StandardAsyncExecutionActor
         } else {
           //If not Done & OOM
           if (isOOM) {
+            println(s"--------------------------------")
             println(s"RUCHI:: NOT DONE BUT FOUND OOM MESSAGE IN STDERR!")
-            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-            retryElseFail(status, failureStatus)
+            println(s"--------------------------------")
+            val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OOM(jobDescriptor.key.tag, stderrAsOption), tryReturnCodeAsInt.toOption))
+            retryOOMElseFail(status, executionHandle)
           }
           else {
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
@@ -1169,6 +1201,21 @@ trait StandardAsyncExecutionActor
     val kvValue = (previousFailedRetries + 1).toString
     val kvPair = KvPair(scopedKey, kvValue)
     val kvPut = KvPut(kvPair)
+
+    makeKvRequest(Seq(kvPut)).map(_.head)
+  }
+
+  /**
+    * Increment the oom count for this failed job in the key value store.
+    */
+  def incrementOOMRetryCount: Future[KvResponse] = {
+    val futureKvJobKey =
+      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+    val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, futureKvJobKey, BackendLifecycleActorFactory.OOMCountKey)
+    val kvValue = (previousOOMRetries + 1).toString
+    val kvPair = KvPair(scopedKey, kvValue)
+    val kvPut = KvPut(kvPair)
+
     makeKvRequest(Seq(kvPut)).map(_.head)
   }
 

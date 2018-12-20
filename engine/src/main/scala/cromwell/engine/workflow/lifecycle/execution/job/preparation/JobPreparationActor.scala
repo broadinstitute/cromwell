@@ -24,8 +24,10 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
+import wom.format.MemorySize
 import wom.values._
 
+import scala.Int
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
@@ -66,7 +68,11 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(Idle) {
     case Event(Start(valueStore), JobPreparationActorNoData) =>
       evaluateInputsAndAttributes(valueStore) match {
-        case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
+        case Valid((inputs, attributes)) =>
+          println(s"--------------------------------")
+          println(s"RUCHI:: Evaluated attributes are \n${attributes}")
+          println(s"--------------------------------")
+          fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
@@ -88,8 +94,36 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
         case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
-        case finished: KeyValueLookupResults => 
-          sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
+        case finished: KeyValueLookupResults =>
+
+          val OOMcount: Int = finished.unscoped.get("OOMCountKey") match {
+            case Some(KvPair(_, count)) => count.toInt
+            case _ => 0
+          }
+
+          val multiplicationFactorForMemory = Math.pow(2.0, OOMcount.toDouble)
+
+          val newAttributes: Map[LocallyQualifiedName, WomValue] = attributes.get("memory") match {
+            case Some(WomString(mem)) =>
+              MemorySize.parse(mem) match {
+                case Success(s) =>
+                  val memString = MemorySize(s.amount * multiplicationFactorForMemory, s.unit).toString
+                  attributes ++ Map("memory" -> WomString(memString))
+                case _ =>
+                  attributes
+              }
+            case x =>
+              println(s"--------------------------------")
+              println(s"RUCHI:: memory returned a non-integer value ${x}")
+              println(s"--------------------------------")
+              attributes
+          }
+
+          println(s"--------------------------------")
+          println(s"RUCHI:: NEW attributes are \n${newAttributes}")
+          println(s"--------------------------------")
+
+          sendResponseAndStop(prepareBackendDescriptor(inputs, newAttributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
       }
   }
 
@@ -98,6 +132,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       workflowLogger.warn(s"JobPreparation actor received an unexpected message in state $stateName: $unexpectedMessage")
       stay()
   }
+
 
   private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)

@@ -39,7 +39,7 @@ A sample configuration for DRS filesystem might look like:
 ```hocon
 engine {
   filesystems {
-    # other filesystems, probably gcs
+    # ... other filesystems here, probably gcs, and then ...
     drs {
       auth = "application-default"
     }

@@ -296,7 +296,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def workflowDagEvent(executable: Executable): MetadataEvent = {
-    MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Dag), MetadataValue(new GraphPrint(executable).dotString))
+    MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Dag), MetadataValue(new GraphPrint(executable.entryPoint).dotString))
   }
 
   private def pushLanguageToMetadata(languageName: String, languageVersion: String): Unit = {

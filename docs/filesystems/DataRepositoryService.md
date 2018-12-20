@@ -32,7 +32,9 @@ drs {
 ```
 
 
-For example, a sample configuration for DRS filesystem might look like:
+**Example**
+
+A sample configuration for DRS filesystem might look like:
 
 ```hocon
 engine {

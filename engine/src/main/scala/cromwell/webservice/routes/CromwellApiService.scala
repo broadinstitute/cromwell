@@ -117,7 +117,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     path("workflows" / Segment / Segment / "dag") { (_, possibleWorkflowId) =>
       instrumentRequest {
         onComplete(validateWorkflowId(possibleWorkflowId, serviceRegistryActor)) {
-          case Success(workflowId) => completeDagRouteResponse(metadataLookupForDagRoute(workflowId))
+          case Success(workflowId) => completeDagRouteResponse(workflowId, metadataLookupForDagRoute(workflowId))
           case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
           case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
           case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
@@ -199,17 +199,17 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     metadataBuilderRegulatorActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
   }
 
-  private def completeDagRouteResponse(metadataResponse: Future[MetadataBuilderActorResponse]) = {
+  private def completeDagRouteResponse(workflowId: WorkflowId, metadataResponse: Future[MetadataBuilderActorResponse]) = {
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) => {
-        val dag: String = r.response.fields("dag").convertTo[String]
+        val dag: String = DagAssembly.dagFromMetadata(workflowId, r.response)
 
-        val calls = r.response.fields("calls").asJsObject.fields
+        val callColors = DagAssembly.callColorsFromMetadata(r.response)
 
         Try(Source.fromResource("workflowTimings/workflowDag.html").mkString) match {
           case Success(wfTimingsContent) =>
             val response = HttpResponse(entity = wfTimingsContent
-              .replace("\"{{REPLACE_THIS_WITH_CALL_METADATA}}\"", JsObject.apply(DagAssembly.callsToFillColors(calls)).toString)
+              .replace("\"{{REPLACE_THIS_WITH_CALL_METADATA}}\"", JsObject.apply(callColors).toString)
               .replace("\"{{REPLACE_THIS_WITH_DAG}}\"", JsString(dag).toString)
             )
             complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))

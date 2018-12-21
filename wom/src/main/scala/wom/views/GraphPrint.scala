@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats.implicits._
 import cats.Monoid
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.{OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.ScatterGathererPort
 import wom.graph.expression.ExpressionNode
 import wom.graph._
 import wom.types.WomType
@@ -29,8 +29,6 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
       case s: ScatterNode => handleScatter(s, clusterCounter, availableScatterVariables)
       case _ => nodeAndLinkMonoid.empty
     }
-
-
   }
 
   def handleScatter(scatterNode: ScatterNode,
@@ -111,34 +109,6 @@ object GraphPrint {
           |  fillcolor=white;
           |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
           |}""".stripMargin
-  }
-
-  case object CommandCallOutputPort {
-    def unapply(port: OutputPort): Option[CommandCallNode] = port.graphNode match {
-      case a: CommandCallNode => Some(a)
-      case _ => None
-    }
-  }
-
-  case object ExpressionOutputPort {
-    def unapply(port: OutputPort): Option[ExpressionNode] = port.graphNode match {
-      case a: ExpressionNode => Some(a)
-      case _ => None
-    }
-  }
-
-  case object OuterGraphInputPort {
-    def unapply(port: OutputPort): Option[OuterGraphInputNode] = port.graphNode match {
-      case a: OuterGraphInputNode => Some(a)
-      case _ => None
-    }
-  }
-
-  case object ScatterVariablePort {
-    def unapply(port: OutputPort): Option[ScatterVariableNode] = port.graphNode match {
-      case a: ScatterVariableNode => Some(a)
-      case _ => None
-    }
   }
 
   def upstreamLinks(originNode: GraphNode,

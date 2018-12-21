@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats.implicits._
 import cats.Monoid
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.ScatterGathererPort
+import wom.graph.GraphNodePort.{OutputPort, ScatterGathererPort}
 import wom.graph.expression.ExpressionNode
 import wom.graph._
 import wom.types.WomType
@@ -118,20 +118,19 @@ object GraphPrint {
       case ccn: CommandCallNode => Set(DotCallNode(ccn))
       case en: ExpressionNode => upstreamLinksforNode(en)
       case svn: ScatterVariableNode => Set(availableScatterVariables(svn))
-      case ogin: OuterGraphInputNode => relevantAsUpstream(ogin.linkToOuterGraph.graphNode)
+      case ogin: OuterGraphInputNode => upstreamPortToRelevantNodes(ogin.linkToOuterGraph)
 
       case _ => Set.empty[DotNode]
     }
 
-
-    def upstreamLinksforNode(n: GraphNode) = n.upstreamPorts flatMap { upstreamPort =>
-      upstreamPort match {
-        case gatherPort: ScatterGathererPort =>
-          relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)
-        case other => relevantAsUpstream(other.graphNode)
-      }
+    def upstreamPortToRelevantNodes(p: OutputPort) = p match {
+      case gatherPort: ScatterGathererPort =>
+        relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)
+      case other =>
+        relevantAsUpstream(other.graphNode)
     }
 
+    def upstreamLinksforNode(n: GraphNode) = n.upstreamPorts flatMap upstreamPortToRelevantNodes
     upstreamLinksforNode(originNode).map(DotLink(_, origin))
   }
 

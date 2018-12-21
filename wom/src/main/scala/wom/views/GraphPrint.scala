@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.Monoid
 import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.{OutputPort, ScatterGathererPort}
-import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
+import wom.graph.expression.ExpressionNode
 import wom.graph._
 import wom.types.WomType
 import wom.views.GraphPrint._
@@ -27,7 +27,6 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
     graph.nodes.toList foldMap {
       case ccn: CommandCallNode => NodesAndLinks(Set(DotCallNode(ccn)), upstreamLinks(ccn, DotCallNode(ccn), availableScatterVariables))
       case s: ScatterNode => handleScatter(s, clusterCounter, availableScatterVariables)
-      case e: ExposedExpressionNode if hasCallAncestor(e) => NodesAndLinks(Set(DotExpressionNode(e)), upstreamLinks(e, DotExpressionNode(e), availableScatterVariables))
       case _ => nodeAndLinkMonoid.empty
     }
 
@@ -97,14 +96,6 @@ object GraphPrint {
     def apply(ccn: CommandCallNode): DotCallNode = DotCallNode(ccn.localName)
   }
 
-  final case class DotExpressionNode(womType: WomType, valueName: String) extends DotNode {
-    override def id: String = s"VALUE_$valueName"
-    def dotString = s"""$id [shape="hexagon" label="${womType.toDisplayString} $valueName"]"""
-  }
-  object DotExpressionNode {
-    def apply(expr: ExpressionNode): DotExpressionNode = DotExpressionNode(expr.womType, expr.identifier.localName.value)
-  }
-
   final case class DotScatterVariableNode(womType: WomType, valueName: String, clusterNumber: Int) extends DotNode {
     override def id: String = s"SCATTER_${clusterNumber}_VARIABLE_$valueName"
     def dotString = s"""$id [shape="hexagon" label="scatter over ${womType.toDisplayString} as $valueName"]"""
@@ -125,13 +116,6 @@ object GraphPrint {
   case object CommandCallOutputPort {
     def unapply(port: OutputPort): Option[CommandCallNode] = port.graphNode match {
       case a: CommandCallNode => Some(a)
-      case _ => None
-    }
-  }
-
-  case object ExposedExpressionOutputPort {
-    def unapply(port: OutputPort): Option[ExposedExpressionNode] = port.graphNode match {
-      case a: ExposedExpressionNode => Some(a)
       case _ => None
     }
   }
@@ -162,7 +146,6 @@ object GraphPrint {
                     availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): Set[DotLink] = {
     def relevantAsUpstream(nodeToLink: GraphNode): Set[DotNode] = nodeToLink match {
       case ccn: CommandCallNode => Set(DotCallNode(ccn))
-      case een: ExposedExpressionNode => if (hasCallAncestor(een)) { Set(DotExpressionNode(een)) } else Set.empty[DotNode]
       case en: ExpressionNode => upstreamLinksforNode(en)
       case svn: ScatterVariableNode => Set(availableScatterVariables(svn))
       case ogin: OuterGraphInputNode => relevantAsUpstream(ogin.linkToOuterGraph.graphNode)
@@ -172,7 +155,6 @@ object GraphPrint {
 
 
     def upstreamLinksforNode(n: GraphNode) = n.upstreamPorts flatMap { upstreamPort =>
-      println(s"Looking to make $upstreamPort a relevant upstream Node")
       upstreamPort match {
         case gatherPort: ScatterGathererPort =>
           relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)

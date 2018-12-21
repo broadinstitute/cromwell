@@ -4,6 +4,12 @@
 <script src="https://unpkg.com/d3"></script>
 <script src="https://unpkg.com/viz.js@1.8.0/viz.js" type="javascript/worker"></script>
 <script src="https://unpkg.com/d3-graphviz@1.4.0/build/d3-graphviz.min.js"></script>
+<script>
+     function refresh() {
+         window.location.reload(true);
+     }
+     setTimeout(refresh, 30000);
+</script>
 <div id="graph" style="text-align: center;"></div>
 <script>
   var calls=new Map(Object.entries("{{REPLACE_THIS_WITH_CALL_METADATA}}"));
@@ -18,6 +24,21 @@ d3.select("#graph").graphviz()
             } else {
                 d.attributes.fill = "lightgray"
             }
+        }
+        if (d.tag == "svg") {
+            var selection = d3.select(this);
+            var width = window.innerWidth;
+            var height = window.innerHeight;
+            var x = 200;
+            var y = 10
+            var scale = 0.75;
+            selection
+                .attr("width", width + "pt")
+                .attr("height", height + "pt")
+                .attr("viewBox", -x + " " + -y + " " + (width / scale) + " " + (height / scale));
+            d.attributes.width = width + "pt";
+            d.attributes.height = height + "pt";
+            d.attributes.viewBox = -x + " " + -y + " " + (width / scale) + " " + (height / scale);
         }
     })
     .renderDot("{{REPLACE_THIS_WITH_DAG}}");

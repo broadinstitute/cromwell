@@ -54,7 +54,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val mounts = createPipelineParameters |> toMounts
 
       val containerSetup: List[Action] = containerSetupActions(mounts)
-      val monitoring: List[Action] = monitoringActions(mounts)
+      val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)

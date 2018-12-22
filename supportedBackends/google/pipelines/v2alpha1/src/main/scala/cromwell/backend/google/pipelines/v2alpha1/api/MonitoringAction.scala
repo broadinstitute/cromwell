@@ -10,6 +10,7 @@ trait MonitoringAction {
       */
     val WorkflowId = "WORKFLOW_ID"
     val TaskCallName = "TASK_CALL_NAME"
+    val DiskMounts = "DISK_MOUNTS"
   }
 
   def monitoringActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {
@@ -18,6 +19,7 @@ trait MonitoringAction {
     val environment = Map(
       Env.WorkflowId -> job.workflowDescriptor.id.toString,
       Env.TaskCallName -> job.taskCall.localName,
+      Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
     )
 
     val monitoringAction = ActionBuilder.monitoringAction(environment, mounts)

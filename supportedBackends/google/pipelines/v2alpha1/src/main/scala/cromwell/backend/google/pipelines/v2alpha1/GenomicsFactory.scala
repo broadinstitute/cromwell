@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit localizationConfiguration: LocalizationConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
+  with MonitoringAction
   with Localization
   with UserAction
   with Delocalization {
@@ -53,10 +54,11 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val mounts = createPipelineParameters |> toMounts
 
       val containerSetup: List[Action] = containerSetupActions(mounts)
+      val monitoring: List[Action] = monitoringActions(mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ deLocalization
+      val allActions = containerSetup ++ monitoring ++ localization ++ userAction ++ deLocalization
 
       val environment = Map.empty[String, String].asJava
 

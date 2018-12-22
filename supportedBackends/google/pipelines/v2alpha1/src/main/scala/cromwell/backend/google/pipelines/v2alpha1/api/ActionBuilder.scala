@@ -65,11 +65,12 @@ object ActionBuilder {
     .setImageUri(image)
 
   val monitoringImage = "quay.io/broadinstitute/cromwell-monitor"
-  def monitoringAction(mounts: List[Mount] = List.empty): Action =
+  def monitoringAction(environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
     new Action()
       .setImageUri(monitoringImage)
       .withFlags(List(ActionFlag.RunInBackground))
       .withMounts(mounts)
+      .setEnvironment(environment.asJava)
 
   def userAction(docker: String,
                  scriptContainerPath: String,

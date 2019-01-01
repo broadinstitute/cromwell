@@ -54,7 +54,4 @@ docker-compose \
 # - scripts/docker-compose-mysql/compose/mysql/data
 # - scripts/docker-compose-mysql/cromwell-executions
 
-if [[ "${exit_code}" == "0" ]]; then
-  echo "Expected a failure. At least a deadlock should have occurred." >&2
-  exit 1
-fi
+exit ${exit_code}

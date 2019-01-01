@@ -22,10 +22,10 @@ done
 # Submit batches of workflows to the load balancer.
 BATCHES_TO_RUN=100
 WF_PER_BATCH=10
-TOTAL_WFS=$(( $BATCHES_TO_RUN * $WF_PER_BATCH ))
+TOTAL_WFS=$(( BATCHES_TO_RUN * WF_PER_BATCH ))
 for _ in $(seq $BATCHES_TO_RUN); do
-  echo `date`
-	curl \
+  echo $(date)
+  curl \
     -s -X POST \
     "http://lb:80/api/workflows/v1/batch" \
     -H 'Content-Type: multipart/form-data' \

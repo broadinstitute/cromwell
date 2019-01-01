@@ -926,13 +926,6 @@ trait StandardAsyncExecutionActor
 
   def retryOOMElseFail(runStatus: StandardAsyncRunState,
                     backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
-    println(s"--------------------------------")
-    println(s"RUCHI:: Inside RetryOOMElseFail")
-    println(s"--------------------------------")
-
-    println(s"--------------------------------")
-    println(s"RUCHI:: PreviousOOMRetries = ${previousOOMRetries}")
-    println(s"--------------------------------")
 
     val retryable = previousOOMRetries < maxRetries
 
@@ -1150,15 +1143,14 @@ trait StandardAsyncExecutionActor
             //If job failed due to OOM, please retry!
             case Success(returnCodeAsInt) if isOOM =>
               println(s"--------------------------------")
-              println(s"RUCHI:: DONE BUT FOUND OOM MESSAGE IN STDERR!")
+              println(s"--------------------------------")
+              println(s"RUCHI:: Job done but found OOM error in stderr!")
+              println(s"--------------------------------")
               println(s"--------------------------------")
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OOM(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt, stderrAsOption), Option(returnCodeAsInt)))
               retryOOMElseFail(status, executionHandle)
             //If none of those above apply, you've succeeded!
             case Success(returnCodeAsInt) if !isOOM =>
-              println(s"--------------------------------")
-              println(s"RUCHI:: HITING SUCCESS!")
-              println(s"--------------------------------")
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>
               Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))

@@ -70,7 +70,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       evaluateInputsAndAttributes(valueStore) match {
         case Valid((inputs, attributes)) =>
           println(s"--------------------------------")
-          println(s"RUCHI:: Evaluated attributes are \n${attributes}")
+          println(s"--------------------------------")
+          println(s"RUCHI:: Runtime Attributes BEFORE: \n${attributes}")
+          println(s"--------------------------------")
           println(s"--------------------------------")
           fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
@@ -120,7 +122,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
           }
 
           println(s"--------------------------------")
-          println(s"RUCHI:: NEW attributes are \n${newAttributes}")
+          println(s"--------------------------------")
+          println(s"RUCHI:: Runtime Attributes AFTER: \n${newAttributes}")
+          println(s"--------------------------------")
           println(s"--------------------------------")
 
           sendResponseAndStop(prepareBackendDescriptor(inputs, newAttributes, maybeCallCachingEligible, finished.unscoped, dockerSize))

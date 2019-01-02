@@ -1,5 +1,7 @@
 package cloud.nio.impl.drs
 
+import cats.data.Kleisli
+import cats.effect.IO
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import com.typesafe.config.Config
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -13,12 +15,12 @@ import spray.json._
 import scala.util.{Failure, Success, Try}
 
 
-case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
-  private val DrsPathToken = s"$${drsPath}"
-  private lazy val marthaUri = config.getString("martha.url")
-  private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
-
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
+object DrsPathResolver {
+//  private val DrsPathToken = s"$${drsPath}"
+//  private lazy val marthaUri = config.getString("martha.url")
+//  private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
+//
+//  private lazy val httpClientBuilder = HttpClientBuilder.create()
 
   def makeHttpRequestToMartha(drsPath: String, serviceAccount: Option[String] = None): HttpPost = {
     val postRequest = new HttpPost(marthaUri)
@@ -33,38 +35,30 @@ case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
     * Resolves the DRS path through Martha url provided in the config.
     * Please note, this method makes a synchronous HTTP request to Martha.
     */
-  def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): MarthaResponse = {
+  def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): Kleisli[IO, CloseableHttpClient, MarthaResponse] = Kleisli { httpClient =>
     import MarthaResponseJsonSupport._
 
     def unexpectedExceptionResponse(status: StatusLine) = {
       throw new RuntimeException(s"Unexpected response resolving $drsPath through Martha url $marthaUri. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
     }
 
-    val httpClient: CloseableHttpClient = httpClientBuilder.build()
 
-    try {
-      val marthaResponse: CloseableHttpResponse = httpClient.execute(makeHttpRequestToMartha(drsPath, serviceAccount))
+    IO(httpClient.execute(makeHttpRequestToMartha(drsPath, serviceAccount))).bracket { marthaResponse =>
       val marthaResponseEntityOption = Option(marthaResponse.getEntity).map(EntityUtils.toString)
+      val responseStatusLine = marthaResponse.getStatusLine
 
-      try {
-        val responseStatusLine = marthaResponse.getStatusLine
-        val responseContent = if (responseStatusLine.getStatusCode == HttpStatus.SC_OK) {
-          marthaResponseEntityOption.getOrElse(unexpectedExceptionResponse(responseStatusLine))
-        } else {
-          unexpectedExceptionResponse(responseStatusLine)
-        }
+      val responseContentIO = IO.fromEither(marthaResponseEntityOption.filter { _ =>
+        responseStatusLine.getStatusCode == HttpStatus.SC_OK
+      }.toRight(unexpectedExceptionResponse(responseStatusLine)))
 
-        Try(responseContent.parseJson.convertTo[MarthaResponse]) match {
-          case Success(marthaObj) => marthaObj
-          case Failure(e) => throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
+        responseContentIO.flatMap(responseContent =>IO(responseContent.parseJson.convertTo[MarthaResponse])).handleErrorWith{
+          e =>
+            val a = new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha.")
+            a.addSuppressed(e)
+            IO.raiseError(a)
         }
-      } finally {
-        Try(marthaResponse.close())
-        ()
-      }
-    } finally {
-      Try(httpClient.close())
-      ()
+    } {httpResponse =>
+      IO(httpResponse.close())
     }
   }
 }

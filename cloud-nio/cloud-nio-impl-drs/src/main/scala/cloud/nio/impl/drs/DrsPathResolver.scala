@@ -10,45 +10,22 @@ import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpStatus, StatusLine}
 import spray.json._
 
-import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 
 case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
-  private val AccessTokenAcceptableTTL = 1.minute
-
   private val DrsPathToken = s"$${drsPath}"
   private lazy val marthaUri = config.getString("martha.url")
   private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-
-  private def getFreshAccessToken(credential: OAuth2Credentials): String = {
-    def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
-      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL)
-    }
-
-    Option(credential.getAccessToken) match {
-      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
-      case _ =>
-        credential.refresh()
-        credential.getAccessToken.getTokenValue
-    }
-  }
-
-
-  def makeHttpRequestToMartha(drsPath: String, httpClient: CloseableHttpClient, needServiceAccount: Boolean): CloseableHttpResponse = {
+  def makeHttpRequestToMartha(drsPath: String, serviceAccount: Option[String] = None): HttpPost = {
     val postRequest = new HttpPost(marthaUri)
     val requestJson = marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-
-    if (needServiceAccount) {
-      val accessToken = getFreshAccessToken(authCredentials)
-      postRequest.setHeader("Authorization", s"Bearer $accessToken")
-    }
-
-    httpClient.execute(postRequest)
+    serviceAccount.foreach(sa => postRequest.setHeader("Authorization", s"Bearer $sa"))
+    postRequest
   }
 
 
@@ -56,7 +33,7 @@ case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
     * Resolves the DRS path through Martha url provided in the config.
     * Please note, this method makes a synchronous HTTP request to Martha.
     */
-  def resolveDrsThroughMartha(drsPath: String, needServiceAccount: Boolean = false): MarthaResponse = {
+  def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): MarthaResponse = {
     import MarthaResponseJsonSupport._
 
     def unexpectedExceptionResponse(status: StatusLine) = {
@@ -66,7 +43,7 @@ case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
     val httpClient: CloseableHttpClient = httpClientBuilder.build()
 
     try {
-      val marthaResponse: CloseableHttpResponse = makeHttpRequestToMartha(drsPath, httpClient, needServiceAccount)
+      val marthaResponse: CloseableHttpResponse = httpClient.execute(makeHttpRequestToMartha(drsPath, serviceAccount))
       val marthaResponseEntityOption = Option(marthaResponse.getEntity).map(EntityUtils.toString)
 
       try {

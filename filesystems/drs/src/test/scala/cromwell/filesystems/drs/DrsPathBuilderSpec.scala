@@ -1,11 +1,10 @@
 package cromwell.filesystems.drs
 
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
-import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.core.path._
-import java.util.Date
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -285,7 +284,6 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       |""".stripMargin
   )
 
-  private lazy val fakeAccessToken = new AccessToken("ya29.1234567890qwertyuiopasdfghjklzxcvbnm", new Date())
-  private lazy val fakeOAuth2Creds = OAuth2Credentials.create(fakeAccessToken)
-  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeOAuth2Creds))
+  private lazy val fakeCredentials = NoCredentials.getInstance
+  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials))
 }

@@ -1,9 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
-import java.util.Date
-
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
-import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
@@ -28,12 +26,11 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
       |""".stripMargin
   )
 
-  private lazy val fakeAccessToken = new AccessToken("ya29.1234567890qwertyuiopasdfghjklzxcvbnm", new Date())
-  private lazy val fakeOAuth2Creds = OAuth2Credentials.create(fakeAccessToken)
+  private lazy val fakeCredentials = NoCredentials.getInstance
 
   it should "create a DRS input parameter" in {
 
-    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeOAuth2Creds))
+    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials))
     val drsPath = drsPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)

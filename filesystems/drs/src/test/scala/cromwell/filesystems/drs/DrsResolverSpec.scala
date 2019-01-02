@@ -1,8 +1,6 @@
 package cromwell.filesystems.drs
 
-import java.util.Date
-
-import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -17,10 +15,9 @@ class DrsResolverSpec extends FlatSpec with Matchers {
       |""".stripMargin
   )
 
-  private lazy val fakeAccessToken = new AccessToken("ya29.1234567890qwertyuiopasdfghjklzxcvbnm", new Date())
-  private lazy val fakeOAuth2Creds = OAuth2Credentials.create(fakeAccessToken)
+  private lazy val fakeCredentials = NoCredentials.getInstance
 
-  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeOAuth2Creds)
+  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider)
 
   val gcsRelativePath = "mybucket/foo.txt"

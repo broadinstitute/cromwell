@@ -33,7 +33,7 @@ object Dependencies {
   val grpcV = "1.5.0"
   val guavaV = "22.0"
   val hsqldbV = "2.3.4"
-  val jacksonV = "2.8.9"
+  val jacksonV = "2.9.7"
   val janinoV = "3.0.7"
   val jodaTimeV = "2.9.4"
   val jsr305V = "3.0.0"
@@ -75,9 +75,9 @@ object Dependencies {
   val swaggerParserV = "1.0.22"
   val swaggerUiV = "3.2.2"
   val typesafeConfigV = "1.3.1"
-  val alibabaCloudCoreV = "3.5.1"
-  val alibabaCloudOssV = "2.8.3"
-  val alibabaCloudBcsV = "5.3.1"
+  val alibabaCloudCoreV = "4.1.2"
+  val alibabaCloudOssV = "3.3.0"
+  val alibabaCloudBcsV = "6.0.1"
 
 
   /*
@@ -214,10 +214,12 @@ object Dependencies {
     "com.aliyun.oss" % "aliyun-sdk-oss" % alibabaCloudOssV
       exclude("commons-beanutils", "commons-beanutils-core")
       exclude("commons-collections", "commons-collections")
+      exclude("javax.xml.stream", "stax-api")
   )
 
   private val aliyunBatchComputeDependencies = List(
     "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
+      exclude("javax.xml.stream", "stax-api")
       exclude("commons-beanutils", "commons-beanutils-core")
       exclude("commons-collections", "commons-collections"),
     "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV

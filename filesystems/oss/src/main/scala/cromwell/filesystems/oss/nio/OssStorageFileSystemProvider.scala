@@ -9,7 +9,7 @@ import java.nio.file.spi.FileSystemProvider
 import java.util
 
 import com.aliyun.oss.OSSClient
-import com.aliyun.oss.model.ListObjectsRequest
+import com.aliyun.oss.model.{ListObjectsRequest, GenericRequest}
 import com.google.common.collect.AbstractIterator
 
 import scala.collection.JavaConverters._
@@ -149,6 +149,12 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     OssFileReadChannel(ossClient, 0, path.asInstanceOf[OssStoragePath])
   }
 
+  def doesObjectExist(bucket: String, name: String): Boolean = {
+    val req = new GenericRequest(bucket, name)
+    req.setLogEnabled(false)
+    ossClient.doesBucketExist(req)
+  }
+
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}
 
   override def deleteIfExists(path: Path): Boolean = {
@@ -163,7 +169,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     val exist = OssStorageRetry.from(
-      () => ossClient.doesObjectExist(ossPath.bucket, ossPath.key)
+      () => doesObjectExist(ossPath.bucket, ossPath.key)
     )
 
     if (!exist) {
@@ -233,7 +239,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     val exist = OssStorageRetry.from(
-      () => ossClient.doesObjectExist(ossPath.bucket, ossPath.key)
+      () => doesObjectExist(ossPath.bucket, ossPath.key)
     )
 
     if (!exist) {
@@ -267,7 +273,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     val exists = OssStorageRetry.from(
-      () => ossClient.doesObjectExist(ossPath.bucket, ossPath.key)
+      () => doesObjectExist(ossPath.bucket, ossPath.key)
     )
 
     if (!exists) {

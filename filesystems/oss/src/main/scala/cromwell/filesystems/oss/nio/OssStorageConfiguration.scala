@@ -1,6 +1,7 @@
 package cromwell.filesystems.oss.nio
 
-import com.aliyun.oss.OSSClient
+import com.aliyun.oss.{ClientConfiguration, OSSClient}
+import com.aliyun.oss.common.auth.DefaultCredentialProvider
 
 object OssStorageConfiguration {
   val ENDPOINT_KEY = "endpoint"
@@ -68,9 +69,12 @@ trait OssStorageConfiguration {
   def newOssClient() = {
     stsToken match {
       case Some(token: String) =>
-        new OSSClient(endpoint, accessId, accessKey, token)
+        val cred = new DefaultCredentialProvider(accessId, accessKey, token)
+
+        new OSSClient(endpoint, cred, new ClientConfiguration)
       case None =>
-        new OSSClient(endpoint, accessId, accessKey)
+        val cred = new DefaultCredentialProvider(accessId, accessKey)
+        new OSSClient(endpoint, cred, new ClientConfiguration)
     }
   }
 }

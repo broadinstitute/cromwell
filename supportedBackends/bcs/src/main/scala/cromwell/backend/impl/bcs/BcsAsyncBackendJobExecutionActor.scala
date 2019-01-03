@@ -1,6 +1,5 @@
 package cromwell.backend.impl.bcs
 
-import java.io.FileNotFoundException
 
 import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
@@ -241,25 +240,9 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   private[bcs] lazy val  stderrBcsOutput = new BcsOutputMount(commandDirectory.resolve(bcsJobPaths.stderrFilename), bcsJobPaths.stderr, false)
 
   private[bcs] lazy val uploadBcsWorkerPackage = {
-    getPath(runtimeAttributes.workerPath.getOrElse(bcsJobPaths.workerFileName)) match {
-      case Success(ossPath: OssPath) =>
-        if (ossPath.notExists) {
-          throw new FileNotFoundException(s"$ossPath")
-        }
-        ossPath
-      case Success(path: Path) =>
-        if (path.notExists) {
-          throw new FileNotFoundException(s"$path")
-        }
+    bcsJobPaths.workerPath.writeByteArray(BcsJobCachingActorHelper.workerScript.getBytes)(OpenOptions.default)
 
-        if (bcsJobPaths.workerPath.notExists) {
-          val content = path.byteArray
-          bcsJobPaths.workerPath.writeByteArray(content)(OpenOptions.default)
-        }
-
-        bcsJobPaths.workerPath
-      case _ => throw new RuntimeException(s"Invalid worker packer path")
-    }
+    bcsJobPaths.workerPath
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {

@@ -5,8 +5,26 @@ import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 
+object BcsJobCachingActorHelper {
+  val workerScript: String =
+    s"""
+       |#!/bin/bash
+       |export script=$$cwd/ $$(basename $$exec)
+       |export rc=$$cwd/rc
+       |
+       |(
+       |cp -rf $$exec $$script
+       |cd $$cwd
+       |/bin/bash -c $$script
+       |)
+     """.stripMargin
+}
+
 trait BcsJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
+
+  bcsWorkflowPaths.tag = runtimeAttributes.tag.getOrElse("")
+
   lazy val initializationData: BcsBackendInitializationData = {
     backendInitializationDataAs[BcsBackendInitializationData]
   }
@@ -29,5 +47,5 @@ trait BcsJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val bcsStderrFile: Path = bcsJobPaths.stderr
 
   //lazy val bcsCommandLine = "bash -c $(pwd)/cromwell_bcs && sync"
-  lazy val bcsCommandLine = "python -u cromwell_bcs.py"
+  lazy val bcsCommandLine = "./worker"
 }

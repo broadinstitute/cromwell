@@ -7,7 +7,7 @@ import cats.syntax.validated._
 
 import scala.util.matching.Regex
 
-sealed abstract case class Label(key: String, value: String)
+sealed abstract case class  Label(key: String, value: String)
 
 object Label {
 

@@ -23,7 +23,7 @@ class MockDrsPathResolver(config: Config, credentials: OAuth2Credentials) extend
   val marthaObjWithMultiplePaths = createMarthaResponse(Array(s3Url, gcsUrl, ossUrl))
 
 
-  private def createMarthaResponse(urlArray: Array[Url]): MarthaResponse =  {
+  private def createMarthaResponse(urlArray: Array[CloudUrl]): MarthaResponse =  {
     val dosDataObject = DosDataObject(
       size = Option(123),
       checksums = Option(Array(checksumObj)),

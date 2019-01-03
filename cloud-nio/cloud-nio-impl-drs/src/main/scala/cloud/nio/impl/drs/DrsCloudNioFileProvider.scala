@@ -19,11 +19,14 @@ import scala.util.Try
 import scala.concurrent.duration._
 
 
-class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: DrsPathResolver, authCredentials: OAuth2Credentials) extends CloudNioFileProvider {
+class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: DrsPathResolver, authCredentials: OAuth2Credentials, readInterpreter: (MarthaResponse) => IO[ReadableByteChannel]) extends CloudNioFileProvider {
 
   private val AccessTokenAcceptableTTL = 1.minute
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
+
+  private lazy val marthaUri = config.getString("martha.url")
+  private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
 
   private val GcsScheme = "gs"
 
@@ -62,12 +65,12 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
   }
 
 
-  private def extractUrlForScheme(drsPath: String, urlArray: Array[Url], scheme: String): String = {
+  private def extractUrlForScheme(drsPath: String, urlArray: Array[Url], scheme: String): Either[UrlNotFoundException, String] = {
     val schemeUrlOption = urlArray.find(u => u.url.startsWith(scheme))
 
     schemeUrlOption match {
-      case Some(schemeUrl) => schemeUrl.url
-      case None => throw UrlNotFoundException(drsPath, scheme)
+      case Some(schemeUrl) => Right(schemeUrl.url)
+      case None => Left(UrlNotFoundException(drsPath, scheme))
     }
   }
 
@@ -87,7 +90,7 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
         val urlArray = url.replace(s"$GcsScheme://", "").split("/", 2)
         val fileToBeLocalized = urlArray(1)
         val bucket = urlArray(0)
-        IO(GCSFile(bucket, fileToBeLocalized)))
+        IO(GCSFile(bucket, fileToBeLocalized))
       }
       case otherScheme => IO.raiseError(throw new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
     }
@@ -120,22 +123,34 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
   override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
     val drsPath = getDrsPath(cloudHost,cloudPath)
     val freshAccessToken = getFreshAccessToken(authCredentials)
-    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath, Option(freshAccessToken))
 
     val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(freshAccessToken.getBytes()))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
 
-    //Currently, Martha only supports resolving DRS paths to GCS paths
-    val url = extractUrlForScheme(drsPath, marthaResponse.dos.data_object.urls, GcsScheme)
-    val gcsFile: EitherT[String, GCSFile] = inputStream(url)
-    gcsFile.map{
-      file =>
-        gcsInputStream(file).run(storage)
-    } match {
-      case Right(byteChannel) => byteChannel
-      case Left(exception) => throw new RuntimeException(exception)
 
-    }
+
+
+
+//    val gcsFile: EitherT[String, GCSFile] = inputStream(url)
+//    gcsFile.map{
+//      file =>
+//        gcsInputStream(file).run(storage)
+//    } match {
+//      case Right(byteChannel) => byteChannel
+//      case Left(exception) => throw new RuntimeException(exception)
+//
+//    }
+
+    val byteChannelIO = for {
+      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, Option(freshAccessToken))
+      byteChannel <- readInterpreter(marthaResponse)
+
+      //Currently, Martha only supports resolving DRS paths to GCS paths
+//      url <- IO.fromEither(extractUrlForScheme(drsPath, marthaResponse.dos.data_object.urls, GcsScheme))
+//      input <- inputStream(url)
+    } yield byteChannel
+
+    byteChannelIO.unsafeRunSync()
   }
 
 

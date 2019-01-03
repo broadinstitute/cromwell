@@ -1,12 +1,12 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse, Url}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse, CloudUrl}
 
 
 object DrsResolver {
   private val GcsScheme: String = "gs"
 
-  private def extractPathRelativeToScheme(drsPath: String, urlArray: Array[Url], scheme: String): String = {
+  private def extractPathRelativeToScheme(drsPath: String, urlArray: Array[CloudUrl], scheme: String): String = {
     val schemeUrlOption = urlArray.find(u => u.url.startsWith(scheme))
 
     schemeUrlOption match {

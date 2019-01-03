@@ -31,6 +31,7 @@ cp \
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
+    "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
     -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 
 cromwell::build::generate_code_coverage

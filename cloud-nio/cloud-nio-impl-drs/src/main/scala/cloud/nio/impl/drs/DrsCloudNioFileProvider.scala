@@ -45,7 +45,7 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
 
 
   private def extractUrlForScheme(drsPath: String, urlArray: Array[Url], scheme: String): String = {
-    val schemeUrlOption = urlArray.find(u => u.url.startsWith(scheme))
+    val schemeUrlOption = urlArray.find(_.url.startsWith(scheme))
 
     schemeUrlOption match {
       case Some(schemeUrl) => schemeUrl.url
@@ -65,10 +65,7 @@ class DrsCloudNioFileProvider(config: Config, scheme: String, drsPathResolver: D
   private def inputStream(url: String, serviceAccount: String, scheme: String): ReadChannel = {
     scheme match {
       case GcsScheme => {
-        val urlArray = url.replace(s"$scheme://", "").split("/", 2)
-        val fileToBeLocalized = urlArray(1)
-        val bucket = urlArray(0)
-
+        val Array(bucket, fileToBeLocalized) = url.replace(s"$scheme://", "").split("/", 2)
         gcsInputStream(bucket, fileToBeLocalized, serviceAccount)
       }
       case otherScheme => throw new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme.")

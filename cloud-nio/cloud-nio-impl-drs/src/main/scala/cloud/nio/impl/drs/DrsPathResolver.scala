@@ -2,19 +2,28 @@ package cloud.nio.impl.drs
 
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import com.typesafe.config.Config
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.parser.decode
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpStatus, StatusLine}
-import spray.json._
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 
 case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
+  implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
+  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
+  implicit lazy val dataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
+  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
+  implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+
   private val AccessTokenAcceptableTTL = 1.minute
 
   private val DrsPathToken = s"$${drsPath}"
@@ -57,7 +66,6 @@ case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
     * Please note, this method makes a synchronous HTTP request to Martha.
     */
   def resolveDrsThroughMartha(drsPath: String, needServiceAccount: Boolean = false): MarthaResponse = {
-    import MarthaResponseJsonSupport._
 
     def unexpectedExceptionResponse(status: StatusLine) = {
       throw new RuntimeException(s"Unexpected response resolving $drsPath through Martha url $marthaUri. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
@@ -77,9 +85,9 @@ case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
           unexpectedExceptionResponse(responseStatusLine)
         }
 
-        Try(responseContent.parseJson.convertTo[MarthaResponse]) match {
-          case Success(marthaObj) => marthaObj
-          case Failure(e) => throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
+        decode[MarthaResponse](responseContent) match {
+          case Right(marthaObj) => marthaObj
+          case Left(e) => throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
         }
       } finally {
         Try(marthaResponse.close())
@@ -93,15 +101,6 @@ case class DrsPathResolver(config: Config, authCredentials: OAuth2Credentials) {
 }
 
 
-object MarthaResponseJsonSupport extends DefaultJsonProtocol {
-  implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
-  implicit val checksumFormat: JsonFormat[ChecksumObject] = jsonFormat2(ChecksumObject)
-  implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat4(DosDataObject)
-  implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
-  implicit val saDataObjectFormat: JsonFormat[SADataObject] = jsonFormat1(SADataObject)
-  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
-}
-
 case class Url(url: String)
 
 case class ChecksumObject(checksum: String, `type`: String)
@@ -113,6 +112,6 @@ case class DosDataObject(size: Option[Long],
 
 case class DosObject(data_object: DosDataObject)
 
-case class SADataObject(data: JsObject)
+case class SADataObject(data: JsonObject)
 
 case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[SADataObject])

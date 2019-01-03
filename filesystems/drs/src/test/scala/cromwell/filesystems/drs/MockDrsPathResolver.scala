@@ -3,7 +3,7 @@ package cromwell.filesystems.drs
 import cloud.nio.impl.drs._
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import spray.json.JsObject
+import io.circe.JsonObject
 
 
 class MockDrsPathResolver(config: Config, credentials: OAuth2Credentials) extends DrsPathResolver(config, credentials){
@@ -31,7 +31,7 @@ class MockDrsPathResolver(config: Config, credentials: OAuth2Credentials) extend
       urls = urlArray
     )
 
-    MarthaResponse(DosObject(dosDataObject), Option(SADataObject(JsObject.empty)))
+    MarthaResponse(DosObject(dosDataObject), Option(SADataObject(JsonObject.empty)))
   }
 
 

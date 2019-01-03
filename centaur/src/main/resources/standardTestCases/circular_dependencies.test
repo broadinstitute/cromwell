@@ -5,7 +5,7 @@ testFormat: workflowfailure
 
 
 files {
-  wdl: circular_dependencies/circular_dependencies.wdl
+  workflow: circular_dependencies/circular_dependencies.wdl
 }
 
 metadata {

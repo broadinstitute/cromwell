@@ -1,0 +1,4 @@
+Expected equal, got "false".
+
+    Boolean myBool false
+                   ^

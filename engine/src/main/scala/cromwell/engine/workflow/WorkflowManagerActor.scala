@@ -1,24 +1,29 @@
 package cromwell.engine.workflow
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import cats.data.NonEmptyList
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
+import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{WorkflowAborted, WorkflowId}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
-import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor}
+import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
+import cromwell.engine.SubWorkflowStart
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
+import scala.util.Try
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -34,13 +39,15 @@ object WorkflowManagerActor {
     */
   case object PreventNewWorkflowsFromStarting extends WorkflowManagerActorMessage
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
+  case object RetrieveNewWorkflowsKey
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
   final case class AbortWorkflowCommand(id: WorkflowId, restarted: Boolean) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
 
-  def props(workflowStore: ActorRef,
+  def props(config: Config,
+            workflowStore: ActorRef,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
@@ -51,10 +58,23 @@ object WorkflowManagerActor {
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
-            serverMode: Boolean): Props = {
-    val params = WorkflowManagerActorParams(ConfigFactory.load, workflowStore, ioActor, serviceRegistryActor,
-      workflowLogCopyRouter, jobStoreActor, subWorkflowStoreActor, callCacheReadActor, callCacheWriteActor,
-      dockerHashActor, jobTokenDispenserActor, backendSingletonCollection, serverMode)
+            serverMode: Boolean,
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
+    val params = WorkflowManagerActorParams(
+      config = config,
+      workflowStore = workflowStore,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      workflowLogCopyRouter = workflowLogCopyRouter,
+      jobStoreActor = jobStoreActor,
+      subWorkflowStoreActor = subWorkflowStoreActor,
+      callCacheReadActor = callCacheReadActor,
+      callCacheWriteActor = callCacheWriteActor,
+      dockerHashActor = dockerHashActor,
+      jobTokenDispenserActor = jobTokenDispenserActor,
+      backendSingletonCollection = backendSingletonCollection,
+      serverMode = serverMode,
+      workflowHeartbeatConfig = workflowHeartbeatConfig)
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
 
@@ -70,7 +90,7 @@ object WorkflowManagerActor {
   /**
     * Data
     */
-  case class WorkflowManagerData(workflows: Map[WorkflowId, ActorRef]) {
+  case class WorkflowManagerData(workflows: Map[WorkflowId, ActorRef], subWorkflows: Set[ActorRef]) {
     def idFromActor(actor: ActorRef): Option[WorkflowId] = workflows.collectFirst { case (id, a) if a == actor => id }
 
     def withAddition(entries: NonEmptyList[WorkflowIdToActorRef]): WorkflowManagerData = {
@@ -99,10 +119,11 @@ case class WorkflowManagerActorParams(config: Config,
                                       dockerHashActor: ActorRef,
                                       jobTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
-                                      serverMode: Boolean)
+                                      serverMode: Boolean,
+                                      workflowHeartbeatConfig: WorkflowHeartbeatConfig)
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
-  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper {
+  extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper with Timers {
 
   private val config = params.config
   override val serviceRegistryActor = params.serviceRegistryActor
@@ -110,18 +131,20 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
   private val maxWorkflowsToLaunch = config.getConfig("system").as[Option[Int]]("max-workflow-launch-count").getOrElse(DefaultMaxWorkflowsToLaunch)
   private val newWorkflowPollRate = config.getConfig("system").as[Option[Int]]("new-workflow-poll-rate").getOrElse(DefaultNewWorkflowPollRate).seconds
+  private val fileHashCacheEnabled = config.as[Option[Boolean]]("system.file-hash-cache").getOrElse(false)
 
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
 
-  private var nextPollCancellable: Option[Cancellable] = None
-
   override def preStart(): Unit = {
     // Starts the workflow polling cycle
-    self ! RetrieveNewWorkflows
+    timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, Duration.Zero)
+    // Listen on subworkflow start events to inform our decision to pick up new root workflows from the workflow store.
+    context.system.eventStream.subscribe(self, classOf[SubWorkflowStart])
+    ()
   }
 
-  startWith(Running, WorkflowManagerData(workflows = Map.empty))
+  startWith(Running, WorkflowManagerData(workflows = Map.empty, subWorkflows = Set.empty))
 
   val runningAndNotStartingNewWorkflowsStateFunction: StateFunction = {
     /*
@@ -130,9 +153,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(RetrieveNewWorkflows, stateData) =>
       /*
         Cap the total number of workflows in flight, but also make sure we don't pull too many in at once.
-        Determine the number of available workflow slots and request the smaller of that number of maxWorkflowsToLaunch.
+        Determine the number of available workflow slots and request the smaller of that number and maxWorkflowsToLaunch.
        */
-      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size)
+      val maxNewWorkflows = maxWorkflowsToLaunch min (maxWorkflowsRunning - stateData.workflows.size - stateData.subWorkflows.size)
       params.workflowStore ! WorkflowStoreActor.FetchRunnableWorkflows(maxNewWorkflows)
       stay()
     case Event(WorkflowStoreEngineActor.NoNewWorkflowsToStart, _) =>
@@ -194,9 +217,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       scheduleNextNewWorkflowPoll()
       runningAndNotStartingNewWorkflowsStateFunction(event)
   }
-  
+
   when (Running) (scheduleNextNewWorkflowPollStateFunction.orElse(runningAndNotStartingNewWorkflowsStateFunction))
-  
+
   when (RunningAndNotStartingNewWorkflows) (runningAndNotStartingNewWorkflowsStateFunction)
 
   when (Aborting) {
@@ -220,11 +243,20 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
   whenUnhandled {
     case Event(PreventNewWorkflowsFromStarting, _) =>
-      nextPollCancellable foreach { _.cancel() }
+      timers.cancel(RetrieveNewWorkflowsKey)
       sender() ! akka.Done
       goto(RunningAndNotStartingNewWorkflows)
+    case Event(SubWorkflowStart(actorRef), data) =>
+      // Watch for this subworkflow to expire to remove it from the Set of running subworkflows.
+      context.watch(actorRef)
+      stay using data.copy(subWorkflows = data.subWorkflows + actorRef)
+    case Event(Terminated(actorRef), data) =>
+      // This is looking only for subworkflow actor terminations. If for some reason we see a termination for a
+      // different type of actor this should be a noop since the ActorRef element being removed from the set of
+      // subworkflows would not have been in the set in the first place.
+      stay using data.copy(subWorkflows = data.subWorkflows - actorRef)
     // Uninteresting transition and current state notifications.
-    case Event((Transition(_, _, _) | CurrentState(_, _)), _) => stay()
+    case Event(Transition(_, _, _) | CurrentState(_, _), _) => stay()
     case Event(JobStoreWriteSuccess(_), _) => stay() // Snoozefest
     case Event(JobStoreWriteFailure(t), _) =>
       log.error("Error writing to JobStore from WorkflowManagerActor: {}", t)
@@ -261,10 +293,29 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag Starting workflow UUID($workflowId)")
     }
 
-    val wfProps = WorkflowActor.props(workflowId, workflow.state, workflow.sources, config, params.ioActor, params.serviceRegistryActor,
-      params.workflowLogCopyRouter, params.jobStoreActor, params.subWorkflowStoreActor, params.callCacheReadActor, params.callCacheWriteActor,
-      params.dockerHashActor, params.jobTokenDispenserActor,
-      params.backendSingletonCollection, params.serverMode)
+    val fileHashCacheActor: Option[ActorRef] =
+      if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor))) else None
+
+    val wfProps = WorkflowActor.props(
+      workflowId = workflowId,
+      startMode = workflow.state,
+      workflowSourceFilesCollection = workflow.sources,
+      conf = config,
+      ioActor = params.ioActor,
+      serviceRegistryActor = params.serviceRegistryActor,
+      workflowLogCopyRouter = params.workflowLogCopyRouter,
+      jobStoreActor = params.jobStoreActor,
+      subWorkflowStoreActor = params.subWorkflowStoreActor,
+      callCacheReadActor = params.callCacheReadActor,
+      callCacheWriteActor = params.callCacheWriteActor,
+      dockerHashActor = params.dockerHashActor,
+      jobTokenDispenserActor = params.jobTokenDispenserActor,
+      workflowStoreActor = params.workflowStore,
+      backendSingletonCollection = params.backendSingletonCollection,
+      serverMode = params.serverMode,
+      workflowHeartbeatConfig = params.workflowHeartbeatConfig,
+      totalJobsByRootWf = new AtomicInteger(),
+      fileHashCacheActor = fileHashCacheActor)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)
@@ -274,7 +325,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   }
 
   private def scheduleNextNewWorkflowPoll() = {
-    nextPollCancellable = Option(context.system.scheduler.scheduleOnce(newWorkflowPollRate, self, RetrieveNewWorkflows)(context.dispatcher))
+    timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, newWorkflowPollRate)
   }
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {
@@ -282,10 +333,14 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}" } getOrElse ""
+        val stderrMessage = reason.stderrPath map { path => 
+          val content = Try(path.contentAsString).recover({
+            case e => s"Could not retrieve content: ${e.getMessage}"
+          }).get
+          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
+        } getOrElse ""
         reason.getMessage + stderrMessage
-      case reason =>
-        reason.getMessage + "\n" + ExceptionUtils.getStackTrace(reason)
+      case reason => ExceptionUtils.getStackTrace(reason)
     } mkString "\n"
   }
 }

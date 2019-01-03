@@ -1,8 +1,9 @@
 name: composedenginefunctions
 testFormat: workflowsuccess
+tags: ["wdl_upgrade"]
 
 files {
-  wdl: composedenginefunctions/composedenginefunctions.wdl
+  workflow: composedenginefunctions/composedenginefunctions.wdl
 }
 
 metadata {

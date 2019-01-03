@@ -1,79 +1,74 @@
 package cwl
 
-import ammonite.ops.ImplicitWd._
-import ammonite.ops._
-import better.files.File.newTemporaryFile
 import better.files.{File => BFile}
-import cats.Applicative
 import cats.data.EitherT._
-import cats.data.{EitherT, NonEmptyList, ValidatedNel}
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.syntax.either._
-import common.legacy.TwoElevenSupport._
+import cats.{Applicative, Monad}
 import common.validation.ErrorOr._
+import common.validation.Parse._
+import cwl.preprocessor.CwlPreProcessor
+import io.circe.Json
 
 import scala.util.Try
 
 object CwlDecoder {
 
-  object Parse {
-    def error[A](error: String, tail: String*): Parse[A] = EitherT.leftT {
-      NonEmptyList.of(error, tail: _*)
-    }
-  }
-  
-  type Parse[A] = EitherT[IO, NonEmptyList[String], A]
-
-  type ParseValidated[A] = IO[ValidatedNel[String, A]]
-
   implicit val composedApplicative = Applicative[IO] compose Applicative[ErrorOr]
 
-  private def preprocess(path: BFile): Parse[String] = {
-    def resultToEither(cr: CommandResult) =
-      cr.exitCode match {
-        case 0 => Right(cr.out.string)
-        case error => Left(NonEmptyList.one(s"running CwlTool on file $path resulted in exit code $error and stderr ${cr.err.string}"))
-      }
-
+  def saladCwlFile(path: BFile): Parse[String] = {
     val cwlToolResult =
-      Try(%%("cwltool", "--quiet", "--print-pre", path.toString)).
-        tacticalToEither.
-        leftMap(t => NonEmptyList.one(s"running cwltool on file ${path.toString} failed with ${t.getMessage}"))
+      Try(CwltoolRunner.instance.salad(path))
+        .toEither
+        .leftMap(t => NonEmptyList.one(s"running cwltool on file $path failed with $t"))
 
-    fromEither[IO](cwlToolResult flatMap resultToEither)
+    fromEither[IO](cwlToolResult)
   }
 
-  def parseJson(json: String): Parse[CwlFile] = fromEither[IO](CwlCodecs.decodeCwl(json))
+  private lazy val cwlPreProcessor = new CwlPreProcessor()
+
+  // TODO: WOM: During conformance testing the saladed-CWLs are referring to files in the temp directory.
+  // Thus we can't delete the temp directory until after the workflow is complete, like the workflow logs.
+  // All callers to this method should be fixed around the same time.
+  // https://github.com/broadinstitute/cromwell/issues/3186
+  def todoDeleteCwlFileParentDirectory(cwlFile: BFile): Parse[Unit] = {
+    goParse {
+      //cwlFile.parent.delete(swallowIOExceptions = true)
+    }
+  }
+
+  def parseJson(json: Json, file: BFile): Parse[Cwl] = fromEither[IO](CwlCodecs.decodeCwl(json).leftMap(_.prepend(s"error when parsing file $file")))
 
   /**
-   * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
-   */
-  def decodeAllCwl(fileName: BFile, root: Option[String] = None): Parse[Cwl] =
+    * Notice it gives you one instance of Cwl.  This has transformed all embedded files into scala object state
+    */
+  def decodeCwlFile(fileName: BFile,
+                    workflowRoot: Option[String] = None)(implicit processor: CwlPreProcessor = cwlPreProcessor): Parse[Cwl] =
     for {
-      jsonString <- preprocess(fileName)
-      unmodifiedCwl <- parseJson(jsonString)
-      cwlWithEmbeddedCwl <- unmodifiedCwl.fold(FlattenCwlFile).apply((fileName.toString, root))
-    } yield cwlWithEmbeddedCwl
+      standaloneWorkflow <- processor.preProcessCwlFile(fileName, workflowRoot)
+      parsedCwl <- parseJson(standaloneWorkflow, fileName)
+    } yield parsedCwl
 
-  def decodeTopLevelCwl(fileName: BFile, rootName: Option[String]): Parse[Cwl] =
+  def decodeCwlString(cwl: String, zipOption: Option[BFile] = None, rootName: Option[String] = None, cwlFilename: String = "cwl_temp_file"): Parse[Cwl] = {
     for {
-      jsonString <- preprocess(fileName)
-      unmodifiedCwl <- parseJson(jsonString)
-      rootCwl <- EitherT.fromEither(unmodifiedCwl.fold(FlattenCwlFile.CwlFileRoot).apply(rootName)): Parse[Cwl]
-    } yield rootCwl
-
-  def decodeTopLevelCwl(cwl: String, rootName: Option[String] = None): Parse[Cwl] =
-    for {
-     file <- fromEither[IO](newTemporaryFile().write(cwl).asRight)
-     out <- decodeTopLevelCwl(file, rootName)
+      parentDir <- goParse(BFile.newTemporaryDirectory("cwl_temp_dir_")) // has a random long appended like `cwl_temp_dir_100000000000`
+      file <- fromEither[IO](parentDir./(cwlFilename + ".cwl").write(cwl).asRight) // serves as the basis for the output directory name; must remain stable across restarts
+      _ <- zipOption match {
+        case Some(zip) => goParse(zip.unzipTo(parentDir))
+        case None => Monad[Parse].unit
+      }
+      out <- decodeCwlFile(file, rootName)
+      _ <- todoDeleteCwlFileParentDirectory(file)
     } yield out
+  }
 
   //This is used when traversing over Cwl and replacing links w/ embedded data
   private[cwl] def decodeCwlAsValidated(fileName: String): ParseValidated[(String, Cwl)] = {
     //The SALAD preprocess step puts "file://" as a prefix to all filenames.  Better files doesn't like this.
-    val bFileName = fileName.drop(5)
+    val bFileName = fileName.stripPrefix("file://")
 
-    decodeAllCwl(BFile(bFileName)).
+    decodeCwlFile(BFile(bFileName)).
       map(fileName.toString -> _).
       value.
       map(_.toValidated)

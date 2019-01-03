@@ -1,27 +1,26 @@
 package cromwell.backend.standard
 
 import akka.actor.ActorRef
-import cromwell.backend.io.GlobFunctions
-import cromwell.backend.wdl.{ReadLikeFunctions, WriteFunctions}
+import cromwell.backend.io.{DirectoryFunctions, GlobFunctions}
+import cromwell.backend.{ReadLikeFunctions, WriteFunctions}
 import cromwell.core.CallContext
-import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder, IoCommandBuilder}
+import cromwell.core.io._
+import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.core.path.{Path, PathBuilder}
-import wom.values.{WomSingleFile, WomValue}
 
 import scala.concurrent.ExecutionContext
-import scala.util.{Success, Try}
 
 trait StandardExpressionFunctionsParams {
-  def pathBuilders: List[PathBuilder]
+  def pathBuilders: PathBuilders
 
   def callContext: CallContext
 
   def ioActorProxy: ActorRef
-  
+
   def executionContext: ExecutionContext
 }
 
-case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: List[PathBuilder],
+case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: PathBuilders,
                                                     override val callContext: CallContext,
                                                     override val ioActorProxy: ActorRef,
                                                     override val executionContext: ExecutionContext
@@ -29,10 +28,10 @@ case class DefaultStandardExpressionFunctionsParams(override val pathBuilders: L
 
 // TODO: Once we figure out premapping and postmapping, maybe we can standardize that behavior. Currently that's the most important feature that subclasses override.
 class StandardExpressionFunctions(val standardParams: StandardExpressionFunctionsParams)
-  extends GlobFunctions with ReadLikeFunctions with WriteFunctions {
+  extends GlobFunctions with DirectoryFunctions with ReadLikeFunctions with WriteFunctions with CallCorePathFunctions {
 
   override lazy val ec = standardParams.executionContext
-  
+
   protected lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   override lazy val asyncIo = new AsyncIo(standardParams.ioActorProxy, ioCommandBuilder)
@@ -42,8 +41,6 @@ class StandardExpressionFunctions(val standardParams: StandardExpressionFunction
   val callContext: CallContext = standardParams.callContext
 
   val writeDirectory: Path = callContext.root
-
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Success(WomSingleFile(callContext.stdout))
-
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Success(WomSingleFile(callContext.stderr))
+  
+  val isDocker: Boolean = callContext.isDocker
 }

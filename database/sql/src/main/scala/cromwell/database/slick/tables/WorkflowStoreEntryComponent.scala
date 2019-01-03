@@ -24,15 +24,17 @@ trait WorkflowStoreEntryComponent {
   class WorkflowStoreEntries(tag: Tag) extends Table[WorkflowStoreEntry](tag, "WORKFLOW_STORE_ENTRY") {
     def workflowStoreEntryId = column[Int]("WORKFLOW_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
     def workflowRoot = column[Option[String]]("WORKFLOW_ROOT", O.Length(100))
 
     def workflowType = column[Option[String]]("WORKFLOW_TYPE", O.Length(30))
 
-    def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION")
+    def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION", O.Length(255))
 
     def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
+
+    def workflowUrl = column[Option[String]]("WORKFLOW_URL", O.Length(2000))
 
     def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
 
@@ -42,14 +44,16 @@ trait WorkflowStoreEntryComponent {
 
     def workflowState = column[WorkflowStoreState]("WORKFLOW_STATE", O.Length(20))
 
-    def restarted = column[Boolean]("RESTARTED")
-
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
     def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
 
-    override def * = (workflowExecutionUuid, workflowDefinition, workflowRoot, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
-      restarted, submissionTime, importsZip, customLabels, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
+    def cromwellId = column[Option[String]]("CROMWELL_ID", O.Length(100))
+
+    def heartbeatTimestamp = column[Option[Timestamp]]("HEARTBEAT_TIMESTAMP")
+
+    override def * = (workflowExecutionUuid, workflowDefinition, workflowUrl, workflowRoot, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
+      submissionTime, importsZip, customLabels, cromwellId, heartbeatTimestamp, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 
@@ -70,18 +74,35 @@ trait WorkflowStoreEntryComponent {
     } yield workflowStoreEntry
   )
 
+  val heartbeatForWorkflowStoreEntry = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield workflowStoreEntry.heartbeatTimestamp
+  )
+
   /**
     * Returns up to "limit" startable workflows, sorted by submission time.
     */
   val fetchStartableWorkflows = Compiled(
-    (limit: ConstColumn[Long]) => {
+    (limit: ConstColumn[Long], heartbeatThreshold: ConstColumn[Timestamp]) => {
       val query = for {
-        workflowStoreEntryRow <- workflowStoreEntries
-        if (workflowStoreEntryRow.workflowState === WorkflowStoreState.Aborting && workflowStoreEntryRow.restarted === true) ||
-           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Running && workflowStoreEntryRow.restarted === true) ||
-           (workflowStoreEntryRow.workflowState === WorkflowStoreState.Submitted && workflowStoreEntryRow.restarted === false)
-      } yield workflowStoreEntryRow
-      query.sortBy(_.submissionTime.asc).take(limit)
+        row <- workflowStoreEntries
+        // This looks for:
+        //
+        // 1) Workflows with no heartbeat (newly submitted or from a cleanly shut down Cromwell).
+        // 2) Workflows with old heartbeats, presumably abandoned by a defunct Cromwell.
+        //
+        // Workflows are taken by submission time, oldest first. This is a "query for update", meaning rows are
+        // locked such that readers are blocked since we will do an update subsequent to this select in the same
+        // transaction that we know will impact those readers.
+        //
+        // The current code only writes heartbeats on initial pickup; this needs to be fixed by instrumenting workflow
+        // heartbeats into Cromwell appropriately.  But in the meantime any other Cromwell's workflows will appear
+        // to be abandoned if they were picked up before `heartbeatThreshold`.
+        if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatThreshold) && !(row.workflowState === WorkflowStoreState.OnHold)
+      } yield row
+      query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
     }
   )
 
@@ -95,13 +116,23 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Useful for updating state for all entries matching a given UUID
+    * Useful for updating the relevant fields of a workflow store entry when a workflow is picked up for processing.
     */
-  val workflowStateAndRestartedForWorkflowExecutionUuid = Compiled(
+  val workflowStoreFieldsForPickup = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
-      workflowStoreEntry <- workflowStoreEntries
-      if workflowStoreEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield (workflowStoreEntry.workflowState, workflowStoreEntry.restarted)
+      row <- workflowStoreEntries
+      if row.workflowExecutionUuid === workflowExecutionUuid
+    } yield (row.workflowState, row.cromwellId, row.heartbeatTimestamp)
+  )
+
+  /**
+    * Useful for clearing out cromwellId and heartbeatTimestamp on an orderly Cromwell shutdown.
+    */
+  val releaseWorkflowStoreEntries = Compiled(
+    (cromwellId: Rep[String]) => for {
+      row <- workflowStoreEntries
+      if row.cromwellId === cromwellId
+    } yield (row.cromwellId, row.heartbeatTimestamp)
   )
 
   /**
@@ -115,13 +146,13 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Useful for updating restarted flags on server restart.
+    * Useful for clearing the heartbeat timestamp on server restart.
     */
-  val restartedFlagForRunningAndAborting = Compiled(
-    for {
+  val heartbeatTimestamp = Compiled(
+    (cromwellId: Rep[Option[String]]) => for {
       workflowStoreEntry <- workflowStoreEntries
-      if workflowStoreEntry.workflowState === WorkflowStoreState.Running || workflowStoreEntry.workflowState === WorkflowStoreState.Aborting
-    } yield workflowStoreEntry.restarted
+      if (workflowStoreEntry.cromwellId === cromwellId) || (workflowStoreEntry.cromwellId.isEmpty && cromwellId.isEmpty)
+    } yield workflowStoreEntry.heartbeatTimestamp
   )
 
   /**
@@ -135,12 +166,25 @@ trait WorkflowStoreEntryComponent {
   )
 
   /**
-    * Useful for updating the restarted flag for a given workflow
+    * Useful for updating a given workflow to a 'Submitted' state when it's currently 'On Hold'
     */
-  val workflowRestartedForId = Compiled(
+  val workflowForIdAndOnHold = Compiled(
+    (workflowId: Rep[String]) => {
+       for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowExecutionUuid === workflowId
+        if workflowStoreEntry.workflowState === WorkflowStoreState.OnHold
+      } yield workflowStoreEntry.workflowState
+    }
+  )
+
+  /**
+    * Useful for checking if the heartbeat timestamp was cleared for a given workflow id.
+    */
+  val heartbeatClearedForWorkflowId = Compiled(
     (workflowId: Rep[String]) => for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowExecutionUuid === workflowId
-    } yield workflowStoreEntry.restarted
+    } yield workflowStoreEntry.heartbeatTimestamp.isEmpty
   )
 }

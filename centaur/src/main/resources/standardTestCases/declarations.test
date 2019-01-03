@@ -2,9 +2,10 @@
 
 name: declarations
 testFormat: workflowsuccess
+tags: ["wdl_upgrade"]
 
 files {
-  wdl: declarations/declarations.wdl
+  workflow: declarations/declarations.wdl
   inputs: declarations/declarations.inputs
 }
 

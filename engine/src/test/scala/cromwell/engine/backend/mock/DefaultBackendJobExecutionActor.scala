@@ -1,11 +1,11 @@
 package cromwell.engine.backend.mock
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobSucceededResponse, RunOnBackend}
 import cromwell.backend._
-import cromwell.core.{CallOutputs, NoIoFunctionSet}
-import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import cromwell.core.CallOutputs
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.graph.CommandCallNode
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -15,7 +15,7 @@ object DefaultBackendJobExecutionActor {
 
 case class DefaultBackendJobExecutionActor(override val jobDescriptor: BackendJobDescriptor, override val configurationDescriptor: BackendConfigurationDescriptor) extends BackendJobExecutionActor {
   override def execute: Future[BackendJobExecutionResponse] = {
-    Future.successful(JobSucceededResponse(jobDescriptor.key, Some(0), CallOutputs((jobDescriptor.taskCall.outputPorts map taskOutputToJobOutput).toMap), None, Seq.empty, dockerImageUsed = None))
+    Future.successful(JobSucceededResponse(jobDescriptor.key, Some(0), CallOutputs((jobDescriptor.taskCall.outputPorts map taskOutputToJobOutput).toMap), None, Seq.empty, dockerImageUsed = None, resultGenerationMode = RunOnBackend))
   }
 
   override def recover = execute
@@ -27,7 +27,7 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
   extends BackendLifecycleActorFactory {
   override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                                 ioActor: ActorRef,
-                                                calls: Set[TaskCallNode],
+                                                calls: Set[CommandCallNode],
                                                 serviceRegistryActor: ActorRef,
                                                 restarting: Boolean): Option[Props] = None
 

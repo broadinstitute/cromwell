@@ -4,14 +4,14 @@ import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.backend.wdl.OutputEvaluator
-import cromwell.backend.wdl.OutputEvaluator.EvaluatedJobOutputs
+import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
 import cromwell.core.path.Path
 import cromwell.core._
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
 
-import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Success, Try}
 
 object BackendJobExecutionActor {
@@ -27,7 +27,19 @@ object BackendJobExecutionActor {
   sealed trait BackendJobExecutionActorResponse extends BackendWorkflowLifecycleActorResponse
 
   sealed trait BackendJobExecutionResponse extends BackendJobExecutionActorResponse { def jobKey: JobKey }
-  case class JobSucceededResponse(jobKey: BackendJobDescriptorKey, returnCode: Option[Int], jobOutputs: CallOutputs, jobDetritusFiles: Option[Map[String, Path]], executionEvents: Seq[ExecutionEvent], dockerImageUsed: Option[String]) extends BackendJobExecutionResponse
+  case class JobSucceededResponse(jobKey: BackendJobDescriptorKey,
+                                  returnCode: Option[Int],
+                                  jobOutputs: CallOutputs,
+                                  jobDetritusFiles: Option[Map[String, Path]],
+                                  executionEvents: Seq[ExecutionEvent],
+                                  dockerImageUsed: Option[String],
+                                  resultGenerationMode: ResultGenerationMode) extends BackendJobExecutionResponse
+
+  sealed trait ResultGenerationMode
+  case object RunOnBackend extends ResultGenerationMode
+  case object CallCached extends ResultGenerationMode
+  case object FetchedFromJobStore extends ResultGenerationMode
+
   case class JobAbortedResponse(jobKey: BackendJobDescriptorKey) extends BackendJobExecutionResponse
   
   sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {  def throwable: Throwable; def returnCode: Option[Int] }
@@ -107,7 +119,7 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   }
 
   def evaluateOutputs(wdlFunctions: IoFunctionSet,
-                      postMapper: WomValue => Try[WomValue] = v => Success(v)): EvaluatedJobOutputs = {
-    OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper)
+                      postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): EvaluatedJobOutputs = {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper), Duration.Inf)
   }
 }

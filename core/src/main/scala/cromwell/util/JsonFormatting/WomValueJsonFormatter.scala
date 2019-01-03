@@ -12,12 +12,14 @@ object WomValueJsonFormatter extends DefaultJsonProtocol {
       case f: WomFloat => JsNumber(f.value)
       case b: WomBoolean => JsBoolean(b.value)
       case f: WomSingleFile => JsString(f.value)
-      case o: WomObject => new JsObject(o.value map {case(k, v) => k -> write(v)})
+      case o: WomObjectLike => new JsObject(o.values map {case(k, v) => k -> write(v)})
       case a: WomArray => new JsArray(a.value.map(write).toVector)
       case m: WomMap => new JsObject(m.value map {case(k,v) => k.valueString -> write(v)})
       case q: WomPair => new JsObject(Map("left" -> write(q.left), "right" -> write(q.right)))
       case WomOptionalValue(_, Some(innerValue)) => write(innerValue)
       case WomOptionalValue(_, None) => JsNull
+      case WomCoproductValue(_, innerValue) => write(innerValue)
+      case WomEnumerationValue(_, innerValue) => JsString(innerValue)
         // handles WdlExpression
       case v: WomValue => JsString(v.toWomString)
 

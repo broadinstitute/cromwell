@@ -1,0 +1,17 @@
+# This command will stat the secondaryFiles and if they're missing bad times
+command: stat $(echo $* | sed 's/.txt/.txt.also/g') > /dev/null
+f:
+  class: File
+  path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/foo.txt"
+of:
+  class: File
+  path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/bim.txt"
+fs:
+  - class: File
+    path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/bar.txt"
+  - class: File
+    path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/baz.txt"
+fr:
+  a:
+    class: File
+    path: "centaur/src/main/resources/standardTestCases/cwl_secondary_files/bam.txt"

@@ -1,12 +1,19 @@
 
-import cwl.CwlType.{CwlType, _}
-import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import cats.data.ReaderT
 import common.Checked
-import common.validation.ErrorOr.ErrorOr
+import common.validation.Checked._
+import common.validation.ErrorOr._
+import cwl.CwlType._
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
 import cwl.command.ParentName
+import cwl.ontology.Schema
 import shapeless._
 import wom.executable.Executable
+import wom.expression.IoFunctionSet
 import wom.types._
+import wom.values.WomEvaluatedCallInputs
+
+import scala.util.{Failure, Success, Try}
 
 /**
  * This package is intended to parse all CWL files.
@@ -39,29 +46,19 @@ package object cwl extends TypeAliases {
   }
 
   def cwlTypeToWomType : CwlType => WomType = {
+    case CwlType.Any => WomAnyType
     case Null => WomNothingType
     case Boolean => WomBooleanType
     case Int => WomIntegerType
-    case Long => WomIntegerType
+    case Long => WomLongType
     case Float => WomFloatType
     case Double => WomFloatType
     case String => WomStringType
-    case CwlType.File => WomSingleFileType
-    case CwlType.Directory => ???
+    case CwlType.File => WomMaybePopulatedFileType
+    case CwlType.Directory => WomMaybeListedDirectoryType
   }
 
-  /**
-    *
-    * These are supposed to be valid ECMAScript Expressions.
-    * See http://www.commonwl.org/v1.0/Workflow.html#Expressions
-    */
-
-  type StringOrExpression = Expression :+: String :+: CNil
-  type Expression = ECMAScriptExpression :+: ECMAScriptFunction :+: CNil
-
   object StringOrExpression {
-    def unapply(listing: InitialWorkDirRequirement.IwdrListing): Option[StringOrExpression] = listing.select[StringOrExpression]
-
     object String {
       def unapply(soe: StringOrExpression): Option[String] = soe.select[String]
     }
@@ -92,9 +89,16 @@ package object cwl extends TypeAliases {
   val AcceptAllRequirements: RequirementsValidator = _.validNel
 
   implicit class CwlHelper(val cwl: Cwl) extends AnyVal {
-    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String] = None): Checked[Executable] = cwl match {
-      case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile)
-      case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile)
+    def womExecutable(validator: RequirementsValidator, inputsFile: Option[String], ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
+      def executable = cwl match {
+        case Cwl.Workflow(w) => w.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
+        case Cwl.CommandLineTool(clt) => clt.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
+        case Cwl.ExpressionTool(et) => et.womExecutable(validator, inputsFile, ioFunctions, strictValidation)
+      }
+      Try(executable) match {
+        case Success(s) => s
+        case Failure(f) => f.getMessage.invalidNelCheck
+      }
     }
 
     def requiredInputs: Map[String, WomType] = {
@@ -107,8 +111,13 @@ package object cwl extends TypeAliases {
         case Cwl.CommandLineTool(clt) => selectWomTypeInputs(clt.inputs collect {
           case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
         })
+        case Cwl.ExpressionTool(et) => selectWomTypeInputs(et.inputs collect {
+          case i if i.`type`.isDefined => FullyQualifiedName(i.id).id -> i.`type`.get
+        })
       }
     }
+
+    def schemaOption: Option[Schema] = cwl.fold(CwlSchemaOptionPoly)
 
     private def selectWomTypeInputs(myriadInputMap: Array[(String, MyriadInputType)]): Map[String, WomType] = {
       (myriadInputMap collect {
@@ -116,4 +125,27 @@ package object cwl extends TypeAliases {
       }).toMap
     }
   }
+
+  object CwlSchemaOptionPoly extends Poly1 {
+    implicit val caseWorkflow: Case.Aux[Workflow, Option[Schema]] = at {
+      workflow => getSchema(workflow.`$schemas`, workflow.`$namespaces`)
+    }
+    implicit val caseCommandLineTool: Case.Aux[CommandLineTool, Option[Schema]] = at {
+      commandLineTool => getSchema(commandLineTool.`$schemas`, commandLineTool.`$namespaces`)
+    }
+    implicit val caseExpressionTool: Case.Aux[ExpressionTool, Option[Schema]] = at {
+      expressionTool => getSchema(expressionTool.`$schemas`, expressionTool.`$namespaces`)
+    }
+
+    private def getSchema(schemasOption: Option[Array[String]],
+                          namespacesOption: Option[Map[String, String]]): Option[Schema] = {
+      schemasOption.map(Schema(_, namespacesOption getOrElse Map.empty))
+    }
+  }
+
+  type ExpressionLib = Vector[String]
+
+  type Inputs = (RequirementsAndHints, ExpressionLib, WomEvaluatedCallInputs)
+
+  type CommandPartExpression[A] = ReaderT[ErrorOr, Inputs, A]
 }

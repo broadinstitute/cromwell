@@ -1,0 +1,14 @@
+name: local_bourne
+backends: [LocalBourneShell]
+testFormat: workflowsuccess
+tags: [localdockertest]
+
+files {
+  workflow: local_bourne/local_bourne.wdl
+}
+
+metadata {
+  workflowName: local_bourne
+  status: Succeeded
+  "outputs.local_bourne.shell.out": "/bin/sh"
+}

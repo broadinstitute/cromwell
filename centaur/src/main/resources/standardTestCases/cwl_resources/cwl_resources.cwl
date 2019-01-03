@@ -21,7 +21,7 @@ $graph:
         glob: stdout
         loadContents: true
         outputEval: $(self[0].contents.trim())
-  baseCommand: ['curl', '"http://metadata.google.internal/computeMetadata/v1/instance/machine-type"', '-H', '"Metadata-Flavor: Google"']
+  baseCommand: ['curl', 'http://metadata.google.internal/computeMetadata/v1/instance/machine-type', '-H', 'Metadata-Flavor: Google']
   stdout: stdout
 
 

@@ -1,0 +1,1 @@
+Failed to process workflow definition 'bad_nested_task_output_assignment_type' (reason 1 of 1): Failed to process declaration 'String bad_gather = inner_workflow.x' (reason 1 of 1): Cannot coerce expression of type 'Array[String]?' to 'String'

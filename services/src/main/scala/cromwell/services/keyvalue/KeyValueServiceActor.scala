@@ -1,12 +1,13 @@
 package cromwell.services.keyvalue
 
-import akka.actor.{Actor, ActorRef}
-import cromwell.core.{JobKey, MonitoringCompanionHelper, WorkflowId}
+import akka.actor.SupervisorStrategy.Escalate
+import akka.actor.{Actor, ActorInitializationException, ActorLogging, OneForOneStrategy, Props}
+import cats.data.NonEmptyList
+import cromwell.core.{JobKey, WorkflowId}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
-
-import scala.concurrent.{ExecutionContextExecutor, Future}
-import scala.util.{Failure, Success}
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 object KeyValueServiceActor {
   final case class KvJobKey(callFqn: String, callIndex: Option[Int], callAttempt: Int)
@@ -31,33 +32,29 @@ object KeyValueServiceActor {
 
   sealed trait KvResponse extends KvMessage
 
-  final case class KvPair(key: ScopedKey, value: Option[String]) extends KvResponse
+  final case class KvPair(key: ScopedKey, value: String) extends KvResponse
   final case class KvFailure(action: KvAction, failure: Throwable) extends KvResponse with KvMessageWithAction
   final case class KvKeyLookupFailed(action: KvGet) extends KvResponse with KvMessageWithAction
   final case class KvPutSuccess(action: KvPut) extends KvResponse with KvMessageWithAction
+
+  val InstrumentationPath = NonEmptyList.of("keyvalue")
 }
 
-trait KeyValueServiceActor extends Actor with MonitoringCompanionHelper {
-  implicit val ec: ExecutionContextExecutor
+trait KeyValueServiceActor extends Actor with GracefulShutdownHelper with ActorLogging {
+  protected def kvReadActorProps: Props
+  protected def kvWriteActorProps: Props
 
-  val kvReceive: Receive = {
-    case action: KvGet => respond(sender(), action, doGet(action))
-    case action: KvPut =>
-      addWork()
-      val putAction = doPut(action)
-      putAction andThen { case _ => removeWork() }
-      respond(sender(), action, putAction)
+  override val supervisorStrategy = OneForOneStrategy() {
+    case _: ActorInitializationException => Escalate
+    case t => super.supervisorStrategy.decider.applyOrElse(t, (_: Any) => Escalate)
   }
-
-  override def receive = kvReceive.orElse(monitoringReceive)
-
-  def doPut(put: KvPut): Future[KvResponse]
-  def doGet(get: KvGet): Future[KvResponse]
-
-  private def respond(replyTo: ActorRef, action: KvAction, response: Future[KvResponse]): Unit = {
-    response.onComplete {
-      case Success(x) => replyTo ! x
-      case Failure(ex) => replyTo ! KvFailure(action, ex)
-    }
+  
+  private val kvReadActor = context.actorOf(kvReadActorProps, "KvReadActor")
+  private val kvWriteActor = context.actorOf(kvWriteActorProps, "KvWriteActor")
+  
+  override def receive = {
+    case get: KvGet => kvReadActor forward get
+    case put: KvPut => kvWriteActor forward put
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.one(kvWriteActor))
   }
 }

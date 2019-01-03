@@ -5,7 +5,7 @@ import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "31"
+  val cromwellVersion = "35"
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
@@ -25,7 +25,7 @@ object Version {
   }
 
   val writeSwaggerUiVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
-    writeVersionConf("swagger-ui", (resourceManaged in Compile).value, swaggerUiV)
+    writeVersionConf("swagger-ui", (resourceManaged in Compile).value, swaggerUiVersion)
   }
 
   /**

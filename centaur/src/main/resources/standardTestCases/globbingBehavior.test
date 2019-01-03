@@ -2,7 +2,7 @@ name: globbingBehavior
 testFormat: workflowsuccess
 
 files {
-  wdl: globbingBehavior/globbingBehavior.wdl
+  workflow: globbingBehavior/globbingBehavior.wdl
 }
 
 metadata {

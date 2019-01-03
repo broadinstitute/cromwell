@@ -13,6 +13,8 @@ object TTLOssStorageConfiguration {
   def currentTimestamp = System.currentTimeMillis / 1000
 
   def defaultRefreshInterval: Long = 30 * 60
+
+  val REFRESH_INTERVAL = "refresh-interval"
 }
 
 trait TTLOssStorageConfiguration extends OssStorageConfiguration {
@@ -26,7 +28,7 @@ trait TTLOssStorageConfiguration extends OssStorageConfiguration {
 
   override def stsToken: Option[String] = config.as[Option[String]](OssStorageConfiguration.SECURITY_TOKEN_KEY)
 
-  def refreshInterval: Long = config.as[Option[Long]](OssStorageConfiguration.REFRESH_INTERVAL).getOrElse(TTLOssStorageConfiguration.defaultRefreshInterval)
+  def refreshInterval: Long = config.as[Option[Long]](TTLOssStorageConfiguration.REFRESH_INTERVAL).getOrElse(TTLOssStorageConfiguration.defaultRefreshInterval)
 
   private var lastClientUpdateTime: Long = 0
 

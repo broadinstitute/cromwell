@@ -1,9 +1,9 @@
 name: sub_workflow_hello_world
 testFormat: workflowsuccess
-tags: [subworkflow]
+tags: [subworkflow, "wdl_upgrade"]
 
 files {
-  wdl: sub_workflow_hello_world/sub_workflow_hello_world.wdl
+  workflow: sub_workflow_hello_world/sub_workflow_hello_world.wdl
   imports: [
     sub_workflow_hello_world/sub_workflow_hello_world_import.wdl
   ]

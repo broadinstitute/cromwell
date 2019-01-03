@@ -18,13 +18,14 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)
   val task_foo = CallableTaskDefinition(name = "foo",
-    commandTemplate = null,
+    commandTemplateBuilder = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,
     parameterMeta = Map.empty,
     outputs = List(OutputDefinition("out", WomStringType, PlaceholderWomExpression(Set.empty, WomStringType))),
     inputs = List(fooInputDef),
-    adHocFileCreation = Set.empty
+    adHocFileCreation = Set.empty,
+    environmentExpressions = Map.empty
   )
 
   /**
@@ -68,7 +69,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       newGraphInputNodes = Set.empty
     )
     val CallNodeAndNewNodes(foo_callNode, _, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold)
-    val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WomStringType, foo_callNode.outputByName("out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
+    val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WomStringType, foo_callNode.outputByName("foo.out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg
       case Invalid(es) => fail("Failed to make scatter graph: " + es.toList.mkString(", "))

@@ -1,10 +1,10 @@
 name: restart_jes_with_recover
 testFormat: CromwellRestartWithRecover
 callMark: cromwell_restart.cromwell_killer
-backends: [Jes]
+backends: [Papi]
 
 files {
-  wdl: cromwell_restart/cromwell_restart.wdl
+  workflow: cromwell_restart/cromwell_restart.wdl
 }
 
 metadata {

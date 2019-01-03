@@ -1,0 +1,18 @@
+name: draft3_forkjoin
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/forkjoin/forkjoin.wdl
+  inputs: wdl_draft3/forkjoin/forkjoin.inputs
+}
+
+metadata {
+  workflowName: forkjoin
+  "calls.forkjoin.wc.outputs.count": 1000
+  "calls.forkjoin.grep.outputs.count": 21
+  "calls.forkjoin.join.outputs.proportion": 47
+  "outputs.forkjoin.joined_proportion": 47
+}

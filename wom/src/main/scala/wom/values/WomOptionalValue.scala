@@ -1,8 +1,10 @@
 package wom.values
 
+import cats.Applicative
 import wom.types.{WomOptionalType, WomType}
 
 import scala.annotation.tailrec
+import scala.language.higherKinds
 import scala.util.{Success, Try}
 
 final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) extends WomValue {
@@ -83,7 +85,6 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     value.toList flatMap { _.collectAsSeq(filterFn) }
   }
 
-
   /**
     * Unpack a nested option down to a single layer of optionality
     * eg Bring Int?[...]? down to Int?
@@ -101,8 +102,11 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
   @tailrec
   private def boxUntilType(targetType: WomOptionalType): WomOptionalValue = {
     assert(value.isDefined)
-    assert(targetType.baseMemberType.equals(womType.baseMemberType))
-    if (womType.equals(targetType)) {
+
+    assert(
+      targetType.baseMemberTypeIsCompatibleWith(womType.baseMemberType),
+      s"base member type ${targetType.baseMemberType} and womtype ${womType.baseMemberType} are not compatible")
+    if (womType.depth.equals(targetType.depth)) {
       this
     } else {
       WomOptionalValue(womType, Some(this)).boxUntilType(targetType)
@@ -119,7 +123,8 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     * @param womOptionalType The final type we want to create
     */
   def coerceAndSetNestingLevel(womOptionalType: WomOptionalType) = this.flattenOptional match {
-    case WomOptionalValue(_, Some(v)) => womOptionalType.baseMemberType.coerceRawValue(v).map(WomOptionalValue(_).boxUntilType(womOptionalType))
+    case WomOptionalValue(_, Some(v)) =>
+      womOptionalType.baseMemberType.coerceRawValue(v).map(WomOptionalValue(_).boxUntilType(womOptionalType))
     case WomOptionalValue(_, None) => Success(WomOptionalValue(womOptionalType.memberType, None))
   }
 
@@ -127,6 +132,12 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
     case Some(v) => v.valueString
     case None => ""
   }
+  
+  def traverse[A <: WomValue, G[_]](f: WomValue => G[A])(implicit applicative: Applicative[G]) = value map { v =>
+    applicative.map(f(v)) {
+      WomOptionalValue(_)
+    }
+  } getOrElse applicative.pure(this)
 }
 
 object WomOptionalValue {
@@ -137,4 +148,11 @@ object WomOptionalValue {
   }
 
   def none(womType: WomType) = WomOptionalValue(womType, None)
+
+  object Flattened {
+    def unapply(value: WomValue): Option[Option[WomValue]] = value match {
+      case opt: WomOptionalValue => Some(opt.flattenOptional.value)
+      case _ => None
+    }
+  }
 }

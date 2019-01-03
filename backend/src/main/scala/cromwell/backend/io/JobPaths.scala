@@ -1,8 +1,9 @@
 package cromwell.backend.io
 
+import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.path.Path
-import cromwell.core.{CallContext, JobKey}
+import cromwell.core.{CallContext, JobKey, StandardPaths}
 import cromwell.services.metadata.CallMetadataKeys
 
 object JobPaths {
@@ -33,38 +34,68 @@ trait JobPaths {
   def returnCodeFilename: String = "rc"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
+  def isDocker: Boolean = false
 
-  final def stdoutFilename: String = jobKey.node.callable.stdoutRedirection.getOrElse(defaultStdoutFilename)
-  final def stderrFilename: String = jobKey.node.callable.stderrRedirection.getOrElse(defaultStderrFilename)
+  // In this non-Docker version of `JobPaths` there is no distinction between host and container roots so this is
+  // just called 'rootWithSlash'.
+  private lazy val rootWithSlash = callExecutionRoot.pathAsString.ensureSlashed
+
+  def isInExecution(string: String): Boolean = string.startsWith(rootWithSlash)
+
+  /**
+    * Return a host path corresponding to the specified container path.
+    */
+  def hostPathFromContainerPath(string: String): Path = {
+    // No container here, just return a Path of the absolute path to the file.
+    callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
+  }
+
+  def hostPathFromContainerInputs(string: String): Path =
+    // No container here, just return a Path of the absolute path to the file.
+    callExecutionRoot.resolve(string.stripPrefix(rootWithSlash))
+
+
   def scriptFilename: String = "script"
   def dockerCidFilename: String = "docker_cid"
 
   def jobKey: BackendJobDescriptorKey
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
   lazy val callExecutionRoot = callRoot
-  lazy val stdout = callExecutionRoot.resolve(stdoutFilename)
-  lazy val stderr = callExecutionRoot.resolve(stderrFilename)
+
+  // Use default stdout and stderr names by default. This StandardPaths `var` may be reassigned later to
+  // enable dynamic standard output and error file names for languages like CWL that support this feature.
+  var standardPaths: StandardPaths = StandardPaths(
+    output = callExecutionRoot.resolve(defaultStdoutFilename),
+    error = callExecutionRoot.resolve(defaultStderrFilename)
+  )
+
   lazy val script = callExecutionRoot.resolve(scriptFilename)
   lazy val dockerCid = callExecutionRoot.resolve(dockerCidFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
 
-  private lazy val commonMetadataPaths: Map[String, Path] = Map(
-    CallMetadataKeys.CallRoot -> callRoot,
-    CallMetadataKeys.Stdout -> stdout,
-    CallMetadataKeys.Stderr -> stderr
+  // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
+  // standard output and error file names.
+  def standardOutputAndErrorPaths: Map[String, Path] = Map(
+    CallMetadataKeys.Stdout -> standardPaths.output,
+    CallMetadataKeys.Stderr -> standardPaths.error
   )
 
-  private lazy val commonDetritusPaths: Map[String, Path] = Map(
+  private lazy val commonMetadataPaths: Map[String, Path] =
+    standardOutputAndErrorPaths + (CallMetadataKeys.CallRoot -> callRoot)
+
+  // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
+  // standard output and error file names.
+  private def commonDetritusPaths: Map[String, Path] = Map(
     JobPaths.CallRootPathKey -> callRoot,
     JobPaths.ScriptPathKey -> script,
-    JobPaths.StdoutPathKey -> stdout,
-    JobPaths.StdErrPathKey -> stderr,
+    JobPaths.StdoutPathKey -> standardPaths.output,
+    JobPaths.StdErrPathKey -> standardPaths.error,
     JobPaths.ReturnCodePathKey -> returnCode
   )
 
   private lazy val commonLogPaths: Map[String, Path] = Map(
-    JobPaths.StdoutPathKey -> stdout,
-    JobPaths.StdErrPathKey -> stderr
+    JobPaths.StdoutPathKey -> standardPaths.output,
+    JobPaths.StdErrPathKey -> standardPaths.error
   )
 
   protected lazy val customMetadataPaths: Map[String, Path] = Map.empty
@@ -72,8 +103,8 @@ trait JobPaths {
   protected lazy val customLogPaths: Map[String, Path] = Map.empty
 
   lazy val metadataPaths = commonMetadataPaths ++ customMetadataPaths
-  lazy val detritusPaths = commonDetritusPaths ++ customDetritusPaths
+  def detritusPaths = commonDetritusPaths ++ customDetritusPaths
   lazy val logPaths = commonLogPaths ++ customLogPaths
 
-  lazy val callContext = CallContext(callExecutionRoot, stdout.pathAsString, stderr.pathAsString)
+  lazy val callContext = CallContext(callExecutionRoot, standardPaths, isDocker)
 }

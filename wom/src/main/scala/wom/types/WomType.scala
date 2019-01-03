@@ -1,7 +1,7 @@
 package wom.types
 
 import wom.WomExpressionException
-import wom.values.WomValue
+import wom.values.{WomOptionalValue, WomValue}
 
 import scala.runtime.ScalaRunTime
 import scala.util.{Failure, Success, Try}
@@ -27,8 +27,9 @@ trait WomType {
   final def coerceRawValue(any: Any): Try[WomValue] = {
     any match {
       case womValue: WomValue if womValue.womType == this => Success(womValue)
+      case WomOptionalValue(_, Some(v)) => coerceRawValue(v)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
-        s"No coercion defined from '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
+        s"No coercion defined from wom value(s) '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
           s" '${womValue.womType.toDisplayString}' to '$toDisplayString'."))
       case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +
@@ -37,7 +38,11 @@ trait WomType {
     }
   }
 
-  def isCoerceableFrom(otherType: WomType): Boolean = false
+  final def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+    case WomAnyType => true
+    case _ => typeSpecificIsCoerceableFrom(otherType)
+  }
+  protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType == this
 
   def toDisplayString: String
 
@@ -47,16 +52,20 @@ trait WomType {
   def multiply(rhs: WomType): Try[WomType] = invalid(s"$this * $rhs")
   def divide(rhs: WomType): Try[WomType] = invalid(s"$this / $rhs")
   def mod(rhs: WomType): Try[WomType] = invalid(s"$this % $rhs")
-  def equals(rhs: WomType): Try[WomType] = invalid(s"$this == $rhs")
-  def notEquals(rhs: WomType): Try[WomType] = equals(rhs) map { _ => WomBooleanType}
+  def equalsType(rhs: WomType): Try[WomType] =
+    if(this == rhs)
+      Success(WomBooleanType)
+    else
+      invalid(s"$this == $rhs")
+  def notEquals(rhs: WomType): Try[WomType] = equalsType(rhs) map { _ => WomBooleanType}
   def lessThan(rhs: WomType): Try[WomType] = invalid(s"$this < $rhs")
-  def lessThanOrEqual(rhs: WomType): Try[WomType] = (lessThan(rhs), equals(rhs)) match {
+  def lessThanOrEqual(rhs: WomType): Try[WomType] = (lessThan(rhs), equalsType(rhs)) match {
     case (Success(b:WomType), _) if b == WomBooleanType => Success(WomBooleanType)
     case (_, Success(b:WomType)) if b == WomBooleanType => Success(WomBooleanType)
     case (_, _) => invalid(s"$this <= $rhs")
   }
   def greaterThan(rhs: WomType): Try[WomType] = invalid(s"$this > $rhs")
-  def greaterThanOrEqual(rhs: WomType): Try[WomType] = (greaterThan(rhs), equals(rhs)) match {
+  def greaterThanOrEqual(rhs: WomType): Try[WomType] = (greaterThan(rhs), equalsType(rhs)) match {
     case (Success(b:WomType), _) if b == WomBooleanType => Success(WomBooleanType)
     case (_, Success(b:WomType)) if b == WomBooleanType => Success(WomBooleanType)
     case (_, _) => invalid(s"$this >= $rhs")
@@ -71,8 +80,11 @@ trait WomType {
 object WomType {
   /* This is in the order of coercion from non-wom types */
   val womTypeCoercionOrder: Seq[WomType] = Seq(
-    WomStringType, WomIntegerType, WomFloatType, WomMapType(WomAnyType, WomAnyType),
-    WomArrayType(WomAnyType), WomBooleanType, WomObjectType
+    WomStringType, WomIntegerType, WomFloatType, WomPairType(WomAnyType, WomAnyType), WomMapType(WomAnyType, WomAnyType),
+    WomArrayType(WomAnyType), WomBooleanType, WomObjectType,
+    // Putting optional type last means we'll only coerce to it for JsNull.
+    // That should be OK because every other type X can coerce into X? later if it needs to.
+    WomOptionalType(WomAnyType)
   )
 
   def homogeneousTypeFromValues(values: Iterable[WomValue]): WomType =
@@ -86,9 +98,120 @@ object WomType {
     }
   }
 
-  def lowestCommonSubtype(types: Iterable[WomType]): WomType = {
-    types.collectFirst {
-      case t1 if types.forall(t2 => t1.isCoerceableFrom(t2)) => t1
-    } getOrElse WomAnyType
+  def lowestCommonSubtype(types: Iterable[WomType]): WomType = types match {
+    case e if e.isEmpty => WomNothingType
+    case ListOfPrimitives(primitiveType) => primitiveType
+    case ListOfPairs(pairType) => pairType
+    case ListOfOptionals(optionalType) => optionalType
+    case ListOfMaps(mapType) => mapType
+    case ListOfArrays(arrayType) => arrayType
+    case ListOfObject(objectType) => objectType
+    case _ => WomAnyType
+  }
+
+  private object ListOfPrimitives {
+    def unapply(types: Iterable[WomType]): Option[WomType] = {
+      if (types.forall(_.isInstanceOf[WomPrimitiveType])) {
+        firstCommonPrimitive(types)
+      } else None
+    }
+
+    val coercePriority = List(
+      WomStringType, WomSingleFileType, WomUnlistedDirectoryType, WomFloatType, WomIntegerType, WomBooleanType, WomObjectType
+    )
+
+    private def firstCommonPrimitive(types: Iterable[WomType]): Option[WomType] = {
+      // Types in the incoming list which everything could coerce to:
+      val suppliedOptions = types.filter(t => types.forall(t.isCoerceableFrom))
+
+      // A type not in the incoming list but which everything could coerce to nonetheless:
+      lazy val unsuppliedOption: Option[WomType] = coercePriority.find(p => types.forall(p.isCoerceableFrom))
+
+      coercePriority.find { p => suppliedOptions.toList.contains(p) } orElse { unsuppliedOption }
+    }
+  }
+
+
+  private object ListOfPairs {
+    def unapply(types: Iterable[WomType]): Option[WomPairType] = {
+      if (types.forall(_.isInstanceOf[WomPairType])) {
+        val pairs = types.map(_.asInstanceOf[WomPairType])
+        val leftType = lowestCommonSubtype(pairs.map(_.leftType))
+        val rightType = lowestCommonSubtype(pairs.map(_.rightType))
+        Some(WomPairType(leftType, rightType))
+      } else None
+    }
+  }
+
+  private object ListOfOptionals {
+    def unapply(types: Iterable[WomType]): Option[WomOptionalType] = {
+      val atLeastOneOptional = types.exists {
+        case _: WomOptionalType => true
+        case _ => false
+      }
+
+      if (atLeastOneOptional) {
+        val innerTypes = types map {
+          case WomOptionalType(inner) => inner
+          case nonOptional => nonOptional
+        }
+        Some(WomOptionalType(lowestCommonSubtype(innerTypes)))
+      } else {
+        None
+      }
+    }
+  }
+
+  private object ListOfMaps {
+    def unapply(types: Iterable[WomType]): Option[WomMapType] = {
+      val asMapTypes = types map {
+        case m: WomMapType => Some(m)
+        case _ => None
+      }
+
+      if (asMapTypes.forall(_.isDefined)) {
+        val maps = asMapTypes.map(_.get)
+        val keyType = lowestCommonSubtype(maps.map(_.keyType))
+        val valueType = lowestCommonSubtype(maps.map(_.valueType))
+        Some(WomMapType(keyType, valueType))
+      } else None
+    }
+  }
+
+  private object ListOfObject {
+    def unapply(types: Iterable[WomType]): Option[WomObjectType.type] = {
+      val asObjectTypes = types map {
+        case m: WomObjectTypeLike => Some(m)
+        case _ => None
+      }
+
+      if (asObjectTypes.forall(_.isDefined)) {
+        Some(WomObjectType)
+      } else None
+    }
+  }
+
+  private object ListOfArrays {
+    def unapply(types: Iterable[WomType]): Option[WomArrayType] = {
+      val asArrayTypes = types map {
+        case a: WomArrayType => Some(a)
+        case _ => None
+      }
+
+      if (asArrayTypes.forall(_.isDefined)) {
+          val arrs = asArrayTypes.map(_.get)
+          val memberType = lowestCommonSubtype(arrs.map(_.memberType))
+          Some(WomArrayType(memberType))
+      } else None
+    }
+  }
+
+  object RecursiveType {
+    def unapply(in: WomType): Option[WomType] = in match {
+      case WomOptionalType(other) => Some(other)
+      case WomMaybeEmptyArrayType(other) => Some(other)
+      case WomNonEmptyArrayType(other) => Some(other)
+      case _ => None
+    }
   }
 }

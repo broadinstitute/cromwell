@@ -70,8 +70,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "world",
       getFileName = "world",
       getNameCount = 2,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a relative path",
@@ -85,8 +84,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "world",
       getFileName = "world",
       getNameCount = 2,
-      isAbsolute = false,
-      isDirectory = false),
+      isAbsolute = false),
 
     GoodPath(
       description = "a path with spaces",
@@ -100,8 +98,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "with spaces",
       getFileName = "with spaces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path with encode spaces",
@@ -115,8 +112,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "encoded%20spaces",
       getFileName = "encoded%20spaces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path with non-ascii characters",
@@ -130,8 +126,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "with non ascii £€",
       getFileName = "with non ascii £€",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // Special paths
 
@@ -147,8 +142,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = pwdName,
       getFileName = "",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a path from /",
@@ -162,8 +156,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path from .",
@@ -177,8 +170,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = pwdName,
       getFileName = ".",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a path from ..",
@@ -192,8 +184,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = parentName,
       getFileName = "..",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a path including .",
@@ -207,8 +198,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "dots",
       getFileName = "dots",
       getNameCount = 5,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path including ..",
@@ -222,8 +212,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "dots",
       getFileName = "dots",
       getNameCount = 5,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // Normalized
 
@@ -239,8 +228,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = pwdName,
       getFileName = "",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a normalized path from /",
@@ -254,8 +242,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "",
       getFileName = null,
       getNameCount = 0,
-      isAbsolute = true,
-      isDirectory = true),
+      isAbsolute = true),
 
     GoodPath(
       description = "a normalized path from .",
@@ -269,8 +256,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = pwdName,
       getFileName = "",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a normalized path from ..",
@@ -284,8 +270,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = parentName,
       getFileName = "..",
       getNameCount = 1,
-      isAbsolute = false,
-      isDirectory = true),
+      isAbsolute = false),
 
     GoodPath(
       description = "a normalized path including a .",
@@ -299,8 +284,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "dots",
       getFileName = "dots",
       getNameCount = 4,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a normalized path including ..",
@@ -314,8 +298,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "dots",
       getFileName = "dots",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     // URI
 
@@ -331,8 +314,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "world",
       getFileName = "world",
       getNameCount = 2,
-      isAbsolute = true,
-      isDirectory = false),
+      isAbsolute = true),
 
     GoodPath(
       description = "a path from a file uri with encoded spaces",
@@ -346,8 +328,7 @@ class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with 
       name = "encoded%20spaces",
       getFileName = "encoded%20spaces",
       getNameCount = 3,
-      isAbsolute = true,
-      isDirectory = false)
+      isAbsolute = true)
   )
 
   private def badPaths = Seq(

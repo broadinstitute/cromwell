@@ -36,7 +36,7 @@ class EngineStatsActorSpec extends TestKitSuite("EngineStatsActor") with FlatSpe
   it should "return in a timely manner if one of the WorkflowActors is quiet" in {
     val workflowActors = List(Props(FakeWorkflowActor(0)), Props.empty) map { TestActorRef(_) }
     TestActorRef(EngineStatsActor.props(workflowActors, replyTo.ref, 50 millis))
-    replyTo.expectMsg(defaultTimeout, EngineStats(1, 0))
+    replyTo.expectMsg(defaultTimeout, EngineStats(2, 0))
   }
 
   it should "return the summation of jobs for all WorkflowActors" in {

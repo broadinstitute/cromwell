@@ -1,0 +1,10 @@
+Failed to read task definition at line 7 column 6 (reason 1 of 10): Invalid placeholder attribute: tre
+Failed to read task definition at line 7 column 6 (reason 2 of 10): Invalid placeholder attribute: fale
+Failed to read task definition at line 7 column 6 (reason 3 of 10): Invalid placeholder attribute: defult
+Failed to read task definition at line 7 column 6 (reason 4 of 10): Invalid placeholder attribute: seep
+Failed to read task definition at line 7 column 6 (reason 5 of 10): Cannot specify 'true="good"' without also having a 'false="..."' attribute
+Failed to read task definition at line 7 column 6 (reason 6 of 10): Cannot specify 'false="good"' without also having a 'true="..."' attribute
+Failed to read task definition at line 7 column 6 (reason 7 of 10): Cannot supply 'true="what"' because it is already supplied as 'true="good"'
+Failed to read task definition at line 7 column 6 (reason 8 of 10): Cannot supply 'false="what"' because it is already supplied as 'false="bad"'
+Failed to read task definition at line 7 column 6 (reason 9 of 10): Cannot supply 'default="even worse"' because it is already supplied as 'default="bad"'
+Failed to read task definition at line 7 column 6 (reason 10 of 10): Cannot supply 'sep="uuuuh"' because it is already supplied as 'sep="___"'

@@ -1,0 +1,20 @@
+# In all runs a list of call cache hint prefixes is explicitly specified but empty.
+# The first run has a different "jes_gcs_root" than the second or third so the second and third
+# should not see the first's cache entries.
+name: call_cache_hit_prefixes_two_roots_empty_hint_cache_hit_papi
+testFormat: runthriceexpectingcallcaching
+backends: [Papi]
+
+files {
+  workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl
+  inputs: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_hit_papi.inputs
+  options: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_papi_first.options
+  second-options: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_papi_second.options
+  third-options: call_cache_hit_prefixes/call_cache_hit_prefixes_two_roots_empty_hint_papi_second.options
+}
+
+metadata {
+  workflowName: call_cache_hit_prefixes
+  status: Succeeded
+  "outputs.call_cache_hit_prefixes.sup": "sup two roots empty hint hit?"
+}

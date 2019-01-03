@@ -3,10 +3,11 @@ package cromwell.webservice.metadata
 import java.util.UUID
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import common.collections.EnhancedCollections._
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -93,7 +94,7 @@ object MetadataBuilderActor {
      *    ...
      * )
      */
-    val callsGroupedByFQNAndIndex = callsGroupedByFQN mapValues { _ groupBy { _.key.jobKey.get.index } }
+    val callsGroupedByFQNAndIndex = callsGroupedByFQN safeMapValues { _ groupBy { _.key.jobKey.get.index } }
     /*
      * Map(
      *    "fqn" -> Map(
@@ -107,12 +108,12 @@ object MetadataBuilderActor {
      *    ...
      * )
      */
-    val callsGroupedByFQNAndIndexAndAttempt = callsGroupedByFQNAndIndex mapValues { _ mapValues { _ groupBy { _.key.jobKey.get.attempt } } }
+    val callsGroupedByFQNAndIndexAndAttempt = callsGroupedByFQNAndIndex safeMapValues { _ safeMapValues { _ groupBy { _.key.jobKey.get.attempt } } }
 
     val eventsToAttemptFunction = Function.tupled(eventsToAttemptMetadata(expandedValues) _)
     val attemptToIndexFunction = (attemptMetadataToIndexMetadata _).tupled
 
-    val callsMap = callsGroupedByFQNAndIndexAndAttempt mapValues { _ mapValues { _ map eventsToAttemptFunction } map attemptToIndexFunction } mapValues { md =>
+    val callsMap = callsGroupedByFQNAndIndexAndAttempt safeMapValues { _ safeMapValues { _ map eventsToAttemptFunction } map attemptToIndexFunction } safeMapValues { md =>
       JsArray(md.toVector.sortBy(_.index) flatMap { _.metadata })
     }
 
@@ -129,7 +130,7 @@ object MetadataBuilderActor {
     * Parse a Seq of MetadataEvent into a full Json metadata response.
     */
   private def parse(events: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {
-    JsObject(events.groupBy(_.key.workflowId.toString) mapValues parseWorkflowEvents(includeCallsIfEmpty = true, expandedValues))
+    JsObject(events.groupBy(_.key.workflowId.toString) safeMapValues parseWorkflowEvents(includeCallsIfEmpty = true, expandedValues))
   }
 
   def uniqueActorName: String = List("MetadataBuilderActor", UUID.randomUUID()).mkString("-")
@@ -230,7 +231,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       // Scan events for sub workflow ids
       val subWorkflowIds = eventsList.collect({
         case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
-      }).flatten
+      }).flatten.distinct
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) buildAndStop(query, eventsList, Map.empty)

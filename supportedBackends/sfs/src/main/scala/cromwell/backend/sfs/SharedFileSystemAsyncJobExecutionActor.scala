@@ -1,22 +1,26 @@
 package cromwell.backend.sfs
 
 import java.nio.file.FileAlreadyExistsException
+import java.util.Calendar
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncJob}
-import cromwell.backend.validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wom.values.{WomFile, WomSingleFile}
+import wom.values.WomFile
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunStatus(returnCodeFileExists: Boolean) {
-  override def toString: String = if (returnCodeFileExists) "Done" else "WaitingForReturnCodeFile"
+case class SharedFileSystemRunState(status: String, date: Calendar) {
+  override def toString: String = status
+}
+
+object SharedFileSystemRunState {
+  def apply(status: String): SharedFileSystemRunState = SharedFileSystemRunState(status, Calendar.getInstance())
 }
 
 object SharedFileSystemAsyncJobExecutionActor {
@@ -52,7 +56,12 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override type StandardAsyncRunInfo = Any
 
-  override type StandardAsyncRunStatus = SharedFileSystemRunStatus
+  override type StandardAsyncRunState = SharedFileSystemRunState
+
+  /** True if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
+    * in the state type.
+    */
+  override def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz.status == that.status
 
   override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
@@ -98,9 +107,6 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def jobName: String = s"cromwell_${jobDescriptor.workflowDescriptor.id.shortString}_${jobDescriptor.taskCall.localName}"
 
-  lazy val isDockerRun: Boolean = RuntimeAttributesValidation.extractOption(
-    DockerValidation.instance, validatedRuntimeAttributes).isDefined
-
   /**
     * Localizes the file, run outside of docker.
     */
@@ -112,8 +118,10 @@ trait SharedFileSystemAsyncJobExecutionActor
     * Returns the paths to the file, inside of docker.
     */
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    val cleanPath = DefaultPathBuilder.build(womFile.valueString).get
-    WomSingleFile(if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString)
+    womFile mapFile { path =>
+      val cleanPath = DefaultPathBuilder.build(path).get
+      if (isDockerRun) jobPathsWithDocker.toDockerPath(cleanPath).pathAsString else cleanPath.pathAsString
+    }
   }
 
   override lazy val commandDirectory: Path = {
@@ -121,7 +129,8 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def execute(): ExecutionHandle = {
-    jobPaths.callExecutionRoot.createPermissionedDirectories()
+    if (isDockerRun) jobPaths.callExecutionRoot.createPermissionedDirectories()
+    else jobPaths.callExecutionRoot.createDirectories()
     writeScriptContents().fold(
       identity,
       { _ =>
@@ -143,6 +152,7 @@ trait SharedFileSystemAsyncJobExecutionActor
       errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")))),
       {script => jobPaths.script.write(script); Right(())} )
 
+  lazy val standardPaths = jobPaths.standardPaths
   /**
     * Creates a script to submit the script for asynchronous processing. The default implementation assumes the
     * processArgs already runs the script asynchronously. If not, mix in the `BackgroundAsyncJobExecutionActor` that
@@ -151,8 +161,8 @@ trait SharedFileSystemAsyncJobExecutionActor
     * @return A process runner that will relatively quickly submit the script asynchronously.
     */
   def makeProcessRunner(): ProcessRunner = {
-    val stdout = jobPaths.stdout.plusExt("submit")
-    val stderr = jobPaths.stderr.plusExt("submit")
+    val stdout = standardPaths.output.plusExt("submit")
+    val stderr = standardPaths.error.plusExt("submit")
     new ProcessRunner(processArgs.argv, stdout, stderr)
   }
 
@@ -161,7 +171,7 @@ trait SharedFileSystemAsyncJobExecutionActor
   override def reconnectAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
     Future.successful(reconnectToExistingJob(job))
   }
-  
+
   override def reconnectToAbortAsync(job: StandardAsyncJob): Future[ExecutionHandle] = {
     Future.successful(reconnectToExistingJob(job, forceAbort = true))
   }
@@ -190,8 +200,8 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def isAlive(job: StandardAsyncJob): Try[Boolean] = Try {
     val argv = checkAliveArgs(job).argv
-    val stdout = jobPaths.stdout.plusExt("check")
-    val stderr = jobPaths.stderr.plusExt("check")
+    val stdout = standardPaths.output.plusExt("check")
+    val stderr = standardPaths.error.plusExt("check")
     val checkAlive = new ProcessRunner(argv, stdout, stderr)
     checkAlive.run() == 0
   }
@@ -208,29 +218,30 @@ trait SharedFileSystemAsyncJobExecutionActor
         // If the process has already completed, there will be an existing rc file.
         returnCodeTmp.delete(true)
     }
-    val stderrTmp = jobPaths.stderr.plusExt("kill")
+    val stderrTmp = standardPaths.error.plusExt("kill")
     stderrTmp.touch()
     try {
-      stderrTmp.moveTo(jobPaths.stderr)
+      stderrTmp.moveTo(standardPaths.error)
     } catch {
       case _: FileAlreadyExistsException =>
         // If the process has already started, there will be an existing stderr file.
         stderrTmp.delete(true)
     }
     val argv = killArgs(job).argv
-    val stdout = jobPaths.stdout.plusExt("kill")
-    val stderr = jobPaths.stderr.plusExt("kill")
+    val stdout = standardPaths.output.plusExt("kill")
+    val stderr = standardPaths.error.plusExt("kill")
     val killer = new ProcessRunner(argv, stdout, stderr)
     killer.run()
     ()
   }
 
-  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunStatus = {
-    SharedFileSystemRunStatus(jobPaths.returnCode.exists)
+  override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+    if (jobPaths.returnCode.exists) SharedFileSystemRunState("Done")
+    else SharedFileSystemRunState("WaitingForReturnCode")
   }
 
-  override def isTerminal(runStatus: StandardAsyncRunStatus): Boolean = {
-    runStatus.returnCodeFileExists
+  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
+    runStatus.status == "Done"
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {

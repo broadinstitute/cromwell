@@ -14,15 +14,15 @@ trait SubWorkflowStoreEntryComponent {
 
     def rootWorkflowId = column[Int]("ROOT_WORKFLOW_ID")
     
-    def parentWorkflowExecutionUuid = column[String]("PARENT_WORKFLOW_EXECUTION_UUID")
+    def parentWorkflowExecutionUuid = column[String]("PARENT_WORKFLOW_EXECUTION_UUID", O.Length(255))
 
-    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME")
+    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME", O.Length(255))
 
     def callIndex = column[Int]("CALL_INDEX")
 
     def callAttempt = column[Int]("CALL_ATTEMPT")
 
-    def subWorkflowExecutionUuid = column[String]("SUB_WORKFLOW_EXECUTION_UUID")
+    def subWorkflowExecutionUuid = column[String]("SUB_WORKFLOW_EXECUTION_UUID", O.Length(255))
 
     override def * = (rootWorkflowId.?, parentWorkflowExecutionUuid, callFullyQualifiedName, callIndex, callAttempt, subWorkflowExecutionUuid, subWorkflowStoreEntryId.?) <> (SubWorkflowStoreEntry.tupled, SubWorkflowStoreEntry.unapply)
 

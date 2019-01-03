@@ -1,0 +1,14 @@
+name: expression_lib_cwl
+cwlVersion: 1.0
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+
+files {
+  workflow: expressionLib/expressionLib.cwl
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+}

@@ -1,8 +1,9 @@
 name: hello
 testFormat: workflowsuccess
+tags: ["wdl_upgrade"]
 
 files {
-  wdl: hello/hello.wdl
+  workflow: hello/hello.wdl
   inputs: hello/hello.inputs
 }
 

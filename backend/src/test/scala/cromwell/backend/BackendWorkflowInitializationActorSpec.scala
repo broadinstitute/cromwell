@@ -1,7 +1,7 @@
 package cromwell.backend
 
-import _root_.wdl.WdlExpression
-import _root_.wdl.types._
+import _root_.wdl.draft2.model.types._
+import _root_.wdl.draft2.model.WdlExpression
 import akka.actor.ActorRef
 import akka.testkit.TestActorRef
 import com.typesafe.config.ConfigFactory
@@ -11,7 +11,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 import wom.RuntimeAttributesKeys
 import wom.expression.WomExpression
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.types._
 import wom.values._
 
@@ -187,7 +187,7 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override val serviceRegistryActor: ActorRef = context.system.deadLetters
 
-  override def calls: Set[TaskCallNode] = throw new NotImplementedError("calls")
+  override def calls: Set[CommandCallNode] = throw new NotImplementedError("calls")
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] =
     throw new NotImplementedError("runtimeAttributeValidators")

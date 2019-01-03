@@ -1,96 +1,67 @@
 package cromwell.services.metadata.impl
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
+import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.core.actor.BatchingDbWriter._
-import cromwell.core.actor.{BatchingDbWriter, BatchingDbWriterActor}
-import cromwell.services.MetadataServicesStore
+import cromwell.core.Mailbox.PriorityMailbox
+import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 
-class WriteMetadataActor(override val dbBatchSize: Int, override val dbFlushRate: FiniteDuration)
-  extends LoggingFSM[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData] with ActorLogging with
-  MetadataDatabaseAccess with MetadataServicesStore with BatchingDbWriterActor {
-  import WriteMetadataActor._
+class WriteMetadataActor(override val batchSize: Int,
+                         override val flushRate: FiniteDuration,
+                         override val serviceRegistryActor: ActorRef,
+                         override val threshold: Int)
+  extends EnhancedBatchActor[MetadataWriteAction](flushRate, batchSize)
+    with ActorLogging
+    with MetadataDatabaseAccess
+    with MetadataServicesStore {
 
-  implicit val ec: ExecutionContext = context.dispatcher
+  override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
+    val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
 
-  startWith(WaitingToWrite, NoData)
+    val (putWithoutResponse, putWithResponse) = e.foldLeft(empty)({
+      case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
+        (putEvents ++ action.events, putAndRespondEvents)
+      case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
+        (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
+    })
+    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
+    val dbAction = addMetadataEvents(allPutEvents)
 
-  when(WaitingToWrite) {
-    case Event(PutMetadataAction(events), curData) =>
-      curData.addData(events) match {
-        case newData: HasData[_] if newData.length > dbBatchSize => goto(WritingToDb) using newData
-        case newData => stay using newData
-      }
-    case Event(ScheduledFlushToDb, curData) =>
-      log.debug("Initiating periodic metadata flush to DB")
-      goto(WritingToDb) using curData
-    case Event(CheckPendingWrites, NoData) =>
-      sender() ! NoPendingWrites
-      stay()
-    case Event(CheckPendingWrites, _: HasData[_]) =>
-      sender() ! HasPendingWrites
-      stay()
-    case Event(e: PutMetadataActionAndRespond, curData) =>
-      curData.addData(e) match {
-        case newData: HasData[_] if newData.length > dbBatchSize => goto(WritingToDb) using newData
-        case newData => stay using newData
-      }
+    dbAction onComplete {
+      case Success(_) =>
+        putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
+      case Failure(regerts) =>
+        putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
+    }
+
+    dbAction.map(_ => allPutEvents.size)
   }
 
-  when(WritingToDb) {
-    case Event(CheckPendingWrites, _) => 
-      sender() ! HasPendingWrites
-      stay()
-    case Event(ScheduledFlushToDb, curData) => stay using curData
-    case Event(PutMetadataAction(events), curData) => stay using curData.addData(events)
-    case Event(FlushBatchToDb, NoData) =>
-      log.debug("Attempted metadata flush to DB but had nothing to write")
-      goto(WaitingToWrite) using NoData
-    case Event(FlushBatchToDb, HasData(e)) =>
-      log.debug("Flushing {} metadata events to the DB", e.length)
-      // blech
-      //Partitioning the current data into put events that require a response and those that don't
-      val empty = (Vector.empty[MetadataEvent], Map.empty[Iterable[MetadataEvent], ActorRef])
-      val (putWithoutResponse, putWithResponse) = e.toVector.foldLeft(empty)({
-        case ((putEvents, putAndRespondEvents), events) =>
-          events match {
-            case putEvent: MetadataEvent => (putEvents :+ putEvent, putAndRespondEvents)
-            case PutMetadataActionAndRespond(ev, replyTo) => (putEvents, putAndRespondEvents + (ev -> replyTo))
-          }
-      })
-      val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.keys.flatten
-      addMetadataEvents(allPutEvents) onComplete {
-        case Success(_) =>
-          self ! DbWriteComplete
-          putWithResponse foreach { case(ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
-        case Failure(regerts) =>
-          log.error(regerts, "Failed to properly flush metadata to database")
-          self ! DbWriteComplete
-          putWithResponse foreach { case(ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
-      }
-      stay using NoData
-    case Event(DbWriteComplete, curData) =>
-      log.debug("Flush of metadata events complete")
-      goto(WaitingToWrite) using curData
-    // When receiving a put&respond message, add it to the current data so that when flushing metadata events, we have
-    // enough information to be able to send an acknowledgement of success/failure of metadata event writes to the original requester.
-    case Event(PutMetadataActionAndRespond(events, replyTo), curData) =>
-      stay using curData.addData(PutMetadataActionAndRespond(events, replyTo))
+  // EnhancedBatchActor overrides
+  override def receive = enhancedReceive.orElse(super.receive)
+  override protected def weightFunction(command: MetadataWriteAction) = command.size
+  override protected def instrumentationPath = MetadataServiceActor.MetadataInstrumentationPrefix
+  override protected def instrumentationPrefix = InstrumentationPrefixes.ServicesPrefix
+  def commandToData(snd: ActorRef): PartialFunction[Any, MetadataWriteAction] = {
+    case command: MetadataWriteAction => command
   }
 }
 
 object WriteMetadataActor {
-  def props(dbBatchSize: Int, flushRate: FiniteDuration): Props = Props(new WriteMetadataActor(dbBatchSize, flushRate)).withDispatcher(ServiceDispatcher)
+  val MetadataWritePath = MetadataServiceActor.MetadataInstrumentationPrefix.::("writes")
 
-  sealed trait WriteMetadataActorMessage
-  case object CheckPendingWrites extends WriteMetadataActorMessage with MetadataServiceAction
-  case object HasPendingWrites extends WriteMetadataActorMessage
-  case object NoPendingWrites extends WriteMetadataActorMessage
+  def props(dbBatchSize: Int,
+            flushRate: FiniteDuration,
+            serviceRegistryActor: ActorRef,
+            threshold: Int): Props =
+    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold))
+      .withDispatcher(ServiceDispatcher)
+      .withMailbox(PriorityMailbox)
 }

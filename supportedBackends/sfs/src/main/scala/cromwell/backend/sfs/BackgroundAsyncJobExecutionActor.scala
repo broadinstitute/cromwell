@@ -27,8 +27,8 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
   }
 
   override def makeProcessRunner(): ProcessRunner = {
-    val stdout = jobPaths.stdout.plusExt("background")
-    val stderr = jobPaths.stderr.plusExt("background")
+    val stdout = standardPaths.output.plusExt("background")
+    val stderr = standardPaths.error.plusExt("background")
     val argv = Seq("/bin/bash", backgroundScript)
     new ProcessRunner(argv, stdout, stderr)
   }
@@ -54,16 +54,18 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
      */
     killScript.write(
       s"""|#!/bin/bash
-          |kill_children() {
-          |  local pid=$$1
-          |  for cpid in $$(pgrep -P $$pid); do
-          |    kill_children $$cpid
+          |kill_tree() {
+          |  local pid
+          |  local cpid
+          |  pid=$$1
+          |  for cpid in $$(pgrep -P "$$pid"); do
+          |    kill_tree "$$cpid"
           |  done
-          |  echo killing $$pid
-          |  kill $$pid
+          |  echo killing "$$pid"
+          |  kill "$$pid"
           |}
           |
-          |kill_children ${job.jobId}
+          |kill_tree "${job.jobId}"
           |""".stripMargin)
     ()
   }

@@ -2,8 +2,8 @@ package cromwell.backend.impl.sfs.config
 
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.validation._
-import wdl.expression.NoFunctions
-import wdl.{Declaration, NoLookup, WdlExpression}
+import wdl.draft2.model.expression.NoFunctions
+import wdl.draft2.model.{Declaration, NoLookup, WdlExpression}
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values.WomValue
@@ -27,9 +27,9 @@ object DeclarationValidation {
       // Docker and CPU are special keys understood by cromwell.
       case name if name == DockerValidation.instance.key =>
         new DeclarationValidation(declaration, DockerValidation.instance)
-      case RuntimeAttributesKeys.CpuKey => new DeclarationValidation(declaration, CpuValidation.instance)
-      case RuntimeAttributesKeys.CpuMinKey => new DeclarationValidation(declaration, CpuValidation.instanceMin)
-      case RuntimeAttributesKeys.CpuMaxKey => new DeclarationValidation(declaration, CpuValidation.instanceMax)
+      case RuntimeAttributesKeys.CpuKey => new CpuDeclarationValidation(declaration, CpuValidation.instance)
+      case RuntimeAttributesKeys.CpuMinKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMin)
+      case RuntimeAttributesKeys.CpuMaxKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMax)
       // See MemoryDeclarationValidation for more info
       case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
         new MemoryDeclarationValidation(declaration, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix)

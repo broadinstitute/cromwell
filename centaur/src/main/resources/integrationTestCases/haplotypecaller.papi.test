@@ -1,0 +1,12 @@
+name: haplotypcaller
+testFormat: workflowsuccess
+
+files {
+  workflow: germline/haplotype-caller-workflow/HaplotypeCallerWF.wdl
+  inputs: germline/haplotype-caller-workflow/HaplotypeCallerWF.json
+}
+
+metadata {
+  workflowName: HaplotypeCallerGvcf_GATK4
+  status: Succeeded
+}

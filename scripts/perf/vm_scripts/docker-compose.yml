@@ -1,0 +1,49 @@
+version: '2'
+networks:
+   mysql_net:
+     driver: bridge
+services:
+  cromwell:
+    image: "broadinstitute/cromwell:${CROMWELL_VERSION_TAG}"
+    volumes:
+      - ${CROMWELL_CONF_DIR}:/conf
+    environment:
+      - CROMWELL_PROJECT
+      - CROMWELL_EXECUTION_ROOT
+      - CROMWELL_STATSD_PREFIX
+      - CLOUD_SQL_DB_USER
+      - CLOUD_SQL_DB_PASSWORD
+      - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf
+    command: ["server"]
+    depends_on:
+      - statsd-proxy
+      - cloudsql-db
+    ports:
+      - "8000:8000"
+    networks:
+      mysql_net:
+    container_name: cromwell
+  statsd-proxy:
+    image: "broadinstitute/statsd-proxy:perf"
+    volumes:
+      - ${STATSD_PROXY_APP_DIR}:/conf
+    environment:
+      - PROXY_HOST
+      - PROXY_PORT
+      - CROMWELL_STATSD_HOST
+      - CROMWELL_STATSD_PORT
+      - JAVA_OPTS=-Dconfig.file=/conf/proxy.conf
+    ports:
+      - "8125:8125/udp"
+      - "9125:9125/udp"
+    container_name: statsd-proxy
+    networks:
+      mysql_net:
+  cloudsql-db:
+    image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
+    ports:
+      - "127.0.0.1:3306:3306"
+    container_name: cloudsql-db
+    command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCES}=tcp:0.0.0.0:3306"]
+    networks:
+      mysql_net:

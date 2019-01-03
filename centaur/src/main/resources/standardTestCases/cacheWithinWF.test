@@ -2,7 +2,7 @@ name: cacheWithinWF
 testFormat: workflowsuccess
 
 files {
-  wdl: cacheWithinWF/cacheWithinWF.wdl
+  workflow: cacheWithinWF/cacheWithinWF.wdl
 }
 
 metadata {

@@ -2,27 +2,30 @@ package cromwell.backend.io
 
 import cats.instances.list._
 import cats.syntax.traverse._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
-import common.validation.ErrorOr.ErrorOr
 import cromwell.core.io.AsyncIoFunctions
+import wom.expression.{IoFunctionSet, IoFunctionSetAdapter}
+import wom.graph.CommandCallNode
 import wom.values._
-import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
-import wom.values.WomGlobFile
 
 import scala.concurrent.Future
 
 trait GlobFunctions extends IoFunctionSet with AsyncIoFunctions {
 
+  private lazy val evaluateFileFunctions = new IoFunctionSetAdapter(this) with FileEvaluationIoFunctionSet
+
   def callContext: CallContext
 
-  def findGlobOutputs(call: TaskCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomGlobFile]] =
-    call.callable.outputs.flatTraverse[ErrorOr, WomGlobFile] { outputDefinition =>
-      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, this, outputDefinition.womType) map {
-        _.toList collect { case glob: WomGlobFile => glob }
+  def findGlobOutputs(call: CommandCallNode, jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomGlobFile]] = {
+    def fromOutputs = call.callable.outputs.flatTraverse[ErrorOr, WomGlobFile] { outputDefinition =>
+      outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, evaluateFileFunctions, outputDefinition.womType) map {
+        _.toList.flatMap(_.file.flattenFiles) collect { case glob: WomGlobFile => glob }
       }
     }
+    fromOutputs.map(_ ++ call.callable.additionalGlob)
+  }
 
   /**
     * Returns a list of path from the glob.

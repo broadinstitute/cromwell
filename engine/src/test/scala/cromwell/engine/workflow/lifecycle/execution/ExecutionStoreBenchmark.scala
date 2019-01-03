@@ -9,8 +9,11 @@ import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
-import wdl.WdlNamespaceWithWorkflow
-import wom.graph.{ScatterNode, TaskCallNode}
+import wdl.draft2.model.WdlNamespaceWithWorkflow
+import wom.graph.{CommandCallNode, ScatterNode}
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wom.expression.NoIoFunctionSet
+import wom.transforms.WomExecutableMaker.ops._
 
 /**
   * Benchmarks the performance of the execution store using ScalaMeter (http://scalameter.github.io/)
@@ -28,13 +31,13 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   lazy val persistor = Persistor.None
   
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
-  val wdl = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
-  val graph = wdl.womExecutable(inputJson).getOrElse(throw new Exception("Failed to build womExecutable")).graph
-  val prepareCall: TaskCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[TaskCallNode]
-  val scatterCall: TaskCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[TaskCallNode]
+  val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
+  val graph = namespace.toWomExecutable(inputJson, NoIoFunctionSet, strictValidation = true).getOrElse(throw new Exception("Failed to build womExecutable")).graph
+  val prepareCall: CommandCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[CommandCallNode]
+  val scatterCall: CommandCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[CommandCallNode]
   val scatter: ScatterNode = graph.scatters.head
   
-  private def makeKey(call: TaskCallNode, executionStatus: ExecutionStatus)(index: Int) = {
+  private def makeKey(call: CommandCallNode, executionStatus: ExecutionStatus)(index: Int) = {
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
   }
   

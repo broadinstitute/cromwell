@@ -3,14 +3,16 @@ package cromwell.backend.sfs
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import com.typesafe.config.ConfigFactory
+import common.validation.Validation._
 import cromwell.backend.BackendSpec._
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.standard.DefaultInitializationActorParams
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.TestKitSuite
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
@@ -37,7 +39,7 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
       |}
     """.stripMargin
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode],
                           conf: BackendConfigurationDescriptor) = {
     val params = DefaultInitializationActorParams(workflowDescriptor, emptyActor, calls, emptyActor, conf, restarting = false)
     val props = Props(new SharedFileSystemInitializationActor(params))
@@ -48,7 +50,10 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
-        val conf = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
+        val mockFileSystems = new CromwellFileSystems(ConfigFactory.empty())
+        val conf = new BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty()) {
+          override lazy val configuredPathBuilderFactories = mockFileSystems.factoriesFromConfig(TestConfig.sampleBackendRuntimeConfig).unsafe("Failed to instantiate backend filesystem")
+        }
         val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of job executions."

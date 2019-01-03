@@ -1,0 +1,16 @@
+name: draft3_multiple_sourced_array
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/multiple_sourced_array/multiple_sourced_array.wdl
+}
+
+metadata {
+  workflowName: multiple_sourced_array
+  status: Succeeded
+  "outputs.multiple_sourced_array.consumed_files": "blah\nblah\nblah\nblah\nblah\nblah\nblah"
+  "outputs.multiple_sourced_array.consumed_strings": "blah blah blah blah blah blah blah"
+}

@@ -3,13 +3,13 @@ package cromwell.backend.impl.spark
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.apply._
 import cats.syntax.validated._
-import cromwell.backend.MemorySize
-import cromwell.backend.validation.RuntimeAttributesDefault._
-import wom.RuntimeAttributesKeys._
-import cromwell.backend.validation.RuntimeAttributesValidation._
-import cromwell.core._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.backend.validation.RuntimeAttributesDefault._
+import cromwell.backend.validation.RuntimeAttributesValidation._
+import cromwell.core._
+import wom.RuntimeAttributesKeys._
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -47,7 +47,7 @@ object SparkRuntimeAttributes {
 
     val failOnStderr = validateFailOnStderr(withDefaultValues.get(FailOnStderrKey), noValueFoundFor(FailOnStderrKey))
 
-    val executorCores = validateCpu(withDefaultValues.get(ExecutorCoresKey), noValueFoundFor(ExecutorCoresKey))
+    val executorCores = validateCpu(withDefaultValues.get(ExecutorCoresKey), noValueFoundFor(ExecutorCoresKey)).map(_.value)
     val executorMemory = validateMemory(withDefaultValues.get(ExecutorMemoryKey), noValueFoundFor(ExecutorMemoryKey))
     val numberOfExecutors = validateNumberOfExecutors(withDefaultValues.get(NumberOfExecutorsKey), None.validNel)
     val appMainClass = validateAppEntryPoint(withDefaultValues.get(AppMainClassKey), None.validNel)

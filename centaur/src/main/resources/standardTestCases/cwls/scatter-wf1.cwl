@@ -11,6 +11,8 @@ outputs:
 
 requirements:
   - class: ScatterFeatureRequirement
+  - class: DockerRequirement
+    dockerPull: ubuntu:latest
 
 steps:
   step1:

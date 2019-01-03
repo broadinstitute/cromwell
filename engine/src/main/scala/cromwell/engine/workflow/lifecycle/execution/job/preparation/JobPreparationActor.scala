@@ -1,16 +1,16 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
-import _root_.wdl._
+import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
 import cromwell.backend.validation.DockerValidation
-import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
@@ -18,7 +18,7 @@ import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupF
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvResponse, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor._
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.values._
@@ -46,13 +46,14 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                           backendSingletonActor: Option[ActorRef])
   extends FSM[JobPreparationActorState, JobPreparationActorData] with WorkflowLogging {
 
-  override lazy val workflowIdForLogging = workflowDescriptor.id
+  override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   private[preparation] lazy val noResponseTimeout: FiniteDuration = 3 minutes
   private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
-  private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(initializationData)
+  private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition = runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
 
@@ -94,12 +95,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       stay()
   }
 
-  private[preparation] lazy val kvStoreKeysToPrefetch = factory.requestedKeyValueStoreKeys
+  private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
   private[preparation] def lookupKeyValueEntries(inputs: WomEvaluatedCallInputs,
                                                  attributes: Map[LocallyQualifiedName, WomValue],
                                                  maybeCallCachingEligible: MaybeCallCachingEligible) = {
-    val keysToLookup: Seq[ScopedKey] = kvStoreKeysToPrefetch map scopedKey
+    val keysToLookup = kvStoreKeysToPrefetch map scopedKey
     keysToLookup foreach { serviceRegistryActor ! KvGet(_) }
     goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, inputs, attributes)
   }
@@ -107,7 +108,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, workflowDescriptor, expressionLanguageFunctions, valueStore)
+      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }

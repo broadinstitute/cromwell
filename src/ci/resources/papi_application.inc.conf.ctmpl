@@ -1,0 +1,58 @@
+backend {
+  providers {
+    Local.config.filesystems.gcs.auth = "service_account"
+  }
+}
+
+engine {
+  filesystems {
+    gcs {
+      auth = "service_account"
+      project = "broad-dsde-cromwell-dev"
+    }
+  }
+}
+
+{{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
+google {
+  application-name = "cromwell"
+  json-dir = "target/ci/resources"
+  json-dir = ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  auths = [
+    {
+      name = "service_account"
+      scheme = "service_account"
+      # This service account does not have billing permission, and therefore cannot be used for requester pays
+      json-file = ${google.json-dir}/cromwell-centaur-service-account.json
+      # Allow downgrading to an older service account on Papi V1 until refresh_token_no_auth_bucket.test is
+      # migrated/fixed/added for the Papi V2 credential above.
+      json-file = ${?GOOGLE_SERVICE_ACCOUNT_JSON}
+    }
+    {
+      name = "requester_pays_service_account"
+      scheme = "service_account"
+      # This service account does have billing permission and can be used for requester pays
+      json-file = ${google.json-dir}/cromwell-centaur-requester-pays-service-account.json
+    }
+    {
+      name = "refresh_token"
+      scheme = "refresh_token"
+      client-id = "{{$cromwellRefreshToken.Data.client_id}}"
+      client-secret = "{{$cromwellRefreshToken.Data.client_secret}}"
+    }
+  ]
+}
+{{end}}
+
+services {
+  HealthMonitor {
+    class = "cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor"
+	config {
+	  papi-backend-name = "Papi"
+	  papi-v1-backend-name = "Papi"
+	  papi-v2-backend-name = "Papi"
+	  google-auth-name = "service_account"
+	  gcs-bucket-to-check = "cloud-cromwell-dev"
+	}
+  }
+}

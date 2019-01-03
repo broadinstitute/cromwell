@@ -7,6 +7,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.concurrent.{ExecutionContext, Future}
 import akka.pattern.after
+import common.util.Backoff
 
 object Retry {
   /**
@@ -41,7 +42,7 @@ object Retry {
         
         if (retriesLeft.forall(_ > 0)) {
           onRetry(throwable)
-          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal, onRetry = onRetry))
+          after(delay, actorSystem.scheduler)(withRetry(f, backoff = backoff.next, maxRetries = retriesLeft, isTransient = isTransient, isFatal = isFatal, onRetry = onRetry))
         } else {
           Future.failed(new CromwellFatalException(throwable))
         }

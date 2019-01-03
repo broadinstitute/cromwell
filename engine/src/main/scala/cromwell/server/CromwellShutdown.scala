@@ -12,6 +12,7 @@ import akka.util.Timeout
 import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortAllWorkflowsCommand, PreventNewWorkflowsFromStarting}
+import cromwell.languages.util.ImportResolver.HttpResolver
 import cromwell.services.{MetadataServicesStore, EngineServicesStore}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.slf4j.LoggerFactory
@@ -25,7 +26,7 @@ import scala.util.{Failure, Success}
   */
 object CromwellShutdown extends GracefulStopSupport {
   private val logger = LoggerFactory.getLogger("CromwellShutdown")
-  
+
   // Includes DB writing actors, I/O Actor and DockerHashActor
   private val PhaseStopIoActivity = "stop-io-activity"
   // Shutdown phase allocated when "abort-jobs-on-terminate" is true to give time to the system to abort all workflows
@@ -74,10 +75,12 @@ object CromwellShutdown extends GracefulStopSupport {
     * Calling this method will add a JVM shutdown hook.
     */
   def registerShutdownTasks(
+                             cromwellId: String,
                              abortJobsOnTerminate: Boolean,
                              actorSystem: ActorSystem,
                              workflowManagerActor: ActorRef,
                              logCopyRouter: ActorRef,
+                             jobTokenDispenser: ActorRef,
                              jobStoreActor: ActorRef,
                              workflowStoreActor: ActorRef,
                              subWorkflowStoreActor: ActorRef,
@@ -95,16 +98,18 @@ object CromwellShutdown extends GracefulStopSupport {
                       message: AnyRef,
                       customTimeout: Option[FiniteDuration] = None)(implicit executionContext: ExecutionContext) = {
       coordinatedShutdown.addTask(phase, s"stop${actor.path.name.capitalize}") { () =>
-        val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
+        val timeout = coordinatedShutdown.timeout(phase)
+        logger.info(s"Shutting down ${actor.path.name} - Timeout = ${timeout.toSeconds} seconds")
 
+        val action = gracefulStop(actor, customTimeout.getOrElse(coordinatedShutdown.timeout(phase)), message)
         action onComplete {
           case Success(_) => logger.info(s"${actor.path.name} stopped")
-          case Failure(_: AskTimeoutException) => 
+          case Failure(_: AskTimeoutException) =>
             logger.error(s"Timed out trying to gracefully stop ${actor.path.name}. Forcefully stopping it.")
             actorSystem.stop(actor)
           case Failure(f) => logger.error(s"An error occurred trying to gracefully stop ${actor.path.name}.", f)
         }
-        
+
         action map { _ => Done }
       }
     }
@@ -127,6 +132,7 @@ object CromwellShutdown extends GracefulStopSupport {
      */
 
     /* 3) Finish processing all requests:
+      *  - Release any WorkflowStore entries held by this Cromwell instance.
       *  - Stop the WorkflowStore: The port is not bound anymore so we can't have new submissions.
       *   Process what's left in the message queue and stop. 
       *   Note that it's possible that some submissions are still asynchronously being prepared at the 
@@ -151,9 +157,16 @@ object CromwellShutdown extends GracefulStopSupport {
       *   Use the ShutdownCommand because a PoisonPill could stop the routees in the middle of "transaction"
       *   with the IoActor. The routees handle the ShutdownCommand properly and shutdown only when they have
       *   no outstanding requests to the IoActor. When all routees are dead the router automatically stops itself.
+      *   
+      *  - Stop the job token dispenser: stop it before stopping WMA and its EJEA descendants because
+      *  the dispenser is watching all EJEAs and would be flooded by Terminated messages otherwise  
     */
+    coordinatedShutdown.addTask(CoordinatedShutdown.PhaseServiceRequestsDone, "releaseWorkflowStoreEntries") { () =>
+      EngineServicesStore.engineDatabaseInterface.releaseWorkflowStoreEntries(cromwellId).as(Done)
+    }
     shutdownActor(workflowStoreActor, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     shutdownActor(logCopyRouter, CoordinatedShutdown.PhaseServiceRequestsDone, Broadcast(ShutdownCommand))
+    shutdownActor(jobTokenDispenser, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     
     /*
       * Aborting is only a special case of shutdown. Instead of sending a PoisonPill, send a AbortAllWorkflowsCommand
@@ -204,6 +217,16 @@ object CromwellShutdown extends GracefulStopSupport {
       materializer.shutdown()
       logger.info("Stream materializer shut down")
       Future.successful(Done)
+    }
+
+    // 7) Close out the backend used for WDL HTTP import resolution
+    // http://sttp.readthedocs.io/en/latest/backends/start_stop.html
+    coordinatedShutdown.addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "wdlHttpImportResolverBackend") { () =>
+      Future {
+        HttpResolver.closeBackendIfNecessary()
+        logger.info("WDL HTTP import resolver closed")
+        Done
+      }
     }
   }
 }

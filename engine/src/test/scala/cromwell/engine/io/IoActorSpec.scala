@@ -31,7 +31,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
   
   it should "copy a file" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
     
     val src = DefaultPathBuilder.createTempFile()
     val dst: Path = src.parent.resolve(src.name + "-dst")
@@ -50,7 +50,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "write to a file" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
 
@@ -67,7 +67,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "delete a file" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
 
@@ -83,7 +83,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read a file" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -102,7 +102,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read only the first bytes of file" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -120,8 +120,27 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     src.delete()
   }
 
+  it should "read the file if it's under the byte limit" in {
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val readCommand = DefaultIoContentAsStringCommand(src, IoReadOptions(Option(6), failOnOverflow = true))
+
+    testActor ! readCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoContentAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe "hello"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
   it should "fail if the file is larger than the read limit" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -131,14 +150,14 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     testActor ! readCommand
     expectMsgPF(5 seconds) {
       case _: IoSuccess[_] => fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
-      case response: IoFailure[_] => response.failure.getMessage shouldBe s"java.io.IOException: File ${src.pathAsString} is larger than 2 Bytes"
+      case response: IoFailure[_] => response.failure.getMessage shouldBe s"[Attempted 1 time(s)] - IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than 2 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
     }
 
     src.delete()
   }
 
   it should "return a file size" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -157,7 +176,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "return a file md5 hash (local)" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -176,7 +195,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "touch a file (local)" in {
-    val testActor = TestActorRef(new IoActor(1, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")

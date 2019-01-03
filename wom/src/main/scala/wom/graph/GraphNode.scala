@@ -4,7 +4,7 @@ import cats.implicits._
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
+import wom.callable.Callable._
 import wom.graph.GraphNode._
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
 import wom.graph.expression.ExpressionNode
@@ -110,6 +110,8 @@ object GraphNode {
       */
     def usedOuterGraphInputNodes: Set[_ <: OuterGraphInputNode]
     def newExpressions: Set[ExpressionNode]
+
+    final def nodes: Set[GraphNode] = newExpressions ++ newInputs ++ usedOuterGraphInputNodes ++ Set(node)
   }
 
   trait GraphNodeWithInnerGraph { this: GraphNode =>

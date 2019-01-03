@@ -4,7 +4,7 @@ import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.implicits._
-import wdl.{CallOutput, Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
+import wdl.draft2.model.{Declaration, If, Scatter, WdlCall, WdlGraphNode, _}
 
 import scala.collection.JavaConverters._
 
@@ -12,7 +12,7 @@ object GraphPrint {
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
   final case class NodesAndLinks(nodes: Set[String], links: Set[String])
-  implicit val monoid = cats.derive.monoid[NodesAndLinks]
+  implicit val monoid = cats.derived.MkMonoid[NodesAndLinks]
 
   def generateWorkflowDigraph(file: String): WorkflowDigraph = {
     // It's ok to use .get here, we're happy to throw an exception and crash the program!
@@ -43,7 +43,7 @@ object GraphPrint {
         s""""$upstreamName" -> "$graphNodeName" $suffix"""
     }
 
-    val thisLevelNodesAndLinks: NodesAndLinks = callsAndDeclarations foldMap { graphNode =>
+    val thisLevelNodesAndLinks: NodesAndLinks = callsAndDeclarations.toList foldMap { graphNode =>
       val name = graphName(graphNode)
       val initialSet: Set[String] = graphNode match {
         case w: WdlGraphNode if isCallOrCallBasedDeclaration(w) => Set(s""""$name"""")
@@ -53,7 +53,7 @@ object GraphPrint {
       NodesAndLinks(initialSet, upstreamLinks(graphNode, name))
     }
 
-    val subGraphNodesAndLinks: NodesAndLinks = subGraphs foldMap { wdlGraphNode =>
+    val subGraphNodesAndLinks: NodesAndLinks = subGraphs.toList foldMap { wdlGraphNode =>
       val clusterName = "cluster_" + clusterCount.getAndIncrement()
       val subGraphName = graphName(wdlGraphNode)
       val subNodes = listAllGraphNodes(wdlGraphNode)

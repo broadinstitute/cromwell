@@ -2,7 +2,7 @@ name: sizeenginefunction
 testFormat: workflowsuccess
 
 files {
-  wdl: sizeenginefunction/sizeenginefunction.wdl
+  workflow: sizeenginefunction/sizeenginefunction.wdl
 }
 
 metadata {

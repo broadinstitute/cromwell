@@ -1,15 +1,18 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.backend.BackendSingletonCollection
+import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.SubWorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation
@@ -59,7 +62,8 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   val subWorkflow = WomMocks.mockWorkflowDefinition("sub_wf")
   val subWorkflowCall = WomMocks.mockWorkflowCall(WomIdentifier("workflow"), definition = subWorkflow)
   val subKey: SubWorkflowKey = SubWorkflowKey(subWorkflowCall, None, 1)
-  
+  val rootConfig = ConfigFactory.load
+
   val awaitTimeout: FiniteDuration = 10 seconds
 
   def buildEWEA(startState: StartableState = Submitted) = {
@@ -79,7 +83,10 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
         jobTokenDispenserProbe.ref,
         BackendSingletonCollection(Map.empty),
         AllBackendInitializationData(Map.empty),
-        startState
+        startState,
+        rootConfig,
+        new AtomicInteger(),
+        None
       ) {
         override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = preparationActor.ref
         override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor) = subWorkflowActor.ref
@@ -129,7 +136,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   it should "Request output store" in {
     val ewea = buildEWEA()
     val subWorkflowId = WorkflowId.randomId()
-    ewea.setState(WaitingForValueStore, SubWorkflowExecutionActorData(Option(subWorkflowId)))
+    ewea.setState(WaitingForValueStore, SubWorkflowExecutionActorData(Option(subWorkflowId), None))
     val valueStore = ValueStore.empty
     
     ewea ! valueStore
@@ -144,7 +151,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
 
   it should "Run a sub workflow" in {
     val ewea = buildEWEA()
-    ewea.setState(SubWorkflowPreparingState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId())))
+    ewea.setState(SubWorkflowPreparingState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), None))
 
     val subWorkflowId = WorkflowId.randomId()
     val subBackendDescriptor = mock[BackendWorkflowDescriptor]
@@ -181,7 +188,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   
   it should "Relay Workflow Successful message" in {
     val ewea = buildEWEA()
-    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId())))
+    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), None))
 
     deathWatch watch ewea
 
@@ -195,7 +202,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
 
   it should "Relay Workflow Failed message" in {
     val ewea = buildEWEA()
-    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId())))
+    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), None))
 
     deathWatch watch ewea
 
@@ -210,7 +217,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
 
   it should "Relay Workflow Aborted message" in {
     val ewea = buildEWEA()
-    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId())))
+    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), None))
 
     deathWatch watch ewea
 
@@ -221,4 +228,17 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
     deathWatch.expectTerminated(ewea, awaitTimeout)
   }
 
+  it should "Relay Workflow Abort command message" in {
+    val ewea = buildEWEA()
+    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), Option(subWorkflowActor.ref)))
+
+    deathWatch watch ewea
+
+    val jobExecutionMap: JobExecutionMap = Map.empty
+    ewea ! EngineLifecycleActorAbortCommand
+    subWorkflowActor.expectMsg(EngineLifecycleActorAbortCommand)
+    subWorkflowActor.reply(WorkflowExecutionAbortedResponse(jobExecutionMap))
+    parentProbe.expectMsg(SubWorkflowAbortedResponse(subKey, jobExecutionMap))
+    deathWatch.expectTerminated(ewea, awaitTimeout)
+  }
 }

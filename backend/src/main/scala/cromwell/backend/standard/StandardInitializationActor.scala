@@ -6,9 +6,9 @@ import cromwell.backend.validation.RuntimeAttributesDefault
 import cromwell.backend.wfs.WorkflowPathBuilder
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, BackendWorkflowInitializationActor}
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
+import cromwell.core.path.PathBuilder
 import wom.expression.WomExpression
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 import wom.values.WomValue
 
 import scala.concurrent.Future
@@ -17,7 +17,7 @@ import scala.util.Try
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
 
-  def calls: Set[TaskCallNode]
+  def calls: Set[CommandCallNode]
 
   def serviceRegistryActor: ActorRef
 
@@ -28,7 +28,7 @@ case class DefaultInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
   ioActor: ActorRef,
-  calls: Set[TaskCallNode],
+  calls: Set[CommandCallNode],
   serviceRegistryActor: ActorRef,
   configurationDescriptor: BackendConfigurationDescriptor,
   restarting: Boolean
@@ -44,9 +44,11 @@ case class DefaultInitializationActorParams
 class StandardInitializationActor(val standardParams: StandardInitializationActorParams)
   extends BackendWorkflowInitializationActor {
 
+  implicit protected val system = context.system
+
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 
-  override lazy val calls: Set[TaskCallNode] = standardParams.calls
+  override lazy val calls: Set[CommandCallNode] = standardParams.calls
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     initializationData map Option.apply
@@ -57,7 +59,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
 
   lazy val expressionFunctions: Class[_ <: StandardExpressionFunctions] = classOf[StandardExpressionFunctions]
 
-  lazy val pathBuilders: Future[List[PathBuilder]] = Future.successful(List(DefaultPathBuilder))
+  lazy val pathBuilders: Future[List[PathBuilder]] = standardParams.configurationDescriptor.pathBuilders(workflowDescriptor.workflowOptions)
 
   lazy val workflowPaths: Future[WorkflowPaths] =
     pathBuilders map { WorkflowPathBuilder.workflowPaths(configurationDescriptor, workflowDescriptor, _) }
@@ -70,7 +72,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
     * @return runtime attributes builder with possible custom validations
     */
   def runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
-      StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeConfig)
+    StandardValidatedRuntimeAttributesBuilder.default(configurationDescriptor.backendRuntimeAttributesConfig)
 
   override protected lazy val runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] = {
     runtimeAttributesBuilder.validatorMap

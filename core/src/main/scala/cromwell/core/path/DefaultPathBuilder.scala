@@ -11,7 +11,7 @@ import scala.util.Try
   * PathBuilder using the default FileSystem to attempt to build a Path.
   */
 case object DefaultPathBuilder extends PathBuilder {
-  override def name = "Default"
+  override lazy val name = FileSystems.getDefault.getClass.getSimpleName
 
   def build(path: java.nio.file.Path): DefaultPath = DefaultPath(path)
 

@@ -2,7 +2,7 @@ name: optional_declarations
 testFormat: workflowsuccess
 
 files {
-  wdl: optional_declarations/optional_declarations.wdl
+  workflow: optional_declarations/optional_declarations.wdl
   inputs: optional_declarations/optional_declarations.inputs
 }
 

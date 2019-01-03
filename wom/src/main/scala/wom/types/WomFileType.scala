@@ -23,10 +23,10 @@ case object WomUnlistedDirectoryType extends WomPrimitiveFileType {
     case d: WomUnlistedDirectory => d
   }
 
-  override def equals(rhs: WomType): Try[WomType] = rhs match {
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
     case WomUnlistedDirectoryType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
-    case WomOptionalType(memberType) => equals(memberType)
+    case WomOptionalType(memberType) => equalsType(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 
@@ -41,16 +41,21 @@ case object WomSingleFileType extends WomPrimitiveFileType {
   override val toDisplayString: String = "File"
 
   override protected def coercion: PartialFunction[Any, WomSingleFile] = {
-    case s: String => WomSingleFile(s)
+    case s: String =>
+      if (s != "")
+        WomSingleFile(s)
+      else
+        throw new IllegalArgumentException("""Cannot coerce the empty String value "" into a File.""")
     case s: JsString => WomSingleFile(s.value)
-    case s: WomString => WomSingleFile(s.valueString)
+    case s: WomString => coercion.apply(s.valueString)
     case f: WomSingleFile => f
   }
 
-  override def equals(rhs: WomType): Try[WomType] = rhs match {
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomSingleFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
-    case WomOptionalType(memberType) => equals(memberType)
+    case WomOptionalType(memberType) => equalsType(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 
@@ -71,10 +76,11 @@ case object WomGlobFileType extends WomPrimitiveFileType {
     case f: WomGlobFile => f
   }
 
-  override def equals(rhs: WomType): Try[WomType] = rhs match {
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomGlobFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
-    case WomOptionalType(memberType) => equals(memberType)
+    case WomOptionalType(memberType) => equalsType(memberType)
     case _ => invalid(s"$this == $rhs")
   }
 

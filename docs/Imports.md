@@ -1,4 +1,4 @@
-Sometimes you might want to break up your 1000 line WDL file into smaller components for easier maintenance or for reuse in multiple workflows.  Have no fear, imports are here to help!  Imports allow you to reference other WDL files that contain entire workflows or even just raw tasks.
+Sometimes you might want to break up a long WDL file into smaller components for easier maintenance. Sometimes you'll want to do it to reuse components in multiple workflows.  Have no fear, imports are here!  Imports allow you to reference other WDL files that contain entire workflows or even just raw tasks.
 
 To import a WDL, you can use the `import` WDL construct at the top of your workflow:
 
@@ -31,10 +31,24 @@ workflow my_workflow {
 }
 ```
 
+Note that we said "`import "imports/imported.wdl`" in the workflow so we must have a `imports/imported.wdl` structure in the imports file:
 _imports.zip_
 ```
 imports
 └── imported.wdl
+```
+
+A more common scenario might have the imports at the root of the imports.zip:
+
+_workflow.wdl_
+```wdl
+import "my_wdl_1.wdl"
+import "my_wdl_2.wdl"
+```
+_imports.zip_
+```
+my_wdl_1.wdl
+my_wdl_2.wdl
 ```
 
 ---

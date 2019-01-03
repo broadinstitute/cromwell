@@ -1,9 +1,9 @@
 name: simple_if
 testFormat: workflowsuccess
-tags: [ conditionals ]
+tags: [ conditionals, "wdl_upgrade" ]
 
 files {
-  wdl: conditionals_tests/simple_if/simple_if.wdl
+  workflow: conditionals_tests/simple_if/simple_if.wdl
 }
 
 metadata {

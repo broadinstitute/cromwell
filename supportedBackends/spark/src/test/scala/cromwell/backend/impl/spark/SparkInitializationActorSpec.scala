@@ -6,7 +6,7 @@ import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.TestKitSuite
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
@@ -33,7 +33,7 @@ class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationAc
       |}
     """.stripMargin
 
-  private def getSparkBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode], conf: BackendConfigurationDescriptor) = {
+  private def getSparkBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode], conf: BackendConfigurationDescriptor) = {
     system.actorOf(SparkInitializationActor.props(workflowDescriptor, calls, conf, emptyActor))
   }
 

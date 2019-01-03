@@ -37,8 +37,8 @@ qsub \
     -b n \
     -N ${job_name} \
     -wd ${cwd} \
-    -o ${out} \
-    -e ${err} \
+    -o ${out}.qsub \
+    -e ${err}.qsub \
     -pe smp ${cpu} \
     ${"-l m_mem_free=" + memory_gb + "gb"} \
     ${"-q " + sge_queue} \
@@ -71,8 +71,8 @@ backend {
             -b n \
             -N ${job_name} \
             -wd ${cwd} \
-            -o ${out} \
-            -e ${err} \
+            -o ${out}.qsub \
+            -e ${err}.qsub \
             ${script}
         """
       }
@@ -100,8 +100,8 @@ backend {
             -b n \
             -N ${job_name} \
             -wd ${cwd} \
-            -o ${out} \
-            -e ${err} \
+            -o ${out}.qsub \
+            -e ${err}.qsub \
             -l docker,docker_images="${docker}"
             -xdv ${cwd}:${docker_cwd}
             ${script}
@@ -225,3 +225,7 @@ backend {
 ```
 
 The `job-id-regex` should contain one capture group while matching against the whole line or stdout file. The `check-alive` should return zero if the job is still alive.
+
+### Exit code
+
+See also [HPC - Exit code timeout](HPC#Exit-code-timeout)

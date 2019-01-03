@@ -50,8 +50,8 @@ object BcsConfiguration{
 }
 
 final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
-  val runtimeConfig = configurationDescriptor.backendRuntimeConfig
 
+  val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
 
   val bcsRegion: Option[String] = configurationDescriptor.backendConfig.as[Option[String]]("region")
 

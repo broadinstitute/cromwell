@@ -1,7 +1,7 @@
 package wom.types
 
 import spray.json.{JsNumber, JsString}
-import wom.values.{WomFloat, WomString}
+import wom.values.{WomFloat, WomInteger, WomLong, WomString}
 
 import scala.util.{Success, Try}
 
@@ -11,8 +11,11 @@ case object WomFloatType extends WomPrimitiveType {
   override protected def coercion = {
     case f: Float => WomFloat(f.toDouble)
     case d: Double => WomFloat(d)
+    case i: Integer => WomFloat(i.toDouble)
     case n: JsNumber => WomFloat(n.value.doubleValue())
     case f: WomFloat => f
+    case i: WomInteger => WomFloat(i.value.toDouble)
+    case l: WomLong => WomFloat(l.value.toDouble)
     case s: String => WomFloat(s.toDouble)
     case s: JsString => WomFloat(s.value.toDouble)
     case s: WomString => WomFloat(s.value.toDouble)
@@ -26,6 +29,7 @@ case object WomFloatType extends WomPrimitiveType {
   }
 
   private def comparisonOperator(rhs: WomType, symbol: String): Try[WomType] = rhs match {
+    case wct:WomCoproductType => wct.typeExists(WomStringType)
     case WomIntegerType => Success(WomBooleanType)
     case WomFloatType => Success(WomBooleanType)
     case WomOptionalType(memberType) => comparisonOperator(memberType, symbol)
@@ -42,7 +46,7 @@ case object WomFloatType extends WomPrimitiveType {
   override def multiply(rhs: WomType): Try[WomType] = binaryOperator(rhs, "*")
   override def divide(rhs: WomType): Try[WomType] = binaryOperator(rhs, "/")
   override def mod(rhs: WomType): Try[WomType] = binaryOperator(rhs, "%")
-  override def equals(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
+  override def equalsType(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "==")
   override def lessThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, "<")
   override def greaterThan(rhs: WomType): Try[WomType] = comparisonOperator(rhs, ">")
   override def unaryPlus: Try[WomType] = Success(WomFloatType)

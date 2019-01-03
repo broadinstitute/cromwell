@@ -1,0 +1,17 @@
+name: draft3_optional_input_from_scatter
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/draft3_optional_input_from_scatter/draft3_optional_input_from_scatter.wdl
+  inputs: wdl_draft3/draft3_optional_input_from_scatter/draft3_optional_input_from_scatter.inputs.json
+}
+
+metadata {
+  workflowName: draft3_optional_input_from_scatter
+  status: Succeeded
+
+  "outputs.draft3_optional_input_from_scatter.unpacked_out": "hello1 hello2 hello3 hello4"
+}

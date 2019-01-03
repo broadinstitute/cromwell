@@ -3,7 +3,7 @@ name: bad_file_string
 testFormat: workflowfailure
 
 files {
-  wdl: bad_file_string/bad_file_string.wdl
+  workflow: bad_file_string/bad_file_string.wdl
 }
 
 metadata {

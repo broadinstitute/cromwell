@@ -1,8 +1,7 @@
 <html>
 <head>
 
-    <script type="text/javascript" src="https://www.google.com/jsapi?autoload={'modules':[{'name':'visualization',
-       'version':'1','packages':['timeline']}]}"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <script type="text/javascript">
 
@@ -10,7 +9,8 @@
         var expandedParentWorkflows = [];
         var chartView;
         
-        google.setOnLoadCallback(drawChart);
+        google.charts.load('current', {packages: ['timeline']});
+        google.charts.setOnLoadCallback(drawChart);
         
         function addDataTableRow(dataTable, callName, callPartName, startDate, endDate, ancestry) {
             if (startDate <= endDate) {

@@ -1,14 +1,22 @@
 package cromwell.core.io
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
+import com.typesafe.config.{Config, ConfigFactory}
+import common.util.Backoff
 import cromwell.core.actor.RobustClientHelper
+import cromwell.core.retry.SimpleExponentialBackoff
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import net.ceedubs.ficus.Ficus._
 
 trait IoClientHelper extends RobustClientHelper { this: Actor with ActorLogging =>
   def ioActor: ActorRef
 
   lazy val defaultIoTimeout = RobustClientHelper.DefaultRequestLostTimeout
+  
+  protected def config = ConfigFactory.load().as[Config]("system.io.backpressure-backoff")
+  
+  override protected def initialBackoff(): Backoff = SimpleExponentialBackoff(config)
 
   protected def ioResponseReceive: Receive = {
     case ack: IoAck[_] if hasTimeout(ack.command) =>

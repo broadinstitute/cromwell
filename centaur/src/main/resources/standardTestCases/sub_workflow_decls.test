@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [subworkflow]
 
 files {
-  wdl: sub_workflow_decls/sub_workflow_decls.wdl
+  workflow: sub_workflow_decls/sub_workflow_decls.wdl
   inputs: sub_workflow_decls/sub_workflow_decls.inputs
   imports: [
     sub_workflow_decls/sub_workflow_decls_import.wdl

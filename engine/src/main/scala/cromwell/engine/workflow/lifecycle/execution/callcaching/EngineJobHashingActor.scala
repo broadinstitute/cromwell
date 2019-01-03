@@ -7,6 +7,7 @@ import cromwell.core.WorkflowId
 import cromwell.core.callcaching._
 import cromwell.core.logging.JobLogging
 import cromwell.engine.workflow.lifecycle.execution.CallMetadataHelper
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCachePathPrefixes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, FinalFileHashingResult, InitialHashingResult, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
@@ -27,16 +28,19 @@ class EngineJobHashingActor(receiver: ActorRef,
                             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
                             backendName: String,
                             activity: CallCachingActivity,
-                            callCachingEligible: CallCachingEligible) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
+                            callCachingEligible: CallCachingEligible,
+                            callCachePathPrefixes: Option[CallCachePathPrefixes]) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
 
   override val jobTag = jobDescriptor.key.tag
-  override val workflowId = jobDescriptor.workflowDescriptor.id
+  val workflowId = jobDescriptor.workflowDescriptor.id
+  override val workflowIdForLogging = jobDescriptor.workflowDescriptor.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging = jobDescriptor.workflowDescriptor.rootWorkflowId
   override val workflowIdForCallMetadata: WorkflowId = workflowId
 
   private [callcaching] var initialHash: Option[InitialHashingResult] = None
 
   private [callcaching] val callCacheReadingJobActor = if (activity.readFromCache) {
-    Option(context.actorOf(callCacheReadingJobActorProps))
+    Option(context.actorOf(callCacheReadingJobActorProps, s"CCReadingJobActor-${workflowId.shortString}-$jobTag"))
   } else None
 
   override def preStart(): Unit = {
@@ -47,9 +51,10 @@ class EngineJobHashingActor(receiver: ActorRef,
       runtimeAttributeDefinitions,
       backendName,
       fileHashingActorProps,
-      activity.writeToCache,
-      callCachingEligible
-    ))
+      callCachingEligible,
+      activity,
+      callCachePathPrefixes
+    ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
     super.preStart()
   }
 
@@ -130,7 +135,8 @@ object EngineJobHashingActor {
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
             backendName: String,
             activity: CallCachingActivity,
-            callCachingEligible: CallCachingEligible): Props = Props(new EngineJobHashingActor(
+            callCachingEligible: CallCachingEligible,
+            callCachePathPrefixes: Option[CallCachePathPrefixes]): Props = Props(new EngineJobHashingActor(
     receiver = receiver,
     serviceRegistryActor = serviceRegistryActor,
     jobDescriptor = jobDescriptor,
@@ -140,5 +146,6 @@ object EngineJobHashingActor {
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
     backendName = backendName,
     activity = activity,
-    callCachingEligible = callCachingEligible)).withDispatcher(EngineDispatcher)
+    callCachingEligible = callCachingEligible,
+    callCachePathPrefixes = callCachePathPrefixes)).withDispatcher(EngineDispatcher)
 }

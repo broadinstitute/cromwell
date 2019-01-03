@@ -1,13 +1,16 @@
 package cromwell.backend.impl.tes
 
+import common.collections.EnhancedCollections._
+import common.util.StringUtil._
+import cromwell.backend.impl.tes.OutputMode.OutputMode
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
-import cromwell.core.NoIoFunctionSet
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import wdl.FullyQualifiedName
+import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
 import wom.callable.Callable.OutputDefinition
+import wom.expression.NoIoFunctionSet
 import wom.values._
 
 import scala.language.postfixOps
@@ -21,7 +24,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
                          containerWorkDir: Path,
                          commandScriptContents: String,
                          instantiatedCommand: InstantiatedCommand,
-                         dockerImageUsed: String) {
+                         dockerImageUsed: String,
+                         mapCommandLineWomFile: WomFile => WomFile,
+                         jobShell: String,
+                         outputMode: OutputMode) {
 
   private val workflowDescriptor = jobDescriptor.workflowDescriptor
   private val workflowName = workflowDescriptor.callable.name
@@ -57,26 +63,35 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   private val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor
     .fullyQualifiedInputs
-    .mapValues {
+    .safeMapValues {
       _.collectAsSeq { case w: WomFile => w }
     }
 
-  def inputs(commandLineValueMapper: WomValue => WomValue): Seq[Input] =
-    (callInputFiles ++ writeFunctionFiles).flatMap {
-      case (fullyQualifiedName, files) => files.zipWithIndex.map {
-        case (f, index) => Input(
-          name = Option(fullyQualifiedName + "." + index),
-          description = Option(workflowName + "." + fullyQualifiedName + "." + index),
-          url = Option(f.value),
-          path = tesPaths.containerInput(f.value),
-          `type` = Option("FILE"),
-          content = None
-        )
+  lazy val inputs: Seq[Input] = {
+    val result = (callInputFiles ++ writeFunctionFiles).flatMap {
+      case (fullyQualifiedName, files) => files.flatMap(_.flattenFiles).zipWithIndex.map {
+        case (f, index) =>
+          val inputType = f match {
+            case _: WomUnlistedDirectory => "DIRECTORY"
+            case _: WomSingleFile => "FILE"
+            case _: WomGlobFile => "FILE"
+          }
+          Input(
+            name = Option(fullyQualifiedName + "." + index),
+            description = Option(workflowName + "." + fullyQualifiedName + "." + index),
+            url = Option(f.value),
+            path = mapCommandLineWomFile(f).value,
+            `type` = Option(inputType),
+            content = None
+          )
       }
     }.toList ++ Seq(commandScript)
+    jobLogger.info(s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
+    result
+  }
 
   // TODO add TES logs to standard outputs
-  private val standardOutputs = Seq("rc", "stdout", "stderr").map {
+  private lazy val standardOutputs = Seq("rc", "stdout", "stderr").map {
     f =>
       Output(
         name = Option(f),
@@ -104,7 +119,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     // if it fails we just want to fallback to an empty list anyway...
     def evaluateFiles(output: OutputDefinition): List[WomFile] = {
       Try (
-        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
+        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList map { _.file })
       ).getOrElse(List.empty[WomFile].validNel)
        .getOrElse(List.empty)
     }
@@ -114,7 +129,31 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
   }
 
-  private val womOutputs = outputWomFiles
+  def handleGlobFile(g: WomGlobFile, index: Int) = {
+    val globName = GlobFunctions.globName(g.value)
+    val globDirName = "globDir." + index
+    val globDirectory = globName + "/"
+    val globListName =  "globList." + index
+    val globListFile = globName + ".list"
+    Seq(
+      Output(
+        name = Option(globDirName),
+        description = Option(fullyQualifiedTaskName + "." + globDirName),
+        url = Option(tesPaths.storageOutput(globDirectory)),
+        path = tesPaths.containerOutput(containerWorkDir, globDirectory),
+        `type` = Option("DIRECTORY")
+      ),
+      Output(
+        name  = Option(globListName),
+        description = Option(fullyQualifiedTaskName + "." + globListName),
+        url = Option(tesPaths.storageOutput(globListFile)),
+        path = tesPaths.containerOutput(containerWorkDir, globListFile),
+        `type` = Option("FILE")
+      )
+    )
+  }
+
+  private val womOutputs = outputWomFiles.flatMap(_.flattenFiles)
     .zipWithIndex
     .flatMap {
       case (f: WomSingleFile, index) =>
@@ -128,34 +167,50 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
             `type` = Option("FILE")
           )
         )
-      case (g: WomGlobFile, index) =>
-        val globName = GlobFunctions.globName(g.value)
-        val globDirName = "globDir." + index
-        val globDirectory = globName + "/"
-        val globListName =  "globList." + index
-        val globListFile = globName + ".list"
+      case (g: WomGlobFile, index) => handleGlobFile(g, index)
+      case (d: WomUnlistedDirectory, index) =>
+        val directoryPathName = "dirPath." + index
+        val directoryPath = d.value.ensureSlashed
+        val directoryListName =  "dirList." + index
+        val directoryList = d.value.ensureUnslashed + ".list"
         Seq(
           Output(
-            name = Option(globDirName),
-            description = Option(fullyQualifiedTaskName + "." + globDirName),
-            url = Option(tesPaths.storageOutput(globDirectory)),
-            path = tesPaths.containerOutput(containerWorkDir, globDirectory),
+            name = Option(directoryPathName),
+            description = Option(fullyQualifiedTaskName + "." + directoryPathName),
+            url = Option(tesPaths.storageOutput(directoryPath)),
+            path = tesPaths.containerOutput(containerWorkDir, directoryPath),
             `type` = Option("DIRECTORY")
           ),
           Output(
-            name  = Option(globListName),
-            description = Option(fullyQualifiedTaskName + "." + globListName),
-            url = Option(tesPaths.storageOutput(globListFile)),
-            path = tesPaths.containerOutput(containerWorkDir, globListFile),
+            name  = Option(directoryListName),
+            description = Option(fullyQualifiedTaskName + "." + directoryListName),
+            url = Option(tesPaths.storageOutput(directoryList)),
+            path = tesPaths.containerOutput(containerWorkDir, directoryList),
             `type` = Option("FILE")
           )
         )
-      case (unsupported: WomFile, _) =>
-        // TODO: WOM: WOMFILE: Add support for directories.
-        throw new NotImplementedError(s"$unsupported is not supported yet.")
     }
 
-  val outputs: Seq[Output] = womOutputs ++ standardOutputs ++ Seq(commandScriptOut)
+  private val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(handleGlobFile(_, womOutputs.size))
+  
+  private lazy val cwdOutput = Output(
+    name = Option("execution.dir.output"),
+    description = Option(fullyQualifiedTaskName + "." + "execution.dir.output"),
+    url = Option(tesPaths.callExecutionRoot.pathAsString),
+    path = containerWorkDir.pathAsString,
+    `type` = Option("DIRECTORY")
+  )
+
+  val outputs: Seq[Output] = {
+    val result =  outputMode match {
+      case OutputMode.GRANULAR => standardOutputs ++ Seq(commandScriptOut) ++ womOutputs ++ additionalGlobOutput
+      case OutputMode.ROOT => List(cwdOutput) ++ additionalGlobOutput
+    }
+
+    jobLogger.info(s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),System.lineSeparator(),System.lineSeparator()))
+
+    result
+  }
 
   private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
     case Some(x) =>
@@ -165,7 +220,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   }
 
   val resources = Resources(
-    cpu_cores = runtimeAttributes.cpu,
+    cpu_cores = runtimeAttributes.cpu.map(_.value),
     ram_gb = ram,
     disk_gb = disk,
     preemptible = Option(false),
@@ -174,7 +229,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
-    command = Seq("/bin/bash", commandScript.path),
+    command = Seq(jobShell, commandScript.path),
     workdir = runtimeAttributes.dockerWorkingDir,
     stdout = Option(tesPaths.containerOutput(containerWorkDir, "stdout")),
     stderr = Option(tesPaths.containerOutput(containerWorkDir, "stderr")),

@@ -278,6 +278,33 @@ runtime {
 
 Defaults to 0.
 
+## `gpuCount` and `gpuType`
+
+Attach GPUs to the instance when running on the Pipelines API: https://cloud.google.com/compute/docs/gpus/
+Make sure to choose a zone for which the type of GPU you want to attach is available.
+
+The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`.
+
+runtime {
+    gpuType: "nvidia-tesla-k80"
+    gpuCount: 2
+    zones: ["us-central1-c"]
+}
+
+## `maxRetries`
+
+This retry option is introduced to provide a strategy for tackling transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task. This retry is applied towards jobs that fail while executing the task command. 
+
+If using the Google backend, it's important to note that The `maxRetries` count is independent from the [preemptible](#preemptible) count. For example, the task below can be retried up to 6 times if it's preempted 3 times AND the command execution fails 3 times.
+
+```
+runtime {
+  preemptible: 3
+  maxRetries: 3
+}
+```
+
+Defaults to 0.
 ## Backend Support
 
 [Backends](backends/Backends) only support certain attributes. See table below:
@@ -293,5 +320,7 @@ Defaults to 0.
 | [memory](#memory)                              |       |   x   |   x   |
 | [preemptible](#preemptible)                    |       |   x   |       |
 | [bootDiskSizeGb](#bootdisksizegb)              |       |   x   |       |
+| [maxRetries](#maxRetries)                      |   x   |   x   |   x   |
+
 
 [Shared Filesystem backend](backends/HPC#shared-filesystem) is fully configurable and thus these attributes do not apply universally.

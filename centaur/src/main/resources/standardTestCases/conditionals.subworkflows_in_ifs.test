@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [ conditionals, subworkflow ]
 
 files {
-  wdl: conditionals_tests/subworkflows_in_ifs/subworkflows_in_ifs.wdl
+  workflow: conditionals_tests/subworkflows_in_ifs/subworkflows_in_ifs.wdl
     imports: [
       conditionals_tests/subworkflows_in_ifs/subworkflow.wdl
     ]

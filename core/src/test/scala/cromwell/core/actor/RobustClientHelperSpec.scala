@@ -2,8 +2,10 @@ package cromwell.core.actor
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import common.util.Backoff
 import cromwell.core.TestKitSuite
 import cromwell.core.actor.StreamIntegration.BackPressure
+import cromwell.core.retry.SimpleExponentialBackoff
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
@@ -16,10 +18,10 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     val remoteActor = TestProbe()
     val delegateActor = TestProbe()
     
-    val margin = 1 second
-    val backpressureTimeout = 1 second
+    val margin = 2.second
+    val backoff = SimpleExponentialBackoff(1.second, 10.seconds, 2D, 0D)
     val noResponseTimeout = 10 seconds
-    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout))
+    val testActor = TestActorRef(new TestActor(delegateActor.ref, backoff, noResponseTimeout))
     
     val messageToSend = TestActor.TestMessage("hello")
     
@@ -33,7 +35,7 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     remoteActor.reply(BackPressure(messageToSend))
     
     // remote actor expects request again after backpressureTimeout
-    remoteActor.expectMsg(backpressureTimeout + margin, messageToSend)
+    remoteActor.expectMsg(1.second + margin, messageToSend)
     
     // remote actor replies
     remoteActor.reply("world")
@@ -42,21 +44,21 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg("world")
     
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
+    remoteActor.expectNoMessage()
     
     // Wait long enough that to make sure that we won't receive a ServiceUnreachable message, meaning the timeout timer
     // has been cancelled. Note that it is the responsibility of the actor to cancel it, the RobustClientHelper does not
     // handle that part.
-    delegateActor.expectNoMsg(8 seconds)
+    delegateActor.expectNoMessage(8 seconds)
   }
 
   it should "handle a successful response" in {
     val remoteActor = TestProbe()
     val delegateActor = TestProbe()
 
-    val backpressureTimeout = 1 second
+    val backoff = SimpleExponentialBackoff(1.second, 10.seconds, 2D, 0D)
     val noResponseTimeout = 20 seconds
-    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout))
+    val testActor = TestActorRef(new TestActor(delegateActor.ref, backoff, noResponseTimeout))
 
     val messageToSend = TestActor.TestMessage("hello")
 
@@ -73,17 +75,17 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg("world")
     
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
-    delegateActor.expectNoMsg()
+    remoteActor.expectNoMessage()
+    delegateActor.expectNoMessage()
   }
 
   it should "timeout if no response" in {
     val remoteActor = TestProbe()
     val delegateActor = TestProbe()
 
-    val backpressureTimeout = 1 second
+    val backoff = SimpleExponentialBackoff(1.second, 10.seconds, 2D, 0D)
     val noResponseTimeout = 2 seconds
-    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout))
+    val testActor = TestActorRef(new TestActor(delegateActor.ref, backoff, noResponseTimeout))
 
     val messageToSend = TestActor.TestMessage("hello")
 
@@ -99,8 +101,8 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg(TestActor.ServiceUnreachable)
 
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
-    delegateActor.expectNoMsg()
+    remoteActor.expectNoMessage()
+    delegateActor.expectNoMessage()
   }
 
   it should "reset timeout when backpressured is received" in {
@@ -108,9 +110,9 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     val delegateActor = TestProbe()
     
     val margin = 1 second
-    val backpressureTimeout = 1 second
+    val backoff = SimpleExponentialBackoff(1.second, 10.seconds, 2D, 0D)
     val noResponseTimeout = 3 seconds
-    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout))
+    val testActor = TestActorRef(new TestActor(delegateActor.ref, backoff, noResponseTimeout))
 
     val messageToSend = TestActor.TestMessage("hello")
 
@@ -124,7 +126,7 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     remoteActor.reply(BackPressure(messageToSend))
 
     // remote actor expects request again after backpressureTimeout
-    remoteActor.expectMsg(backpressureTimeout + margin, messageToSend)
+    remoteActor.expectMsg(1.second + margin, messageToSend)
 
     // remote actor replies
     remoteActor.reply("world")
@@ -133,39 +135,21 @@ class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matcher
     delegateActor.expectMsg("world")
 
     // remote actor doesn't receives new messages
-    remoteActor.expectNoMsg()
+    remoteActor.expectNoMessage()
     // ensure that no ServiceUnreachable message was sent
-    delegateActor.expectNoMsg(4 seconds)
+    delegateActor.expectNoMessage(4 seconds)
   }
-  
-  it should "randomize backpressure timings" in {
-    val delegateActor = TestProbe()
-    val backpressureTimeout = 100 seconds
-    val noResponseTimeout = 3 seconds
-    val randomizeFactor = 0.5D
-    
-    val testActor = TestActorRef(new TestActor(delegateActor.ref, backpressureTimeout, noResponseTimeout, randomizeFactor)).underlyingActor
-    
-    val randomBackpressures = 0 until 10 map { _ =>
-      val time = testActor.generateBackpressureTime
-      time.gt(50.seconds) shouldBe true
-      time.lt(150.seconds) shouldBe true
-      time
-    }
-    
-    // They should all be different
-    randomBackpressures.distinct.size > 1 shouldBe true
-  }
-  
+
   private [actor] object TestActor {
     case class TestMessage(v: String)
     case object ServiceUnreachable
   }
   private class TestActor(delegateTo: ActorRef,
-                          override val backpressureTimeout: FiniteDuration,
-                          noResponseTimeout: FiniteDuration,
-                          override val backpressureRandomizerFactor: Double = 0.5D) extends Actor with ActorLogging with RobustClientHelper {
-    
+                          backoff: Backoff,
+                          noResponseTimeout: FiniteDuration) extends Actor with ActorLogging with RobustClientHelper {
+
+    override def initialBackoff(): Backoff = backoff
+
     context.become(robustReceive orElse receive)
     var messageSent: Any = _
     

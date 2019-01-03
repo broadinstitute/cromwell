@@ -15,6 +15,7 @@ produces:
 paths:
   '/api/workflows/{version}':
     post:
+      operationId: submit
       summary: Submit a workflow for execution
       description: Submits a workflow to Cromwell. Note that this endpoint can accept an unlimited number of input files via workflowInputs_N but swagger needs them to be explicitly defined so we have provided 5 as an example.
       consumes:
@@ -22,12 +23,22 @@ paths:
       parameters:
         - $ref: '#/parameters/versionParam'
         - name: workflowSource
-          description: The workflow source file to submit for execution.
-          required: true
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
           type: file
           in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowOnHold
+          description: Put workflow on hold upon submission. By default, it is taken as false.
+          required: false
+          type: boolean
+          in: formData
         - name: workflowInputs
-          description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from wdltool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+          description: JSON or YAML file containing the inputs as an object. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: false
           type: file
           in: formData
@@ -62,14 +73,9 @@ paths:
           required: false
           type: string
           in: formData
-        - name: workflowTypeVersion
-          description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2.
-          required: false
-          type: string
-          enum: [draft-2]
-          in: formData
+        - $ref: '#/parameters/workflowTypeVersionParam'
         - name: labels
-          description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
+          description: JSON object of labels to apply to this workflow.
           required: false
           type: file
           in: formData
@@ -89,11 +95,9 @@ paths:
           $ref: '#/responses/InvalidSubmission'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/batch':
     post:
+      operationId: submitBatch
       summary: Submit a batch of workflows for execution
       description: In instances where you want to run the same workflow multiple times with varying inputs you may submit a workflow batch. This endpoint is fundamentally the same as the standard submission endpoint with the exception that the inputs JSON will be an array of objects instead of a single object.
       consumes:
@@ -101,12 +105,22 @@ paths:
       parameters:
         - $ref: '#/parameters/versionParam'
         - name: workflowSource
-          description: The workflow source file to submit for execution.
-          required: true
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
           type: file
           in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowOnHold
+          description: Put workflow on hold upon submission. By default, it is taken as false.
+          required: false
+          type: boolean
+          in: formData
         - name: workflowInputs
-          description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from wdltool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
+          description: JSON file containing the inputs as an array of objects. Every element of the array will correspond to a single workflow. For WDL workflows a skeleton file can be generated from WOMtool using the "inputs" subcommand. When multiple files are specified, in case of key conflicts between multiple input JSON files, higher values of x in workflowInputs_x override lower values. For example, an input specified in workflowInputs_3 will override an input with the same name in workflowInputs or workflowInputs_2. Similarly, an input key specified in workflowInputs_5 will override an identical input key in any other input file.
           required: true
           type: file
           in: formData
@@ -116,14 +130,9 @@ paths:
           type: file
           in: formData
         - $ref: '#/parameters/workflowTypeParam'
-        - name: workflowTypeVersion
-          description: The specification version for the workflow language being used. Cromwell currently supports draft-2.
-          required: false
-          type: string
-          enum: [draft-2]
-          in: formData
+        - $ref: '#/parameters/workflowTypeVersionParam'
         - name: labels
-          description: JSON file containing a set of collection of key/value pairs for labels to apply to this workflow.
+          description: JSON object of labels to apply to this workflow.
           required: false
           type: file
           in: formData
@@ -145,11 +154,9 @@ paths:
           $ref: '#/responses/BadRequest'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/labels':
     get:
+      operationId: labels
       summary: Retrieves the current labels for a workflow
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -167,10 +174,8 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
     patch:
+      operationId: updateLabels
       summary: Update labels for a workflow
       description: Update multiple labels for an existing workflow. When supplying a label with a key unique to the workflow submission, a new label key/value entry is appended to that workflow's metadata. When supplying a label with a key that is already associated to the workflow submission, the original label value is updated with the new value for that workflow's metadata.
       parameters:
@@ -203,11 +208,9 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/abort':
     post:
+      operationId: abort
       summary: Abort a running workflow
       description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will make a best effort attempt to immediately halt any currently running jobs from this workflow.
       parameters:
@@ -226,11 +229,30 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
+  '/api/workflows/{version}/{id}/releaseHold':
+    post:
+      operationId: releaseHold
+      summary: Switch a workflow from 'On Hold' to 'Submitted' status
+      description: Request Cromwell to release the hold on a workflow. It will switch the status of a workflow from 'On Hold' to 'Submitted' so it can be picked for running. For instance this might be necessary in cases where you have submitted a workflow with workflowOnHold = true.
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/OkIdAndStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '403':
+          $ref: '#/responses/Forbidden'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/status':
     get:
+      operationId: status
       summary: Retrieves the current state for a workflow
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -246,11 +268,9 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/outputs':
     get:
+      operationId: outputs
       summary: Get the outputs for a workflow
       description: Retrieve the outputs for the specified workflow. Cromwell will return any outputs which currently exist even if a workflow has not successfully completed.
       parameters:
@@ -267,11 +287,9 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/logs':
     get:
+      operationId: logs
       summary: Get the logs for a workflow
       description: Returns paths to the standard out and standard error files that were generated during the execution of all calls in a workflow. A call has one or more standard out and standard error logs, depending on if the call was scattered or not. In the latter case, one log is provided for each instance of the call that has been run.
       parameters:
@@ -288,15 +306,21 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/query':
     get:
+      operationId: query
       summary: Get workflows matching some criteria
       description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
         - $ref: '#/parameters/versionParam'
+        - name : submission
+          required: false
+          type: string
+          format: date-time
+          in: query
+          description: >
+            Returns only workflows with an equal or later submission time. Can be specified at most once. If both submission time and start date are
+            specified, submission time should be before or equal to start date.
         - name: start
           required: false
           type: string
@@ -365,6 +389,45 @@ paths:
             returns workflows with all of the specified label keys. Specify the label key
             and label value pair as separated with
             "label-key:label-value"
+        - name: labelor
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Returns workflows with the specified label keys.  If specified multiple times,
+            returns workflows with any of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
+        - name: excludeLabelAnd
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Excludes workflows with the specified label.  If specified multiple times,
+            excludes workflows with all of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
+        - name: excludeLabelOr
+          required: false
+          in: query
+          type: array
+          items:
+            type: string
+          collectionFormat: multi
+          pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+          description: >
+            Excludes workflows with the specified label.  If specified multiple times,
+            excludes workflows with any of the specified label keys. Specify the label key
+            and label value pair as separated with
+            "label-key:label-value"
         - name: additionalQueryResultFields
           required: false
           in: query
@@ -374,6 +437,12 @@ paths:
           collectionFormat: multi
           description: >
             Includes the specified keys in the metadata for the returned workflows.
+        - name : includeSubworkflows
+          required: false
+          type: boolean
+          format: boolean
+          in: query
+          description: Include subworkflows in results. By default, it is taken as true.
       tags:
         - Workflows
       responses:
@@ -387,12 +456,10 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
     post:
+      operationId: query
       summary: Get workflows matching some criteria
-      description: Query workflows by start dates, end dates, names, ids, or statuses.
+      description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
         - $ref: '#/parameters/versionParam'
         - name: parameters
@@ -416,11 +483,9 @@ paths:
           $ref: '#/responses/BadRequest'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-          - openid
   '/api/workflows/{version}/{id}/timing':
     get:
+      operationId: timing
       summary: Get a visual diagram of a running workflow
       description: Returns a javascript file which will render a Gantt chart for the requested workflow. The bars in the chart represent start and end times for individual task invocations. This javascript is intended to be embedded into another web page.
       parameters:
@@ -437,11 +502,9 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/{id}/metadata':
     get:
+      operationId: metadata
       summary: Get workflow and call-level metadata for a specified workflow
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -486,11 +549,9 @@ paths:
           $ref: '#/responses/NotFound'
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/callcaching/diff':
     get:
+      operationId: callCacheDiff
       summary: Explain hashing differences for 2 calls
       description: This endpoint returns the hash differences between 2 completed (successfully or not) calls.
       parameters:
@@ -536,11 +597,9 @@ paths:
            description: No matching cache entry. Cromwell versions prior to 28 will not have recorded information necessary for this endpoint and thus will also appear to not exist.
         '500':
           $ref: '#/responses/ServerError'
-      security:
-        - google_oauth:
-            - openid
   '/api/workflows/{version}/backends':
     get:
+      operationId: backends
       summary: List the supported backends
       description: Returns the backends supported by this Cromwell server, as well as the default backend.
       parameters:
@@ -552,11 +611,9 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
-      security:
-        - google_oauth:
-            - openid
   '/engine/{version}/stats':
     get:
+      operationId: stats
       summary: Returns basic statistics from this Cromwell server.
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -569,6 +626,7 @@ paths:
             $ref: '#/definitions/StatsResponse'
   '/engine/{version}/version':
     get:
+      operationId: version
       summary: Return the version of this Cromwell server
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -580,21 +638,22 @@ paths:
           schema:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
-      get:
-        summary: Return the current health status of any monitored subsystems
-        parameters:
-          - $ref: '#/parameters/versionParam'
-        tags:
-          - Engine
-        responses:
-          '200':
-            description: All subsystems report an "ok" status
-            schema:
-              $ref: '#/definitions/StatusResponse'
-          '500':
-            description: At least one subsystem does not have an "ok" status
-            schema:
-              $ref: '#/definitions/StatusResponse'
+    get:
+      operationId: status
+      summary: Return the current health status of any monitored subsystems
+      parameters:
+        - $ref: '#/parameters/versionParam'
+      tags:
+        - Engine
+      responses:
+        '200':
+          description: All subsystems report an "ok" status
+          schema:
+            $ref: '#/definitions/StatusResponse'
+        '500':
+          description: At least one subsystem does not have an "ok" status
+          schema:
+            $ref: '#/definitions/StatusResponse'
 responses:
   OkIdAndStatus:
     description: Successful Request
@@ -625,8 +684,16 @@ parameters:
   workflowTypeParam:
     name: workflowType
     type: string
-    description: The workflow language for the file you submitted. Cromwell currently supports WDL.
+    description: The workflow language for the file you submitted. Cromwell currently supports WDL and CWL.
+    enum: [WDL, CWL]
     required: false
+    in: formData
+  workflowTypeVersionParam:
+    name: workflowTypeVersion
+    description: The specification version for the workflow language being used. For WDL, Cromwell currently supports draft-2 and 1.0. For CWL, Cromwell currently supports v1.0.
+    required: false
+    type: string
+    enum: ["draft-2", "1.0", "v1.0"]
     in: formData
   versionParam:
     name: version
@@ -635,13 +702,6 @@ parameters:
     type: string
     in: path
     default: v1 # This really should be an enum but swagger-ui seems to not like it
-securityDefinitions:
-  google_oauth:
-    type: oauth2
-    authorizationUrl: 'https://accounts.google.com/o/oauth2/auth'
-    flow: implicit
-    scopes:
-      openid: open id authorization
 definitions:
   WorkflowSubmitResponse:
     required:
@@ -765,6 +825,12 @@ definitions:
     minProperties: 1
     maxProperties: 1
     properties:
+      submission:
+        type: string
+        format: date-time
+        description: >
+          Returns only workflows with an equal or later submission time. Can be specified at most once. If both submission time and start date are
+          specified, submission time should be before or equal to start date.
       start:
         type: string
         format: date-time
@@ -801,22 +867,52 @@ definitions:
         description: >
           Returns only workflows with the specified workflow id.  If specified multiple times,
           returns workflows with any of the specified workflow ids.
+      excludeLabelAnd:
+        type: string
+        format: array
+        pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+        description: >
+          Excludes workflows with the specified label.  If specified multiple times,
+          excludes workflows with all of the specified label keys. Specify the label key
+          and label value pair as separated with
+          "label-key:label-value"
+      excludeLabelOr:
+        type: string
+        format: array
+        pattern: ^([a-z][-a-z0-9]*[a-z0-9])?[:]([a-z][-a-z0-9]*[a-z0-9])?$
+        description: >
+          Excludes workflows with the specified label.  If specified multiple times,
+          excludes workflows with any of the specified label keys. Specify the label key
+          and label value pair as separated with
+          "label-key:label-value"
+      includeSubworkflows:
+        type: string
+        format: boolean
+        description: Include subworkflows in results. By default, it is taken as true.
+      page:
+        type: int
+        description: When pageSize is set, which page of results to return. If not set, the first page of 'pageSize' results will be returned.
+      pageSize:
+        type: int
+        description: The number of results to return at a time
   WorkflowQueryResponse:
     description: Response to a workflow query
     required:
       - results
+      - totalResultsCount
     properties:
       results:
         type: array
         items:
           $ref: '#/definitions/WorkflowQueryResult'
+      totalResultsCount:
+        type: integer
   WorkflowQueryResult:
     description: Result for an individual workflow returned by a workflow query
     required:
       - id
       - name
       - status
-      - start
     properties:
       id:
         type: string
@@ -827,6 +923,10 @@ definitions:
       status:
         type: string
         description: Workflow status
+      submission:
+        type: string
+        format: date-time
+        description: Workflow submission datetime
       start:
         type: string
         format: date-time

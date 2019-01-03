@@ -11,9 +11,10 @@ import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.Tags.PostWomTest
 import cromwell.core.TestKitSuite
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.{Matchers, WordSpecLike}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
@@ -65,7 +66,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
       |""".stripMargin
 
 
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[TaskCallNode],
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode],
                           conf: BackendConfigurationDescriptor) = {
     val params = TesInitializationActorParams(workflowDescriptor, calls, new TesConfiguration(conf), emptyActor)
     val props = Props(new TesInitializationActor(params))
@@ -73,7 +74,9 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
   }
 
   val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate)
-  val conf = BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val conf = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
+    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(globalConfig)
+  } 
 
   // TODO WOM: needs runtime attributes validation working again
   "TesInitializationActor" should {

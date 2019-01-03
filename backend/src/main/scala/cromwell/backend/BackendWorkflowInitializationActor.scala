@@ -6,17 +6,18 @@ import cats.data.Validated.{Invalid, Valid, _}
 import cats.data.{NonEmptyList, ValidatedNel}
 import cats.instances.list._
 import cats.syntax.traverse._
+import common.collections.EnhancedCollections._
 import common.validation.Validation._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
 import cromwell.backend.validation.ContinueOnReturnCodeValidation
-import cromwell.core.{NoIoFunctionSet, WorkflowMetadataKeys, WorkflowOptions}
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import mouse.all._
-import wom.expression.WomExpression
-import wom.graph.TaskCallNode
+import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.graph.CommandCallNode
 import wom.types.WomType
 import wom.values.WomValue
 
@@ -77,9 +78,9 @@ object BackendWorkflowInitializationActor {
                                  ): ValidatedNel[RuntimeAttributeValidationFailure, Unit] = {
 
       //This map append will overwrite default key/values with runtime settings upon key collisions
-      val lookups = defaultRuntimeAttributes.mapValues(_.asWomExpression) ++ runtimeAttributes
+      val lookups = defaultRuntimeAttributes.safeMapValues(_.asWomExpression) ++ runtimeAttributes
 
-      runtimeAttributeValidators.toList.traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
+      runtimeAttributeValidators.toList.traverse{
         case (attributeName, validator) =>
           val runtimeAttributeValue: Option[WomExpression] = lookups.get(attributeName)
           validator(runtimeAttributeValue).fold(
@@ -96,7 +97,7 @@ object BackendWorkflowInitializationActor {
 trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor with ActorLogging {
   def serviceRegistryActor: ActorRef
 
-  def calls: Set[TaskCallNode]
+  def calls: Set[CommandCallNode]
 
   /**
     * This method is meant only as a "pre-flight check" validation of runtime attribute expressions during workflow
@@ -126,7 +127,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     * return `true` in both cases.
     */
   protected def continueOnReturnCodePredicate(valueRequired: Boolean)(womExpressionMaybe: Option[WomValue]): Boolean = {
-    ContinueOnReturnCodeValidation.default(configurationDescriptor.backendRuntimeConfig).validateOptionalWomValue(womExpressionMaybe)
+    ContinueOnReturnCodeValidation.default(configurationDescriptor.backendRuntimeAttributesConfig).validateOptionalWomValue(womExpressionMaybe)
   }
 
   protected def runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean]
@@ -154,7 +155,7 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
       defaultRuntimeAttributes <- coerceDefaultRuntimeAttributes(workflowDescriptor.workflowOptions) |> Future.fromTry _
       taskList = calls.toList.map(_.callable).map(t => t.name -> t.runtimeAttributes.attributes)
       _ <- taskList.
-            traverse[ValidatedNel[RuntimeAttributeValidationFailure, ?], Unit]{
+            traverse{
               case (name, runtimeAttributes) => validateRuntimeAttributes(name, defaultRuntimeAttributes, runtimeAttributes, runtimeAttributeValidators)
             }.toFuture(errors => RuntimeAttributeValidationFailures(errors.toList))
       _ <- validate()

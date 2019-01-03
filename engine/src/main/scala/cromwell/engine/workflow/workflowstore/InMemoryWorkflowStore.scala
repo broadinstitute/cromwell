@@ -4,7 +4,9 @@ import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowSubmissionResponse
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 class InMemoryWorkflowStore extends WorkflowStore {
@@ -15,17 +17,20 @@ class InMemoryWorkflowStore extends WorkflowStore {
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
     * for tracking purposes.
     */
-  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowId]] = {
-    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _) -> WorkflowStoreState.Submitted }
+  override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
+    val actualWorkflowState = if (sources.head.workflowOnHold) WorkflowStoreState.OnHold else WorkflowStoreState.Submitted
+    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _) -> actualWorkflowState }
     workflowStore = workflowStore ++ submittedWorkflows.toList.toMap
-    Future.successful(submittedWorkflows map { _._1.id })
+    Future.successful(submittedWorkflows map {
+      case (SubmittedWorkflow(id, _), _) => WorkflowSubmissionResponse(actualWorkflowState, id)
+    })
   }
 
   /**
     * Retrieves up to n workflows which have not already been pulled into the engine and sets their pickedUp
     * flag to true
     */
-  override def fetchStartableWorkflows(n: Int)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+  override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     val startableWorkflows = workflowStore filter { _._2 == WorkflowStoreState.Submitted } take n
     val updatedWorkflows = startableWorkflows map { _._1 -> WorkflowStoreState.Running }
     workflowStore = workflowStore ++ updatedWorkflows
@@ -69,6 +74,11 @@ class InMemoryWorkflowStore extends WorkflowStore {
       Future.successful(None)
     }
   }
+
+  override def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId])(implicit ec: ExecutionContext): Future[Int] =
+    Future.successful(workflowIds.size)
+
+  override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 }
 
 final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFilesCollection)

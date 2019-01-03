@@ -3,7 +3,7 @@ site_url: http://www.software.broadinstitute.org/WDL
 site_description: Cromwell documentation
 site_author: Red Team at Broad Institute
 
-repo_url: https://github.com/broadinstitute/cromwell/tree/develop/docs
+repo_url: https://github.com/broadinstitute/cromwell/
 
 pages:
 - Introduction: index.md
@@ -13,6 +13,7 @@ pages:
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
     - Getting started with Pipelines API: tutorials/PipelinesApi101.md
     - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
+    - Getting started with AWS Batch: tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
@@ -28,14 +29,19 @@ pages:
     - Cromwell Releases: Getting.md
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
+- Feature Documentation:
+  - Call Caching: cromwell_features/CallCaching.md
+  - Labels: cromwell_features/Labels.md
+  - Hog Factors: cromwell_features/HogFactors.md
 - Runtime Attributes: RuntimeAttributes.md
 - Workflow Options:
   - Overview: wf_options/Overview.md
   - Google Cloud: wf_options/Google.md
+- Workflow Optimizations:
+  - Optimizations: optimizations/optimizations.md
+  - "Task inputs: localization_optional": optimizations/FileLocalization.md
 - Configuration: Configuring.md
 - WOMtool: WOMtool.md
-- Labels: Labels.md
-- Call Caching: CallCaching.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
 - Execution: execution/ExecutionTwists.md
@@ -52,14 +58,20 @@ pages:
     - LSF: backends/LSF.md
     - Slurm: backends/SLURM.md
     - HTCondor: backends/HTcondor.md
+- Filesystems:
+    - Overview: filesystems/Filesystems.md
+    - Google Cloud Storage: filesystems/GoogleCloudStorage.md
+    - HTTP: filesystems/HTTP.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md
 - For Developers:
     - How to Build: Building.md
+    - Architecture: Arch.md
     - Instrumentation: Instrumentation.md
     - Integration tests: Centaur.md
     - Security: Security.md
+    - Contribute to docs: Contribute.md
 
 theme: readthedocs
 

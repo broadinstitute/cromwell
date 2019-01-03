@@ -13,7 +13,7 @@ import wom.values.{WomArray, WomValue}
 /**
   *
   * @param innerGraph Imagine that the contents of a WDL scatter block were a self-contained workflow. That's this Graph
-  * @param scatterVariableNodes inner graph nodes for each scatter collection expression being scattered over
+  * @param scatterVariableNodes Inner graph nodes for each scatter collection expression being scattered over. WDL uses exactly one, CWL >= 1.
   * @param outputMapping Output ports for the scatter node, which also link back to GraphOutputNodes of the inner graph.
   */
 final case class ScatterNode private(override val innerGraph: Graph,
@@ -33,7 +33,7 @@ final case class ScatterNode private(override val innerGraph: Graph,
     ConnectedInputPort(
       scatterCollectionExpressionNode.identifier.localName.value,
       scatterCollectionExpressionNode.womType,
-      scatterCollectionExpressionNode.singleExpressionOutputPort,
+      scatterCollectionExpressionNode.singleOutputPort,
       _ => this
     )
   }
@@ -69,9 +69,9 @@ object ScatterNode {
   final case class ScatterNodeWithNewNodes(node: ScatterNode) extends GeneratedNodeAndNewNodes {
     override val newExpressions: Set[ExpressionNode] = node.scatterCollectionExpressionNodes.toSet
     override val newInputs: Set[ExternalGraphInputNode] = node.innerGraph.externalInputNodes
-    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =(node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
+    override val usedOuterGraphInputNodes: Set[OuterGraphInputNode] =
+      (node.scatterCollectionExpressionNodes.flatMap(_.upstream).toSet.filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode]) ++
       (node.innerGraph.outerGraphInputNodes.map(_.linkToOuterGraphNode).filterByType[OuterGraphInputNode]: Set[OuterGraphInputNode])
-    def nodes: Set[GraphNode] = newExpressions ++ newInputs ++ usedOuterGraphInputNodes ++ Set(node)
   }
 
   /**
@@ -100,7 +100,7 @@ object ScatterNode {
   class ScatterNodeBuilder {
     private val graphNodeSetter = new GraphNode.GraphNodeSetter[ScatterNode]()
     
-    def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode) = {
+    def makeOutputPort(womType: WomArrayType, nodeToGather: PortBasedGraphOutputNode): ScatterGathererPort = {
       ScatterGathererPort(womType, nodeToGather, graphNodeSetter.get)
     }
     

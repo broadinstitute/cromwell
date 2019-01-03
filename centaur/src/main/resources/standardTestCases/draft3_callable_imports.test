@@ -1,0 +1,20 @@
+name: draft3_callable_imports
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/callable_imports/callable_imports.wdl
+  imports: [
+    wdl_draft3/callable_imports/my_task.wdl,
+    wdl_draft3/callable_imports/my_workflow.wdl
+  ]
+}
+
+metadata {
+  workflowName: callable_imports
+  status: Succeeded
+  "outputs.callable_imports.i": 3
+  "outputs.callable_imports.o": 103
+}

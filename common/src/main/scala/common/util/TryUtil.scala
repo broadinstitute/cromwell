@@ -3,6 +3,7 @@ package common.util
 import java.io.{PrintWriter, StringWriter}
 
 import common.exception.AggregatedException
+import common.collections.EnhancedCollections._
 
 import scala.util.{Failure, Success, Try}
 
@@ -21,7 +22,7 @@ object TryUtil {
   def stringifyFailures[T](possibleFailures: Traversable[Try[T]]): Traversable[String] =
     possibleFailures.collect { case failure: Failure[T] => stringifyFailure(failure) }
 
-  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String) = {
+  private def sequenceIterable[T](tries: Iterable[Try[_]], unbox: () => T, prefixErrorMessage: String): Try[T] = {
     tries collect { case f: Failure[_] => f } match {
       case failures if failures.nonEmpty =>
         val exceptions = failures.toSeq.map(_.exception)
@@ -42,7 +43,7 @@ object TryUtil {
   }
 
   def sequenceMap[T, U](tries: Map[T, Try[U]], prefixErrorMessage: String = ""): Try[Map[T, U]] = {
-    def unbox = tries mapValues { _.get }
+    def unbox = tries safeMapValues { _.get }
     sequenceIterable(tries.values, unbox _, prefixErrorMessage)
   }
 

@@ -1,103 +1,149 @@
 package cromwell.services.metadata.impl
 
-import java.time.OffsetDateTime
-import java.util.UUID
+import java.sql.{Connection, Timestamp}
 
-import akka.testkit.TestFSMRef
-import cats.data.NonEmptyVector
-import cromwell.core.WorkflowId
-import cromwell.core.actor.BatchingDbWriter
-import cromwell.core.actor.BatchingDbWriter._
-import cromwell.services.ServicesSpec
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import akka.testkit.{TestFSMRef, TestProbe}
+import cats.data.NonEmptyList
+import com.typesafe.config.ConfigFactory
+import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.database.sql.joins.MetadataJobQueryValue
+import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
+import cromwell.services.metadata.MetadataService.{MetadataWriteSuccess, PutMetadataActionAndRespond}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import org.scalatest.BeforeAndAfter
-import org.scalatest.concurrent.Eventually
+import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future, Promise}
-import scala.util.Success
+import scala.concurrent.{ExecutionContext, Future}
 
-class WriteMetadataActorSpec extends ServicesSpec("Metadata") with Eventually with BeforeAndAfter {
-  import WriteMetadataActorSpec.Action
+class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
-  var actor: TestFSMRef[BatchingDbWriterState, BatchingDbWriter.BatchingDbWriterData, DelayingWriteMetadataActor] = _
-
-  before {
-    actor = TestFSMRef(new DelayingWriteMetadataActor(), "DelayingWriteMetadataActor-" + UUID.randomUUID())
+  behavior of "WriteMetadataActor"
+  
+  it should "respond to all senders" in {
+    val registry = TestProbe().ref
+    val writeActor = TestFSMRef(new WriteMetadataActor(10, 1.second, registry, Int.MaxValue) {
+      override val metadataDatabaseInterface = mockDatabaseInterface
+    })
+    
+    val metadataKey = MetadataKey(WorkflowId.randomId(), None, "metadata_key") 
+    val metadataEvent = MetadataEvent(metadataKey, MetadataValue("hello"))
+    
+    val probes = (1 until 20).map({ _ =>
+      val probe = TestProbe()
+      probe.send(writeActor, PutMetadataActionAndRespond(List(metadataEvent), probe.ref))
+      probe
+    })
+    
+    probes.foreach(_.expectMsg(MetadataWriteSuccess(List(metadataEvent))))
   }
 
-  "WriteMetadataActor" should {
-    "start with no events and waiting to write" in {
-      actor.stateName shouldBe WaitingToWrite
-      actor.stateData shouldBe NoData
+  // Mock database interface.
+  val mockDatabaseInterface = new MetadataSqlDatabase with SqlDatabase {
+    private def notImplemented() = throw new UnsupportedOperationException
+
+    override protected val urlKey = "mock_database_url"
+    override protected val originalDatabaseConfig = ConfigFactory.empty
+
+    override def connectionDescription: String = "Mock Database"
+
+    override def existsMetadataEntries()(
+      implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    // Return successful
+    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+                                   (implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
+
+    override def metadataEntryExists(workflowExecutionUuid: String)
+                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def queryMetadataEntries(workflowExecutionUuid: String)
+                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    override def queryMetadataEntries(workflowExecutionUuid: String,
+                                      metadataKey: String)(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
     }
 
-    "Have one event and be waiting after one event is sent" in {
-      actor ! Action
-      eventually {
-        actor.stateName shouldBe WaitingToWrite
-        actor.stateData shouldBe HasData(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
-      }
+    override def queryMetadataEntries(workflowExecutionUuid: String,
+                                      callFullyQualifiedName: String,
+                                      jobIndex: Option[Int],
+                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
     }
 
-    "Have one event after batch size + 1 is reached" in {
-      1 to WriteMetadataActorSpec.BatchRate foreach { _ => actor ! Action }
-      actor.stateName shouldBe WaitingToWrite
-
-      eventually {
-        actor.stateData match {
-          case HasData(e) => e.toVector.size shouldBe WriteMetadataActorSpec.BatchRate
-          case _ => fail("Expecting the actor to have events queued up")
-        }
-      }
-      actor ! Action
-      eventually {
-        actor.stateName shouldBe WritingToDb
-        actor.underlyingActor.writeToDbInProgress shouldBe true
-        actor.stateData shouldBe NoData
-      }
-      actor ! Action
-      eventually {
-        actor.stateName shouldBe WritingToDb
-        actor.stateData shouldBe HasData(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
-      }
-      actor.underlyingActor.completeWritePromise()
-      eventually {
-        actor.stateName shouldBe WaitingToWrite
-        actor.stateData shouldBe HasData(NonEmptyVector.fromVectorUnsafe(Action.events.toVector))
-      }
+    override def queryMetadataEntries(workflowUuid: String,
+                                      metadataKey: String,
+                                      callFullyQualifiedName: String,
+                                      jobIndex: Option[Int],
+                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
     }
-  }
-}
 
-object WriteMetadataActorSpec {
-  val Event = MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"), Option(MetadataValue("value")), OffsetDateTime.now)
-  val Action = PutMetadataAction(Event)
+    override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
+                                                      metadataKeys: NonEmptyList[String],
+                                                      metadataJobQueryValue: MetadataJobQueryValue)
+                                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-  val BatchRate: Int = 10
-  val FunctionallyForever: FiniteDuration = 100.days
-}
+    override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
+                                                       metadataKeys: NonEmptyList[String],
+                                                       metadataJobQueryValue: MetadataJobQueryValue)
+                                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-// A WMA that won't (hopefully!) perform a time based flush during this test
-final class DelayingWriteMetadataActor extends WriteMetadataActor(WriteMetadataActorSpec.BatchRate, WriteMetadataActorSpec.FunctionallyForever) {
+    override def refreshMetadataSummaryEntries(startMetadataKey: String,
+                                               endMetadataKey: String,
+                                               nameMetadataKey: String,
+                                               statusMetadataKey: String,
+                                               labelMetadataKey: String,
+                                               submissionMetadataKey: String,
+                                               buildUpdatedSummary: (
+                                                 Option[WorkflowMetadataSummaryEntry],
+                                                   Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry)
+                                              (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-  var writeToDbInProgress: Boolean = false
-  var writeToDbCompletionPromise: Option[Promise[Unit]] = None
+    override def getWorkflowStatus(workflowExecutionUuid: String)
+                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-  override def addMetadataEvents(metadataEvents: Iterable[MetadataEvent])(implicit ec: ExecutionContext): Future[Unit] = {
-    writeToDbCompletionPromise = Option(Promise[Unit]())
-    writeToDbInProgress = true
-    writeToDbCompletionPromise.get.future
-  }
+    override def getWorkflowLabels(workflowExecutionUuid: String)
+                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-  def completeWritePromise(): Unit = {
-    writeToDbCompletionPromise match {
-      case Some(promise) =>
-        promise.complete(Success(()))
-        writeToDbInProgress = false
-        writeToDbCompletionPromise = None
-      case None => throw new Exception("BAD TEST! Cannot complete the actor's write future if the actor hasn't requested it yet!")
+    override def queryWorkflowSummaries(parentWorkflowIdMetadataKey: String,
+                                        workflowStatuses: Set[String],
+                                        workflowNames: Set[String],
+                                        workflowExecutionUuids: Set[String],
+                                        labelAndKeyLabelValues: Set[(String, String)],
+                                        labelOrKeyLabelValues: Set[(String, String)],
+                                        excludeLabelAndValues: Set[(String, String)],
+                                        excludeLabelOrValues: Set[(String, String)],
+                                        submissionTimestamp: Option[Timestamp],
+                                        startTimestampOption: Option[Timestamp],
+                                        endTimestampOption: Option[Timestamp],
+                                        includeSubworkflows: Boolean,
+                                        page: Option[Int],
+                                        pageSize: Option[Int])
+                                       (implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
     }
+
+    override def countWorkflowSummaries(parentWorkflowIdMetadataKey: String,
+                                        workflowStatuses: Set[String],
+                                        workflowNames: Set[String],
+                                        workflowExecutionUuids: Set[String],
+                                        labelAndKeyLabelValues: Set[(String, String)],
+                                        labelOrKeyLabelValues: Set[(String, String)],
+                                        excludeLabelAndValues: Set[(String, String)],
+                                        excludeLabelOrValues: Set[(String, String)],
+                                        submissionTimestamp: Option[Timestamp],
+                                        startTimestampOption: Option[Timestamp],
+                                        endTimestampOption: Option[Timestamp],
+                                        includeSubworkflows: Boolean)(implicit ec: ExecutionContext): Nothing = {
+      notImplemented()
+    }
+
+    override def withConnection[A](block: Connection => A): Nothing = {
+      notImplemented()
+    }
+
+    override def close(): Nothing = notImplemented()
   }
 }

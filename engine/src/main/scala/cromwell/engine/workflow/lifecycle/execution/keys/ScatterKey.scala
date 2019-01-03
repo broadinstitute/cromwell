@@ -1,22 +1,25 @@
 package cromwell.engine.workflow.lifecycle.execution.keys
 
+import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
 import cromwell.core.{ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.{WorkflowExecutionActorData, WorkflowExecutionDiff}
 import wom.graph.ScatterNode.{ScatterCollectionFunction, ScatterVariableAndValue}
 import wom.graph._
-import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
+import wom.graph.expression.{ExposedExpressionNode, ExpressionNodeLike}
 import wom.values.WomArray.WomArrayLike
 import wom.values.WomValue
 
 import scala.language.postfixOps
 
 private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
+
   // When scatters are nested, this might become Some(_)
   override val index = None
   override val attempt = 1
@@ -40,8 +43,8 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   }
 
   private def makeShards(scope: GraphNode, count: Int): Seq[JobKey] = scope match {
-    case call: TaskCallNode => (0 until count) map { i => BackendJobDescriptorKey(call, Option(i), 1) }
-    case expression: ExpressionNode => (0 until count) map { i => ExpressionKey(expression, Option(i)) }
+    case commandCall: CommandCallNode => (0 until count) map { i => BackendJobDescriptorKey(commandCall, Option(i), 1) }
+    case expression: ExpressionNodeLike => (0 until count) map { i => ExpressionKey(expression, Option(i)) }
     case conditional: ConditionalNode => (0 until count) map { i => ConditionalKey(conditional, Option(i)) }
     case subworkflow: WorkflowCallNode => (0 until count) map { i => SubWorkflowKey(subworkflow, Option(i), 1) }
     case _: GraphInputNode => List.empty
@@ -52,13 +55,13 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       throw new UnsupportedOperationException(s"Scope ${e.getClass.getName} is not supported.")
   }
 
-  def processRunnable(data: WorkflowExecutionActorData): ErrorOr[WorkflowExecutionDiff] = {
+  def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef, maxScatterWidth: Int): ErrorOr[WorkflowExecutionDiff] = {
     import cats.instances.list._
     import cats.syntax.traverse._
 
     def getScatterArray(scatterVariableNode: ScatterVariableNode): ErrorOr[ScatterVariableAndValue] = {
       val expressionNode = scatterVariableNode.scatterExpressionNode
-      data.valueStore.get(expressionNode.singleExpressionOutputPort, None) map {
+      data.valueStore.get(expressionNode.singleOutputPort, None) map {
         case WomArrayLike(arrayLike) => ScatterVariableAndValue(scatterVariableNode, arrayLike).validNel
         case v: WomValue =>
           s"Scatter collection ${expressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel
@@ -72,7 +75,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       // Get all the iteration nodes (there will be as many as variables we're scattering over)
       .scatterVariableNodes
       // Retrieve the values of the collection nodes value from the ValueStore
-      .traverse[ErrorOr, ScatterVariableAndValue](getScatterArray)
+      .traverse(getScatterArray)
       // Convert to either so we can flatMap later
       .toEither
 
@@ -89,17 +92,32 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       executionStoreChanges.toMap -> valueStoreChanges.toMap
     }
 
+    // Checks the scatter width of a scatter node and builds WorkflowExecutionDiff accordingly
+    // If scatter width is more than max allowed limit, it fails the ScatterNode key
+    def buildExecutionDiff(scatterSize: Int, arrays: List[ScatterVariableAndValue]): WorkflowExecutionDiff = {
+      if(scatterSize > maxScatterWidth) {
+        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow has scatter width $scatterSize, which is more than the max scatter width $maxScatterWidth allowed per scatter!"), None)
+
+        WorkflowExecutionDiff(Map(this -> ExecutionStatus.Failed))
+      }
+      else {
+        val (scatterVariablesExecutionChanges, valueStoreChanges) = buildExecutionChanges(arrays)
+        val executionStoreChanges = populate(
+          scatterSize,
+          node.scatterCollectionFunctionBuilder(arrays.map(_.arrayValue.size))
+        ) ++ scatterVariablesExecutionChanges ++ Map(this -> ExecutionStatus.Done)
+
+        WorkflowExecutionDiff(
+          executionStoreChanges = executionStoreChanges,
+          valueStoreAdditions = valueStoreChanges
+        )
+      }
+    }
+
+
     (for {
       arrays <- scatterArraysValuesCheck
       scatterSize <- node.scatterProcessingFunction(arrays)
-      (scatterVariablesExecutionChanges, valueStoreChanges) = buildExecutionChanges(arrays)
-      executionStoreChanges = populate(
-        scatterSize,
-        node.scatterCollectionFunctionBuilder(arrays.map(_.arrayValue.size))
-      ) ++ scatterVariablesExecutionChanges ++ Map(this -> ExecutionStatus.Done)
-    } yield WorkflowExecutionDiff(
-      executionStoreChanges = executionStoreChanges,
-      valueStoreAdditions = valueStoreChanges
-    )).toValidated
+    } yield buildExecutionDiff(scatterSize, arrays)).toValidated
   }
 }

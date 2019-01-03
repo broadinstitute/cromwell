@@ -2,17 +2,18 @@ package cromwell.engine.workflow.lifecycle.finalization
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ActorRef, FSM, OneForOneStrategy, Props}
+import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
 import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationSuccess, Finalize}
 import cromwell.backend._
+import cromwell.core.CallOutputs
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor._
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.util.{Failure, Success, Try}
 
@@ -40,20 +41,33 @@ object WorkflowFinalizationActor {
   case object WorkflowFinalizationSucceededResponse extends WorkflowLifecycleSuccessResponse
   final case class WorkflowFinalizationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse
 
-  def props(workflowId: WorkflowId, workflowDescriptor: EngineWorkflowDescriptor, ioActor: ActorRef, jobExecutionMap: JobExecutionMap,
-            workflowOutputs: CallOutputs, initializationData: AllBackendInitializationData, copyWorkflowOutputsActor: Option[Props]): Props = {
-    Props(new WorkflowFinalizationActor(workflowId, workflowDescriptor, ioActor, jobExecutionMap, workflowOutputs, initializationData, copyWorkflowOutputsActor)).withDispatcher(EngineDispatcher)
+  def props(workflowDescriptor: EngineWorkflowDescriptor,
+            ioActor: ActorRef,
+            jobExecutionMap: JobExecutionMap,
+            workflowOutputs: CallOutputs,
+            initializationData: AllBackendInitializationData,
+            copyWorkflowOutputsActor: Option[Props]): Props = {
+    Props(new WorkflowFinalizationActor(
+      workflowDescriptor,
+      ioActor,
+      jobExecutionMap,
+      workflowOutputs,
+      initializationData,
+      copyWorkflowOutputsActor
+    )).withDispatcher(EngineDispatcher)
   }
 }
 
-case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
-                                     workflowDescriptor: EngineWorkflowDescriptor,
+case class WorkflowFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                      ioActor: ActorRef,
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: AllBackendInitializationData,
                                      copyWorkflowOutputsActorProps: Option[Props])
   extends WorkflowLifecycleActor[WorkflowFinalizationActorState] {
+
+  override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   val tag = self.path.name
   val backendAssignments = workflowDescriptor.backendAssignments
@@ -77,7 +91,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
     case Event(StartFinalizationCommand, _) =>
       val backendFinalizationActors = Try {
         for {
-          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
+          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).safeMapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(
             _.workflowFinalizationActorProps(workflowDescriptor.backendDescriptor, ioActor, calls, filterJobExecutionsForBackend(calls), workflowOutputs, initializationData.get(backend))
           ).valueOr(errors => throw AggregatedMessageException("Cannot validate backend factories", errors.toList))
@@ -109,7 +123,7 @@ case class WorkflowFinalizationActor(workflowIdForLogging: WorkflowId,
   }
   
   // Only send to each backend the jobs that it executed
-  private def filterJobExecutionsForBackend(calls: Set[TaskCallNode]): JobExecutionMap = {
+  private def filterJobExecutionsForBackend(calls: Set[CommandCallNode]): JobExecutionMap = {
     jobExecutionMap map {
       case (wd, executedKeys) => wd -> (executedKeys filter { jobKey => calls.contains(jobKey.call) })
     } filter {

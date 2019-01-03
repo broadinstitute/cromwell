@@ -37,4 +37,4 @@ dependencyOverrides ++= List(
   "org.ow2.asm" % "asm" % asmV,
   "org.ow2.asm" % "asm-tree" % asmV,
   "org.slf4j" % "slf4j-api" % slf4jV
-).toSet // TODO: Remove .toSet for SBT 1.x
+)

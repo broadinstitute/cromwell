@@ -3,20 +3,16 @@ package cromwell.backend.impl.bcs
 import akka.actor.ActorRef
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
-import cromwell.filesystems.oss.OssPathBuilderFactory
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.traverse._
+import cromwell.core.path.PathBuilder
 
 import scala.concurrent.Future
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 
 final case class BcsInitializationActorParams
 (
   workflowDescriptor: BackendWorkflowDescriptor,
-  calls: Set[TaskCallNode],
+  calls: Set[CommandCallNode],
   bcsConfiguration: BcsConfiguration,
   serviceRegistryActor: ActorRef
 ) extends StandardInitializationActorParams {
@@ -27,13 +23,9 @@ final class BcsInitializationActor(params: BcsInitializationActorParams)
   extends StandardInitializationActor(params) {
 
   private val bcsConfiguration = params.bcsConfiguration
-  private implicit val system = context.system
 
-  lazy val ossPathBuilderFactory: Option[OssPathBuilderFactory] = {
-    Some(OssPathBuilderFactory(new BackendTTLOssStorageConfiguration))
-  }
-
-  override lazy val pathBuilders: Future[List[PathBuilder]] = ossPathBuilderFactory.toList.traverse(_.withOptions(workflowDescriptor.workflowOptions)).map(_ ++ Option(DefaultPathBuilder))
+  override lazy val pathBuilders: Future[List[PathBuilder]] =
+    standardParams.configurationDescriptor.pathBuildersWithDefault(workflowDescriptor.workflowOptions)
 
   override lazy val workflowPaths: Future[BcsWorkflowPaths] = pathBuilders map {
     BcsWorkflowPaths(workflowDescriptor, bcsConfiguration.configurationDescriptor.backendConfig, _)

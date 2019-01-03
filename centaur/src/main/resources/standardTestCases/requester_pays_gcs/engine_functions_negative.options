@@ -1,0 +1,3 @@
+{
+  "jes_gcs_root": "gs://cromwell_bucket_with_requester_pays/cromwell-execution"
+}

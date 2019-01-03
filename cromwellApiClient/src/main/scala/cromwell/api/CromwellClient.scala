@@ -21,22 +21,25 @@ import cromwell.api.CromwellClient._
 
 import scala.util.{Failure, Success, Try}
 
-class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentials: Option[HttpCredentials]=None)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+class CromwellClient(val cromwellUrl: URL,
+                     val apiVersion: String,
+                     val defaultCredentials: Option[HttpCredentials]=None)
+                    (implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
 
-  lazy val authHeader = credentials.map { Authorization(_) }
-  lazy val commonHeaders = authHeader.toList
+  lazy val defaultAuthorization: Option[Authorization] = defaultCredentials.map { Authorization(_) }
+  lazy val defaultHeaders: List[HttpHeader] = defaultAuthorization.toList
 
   lazy val engineEndpoint = s"$cromwellUrl/engine/$apiVersion"
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
-  private def workflowSpecificEndpoint(workflowId: WorkflowId, endpoint: String) = s"$submitEndpoint/$workflowId/$endpoint"
-  def abortEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "abort")
-  def statusEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "status")
-  def metadataEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "metadata")
-  def outputsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "outputs")
-  def labelsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "labels")
-  def logsEndpoint(workflowId: WorkflowId): String = workflowSpecificEndpoint(workflowId, "logs")
+
+  def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "abort")
+  def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "status")
+  def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "metadata", args)
+  def outputsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "outputs")
+  def labelsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "labels")
+  def logsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "logs")
   def diffEndpoint(workflowA: WorkflowId, callA: String, indexA: ShardIndex, workflowB: WorkflowId, callB: String, indexB: ShardIndex): String = {
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
     s"$submitEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
@@ -68,6 +71,7 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
     // Make a set of submissions that represent the batch (so we can zip with the results later):
     val submissionSet = workflow.inputsBatch.map(inputs => WorkflowSingleSubmission(
       workflowSource = workflow.workflowSource,
+      workflowUrl = workflow.workflowUrl,
       workflowRoot = workflow.workflowRoot,
       workflowType = workflow.workflowType,
       workflowTypeVersion = workflow.workflowTypeVersion,
@@ -86,23 +90,35 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
 
   def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = simpleRequest[CromwellStatus](uri = abortEndpoint(workflowId), method = HttpMethods.POST) map WorkflowStatus.apply
   def status(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStatus] = simpleRequest[CromwellStatus](statusEndpoint(workflowId)) map WorkflowStatus.apply
-  def metadata(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowMetadata] = simpleRequest[String](metadataEndpoint(workflowId)) map WorkflowMetadata
+
+  def metadata(workflowId: WorkflowId,
+               args: Option[Map[String, List[String]]] = None,
+               headers: List[HttpHeader] = defaultHeaders
+               )(implicit ec: ExecutionContext): Future[WorkflowMetadata] = {
+    simpleRequest[String](metadataEndpoint(workflowId, args), headers=headers) map WorkflowMetadata
+  }
+
   def outputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowOutputs] = simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId))
-  def labels(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowLabels] = simpleRequest[WorkflowLabels](labelsEndpoint(workflowId))
+
+  def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)(implicit ec: ExecutionContext): Future[WorkflowLabels] = {
+    simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
+  }
+
   def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowLogs] = simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply
   def callCacheDiff(workflowA: WorkflowId, callA: String, shardIndexA: ShardIndex, workflowB: WorkflowId, callB: String, shardIndexB: ShardIndex)(implicit ec: ExecutionContext): Future[CallCacheDiff] =
     simpleRequest[CallCacheDiff](diffEndpoint(workflowA, callA, shardIndexA, workflowB, callB, shardIndexB))
   def backends(implicit ec: ExecutionContext): Future[CromwellBackends] = simpleRequest[CromwellBackends](backendsEndpoint)
   def version(implicit ec: ExecutionContext): Future[CromwellVersion] = simpleRequest[CromwellVersion](versionEndpoint)
 
-  private [api] def executeRequest(request: HttpRequest) = Http().singleRequest(request.withHeaders(commonHeaders))
+  private [api] def executeRequest(request: HttpRequest, headers: List[HttpHeader]) = Http().singleRequest(request.withHeaders(headers))
 
   /**
     *
     * @tparam A The type of response expected. Must be supported by an implicit unmarshaller from ResponseEntity.
     */
-  private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = for {
-    response <- executeRequest(request)
+  private def makeRequest[A](request: HttpRequest, headers: List[HttpHeader] = defaultHeaders)
+                            (implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = for {
+    response <- executeRequest(request, headers)
     decoded <- Future.fromTry(decodeResponse(response))
     entity <- Future.fromTry(decoded.toEntity)
     unmarshalled <- unmarshall(response, entity)(um, ec)
@@ -115,7 +131,12 @@ class CromwellClient(val cromwellUrl: URL, val apiVersion: String, val credentia
     else entity.to[CromwellFailedResponseException] flatMap Future.failed
   }
 
-  private def simpleRequest[A](uri: String, method: HttpMethod = HttpMethods.GET)(implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = makeRequest[A](HttpRequest(uri = uri, method = method))
+  private def simpleRequest[A](uri: Uri,
+                               method: HttpMethod = HttpMethods.GET,
+                               headers: List[HttpHeader] = defaultHeaders)
+                              (implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext): Future[A] = {
+    makeRequest[A](HttpRequest(uri = uri, method = method), headers)
+  }
 
   private val decoders = Map(
     HttpEncodings.gzip -> Gzip,
@@ -191,7 +212,8 @@ object CromwellClient {
     import cromwell.api.model.LabelsJsonFormatter._
 
     val sourceBodyParts = Map(
-      "workflowSource" -> Option(workflowSubmission.workflowSource),
+      "workflowSource" -> workflowSubmission.workflowSource,
+      "workflowUrl" -> workflowSubmission.workflowUrl,
       "workflowRoot" -> workflowSubmission.workflowRoot,
       "workflowType" -> workflowSubmission.workflowType,
       "workflowTypeVersion" -> workflowSubmission.workflowTypeVersion,
@@ -211,5 +233,18 @@ object CromwellClient {
 
     val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
     multipartFormData.toEntity()
+  }
+
+  /**
+    * @param args an optional map of HTTP arguments which will be added to the URL
+    */
+  private [api] def workflowSpecificGetEndpoint(submitEndpoint: String, workflowId: WorkflowId, endpoint: String, args: Option[Map[String, List[String]]] = None) = {
+    val url = s"$submitEndpoint/$workflowId/$endpoint"
+    val queryBuilder = Uri.Query.newBuilder
+    args.getOrElse(Map.empty).foreach({
+      case (key, l) => l.foreach(v => queryBuilder.+=(key -> v))
+    })
+    val queryResult = queryBuilder.result()
+    Uri(url).withQuery(queryResult)
   }
 }

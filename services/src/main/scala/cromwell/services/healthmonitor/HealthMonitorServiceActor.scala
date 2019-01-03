@@ -1,20 +1,22 @@
 package cromwell.services.healthmonitor
 
+import java.util.UUID
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{Actor, Scheduler, Status, Timers}
-import akka.pattern.{after, pipe}
-import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import com.typesafe.scalalogging.LazyLogging
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration._
-import scala.util.control.NonFatal
-import scala.language.postfixOps
-import HealthMonitorServiceActor._
+import akka.pattern.after
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.services.healthmonitor.HealthMonitorServiceActor._
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
+
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
+import scala.util._
+import scala.util.control.NonFatal
 
 /**
   * A trait which provides a health monitoring service. Implementers are expected to provide a collection of functions
@@ -32,49 +34,75 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
 
   implicit val ec: ExecutionContext = context.system.dispatcher
 
+  lazy val sweepInterval = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-refresh-time").getOrElse(DefaultSweepTime)
   lazy val futureTimeout: FiniteDuration = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-timeout").getOrElse(DefaultFutureTimeout)
   lazy val staleThreshold: FiniteDuration = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.status-ttl").getOrElse(DefaultStaleThreshold)
-
-  override def preStart(): Unit = {
-    val sweepTime = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-refresh-time").getOrElse(DefaultSweepTime)
-    timers.startPeriodicTimer(CheckTickKey, CheckAll, sweepTime)
-    logger.info("Starting health monitor with the following checks: " + subsystems.map(_.name).mkString(", "))
-  }
+  lazy val failureRetryCount: Int = serviceConfig.as[Option[Int]]("services.HealthMonitor.check-failure-retry-count").getOrElse(DefaultFailureRetryCount)
+  lazy val failureRetryInterval: FiniteDuration = serviceConfig.as[Option[FiniteDuration]]("services.HealthMonitor.check-failure-retry-interval").getOrElse(DefaultFailureRetryInterval)
 
   /**
     * Contains each subsystem status along with a timestamp of when the entry was made so we know when the status
     * goes stale. Initialized with unknown status.
     */
-  private var statusCache: Map[MonitoredSubsystem, CachedSubsystemStatus] = {
+  private[healthmonitor] var statusCache: Map[MonitoredSubsystem, CachedSubsystemStatus] = {
     val now = System.currentTimeMillis
     subsystems.map((_, CachedSubsystemStatus(UnknownStatus, now))).toMap
   }
 
-  override def receive: Receive = {
-    case CheckAll =>
-      logger.debug("Checking status on all subsystems")
-      subsystems.foreach(checkSubsystem)
-    case Store(subsystem, status) => store(subsystem, status)
-    case GetCurrentStatus => sender ! getCurrentStatus
-    case ShutdownCommand => context.stop(self) // Not necessary but service registry requires it. See #2575
-    case Status.Failure(f) => throw f
-    case _ => throw new RuntimeException("wtf")
+  private[healthmonitor] def initialize(): Unit = {
+    subsystems foreach { s => self ! Check(s, failureRetryCount) }
   }
 
-  private def checkSubsystem(subsystem: MonitoredSubsystem): Unit = {
+  private def check(subsystem: MonitoredSubsystem, after: FiniteDuration, withRetriesLeft: Int): Unit = {
+    timers.startSingleTimer(UUID.randomUUID(), Check(subsystem, withRetriesLeft), after)
+  }
+
+  private[healthmonitor] def scheduleFailedRetryCheck(subsystem: MonitoredSubsystem, retriesLeft: Int): Unit = {
+    check(subsystem, after = failureRetryInterval, withRetriesLeft = retriesLeft - 1)
+  }
+
+  private[healthmonitor] def scheduleSweepCheck(subsystem: MonitoredSubsystem): Unit = {
+    check(subsystem, after = sweepInterval, withRetriesLeft = failureRetryCount)
+  }
+
+  initialize()
+
+  override def receive: Receive = {
+    case Check(subsystem, retriesLeft) =>
+      checkSubsystem(subsystem, retriesLeft)
+    case Store(subsystem, status) =>
+      store(subsystem, status)
+      scheduleSweepCheck(subsystem)
+    case GetCurrentStatus => sender ! getCurrentStatus
+    case ShutdownCommand => context.stop(self) // Not necessary but service registry requires it. See #2575
+    case Status.Failure(f) => logger.error("Unexpected Status.Failure received", f)
+    case e => logger.error("Unexpected Status.Failure received: {}", e.toString)
+  }
+
+  private def checkSubsystem(subsystem: MonitoredSubsystem, retriesLeft: Int): Unit = {
     val result = subsystem.check()
     val errMsg = s"Timed out after ${futureTimeout.toString} waiting for a response from ${subsystem.toString}"
-    result.withTimeout(futureTimeout, errMsg, context.system.scheduler)
-      .recover { case NonFatal(ex) =>
-        failedStatus(ex.getMessage)
-      } map {
-      Store(subsystem, _)
-    } pipeTo self // Piping this instead of calling store() directly so as to not modify actor state inside the Future
-
+    result.withTimeout(futureTimeout, errMsg, context.system.scheduler) onComplete {
+      case Success(status) if status.ok =>
+        self ! Store(subsystem, status)
+      case Success(_) if retriesLeft > 0 =>
+        // This is a success in getting the status but the status is a failure. However there are retries available.
+        scheduleFailedRetryCheck(subsystem, retriesLeft)
+      case Success(status) =>
+        // This is also a success in getting the status but the status is a failure and there are no more retries available.
+        // Womp womp.
+        self ! Store(subsystem, status)
+      case Failure(NonFatal(_)) if retriesLeft > 0 =>
+        scheduleFailedRetryCheck(subsystem, retriesLeft)
+      case Failure(NonFatal(e)) =>
+        self ! Store(subsystem, SubsystemStatus(ok = false, messages = Option(List(e.getMessage))))
+      case f =>
+        self ! f
+    }
     ()
   }
 
-  private def store(subsystem: MonitoredSubsystem, status: SubsystemStatus): Unit = {
+  private[healthmonitor] def store(subsystem: MonitoredSubsystem, status: SubsystemStatus): Unit = {
     statusCache = statusCache + (subsystem -> CachedSubsystemStatus(status, System.currentTimeMillis))
     logger.debug(s"New health monitor state: $statusCache")
   }
@@ -98,8 +126,8 @@ object HealthMonitorServiceActor {
   val DefaultFutureTimeout: FiniteDuration = 1 minute
   val DefaultStaleThreshold: FiniteDuration = 15 minutes
   val DefaultSweepTime: FiniteDuration = 5 minutes
-
-  private case object CheckTickKey
+  val DefaultFailureRetryCount: Int = 3
+  val DefaultFailureRetryInterval: FiniteDuration = 30 seconds
 
   val OkStatus = SubsystemStatus(true, None)
   val UnknownStatus = SubsystemStatus(false, Option(List("Unknown status")))
@@ -110,7 +138,7 @@ object HealthMonitorServiceActor {
   final case class CachedSubsystemStatus(status: SubsystemStatus, created: Long) // created is time in millis when status was captured
 
   sealed abstract class HealthMonitorServiceActorRequest
-  case object CheckAll extends HealthMonitorServiceActorRequest
+  case class Check(subsystem: MonitoredSubsystem, retriesLeft: Int) extends HealthMonitorServiceActorRequest
   final case class Store(subsystem: MonitoredSubsystem, status: SubsystemStatus) extends HealthMonitorServiceActorRequest
   case object GetCurrentStatus extends HealthMonitorServiceActorRequest with ServiceRegistryMessage { override val serviceName = "HealthMonitor" }
 

@@ -4,11 +4,9 @@ import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
-import cats.instances.option._
-import cats.syntax.functor._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
+import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
@@ -36,12 +34,13 @@ object MetadataDatabaseAccess {
         workflowName = summary1.workflowName orElse summary2.workflowName,
         workflowStatus = resolvedStatus orElse summary1.workflowStatus orElse summary2.workflowStatus,
         startTimestamp = summary1.startTimestamp orElse summary2.startTimestamp,
-        endTimestamp = summary1.endTimestamp orElse summary2.endTimestamp
+        endTimestamp = summary1.endTimestamp orElse summary2.endTimestamp,
+        submissionTimestamp = summary1.submissionTimestamp orElse summary2.submissionTimestamp
       )
     }
   }
 
-  def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None)
+  def baseSummary(workflowUuid: String) = WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None)
 
   // If visibility is made `private`, there's a bogus warning about this being unused.
   implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
@@ -54,6 +53,8 @@ object MetadataDatabaseAccess {
           base.copy(startTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
         case WorkflowMetadataKeys.EndTime =>
           base.copy(endTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
+        case WorkflowMetadataKeys.SubmissionTime =>
+          base.copy(submissionTimestamp = metadatum.metadataValue.parseSystemTimestampOption)
       }
     }
   }
@@ -153,7 +154,7 @@ trait MetadataDatabaseAccess {
 
   def refreshWorkflowMetadataSummaries()(implicit ec: ExecutionContext): Future[Long] = {
     metadataDatabaseInterface.refreshMetadataSummaryEntries(WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
-      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, MetadataDatabaseAccess.buildUpdatedSummary)
+      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.SubmissionTime, MetadataDatabaseAccess.buildUpdatedSummary)
   }
 
   def getWorkflowStatus(id: WorkflowId)
@@ -173,19 +174,51 @@ trait MetadataDatabaseAccess {
   def queryWorkflowSummaries(queryParameters: WorkflowQueryParameters)
                             (implicit ec: ExecutionContext): Future[(WorkflowQueryResponse, Option[QueryMetadata])] = {
 
-    val labelsToQuery = queryParameters.labels.map(label => (label.key, label.value))
+    val labelsAndToQuery = queryParameters.labelsAnd.map(label => (label.key, label.value))
+    val labelsOrToQuery = queryParameters.labelsOr.map(label => (label.key, label.value))
+
+    val excludeLabelsAndToQuery = queryParameters.excludeLabelsAnd.map(label => (label.key, label.value))
+    val excludeLabelsOrToQuery = queryParameters.excludeLabelsOr.map(label => (label.key, label.value))
 
     val workflowSummaries = metadataDatabaseInterface.queryWorkflowSummaries(
-      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), labelsToQuery,
-      queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp),
-      queryParameters.page, queryParameters.pageSize)
+      WorkflowMetadataKeys.ParentWorkflowId,
+      queryParameters.statuses,
+      queryParameters.names,
+      queryParameters.ids.map(_.toString),
+      labelsAndToQuery,
+      labelsOrToQuery,
+      excludeLabelsAndToQuery,
+      excludeLabelsOrToQuery,
+      queryParameters.submissionTime.map(_.toSystemTimestamp),
+      queryParameters.startDate.map(_.toSystemTimestamp),
+      queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.includeSubworkflows,
+      queryParameters.page,
+      queryParameters.pageSize
+    )
 
-    val workflowSummaryCount = metadataDatabaseInterface.countWorkflowSummaries(
-      queryParameters.statuses, queryParameters.names, queryParameters.ids.map(_.toString), queryParameters.labels.map(label => (label.key, label.value)),
-      queryParameters.startDate.map(_.toSystemTimestamp), queryParameters.endDate.map(_.toSystemTimestamp))
+    val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
+      WorkflowMetadataKeys.ParentWorkflowId,
+      queryParameters.statuses,
+      queryParameters.names,
+      queryParameters.ids.map(_.toString),
+      labelsAndToQuery,
+      labelsOrToQuery,
+      excludeLabelsAndToQuery,
+      excludeLabelsOrToQuery,
+      queryParameters.submissionTime.map(_.toSystemTimestamp),
+      queryParameters.startDate.map(_.toSystemTimestamp),
+      queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.includeSubworkflows
+    )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
-      queryParameters.page.as(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
+      (queryParameters.page, queryParameters.pageSize) match {
+        case (None, None) => None
+        case (Some(_), None) => None // Page without pagesize returns everything
+        case (None, Some(_)) => Option(QueryMetadata(Option(1), queryParameters.pageSize, Option(count)))
+        case _ => Option(QueryMetadata(queryParameters.page, queryParameters.pageSize, Option(count)))
+      }
     }
 
     def summariesToQueryResults(workflows: Traversable[WorkflowMetadataSummaryEntry]): Future[List[MetadataService.WorkflowQueryResult]] = {
@@ -199,6 +232,7 @@ trait MetadataDatabaseAccess {
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
           status = workflow.workflowStatus,
+          submission = workflow.submissionTimestamp map {_.toSystemOffsetDateTime},
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
           labels = labels.nonEmpty.option(labels),
@@ -221,23 +255,24 @@ trait MetadataDatabaseAccess {
       }
 
       val getParentWorkflowId: Future[Option[String]] = {
-        queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.ParentWorkflowId).fold(
-          keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId), Future.successful(None))
+        (queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.ParentWorkflowId) || !queryParameters.includeSubworkflows)
+          .fold(keyToMetadataValue(WorkflowMetadataKeys.ParentWorkflowId), Future.successful(None))
       }
+
+      def formQueryResult(labels: Map[String, String], parentId: Option[String]): MetadataService.WorkflowQueryResult = queryResult(labels, parentId)
+
 
       for {
         labels <- getWorkflowLabels
         parentWorkflowId <- getParentWorkflowId
-      } yield queryResult(labels, parentWorkflowId)
-
+      } yield formQueryResult(labels, parentWorkflowId)
     }
 
     for {
       count <- workflowSummaryCount
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
-    } yield (WorkflowQueryResponse(queryResults.toSeq), queryMetadata(count))
+    } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
 
   }
 }
-

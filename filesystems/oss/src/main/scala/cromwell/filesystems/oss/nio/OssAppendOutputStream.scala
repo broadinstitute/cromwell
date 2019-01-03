@@ -12,9 +12,9 @@ final case class OssAppendOutputStream(ossClient: OSSClient, path: OssStoragePat
   var position: Long = {
     val exist = OssStorageRetry.fromTry(
       () => Try{
-        val req = new GenericRequest(path.bucket, path.key)
-        req.setLogEnabled(false)
-        ossClient.doesObjectExist(req)
+        val request = new GenericRequest(path.bucket, path.key)
+        request.setLogEnabled(false)
+        ossClient.doesObjectExist(request)
       }
     )
 

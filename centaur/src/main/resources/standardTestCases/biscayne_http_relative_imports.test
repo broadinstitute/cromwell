@@ -1,0 +1,13 @@
+name: biscayne_http_relative_imports
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+
+files {
+  workflow: wdl_biscayne/biscayne_http_relative_imports/biscayne_http_relative_imports.wdl
+}
+
+metadata {
+  workflowName: biscayne_http_relative_imports
+  status: Succeeded
+  "outputs.biscayne_http_relative_imports.result": 105
+}

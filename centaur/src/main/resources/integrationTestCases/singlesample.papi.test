@@ -1,0 +1,12 @@
+name: singlesample
+testFormat: workflowsuccess
+
+files {
+  workflow: germline/single-sample-workflow/processing-for-variant-discovery-gatk4.wdl
+  inputs: germline/single-sample-workflow/processing-for-variant-discovery-gatk4.hg38.wgs.inputs.json
+}
+
+metadata {
+  workflowName: PreProcessingForVariantDiscovery_GATK4
+  status: Succeeded
+}

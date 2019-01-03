@@ -1,15 +1,15 @@
 package common.validation
 
-import java.net.{URI, URL}
+import java.io.{PrintWriter, StringWriter}
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
-import cats.syntax.validated._
 import cats.syntax.either._
+import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
-import net.ceedubs.ficus.readers.{StringReader, ValueReader}
+import common.validation.Parse.Parse
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -23,8 +23,6 @@ object Validation {
     }
   }
   
-  implicit val urlReader: ValueReader[URL] = StringReader.stringValueReader.map { URI.create(_).toURL }
-  
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
     case Failure(f) => f.getMessage.invalidNel
@@ -36,7 +34,7 @@ object Validation {
       v fold(
         //Use f to turn the failure list into a Throwable, then fail a future with it.
         //Function composition lets us ignore the actual argument of the error list
-        (Future.failed _) compose f,
+        Future.failed _ compose f,
         Future.successful
       )
   }
@@ -45,6 +43,17 @@ object Validation {
     def toErrorOr: ErrorOr[A] = {
       Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
     }
+
+    def toErrorOrWithContext(context: String): ErrorOr[A] = toChecked
+      .contextualizeErrors(context)
+      .leftMap({contextualizedErrors => 
+        if (t.failed.isFailure) {
+          val errors = new StringWriter
+          t.failed.get.printStackTrace(new PrintWriter(errors))
+          contextualizedErrors.::(s"Stacktrace: ${errors.toString}")
+        } else contextualizedErrors
+      })
+      .toValidated
 
     def toChecked: Checked[A] = {
       Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))
@@ -58,6 +67,20 @@ object Validation {
       case Valid(options) => Success(options)
       case Invalid(err) => Failure(AggregatedMessageException(context, err.toList))
     }
+
+    def unsafe: A = unsafe("Errors(s)")
+
+    def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
+  }
+
+  implicit class ValidationChecked[A](val e: Checked[A]) extends AnyVal {
+    def unsafe(context: String): A = e.valueOr(errors => throw AggregatedMessageException(context, errors.toList))
+
+    def contextualizeErrors(s: => String): Checked[A] = e.leftMap { errors =>
+      val total = errors.size
+      errors.zipWithIndex map { case (err, i) => s"Failed to $s (reason ${i + 1} of $total): $err" }
+    }
+
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {
@@ -67,6 +90,10 @@ object Validation {
 
     def toChecked(errorMessage: String): Checked[A] = {
       Either.fromOption(o, NonEmptyList.of(errorMessage))
+    }
+
+    def toParse(errorMessage: String): Parse[A] = {
+      Parse.checkedParse(Either.fromOption(o, NonEmptyList.of(errorMessage)))
     }
   }
 }

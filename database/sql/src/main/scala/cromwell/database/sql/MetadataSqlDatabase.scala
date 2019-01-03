@@ -8,8 +8,7 @@ import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait MetadataSqlDatabase {
-  this: SqlDatabase =>
+trait MetadataSqlDatabase extends SqlDatabase {
 
   /*
   The following section relates to:
@@ -20,6 +19,8 @@ trait MetadataSqlDatabase {
 |  |  |  | |  |____     |  |     /  _____  \  |  '--'  | /  _____  \   |  |     /  _____  \
 |__|  |__| |_______|    |__|    /__/     \__\ |_______/ /__/     \__\  |__|    /__/     \__\
    */
+
+  def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean]
 
   /**
     * Add metadata events to the database transactionally.
@@ -65,7 +66,7 @@ trait MetadataSqlDatabase {
     * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
     */
   def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String,
-                                    statusMetadataKey: String, labelMetadataKey: String,
+                                    statusMetadataKey: String, labelMetadataKey: String, submissionMetadataKey: String,
                                     buildUpdatedSummary:
                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                       => WorkflowMetadataSummaryEntry)
@@ -75,15 +76,32 @@ trait MetadataSqlDatabase {
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
 
-  def queryWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                             workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String,String)],
-                             startTimestampOption: Option[Timestamp], endTimestampOption: Option[Timestamp],
-                             page: Option[Int], pageSize: Option[Int])
+  def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
+                             workflowStatuses: Set[String],
+                             workflowNames: Set[String],
+                             workflowExecutionUuids: Set[String],
+                             labelAndKeyLabelValues: Set[(String,String)],
+                             labelOrKeyLabelValues: Set[(String,String)],
+                             excludeLabelAndValues: Set[(String,String)],
+                             excludeLabelOrValues: Set[(String,String)],
+                             submissionTimestamp: Option[Timestamp],
+                             startTimestampOption: Option[Timestamp],
+                             endTimestampOption: Option[Timestamp],
+                             includeSubworkflows: Boolean,
+                             page: Option[Int],
+                             pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
-  def countWorkflowSummaries(workflowStatuses: Set[String], workflowNames: Set[String],
-                             workflowExecutionUuids: Set[String], labelKeyLabelValues: Set[(String, String)],
+  def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,
+                             workflowStatuses: Set[String], workflowNames: Set[String],
+                             workflowExecutionUuids: Set[String],
+                             labelAndKeyLabelValues: Set[(String,String)],
+                             labelOrKeyLabelValues: Set[(String,String)],
+                             excludeLabelAndValues: Set[(String,String)],
+                             excludeLabelOrValues: Set[(String,String)],
+                             submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
-                             endTimestampOption: Option[Timestamp])
+                             endTimestampOption: Option[Timestamp],
+                             includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 }

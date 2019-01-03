@@ -200,13 +200,13 @@ It looks like this:
 
 #### autoReleaseJob
 
-Job count may hit the user quota of Alibaba Cloud BatchCompute service if not deleted in time. 
-It's possible to tell backend to delete the related job when a workflow task finishes by set `autoReleaseJob` to 
-`true` like this:
+The Alibaba Cloud BatchCompute service limits the number of simultaneous jobs per user. Jobs created by the backend are
+deleted when the job finishes. However it is possible to tell the BCS backend to not delete the job when the call
+finishes by setting `autoReleaseJob` to `false`:
 
 ```hocon
  default-runtime-attributes {
-   autoReleaseJob: true
+   autoReleaseJob: false
  }
 ```
 
@@ -215,7 +215,7 @@ It's possible to tell backend to delete the related job when a workflow task fin
 This backend needs a worker package to run workflow job. We have prepared it, but it's still necessary for you to upload it to OSS and 
 specify the object path as the value of runtime attributes key `workerPath`:
 
-- `<oss-object-path>` - The oss object path which you upload worker package to. A string like "oss://<test-bucket>/worker.tar.gz"
+- `<oss-object-path>` - The oss object path which you upload worker package to. A string like `oss://<test-bucket>/worker.tar.gz`
 
 ```hocon
  default-runtime-attributes {

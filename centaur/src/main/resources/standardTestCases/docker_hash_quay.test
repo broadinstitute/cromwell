@@ -2,10 +2,12 @@ name: docker_hash_quay
 testFormat: workflowsuccess
 
 files {
-  wdl: docker_hash/docker_hash_quay.wdl
+  workflow: docker_hash/docker_hash_quay.wdl
+  # https://github.com/broadinstitute/cromwell/issues/3998
+  options: docker_hash/docker_hash.options
 }
 
 metadata {
-  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/aptible/ubuntu:12.04",
-  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/aptible/ubuntu@sha256:cf53a62c50cd1ec4e48b1c995451b94005d3e85527d06ce9151b51b0f1b6dd87"
+  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/broadinstitute/cromwell-docker-test:centaur",
+  "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/broadinstitute/cromwell-docker-test@sha256:80f7fd06fa8dcebbcf92eb3e26bf8163fe8341d60009e50a0c36cf3fbadd30a6"
 }

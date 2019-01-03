@@ -1,0 +1,10 @@
+{{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
+{{with $cromwellServiceAccount := vault (printf "secret/dsde/cromwell/common/cromwell-service-account.json")}}
+{
+   "read_from_cache": false,
+   "user_service_account_json": "{{$cromwellServiceAccount.Data | toJSON | replaceAll "\\" "\\\\" | replaceAll "\"" "\\\"" }}",
+   "docker_credentials_key_name": "{{$cromwellDockerhub.Data.key_name}}",
+   "docker_credentials_token": "{{$cromwellDockerhub.Data.token}}"
+}
+{{end}}
+{{end}}

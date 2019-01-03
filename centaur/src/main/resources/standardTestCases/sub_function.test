@@ -4,7 +4,7 @@ name: sub_function
 testFormat: workflowsuccess
 
 files {
-  wdl: sub_function/sub_function.wdl
+  workflow: sub_function/sub_function.wdl
 }
 
 metadata {

@@ -2,7 +2,7 @@ name: globbingscatter
 testFormat: workflowsuccess
 
 files {
-  wdl: globbingscatter/globbingscatter.wdl
+  workflow: globbingscatter/globbingscatter.wdl
 }
 
 metadata {

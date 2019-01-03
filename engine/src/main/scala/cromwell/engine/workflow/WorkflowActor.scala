@@ -1,5 +1,7 @@
 package cromwell.engine.workflow
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
@@ -22,7 +24,8 @@ import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationA
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{StartInitializationCommand, WorkflowInitializationFailedResponse, WorkflowInitializationResponse, WorkflowInitializationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
-import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
+import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 
@@ -38,6 +41,7 @@ object WorkflowActor {
   sealed trait WorkflowActorCommand
   case object StartWorkflowCommand extends WorkflowActorCommand
   case object AbortWorkflowCommand extends WorkflowActorCommand
+  case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
 
   /**
     * Responses from the WorkflowActor
@@ -153,8 +157,12 @@ object WorkflowActor {
             callCacheWriteActor: ActorRef,
             dockerHashActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
+            workflowStoreActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
-            serverMode: Boolean): Props = {
+            serverMode: Boolean,
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+            totalJobsByRootWf: AtomicInteger,
+            fileHashCacheActor: Option[ActorRef]): Props = {
     Props(
       new WorkflowActor(
         workflowId = workflowId,
@@ -170,8 +178,12 @@ object WorkflowActor {
         callCacheWriteActor = callCacheWriteActor,
         dockerHashActor = dockerHashActor,
         jobTokenDispenserActor = jobTokenDispenserActor,
+        workflowStoreActor = workflowStoreActor,
         backendSingletonCollection = backendSingletonCollection,
-        serverMode = serverMode)).withDispatcher(EngineDispatcher)
+        serverMode = serverMode,
+        workflowHeartbeatConfig = workflowHeartbeatConfig,
+        totalJobsByRootWf = totalJobsByRootWf,
+        fileHashCacheActor = fileHashCacheActor)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -191,13 +203,18 @@ class WorkflowActor(val workflowId: WorkflowId,
                     callCacheWriteActor: ActorRef,
                     dockerHashActor: ActorRef,
                     jobTokenDispenserActor: ActorRef,
+                    workflowStoreActor: ActorRef,
                     backendSingletonCollection: BackendSingletonCollection,
-                    serverMode: Boolean)
+                    serverMode: Boolean,
+                    workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+                    totalJobsByRootWf: AtomicInteger,
+                    fileHashCacheActor: Option[ActorRef])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
-  with WorkflowInstrumentation {
+  with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
-  override val workflowIdForLogging = workflowId
+  override val workflowIdForLogging = workflowId.toPossiblyNotRoot
+  override val rootWorkflowIdForLogging = workflowId.toRoot
 
   private val restarting = initialStartableState.restarted
   
@@ -209,6 +226,10 @@ class WorkflowActor(val workflowId: WorkflowId,
   startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 
   pushCurrentStateToMetadataService(workflowId, WorkflowUnstartedState.workflowState)
+  sendHeartbeat()
+
+  // Send heartbeats possibly redundantly but unacked.
+  timers.startPeriodicTimer(workflowId, SendWorkflowHeartbeatCommand, workflowHeartbeatConfig.heartbeatInterval)
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
     case exception if stateName == MaterializingWorkflowDescriptorState =>
@@ -246,7 +267,15 @@ class WorkflowActor(val workflowId: WorkflowId,
 
   when(MaterializingWorkflowDescriptorState) {
     case Event(MaterializeWorkflowDescriptorSuccessResponse(workflowDescriptor), data) =>
-      val initializerActor = context.actorOf(WorkflowInitializationActor.props(workflowId, workflowDescriptor, ioActor, serviceRegistryActor, restarting),
+      val initializerActor = context.actorOf(
+        WorkflowInitializationActor.props(
+          workflowIdForLogging,
+          rootWorkflowIdForLogging,
+          workflowDescriptor,
+          ioActor,
+          serviceRegistryActor,
+          restarting
+        ),
         name = s"WorkflowInitializationActor-$workflowId")
       initializerActor ! StartInitializationCommand
       goto(InitializingWorkflowState) using data.copy(currentLifecycleStateActor = Option(initializerActor), workflowDescriptor = Option(workflowDescriptor))
@@ -274,7 +303,10 @@ class WorkflowActor(val workflowId: WorkflowId,
         jobTokenDispenserActor = jobTokenDispenserActor,
         backendSingletonCollection,
         initializationData,
-        startState = data.effectiveStartableState), name = s"WorkflowExecutionActor-$workflowId")
+        startState = data.effectiveStartableState,
+        rootConfig = conf,
+        totalJobsByRootWf = totalJobsByRootWf,
+        fileHashCacheActor = fileHashCacheActor), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
       
@@ -364,6 +396,9 @@ class WorkflowActor(val workflowId: WorkflowId,
   when(WorkflowSucceededState) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(SendWorkflowHeartbeatCommand, _) =>
+      sendHeartbeat()
+      stay()
     // If the workflow is being restarted, then we have to keep going to try and reconnect to the jobs - but remember that workflow is now in abort mode
     case Event(AbortWorkflowCommand, data: WorkflowActorData) if restarting =>
       stay() using data.copy(effectiveStartableState = RestartableAborting)
@@ -400,7 +435,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(workflowSourceFilesCollection.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
         val system = context.system
         val ec = context.system.dispatcher
-        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system, ec)
+        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system)
 
         val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
           case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))
@@ -410,7 +445,7 @@ class WorkflowActor(val workflowId: WorkflowId,
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
             pathBuilders.map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
-          case None if WorkflowLogger.isTemporary => workflowLogger.deleteLogFile() match {
+          case None if WorkflowLogger.isTemporary => workflowLogger.close(andDelete = true) match {
             case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>
           }
@@ -448,7 +483,6 @@ class WorkflowActor(val workflowId: WorkflowId,
     }
     
     context.actorOf(WorkflowFinalizationActor.props(
-      workflowId = workflowId,
       workflowDescriptor = workflowDescriptor,
       ioActor = ioActor,
       jobExecutionMap = jobExecutionMap,
@@ -467,5 +501,7 @@ class WorkflowActor(val workflowId: WorkflowId,
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint (stateName, failures))
   }
+
+  private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId)
 
 }

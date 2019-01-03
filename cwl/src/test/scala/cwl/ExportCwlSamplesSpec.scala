@@ -1,9 +1,11 @@
 package cwl
 
+import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
+import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
+import cwl.WorkflowStep.WorkflowStepOutputInnerType
+import cwl.WorkflowStepInput.InputSource
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless.Coproduct
-import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
-import cwl.WorkflowStepInput.InputSource
 
 
   /**
@@ -22,7 +24,7 @@ class ExportCwlSamplesSpec extends FlatSpec with Matchers {
         id = "echo",
         inputs =  Array(CommandInputParameter(
           id = "message",
-          inputBinding = Option(CommandLineBinding(
+          inputBinding = Option(InputCommandLineBinding(
             position = Option(1)
           ))
         )),
@@ -45,8 +47,8 @@ baseCommand: echo
     val workflow = Workflow(
       id = "MyCwlWorkflow",
       inputs = Array(
-          InputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
-          InputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
+          WorkflowInputParameter(id = "inp", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.File)))),
+          WorkflowInputParameter(id = "ex", `type` = Option(Coproduct[MyriadInputType](Coproduct[MyriadInputInnerType](CwlType.String))))
         ),
       outputs = Array(
         WorkflowOutputParameter(
@@ -65,7 +67,7 @@ baseCommand: echo
                 WorkflowStepInput(id = "tarfile", source = Option(Coproduct[InputSource]("inp"))),
                 WorkflowStepInput(id = "extractfile", source =  Option(Coproduct[InputSource]("ex")))
               ),
-            out = Coproduct[WorkflowStep.Outputs](Array("example_out"))
+            out = Array(Coproduct[WorkflowStepOutputInnerType](WorkflowStepOutput("example_out")))
           ),
           WorkflowStep(
             id = "compile",
@@ -73,7 +75,7 @@ baseCommand: echo
             in = Array(
                  WorkflowStepInput(id = "src", source = Option(Coproduct[InputSource]("untar/example_out")))
               ),
-            out = Coproduct[WorkflowStep.Outputs](Array("classfile"))
+            out = Array(Coproduct[WorkflowStepOutputInnerType](WorkflowStepOutput("classfile")))
           )
         )
       )

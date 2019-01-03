@@ -3,6 +3,12 @@
 .DS_Store
 .artifactory
 .idea/*
+.ensime_cache/*
+.config/*
+.local/*
+.ensime
+tags
+**/*.tags
 !/.idea/inspectionProfiles/
 .idea/inspectionProfiles/*
 !/.idea/inspectionProfiles/Project_Default.xml
@@ -17,3 +23,24 @@ local-cromwell-executions
 log
 native
 scripts/docker-compose-mysql/compose/mysql/data
+/logs/
+/common-workflow-language/
+# Vault rendered resources
+artifactory_credentials.properties
+aws_credentials
+bcs_application.conf
+centaur_secure.inc.conf
+cromwell-centaur-requester-pays-service-account.json
+cromwell-centaur-service-account.json
+cromwell-service-account.json
+cwl_conformance_test.inputs.json
+dockerhub_auth.inc.sh
+dockerhub_provider_config_v1.inc.conf
+dockerhub_provider_config_v2.inc.conf
+github_private_deploy_key
+papi_application.inc.conf
+papi_refresh_token.txt
+private_docker_papi_v2_usa.options
+tesk_application_ftp.conf
+ftp_centaur_cwl_runner.conf
+tesk_application.conf

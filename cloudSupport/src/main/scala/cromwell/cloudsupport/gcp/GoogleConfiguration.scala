@@ -7,7 +7,6 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
-import com.google.api.services.storage.StorageScopes
 import com.typesafe.config.{Config, ConfigException}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
@@ -30,7 +29,6 @@ final case class GoogleConfiguration private (applicationName: String, authsByNa
 }
 
 object GoogleConfiguration {
-  import scala.collection.JavaConverters._
   import scala.concurrent.duration._
   import scala.language.postfixOps
 
@@ -57,13 +55,6 @@ object GoogleConfiguration {
     override val exceptionContext = "Google configuration"
   }
 
-  val GoogleScopes = List(
-    StorageScopes.DEVSTORAGE_FULL_CONTROL,
-    StorageScopes.DEVSTORAGE_READ_WRITE,
-    "https://www.googleapis.com/auth/genomics",
-    "https://www.googleapis.com/auth/compute"
-  ).asJava
-
   def apply(config: Config): GoogleConfiguration = {
 
     val googleConfig = config.getConfig("google")
@@ -74,25 +65,29 @@ object GoogleConfiguration {
 
       def serviceAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
         (authConfig.getAs[String]("pem-file"), authConfig.getAs[String]("json-file")) match {
-          case (Some(pem), None) => ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem), GoogleScopes)
-          case (None, Some(json)) => ServiceAccountMode(name, JsonFileFormat(json), GoogleScopes)
+          case (Some(pem), None) => ServiceAccountMode(name, PemFileFormat(authConfig.as[String]("service-account-id"), pem))
+          case (None, Some(json)) => ServiceAccountMode(name, JsonFileFormat(json))
           case (None, None) => throw new ConfigException.Generic(s"""No credential configuration was found for service account "$name". See reference.conf under the google.auth, service-account section for supported credential formats.""")
           case (Some(_), Some(_)) => throw new ConfigException.Generic(s"""Both a pem file and a json file were supplied for service account "$name" in the configuration file. Only one credential file can be supplied for the same service account. Please choose between the two.""")
         }
       }
 
       def userAccountAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] =  validate {
-        UserMode(name, authConfig.as[String]("user"), authConfig.as[String]("secrets-file"), authConfig.as[String]("data-store-dir"), GoogleScopes)
+        UserMode(
+          name,
+          authConfig.as[String]("user"),
+          authConfig.as[String]("secrets-file"),
+          authConfig.as[String]("data-store-dir"))
       }
 
       def refreshTokenAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
-        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"), GoogleScopes)
+        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"))
       }
 
       def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
 
       def userServiceAccountAuth(name: String): ErrorOr[GoogleAuthMode] = validate {
-        UserServiceAccountMode(name, GoogleScopes)
+        UserServiceAccountMode(name)
       }
 
       val name = authConfig.getString("name")

@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorRef
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
@@ -10,6 +12,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore.ValueKey
 import cromwell.engine.workflow.lifecycle.execution.stores.{ExecutionStore, ValueStore}
 import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
+import wom.graph.GraphNodePort.OutputPort
 import wom.values.WomValue
 
 import scala.concurrent.ExecutionContext
@@ -27,17 +30,18 @@ final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, Execut
 }
 
 object WorkflowExecutionActorData {
-  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo): WorkflowExecutionActorData = {
+  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo, totalJobsByRootWf: AtomicInteger, executionStore: ExecutionStore): WorkflowExecutionActorData = {
     WorkflowExecutionActorData(
       workflowDescriptor,
-      ExecutionStore(workflowDescriptor.callable),
+      executionStore,
       ValueStore.initialize(workflowDescriptor.knownValues),
       asyncIo,
-      ec
+      ec,
+      totalJobsByRootWf = totalJobsByRootWf
     )
   }
 
-  final case class DataStoreUpdate(runnableKeys: List[JobKey], newData: WorkflowExecutionActorData)
+  final case class DataStoreUpdate(runnableKeys: List[JobKey], statusChanges: Map[JobKey, ExecutionStatus], newData: WorkflowExecutionActorData)
 }
 
 case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescriptor,
@@ -47,7 +51,8 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       ec: ExecutionContext,
                                       jobKeyActorMappings: Map[ActorRef, JobKey] = Map.empty,
                                       jobFailures: Map[JobKey, Throwable] = Map.empty,
-                                      downstreamExecutionMap: JobExecutionMap = Map.empty) {
+                                      downstreamExecutionMap: JobExecutionMap = Map.empty,
+                                      totalJobsByRootWf: AtomicInteger) {
 
   val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
 
@@ -62,11 +67,13 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     ))
   }
 
-  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, value: WomValue): WorkflowExecutionActorData = {
-    val valueStoreKey = ValueKey(expressionKey.singleOutputPort, expressionKey.index)
+  final def expressionEvaluationSuccess(expressionKey: ExpressionKey, values: Map[OutputPort, WomValue]): WorkflowExecutionActorData = {
+    val valueStoreAdditions = values.map({
+      case (outputPort, value) => ValueKey(outputPort, expressionKey.index) -> value
+    })
     mergeExecutionDiff(WorkflowExecutionDiff(
       executionStoreChanges = Map(expressionKey -> Done),
-      valueStoreAdditions = Map(valueStoreKey -> value)
+      valueStoreAdditions =valueStoreAdditions
     ))
   }
 
@@ -116,7 +123,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   
   def executionStoreUpdate: DataStoreUpdate = {
     val update = executionStore.update
-    DataStoreUpdate(update.runnableKeys, this.copy(executionStore = update.updatedStore))
+    DataStoreUpdate(update.runnableKeys, update.statusChanges, this.copy(executionStore = update.updatedStore))
   }
 
   def done: Boolean = executionStore.isDone

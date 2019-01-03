@@ -1,0 +1,3208 @@
+{
+  "workflowName": "FailingInSeveralWays",
+  "actualWorkflowLanguageVersion": "draft-2",
+  "submittedFiles": {
+    "workflow": "workflow FailingInSeveralWays {\n\n\tcall WriteGreeting {\n\t  input:\n\t    greeting = \"I like modifying strings\"\n\t}\n\n\tcall ReadItBackToMe {\n\t\tinput:\n\t\t\toriginal_greeting = WriteGreeting.out\n\t}\n\n\tcall WillFail {\n\t  input:\n\t    argument = ReadItBackToMe.outfile\n\t}\n\n  scatter(idx in range(50)) {\n    call ScatterJobThatWillFailSometimes {\n      input:\n        idx = idx\n    }\n  }\n\n\toutput {\n\t\tFile outfile = ReadItBackToMe.outfile\n\t}\n}\n\ntask WriteGreeting {\n\n\tString greeting\n\n\tcommand {\n\t\techo \"${greeting}\"\n\t}\n\toutput {\n\t\tString out = read_string(stdout())\n\t}\n}\n\ntask ReadItBackToMe {\n\n\tString original_greeting\n\n\tcommand {\n\t\techo \"${original_greeting} to you too\"\n\t}\n\toutput {\n\t\tFile outfile = read_string(stdout())\n\t}\n}\n\ntask WillFail {\n  String argument\n\n\tcommand {\n    exit 0;\n\t}\n}\ntask ScatterJobThatWillFailSometimes {\n  Int idx\n\n  command {\n    if [ \"${idx}\" -gt \"40\" ]; then\n      exit 1;\n    fi\n\n    if [ \"${idx}\" -lt \"20\" ]; then\n      exit 0;\n    fi\n  }\n}\n",
+    "workflowType": "WDL",
+    "root": "None",
+    "options": "{\n\n}",
+    "inputs": "{\"HelloWorld.WriteGreeting.greeting\":\"I like modifying files\"}",
+    "labels": "{}"
+  },
+  "calls": {
+    "FailingInSeveralWays.ScatterJobThatWillFailSometimes": [
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-0/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 0,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 0
+        },
+        "returnCode": 0,
+        "jobId": "10147",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.813-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-0/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-0",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.148-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.042-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.793-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.530-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.148-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.042-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.530-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.793-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-1/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 1,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 1
+        },
+        "returnCode": 0,
+        "jobId": "10040",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-1/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-1",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.992-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.852-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.992-04:00"
+          },
+          {
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00",
+            "startTime": "2018-07-26T17:18:58.852-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.800-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.800-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-2/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 2,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 2
+        },
+        "returnCode": 0,
+        "jobId": "10033",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.812-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-2/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-2",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.006-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.011-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.006-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.011-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.796-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-3/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 3,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 3
+        },
+        "returnCode": 0,
+        "jobId": "9928",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-3/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-3",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.727-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.727-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.796-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-4/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 4,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 4
+        },
+        "returnCode": 0,
+        "jobId": "9722",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-4/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-4",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.521-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.791-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.551-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.521-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.551-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.791-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-5/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 5,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 5
+        },
+        "returnCode": 0,
+        "jobId": "9705",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-5/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-5",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.791-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.521-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.544-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.852-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.521-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.544-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.852-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.791-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-6/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 6,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 6
+        },
+        "returnCode": 0,
+        "jobId": "9748",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-6/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-6",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.795-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.569-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.853-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.569-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.853-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.794-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-7/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 7,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 7
+        },
+        "returnCode": 0,
+        "jobId": "10034",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.815-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-7/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-7",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.007-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.795-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.007-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.131-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.131-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.795-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-8/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 8,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 8
+        },
+        "returnCode": 0,
+        "jobId": "10128",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.815-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-8/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-8",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:19:00.230-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.529-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.529-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.138-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.793-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.138-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.230-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.792-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-9/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 9,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 9
+        },
+        "returnCode": 0,
+        "jobId": "10035",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.815-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-9/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-9",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.794-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.160-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.002-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.002-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.160-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.794-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-10/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 10,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 10
+        },
+        "returnCode": 0,
+        "jobId": "10250",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.815-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-10/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-10",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.529-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.122-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.122-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.053-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.053-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.529-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.793-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.793-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-11/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 11,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 11
+        },
+        "returnCode": 0,
+        "jobId": "10052",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-11/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-11",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:56.027-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.528-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.825-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.794-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.528-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.027-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.793-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-12/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 12,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 12
+        },
+        "returnCode": 0,
+        "jobId": "9835",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.827-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-12/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-12",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.702-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.702-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.795-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-13/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 13,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 13
+        },
+        "returnCode": 0,
+        "jobId": "10092",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-13/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-13",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.797-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.729-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.853-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.729-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.853-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.797-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-14/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 14,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 14
+        },
+        "returnCode": 0,
+        "jobId": "9982",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-14/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-14",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:58.853-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.882-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.853-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.799-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.882-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.798-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-15/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 15,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 15
+        },
+        "returnCode": 0,
+        "jobId": "10266",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:01.805-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-15/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-15",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:19:01.120-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:01.804-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.792-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.530-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.311-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.311-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:01.120-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.521-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.521-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.530-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.792-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-16/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 16,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 16
+        },
+        "returnCode": 0,
+        "jobId": "10229",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:01.804-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-16/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-16",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.934-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:01.291-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:01.291-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:01.804-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.799-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.934-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.799-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-17/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 17,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 17
+        },
+        "returnCode": 0,
+        "jobId": "10253",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.815-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-17/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-17",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.529-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.122-04:00"
+          },
+          {
+            "endTime": "2018-07-26T17:19:00.812-04:00",
+            "startTime": "2018-07-26T17:19:00.279-04:00",
+            "description": "UpdatingJobStore"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.122-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.279-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.793-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.529-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.793-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-18/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 18,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 18
+        },
+        "returnCode": 0,
+        "jobId": "10195",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.815-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-18/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-18",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:19:00.219-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.797-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.730-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.730-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.219-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.797-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-19/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 19,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 19
+        },
+        "returnCode": 0,
+        "jobId": "9718",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.827-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-19/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-19",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.557-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.557-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.830-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.793-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.793-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.830-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.793-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-20/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 20,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 20
+        },
+        "returnCode": 0,
+        "jobId": "9910",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.829-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-20/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-20",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.847-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.798-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.755-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.755-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.847-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.797-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-21/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 21,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 21
+        },
+        "returnCode": 0,
+        "jobId": "9985",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-21/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-21",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.872-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.825-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.798-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.872-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.798-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-22/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 22,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 22
+        },
+        "returnCode": 0,
+        "jobId": "10320",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:01.805-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-22/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-22",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.800-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.978-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.978-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:01.419-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:01.419-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:01.804-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.800-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-23/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 23,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 23
+        },
+        "returnCode": 0,
+        "jobId": "10039",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.827-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-23/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-23",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.799-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.984-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "endTime": "2018-07-26T17:18:58.844-04:00",
+            "startTime": "2018-07-26T17:18:55.984-04:00",
+            "description": "RunningJob"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.799-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-24/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 24,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 24
+        },
+        "returnCode": 0,
+        "jobId": "9834",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-24/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-24",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.652-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.652-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.795-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.795-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-25/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 25,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 25
+        },
+        "returnCode": 0,
+        "jobId": "10246",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.813-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-25/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-25",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.981-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.800-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.981-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.123-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.123-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.799-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-26/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 26,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 26
+        },
+        "returnCode": 0,
+        "jobId": "9756",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-26/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-26",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:58.852-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.795-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.586-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.586-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.852-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.795-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-27/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 27,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 27
+        },
+        "returnCode": 0,
+        "jobId": "9991",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-27/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-27",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.901-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.799-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.901-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.799-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-28/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 28,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 28
+        },
+        "returnCode": 0,
+        "jobId": "9865",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.827-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-28/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-28",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.798-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.750-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.750-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.798-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-29/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 29,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 29
+        },
+        "returnCode": 0,
+        "jobId": "9880",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.828-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-29/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-29",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.771-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.798-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.771-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.798-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-30/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 30,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 30
+        },
+        "returnCode": 0,
+        "jobId": "9860",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.829-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-30/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-30",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:58.847-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.740-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.847-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.740-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.797-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.797-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-31/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 31,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 31
+        },
+        "returnCode": 0,
+        "jobId": "9929",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-31/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-31",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.711-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.711-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.796-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-32/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 32,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 32
+        },
+        "returnCode": 0,
+        "jobId": "10259",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:01.804-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-32/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-32",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:19:01.239-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:01.804-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.974-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.799-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.974-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:01.239-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.799-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.799-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-33/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 33,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 33
+        },
+        "returnCode": 0,
+        "jobId": "10049",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-33/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-33",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:59.800-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.716-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.716-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:59.800-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.796-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-34/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 34,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 34
+        },
+        "returnCode": 0,
+        "jobId": "9696",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-34/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-34",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.790-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.791-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.853-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.532-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.532-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.853-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.790-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-35/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 35,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 35
+        },
+        "returnCode": 0,
+        "jobId": "9695",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-35/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-35",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.792-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.521-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.536-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.536-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.852-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.521-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.852-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.791-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-36/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 36,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 36
+        },
+        "returnCode": 0,
+        "jobId": "9927",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.829-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-36/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-36",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.697-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.697-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.846-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.846-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.795-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-37/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 37,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 37
+        },
+        "returnCode": 0,
+        "jobId": "9693",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.827-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-37/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-37",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.531-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.531-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.791-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.791-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-38/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 38,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 38
+        },
+        "returnCode": 0,
+        "jobId": "10041",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.822-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-38/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-38",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:56.016-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.828-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.794-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.828-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.528-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.528-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.016-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.794-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-39/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 39,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 39
+        },
+        "returnCode": 0,
+        "jobId": "9782",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.830-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-39/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-39",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:58.851-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.605-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.795-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.605-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.851-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.795-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.795-04:00"
+      },
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-40/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 40,
+        "outputs": {},
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 40
+        },
+        "returnCode": 0,
+        "jobId": "9866",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.831-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-40/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-40",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.733-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.853-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.823-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.733-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.853-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.797-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.797-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-41/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 41,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "effectiveCallCachingMode": "CallCachingOff",
+          "allowResultReuse": false
+        },
+        "inputs": {
+          "idx": 41
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:41:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "10032",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.813-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-41/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-41",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.800-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.992-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:59.901-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.992-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:59.901-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.800-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-42/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 42,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 42
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:42:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "9710",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.822-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-42/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-42",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.792-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.522-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.554-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.522-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.554-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.792-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-43/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 43,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 43
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:43:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "10038",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.829-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-43/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-43",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.527-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.985-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.848-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.848-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.527-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.985-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.800-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.800-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.800-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-44/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 44,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 44
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:44:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "10117",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.814-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-44/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-44",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.526-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.883-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.201-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.798-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.798-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.526-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.883-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.201-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.798-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-45/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 45,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 45
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:45:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "10050",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:00.816-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-45/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-45",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.528-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.016-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.528-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:00.242-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:00.812-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.016-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:00.242-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.794-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.794-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.794-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-46/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 46,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 46
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:46:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "9970",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.827-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-46/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-46",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.796-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.796-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.725-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.725-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.796-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-47/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 47,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 47
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:47:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "9830",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.828-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-47/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-47",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.523-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.625-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.521-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.844-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.792-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.792-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.625-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.844-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.521-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.792-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-48/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 48,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 48
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:48:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "10244",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:01.804-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-48/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-48",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.525-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:56.002-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.524-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.525-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.524-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.002-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:01.072-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:19:01.072-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:01.804-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.797-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.797-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.797-04:00"
+      },
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-49/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": 49,
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "idx": 49
+        },
+        "returnCode": 1,
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:49:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+          }
+        ],
+        "jobId": "9697",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:59.829-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-49/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ScatterJobThatWillFailSometimes/shard-49",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:55.534-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:58.848-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:54.791-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:54.791-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:55.534-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:58.848-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:59.822-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:55.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:55.520-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:54.791-04:00"
+      }
+    ],
+    "FailingInSeveralWays.ReadItBackToMe": [
+      {
+        "retryableFailure": false,
+        "executionStatus": "Failed",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ReadItBackToMe/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": -1,
+        "runtimeAttributes": {
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0",
+          "maxRetries": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "original_greeting": "I like modifying strings"
+        },
+        "failures": [
+          {
+            "causedBy": [],
+            "message": "Could not process output, file not found: /Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ReadItBackToMe/execution/I like modifying strings to you too"
+          }
+        ],
+        "jobId": "10356",
+        "backend": "Local",
+        "end": "2018-07-26T17:19:01.805-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ReadItBackToMe/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ReadItBackToMe",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:19:01.763-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:19:01.804-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:57.523-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:19:01.763-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.873-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:57.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:56.873-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:56.873-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:57.520-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:57.520-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:57.520-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:57.523-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:56.873-04:00"
+      }
+    ],
+    "FailingInSeveralWays.WriteGreeting": [
+      {
+        "executionStatus": "Done",
+        "stdout": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-WriteGreeting/execution/stdout",
+        "backendStatus": "Done",
+        "shardIndex": -1,
+        "outputs": {
+          "out": "I like modifying strings"
+        },
+        "runtimeAttributes": {
+          "maxRetries": "0",
+          "failOnStderr": "false",
+          "continueOnReturnCode": "0"
+        },
+        "callCaching": {
+          "allowResultReuse": false,
+          "effectiveCallCachingMode": "CallCachingOff"
+        },
+        "inputs": {
+          "greeting": "I like modifying strings"
+        },
+        "returnCode": 0,
+        "jobId": "9675",
+        "backend": "Local",
+        "end": "2018-07-26T17:18:54.803-04:00",
+        "stderr": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-WriteGreeting/execution/stderr",
+        "callRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-WriteGreeting",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2018-07-26T17:18:53.518-04:00",
+            "description": "WaitingForValueStore",
+            "endTime": "2018-07-26T17:18:53.518-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:53.521-04:00",
+            "description": "RunningJob",
+            "endTime": "2018-07-26T17:18:53.808-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:52.731-04:00",
+            "description": "RequestingExecutionToken",
+            "endTime": "2018-07-26T17:18:53.518-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:53.808-04:00",
+            "description": "UpdatingJobStore",
+            "endTime": "2018-07-26T17:18:54.803-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:52.731-04:00",
+            "description": "Pending",
+            "endTime": "2018-07-26T17:18:52.731-04:00"
+          },
+          {
+            "startTime": "2018-07-26T17:18:53.518-04:00",
+            "description": "PreparingJob",
+            "endTime": "2018-07-26T17:18:53.521-04:00"
+          }
+        ],
+        "start": "2018-07-26T17:18:52.730-04:00"
+      }
+    ]
+  },
+  "outputs": {},
+  "workflowRoot": "/Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845",
+  "actualWorkflowLanguage": "WDL",
+  "id": "9e83cb0d-0347-431e-8ee6-48f535060845",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-9e83cb0d-0347-431e-8ee6-48f535060845"
+  },
+  "submission": "2018-07-26T17:18:38.108-04:00",
+  "status": "Failed",
+  "failures": [
+    {
+      "message": "Workflow failed",
+      "causedBy": [
+        {
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:49:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details.",
+          "causedBy": []
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:42:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:47:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:45:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Could not process output, file not found: /Users/rasch/p/cromwell/cromwell-executions/FailingInSeveralWays/9e83cb0d-0347-431e-8ee6-48f535060845/call-ReadItBackToMe/execution/I like modifying strings to you too"
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:46:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:48:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:44:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:43:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        },
+        {
+          "causedBy": [],
+          "message": "Job FailingInSeveralWays.ScatterJobThatWillFailSometimes:41:1 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+        }
+      ]
+    }
+  ],
+  "end": "2018-07-26T17:19:01.972-04:00",
+  "start": "2018-07-26T17:18:50.664-04:00"
+}

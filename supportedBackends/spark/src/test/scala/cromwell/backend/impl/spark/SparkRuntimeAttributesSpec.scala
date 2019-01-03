@@ -1,16 +1,21 @@
 package cromwell.backend.impl.spark
 
-import cromwell.backend.{BackendWorkflowDescriptor, MemorySize}
-import wom.RuntimeAttributesKeys._
-import cromwell.core.labels.Labels
-import cromwell.core.{NoIoFunctionSet, WorkflowId, WorkflowOptions}
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
+import cromwell.backend.BackendWorkflowDescriptor
+import cromwell.core.labels.Labels
+import cromwell.core.{WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
-import wdl._
+import wdl.draft2.model.{Draft2ImportResolver, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom._
+import wom.RuntimeAttributesKeys._
 import wom.core.WorkflowSource
+import wom.expression.NoIoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
+import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.values.WomValue
+import wom.format.MemorySize
 
 class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
 
@@ -125,10 +130,11 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
                                       inputs: Map[OutputPort, WomValue] = Map.empty,
                                       options: WorkflowOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue])),
                                       runtime: String) = {
+    val wdlNamespace = WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[Draft2ImportResolver]).get
+
     BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(wdl.replaceAll("RUNTIME", runtime), Seq.empty[ImportResolver])
-        .get.workflow.womDefinition.getOrElse(fail("Cannot build Wom Workflow")),
+      wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,
       Labels.empty
@@ -143,7 +149,7 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
         val staticValues = workflowDescriptor.knownValues.map {
           case (outputPort, resolvedInput) => outputPort.name -> resolvedInput
         }
-        val ra = call.callable.runtimeAttributes.attributes mapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
+        val ra = call.callable.runtimeAttributes.attributes safeMapValues { _.evaluateValue(staticValues, NoIoFunctionSet) }
         ra.sequence.getOrElse(fail("Failed to evaluate runtime attributes"))
     }
   }

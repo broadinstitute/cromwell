@@ -1,6 +1,5 @@
 package cwl
 
-import cwl.ExpressionEvaluator.ECMAScriptExpression
 import cwl.InitialWorkDirRequirement._
 import eu.timepit.refined.W
 import shapeless.{:+:, CNil, _}
@@ -9,10 +8,7 @@ final case class InitialWorkDirRequirement(
                                             `class`: W.`"InitialWorkDirRequirement"`.T,
                                             listing: IwdrListing
                                           ) {
-  val listings: Array[IwdrListingArrayEntry] = listing match {
-    case IwdrListingArray(array) => array
-    case StringOrExpression(soe) => Array(Coproduct[IwdrListingArrayEntry](soe))
-  }
+  val listings: Array[IwdrListingArrayEntry] = listing.fold(IwdrListingArrayPoly)
 
   override def toString: WorkflowStepInputId =
     s"""InitialWorkDirRequirement(
@@ -50,34 +46,18 @@ object InitialWorkDirRequirement {
   final type IwdrListingArrayEntry = File :+: Directory :+: ExpressionDirent :+: StringDirent :+: StringOrExpression :+: CNil
   final type IwdrListing = Array[IwdrListingArrayEntry] :+: StringOrExpression :+: CNil
 
-  object IwdrListingArrayEntry {
-    object StringDirent {
-      def unapply(e: IwdrListingArrayEntry): Option[(String, StringOrExpression, Boolean)] =
-        e.select[StringDirent].map(sd => (sd.entry, sd.entryname, sd.writableWithDefault))
+  object IwdrListingArrayPoly extends Poly1 {
+    implicit val caseArrayIwdrListingArrayEntry: Case.Aux[Array[IwdrListingArrayEntry], Array[IwdrListingArrayEntry]] = {
+      at {
+        identity
+      }
     }
-    object ExpressionDirent {
-      def unapply(e: IwdrListingArrayEntry): Option[(Expression, Option[StringOrExpression], Boolean)] =
-        e.select[ExpressionDirent].map(sd => (sd.entry, sd.entryname, sd.writableWithDefault))
-    }
-    object FilePath {
-      def unapply(e: IwdrListingArrayEntry): Option[String] = e.select[File].flatMap(file => file.location)
-    }
-    object String {
-      def unapply(e: IwdrListingArrayEntry): Option[String] = e.select[StringOrExpression].flatMap(_.select[String])
-    }
-    object ECMAScriptExpression {
-      def unapply(e: IwdrListingArrayEntry): Option[ECMAScriptExpression] = for {
-        soe <- e.select[StringOrExpression]
-        expr <- soe.select[Expression]
-        ecmaScriptExpression <- expr.select[ECMAScriptExpression]
-      } yield ecmaScriptExpression
 
-
+    implicit val caseStringOrExpression: Case.Aux[StringOrExpression, Array[IwdrListingArrayEntry]] = {
+      at {
+        stringOrExpression =>
+          Array(Coproduct[IwdrListingArrayEntry](stringOrExpression))
+      }
     }
-  }
-
-  object IwdrListingArray {
-    def unapply(listing: IwdrListing): Option[Array[IwdrListingArrayEntry]] =
-      listing.select[Array[IwdrListingArrayEntry]]
   }
 }

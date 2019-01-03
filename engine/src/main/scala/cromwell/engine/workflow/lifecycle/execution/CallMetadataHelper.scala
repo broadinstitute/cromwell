@@ -3,11 +3,12 @@ package cromwell.engine.workflow.lifecycle.execution
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
+import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import wdl._
+import wdl.draft2.model._
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.util.Random
@@ -59,6 +60,11 @@ trait CallMetadataHelper {
 
     serviceRegistryActor ! PutMetadataAction(events)
   }
+  
+  def pushWaitingForQueueSpaceCallMetadata(jobKey: JobKey) = {
+    val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(WaitingForQueueSpace))
+    serviceRegistryActor ! PutMetadataAction(event)
+  }
 
   def pushSuccessfulCallMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: CallOutputs) = {
     val completionEvents = completedCallMetadataEvents(jobKey, ExecutionStatus.Done, returnCode)
@@ -68,7 +74,7 @@ trait CallMetadataHelper {
         List(MetadataEvent.empty(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}")))
       case _ =>
         outputs.outputs flatMap { case (outputPort, outputValue) =>
-          womValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:${outputPort.name}"), outputValue) 
+          womValueToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Outputs}:${outputPort.internalName}"), outputValue)
         }
     }
 
@@ -79,8 +85,14 @@ trait CallMetadataHelper {
     val failedState = if (retryableFailure) ExecutionStatus.RetryableFailure else ExecutionStatus.Failed
     val completionEvents = completedCallMetadataEvents(jobKey, failedState, returnCode)
     val retryableFailureEvent = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.RetryableFailure), MetadataValue(retryableFailure))
-    val failureEvents = throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
 
+    val failureEvents = failure match {
+      // If the job was already failed, don't republish the failure reasons, they're already there
+      case _: JobAlreadyFailedInJobStore => List.empty
+      case _ =>
+        throwableToMetadataEvents(metadataKeyForCall(jobKey, s"${CallMetadataKeys.Failures}"), failure).+:(retryableFailureEvent)
+    }
+  
     serviceRegistryActor ! PutMetadataAction(completionEvents ++ failureEvents)
   }
 
@@ -97,12 +109,14 @@ trait CallMetadataHelper {
       MetadataEvent(metadataKey, metadataValue)
     }
     
-    eventList.headOption foreach { firstEvent =>
+    val sortedEvents = eventList.sortBy(_.offsetDateTime)
+
+    sortedEvents.headOption foreach { firstEvent =>
       // The final event is only used as the book-end for the final pairing so the name is never actually used...
       val offset = firstEvent.offsetDateTime.getOffset
       val now = OffsetDateTime.now.withOffsetSameInstant(offset)
       val lastEvent = ExecutionEvent("!!Bring Back the Monarchy!!", now)
-      val tailedEventList = eventList :+ lastEvent
+      val tailedEventList = sortedEvents :+ lastEvent
       val events = tailedEventList.sliding(2) flatMap {
         case Seq(eventCurrent, eventNext) =>
           val eventKey = s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"

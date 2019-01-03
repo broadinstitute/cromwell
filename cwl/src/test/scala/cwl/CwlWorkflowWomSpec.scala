@@ -9,12 +9,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 import shapeless._
 import wom.WomMatchers._
-import wom.callable.Callable.RequiredInputDefinition
-import wom.callable.{Callable, TaskDefinition, WorkflowDefinition}
+import wom.callable.{Callable, CommandTaskDefinition, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wom.types.{WomSingleFileType, WomStringType, WomType}
+import wom.types.{WomMaybePopulatedFileType, WomStringType, WomType}
 
 class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
@@ -23,8 +22,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   
   "A Cwl object for 1st-tool" should "convert to WOM" in {
     def validateWom(callable: Callable): Unit = callable match {
-      case taskDefinition: TaskDefinition =>
-        taskDefinition.inputs shouldBe List(RequiredInputDefinition(s"message", WomStringType))
+      case taskDefinition: CommandTaskDefinition =>
+        val inputDef = taskDefinition.inputs.head 
+        inputDef.name shouldBe "message" 
+        inputDef.womType shouldBe WomStringType
         ()
 
       case _ => fail("not a task definition")
@@ -32,22 +33,22 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     import cats.syntax.validated._
     (for {
-      clt <- decodeAllCwl(rootPath/"1st-tool.cwl").
+      clt <- decodeCwlFile(rootPath/"1st-tool.cwl").
               map(_.select[CommandLineTool].get).
               value.
               unsafeRunSync
-      taskDef <- clt.buildTaskDefinition(_.validNel).toEither
+      taskDef <- clt.buildTaskDefinition(_.validNel, Vector.empty)
     } yield validateWom(taskDef)).leftMap(e => throw new RuntimeException(s"error! $e"))
   }
 
   "Cwl for 1st workflow" should "convert to WOM" in {
     (for {
-      wf <- decodeAllCwl(rootPath/"1st-workflow.cwl").
+      wf <- decodeCwlFile(rootPath/"1st-workflow.cwl").
               value.
               unsafeRunSync.
               map(_.select[Workflow].get)
 
-      womDefinition <- wf.womDefinition(AcceptAllRequirements)
+      womDefinition <- wf.womDefinition(AcceptAllRequirements, Vector.empty)
     } yield validateWom(womDefinition)).leftMap(e => throw new RuntimeException(s"error! ${e.toList.mkString("\n")}"))
 
     def shouldBeRequiredGraphInputNode(node: GraphNode, localName: String, womType: WomType): Unit = {
@@ -78,16 +79,16 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
           untarUpstream should have size 2
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile" =>
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/extractfile.merge" =>
               shouldBeRequiredGraphInputNode(exprNode.inputPorts.head.upstream.graphNode, "ex", WomStringType)
           }).getOrElse(fail("Can't find expression node for ex"))
 
           untarUpstream.collectFirst({
-            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile" =>
+            case exprNode: ExpressionNode if exprNode.localName == s"file://$rootPath/1st-workflow.cwl#untar/tarfile.merge" =>
               exprNode.inputPorts.map(_.upstream.graphNode).count {
                 case rgin: RequiredGraphInputNode =>
                   rgin.identifier.localName == LocalName("inp") &&
-                    rgin.womType == WomSingleFileType
+                    rgin.womType == WomMaybePopulatedFileType
               }  shouldBe 1
           }).getOrElse(fail("Can't find expression node for inp"))
 
@@ -95,8 +96,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
             case compile: CallNode if compile.localName == s"compile" => compile
           }.get.inputPorts.map(_.upstream).head
 
-          compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src"
-          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.name).count(_ == "example_out") shouldBe 1
+          compileUpstreamExpressionPort.name shouldBe s"file://$rootPath/1st-workflow.cwl#compile/src.merge"
+          compileUpstreamExpressionPort.graphNode.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.internalName).count(_ == "example_out") shouldBe 1
 
           nodes.collect {
             case c: PortBasedGraphOutputNode => c
@@ -111,8 +112,8 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   private val stringOrExpressionTests = Table(
     ("index", "result"),
     (0, Coproduct[StringOrExpression]("grep")),
-    (1, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScript]("$(inputs.pattern)")))),
-    (2, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAFunction]("$" + "{return inputs.file}")))),
+    (1, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScriptExpression]("$(inputs.pattern)")))),
+    (2, Coproduct[StringOrExpression](Coproduct[Expression](refineMV[MatchesECMAScriptFunction]("$" + "{return inputs.file}")))),
     (3, Coproduct[StringOrExpression]("|")),
     (4, Coproduct[StringOrExpression]("wc")),
     (5, Coproduct[StringOrExpression]("-l"))
@@ -127,7 +128,7 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   }
 
   private lazy val commandLineTool: CommandLineTool = {
-    val wf = decodeAllCwl(rootPath / "three_step.cwl").map { wf =>
+    val wf = decodeCwlFile(rootPath / "three_step.cwl").map { wf =>
       wf.select[Workflow].get
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse! msg was ${error.toList.mkString(", ")}"), identity)
 
@@ -144,23 +145,22 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
   forAll(stringOrExpressionTests) { (index, expected) =>
     it should s"correctly identify the ${getTestName(expected)}" in {
       val argument: CommandLineTool.Argument = commandLineTool.arguments.get.apply(index)
-      val commandLineBinding: CommandLineBinding = argument.select[CommandLineBinding]
+      val commandLineBinding: ArgumentCommandLineBinding = argument.select[ArgumentCommandLineBinding]
         .getOrElse(fail(s"$argument wasn't a CommandLineBinding"))
       val stringOrExpression: StringOrExpression = commandLineBinding.valueFrom
-        .getOrElse(fail(s"valueFrom missing in $commandLineBinding"))
       stringOrExpression should be(expected)
     }
   }
 
   "A CwlNamespace for 3step" should "provide conversion to WOM" in {
 
-    val wf = decodeAllCwl(rootPath/"three_step.cwl").map {
+    val wf = decodeCwlFile(rootPath/"three_step.cwl").map {
       _.select[Workflow].get
     }.value.unsafeRunSync.fold(error => throw new RuntimeException(s"broken parse: $error"), identity)
 
     wf.id should include("three_step")
 
-    val wfd = wf.womDefinition(AcceptAllRequirements) match {
+    val wfd = wf.womDefinition(AcceptAllRequirements, Vector.empty) match {
       case Right(wf: WorkflowDefinition) => wf
       case Left(o) => fail(s"Workflow definition was not produced correctly: ${o.toList.mkString(", ")}")
       case Right(callable) => fail(s"produced $callable when a Workflow Definition was expected!")
@@ -182,10 +182,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     val ps = nodes.collectFirst({ case ps: CallNode if ps.localName == "ps" => ps }).get
     val cgrep = nodes.collectFirst({ case cgrep: CallNode if cgrep.localName == "cgrep" => cgrep }).get
-    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/file" => cgrepInput }).get
-    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/pattern" => cgrepInput }).get
+    val cgrepFileExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/file.merge" => cgrepInput }).get
+    val cgrepPatternExpression = nodes.collectFirst({ case cgrepInput: ExpressionNode if s"${FileStepAndId(cgrepInput.localName).stepId}/${FileStepAndId(cgrepInput.localName).id}" == "cgrep/pattern.merge" => cgrepInput }).get
     val wc = nodes.collectFirst({ case wc: CallNode if wc.localName == "wc" => wc }).get
-    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if s"${FileStepAndId(wcInput.localName).stepId}/${FileStepAndId(wcInput.localName).id}" == "wc/file" => wcInput }).get
+    val wcFileExpression = nodes.collectFirst({ case wcInput: ExpressionNode if s"${FileStepAndId(wcInput.localName).stepId}/${FileStepAndId(wcInput.localName).id}" == "wc/file.merge" => wcInput }).get
 
     ps.upstream shouldBe empty
 
@@ -203,10 +203,10 @@ class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenProperty
 
     val cgrepInputs = cgrep.inputDefinitionMappings.toMap
     val cgrepFileInputDef = cgrep.callable.inputs.find(_.name == "file").get
-    cgrepInputs(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleExpressionOutputPort
+    cgrepInputs(cgrepFileInputDef).select[OutputPort].get should be theSameInstanceAs cgrepFileExpression.singleOutputPort
 
     val cgrepPatternInputDef = cgrep.callable.inputs.find(_.name == "pattern").get
-    cgrepInputs(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleExpressionOutputPort
+    cgrepInputs(cgrepPatternInputDef).select[OutputPort].get should be theSameInstanceAs cgrepPatternExpression.singleOutputPort
   }
 
 }

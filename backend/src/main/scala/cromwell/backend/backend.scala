@@ -1,23 +1,28 @@
 package cromwell.backend
 
-import _root_.wdl._
-import com.typesafe.config.Config
+import _root_.wdl.draft2.model._
+import akka.actor.ActorSystem
+import com.typesafe.config.{Config, ConfigFactory}
+import common.validation.Validation._
 import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.MaybeCallCachingEligible
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.labels.Labels
+import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import wom.callable.ExecutableCallable
+import wom.callable.{ExecutableCallable, MetaValueElement}
+import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.TaskCallNode
-import wom.values.{WomEvaluatedCallInputs, WomValue}
+import wom.values.WomArray.WomArrayLike
+import wom.values._
 
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: TaskCallNode, index: Option[Int], attempt: Int) extends CallKey {
+case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], attempt: Int) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
@@ -33,9 +38,25 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
-  val fullyQualifiedInputs = evaluatedTaskInputs map { case (declaration, value) =>
+
+  val fullyQualifiedInputs: Map[String, WomValue] = evaluatedTaskInputs map { case (declaration, value) =>
     key.call.identifier.combine(declaration.name).fullyQualifiedName.value -> value
   }
+
+  def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs.collect {
+    case (declaration, value) if declaration.parameterMeta.exists(filter) => findFiles(value)
+  }.flatten.toSet
+
+  def findFiles(v: WomValue): Set[WomFile] = v match {
+    case value: WomFile => Set(value)
+    case WomOptionalValue(_, Some(value)) => findFiles(value)
+    case value: WomObjectLike => value.values.values.toSet flatMap findFiles
+    case WomArrayLike(value) => value.value.toSet flatMap findFiles
+    case WomPair(left, right) => findFiles(left) ++ findFiles(right)
+    case WomMap(_, innerMap) => (innerMap.keySet flatMap findFiles) ++ (innerMap.values.toSet flatMap findFiles)
+    case _ => Set.empty
+  }
+
   val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
   val taskCall = key.call
   override lazy val toString = key.mkTag(workflowDescriptor.id)
@@ -62,7 +83,20 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
                                      breadCrumbs: List[BackendJobBreadCrumb]) {
 
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
-  val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id)
+  val possiblyNotRootWorkflowId = id.toPossiblyNotRoot
+  val rootWorkflowId = breadCrumbs.headOption.map(_.id).getOrElse(id).toRoot
+  lazy val hogGroup = {
+    val config = ConfigFactory.load
+    if (config.hasPath("system.hog-safety.workflow-option")) {
+      val hogGroupField = config.getString("system.hog-safety.workflow-option")
+      workflowOptions.get(hogGroupField) match {
+        case Success(hg) => hg
+        case Failure(_) => rootWorkflowId.shortString
+      }
+    } else {
+      rootWorkflowId.shortString
+    }
+  }
 
   override def toString: String = s"[BackendWorkflowDescriptor id=${id.shortString} workflowName=${callable.name}]"
   def getWorkflowOption(key: WorkflowOption) = workflowOptions.get(key).toOption
@@ -73,8 +107,36 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
   */
 case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config) {
 
-  lazy val backendRuntimeConfig = if (backendConfig.hasPath("default-runtime-attributes"))
-    Option(backendConfig.getConfig("default-runtime-attributes")) else None
+  lazy val backendRuntimeAttributesConfig =
+    if (backendConfig.hasPath("default-runtime-attributes"))
+      Option(backendConfig.getConfig("default-runtime-attributes"))
+    else
+      None
+  
+  // So it can be overridden in tests
+  private [backend] lazy val cromwellFileSystems = CromwellFileSystems.instance
+
+  lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] = {
+    cromwellFileSystems.factoriesFromConfig(backendConfig).unsafe("Failed to instantiate backend filesystem")
+  }
+
+  private lazy val configuredFactoriesWithDefault = if (configuredPathBuilderFactories.values.exists(_ == DefaultPathBuilderFactory)) {
+    configuredPathBuilderFactories
+  } else configuredPathBuilderFactories + DefaultPathBuilderFactory.tuple
+
+  /**
+    * Creates path builders using only the configured factories.
+    */
+  def pathBuilders(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
+    PathBuilderFactory.instantiatePathBuilders(configuredPathBuilderFactories.values.toList, workflowOptions)
+  }
+
+  /**
+    * Creates path builders using only the configured factories + the default factory
+    */
+  def pathBuildersWithDefault(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
+    PathBuilderFactory.instantiatePathBuilders(configuredFactoriesWithDefault.values.toList, workflowOptions)
+  }
 }
 
 final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {

@@ -2,5 +2,5 @@ name: multiplesourcedarray
 testFormat: workflowsuccess
 
 files {
-  wdl: multiplesourcedarray/multiplesourcedarray.wdl
+  workflow: multiplesourcedarray/multiplesourcedarray.wdl
 }

@@ -3,7 +3,7 @@ package cromwell.backend
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.core.logging.{JobLogging, WorkflowLogging}
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -38,7 +38,7 @@ trait BackendLifecycleActor extends Actor {
   protected def configurationDescriptor: BackendConfigurationDescriptor
 
   protected def performActionThenRespond(operation: => Future[BackendWorkflowLifecycleActorResponse],
-                                         onFailure: (Throwable) => BackendWorkflowLifecycleActorResponse,
+                                         onFailure: Throwable => BackendWorkflowLifecycleActorResponse,
                                          andThen: => Unit = ()) = {
     val respondTo: ActorRef = sender
     operation onComplete {
@@ -55,7 +55,8 @@ trait BackendLifecycleActor extends Actor {
 trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowLogging {
 
   //For Logging and boilerplate
-  override lazy final val workflowIdForLogging = workflowDescriptor.id
+  override lazy final val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy final val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   /**
     * The workflow descriptor for the workflow in which this Backend is being used
@@ -65,12 +66,12 @@ trait BackendWorkflowLifecycleActor extends BackendLifecycleActor with WorkflowL
   /**
     * The subset of calls which this backend will be expected to run
     */
-  protected def calls: Set[TaskCallNode]
+  protected def calls: Set[CommandCallNode]
 }
 
 trait BackendJobLifecycleActor extends BackendLifecycleActor with JobLogging {
-  //For Logging and boilerplate
-  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
+  override lazy val workflowIdForLogging = jobDescriptor.workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = jobDescriptor.workflowDescriptor.rootWorkflowId
   override lazy val jobTag = jobDescriptor.key.tag
 
   protected def jobDescriptor: BackendJobDescriptor

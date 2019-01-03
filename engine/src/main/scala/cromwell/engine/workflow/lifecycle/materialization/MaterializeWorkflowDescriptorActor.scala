@@ -2,26 +2,23 @@ package cromwell.engine.workflow.lifecycle.materialization
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
-import better.files.File
 import cats.Monad
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
-import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.syntax.functor._
-import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.Checked
 import common.exception.{AggregatedMessageException, MessageAggregation}
+import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr._
+import common.validation.Parse._
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core.CromwellGraphNode._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
@@ -29,27 +26,24 @@ import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.BetterFileMethods.OpenOptions
-import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder}
+import cromwell.core.path.PathBuilder
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
+import cromwell.engine.language.CromwellLanguages
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.languages.util.ImportResolver._
+import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import cwl.CwlDecoder
-import cwl.CwlDecoder.Parse
 import net.ceedubs.ficus.Ficus._
 import spray.json._
-import wdl._
-import wom.core.WorkflowSource
-import wom.executable.Executable
-import wom.executable.Executable.ResolvedExecutableInputs
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.core.{WorkflowSource, WorkflowUrl}
+import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{Graph, TaskCallNode}
-import wom.values.{WomSingleFile, WomString, WomValue}
+import wom.values.{WomString, WomValue}
 
 import scala.concurrent.Future
 import scala.language.postfixOps
@@ -100,11 +94,6 @@ object MaterializeWorkflowDescriptorActor {
 
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
 
-  /*
-    * Internal ADT
-   */
-  private case class ValidatedWomNamespace(executable: Executable, graph: Graph, womValueInputs: Map[OutputPort, WomValue])
-
   private[lifecycle] def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
 
     def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
@@ -117,17 +106,24 @@ object MaterializeWorkflowDescriptorActor {
 
     val enabled = conf.as[Option[Boolean]]("call-caching.enabled").getOrElse(false)
     val invalidateBadCacheResults = conf.as[Option[Boolean]]("call-caching.invalidate-bad-cache-results").getOrElse(true)
-    val callCachingOptions = CallCachingOptions(invalidateBadCacheResults)
     if (enabled) {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
-      (readFromCache, writeToCache) mapN {
-        case (false, false) => CallCachingOff
-        case (true, false) => CallCachingActivity(ReadCache, callCachingOptions)
-        case (false, true) => CallCachingActivity(WriteCache, callCachingOptions)
-        case (true, true) => CallCachingActivity(ReadAndWriteCache, callCachingOptions)
+      def errorOrCallCachingMode(callCachingOptions: CallCachingOptions): ErrorOr[CallCachingMode] = {
+        (readFromCache, writeToCache) mapN {
+          case (false, false) => CallCachingOff
+          case (true, false) => CallCachingActivity(ReadCache, callCachingOptions)
+          case (false, true) => CallCachingActivity(WriteCache, callCachingOptions)
+          case (true, true) => CallCachingActivity(ReadAndWriteCache, callCachingOptions)
+        }
       }
+
+      for {
+        maybePrefixes <- workflowOptions.getVectorOfStrings("call_cache_hit_path_prefixes")
+        callCachingOptions = CallCachingOptions(invalidateBadCacheResults, maybePrefixes)
+        mode <- errorOrCallCachingMode(callCachingOptions)
+      } yield mode
     }
     else {
       CallCachingOff.validNel
@@ -137,14 +133,16 @@ object MaterializeWorkflowDescriptorActor {
 
 // TODO WOM: need to decide where to draw the line between language specific initialization and WOM
 class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
-                                         val workflowIdForLogging: WorkflowId,
+                                         workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
                                          ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
-
   val tag = self.path.name
+
+  override lazy val workflowIdForLogging = workflowId.toPossiblyNotRoot
+  override lazy val rootWorkflowIdForLogging = workflowId.toRoot
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
   implicit val ec = context.dispatcher
@@ -159,7 +157,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case Valid((workflowOptions, pathBuilders)) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
-            buildWorkflowDescriptor(workflowIdForLogging, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
+            buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
               value.
               unsafeToFuture().
               map(_.toValidated)
@@ -222,7 +220,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     workflowOptionsValidation map { workflowOptions =>
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system, context.dispatcher)
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system)
       (workflowOptions, pathBuilders)
     }
   }
@@ -233,32 +231,143 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): Parse[EngineWorkflowDescriptor] = {
-    val namespaceValidation: Parse[ValidatedWomNamespace] = sourceFiles.workflowType match {
-      case Some(wdl) if wdl.equalsIgnoreCase("wdl") => fromEither[IO](validateWdlNamespace(sourceFiles, workflowOptions, engineIoFunctions).toEither)
-      case Some(cwl) if cwl.equalsIgnoreCase("cwl") => validateCwlNamespace(sourceFiles, workflowOptions, engineIoFunctions)
-      case Some(other) => fromEither[IO](s"Unknown workflow type: $other".invalidNelCheck[ValidatedWomNamespace])
-      case None => fromEither[IO]("Need a workflow type here !".invalidNelCheck[ValidatedWomNamespace])
+
+    def findWorkflowSource(workflowSource: Option[WorkflowSource],
+                           workflowUrl: Option[WorkflowUrl],
+                           resolvers: List[ImportResolver]): Checked[(WorkflowSource, List[ImportResolver])] = {
+      (workflowSource, workflowUrl) match {
+        case (Some(source), None) => (source, resolvers).validNelCheck
+        case (None, Some(url)) =>
+          val compoundImportResolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.firstSuccess(resolvers.map(_.resolver), s"resolve workflowUrl '$url'")
+          val wfSourceAndResolvers: Checked[ResolvedImportBundle] = compoundImportResolver.run(ImportResolutionRequest(url, resolvers))
+          wfSourceAndResolvers map { v => (v.source, v.newResolvers) }
+        case (Some(_), Some(_)) => "Both workflow source and url can't be supplied".invalidNelCheck
+        case (None, None) => "Either workflow source or url has to be supplied".invalidNelCheck
+      }
     }
-    val labelsValidation: Parse[Labels] = fromEither[IO](validateLabels(sourceFiles.labelsJson).toEither)
+
+    def buildValidatedNamespace(workflowSource: WorkflowSource, importResolvers: List[ImportResolver]): EitherT[IO, NonEmptyList[String], ValidatedWomNamespace] = {
+      def chooseFactory(factories: List[LanguageFactory]): Option[LanguageFactory] = factories.find(_.looksParsable(workflowSource))
+
+      val factory: ErrorOr[LanguageFactory] = sourceFiles.workflowType match {
+        case Some(languageName) if CromwellLanguages.instance.languages.contains(languageName.toUpperCase) =>
+          val language = CromwellLanguages.instance.languages(languageName.toUpperCase)
+          sourceFiles.workflowTypeVersion match {
+            case Some(v) if language.allVersions.contains(v) => language.allVersions(v).valid
+            case Some(other) => s"Unknown version '$other' for workflow language '$languageName'".invalidNel
+            case _ => chooseFactory(language.allVersions.values.toList).getOrElse(language.default).valid
+          }
+        case Some(other) => s"Unknown workflow type: $other".invalidNel[LanguageFactory]
+        case None =>
+          val allFactories = CromwellLanguages.instance.languages.values.flatMap(_.allVersions.values)
+          chooseFactory(allFactories.toList).getOrElse(CromwellLanguages.instance.default.default).validNel
+      }
+
+      factory foreach { validFactory =>
+        workflowLogger.info(s"Parsing workflow as ${validFactory.languageName} ${validFactory.languageVersionName}")
+        pushLanguageToMetadata(validFactory.languageName, validFactory.languageVersionName)
+      }
+
+      errorOrParse(factory).flatMap(_.validateNamespace(
+        sourceFiles,
+        workflowSource,
+        workflowOptions,
+        importLocalFilesystem,
+        workflowId,
+        engineIoFunctions,
+        importResolvers
+      ))
+    }
+
+    val localFilesystemResolvers =
+      if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
+      else List.empty
+
+    val zippedResolverCheck: Parse[Option[ImportResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
+      case None => None.validNelCheck
+      case Some(zipContent) => zippedImportResolver(zipContent).toEither.map(Option.apply)
+    })
+
+    val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
     for {
-      validatedNamespace <- namespaceValidation
-      labels <- labelsValidation
-      _ <- pushWfNameMetadataService(validatedNamespace.executable.entryPoint.name)
-      _ <- publishLabelsToMetadata(id, validatedNamespace.executable.entryPoint.name, labels)
-      ewd <- fromEither[IO](buildWorkflowDescriptor(id, sourceFiles, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
+      _ <- publishLabelsToMetadata(id, labels)
+      zippedImportResolver <- zippedResolverCheck
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
+      sourceAndResolvers <- fromEither[IO](findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
+      _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
+      validatedNamespace <- buildValidatedNamespace(sourceAndResolvers._1, sourceAndResolvers._2)
+      _ = pushNamespaceMetadata(validatedNamespace)
+      ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders).toEither)
     } yield ewd
   }
 
-
-  private def pushWfNameMetadataService(name: String): Parse[Unit] = {
-    // Workflow name:
-    val nameEvent = MetadataEvent(MetadataKey(workflowIdForLogging, None, WorkflowMetadataKeys.Name), MetadataValue(name))
-
-    Monad[Parse].pure(serviceRegistryActor ! PutMetadataAction(nameEvent))
+  private def publishWorkflowSourceToMetadata(id: WorkflowId, workflowSource: WorkflowSource): Unit = {
+    val event = MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Workflow), MetadataValue(workflowSource))
+    serviceRegistryActor ! PutMetadataAction(event)
   }
 
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, unqualifiedName: String, labels: Labels): Parse[Unit] = {
+  private def pushNamespaceMetadata(validatedNamespace: ValidatedWomNamespace): Unit = {
+    val importsMetadata = importedFilesMetadata(validatedNamespace.importedFileContent)
+    val wfInputsMetadataEvents = wfInputsMetadata(validatedNamespace.womValueInputs)
+    val wfNameMetadataEvent = wfNameMetadata(validatedNamespace.executable.entryPoint.name)
+    serviceRegistryActor ! PutMetadataAction(importsMetadata.toVector ++ wfInputsMetadataEvents :+ wfNameMetadataEvent)
+  }
+
+  private def pushLanguageToMetadata(languageName: String, languageVersion: String): Unit = {
+    val events = List (
+      MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.LanguageName), MetadataValue(languageName)),
+      MetadataEvent(
+        MetadataKey(workflowId, None, WorkflowMetadataKeys.LanguageVersionName),
+        MetadataValue(languageVersion)
+      )
+    )
+    serviceRegistryActor ! PutMetadataAction(events)
+  }
+
+  private def wfInputsMetadata(workflowInputs: Map[OutputPort, WomValue]): Iterable[MetadataEvent] = {
+    import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
+
+    workflowInputs match {
+      case empty if empty.isEmpty =>
+        List(MetadataEvent.empty(MetadataKey(workflowId, None, WorkflowMetadataKeys.Inputs)))
+      case inputs =>
+        inputs flatMap { case (outputPort, womValue) =>
+          val inputName = outputPort.fullyQualifiedName
+          womValueToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
+        }
+    }
+  }
+
+  private def importedFilesMetadata(imported: Map[String, String]): Iterable[MetadataEvent] = {
+    def metadataEventForImportedFile(uri: String, value: String): MetadataEvent = {
+      import WorkflowMetadataKeys._
+      import cromwell.core.simpleton.WomValueSimpleton._
+      // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
+      val escapedUri = uri.escapeMeta
+      MetadataEvent(
+        MetadataKey(workflowId, None, SubmissionSection, SubmissionSection_Imports, escapedUri),
+        MetadataValue(value)
+      )
+    }
+    imported map { case (uri, value) => metadataEventForImportedFile(uri, value) }
+  }
+
+  private def wfNameMetadata(name: String): MetadataEvent = {
+    // Workflow name:
+    MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Name), MetadataValue(name))
+  }
+
+  private def convertJsonToLabels(json: String): Labels = {
+    json.parseJson match {
+      case JsObject(inputs) => Labels(inputs.toVector.collect({
+        case (key, JsString(value)) => Label(key, value)
+      }))
+      case _ => Labels(Vector.empty)
+    }
+  }
+
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): Parse[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
     val customLabels = labels.asMap
     Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
@@ -271,13 +380,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
-                                      sourceFiles: WorkflowSourceFilesCollection,
                                       womNamespace: ValidatedWomNamespace,
                                       workflowOptions: WorkflowOptions,
                                       labels: Labels,
                                       conf: Config,
                                       pathBuilders: List[PathBuilder]): ErrorOr[EngineWorkflowDescriptor] = {
-    val taskCalls = womNamespace.graph.allNodes collect { case taskNode: TaskCallNode => taskNode }
+    val taskCalls = womNamespace.executable.graph.allNodes collect { case taskNode: CommandCallNode => taskNode }
     val defaultBackendName = conf.as[Option[String]]("backend.default")
 
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
@@ -293,22 +401,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  private def pushWfInputsToMetadataService(workflowInputs: Map[OutputPort, WomValue]): Unit = {
-    // Inputs
-    val inputEvents = workflowInputs match {
-      case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(MetadataKey(workflowIdForLogging, None,WorkflowMetadataKeys.Inputs)))
-      case inputs =>
-        inputs flatMap { case (outputPort, womValue) =>
-          val inputName = outputPort.fullyQualifiedName
-          womValueToMetadataEvents(MetadataKey(workflowIdForLogging, None, s"${WorkflowMetadataKeys.Inputs}:$inputName"), womValue)
-        }
-    }
-
-    serviceRegistryActor ! PutMetadataAction(inputEvents)
-  }
-
-  private def validateBackendAssignments(calls: Set[TaskCallNode], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[TaskCallNode, String]] = {
+  private def validateBackendAssignments(calls: Set[CommandCallNode], workflowOptions: WorkflowOptions, defaultBackendName: Option[String]): ErrorOr[Map[CommandCallNode, String]] = {
     val callToBackendMap = Try {
       calls map { call =>
         val backendPriorities = Seq(
@@ -337,7 +430,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   /**
     * Map a call to a backend name depending on the runtime attribute key
     */
-  private def assignBackendUsingRuntimeAttrs(call: TaskCallNode): Option[String] = {
+  private def assignBackendUsingRuntimeAttrs(call: CommandCallNode): Option[String] = {
     val runtimeAttributesMap = call.callable.runtimeAttributes.attributes
     runtimeAttributesMap.get(RuntimeBackendKey) map { wdlExpr => evaluateBackendNameExpression(call.fullyQualifiedName, wdlExpr) }
   }
@@ -354,212 +447,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  // TODO WOM: resurect ?
-  //  private def validateDeclarations(namespace: WdlNamespaceWithWorkflow,
-  //                                   options: WorkflowOptions,
-  //                                   coercedInputs: WorkflowCoercedInputs,
-  //                                   pathBuilders: List[PathBuilder]): ErrorOr[WorkflowCoercedInputs] = {
-  //    namespace.staticDeclarationsRecursive(coercedInputs, NoFunctions) match {
-  //      case Success(d) => d.validNel
-  //      case Failure(e) => s"Workflow has invalid declarations: ${e.getMessage}".invalidNel
-  //    }
-  //  }
-
-  private def validateImportsDirectory(zipContents: Array[Byte], parentPath: Option[Path] = None): ErrorOr[Path] = {
-
-    def makeZipFile: Try[Path] = Try {
-      DefaultPathBuilder.createTempFile("", ".zip", parentPath).writeByteArray(zipContents)(OpenOptions.default)
-    }
-
-    def unZipFile(f: Path) = Try {
-      val unzippedFile = f.unzipTo(parentPath)
-      val unzippedFileContents = unzippedFile.list.toSeq.head
-      if (unzippedFileContents.isDirectory) unzippedFileContents else unzippedFile
-    }
-
-    val importsFile = for {
-      zipFile <- makeZipFile
-      unzipped <- unZipFile(zipFile)
-      _ <- Try(zipFile.delete(swallowIOExceptions = true))
-    } yield unzipped
-
-    importsFile match {
-      case Success(unzippedDirectory: Path) => unzippedDirectory.validNel
-      case Failure(t) => t.getMessage.invalidNel
-    }
-  }
-
-  private def validateWorkflowNameLengths(namespace: WdlNamespaceWithWorkflow): Checked[Unit] = {
-    import common.validation.Checked._
-    def allWorkflowNames(n: WdlNamespace): Seq[String] = n.workflows.map(_.unqualifiedName) ++ n.namespaces.flatMap(allWorkflowNames)
-    val tooLong = allWorkflowNames(namespace).filter(_.length >= 100)
-    if (tooLong.nonEmpty) {
-      ("Workflow names must be shorter than 100 characters: " + tooLong.mkString(" ")).invalidNelCheck
-    } else {
-      ().validNelCheck
-    }
-  }
-
-  private def validateCwlNamespace(source: WorkflowSourceFilesCollection,
-                                   workflowOptions: WorkflowOptions,
-                                   ioFunctions: EngineIoFunctions): Parse[ValidatedWomNamespace] = {
-    // TODO WOM: CwlDecoder takes a file so write it to disk for now
-
-    val cwlFile: File = File.newTemporaryFile(prefix = workflowIdForLogging.toString).write(source.workflowSource)
-
-    def unzipDependencies: Parse[Unit]  = source match {
-      case wsfwdz: WorkflowSourceFilesWithDependenciesZip =>
-        EitherT.
-          fromEither[IO]{validateImportsDirectory(wsfwdz.importsZip, Some(DefaultPathBuilder.build(cwlFile.parent.path))).void.toEither}
-      case _ => Monad[Parse].unit
-    }
-
-    import cwl.AcceptAllRequirements
-    for {
-      _ <- unzipDependencies
-      cwl <- CwlDecoder.decodeAllCwl(cwlFile, source.workflowRoot)
-      executable <-  fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson)))
-      validatedWomNamespace <- fromEither[IO](validateWomNamespace(executable, ioFunctions))
-    } yield validatedWomNamespace
-  }
-
-  private def validateWdlNamespace(source: WorkflowSourceFilesCollection,
-                                   workflowOptions: WorkflowOptions,
-                                   ioFunctions: EngineIoFunctions): ErrorOr[ValidatedWomNamespace] = {
-    import cats.instances.either._
-    import cats.instances.list._
-    import cats.syntax.either._
-    import cats.syntax.functor._
-    import common.validation.Checked._
-
-    def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
-      val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
-      val list: List[Checked[Unit]] = inputs.map({ case (k, v) =>
-        allDeclarations.find(_.fullyQualifiedName == k) match {
-          case Some(decl) if decl.womType.coerceRawValue(v).isFailure =>
-            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.toDisplayString}, got ${v.womType.toDisplayString}".invalidNelCheck[Unit]
-          case _ => ().validNelCheck
-        }
-      }).toList
-
-      list.sequence[Checked, Unit].void
-    }
-
-    val baseResolvers: List[String => WorkflowSource] = if (importLocalFilesystem) {
-      List(WdlNamespace.fileResolver, WdlNamespace.httpResolver)
-    } else {
-      List(WdlNamespace.httpResolver)
-    }
-
-    import common.validation.Validation._
-
-    val wdlNamespaceValidation = source match {
-      case w: WorkflowSourceFilesWithDependenciesZip =>
-        for {
-          importsDir <- validateImportsDirectory(w.importsZip)
-          betterFilesImportsDir = better.files.File(importsDir.pathAsString)
-          directoryResolver = WdlNamespace.directoryResolver(betterFilesImportsDir): String => WorkflowSource
-          resolvers = directoryResolver +: baseResolvers
-          wf <- WdlNamespaceWithWorkflow.load(w.workflowSource, resolvers).toErrorOr
-          _ = importsDir.delete(swallowIOExceptions = true)
-        } yield wf
-      case w: WorkflowSourceFilesWithoutImports =>
-        WdlNamespaceWithWorkflow.load(w.workflowSource, baseResolvers).toErrorOr
-    }
-
-    /* Publish `MetadataEvent`s for all imports in this `WdlNamespace`. */
-    def publishImportMetadata(wdlNamespace: WdlNamespace): Unit = {
-      def metadataEventForImportedNamespace(ns: WdlNamespace): MetadataEvent = {
-        import MetadataKey._
-        import WorkflowMetadataKeys._
-        // This should only be called on namespaces that are known to have a defined `importUri` so the .get is safe.
-        val escapedUri = ns.importUri.get.escapeMeta
-        MetadataEvent(MetadataKey(
-          workflowIdForLogging, None, SubmissionSection, SubmissionSection_Imports, escapedUri), MetadataValue(ns.sourceString))
-      }
-
-      // Descend the namespace looking for imports and construct `MetadataEvent`s for them.
-      def collectImportEvents: List[MetadataEvent] = {
-        wdlNamespace.allNamespacesRecursively flatMap { ns =>
-          ns.importUri.toList collect {
-            // Do not publish import events for URIs which correspond to literal strings as these are the top-level
-            // submitted workflow.
-            case uri if uri != WdlNamespace.WorkflowResourceString => metadataEventForImportedNamespace(ns)
-          }
-        }
-      }
-
-      serviceRegistryActor ! PutMetadataAction(collectImportEvents)
-    }
-
-    (for {
-      wdlNamespace <- wdlNamespaceValidation.toEither
-      _ <- validateWorkflowNameLengths(wdlNamespace)
-      _ = publishImportMetadata(wdlNamespace)
-      womExecutable <- wdlNamespace.womExecutable(Option(source.inputsJson))
-      validatedWomNamespace <- validateWomNamespace(womExecutable, ioFunctions)
-      _ <- checkTypes(wdlNamespace, validatedWomNamespace.womValueInputs)
-      _ = pushWfInputsToMetadataService(validatedWomNamespace.womValueInputs)
-    } yield validatedWomNamespace).toValidated
-  }
-
-  private def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
-    evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
-    validatedWomNamespace = ValidatedWomNamespace(womExecutable, womExecutable.graph, evaluatedInputs)
-    _ <- validateWdlFiles(validatedWomNamespace.womValueInputs)
-  } yield validatedWomNamespace
-
-  /*
-    * At this point input values are either a WomValue (if it was provided through the input file)
-    * or a WomExpression (if we fell back to the default).
-    * We assume that default expressions do NOT reference any "variables" (other inputs, call outputs ...)
-    * Should this assumption prove not sufficient InstantiatedExpressions or ExpressionNodes would need to be provided
-    * instead so that they can be evaluated JIT.
-    * Note that the ioFunctions use engine level pathBuilders. This means that their credentials come from the engine section
-    * of the configuration, and are not backend specific.
-   */
-  private def validateExecutableInputs(inputs: ResolvedExecutableInputs, ioFunctions: IoFunctionSet): ErrorOr[Map[OutputPort, WomValue]] = {
-    inputs.traverse[OutputPort, WomValue] {
-      case (key, value) => value.fold(ResolvedExecutableInputsPoly).apply(ioFunctions) map { key -> _ }
-    }
-  }
-
-  private def validateLabels(json: WorkflowJson): ErrorOr[Labels] = {
-
-    def toLabels(inputs: Map[String, JsValue]): ErrorOr[Labels] = {
-      val vectorOfValidatedLabel: Vector[ErrorOr[Label]] = inputs.toVector map {
-        case (key, JsString(s)) => Label.validateLabel(key, s)
-        case (key, other) => s"Invalid label $key: $other : Labels must be strings. ${Label.LabelExpectationsMessage}".invalidNel
-      }
-
-      vectorOfValidatedLabel.sequence[ErrorOr, Label] map { validatedVectorofLabel => Labels(validatedVectorofLabel) }
-    }
-
-    Try(json.parseJson) match {
-      case Success(JsObject(inputs)) => toLabels(inputs)
-      case Failure(reason: Throwable) => s"Workflow contains invalid labels JSON: ${reason.getMessage}".invalidNel
-      case _ => """Invalid workflow labels JSON. Expected a JsObject of "labelKey": "labelValue" values.""".invalidNel
-    }
-  }
-
-  private def validateWdlFiles(workflowInputs: Map[OutputPort, WomValue]): Checked[Unit] = {
-    
-    def prefix(port: OutputPort) = s"Invalid value for File input '${port.fullyQualifiedName}':"
-    
-    val failedFiles = workflowInputs collect {
-      case (port, womSingleFile: WomSingleFile) if womSingleFile.value.startsWith("\"gs://") =>
-        s"""${prefix(port)} ${womSingleFile.value} starts with a '"'"""
-      case (port, womSingleFile: WomSingleFile) if womSingleFile.value.isEmpty =>
-        s"${prefix(port)} empty value"
-    }
-
-    NonEmptyList.fromList(failedFiles.toList) match {
-      case Some(errors) => Left(errors)
-      case None => Right(())
-    }
-  }
-
-  private def validateWorkflowOptions(workflowOptions: WorkflowJson): ErrorOr[WorkflowOptions] = {
+  private def validateWorkflowOptions(workflowOptions: String): ErrorOr[WorkflowOptions] = {
     WorkflowOptions.fromJsonString(workflowOptions) match {
       case Success(opts) => opts.validNel
       case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".invalidNel

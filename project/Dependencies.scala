@@ -1,93 +1,116 @@
 import sbt._
 
 object Dependencies {
-  val akkaHttpV = "10.0.10"
-  val akkaV = "2.5.4"
-  val ammoniteOpsV = "1.0.1"
-  val apacheHttpClientV = "4.5.3"
-  val apacheHttpCoreV = "4.4.6"
-  val betterFilesV = "2.17.1"
-  val catsEffectV = "0.4"
-  val catsV = "1.0.0-MF"
-  val circeV = "0.9.0-M1"
-  val circeYamlV = "0.7.0-M1"
-  val commonsCodecV = "1.10"
-  val commonsIoV = "2.5"
-  val commonsLang3V = "3.5"
-  val commonsLoggingV = "1.2"
-  val commonsTextV = "1.1"
-  val configsV = "0.4.4"
-  val errorProneAnnotationsV = "2.0.19"
-  val ficusV = "1.4.1"
-  val fs2V = "0.10.0-M7"
-  val gaxV = "1.9.0"
-  val googleApiClientV = "1.22.0"
-  val googleCloudComputeV = "0.26.0-alpha"
-  val googleCloudCoreV = "1.8.0"
-  val googleCloudNioV = "0.20.1-alpha"
-  val googleCredentialsV = "0.8.0"
-  val googleGenomicsServicesApiV = "v1alpha2-rev64-1.22.0"
-  val googleHttpClientV = googleApiClientV
-  val googleOauth2V = "0.8.0"
-  val googleOauthClientV = googleApiClientV
-  val grpcV = "1.5.0"
-  val guavaV = "22.0"
-  val hsqldbV = "2.3.4"
-  val jacksonV = "2.9.7"
-  val janinoV = "3.0.7"
-  val jodaTimeV = "2.9.4"
-  val jsr305V = "3.0.0"
-  val kindProjectorV = "0.9.4"
-  val kittensV = "1.0.0-RC0"
-  val liquibaseSlf4jV = "2.0.0"
-  val liquibaseV = "3.5.1"
-  val logbackV = "1.2.3"
-  val metrics3StatsdV = "4.2.0"
-  val metricsScalaV = "3.5.6"
-  val mockserverNettyV = "3.10.2"
-  val mouseV = "0.10-MF"
-  val mysqlV = "5.1.42"
-  val nettyHandlerV = "4.0.51.Final"
-  val paradiseV = "2.1.0"
-  val pegdownV = "1.6.0"
-  val protoGoogleCommonProtosV = "0.1.21"
-  val protoGoogleIamV1V = "0.1.21"
-  val protobufJavaV = "3.3.1"
-  val ravenLogbackV = "8.0.3"
-  val reactiveStreamsV = "1.0.1"
-  val refinedV = "0.8.3"
-  val scalaGraphV = "1.12.0"
-  val scalaLoggingV = "3.7.1"
-  val scalaXmlV = "1.0.6"
-  val scalacheckV = "1.13.4"
-  val scalacticV = "3.0.1"
-  val scalameterV = "0.8.2"
-  val scalatestV = "3.0.2"
-  val scalazV = "7.2.17"
-  val scoptV = "3.6.0"
-  val shapelessV = "2.3.2"
-  val slf4jV = "1.7.24"
-  val slickV = "3.2.0"
-  val snakeyamlV = "1.17"
-  val specs2MockV = "3.8.9" // 3.9.X doesn't enjoy the spark backend or refined
-  val sprayJsonV = "1.3.3"
-  val sttpV = "0.0.16"
-  val swaggerParserV = "1.0.22"
-  val swaggerUiV = "3.2.2"
-  val typesafeConfigV = "1.3.1"
-  val alibabaCloudCoreV = "4.1.2"
-  val alibabaCloudOssV = "3.3.0"
-  val alibabaCloudBcsV = "6.0.1"
-
+  private val akkaHttpV = "10.1.5"
+  private val akkaV = "2.5.16"
+  private val alibabaCloudBcsV = "6.0.1"
+  private val alibabaCloudCoreV = "4.1.2"
+  private val alibabaCloudOssV = "3.3.0"
+  private val ammoniteOpsV = "1.2.0"
+  private val apacheCommonNetV = "3.6"
+  private val apacheHttpClientV = "4.5.6"
+  private val apacheHttpCoreV = "4.4.6"
+  private val awsSdkV = "2.0.0-preview-9"
+  private val betterFilesV = "2.17.1"
+  private val catsEffectV = "1.0.0"
+  private val catsV = "1.3.1"
+  private val circeV = "0.9.3"
+  private val circeYamlV = "0.8.0"
+  private val commonsCodecV = "1.11"
+  private val commonsIoV = "2.6"
+  private val commonsLang3V = "3.8"
+  private val commonsLoggingV = "1.2"
+  private val commonsTextV = "1.4"
+  private val configsV = "0.4.4"
+  private val delightRhinoSandboxV = "0.0.9"
+  private val errorProneAnnotationsV = "2.0.19"
+  private val ficusV = "1.4.3"
+  private val fs2V = "1.0.0-M5"
+  private val ftpFsV = "1.2.1"
+  private val gaxV = "1.28.0"
+  private val googleApiClientV = "1.25.0"
+  private val googleCloudCoreV = "1.43.0"
+  private val googleCloudKmsV = "v1-rev63-1.25.0"
+  private val googleCloudNioV = "0.61.0-alpha"
+  private val googleCredentialsV = "0.8.0"
+  private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
+  private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleOauth2V = "0.11.0"
+  private val grpcV = "1.15.0"
+  private val guavaV = "26.0-jre"
+  private val heterodonV = "1.0.0-beta1"
+  private val hsqldbV = "2.4.1"
+  private val http4sVersion = "0.19.0-M2"
+  private val jacksonV = "2.9.6"
+  private val jacksonJqV = "0.0.9"
+  private val janinoV = "3.0.9"
+  private val jodaTimeV = "2.9.4"
+  private val jsr305V = "3.0.0"
+  private val kindProjectorV = "0.9.7"
+  private val kittensV = "1.2.0"
+  private val liquibaseSlf4jV = "2.0.0"
+  private val liquibaseV = "3.5.5"
+  private val logbackV = "1.2.3"
+  private val metrics3StatsdV = "4.2.0"
+  private val metricsScalaV = "4.0.0"
+  private val mockFtpServerV = "2.7.1"
+  private val mockserverNettyV = "5.4.1"
+  private val mongoJavaDriverV = "3.8.1"
+  private val mouseV = "0.18"
+  private val mysqlV = "5.1.47"
+  private val nettyHandlerV = "4.1.22.Final"
+  private val owlApiV = "5.1.7"
+  private val paradiseV = "2.1.1"
+  private val pegdownV = "1.6.0"
+  private val protoGoogleCommonProtosV = "0.1.21"
+  private val protoGoogleIamV1V = "0.1.21"
+  private val protobufJavaV = "3.3.1"
+  private val reactiveStreamsV = "1.0.1"
+  private val refinedV = "0.9.2"
+  private val rhinoV = "1.7.10"
+  private val s3fsV = "1.0.1"
+  private val scalaGraphV = "1.12.5"
+  private val scalaLoggingV = "3.9.0"
+  private val scalaPoolV = "0.4.1"
+  private val scalaXmlV = "1.0.6"
+  private val scalacheckV = "1.14.0"
+  private val scalacticV = "3.0.5"
+  private val scalameterV = "0.10.1"
+  private val scalamockV = "4.1.0"
+  private val scalatestV = "3.0.5"
+  private val scalazV = "7.2.26"
+  private val scoptV = "3.7.0"
+  private val sentryLogbackV = "1.7.8"
+  private val shapelessV = "2.3.3"
+  private val simulacrumV = "0.13.0"
+  private val slf4jV = "1.7.25"
+  private val slickCatsV = "0.7.1.1"
+  private val slickV = "3.2.3"
+  private val snakeyamlV = "1.23"
+  private val specs2MockV = "4.3.4"
+  private val sprayJsonV = "1.3.4"
+  private val sttpV = "1.3.3"
+  private val swaggerParserV = "1.0.38"
+  private val swaggerUiV = "3.2.2"
+  private val typesafeConfigV = "1.3.3"
+  private val workbenchGoogleV = "0.15-2fc79a3"
+  private val workbenchModelV = "0.10-6800f3a"
+  private val workbenchUtilV = "0.3-f3ce961"
 
   /*
   If you see warnings from SBT about evictions, insert a specific dependency version into this list.
+  Any dependencies that are removed may be also removed from this list. However, be careful about downgrading any of
+  these dependencies. Older versions have known vulnerabilities, ex: CVE-2017-7525
    */
   val cromwellDependencyOverrides = List(
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-core" % logbackV,
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % jacksonV,
+    "com.fasterxml.jackson.jr" % "jackson-jr-objects" % jacksonV,
+    "com.fasterxml.jackson.module" % "jackson-module-paranamer" % jacksonV,
     "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
     "com.google.api" % "gax" % gaxV,
     "com.google.api-client" % "google-api-client" % googleApiClientV,
@@ -100,11 +123,12 @@ object Dependencies {
     "com.google.code.findbugs" % "jsr305" % jsr305V,
     "com.google.errorprone" % "error_prone_annotations" % errorProneAnnotationsV,
     "com.google.guava" % "guava" % guavaV,
-    "com.google.http-client" % "google-http-client" % googleHttpClientV,
-    "com.google.http-client" % "google-http-client-appengine" % googleHttpClientV,
-    "com.google.http-client" % "google-http-client-jackson" % googleHttpClientV,
-    "com.google.http-client" % "google-http-client-jackson2" % googleHttpClientV,
-    "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV,
+    "com.google.guava-gwt" % "guava" % guavaV,
+    "com.google.http-client" % "google-http-client" % googleApiClientV,
+    "com.google.http-client" % "google-http-client-appengine" % googleApiClientV,
+    "com.google.http-client" % "google-http-client-jackson" % googleApiClientV,
+    "com.google.http-client" % "google-http-client-jackson2" % googleApiClientV,
+    "com.google.oauth-client" % "google-oauth-client" % googleApiClientV,
     "com.google.protobuf" % "protobuf-java" % protobufJavaV,
     "com.google.protobuf" % "protobuf-java-util" % protobufJavaV,
     "com.typesafe" % "config" % typesafeConfigV,
@@ -121,12 +145,50 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "org.apache.httpcomponents" % "httpcore" % apacheHttpCoreV,
+    "org.mongodb" % "mongo-java-driver" % mongoJavaDriverV,
     "org.reactivestreams" % "reactive-streams" % reactiveStreamsV,
     "org.scala-lang.modules" %% "scala-xml" % scalaXmlV,
     "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-core" % catsV,
     "org.typelevel" %% "cats-kernel" % catsV,
     "org.yaml" % "snakeyaml" % snakeyamlV
+  )
+  
+  private val http4sDependencies = List(
+    "org.http4s" %% "http4s-dsl" % http4sVersion,
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion
+  )
+
+  private val googleApiClientDependencies = List(
+    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
+    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
+    // The exclusions prevent guava from colliding at assembly time.
+    "com.google.guava" % "guava" % guavaV,
+    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
+      exclude("com.google.guava", "guava-jdk5"),
+    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
+      exclude("com.google.guava", "guava-jdk5")
+  )
+
+  val spiDependencies = List(
+    "com.iheart" %% "ficus" % ficusV,
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
+  ) ++ googleApiClientDependencies
+
+  val spiUtilDependencies = List(
+    "com.iheart" %% "ficus" % ficusV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.scalatest" %% "scalatest" % scalatestV % Test
+  )
+
+  val implFtpDependencies = List (
+    "commons-net" % "commons-net" % apacheCommonNetV,
+    "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
+    "com.google.guava" % "guava" % guavaV,
+    "org.scalamock" %% "scalamock" % scalamockV % Test,
+    "org.mockftpserver" % "MockFtpServer" % mockFtpServerV % Test
   )
 
   // Internal collections of dependencies
@@ -137,7 +199,8 @@ object Dependencies {
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
-    "com.github.benhutchison" %% "mouse" % mouseV,
+    "org.typelevel" %% "alleycats-core" % catsV,
+    "org.typelevel" %% "mouse" % mouseV,
     "org.typelevel" %% "kittens" % kittensV
   )
 
@@ -160,13 +223,17 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
-    "com.getsentry.raven" % "raven-logback" % ravenLogbackV,
-    "org.codehaus.janino" % "janino" % janinoV
+    "io.sentry" % "sentry-logback" % sentryLogbackV,
+    "org.codehaus.janino" % "janino" % janinoV,
+    // Replace all log4j usage with slf4j
+    // https://www.slf4j.org/legacy.html#log4j-over-slf4j
+    "org.slf4j" % "log4j-over-slf4j" % slf4jV
   )
 
   private val slickDependencies = List(
     "com.typesafe.slick" %% "slick" % slickV,
-    "com.typesafe.slick" %% "slick-hikaricp" % slickV
+    "com.typesafe.slick" %% "slick-hikaricp" % slickV,
+    "com.rms.miu" %% "slick-cats" % slickCatsV
   )
 
   private val liquibaseDependencies = List(
@@ -178,50 +245,64 @@ object Dependencies {
 
   private val akkaHttpDependencies = List(
     "com.typesafe.akka" %% "akka-http" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test
   )
 
   private val swaggerUiDependencies = List(
-    "org.webjars" % "swagger-ui" % swaggerUiV
+    "org.webjars" % "swagger-ui" % swaggerUiV,
+    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
+    "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  private val googleApiClientDependencies = List(
-    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
-    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
-    // The exclusions prevent guava from colliding at assembly time.
-    "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
+  // The v1 dependency has been cloned in the broad artifactory so that we can have the 2 versions co-exist in the same jar
+  private val googleGenomicsV1Dependency = List(
+    "org.broadinstitute" % "cromwell-google-api-services-genomics" % googleGenomicsServicesV1ApiV
       exclude("com.google.guava", "guava-jdk5")
   )
+
+  private val googleGenomicsV2Dependency = List(
+    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2ApiV
+      exclude("com.google.guava", "guava-jdk5")
+  )
+
+  private val awsCloudDependencies = List(
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "org.lerch" % "s3fs" % s3fsV
+      exclude("org.slf4j", "jcl-over-slf4j")
+  ) ++ List(
+    "batch",
+    "core",
+    "logs",
+    "s3",
+    "sts"
+  ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
     "io.grpc" % "grpc-core" % grpcV,
     "com.google.guava" % "guava" % guavaV,
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesApiV
-      exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
-    "com.google.cloud" % "google-cloud-compute" % googleCloudComputeV,
-    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
-  )
+    "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
+      exclude("com.google.apis", "google-api-services-genomics"),
+    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
+    "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
+      exclude("com.google.guava", "guava-jdk5")
+  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Dependency
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % alibabaCloudOssV
-      exclude("commons-beanutils", "commons-beanutils-core")
-      exclude("commons-collections", "commons-collections")
-      exclude("javax.xml.stream", "stax-api")
+      // stax is included twice by oss 3.1.0 and cause assembly merge conflicts via stax vs. javax.xml.stream
+      exclude("stax", "stax-api")
+      // javax.activation:activation has been replaced. https://stackoverflow.com/a/46493809
+      // The old version was causing an assembly merge conflict.
+      exclude("javax.activation", "activation")
   )
 
   private val aliyunBatchComputeDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
-      exclude("javax.xml.stream", "stax-api")
-      exclude("commons-beanutils", "commons-beanutils-core")
-      exclude("commons-collections", "commons-collections"),
+    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV,
     "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV
   )
 
@@ -243,6 +324,7 @@ object Dependencies {
   )
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
+
   private val circeDependencies = List(
     "core",
     "parser",
@@ -255,7 +337,16 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies
+  val commonDependencies = List(
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-access" % logbackV
+  ) ++ catsDependencies ++ configDependencies
+
+  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies = configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++
     refinedTypeDependenciesList
@@ -265,42 +356,91 @@ object Dependencies {
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
   )
 
+  val gcsFileSystemDependencies = akkaHttpDependencies
+
+  val httpFileSystemDependencies = akkaHttpDependencies
+
+  val demoDosFileSystemDependencies = List(
+    "net.thisptr" % "jackson-jq" % jacksonJqV
+  )
+
   val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List (
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
-
-  val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV
-  ) ++ catsDependencies ++ configDependencies
+  
+  val statsDProxyDependencies = List(
+    "co.fs2" %% "fs2-io" % fs2V,
+    "com.iheart" %% "ficus" % ficusV,
+    "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
+  ) ++ commonDependencies
 
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "io.spray" %% "spray-json" % sprayJsonV,
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "commons-codec" % "commons-codec" % commonsCodecV
+    "com.github.mpilquist" %% "simulacrum" % simulacrumV,
+    "commons-codec" % "commons-codec" % commonsCodecV,
+    "eu.timepit" %% "refined" % refinedV
   )
 
   val wdlDependencies = List(
     "commons-io" % "commons-io" % commonsIoV,
     "org.scala-graph" %% "graph-core" % scalaGraphV,
-    "com.chuusai" %% "shapeless" % shapelessV,
-    "com.softwaremill.sttp" %% "core" % sttpV,
-    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV,
-    "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
+    "com.chuusai" %% "shapeless" % shapelessV
   ) ++ betterFilesDependencies
+
+  val languageFactoryDependencies = List(
+    "com.softwaremill.sttp" %% "core" % sttpV,
+    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV
+  )
+
+  val draft2LanguageFactoryDependencies = List(
+    "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
+  )
+
+  /*
+  The distro artifact contains the actual impl, but transitively includes OSGI bundles that conflict with assembly:
+  - https://github.com/owlcs/owlapi/wiki/Documentation/45d8f63d055f820c6ac2ca6c4679a2a7b705449b#howto
+  - https://github.com/owlcs/owlapi/issues/455
+  - https://github.com/owlcs/owlapi/issues/603
+
+  jcl-over-slf4j.jar is a replacement for commons-logging 1.1.1. Meanwhile our extensive transitive use of apache's
+  httpclient has been including commons-logging 1.2 for a while. Now the owl api dependency jcl-over-slf4j is
+  conflicting during assembly. As there have been no reported errors AFAIK with commons-logging leaving it in for now.
+  However as we use slf4j for cromwell log configuration the correct thing might actually be to exclude commons-logging
+  whenever importing httpclient and include jcl-over-slf4j. That way we can control all of our logging in one place.
+
+  - https://www.slf4j.org/legacy.html#jclOverSLF4J
+   */
+  val owlApiDependencies = List(
+    "net.sourceforge.owlapi" % "owlapi-distribution" % owlApiV
+      exclude("org.apache.httpcomponents", "httpclient-osgi")
+      exclude("org.apache.httpcomponents", "httpcore-osgi")
+      exclude("org.slf4j", "jcl-over-slf4j"),
+    "org.apache.httpcomponents" % "httpclient-cache" % apacheHttpClientV,
+    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
+  )
 
   val cwlDependencies = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test
-  ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies
+    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
+    "io.circe" %% "circe-optics" % circeV,
+    "org.mozilla" % "rhino" % rhinoV,
+    "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
+    "org.scalamock" %% "scalamock" % scalamockV % Test,
+    "commons-io" % "commons-io" % commonsIoV % Test
+  ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies ++
+    owlApiDependencies
 
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
 
   val centaurCwlRunnerDependencies = List(
-    "com.github.scopt" %% "scopt" % scoptV
-  ) ++ slf4jBindingDependencies
+    "com.github.scopt" %% "scopt" % scoptV,
+    "io.circe" %% "circe-optics" % circeV
+  ) ++ slf4jBindingDependencies ++ circeDependencies
 
   val coreDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
@@ -309,7 +449,8 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
-    "com.github.scopt" %% "scopt" % scoptV
+    "com.github.scopt" %% "scopt" % scoptV,
+    "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
     betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
@@ -317,17 +458,19 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
+  val dockerHashingDependencies = akkaHttpDependencies
+
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
-    "co.fs2" %% "fs2-io" % fs2V,
+    "co.fs2" %% "fs2-io" % fs2V % Test,
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
     "com.typesafe.akka" %% "akka-stream" % akkaV
   ) ++ akkaHttpDependencies ++ betterFilesDependencies
 
   val centaurDependencies = List(
-    "com.github.kxbmap" %% "configs" % configsV
-  ) ++ circeDependencies ++ slf4jBindingDependencies
+    "com.github.kxbmap" %% "configs" % configsV,
+    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
+  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
@@ -337,16 +480,26 @@ object Dependencies {
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
-    "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
-    "io.swagger" % "swagger-parser" % swaggerParserV % Test,
-    "org.yaml" % "snakeyaml" % snakeyamlV % Test
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies
+    "io.github.andrebeat" %% "scala-pool" % scalaPoolV
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ circeDependencies
 
-  val rootDependencies = slf4jBindingDependencies
+  val serverDependencies = slf4jBindingDependencies
+
+  val cromiamDependencies = List(
+    "com.softwaremill.sttp" %% "core" % sttpV,
+    "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
+  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
+
+  val wes2cromwellDependencies = List(
+    "com.typesafe.akka" %% "akka-stream" % akkaV
+  ) ++ akkaHttpDependencies ++ coreDependencies
 
   val backendDependencies = List(
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "co.fs2" %% "fs2-io" % fs2V % Test
+    "co.fs2" %% "fs2-io" % fs2V
   )
 
   val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
@@ -358,4 +511,14 @@ object Dependencies {
     "org.pegdown" % "pegdown" % pegdownV,
     "org.specs2" %% "specs2-mock" % specs2MockV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
+
+  val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV
+  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
+
+  // Version of the swagger UI to write into config files
+  val swaggerUiVersion = swaggerUiV
+
+  val perfDependencies = List(
+    "io.circe" %% "circe-java8" % circeV
+  ) ++ circeDependencies ++ betterFilesDependencies ++ commonDependencies ++ googleApiClientDependencies ++ googleCloudDependencies
 }

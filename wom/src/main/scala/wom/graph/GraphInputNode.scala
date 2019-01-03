@@ -1,11 +1,13 @@
 package wom.graph
 
+import wom.callable.Callable
+import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.expression.WomExpression
 import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomOptionalType, WomType}
 
-sealed trait GraphInputNode extends GraphNode {
+sealed trait GraphInputNode extends GraphNodeWithSingleOutputPort {
   def womType: WomType
   lazy val singleOutputPort: GraphNodeOutputPort = GraphNodeOutputPort(localName, womType, this)
 
@@ -44,21 +46,26 @@ sealed trait ExternalGraphInputNode extends GraphInputNode {
     * Key that should be looked for in the input set to satisfy this EGIN
     */
   def nameInInputSet: String
+  
+  def valueMapper: InputValueMapper
 }
 
 final case class RequiredGraphInputNode(override val identifier: WomIdentifier,
                                         womType: WomType,
-                                        nameInInputSet: String) extends ExternalGraphInputNode
+                                        nameInInputSet: String,
+                                        valueMapper: InputValueMapper = Callable.InputDefinition.IdentityValueMapper) extends ExternalGraphInputNode
 
 final case class OptionalGraphInputNode(override val identifier: WomIdentifier,
                                         womType: WomOptionalType,
-                                        nameInInputSet: String) extends ExternalGraphInputNode
+                                        nameInInputSet: String,
+                                        valueMapper: InputValueMapper = Callable.InputDefinition.IdentityValueMapper) extends ExternalGraphInputNode
 
 // If we want to allow defaults to be "complex" expressions with dependencies we may need to make it an InstantiatedExpression here instead
 final case class OptionalGraphInputNodeWithDefault(override val identifier: WomIdentifier,
                                                    womType: WomType,
                                                    default: WomExpression,
-                                                   nameInInputSet: String) extends ExternalGraphInputNode
+                                                   nameInInputSet: String,
+                                                   valueMapper: InputValueMapper = Callable.InputDefinition.IdentityValueMapper) extends ExternalGraphInputNode
 
 object OuterGraphInputNode {
   def apply(forIdentifier: WomIdentifier, linkToOuterGraph: GraphNodePort.OutputPort, preserveScatterIndex: Boolean): OuterGraphInputNode = {
@@ -77,9 +84,15 @@ class OuterGraphInputNode protected(override val identifier: WomIdentifier, val 
   lazy val nameToPortMapping: (String, GraphNodeOutputPort) = localName -> singleOutputPort
 }
 
+/**
+  * The input node representing a scatter input variable *in the inner graph*.
+  * @param identifier The variable name
+  * @param scatterExpressionNode The feeding expression node.
+  * @param womType The *inner* type (i.e. NOT the array type of the outer expression)
+  */
 final case class ScatterVariableNode(override val identifier: WomIdentifier,
                                      scatterExpressionNode: ExpressionNode,
-                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionNode.singleExpressionOutputPort, preserveScatterIndex = true) {
+                                     override val womType: WomType) extends OuterGraphInputNode(identifier, scatterExpressionNode.singleOutputPort, preserveScatterIndex = true) {
   /*
     * This is the key element of the indexForShard function.
     * Here is an example:

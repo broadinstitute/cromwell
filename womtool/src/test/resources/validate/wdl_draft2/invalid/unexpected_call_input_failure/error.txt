@@ -1,0 +1,8 @@
+ERROR: Call supplied an unexpected input: The 'hello' task doesn't have an input called 'greeting':
+
+    greeting = "bonjour"   # But this is an unexpected input! Should be an error!
+    ^
+
+Options:
+ - Add the input 'greeting' to the 'hello' task (defined on line 13).
+ - Remove 'greeting = ...' from hello's inputs (on line 5).

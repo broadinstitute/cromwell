@@ -97,7 +97,7 @@ final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration
     }
   }
 
-  override def name: String = "oss"
+  override def name: String = "Object Storage Service"
 }
 
 final case class BucketAndObj(bucket: String, obj: String)

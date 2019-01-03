@@ -58,7 +58,7 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
           key.attempt,
           jobSuccessful = false,
           returnCode,
-          throwable.getMessage.toClobOption,
+          Option(throwable.getMessage).toClobOption,
           Option(retryable))
         JobStoreJoin(entry, Seq.empty)
     }

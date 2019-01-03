@@ -2,7 +2,7 @@ name: default_runtime_attributes
 testFormat: workflowsuccess
 
 files {
-  wdl: default_runtime_attributes/default_runtime_attributes.wdl
+  workflow: default_runtime_attributes/default_runtime_attributes.wdl
   options: default_runtime_attributes/default_runtime_attributes.options
 }
 

@@ -1,25 +1,27 @@
 package centaur.cwl
 
 import centaur.api.CentaurCromwellClient
+import centaur.test.metadata.WorkflowFlatMetadata._
+import common.validation.Parse._
 import cromwell.api.model.SubmittedWorkflow
 import cromwell.core.path.PathBuilder
-import cwl.{CwlDecoder, MyriadOutputType}
+import cwl.ontology.Schema
+import cwl.{Cwl, CwlDecoder, MyriadOutputType}
 import io.circe.Json
 import io.circe.syntax._
+import scalaz.syntax.std.map._
 import shapeless.Poly1
 import spray.json.{JsObject, JsString, JsValue}
-
-import scalaz.syntax.std.map._
 
 object Outputs {
 
   //When the string returned is not valid JSON, it is effectively an exception as CWL runner expects JSON to be returned
   def handleOutput(submittedWorkflow: SubmittedWorkflow, pathBuilder: PathBuilder): String = {
-    val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).get.value
+    val metadata: Map[String, JsValue] = CentaurCromwellClient.metadata(submittedWorkflow).unsafeRunSync().asFlat.value
 
     // Wrapper function to provide the right signature for `intersectWith` below.
-    def outputResolver(jsValue: JsValue, mot: MyriadOutputType): Json = {
-      OutputManipulator.resolveOutput(jsValue, pathBuilder, mot)
+    def outputResolver(schemaOption: Option[Schema])(jsValue: JsValue, mot: MyriadOutputType): Json = {
+      OutputManipulator.resolveOutput(jsValue, pathBuilder, mot, schemaOption)
     }
 
     //Sorry for all the nesting, but spray json JsValue doesn't have optional access methods like Argonaut/circe,
@@ -27,12 +29,16 @@ object Outputs {
     metadata.get("submittedFiles.workflow") match {
       case Some(JsString(workflow)) =>
 
-        val cwl = CwlDecoder.decodeTopLevelCwl(workflow, submittedWorkflow.workflow.workflowRoot)
+        val parseCwl: Parse[Cwl] = CwlDecoder.decodeCwlString(
+          workflow,
+          submittedWorkflow.workflow.zippedImports,
+          submittedWorkflow.workflow.workflowRoot
+        )
 
-        cwl.value.attempt.unsafeRunSync() match {
+        parseCwl.value.attempt.unsafeRunSync() match {
           case Right(Right(cwl)) =>
 
-            CentaurCromwellClient.outputs(submittedWorkflow).get.outputs match {
+            CentaurCromwellClient.outputs(submittedWorkflow).unsafeRunSync().outputs match {
               case JsObject(map) =>
                 val typeMap: Map[String, MyriadOutputType] = cwl.fold(CwlOutputsFold)
                 val mungeTypeMap = typeMap.mapKeys(stripTypeMapKey)
@@ -41,7 +47,7 @@ object Outputs {
 
                 mungeOutputMap.
                   //This lets us operate on the values of the output values and types for a particular output key
-                  intersectWith(mungeTypeMap)(outputResolver).
+                  intersectWith(mungeTypeMap)(outputResolver(cwl.schemaOption)).
                   //converting the whole response to Json using Circe's auto-encoder derivation
                   asJson.
                   //drop null values so that we don't print when Option == None
@@ -80,7 +86,7 @@ object CwlOutputsFold extends Poly1 {
   }
 
   implicit def et: Case.Aux[cwl.ExpressionTool, Map[String, MyriadOutputType]] = at[cwl.ExpressionTool] {
-    _.outputs.map(output => output.id -> output.`type`).toMap
+    _.outputs.map(output => output.id -> output.`type`.get).toMap
   }
 }
 

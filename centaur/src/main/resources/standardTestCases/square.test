@@ -1,8 +1,9 @@
 name: square
 testFormat: workflowsuccess
+tags: [ "wdl_upgrade" ]
 
 files {
-  wdl: square/square.wdl
+  workflow: square/square.wdl
 }
 
 metadata {

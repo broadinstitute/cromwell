@@ -1,5 +1,8 @@
 package wom.executable
 
+import cats.data.NonEmptyList
+import cats.data.Validated.Invalid
+import cats.syntax.apply._
 import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr._
@@ -7,6 +10,7 @@ import shapeless.Coproduct
 import wom.callable.ExecutableCallable
 import wom.executable.Executable.ResolvedExecutableInputs
 import wom.executable.ExecutableValidation._
+import wom.expression.IoFunctionSet
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
@@ -33,16 +37,21 @@ object Executable {
    */
   type ResolvedExecutableInputs = Map[OutputPort, ResolvedExecutableInput]
 
-  def withInputs(entryPoint: ExecutableCallable, inputParsingFunction: InputParsingFunction, inputFile: Option[String]): Checked[Executable] = {
-    validateExecutable(entryPoint, inputParsingFunction, parseGraphInputs, inputFile)
+  def withInputs(entryPoint: ExecutableCallable, inputParsingFunction: InputParsingFunction, inputFile: Option[String], ioFunctions: IoFunctionSet, strictValidation: Boolean): Checked[Executable] = {
+    validateExecutable(entryPoint, inputParsingFunction, parseGraphInputs(strictValidation), inputFile, ioFunctions)
   }
 
   /**
     * Given the graph and the Map[String, DelayedCoercionFunction], attempts to find a value in the map for each ExternalGraphInputNode of the graph
     */
-  private def parseGraphInputs(graph: Graph, inputCoercionMap: Map[String, DelayedCoercionFunction]): ErrorOr[ResolvedExecutableInputs] = {
+  private def parseGraphInputs(strictValidation: Boolean)(graph: Graph, inputCoercionMap: Map[String, DelayedCoercionFunction], ioFunctions: IoFunctionSet): ErrorOr[ResolvedExecutableInputs] = {
     def fromInputMapping(gin: ExternalGraphInputNode): Option[ErrorOr[ResolvedExecutableInput]] = {
-      inputCoercionMap.get(gin.nameInInputSet).map(_(gin.womType).map(Coproduct[ResolvedExecutableInput](_)))
+      inputCoercionMap
+        .get(gin.nameInInputSet)
+        .map { _.apply(gin.womType)
+          .flatMap(gin.valueMapper(ioFunctions)(_))
+          .map(Coproduct[ResolvedExecutableInput](_))
+        }
     }
 
     def fallBack(gin: ExternalGraphInputNode): ErrorOr[ResolvedExecutableInput] = gin match {
@@ -51,11 +60,20 @@ object Executable {
       case optional: OptionalGraphInputNode => Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue).validNel
     }
 
-    graph.inputNodes.collect({
+    val providedInputsValidation = graph.inputNodes.collect({
       case gin: ExternalGraphInputNode =>
         // The compiler needs the type ascription for some reason
         (gin.singleOutputPort: OutputPort) -> fromInputMapping(gin).getOrElse(fallBack(gin))
     }).toMap.sequence
+
+    val unwantedInputs = if (strictValidation) inputCoercionMap.keySet.diff(graph.externalInputNodes.map(_.nameInInputSet)) else Set.empty
+
+    val wantedInputsValidation: ErrorOr[Unit] = NonEmptyList.fromList(unwantedInputs.toList) match {
+      case None => ().validNel
+      case Some(unwanteds) => Invalid(unwanteds.map(unwanted => s"WARNING: Unexpected input provided: $unwanted"))
+    }
+
+    (providedInputsValidation, wantedInputsValidation) mapN { (providedInputs, _) => providedInputs }
   }
 }
 

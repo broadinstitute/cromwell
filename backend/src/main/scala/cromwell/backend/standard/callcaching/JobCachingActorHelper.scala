@@ -20,8 +20,9 @@ import cromwell.core.logging.JobLogging
   */
 trait JobCachingActorHelper {
   this: Actor with JobLogging =>
-  // For Logging and boilerplate
-  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
+
+  override lazy val workflowIdForLogging = jobDescriptor.workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val rootWorkflowIdForLogging = jobDescriptor.workflowDescriptor.rootWorkflowId
   override lazy val jobTag = jobDescriptor.key.tag
 
   /**

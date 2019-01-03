@@ -11,17 +11,17 @@ trait JobKeyValueEntryComponent {
   class JobKeyValueEntries(tag: Tag) extends Table[JobKeyValueEntry](tag, "JOB_KEY_VALUE_ENTRY") {
     def jobKeyValueEntryId = column[Int]("JOB_KEY_VALUE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID")
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
-    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME")
+    def callFullyQualifiedName = column[String]("CALL_FULLY_QUALIFIED_NAME", O.Length(255))
 
     def jobIndex = column[Int]("JOB_INDEX")
 
     def jobAttempt = column[Int]("JOB_ATTEMPT")
 
-    def storeKey = column[String]("STORE_KEY")
+    def storeKey = column[String]("STORE_KEY", O.Length(255))
 
-    def storeValue = column[String]("STORE_VALUE")
+    def storeValue = column[String]("STORE_VALUE", O.Length(255))
 
     override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, storeKey, storeValue,
       jobKeyValueEntryId.?) <> (JobKeyValueEntry.tupled, JobKeyValueEntry.unapply)
@@ -31,8 +31,17 @@ trait JobKeyValueEntryComponent {
   }
 
   protected val jobKeyValueEntries = TableQuery[JobKeyValueEntries]
+  lazy val jobKeyValueTableQueryCompiled = driver.compileInsert(jobKeyValueEntries.toNode)
 
   val jobKeyValueEntryIdsAutoInc = jobKeyValueEntries returning jobKeyValueEntries.map(_.jobKeyValueEntryId)
+
+  val jobKeyValueEntriesExists = Compiled(jobKeyValueEntries.take(1).exists)
+
+  val jobKeyValueEntriesForWorkflowExecutionUuid = Compiled((workflowExecutionUuid: Rep[String]) => for {
+      jobKeyValueEntry <- jobKeyValueEntries
+      if jobKeyValueEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield jobKeyValueEntry
+  )
 
   val storeValuesForJobKeyAndStoreKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Int], jobAttempt: Rep[Int],

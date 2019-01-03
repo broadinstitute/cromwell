@@ -1,14 +1,16 @@
 task source {
     Int delay
     command {
-        sleep $delay
+        sleep ${delay}
         echo blah
     }
     output {
         String result = read_string(stdout())
         File resultFile = stdout()
     }
-    runtime {docker: "ubuntu:latest"}
+    runtime {
+      docker: "ubuntu:latest"
+    }
 }
 
 task consume {

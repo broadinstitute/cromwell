@@ -44,5 +44,5 @@ object ExpressionBasedGraphOutputNode {
   * A graph output which is produced by evaluating an expression.
   */
 trait ExpressionBasedGraphOutputNode extends ExpressionNode with GraphOutputNode {
-  override val graphOutputPort: OutputPort = singleExpressionOutputPort
+  override val graphOutputPort: OutputPort = singleOutputPort
 }

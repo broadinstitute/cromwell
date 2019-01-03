@@ -1,24 +1,31 @@
 package cromwell.filesystems.gcs
 
+import java.io._
 import java.net.URI
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.model.ContentTypes
+import better.files.File.OpenOptions
+import cats.effect.IO
 import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
+import com.google.cloud.storage.Storage.BlobTargetOption
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
-import com.google.cloud.storage.{BlobId, StorageOptions}
+import com.google.cloud.storage.{BlobId, BlobInfo, StorageOptions}
 import com.google.common.net.UrlEscapers
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
+import cromwell.filesystems.gcs.GcsEnhancedRequest._
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.GoogleUtil._
+import mouse.all._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.io.Codec
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
-
 object GcsPathBuilder {
   /*
     * Provides some level of validation of GCS bucket names
@@ -54,7 +61,7 @@ object GcsPathBuilder {
          |The path '$pathString' does not seem to be a valid GCS path.
          |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
          |https://cloud.google.com/storage/docs/naming.
-      """.stripMargin.replaceAll("\n", " ").trim
+      """.stripMargin.replace("\n", " ").trim
     }
   }
   final case class UnparseableGcsPath(pathString: String, throwable: Throwable) extends InvalidGcsPath {
@@ -91,13 +98,15 @@ object GcsPathBuilder {
                    applicationName: String,
                    retrySettings: RetrySettings,
                    cloudStorageConfiguration: CloudStorageConfiguration,
-                   options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
-    authMode.retryCredential(options) map { credentials =>
+                   options: WorkflowOptions,
+                   defaultProject: Option[String])(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
+    authMode.retryPipelinesApiCredentials(options) map { credentials =>
       fromCredentials(credentials,
         applicationName,
         retrySettings,
         cloudStorageConfiguration,
-        options
+        options,
+        defaultProject
       )
     }
   }
@@ -106,10 +115,15 @@ object GcsPathBuilder {
                       applicationName: String,
                       retrySettings: RetrySettings,
                       cloudStorageConfiguration: CloudStorageConfiguration,
-                      options: WorkflowOptions): GcsPathBuilder = {
+                      options: WorkflowOptions,
+                      defaultProject: Option[String]): GcsPathBuilder = {
     // Grab the google project from Workflow Options if specified and set
-    // that to be the project used by the StorageOptions Builder
-    val project =  options.get("google_project").toOption
+    // that to be the project used by the StorageOptions Builder. If it's not
+    // specified use the default project mentioned in config file
+    val project: Option[String] =  options.get("google_project").toOption match {
+      case Some(googleProject) => Option(googleProject)
+      case None => defaultProject
+    }
 
     val storageOptions = GcsStorage.gcsStorageOptions(credentials, retrySettings, project)
 
@@ -125,8 +139,8 @@ object GcsPathBuilder {
 class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
                      cloudStorageConfiguration: CloudStorageConfiguration,
                      storageOptions: StorageOptions) extends PathBuilder {
-
-  private[gcs] val projectId = storageOptions.getProjectId
+  private [gcs] val projectId = storageOptions.getProjectId
+  private lazy val cloudStorage = storageOptions.getService
 
   /**
     * Tries to create a new GcsPath from a String representing an absolute gcs path: gs://<bucket>[/<path>].
@@ -144,29 +158,59 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
         Try {
           val fileSystem = CloudStorageFileSystem.forBucket(bucket, cloudStorageConfiguration, storageOptions)
           val cloudStoragePath = fileSystem.getPath(path)
-          val cloudStorage = storageOptions.getService
-          GcsPath(cloudStoragePath, apiStorage, cloudStorage)
+          GcsPath(cloudStoragePath, apiStorage, cloudStorage, projectId)
         }
-      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"$string does not have a gcs scheme"))
+      case PossiblyValidRelativeGcsPath => Failure(new IllegalArgumentException(s"""Path "$string" does not have a gcs scheme"""))
       case invalid: InvalidGcsPath => Failure(new IllegalArgumentException(invalid.errorMessage))
     }
   }
 
-  override def name: String = "Gcs"
+  override def name: String = "Google Cloud Storage"
 }
 
 case class GcsPath private[gcs](nioPath: NioPath,
                                 apiStorage: com.google.api.services.storage.Storage,
-                                cloudStorage: com.google.cloud.storage.Storage
-                               ) extends Path {
+                                cloudStorage: com.google.cloud.storage.Storage,
+                                projectId: String) extends Path {
   lazy val blob = BlobId.of(cloudStoragePath.bucket, cloudStoragePath.toRealPath().toString)
-
-  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage)
+  override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId)
 
   override def pathAsString: String = {
     val host = cloudStoragePath.bucket().stripSuffix("/")
     val path = cloudStoragePath.toString.stripPrefix("/")
     s"${CloudStorageFileSystem.URI_SCHEME}://$host/$path"
+  }
+
+  override def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext) = {
+    def request(withProject: Boolean) = {
+      cloudStorage.create(
+        BlobInfo.newBuilder(blob)
+          .setContentType(ContentTypes.`text/plain(UTF-8)`.value)
+          .build(),
+        content.getBytes(codec.charSet),
+        withProject.option(userProjectBlobTarget).toList.flatten: _*
+      )
+      this
+    }
+
+    // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
+    // in the NioFlow so we don't need to worry about exceptions
+    runOnEc(recoverFromProjectNotProvided(this, request)).unsafeRunSync()
+    this
+  }
+
+  override def mediaInputStream(implicit ec: ExecutionContext): InputStream = {
+    def request(withProject: Boolean) = {
+      // Use apiStorage here instead of cloudStorage, because apiStorage throws now if the bucket has requester pays,
+      // whereas cloudStorage creates the input stream anyway and only throws one `read` is called (which only happens in NioFlow)
+      apiStorage.objects()
+        .get(blob.getBucket, blob.getName)
+        .setUserProject(withProject.option(projectId).orNull)
+        .executeMediaAsInputStream()
+    }
+    // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
+    // in the NioFlow so we don't need to worry about exceptions
+    runOnEc(recoverFromProjectNotProvided(this, request)).unsafeRunSync()
   }
 
   override def pathWithoutScheme: String = {
@@ -178,4 +222,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
     case gcsPath: CloudStoragePath => gcsPath
     case _ => throw new RuntimeException(s"Internal path was not a cloud storage path: $nioPath")
   }
+
+  private def runOnEc[A](io: IO[A])(implicit ec: ExecutionContext): IO[A] = for {
+    _ <- IO.shift(ec)
+    result <- io
+  } yield result
+
+  private def userProjectBlobTarget: List[BlobTargetOption] = List(BlobTargetOption.userProject(projectId))
 }

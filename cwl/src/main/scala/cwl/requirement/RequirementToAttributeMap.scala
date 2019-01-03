@@ -7,39 +7,41 @@ import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.values.WomString
 
 object RequirementToAttributeMap extends Poly1 {
-  implicit def fromJs: Case.Aux[InlineJavascriptRequirement, Set[String] => Map[String, WomExpression]] = at[InlineJavascriptRequirement] {
-    _ => _ => Map.empty
+  type ResourcesToExpressionMap = (Set[String], ExpressionLib) => Map[String, WomExpression]
+  implicit def fromJs: Case.Aux[InlineJavascriptRequirement, ResourcesToExpressionMap] = at[InlineJavascriptRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromSchemaDef: Case.Aux[SchemaDefRequirement, Set[String] => Map[String, WomExpression]] = at[SchemaDefRequirement] {
-    _ => _ => Map.empty
+  implicit def fromSchemaDef: Case.Aux[SchemaDefRequirement, ResourcesToExpressionMap] = at[SchemaDefRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromDocker: Case.Aux[DockerRequirement, Set[String] => Map[String, WomExpression]] = at[DockerRequirement] {
-    docker => _ => docker.dockerPull.orElse(docker.dockerImageId).map({ pull =>
+  implicit def fromDocker: Case.Aux[DockerRequirement, ResourcesToExpressionMap] = at[DockerRequirement] {
+    docker => (_,_) => docker.dockerPull.orElse(docker.dockerImageId).map({ pull =>
       DockerKey -> ValueAsAnExpression(WomString(pull))
     }).toMap
   }
 
-  implicit def fromSoftware: Case.Aux[SoftwareRequirement, Set[String] => Map[String, WomExpression]] = at[SoftwareRequirement] {
-    _ => _ => Map.empty
+  implicit def fromSoftware: Case.Aux[SoftwareRequirement, ResourcesToExpressionMap] = at[SoftwareRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromInitialWorkDir: Case.Aux[InitialWorkDirRequirement, Set[String] => Map[String, WomExpression]] = at[InitialWorkDirRequirement] {
-    _ => _ => Map.empty
+  implicit def fromInitialWorkDir: Case.Aux[InitialWorkDirRequirement, ResourcesToExpressionMap] = at[InitialWorkDirRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromEnvVar: Case.Aux[EnvVarRequirement, Set[String] => Map[String, WomExpression]] = at[EnvVarRequirement] {
-    _ => _ => Map.empty
+  implicit def fromEnvVar: Case.Aux[EnvVarRequirement, ResourcesToExpressionMap] = at[EnvVarRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromShellCommand: Case.Aux[ShellCommandRequirement, Set[String] => Map[String, WomExpression]] = at[ShellCommandRequirement] {
-    _ => _ => Map.empty
+  implicit def fromShellCommand: Case.Aux[ShellCommandRequirement, ResourcesToExpressionMap] = at[ShellCommandRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromResource: Case.Aux[ResourceRequirement, Set[String] => Map[String, WomExpression]] = at[ResourceRequirement] {
-    resource => inputNames =>
-      def toExpression(resourceRequirement: ResourceRequirementType) = resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames)
+  implicit def fromResource: Case.Aux[ResourceRequirement, ResourcesToExpressionMap] = at[ResourceRequirement] {
+    resource => (inputNames, expressionLib) =>
+      def toExpression(resourceRequirement: ResourceRequirementType) =
+        resourceRequirement.fold(ResourceRequirementToWomExpression).apply(inputNames, expressionLib)
 
       List(
         // Map cpuMin to both cpuMin and cpu keys
@@ -55,19 +57,19 @@ object RequirementToAttributeMap extends Poly1 {
       ).flatten.toMap
   }
 
-  implicit def fromSubWorkflow: Case.Aux[SubworkflowFeatureRequirement, Set[String] => Map[String, WomExpression]] = at[SubworkflowFeatureRequirement] {
-    _ => _ => Map.empty
+  implicit def fromSubWorkflow: Case.Aux[SubworkflowFeatureRequirement, ResourcesToExpressionMap] = at[SubworkflowFeatureRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromScatter: Case.Aux[ScatterFeatureRequirement, Set[String] => Map[String, WomExpression]] = at[ScatterFeatureRequirement] {
-    _ => _ => Map.empty
+  implicit def fromScatter: Case.Aux[ScatterFeatureRequirement, ResourcesToExpressionMap] = at[ScatterFeatureRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromMultipleInput: Case.Aux[MultipleInputFeatureRequirement, Set[String] => Map[String, WomExpression]] = at[MultipleInputFeatureRequirement] {
-    _ => _ => Map.empty
+  implicit def fromMultipleInput: Case.Aux[MultipleInputFeatureRequirement, ResourcesToExpressionMap] = at[MultipleInputFeatureRequirement] {
+    _ => (_,_) => Map.empty
   }
 
-  implicit def fromStepInput: Case.Aux[StepInputExpressionRequirement, Set[String] => Map[String, WomExpression]] = at[StepInputExpressionRequirement] {
-    _ => _ => Map.empty
+  implicit def fromStepInput: Case.Aux[StepInputExpressionRequirement, ResourcesToExpressionMap] = at[StepInputExpressionRequirement] {
+    _ => (_,_) => Map.empty
   }
 }

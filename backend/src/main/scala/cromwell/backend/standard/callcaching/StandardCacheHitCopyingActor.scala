@@ -7,8 +7,8 @@ import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
-import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
-import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
+import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
@@ -36,6 +36,11 @@ trait StandardCacheHitCopyingActorParams {
   def ioActor: ActorRef
 
   def configurationDescriptor: BackendConfigurationDescriptor
+
+  /**
+    * The number of this copy attempt (so that listeners can ignore "timeout"s from previous attempts)
+    */
+  def cacheCopyAttempt: Int
 }
 
 /** A default implementation of the cache hit copying params. */
@@ -45,7 +50,8 @@ case class DefaultStandardCacheHitCopyingActorParams
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val serviceRegistryActor: ActorRef,
   override val ioActor: ActorRef,
-  override val configurationDescriptor: BackendConfigurationDescriptor
+  override val configurationDescriptor: BackendConfigurationDescriptor,
+  override val cacheCopyAttempt: Int
 ) extends StandardCacheHitCopyingActorParams
 
 object StandardCacheHitCopyingActor {
@@ -114,9 +120,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
+  protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   lazy val destinationCallRootPath: Path = jobPaths.callRoot
-  lazy val destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
+  def destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
+  
   lazy val ioActor = standardParams.ioActor
 
   startWith(Idle, None)
@@ -176,8 +184,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           stay() using Option(newData)
       }
     case Event(IoFailure(command: IoCommand[_], failure), Some(data)) =>
-      // any failure is fatal
-      context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+      context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
       val (newData, commandState) = data.commandComplete(command)
 
@@ -218,13 +225,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
-    context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty, None)
+    context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty, None, resultGenerationMode = CallCached)
     context stop self
     stay()
   }
 
   def failAndStop(failure: Throwable) = {
-    context.parent ! JobFailedNonRetryableResponse(jobDescriptor.key, failure, None)
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
   }
@@ -258,7 +265,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        List(destinationSimpleton) -> Set(DefaultIoCommandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
+        List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
@@ -289,7 +296,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val newDetrituses = detrituses + (detritus -> destinationPath)
 
-        (newDetrituses, commands + DefaultIoCommandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
+        (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
     })
 
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)

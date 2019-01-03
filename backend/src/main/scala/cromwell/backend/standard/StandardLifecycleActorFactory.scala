@@ -8,7 +8,7 @@ import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, Dispatcher}
 import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext
 
@@ -75,14 +75,14 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     */
   lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] = Option(classOf[StandardFinalizationActor])
 
-  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
+  override def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                                 serviceRegistryActor: ActorRef, restart: Boolean): Option[Props] = {
     val params = workflowInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, restart)
     val props = Props(initializationActorClass, params).withDispatcher(Dispatcher.BackendDispatcher)
     Option(props)
   }
 
-  def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
+  def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                         serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {
     DefaultInitializationActorParams(workflowDescriptor, ioActor, calls, serviceRegistryActor, configurationDescriptor, restarting)
   }
@@ -107,7 +107,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   }
 
   override def fileHashingActorProps:
-  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = {
+  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = {
     fileHashingActorClassOption map {
       standardFileHashingActor => fileHashingActorInner(standardFileHashingActor) _
     }
@@ -117,21 +117,23 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                (jobDescriptor: BackendJobDescriptor,
                                 initializationDataOption: Option[BackendInitializationData],
                                 serviceRegistryActor: ActorRef,
-                                ioActor: ActorRef): Props = {
-    val params = fileHashingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor)
+                                ioActor: ActorRef,
+                                fileHashCacheActor: Option[ActorRef]): Props = {
+    val params = fileHashingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, fileHashCacheActor)
     Props(standardFileHashingActor, params).withDispatcher(BackendDispatcher)
   }
 
   def fileHashingActorParams(jobDescriptor: BackendJobDescriptor,
-                                 initializationDataOption: Option[BackendInitializationData],
-                                 serviceRegistryActor: ActorRef,
-                                 ioActor: ActorRef): StandardFileHashingActorParams = {
+                             initializationDataOption: Option[BackendInitializationData],
+                             serviceRegistryActor: ActorRef,
+                             ioActor: ActorRef,
+                             fileHashCacheActor: Option[ActorRef]): StandardFileHashingActorParams = {
     DefaultStandardFileHashingActorParams(
-      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor)
+      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor, fileHashCacheActor)
   }
 
   override def cacheHitCopyingActorProps:
-  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = {
+  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = {
     cacheHitCopyingActorClassOption map {
       standardCacheHitCopyingActor => cacheHitCopyingActorInner(standardCacheHitCopyingActor) _
     }
@@ -141,20 +143,22 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                (jobDescriptor: BackendJobDescriptor,
                                 initializationDataOption: Option[BackendInitializationData],
                                 serviceRegistryActor: ActorRef,
-                                ioActor: ActorRef): Props = {
-    val params = cacheHitCopyingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor)
+                                ioActor: ActorRef,
+                                cacheCopyAttempt: Int): Props = {
+    val params = cacheHitCopyingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, cacheCopyAttempt)
     Props(standardCacheHitCopyingActor, params).withDispatcher(BackendDispatcher)
   }
 
   def cacheHitCopyingActorParams(jobDescriptor: BackendJobDescriptor,
                                  initializationDataOption: Option[BackendInitializationData],
                                  serviceRegistryActor: ActorRef,
-                                 ioActor: ActorRef): StandardCacheHitCopyingActorParams = {
+                                 ioActor: ActorRef,
+                                 cacheCopyAttempt: Int): StandardCacheHitCopyingActorParams = {
     DefaultStandardCacheHitCopyingActorParams(
-      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor)
+      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor, cacheCopyAttempt)
   }
 
-  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
+  override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                               initializationData: Option[BackendInitializationData]): Option[Props] = {
     finalizationActorClassOption map { finalizationActorClass =>
@@ -164,7 +168,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     }
   }
 
-  def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[TaskCallNode],
+  def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                       jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
                                       initializationDataOption: Option[BackendInitializationData]):
   StandardFinalizationActorParams = {
@@ -182,6 +186,11 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     val jobPaths = standardInitializationData.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
     standardInitializationData.expressionFunctions(jobPaths, ioActorProxy, ec)
   }
+  
+  override def pathBuilders(initializationDataOption: Option[BackendInitializationData]) = {
+    val standardInitializationData = BackendInitializationData.as[StandardInitializationData](initializationDataOption)
+    standardInitializationData.workflowPaths.pathBuilders
+  } 
 
   override def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config,
                                     initializationData: Option[BackendInitializationData]): Path = {

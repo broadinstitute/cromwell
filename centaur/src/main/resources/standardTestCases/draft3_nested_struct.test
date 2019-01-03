@@ -1,0 +1,15 @@
+name: draft3_nested_struct
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/nested_struct/nested_struct.wdl
+}
+
+metadata {
+  workflowName: nested_struct
+  status: Succeeded
+  "outputs.nested_struct.f": 5.5
+}

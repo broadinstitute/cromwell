@@ -1,10 +1,11 @@
 task notroot {
+  String empty = ""
   command {
-    echo $HOME
+    echo $HOME ${empty}
   }
 
   runtime {
-    docker: "mcovarr/notroot:v1"
+    docker: "broadinstitute/cromwell-docker-test:notroot"
   }
 
   output {

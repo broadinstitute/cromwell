@@ -7,7 +7,9 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  wdl: abort/scheduled_abort.wdl
+  workflow: abort/scheduled_abort.wdl
+  # https://github.com/broadinstitute/cromwell/issues/4014
+  options: abort/scheduled_abort.options
 }
 
 metadata {

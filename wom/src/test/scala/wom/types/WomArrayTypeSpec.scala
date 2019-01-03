@@ -56,10 +56,10 @@ class WomArrayTypeSpec extends FlatSpec with Matchers  {
       case Failure(f) => fail(s"exception while coercing Java List: $f")
     }
   }
-  it should "coerce single values into one-element arrays" in {
+  it should "not coerce single values into one-element arrays" in {
     WomArrayType(WomStringType).coerceRawValue(WomString("edamame is tasty")) match {
-      case Success(array) => array shouldEqual WomArray(WomArrayType(WomStringType), Seq(WomString("edamame is tasty")))
-      case Failure(f) => fail("exception coercing single value to array", f)
+      case Success(_) => fail("Unexpected success coercing single value to array")
+      case Failure(f) => f.getMessage shouldEqual "No coercion defined from wom value(s) '\"edamame is tasty\"' of type 'String' to 'Array[String]'."
     }
   }
   it should "stringify its type" in {

@@ -1,9 +1,9 @@
 name: refresh_token_no_auth_bucket
 testFormat: workflowfailure
-backends: [Jes-Refresh]
+backends: [Papi-Refresh]
 
 files {
-  wdl: refresh_token_no_auth_bucket/refresh_token_no_auth_bucket.wdl
+  workflow: refresh_token_no_auth_bucket/refresh_token_no_auth_bucket.wdl
   options: refresh_token_no_auth_bucket/refresh_token_no_auth_bucket.options
 }
 

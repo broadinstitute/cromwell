@@ -1,9 +1,14 @@
 package cromwell.core.path
 
+import java.io.InputStream
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
+import better.files.File.OpenOptions
+
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext
+import scala.io.Codec
 
 /**
   * Implements methods beyond those implemented in NioPathMethods and BetterFileMethods
@@ -20,6 +25,8 @@ trait EvenBetterPathMethods {
   final def plusExt(ext: String): Path = plusSuffix(s".$ext")
 
   final def swapExt(oldExt: String, newExt: String): Path = swapSuffix(s".$oldExt", s".$newExt")
+
+  final def nameWithoutExtensionNoIo: String = if (name contains ".") name.substring(0, name lastIndexOf ".") else name
 
   final def plusSuffix(suffix: String): Path = swapSuffix("", suffix)
 
@@ -54,7 +61,7 @@ trait EvenBetterPathMethods {
 
   final def createPermissionedDirectories(): this.type = {
     if (!exists) {
-      parent.createPermissionedDirectories()
+      if (parent != null) parent.createPermissionedDirectories()
       try {
         createDirectories()
         // When using PosixFilePermissions/FileAttributes with createDirectories, the umask Cromwell happens to be using
@@ -80,4 +87,15 @@ trait EvenBetterPathMethods {
   final def untailed = UntailedWriter(this)
 
   final def tailed(tailedSize: Int) = TailedWriter(this, tailedSize)
+
+  def mediaInputStream(implicit ec: ExecutionContext): InputStream = {
+    // See https://github.com/scala/bug/issues/10347 and https://github.com/scala/bug/issues/10790
+    locally(ec)
+    newInputStream
+  }
+
+  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext): this.type = {
+    locally(ec)
+    write(content)(openOptions, Codec.UTF8)
+  }
 }

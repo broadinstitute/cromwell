@@ -1,9 +1,11 @@
 package cromwell.engine.workflow.workflowstore
 
 import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
+import akka.pattern.ask
+import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.WorkflowAborting
+import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
@@ -19,7 +21,11 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean)
+final case class WorkflowStoreEngineActor private(store: WorkflowStore,
+                                                  workflowStoreCoordinatedWriteActor: ActorRef,
+                                                  serviceRegistryActor: ActorRef,
+                                                  abortAllJobsOnTerminate: Boolean,
+                                                  workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -28,7 +34,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
   self ! InitializerCommand
 
   scheduleInstrumentation {
-    store.stats map { (stats: Map[WorkflowStoreState, Int]) =>
+    store.stats map { stats: Map[WorkflowStoreState, Int] =>
       // Update the count for Submitted and Running workflows, defaulting to 0
       val statesMap = stats.withDefault(_ => 0)
       updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
@@ -115,6 +121,17 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
           log.info(s"Aborting all running workflows.")
           self ! PoisonPill
         }
+      case WorkflowOnHoldToSubmittedCommand(id) =>
+        store.switchOnHoldToSubmitted(id) map { _ =>
+          sndr ! WorkflowOnHoldToSubmittedSuccess(id)
+          pushCurrentStateToMetadataService(id, WorkflowSubmitted)
+          log.info(s"Status changed to 'Submitted' for $id")
+        } recover {
+          case t =>
+            val message = s"Couldn't change the status to 'Submitted' from 'On Hold' for workflow $id"
+            log.error(message)
+            sndr ! WorkflowOnHoldToSubmittedFailure(id, t)
+        }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
         Future.successful(self ! WorkDone)
@@ -137,15 +154,17 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
     * Fetches at most n workflows, and builds the correct response message based on if there were any workflows or not
     */
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
-    def fetchStartableWorkflowsIfNeeded(maxWorkflowsInner: Int) = {
+    def fetchStartableWorkflowsIfNeeded = {
       if (maxWorkflows > 0) {
-        store.fetchStartableWorkflows(maxWorkflowsInner)
+        implicit val timeout = Timeout(WorkflowStoreCoordinatedWriteActor.Timeout)
+        val message = WorkflowStoreCoordinatedWriteActor.FetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
+        workflowStoreCoordinatedWriteActor.ask(message).mapTo[List[WorkflowToStart]]
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
     }
 
-    fetchStartableWorkflowsIfNeeded(maxWorkflows) map {
+    fetchStartableWorkflowsIfNeeded map {
       case x :: xs => NewWorkflowsToStart(NonEmptyList.of(x, xs: _*))
       case _ => NoNewWorkflowsToStart
     } recover {
@@ -158,8 +177,14 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore, serviceR
 }
 
 object WorkflowStoreEngineActor {
-  def props(workflowStoreDatabase: WorkflowStore, serviceRegistryActor: ActorRef, abortAllJobsOnTerminate: Boolean) = {
-    Props(WorkflowStoreEngineActor(workflowStoreDatabase, serviceRegistryActor, abortAllJobsOnTerminate)).withDispatcher(EngineDispatcher)
+  def props(
+             workflowStore: WorkflowStore,
+             workflowStoreCoordinatedWriteActor: ActorRef,
+             serviceRegistryActor: ActorRef,
+             abortAllJobsOnTerminate: Boolean,
+             workflowHeartbeatConfig: WorkflowHeartbeatConfig
+             ) = {
+    Props(WorkflowStoreEngineActor(workflowStore, workflowStoreCoordinatedWriteActor, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse
@@ -181,4 +206,8 @@ object WorkflowStoreEngineActor {
   case object Unstarted extends WorkflowStoreActorState
   case object Working extends WorkflowStoreActorState
   case object Idle extends WorkflowStoreActorState
+
+  sealed trait WorkflowOnHoldToSubmittedResponse
+  case class WorkflowOnHoldToSubmittedSuccess(workflowId: WorkflowId) extends WorkflowOnHoldToSubmittedResponse
+  case class WorkflowOnHoldToSubmittedFailure(workflowId: WorkflowId, failure: Throwable) extends WorkflowOnHoldToSubmittedResponse
 }

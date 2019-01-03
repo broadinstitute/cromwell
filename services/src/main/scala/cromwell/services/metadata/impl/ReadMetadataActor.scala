@@ -32,7 +32,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
   }
 
-  private def queryAndRespond(query: MetadataQuery) = {
+  private def queryAndRespond(query: MetadataQuery): Unit = {
     val sndr = sender()
     queryMetadataEvents(query) onComplete {
       case Success(m) => sndr ! MetadataLookupResponse(query, m)

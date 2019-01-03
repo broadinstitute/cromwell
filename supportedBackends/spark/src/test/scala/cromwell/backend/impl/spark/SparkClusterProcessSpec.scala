@@ -7,7 +7,7 @@ import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.core.TestKitSuite
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.Path
-import org.mockito.Matchers._
+import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -18,6 +18,7 @@ import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NoStackTrace
 
 class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   with WordSpecLike
@@ -78,11 +79,16 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
   private val mockFailedHttpResponse = HttpResponse(StatusCodes.OK, entity = HttpEntity(ContentTypes.`application/json`, mockFailedClusterResponse.toJson.toString))
   private val mockBadHttpResponse = HttpResponse(StatusCodes.BadRequest)
 
+  // https://stackoverflow.com/a/41337557 & https://stackoverflow.com/a/13361530
+  private val Workaround_SI_2991: Seq[Future[HttpResponse]] = Nil
+
   "SparkCluster process" should {
     "return finished status when Spray rest client return successful http response" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.successful(mockSuccessHttpResponse)).when(sparkClusterProcess).makeHttpRequest(any[HttpRequest])
+      doReturn(Future.successful(mockSuccessHttpResponse), Workaround_SI_2991: _*)
+        .when(sparkClusterProcess)
+        .makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>
         response shouldBe Finished
         verify(sparkClusterProcess, times(1)).startMonitoringSparkClusterJob(testRoot.path, jsonFileName)
@@ -95,7 +101,9 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
     "return failed status when Spray rest client return unsuccessful http response" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.successful(mockFailedHttpResponse)).when(sparkClusterProcess).makeHttpRequest(any[HttpRequest])
+      doReturn(Future.successful(mockFailedHttpResponse), Workaround_SI_2991: _*)
+        .when(sparkClusterProcess)
+        .makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>
         response shouldBe a[Failed]
         assert(response.asInstanceOf[Failed].error.getMessage.contains("Spark Driver returned failed status"))
@@ -109,7 +117,9 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
     "return failed status when Spray rest client return bad http response" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.successful(mockBadHttpResponse)).when(sparkClusterProcess).makeHttpRequest(any[HttpRequest])
+      doReturn(Future.successful(mockBadHttpResponse), Workaround_SI_2991: _*)
+        .when(sparkClusterProcess)
+        .makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>
         response shouldBe a[Failed]
         assert(response.asInstanceOf[Failed].error.getMessage.contains("Spark Driver returned failed status"))
@@ -123,7 +133,9 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
     "return failed status when makeHttpRequest throws exception" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.failed(new IllegalStateException("request timed out"))).when(sparkClusterProcess).makeHttpRequest(any[HttpRequest])
+      doReturn(Future.failed(new IllegalStateException("request timed out") with NoStackTrace), Workaround_SI_2991: _*)
+        .when(sparkClusterProcess)
+        .makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>
         response shouldBe a[Failed]
         assert(response.asInstanceOf[Failed].error.getMessage.contains("Spark Driver returned failed status"))
@@ -148,7 +160,9 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
     "return failed status when Spray rest client return unknown response" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.successful(mockUnknownResponse)).when(sparkClusterProcess).makeHttpRequest(any[HttpRequest])
+      doReturn(Future.successful(mockUnknownResponse), Workaround_SI_2991: _*)
+        .when(sparkClusterProcess)
+        .makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>
         response shouldBe a[Failed]
         assert(response.asInstanceOf[Failed].error.getMessage.contains("Spark Driver returned failed status"))
@@ -162,7 +176,8 @@ class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
     "return finished status when Spray rest client return running and then finished response" in {
       val sparkClusterProcess = Mockito.spy(new SparkClusterProcess()(system))
       jsonFile write sampleSubmissionResponse
-      doReturn(Future.successful(mockRunningHttpResponse)).doReturn(Future.successful(mockSuccessHttpResponse))
+      doReturn(Future.successful(mockRunningHttpResponse), Workaround_SI_2991: _*)
+        .doReturn(Future.successful(mockSuccessHttpResponse), Workaround_SI_2991: _*)
         .when(sparkClusterProcess).makeHttpRequest(any[HttpRequest])
       whenReady(sparkClusterProcess.startMonitoringSparkClusterJob(testRoot.path, jsonFileName), timeout) { response =>
         response shouldBe Finished

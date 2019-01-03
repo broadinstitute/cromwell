@@ -5,14 +5,17 @@ callMark: scheduled_abort.aborted
 backends: [TES]
 
 files {
-  wdl: abort/scheduled_abort.wdl
+  workflow: abort/scheduled_abort.wdl
+  # https://github.com/broadinstitute/cromwell/issues/4014
+  options: abort/scheduled_abort.options
 }
 
 metadata {
   workflowName: scheduled_abort
   status: Aborted
   "calls.scheduled_abort.let_me_run.executionStatus": "Done"
-  "calls.scheduled_abort.aborted.executionStatus": "Failed"
+  "calls.scheduled_abort.aborted.executionStatus": "Aborted"
+  "calls.scheduled_abort.aborted.backendStatus": "Cancelled"
 }
 
 absent-metadata-keys: ["calls.scheduled_abort.lost_in_space.status"]

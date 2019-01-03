@@ -1,5 +1,7 @@
 package cromwell.database.slick
 
+import cats.instances.future._
+import cats.syntax.functor._
 import cromwell.database.sql.JobKeyValueSqlDatabase
 import cromwell.database.sql.tables.JobKeyValueEntry
 
@@ -10,28 +12,50 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   import dataAccess.driver.api._
 
+  override def existsJobKeyValueEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.jobKeyValueEntriesExists.result
+    runTransaction(action)
+  }
+
   override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
     val action = if (useSlickUpserts) {
       for {
         _ <- dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate(jobKeyValueEntry)
       } yield ()
-    } else {
-      for {
-        updateCount <- dataAccess.
-          storeValuesForJobKeyAndStoreKey((
-            jobKeyValueEntry.workflowExecutionUuid,
-            jobKeyValueEntry.callFullyQualifiedName,
-            jobKeyValueEntry.jobIndex,
-            jobKeyValueEntry.jobAttempt,
-            jobKeyValueEntry.storeKey)).
-          update(jobKeyValueEntry.storeValue)
-        _ <- updateCount match {
-          case 0 => dataAccess.jobKeyValueEntryIdsAutoInc += jobKeyValueEntry
-          case _ => assertUpdateCount("addJobKeyValueEntry", updateCount, 1)
-        }
-      } yield ()
+    } else manualUpsertQuery(jobKeyValueEntry)
+    runTransaction(action)
+  }
+  
+  private def manualUpsertQuery(jobKeyValueEntry: JobKeyValueEntry)
+                       (implicit ec: ExecutionContext) = for {
+    updateCount <- dataAccess.
+      storeValuesForJobKeyAndStoreKey((
+        jobKeyValueEntry.workflowExecutionUuid,
+        jobKeyValueEntry.callFullyQualifiedName,
+        jobKeyValueEntry.jobIndex,
+        jobKeyValueEntry.jobAttempt,
+        jobKeyValueEntry.storeKey)).
+      update(jobKeyValueEntry.storeValue)
+    _ <- updateCount match {
+      case 0 => dataAccess.jobKeyValueEntryIdsAutoInc += jobKeyValueEntry
+      case _ => assertUpdateCount("addJobKeyValueEntry", updateCount, 1)
     }
+  } yield ()
+
+  def addJobKeyValueEntries(jobKeyValueEntries: Iterable[JobKeyValueEntry])
+                           (implicit ec: ExecutionContext): Future[Unit] = {
+    val action = if (useSlickUpserts) {
+      createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
+    } else {
+      DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
+    }
+    runTransaction(action).void
+  }
+
+  override def queryJobKeyValueEntries(workflowExecutionUuid: String)
+                                      (implicit ec: ExecutionContext): Future[Seq[JobKeyValueEntry]] = {
+    val action = dataAccess.jobKeyValueEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action)
   }
 

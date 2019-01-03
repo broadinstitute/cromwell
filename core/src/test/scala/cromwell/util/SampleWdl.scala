@@ -2,7 +2,7 @@ package cromwell.util
 
 import java.util.UUID
 
-import cromwell.core.WorkflowSourceFilesWithoutImports
+import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import spray.json._
 import wom.core.{ExecutableInputMap, WorkflowJson, WorkflowSource}
@@ -11,22 +11,54 @@ import wom.values._
 
 import scala.language.postfixOps
 
+case class WorkflowImport(name: String, content: String)
+
 trait SampleWdl extends TestFileUtil {
   def workflowSource(runtime: String = ""): WorkflowSource
+
+  def imports: Option[Set[WorkflowImport]] = None
+
+  def importsZip: Option[Array[Byte]] = imports map { imports_ =>
+    val stagingDir = DefaultPathBuilder.createTempDirectory("")
+    imports_ foreach { import_ =>
+      stagingDir.resolve(import_.name).write(import_.content)
+    }
+    stagingDir.zip().byteArray
+  }
+
   def asWorkflowSources(runtime: String = "",
                         workflowOptions: String = "{}",
                         labels: String = "{}",
                         workflowType: Option[String] = Option("WDL"),
-                        workflowTypeVersion: Option[String] = None) = {
-    WorkflowSourceFilesWithoutImports(
-      workflowSource = workflowSource(runtime),
-      workflowRoot = None,
-      inputsJson = workflowJson,
-      workflowOptionsJson = workflowOptions,
-      labelsJson = labels,
-      workflowType = workflowType,
-      workflowTypeVersion = workflowTypeVersion,
-      warnings = Vector.empty)
+                        workflowTypeVersion: Option[String] = None,
+                        workflowOnHold: Boolean = false): WorkflowSourceFilesCollection = {
+    importsZip match {
+      case Some(zip) =>
+        WorkflowSourceFilesWithDependenciesZip(
+          workflowSource = Option(workflowSource(runtime)),
+          workflowUrl = None,
+          workflowRoot = None,
+          inputsJson = workflowJson,
+          workflowOptionsJson = workflowOptions,
+          labelsJson = labels,
+          workflowType = workflowType,
+          workflowTypeVersion = workflowTypeVersion,
+          warnings = Vector.empty,
+          workflowOnHold = workflowOnHold,
+          importsZip = zip)
+      case None =>
+        WorkflowSourceFilesWithoutImports(
+          workflowSource = Option(workflowSource(runtime)),
+          workflowUrl = None,
+          workflowRoot = None,
+          inputsJson = workflowJson,
+          workflowOptionsJson = workflowOptions,
+          labelsJson = labels,
+          workflowType = workflowType,
+          workflowTypeVersion = workflowTypeVersion,
+          warnings = Vector.empty,
+          workflowOnHold = workflowOnHold)
+    }
   }
 
   val rawInputs: ExecutableInputMap
@@ -91,7 +123,7 @@ object SampleWdl {
         |workflow wf_hello {
         |  call hello
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     val Addressee = "wf_hello.hello.addressee"
     val rawInputs = Map(Addressee -> "world")
@@ -172,20 +204,13 @@ object SampleWdl {
         |   goodbye.empty
         |  }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     val rawInputs = Map.empty[String, Any]
     val outputMap = Map(
       "hello.hello.empty" -> WomString(""),
       "hello.goodbye.empty" -> WomString("")
     )
-  }
-
-
-  object EmptyWorkflow extends SampleWdl {
-    override def workflowSource(runtime: String = "") = "workflow empty_workflow {}"
-
-    val rawInputs = Map.empty[String, Any]
   }
 
   object CoercionNotDefined extends SampleWdl {
@@ -470,7 +495,7 @@ object SampleWdl {
         |workflow postfix {
         |  call hello
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
   }
 
   object ZeroOrMorePostfixQuantifierWorkflowWithArrayInput extends ZeroOrMorePostfixQuantifier {
@@ -501,7 +526,7 @@ object SampleWdl {
         |workflow postfix {
         |  call hello
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
   }
 
   object OneOrMorePostfixQuantifierWorkflowWithArrayInput extends OneOrMorePostfixQuantifier {
@@ -528,7 +553,7 @@ object SampleWdl {
         |workflow wf_whereami {
         |  call whereami
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override val rawInputs: Map[String, Any] = Map.empty
   }
@@ -553,7 +578,7 @@ object SampleWdl {
         |    input: strs = strings
         |  }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
     override val rawInputs: Map[String, Any] = Map.empty
   }
 
@@ -687,7 +712,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -708,7 +733,7 @@ object SampleWdl {
         |  }
         |  call D {input: D_in = B.B_out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override lazy val rawInputs = Map.empty[String, String]
   }
@@ -814,7 +839,7 @@ object SampleWdl {
         |        input: input_files = do_scatter.count_file
         |    }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
     }
 
     val contents =
@@ -877,7 +902,7 @@ object SampleWdl {
         |  call a {input: in = f}
         |  call a as b {input: in = a.out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     private val fileContents = s"foo bar baz"
 
@@ -921,7 +946,7 @@ object SampleWdl {
         |  call a {input: in = f}
         |  call a as b {input: in = a.out}
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     private val fileContents = s"foo bar baz"
 
@@ -972,7 +997,7 @@ object SampleWdl {
         |    map = in_map
         |  }
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     override val rawInputs = {
       Map(
@@ -1048,7 +1073,7 @@ object SampleWdl {
         |workflow w {
         |  call t
         |}
-      """.stripMargin.replaceAll("RUNTIME", runtime)
+      """.stripMargin.replace("RUNTIME", runtime)
 
     val tempDir = DefaultPathBuilder.createTempDirectory("CallCachingHashingWdl")
     val cannedFile = createCannedFile(prefix = "canned", contents = "file contents", dir = Option(tempDir))

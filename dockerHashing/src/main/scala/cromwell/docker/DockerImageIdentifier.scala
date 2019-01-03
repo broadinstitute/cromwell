@@ -35,6 +35,7 @@ object DockerImageIdentifier {
        
        (                                        # Begin capturing group for name
           [a-z0-9]+(?:[._-][a-z0-9]+)*          # API v2 name component regex - see https://docs.docker.com/registry/spec/api/#/overview
+          (?::[0-9]+)?                          # Optional port
           (?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*    # Optional additional name components separated by /
        )                                        # End capturing group for name
        
@@ -61,7 +62,7 @@ object DockerImageIdentifier {
     }
   }
   
-  private def isRegistryHostName(str: String) = str.contains('.')
+  private def isRegistryHostName(str: String) = str.contains('.') || str.startsWith("localhost")
   
   private def buildId(name: String, tag: Option[String], hash: Option[String]) = {
     val (dockerHost, dockerRepo, dockerImage): (Option[String], Option[String], String) = name.split('/').toList match {

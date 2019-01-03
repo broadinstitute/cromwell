@@ -1,8 +1,11 @@
 name: read_tsv
 testFormat: workflowsuccess
+backendsMode: "only"
+backends: [Local, LocalNoDocker]
+tags: [localdockertest]
 
 files {
-  wdl: read_tsv/read_tsv.wdl
+  workflow: read_tsv/read_tsv.wdl
 }
 
 metadata {

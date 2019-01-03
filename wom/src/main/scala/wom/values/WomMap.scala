@@ -1,11 +1,14 @@
 package wom.values
 
+import cats.Applicative
 import common.util.TryUtil
 import wom.TsvSerializable
 import wom.types._
 import wom.util.FileUtil
 import wom.values.WomArray.WomArrayLike
-
+import cats.syntax.traverse._
+import cats.instances.list._
+import scala.language.higherKinds
 import scala.util.{Failure, Success, Try}
 
 object WomMap {
@@ -36,16 +39,16 @@ object WomMap {
 
   def apply(m: Map[WomValue, WomValue]): WomMap = {
     val keyType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
-    val valueType = WomType.lowestCommonSubtype(m.keys.map(_.womType))
-    WomMap(WomMapType(keyType, valueType), m)
+    val valueType = WomType.lowestCommonSubtype(m.values.map(_.womType))
+    coerceMap(m, WomMapType(keyType, valueType))
   }
 }
 
-case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends WomValue with WomArrayLike with TsvSerializable {
+final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomValue]) extends WomValue with WomArrayLike with TsvSerializable {
   val typesUsedInKey = value.map { case (k, _) => k.womType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != womType.keyType)
-    throw new UnsupportedOperationException(s"Could not construct a $womType as this value: $value")
+    throw new UnsupportedOperationException(s"Could not construct a $womType with this value: $value")
 
   if (typesUsedInKey.size > 1)
     throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
@@ -70,10 +73,22 @@ case class WomMap(womType: WomMapType, value: Map[WomValue, WomValue]) extends W
     }
   }
 
-  def map(f: PartialFunction[((WomValue, WomValue)), (WomValue, WomValue)]): WomMap = {
+  def map(f: PartialFunction[(WomValue, WomValue), (WomValue, WomValue)]): WomMap = {
     value map f match {
       case m: Map[WomValue, WomValue] if m.nonEmpty => WomMap(WomMapType(m.head._1.womType, m.head._2.womType), m)
       case _ => this
+    }
+  }
+
+  def traverseValues[R <: WomValue, G[_]](f: WomValue => G[R])(implicit applicative: Applicative[G]): G[WomMap] = {
+    if (value.isEmpty) applicative.pure(this)
+    else {
+      val traverseFunction: (WomValue, WomValue) => G[(WomValue, R)] = {
+        case (key, v) => applicative.map(f(v)) { key -> _ }
+      }
+      applicative.map(value.toList.traverse[G, (WomValue, R)](traverseFunction.tupled)) { mapped =>
+        WomMap(mapped.toMap)
+      }
     }
   }
 

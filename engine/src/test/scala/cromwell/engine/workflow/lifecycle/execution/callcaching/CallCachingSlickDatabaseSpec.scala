@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.slick.EngineSlickDatabase
+import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.CallCachingJoin
-import cromwell.database.sql.tables.{CallCachingAggregationEntry, CallCachingEntry, CallCachingHashEntry}
+import cromwell.database.sql.tables._
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import org.scalatest.concurrent.ScalaFutures
@@ -30,9 +30,11 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
     lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
+    val idA = WorkflowId.randomId().toString
+    val callA = "AwesomeWorkflow.GoodJob"
     val callCachingEntryA = CallCachingEntry(
-      WorkflowId.randomId().toString,
-      "AwesomeWorkflow.GoodJob",
+      idA,
+      callA,
       1,
       None,
       None,
@@ -54,6 +56,14 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
       )
     )
 
+    val callCachingSimpletonsA = Seq(
+      CallCachingSimpletonEntry("simpleKey", "simpleValue".toClobOption, "string")
+    )
+
+    val callCachingDetritusesA = Seq(
+      CallCachingDetritusEntry("detritusKey", "detritusValue".toClobOption)
+    )
+
     val aggregation = Option(CallCachingAggregationEntry("BASE_AGGREGATION", Option("FILE_AGGREGATION")))
 
     it should "honor allowResultReuse" taggedAs DbmsTest in {
@@ -63,19 +73,36 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
             callCachingEntryA,
             callCachingHashEntriesA,
             aggregation,
-            Seq.empty, Seq.empty
+            callCachingSimpletonsA, callCachingDetritusesA
           )
         ),
           100
         )
         hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation("BASE_AGGREGATION")
         _ = hasBaseAggregation shouldBe false
-        hasHashPairMatch <- dataAccess.hasMatchingCallCachingEntriesForHashKeyValues(
-          NonEmptyList.of("input: String s1" -> "HASH_S1")
-        )
-        _ = hasHashPairMatch shouldBe false
-        hit <- dataAccess.findCacheHitForAggregation("BASE_AGGREGATION", Option("FILE_AGGREGATION"), 1)
+        hit <- dataAccess.findCacheHitForAggregation("BASE_AGGREGATION", Option("FILE_AGGREGATION"), callCachePathPrefixes = None, 1)
         _ = hit shouldBe empty
+      } yield ()).futureValue
+    }
+
+    it should "retrieve CallCacheJoin for call" taggedAs DbmsTest in {
+      (for {
+        join <- dataAccess.callCacheJoinForCall(idA, callA, 1)
+        _ = join shouldBe defined
+        getJoin = join.get
+        // We can't compare directly because the ones out from the DB have IDs filled in, so just compare the relevant values
+        _ = getJoin
+          .callCachingHashEntries
+          .map(e => (e.hashKey, e.hashValue)) should contain theSameElementsAs callCachingHashEntriesA.map(e => (e.hashKey, e.hashValue))
+        _ = getJoin
+          .callCachingSimpletonEntries
+          .map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString)))should contain theSameElementsAs callCachingSimpletonsA.map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString)))
+        _ = getJoin
+          .callCachingAggregationEntry
+          .map(e => (e.baseAggregation, e.inputFilesAggregation)) shouldBe aggregation.map(e => (e.baseAggregation, e.inputFilesAggregation))
+        _ = getJoin
+          .callCachingDetritusEntries
+          .map(e => (e.detritusKey, e.detritusValue.map(_.toRawString))) should contain theSameElementsAs callCachingDetritusesA.map(e => (e.detritusKey, e.detritusValue.map(_.toRawString)))
       } yield ()).futureValue
     }
   }

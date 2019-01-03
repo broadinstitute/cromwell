@@ -6,7 +6,7 @@ import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomSingleFile, WomString, WomValue}
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 sealed trait WomArrayType extends WomType {
 
@@ -41,14 +41,9 @@ sealed trait WomArrayType extends WomType {
     case womArray: WomArray if (allowEmpty || womArray.nonEmpty) && memberType.isCoerceableFrom(womArray.womType.memberType) =>
       womArray.map(v => memberType.coerceRawValue(v).get) // .get because isCoerceableFrom should make it safe
     case WomArrayLike(womArray) if this.isCoerceableFrom(womArray.womType) => coercion.apply(womArray)
-    case womValue: WomValue if memberType.isCoerceableFrom(womValue.womType) =>
-      memberType.coerceRawValue(womValue) match {
-        case Success(coercedValue) => WomArray(this, Seq(coercedValue))
-        case Failure(ex) => throw ex
-      }
   }
 
-  override def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
+  override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
     case WomArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WomNothingType
     case mapType: WomMapType => isCoerceableFrom(mapType.equivalentArrayType)
     case _ => false
@@ -60,6 +55,11 @@ sealed trait WomArrayType extends WomType {
 case class WomMaybeEmptyArrayType(memberType: WomType) extends WomArrayType {
   override val toDisplayString: String = s"Array[${memberType.toDisplayString}]"
   override val guaranteedNonEmpty = false
+
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case WomMaybeEmptyArrayType(`memberType`) => Success(WomBooleanType)
+    case _ => Failure(new RuntimeException(s"type $rhs was incompatible with $this"))
+  }
 }
 
 object WomMaybeEmptyArrayType {
@@ -69,6 +69,11 @@ object WomMaybeEmptyArrayType {
 case class WomNonEmptyArrayType(memberType: WomType) extends WomArrayType {
   override val toDisplayString: String = s"Array[${memberType.toDisplayString}]+"
   override val guaranteedNonEmpty = true
+
+  override def equalsType(rhs: WomType): Try[WomType] = rhs match {
+    case WomNonEmptyArrayType(`memberType`) => Success(WomBooleanType)
+    case _ => Failure(new RuntimeException(s"type $rhs was incompatible with $this"))
+  }
 }
 
 object WomArrayType {

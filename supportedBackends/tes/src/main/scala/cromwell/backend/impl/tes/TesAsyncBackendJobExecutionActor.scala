@@ -1,21 +1,27 @@
 package cromwell.backend.impl.tes
 
+import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 
+import cats.syntax.apply._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
+import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
-import wom.values.{WomFile, WomSingleFile}
+import cromwell.core.retry.Retry._
+import wom.values.WomFile
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -38,6 +44,10 @@ case object FailedOrError extends TesRunStatus {
   def isTerminal = true
 }
 
+case object Cancelled extends TesRunStatus {
+  def isTerminal = true
+}
+
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
 }
@@ -49,7 +59,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override type StandardAsyncRunInfo = Any
 
-  override type StandardAsyncRunStatus = TesRunStatus
+  override type StandardAsyncRunState = TesRunStatus
+
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override lazy val pollBackOff = SimpleExponentialBackoff(
     initialInterval = 1 seconds,
@@ -62,7 +74,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     maxInterval = 30 seconds,
     multiplier = 1.1
   )
-  
+
   private lazy val realDockerImageUsed: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
@@ -70,22 +82,43 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override lazy val jobTag: String = jobDescriptor.key.tag
 
-  // Utility for converting a WomValue so that the path is localized to the
-  // container's filesystem.
-  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
-    val localPath = DefaultPathBuilder.get(womFile.valueString).toAbsolutePath
+  private val outputMode = validate {
+    OutputMode.withName(
+      configurationDescriptor.backendConfig
+        .getAs[String]("output-mode")
+        .getOrElse("granular").toUpperCase
+    )
+  }
 
-    localPath match {
-      case p if p.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
-        val containerPath = p.pathAsString
-        WomSingleFile(containerPath)
-      case p if p.startsWith(tesJobPaths.callExecutionRoot) =>
-        val containerPath = tesJobPaths.containerExec(commandDirectory, localPath.getFileName.pathAsString)
-        WomSingleFile(containerPath)
-      case p =>
-        val containerPath = tesJobPaths.containerInput(p.pathAsString)
-        WomSingleFile(containerPath)
-    }
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      (getPath(value), asAdHocFile(womFile)) match {
+        case (Success(path: Path), Some(adHocFile)) =>
+          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          tesJobPaths.containerExec(commandDirectory, adHocFile.alternativeName.getOrElse(path.name))
+        case _ => mapCommandLineJobInputWomFile(womFile).value
+      }
+    )
+  }
+
+  override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile(value =>
+      getPath(value) match {
+        case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
+          path.pathAsString
+        case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
+          commandDirectory.pathAsString
+        case Success(path: Path) if path.startsWith(tesJobPaths.callExecutionRoot) =>
+          tesJobPaths.containerExec(commandDirectory, path.name)
+        case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
+          tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
+        case Success(path: Path) =>
+          tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
+        case _ =>
+          value
+      }
+    )
   }
 
   override lazy val commandDirectory: Path = {
@@ -96,25 +129,28 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   def createTaskMessage(): ErrorOr[Task] = {
-    val task =
-      commandScriptContents.map(
-        TesTask(
-          jobDescriptor,
-          configurationDescriptor,
-          jobLogger,
-          tesJobPaths,
-          runtimeAttributes,
-          commandDirectory,
-          _,
-          instantiatedCommand,
-          realDockerImageUsed))
+    val task = (commandScriptContents, outputMode).mapN({
+      case (contents, mode) => TesTask(
+        jobDescriptor,
+        configurationDescriptor,
+        jobLogger,
+        tesJobPaths,
+        runtimeAttributes,
+        commandDirectory,
+        contents,
+        instantiatedCommand,
+        realDockerImageUsed,
+        mapCommandLineWomFile,
+        jobShell,
+        mode)
+    })
 
     task.map(task => Task(
       id = None,
       state = None,
       name = Option(task.name),
       description = Option(task.description),
-      inputs = Option(task.inputs(commandLineValueMapper)),
+      inputs = Option(task.inputs),
       outputs = Option(task.outputs),
       resources = Option(task.resources),
       executors = task.executors,
@@ -135,10 +171,20 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       taskMessage <- taskMessageFuture
       entity <- Marshal(taskMessage).to[RequestEntity]
       ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity))
-    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousStatus = None)
+    } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousState = None)
   }
 
-  override def recoverAsync(jobId: StandardAsyncJob) = executeAsync()
+  override def reconnectAsync(jobId: StandardAsyncJob) = {
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor, jobId, None, previousState = None)
+    Future.successful(handle)
+  }
+
+  override def recoverAsync(jobId: StandardAsyncJob) = reconnectAsync(jobId)
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob) = {
+    tryAbort(jobId)
+    reconnectAsync(jobId)
+  }
 
   override def tryAbort(job: StandardAsyncJob): Unit = {
 
@@ -160,6 +206,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ()
   }
 
+  override def requestsAbortAndDiesImmediately: Boolean = false
+
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
       response =>
@@ -171,10 +219,10 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
           case s if s.contains("CANCELED") =>
             jobLogger.info(s"Job ${handle.pendingJob.jobId} was canceled")
-            FailedOrError
+            Cancelled
 
           case s if s.contains("ERROR") =>
-            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}")
+            jobLogger.info(s"TES reported an error for Job ${handle.pendingJob.jobId}: '$s'")
             FailedOrError
 
           case _ => Running
@@ -188,39 +236,47 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       FailedNonRetryableExecutionHandle(e)
   }
 
+  override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {
+    status match {
+      case Cancelled => Future.successful(AbortedExecutionHandle)
+      case _ => super.handleExecutionFailure(status, returnCode)
+    }
+  }
+
   override def isTerminal(runStatus: TesRunStatus): Boolean = {
     runStatus.isTerminal
   }
 
-  override def isSuccess(runStatus: TesRunStatus): Boolean = {
+  override def isDone(runStatus: TesRunStatus): Boolean = {
     runStatus match {
       case Complete => true
       case _ => false
     }
   }
-  
-  private val outputWomFiles: Seq[WomSingleFile] = {
-    Seq.empty
-    // TODO WOM: fix
-//    jobDescriptor.call.task
-//      .findOutputFiles(jobDescriptor.fullyQualifiedInputs, NoFunctions)
-//      .filter(o => !DefaultPathBuilder.get(o.valueString).isAbsolute)
-  }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
-    val absPath: Path = tesJobPaths.callExecutionRoot.resolve(womFile.valueString)
-    womFile match {
-      case fileNotFound if !absPath.exists && outputWomFiles.contains(fileNotFound) =>
-        throw new RuntimeException("Could not process output, file not found: " +
-          s"${absPath.pathAsString}")
-      case _ => WomSingleFile(absPath.pathAsString)
+    womFile mapFile { path =>
+      val absPath = getPath(path) match {
+        case Success(absoluteOutputPath) if absoluteOutputPath.isAbsolute => absoluteOutputPath
+        case _ => tesJobPaths.callExecutionRoot.resolve(path)
+      }
+
+      if (!absPath.exists) {
+        throw new FileNotFoundException(s"Could not process output, file not found: ${absPath.pathAsString}")
+      } else absPath.pathAsString
     }
   }
 
   private def makeRequest[A](request: HttpRequest)(implicit um: Unmarshaller[ResponseEntity, A]): Future[A] = {
     for {
-      response <- Http().singleRequest(request)
-      data <- Unmarshal(response.entity).to[A]
+      response <- withRetry(() => Http().singleRequest(request))
+      data <- if (response.status.isFailure()) {
+        response.entity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String) flatMap { errorBody =>
+          Future.failed(new RuntimeException(s"Failed TES request: Code ${response.status.intValue()}, Body = $errorBody"))
+        }
+      } else {
+        Unmarshal(response.entity).to[A]
+      }
     } yield data
   }
 }

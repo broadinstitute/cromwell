@@ -13,7 +13,7 @@ SLURM {
 
     submit = """
         sbatch -J ${job_name} -D ${cwd} -o ${out} -e ${err} -t ${runtime_minutes} -p ${queue} \
-        ${"-n " + cpus} \
+        ${"-c " + cpus} \
         --mem-per-cpu=${requested_memory_mb_per_core} \
         --wrap "/bin/bash ${script}"
     """
@@ -25,3 +25,7 @@ SLURM {
 ```
 
 For information on how to further configure it, take a look at the [Getting Started on HPC Clusters](../tutorials/HPCIntro).
+
+### Exit code
+
+See also [HPC - Exit code timeout](HPC#Exit-code-timeout)

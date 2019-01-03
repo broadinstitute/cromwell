@@ -1,6 +1,5 @@
 package cromwell.database.slick.tables
 
-import cats.data.NonEmptyList
 import cromwell.database.sql.tables.CallCachingHashEntry
 
 trait CallCachingHashEntryComponent {
@@ -12,9 +11,9 @@ trait CallCachingHashEntryComponent {
   class CallCachingHashEntries(tag: Tag) extends Table[CallCachingHashEntry](tag, "CALL_CACHING_HASH_ENTRY") {
     def callCachingHashEntryId = column[Int]("CALL_CACHING_HASH_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def hashKey = column[String]("HASH_KEY")
+    def hashKey = column[String]("HASH_KEY", O.Length(255))
 
-    def hashValue = column[String]("HASH_VALUE")
+    def hashValue = column[String]("HASH_VALUE", O.Length(255))
 
     def callCachingEntryId = column[Int]("CALL_CACHING_ENTRY_ID")
 
@@ -32,46 +31,14 @@ trait CallCachingHashEntryComponent {
 
   val callCachingHashEntryIdsAutoInc = callCachingHashEntries returning
     callCachingHashEntries.map(_.callCachingHashEntryId)
-
+  
   /**
-    * Returns true if there exists a row in callCachingHashEntries that matches the parameters.
-    *
-    * @param callCachingEntryId The foreign key.
-    * @param hashKeyHashValue   The hash key and hash value as a tuple.
-    * @return True or false if the row exists.
+    * Find all hashes for a CALL_CACHING_ENTRY_ID
     */
-  private def existsCallCachingEntryIdHashKeyHashValue(callCachingEntryId: Rep[Int])
-                                                      (hashKeyHashValue: (String, String)): Rep[Boolean] = {
-    callCachingHashEntries.filter(callCachingHashEntry =>
-      callCachingHashEntry.callCachingEntryId === callCachingEntryId &&
-        callCachingHashEntry.hashKey === hashKeyHashValue._1 &&
-        callCachingHashEntry.hashValue === hashKeyHashValue._2
-    ).exists
-  }
-
-  /**
-    * Returns true if there exists rows for all the hashKeyHashValues.
-    *
-    * @param callCachingEntryId The foreign key.
-    * @param hashKeyHashValues  The hash keys and hash values as tuples.
-    * @return True or false if all the rows exist.
-    */
-  private def existsAllCallCachingEntryIdHashKeyHashValues(callCachingEntryId: Rep[Int],
-                                                           hashKeyHashValues: NonEmptyList[(String, String)]):
-  Rep[Boolean] = {
-    hashKeyHashValues.
-      map(existsCallCachingEntryIdHashKeyHashValue(callCachingEntryId)).
-      toList.reduce(_ && _)
-  }
-
-  /**
-    * Returns whether or not there exists at least one callCachingEntryId for which all the hash keys and hash values match, and are allowed to be reused.
-    */
-  def existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues: NonEmptyList[(String, String)]) = {
-    (for {
-      callCachingEntry <- callCachingEntries
-      if existsAllCallCachingEntryIdHashKeyHashValues(
-        callCachingEntry.callCachingEntryId, hashKeyHashValues) && callCachingEntry.allowResultReuse
-    } yield callCachingEntry.callCachingEntryId).exists
-  }
+  val callCachingHashEntriesForCallCachingEntryId = Compiled(
+    (callCachingHashEntryId: Rep[Int]) => for {
+      callCachingHashEntry <- callCachingHashEntries
+      if callCachingHashEntry.callCachingEntryId === callCachingHashEntryId
+    } yield callCachingHashEntry
+  )
 }

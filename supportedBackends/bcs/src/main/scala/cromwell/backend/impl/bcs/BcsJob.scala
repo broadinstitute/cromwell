@@ -153,6 +153,9 @@ final case class BcsJob(name: String,
     dag.addTask("cromwell", taskDesc)
     lazyJob.setDag(dag)
 
+    // NOTE: Do NOT set auto release here or we will not be able to get status after the job completes.
+    lazyJob.setAutoRelease(false)
+
     lazyJob
   }
 

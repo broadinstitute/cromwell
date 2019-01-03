@@ -9,16 +9,8 @@ class ApplicationDefaultModeSpec extends FlatSpec with Matchers {
   it should "generate a credential" in {
     GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
     val applicationDefaultMode = new ApplicationDefaultMode("application-default")
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    val credentials = applicationDefaultMode.credential(workflowOptions)
+    val credentials = applicationDefaultMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
-  }
-
-  it should "validate" in {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
-    val applicationDefaultMode = new ApplicationDefaultMode("application-default")
-    val workflowOptions = GoogleAuthModeSpec.emptyOptions
-    applicationDefaultMode.validate(workflowOptions)
   }
 
   it should "requiresAuthFile" in {

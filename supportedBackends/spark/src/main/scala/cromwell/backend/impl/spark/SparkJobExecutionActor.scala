@@ -2,16 +2,16 @@ package cromwell.backend.impl.spark
 
 import java.nio.file.attribute.PosixFilePermission
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorContext, ActorRef, Props}
 import common.exception.MessageAggregation
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse, RunOnBackend}
 import cromwell.backend._
 import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
-import cromwell.backend.wdl.Command
-import cromwell.backend.wdl.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
+import cromwell.backend.Command
+import cromwell.backend.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
@@ -38,6 +38,8 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   override val pathBuilders = DefaultPathBuilders
   private val tag = s"SparkJobExecutionActor-${jobDescriptor.key.tag}:"
 
+  implicit def actorContext: ActorContext = this.context
+
   lazy val cmds = new SparkCommands
   lazy val clusterExtProcess = new SparkClusterProcess()(context.system)
 
@@ -54,11 +56,12 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private val executionDir = jobPaths.callExecutionRoot
   private val scriptPath = jobPaths.script
 
-  private lazy val stdoutWriter = extProcess.untailedWriter(jobPaths.stdout)
-  private lazy val stderrWriter = extProcess.tailedWriter(100, jobPaths.stderr)
+  private lazy val standardPaths = jobPaths.standardPaths
+  private lazy val stdoutWriter = extProcess.untailedWriter(standardPaths.output)
+  private lazy val stderrWriter = extProcess.tailedWriter(100, standardPaths.error)
 
-  private lazy val clusterStdoutWriter = clusterExtProcess.untailedWriter(jobPaths.stdout)
-  private lazy val clusterStderrWriter = clusterExtProcess.tailedWriter(100, jobPaths.stderr)
+  private lazy val clusterStdoutWriter = clusterExtProcess.untailedWriter(standardPaths.output)
+  private lazy val clusterStderrWriter = clusterExtProcess.tailedWriter(100, standardPaths.error)
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
@@ -105,7 +108,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def resolveExecutionResult(jobReturnCode: Try[Int], failedOnStderr: Boolean): Future[BackendJobExecutionResponse] = {
     (jobReturnCode, failedOnStderr) match {
-      case (Success(0), true) if File(jobPaths.stderr).lines.toList.nonEmpty =>
+      case (Success(0), true) if File(standardPaths.error).lines.toList.nonEmpty =>
         Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key,
           new IllegalStateException(s"Execution process failed although return code is zero but stderr is not empty"), Option(0)))
       case (Success(0), _) => resolveExecutionProcess
@@ -131,7 +134,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
 
   private def processSuccess(rc: Int) = {
     evaluateOutputs(callEngineFunction, outputMapper(jobPaths)) match {
-      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None)
+      case ValidJobOutputs(outputs) => JobSucceededResponse(jobDescriptor.key, Some(rc), outputs, None, Seq.empty, dockerImageUsed = None, resultGenerationMode = RunOnBackend)
       case InvalidJobOutputs(evaluationErrors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed post processing of outputs"

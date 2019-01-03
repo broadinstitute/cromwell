@@ -82,7 +82,6 @@ private object WomOptionalTypeSpecDefs {
 
   val badCoercionTable: TableFor2[Any, WomType] = Table[Any, WomType](
     ("fromValue", "toType"),
-    (WomOptionalValue(WomString("hi")), WomStringType),
     (WomOptionalValue(WomOptionalValue(WomFloat(75.0))), WomOptionalType(WomIntegerType)),
     (WomOptionalValue(WomInteger(3)), WomOptionalType(WomBooleanType)),
     (WomOptionalValue(WomOptionalValue(WomInteger(3))), WomOptionalType(WomOptionalType(WomBooleanType)))

@@ -1,11 +1,11 @@
 name: restart_tes_without_recover
-testFormat: CromwellRestartWithoutRecover
+testFormat: CromwellRestartWithRecover
 callMark: cromwell_restart.cromwell_killer
 backends: [TES]
 tags: [localdockertest]
 
 files {
-  wdl: cromwell_restart/cromwell_restart.wdl
+  workflow: cromwell_restart/cromwell_restart.wdl
 }
 
 metadata {

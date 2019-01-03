@@ -5,7 +5,7 @@ task make_file {
     }
     runtime {
         docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
-        backend: "Jes-Caching-No-Copy"
+        backend: "Papi-Caching-No-Copy"
     }
     output {
         File out = "out"
@@ -19,7 +19,7 @@ task use_fofn {
     }
     runtime {
         docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
-        backend: "Jes-Caching-No-Copy"
+        backend: "Papi-Caching-No-Copy"
     }
     output {
         Array[String] out = read_lines(stdout())

@@ -1,21 +1,19 @@
 package centaur.cwl
 
 import better.files._
+import cats.effect.IO
 import centaur.api.CentaurCromwellClient
 import centaur.cwl.Outputs._
 import centaur.test.TestOptions
 import centaur.test.standard.{CentaurTestCase, CentaurTestFormat}
 import centaur.test.submit.{SubmitHttpResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.{AllBackendsRequired, Workflow, WorkflowData}
-import com.google.api.services.storage.StorageScopes
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
-import cromwell.cloudsupport.gcp.auth.{ApplicationDefaultMode, ServiceAccountMode}
-import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.JsonFileFormat
 import cromwell.core.WorkflowOptions
-import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
-import cromwell.filesystems.gcs.GcsPathBuilderFactory
+import cromwell.core.path.PathBuilderFactory
+import cwl.preprocessor.CwlPreProcessor
 import spray.json._
 
 import scala.concurrent.Await
@@ -31,12 +29,18 @@ import scala.concurrent.duration.Duration
   */
 object CentaurCwlRunner extends StrictLogging {
 
+  case class SkippedTest(sourceName: String, inputsName: String) {
+    def shouldSkip(args: CommandLineArguments) = {
+      args.workflowSource.exists(_.name.equalsIgnoreCase(sourceName)) &&
+        args.workflowInputs.exists(_.name.equalsIgnoreCase(inputsName))
+    }
+  }
+
   case class CommandLineArguments(workflowSource: Option[File] = None,
                                   workflowInputs: Option[File] = None,
                                   quiet: Boolean = false,
                                   outdir: Option[File] = None,
-                                  localMode: Boolean = true,
-                                  serviceAccountJson: Option[String] = None)
+                                  skipFile: Option[File] = None)
 
   // TODO: This would be cleaner with Enumeratum
   object ExitCode extends Enumeration {
@@ -52,8 +56,11 @@ object CentaurCwlRunner extends StrictLogging {
     val NotImplemented = Val(33)
   }
 
+  private val cwlPreProcessor = new CwlPreProcessor()
+  private val centaurCwlRunnerRunMode = CentaurCwlRunnerRunMode.fromConfig(CentaurCwlRunnerConfig.conf)
   private val parser = buildParser()
   private lazy val centaurCwlRunnerVersion = VersionUtil.getVersion("centaur-cwl-runner")
+  private lazy val versionString = s"$centaurCwlRunnerVersion ${centaurCwlRunnerRunMode.description}"
 
   private def showUsage(): ExitCode.Value = {
     parser.showUsage()
@@ -62,7 +69,7 @@ object CentaurCwlRunner extends StrictLogging {
 
   private def buildParser(): scopt.OptionParser[CommandLineArguments] = {
     new scopt.OptionParser[CommandLineArguments]("java -jar /path/to/centaurCwlRunner.jar") {
-      head("centaur-cwl-runner", centaurCwlRunnerVersion)
+      head("centaur-cwl-runner", versionString)
 
       help("help").text("Centaur CWL Runner - Cromwell integration testing environment")
 
@@ -81,15 +88,9 @@ object CentaurCwlRunner extends StrictLogging {
         action((s, c) =>
           c.copy(outdir = Option(File(s))))
 
-      opt[Unit]("mode-local").text("Assume local file paths (default)").optional().
-        action((_, c) => c.copy(localMode = true))
-
-      opt[Unit]("mode-gcs-default").text("Assume GCS file paths, use application default credentials").optional().
-        action((_, c) => c.copy(localMode = false))
-
-      opt[String]("mode-gcs-service").text("Assume GCS file paths. Use service account credentials, path to credentials JSON as an argument.").
-        optional().
-        action((s, c) => c.copy(localMode = false, serviceAccountJson = Option(s)))
+      opt[String]("skip-file").text("A csv file describing workflows to be skipped based on their name.").optional().
+        action((s, c) =>
+          c.copy(skipFile = Option(File(s))))
     }
   }
 
@@ -99,9 +100,13 @@ object CentaurCwlRunner extends StrictLogging {
       val zipFile = File.newTemporaryFile("cwl_imports.", ".zip")
       val dir = file.parent
       if (!args.quiet) {
-        logger.info(s"Zipping $dir to $zipFile")
+        logger.info(s"Zipping files under 1mb in $dir to $zipFile")
       }
-      val files = dir.children
+      // TODO: Only include files under 1mb for now. When cwl runners run in parallel this can use a lot of space.
+      val files = dir
+        .children
+        .filter(_.isRegularFile)
+        .filter(_.size < 1 * 1024 * 1024)
       Cmds.zip(files.toSeq: _*)(zipFile)
       zipFile
     }
@@ -113,8 +118,27 @@ object CentaurCwlRunner extends StrictLogging {
     }
     val outdirOption = args.outdir.map(_.pathAsString)
     val testName = workflowPath.name
-    val workflowContents = parsedWorkflowPath.contentAsString
-    val inputContents = args.workflowInputs.map(_.contentAsString)
+    val preProcessedWorkflow = cwlPreProcessor
+      .preProcessCwlFileToString(parsedWorkflowPath, workflowRoot)
+      .value.unsafeRunSync() match {
+      case Left(errors) =>
+        logger.error(s"Failed to pre process cwl workflow: ${errors.toList.mkString(", ")}")
+        return ExitCode.Failure
+      case Right(v) => v
+    }
+
+    val workflowContents = centaurCwlRunnerRunMode.preProcessWorkflow(preProcessedWorkflow)
+    val inputContents = args.workflowInputs
+      .map(centaurCwlRunnerRunMode.preProcessInput)
+      .map(preProcessed => {
+        preProcessed.value.unsafeRunSync() match {
+          case Left(errors) =>
+            logger.error(s"Failed to pre process cwl workflow: ${errors.toList.mkString(", ")}")
+            return ExitCode.Failure
+          case Right(value) => value
+        }
+      })
+
     val workflowType = Option("cwl")
     val workflowTypeVersion = None
     val optionsContents = outdirOption map { outdir =>
@@ -131,40 +155,43 @@ object CentaurCwlRunner extends StrictLogging {
     val submitResponseOption = None
 
     val workflowData = WorkflowData(
-      workflowContents, workflowRoot, workflowType, workflowTypeVersion, inputContents, optionsContents, labels, zippedImports)
-    val workflow = Workflow(testName, workflowData, workflowMetadata, notInMetadata, directoryContentCounts, backends)
+      Option(workflowContents),
+      None,
+      None,
+      workflowType,
+      workflowTypeVersion,
+      inputContents.map(IO.pure),
+      optionsContents.map(IO.pure),
+      labels,
+      zippedImports
+    )
+    val workflow = Workflow(
+      testName,
+      workflowData,
+      workflowMetadata,
+      notInMetadata,
+      directoryContentCounts,
+      backends,
+      retryTestFailures = false
+    )
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 
     if (!args.quiet) {
       logger.info(s"Starting test for $workflowPath")
     }
 
-    def pathBuilderFactory: PathBuilderFactory = {
-      (args.localMode, args.serviceAccountJson) match {
-        case (true, _) => DefaultPathBuilderFactory
-        case (false, Some(serviceAccountJson)) =>
-          import scala.collection.JavaConverters._
-          val scopes = List(
-            StorageScopes.DEVSTORAGE_FULL_CONTROL,
-            StorageScopes.DEVSTORAGE_READ_WRITE
-          ).asJava
-          val auth = ServiceAccountMode("service-account", JsonFileFormat(serviceAccountJson), scopes)
-          GcsPathBuilderFactory(auth, "centaur-cwl", None)
-        case (false, _) =>
-          GcsPathBuilderFactory(ApplicationDefaultMode("application-default"), "centaur-cwl", None)
-      }
-    }
+    val pathBuilderFactory: PathBuilderFactory = centaurCwlRunnerRunMode.pathBuilderFactory
 
     try {
       import CentaurCromwellClient.{blockingEc, system}
       lazy val pathBuilder = Await.result(pathBuilderFactory.withOptions(WorkflowOptions.empty), Duration.Inf)
 
-      testCase.testFunction.run.get match {
+      testCase.testFunction.run.unsafeRunSync() match {
         case unexpected: SubmitHttpResponse =>
           logger.error(s"Unexpected response: $unexpected")
           ExitCode.Failure
         case SubmitWorkflowResponse(submittedWorkflow) =>
-          val status = CentaurCromwellClient.status(submittedWorkflow).get
+          val status = CentaurCromwellClient.status(submittedWorkflow).unsafeRunSync()
           status match {
             case unexpected: NonTerminalStatus =>
               logger.error(s"Unexpected status: $unexpected")
@@ -198,9 +225,20 @@ object CentaurCwlRunner extends StrictLogging {
     }
   }
 
+  private def skip(args: CommandLineArguments): Boolean =
+    args.skipFile
+      .map(_.lines).getOrElse(List.empty)
+      .map(_.split(','))
+      .map({
+        case Array(source, inputs) => SkippedTest(source, inputs)
+        case invalid => throw new RuntimeException(s"Invalid skipped_tests file: $invalid")
+      })
+      .exists(_.shouldSkip(args))
+
   def main(args: Array[String]): Unit = {
     val parsedArgsOption = parser.parse(args, CommandLineArguments())
     val exitCode = parsedArgsOption match {
+      case Some(parsedArgs) if skip(parsedArgs) => ExitCode.NotImplemented
       case Some(parsedArgs) => runCentaur(parsedArgs)
       case None => showUsage()
     }

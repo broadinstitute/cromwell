@@ -103,6 +103,12 @@ class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks 
     }
   }
 
+  forAll(mapFileTests) { (description, womFile, expected) =>
+    it should s"map $description with mapWomFile" in {
+      womFile.mapWomFile("prepend/" + _.value) should be(expected)
+    }
+  }
+
   val flattenFileTests = Table(
     ("description", "womFile", "expected"),
     ("a single directory", singleDir, List(WomUnlistedDirectory("single/dir"))),
@@ -122,45 +128,22 @@ class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks 
     ),
     ("a file with secondary files", fileWithSecondaryFiles,
       List(
-        WomMaybePopulatedFile(
-          valueOption = Option("single/file"),
-          secondaryFiles = List(WomSingleFile("secondary/file1"), WomSingleFile("secondary/file2"))
-        ),
+        WomSingleFile("single/file"),
         WomSingleFile("secondary/file1"),
         WomSingleFile("secondary/file2")
       )
     ),
     ("a file with secondary dirs", fileWithSecondaryDirs,
       List(
-        WomMaybePopulatedFile(
-          valueOption = Option("single/file"),
-          secondaryFiles = List(WomUnlistedDirectory("listed/dir1"), WomUnlistedDirectory("listed/dir2"))
-        ),
+        WomSingleFile("single/file"),
         WomUnlistedDirectory("listed/dir1"),
         WomUnlistedDirectory("listed/dir2")
       )
     ),
     ("a nested file/dir", nestedFilesAndDirs,
       List(
-        WomMaybePopulatedFile(
-          valueOption = Option("single/file"),
-          secondaryFiles = List(WomMaybeListedDirectory(
-            valueOption = Option("listed/dir1"),
-            listingOption = Option(List(WomMaybePopulatedFile(valueOption = Option("secondary/file1"),
-              secondaryFiles = List(WomMaybeListedDirectory(
-                valueOption = Option("listed/dir2"),
-                listingOption = Option(List(WomSingleFile("secondary/file2")))
-              ))
-            )))
-          ))
-        ),
-        WomMaybePopulatedFile(
-          valueOption = Option("secondary/file1"),
-          secondaryFiles = List(WomMaybeListedDirectory(
-            valueOption = Option("listed/dir2"),
-            listingOption = Option(List(WomSingleFile("secondary/file2")))
-          ))
-        ),
+        WomSingleFile("single/file"),
+        WomSingleFile("secondary/file1"),
         WomSingleFile("secondary/file2")
       )
     )

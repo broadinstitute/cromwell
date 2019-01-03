@@ -22,13 +22,11 @@ task select_first_with_optionals {
 
 task optionals_with_defaults {
 	String? supplied = "HAPPY_BIRTHDAY_RUCHI"
-	String? call_and_wf_supplied = "HAPPY_BIRTHDAY_RUCHI"
 	String? wfSupplied = "HAPPY_BIRTHDAY_RUCHI"
 	String? unsupplied = "HAPPY_BIRTHDAY_RUCHI"
 
 	command {
 		echo "${supplied}"
-		echo "${call_and_wf_supplied}"
 		echo "${wfSupplied}"
 		echo "${unsupplied}"
 	}
@@ -104,7 +102,7 @@ task default_interpolations {
 
 workflow optional_parameter {
 	call select_first_with_optionals { input: supplied = "SUPPLIED" }
-	call optionals_with_defaults { input: supplied = "SUPPLIED", call_and_wf_supplied = "SUPPLIED" }
+	call optionals_with_defaults { input: supplied = "SUPPLIED" }
 	call optional_array_interpolations { input: supplied = [5, 5, 5] }
 	call interpolation_additions { input: supplied = "SUPPLIED", suppliedInt = 5}
 	call default_interpolations { input: supplied = "SUPPLIED" }

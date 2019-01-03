@@ -1,31 +1,40 @@
 package cwl
 
-import cats.data.NonEmptyList
-import cats.syntax.either._
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
-import cats.syntax.traverse._
-import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
+import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
+import cwl.FileParameter.sync
+import cwl.InitialWorkDirFileGeneratorExpression._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
-import mouse.all._
-import wom.expression.{IoFunctionSet, WomExpression}
+import shapeless.Poly1
+import wom.callable.{AdHocValue, ContainerizedInputExpression}
+import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
+import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-import scala.util.Try
 
 trait CwlWomExpression extends WomExpression {
 
   def cwlExpressionType: WomType
 
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = cwlExpressionType.validNel
+
+  def expressionLib: ExpressionLib
+
+  def evaluate(inputs: Map[String, WomValue], parameterContext: ParameterContext, expression: Expression): ErrorOr[WomValue] =
+    expression.
+      fold(EvaluateExpression).
+      apply(parameterContext)
 }
 
-case class JobPreparationExpression(expression: Expression,
-                                    override val inputs: Set[String]) extends CwlWomExpression {
+case class ECMAScriptWomExpression(expression: Expression,
+                                   override val inputs: Set[String],
+                                   override val expressionLib: ExpressionLib) extends CwlWomExpression {
   val cwlExpressionType = WomAnyType
 
   override def sourceString = expression match {
@@ -34,85 +43,217 @@ case class JobPreparationExpression(expression: Expression,
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
-    val pc = ParameterContext(inputValues)
-    expression.
-      fold(EvaluateExpression).
-      apply(pc).
-      cata(Right(_), Left(_)). // this is because toEither is not a thing in scala 2.11.
-      leftMap(e => NonEmptyList.one(e.getMessage)).
-      toValidated
+    val pc = ParameterContext(ioFunctionSet, expressionLib, inputValues)
+    evaluate(inputValues, pc, expression)
   }
 
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[WomFile].validNel
+  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType) = Set.empty[FileEvaluation].validNel
 }
 
-final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry) extends CwlWomExpression {
-  override def cwlExpressionType: WomType = WomSingleFileType
-  override def sourceString: String = entry.toString
+final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
-    def mustBeString(womValue: WomValue): ErrorOr[String] = womValue match {
-      case WomString(s) => s.validNel
-      case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
+  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[List[AdHocValue]] = {
+    def recursivelyBuildDirectory(directory: String): ErrorOr[WomMaybeListedDirectory] = {
+      import cats.instances.list._
+      import cats.syntax.traverse._
+      for {
+        listing <- sync(ioFunctionSet.listDirectory(directory)()).toErrorOr
+        fileListing <- listing.toList.traverse[ErrorOr, WomFile] {
+          case IoDirectory(e) => recursivelyBuildDirectory(e)
+          case IoFile(e) => WomSingleFile(e).validNel
+        }
+      } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
+    }
+    val updatedValues = inputValues map {
+      case (k, v: WomMaybeListedDirectory) => k -> {
+        val absolutePathString = ioFunctionSet.pathFunctions.relativeToHostCallRoot(v.value)
+        recursivelyBuildDirectory(absolutePathString) match {
+          case Valid(d) => d
+          case Invalid(es) => throw new RuntimeException(es.toList.mkString("Error building directory: ", ", ", ""))
+        }
+      }
+      case kv => kv
+    }
+    val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, updatedValues)
+    entry.fold(InitialWorkDirFilePoly).apply(unmappedParameterContext, mappedInputValues)
+  }
+}
+
+object InitialWorkDirFileGeneratorExpression {
+  type InitialWorkDirFileEvaluator = (ParameterContext, Map[String, WomValue]) => ErrorOr[List[AdHocValue]]
+
+  /**
+    * Converts an InitialWorkDir.
+    *
+    * TODO: Review against the spec. Especially for Dirent values. For example:
+    *
+    * "If the value is an expression that evaluates to a Dirent object, this indicates that the File or Directory in
+    * entry should be added to the designated output directory with the name in entryname."
+    *
+    * - http://www.commonwl.org/v1.0/CommandLineTool.html#InitialWorkDirRequirement
+    * - http://www.commonwl.org/v1.0/CommandLineTool.html#Dirent
+    */
+  object InitialWorkDirFilePoly extends Poly1 {
+    implicit val caseExpressionDirent: Case.Aux[ExpressionDirent, InitialWorkDirFileEvaluator] = {
+      at { expressionDirent =>
+        (unmappedParameterContext, mappedInputValues) => {
+
+          val mutableInputOption = expressionDirent.entry.fold(ExpressionToMutableInputOptionPoly)
+
+          val entryEvaluation =
+            expressionDirent.entry match {
+                //we need to catch this special case to feed in "value-mapped" input values
+              case expr@Expression.ECMAScriptExpression(exprString) if exprString.value.trim() == "$(JSON.stringify(inputs))" =>
+                val specialParameterContext = ParameterContext(
+                  unmappedParameterContext.ioFunctionSet,
+                  unmappedParameterContext.expressionLib,
+                  mappedInputValues
+                )
+                ExpressionEvaluator.eval(expr, specialParameterContext)
+              case _ => ExpressionEvaluator.eval(expressionDirent.entry, unmappedParameterContext)
+            }
+
+          val womValueErrorOr: ErrorOr[AdHocValue] = entryEvaluation flatMap {
+            case womFile: WomFile =>
+              val errorOrEntryName: ErrorOr[Option[String]] = expressionDirent.entryname match {
+                case Some(actualEntryName) => actualEntryName.fold(EntryNamePoly).apply(unmappedParameterContext).map(Option.apply)
+                case None => None.valid
+              }
+              errorOrEntryName map { entryName =>
+                AdHocValue(womFile, entryName, inputName = mutableInputOption)
+              }
+            case other => for {
+              coerced <- WomStringType.coerceRawValue(other).toErrorOr
+              contentString = coerced.asInstanceOf[WomString].value
+              // We force the entryname to be specified, and then evaluate it:
+              entryNameStringOrExpression <- expressionDirent.entryname.toErrorOr(
+                "Invalid dirent: Entry was a string but no file name was supplied")
+              entryName <- entryNameStringOrExpression.fold(EntryNamePoly).apply(unmappedParameterContext)
+              writeFile = unmappedParameterContext.ioFunctionSet.writeFile(entryName, contentString)
+              writtenFile <- validate(Await.result(writeFile, Duration.Inf))
+            } yield AdHocValue(writtenFile, alternativeName = None, inputName = mutableInputOption)
+          }
+
+          womValueErrorOr.map(List(_))
+        }
+      }
     }
 
-    def evaluateEntryName(stringOrExpression: StringOrExpression): ErrorOr[String] = stringOrExpression match {
-      case StringOrExpression.String(s) => s.validNel
-      case StringOrExpression.ECMAScriptExpression(entrynameExpression) => for {
-        entryNameExpressionEvaluated <- ExpressionEvaluator.evalExpression(entrynameExpression, ParameterContext(inputValues)).toErrorOr
-        entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
-      } yield entryNameValidated
+    implicit val caseStringDirent: Case.Aux[StringDirent, InitialWorkDirFileEvaluator] = {
+      at {
+        stringDirent => {
+          (unmappedParameterContext, _) =>
+            val womValueErrorOr = for {
+              entryName <- stringDirent.entryname.fold(EntryNamePoly).apply(unmappedParameterContext)
+              contentString = stringDirent.entry
+              writeFile = unmappedParameterContext.ioFunctionSet.writeFile(entryName, contentString)
+              writtenFile <- validate(Await.result(writeFile, Duration.Inf))
+            } yield writtenFile
+
+            womValueErrorOr.map(AdHocValue(_, alternativeName = None, inputName = None)).map(List(_))
+        }
+      }
     }
 
-    entry match {
-      case IwdrListingArrayEntry.StringDirent(content, direntEntryName, _) => for {
-        entryNameValidated <- evaluateEntryName(direntEntryName)
-        writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryNameValidated, content), Duration.Inf)).toErrorOr
-      } yield writtenFile
+    implicit val caseExpression: Case.Aux[Expression, InitialWorkDirFileEvaluator] = {
+      at { expression =>
+        (unmappedParameterContext, _) => {
+          // A single expression which must evaluate to an array of Files
+          val expressionEvaluation = ExpressionEvaluator.eval(expression, unmappedParameterContext)
 
-      case IwdrListingArrayEntry.ExpressionDirent(Expression.ECMAScriptExpression(contentExpression), direntEntryName, _) =>
-        val entryEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(contentExpression, ParameterContext().addInputs(inputValues)).toErrorOr
-        entryEvaluation flatMap {
-          case f: WomFile =>
-            val entryName: ErrorOr[String] = direntEntryName match {
-              case Some(en) => evaluateEntryName(en)
-              case None => f.value.split('/').last.validNel
-            }
-            entryName flatMap { en => Try(Await.result(ioFunctionSet.copyFile(f.value, en), Duration.Inf)).toErrorOr }
-          case other => for {
-            coerced <- WomStringType.coerceRawValue(other).toErrorOr
-            contentString = coerced.asInstanceOf[WomString].value
-            // We force the entryname to be specified, and then evaluate it:
-            entryNameUnoptioned <- direntEntryName.toErrorOr("Invalid dirent: Entry was a string but no file name was supplied")
-            entryname <- evaluateEntryName(entryNameUnoptioned)
-            writtenFile <- Try(Await.result(ioFunctionSet.writeFile(entryname, contentString), Duration.Inf)).toErrorOr
-          }  yield writtenFile
+          expressionEvaluation flatMap {
+            case array: WomArray if array.value.forall(_.isInstanceOf[WomFile]) => 
+              array.value.toList.map(_.asInstanceOf[WomFile]).map(AdHocValue(_, alternativeName = None, inputName = None)).validNel
+            case file: WomFile =>
+              List(AdHocValue(file, alternativeName = None, inputName = None)).validNel
+            case other =>
+              val error = "InitialWorkDirRequirement listing expression must be File or Array[File] but got %s: %s"
+                .format(other, other.womType.toDisplayString)
+              error.invalidNel
+          }
         }
-      case IwdrListingArrayEntry.ECMAScriptExpression(expression) =>
-        // A single expression which must evaluate to an array of Files
-        val expressionEvaluation: ErrorOr[WomValue] = ExpressionEvaluator.evalExpression(expression, ParameterContext().addInputs(inputValues)).toErrorOr
+      }
+    }
 
-        expressionEvaluation flatMap {
-          case array: WomArray if WomArrayType(WomSingleFileType).coercionDefined(array) =>
-            val newFileArray: ErrorOr[List[WomFile]] = array.value.map(_.valueString).toList.traverse { source: String =>
-              val dest = source.split('/').last
-              Try(Await.result(ioFunctionSet.copyFile(source, dest), Duration.Inf)).toErrorOr
-            }
-            newFileArray map { nfa => WomArray(WomArrayType(WomSingleFileType), nfa) }
-
-          case other => s"InitialWorkDirRequirement listing expression must be Array[File] but got ${other.womType.toDisplayString}".invalidNel
+    implicit val caseString: Case.Aux[String, InitialWorkDirFileEvaluator] = {
+      at { string =>
+        (_, _) => {
+          List(AdHocValue(WomSingleFile(string), alternativeName = None, inputName = None)).valid
         }
+      }
+    }
 
-      case _ => ??? // TODO CWL and the rest....
+    implicit val caseStringOrExpression: Case.Aux[StringOrExpression, InitialWorkDirFileEvaluator] = {
+      at {
+        _.fold(this)
+      }
+    }
+
+    implicit val caseFile: Case.Aux[File, InitialWorkDirFileEvaluator] = {
+      at { file =>
+        (_, _) => {
+          file.asWomValue.map(AdHocValue(_, alternativeName = None, inputName = None)).map(List(_))
+        }
+      }
+    }
+
+    implicit val caseDirectory: Case.Aux[Directory, InitialWorkDirFileEvaluator] = {
+      at { directory =>
+        (_, _) => {
+          directory.asWomValue.map(AdHocValue(_, alternativeName = None, inputName = None)).map(List(_))
+        }
+      }
+    }
+
+  }
+
+  type EntryNameEvaluator = ParameterContext => ErrorOr[String]
+
+  object EntryNamePoly extends Poly1 {
+    implicit val caseString: Case.Aux[String, EntryNameEvaluator] = {
+      at {
+        string => {
+          _ =>
+            string.valid
+        }
+      }
+    }
+
+    implicit val caseExpression: Case.Aux[Expression, EntryNameEvaluator] = {
+      at {
+        expression => {
+          parameterContext =>
+            for {
+              entryNameExpressionEvaluated <- ExpressionEvaluator.eval(expression, parameterContext)
+              entryNameValidated <- mustBeString(entryNameExpressionEvaluated)
+            } yield entryNameValidated
+        }
+      }
+    }
+
+    private def mustBeString(womValue: WomValue): ErrorOr[String] = {
+      womValue match {
+        case WomString(s) => s.valid
+        case other => WomStringType.coerceRawValue(other).map(_.asInstanceOf[WomString].value).toErrorOr
+      }
     }
   }
 
-
-  override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[WomFile]] =
-    "Programmer error: Shouldn't use InitialWorkDirRequirement listing to find output files. You silly goose.".invalidNel
-
   /**
-    * We already get all of the task inputs when evaluating, and we don't need to highlight anything else
+    * Searches for ECMAScript expressions that mutate input paths.
+    *
+    * @see [[AdHocValue]]
     */
-  override def inputs: Set[String] = Set.empty
+  object ExpressionToMutableInputOptionPoly extends Poly1 {
+    private val MutableInputRegex = """(?s)\s*\$\(\s*inputs\.(\w+)\s*\)\s*""".r
+    implicit val caseECMAScriptExpression: Case.Aux[ECMAScriptExpression, Option[String]] = {
+      at { eCMAScriptExpression =>
+        eCMAScriptExpression.value match {
+          case MutableInputRegex(mutableInput) => Option(mutableInput)
+          case _ => None
+        }
+      }
+    }
+    implicit val caseECMAScriptFunction: Case.Aux[ECMAScriptFunction, Option[String]] = at { _ => None }
+  }
 }

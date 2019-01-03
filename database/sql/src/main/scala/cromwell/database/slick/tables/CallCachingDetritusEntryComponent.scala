@@ -14,7 +14,7 @@ trait CallCachingDetritusEntryComponent {
     extends Table[CallCachingDetritusEntry](tag, "CALL_CACHING_DETRITUS_ENTRY") {
     def callCachingDetritusEntryId = column[Int]("CALL_CACHING_DETRITUS_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
-    def detritusKey = column[String]("DETRITUS_KEY")
+    def detritusKey = column[String]("DETRITUS_KEY", O.Length(255))
 
     def detritusValue = column[Option[Clob]]("DETRITUS_VALUE")
 

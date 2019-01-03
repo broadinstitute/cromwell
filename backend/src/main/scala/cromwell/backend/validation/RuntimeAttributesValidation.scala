@@ -4,13 +4,16 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import cromwell.backend.{MemorySize, RuntimeAttributeDefinition}
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
-import cromwell.core.NoIoFunctionSet
+import cromwell.backend.RuntimeAttributeDefinition
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import org.slf4j.Logger
-import wdl.expression.PureStandardLibraryFunctions
-import wdl.{NoLookup, WdlExpression}
-import wom.expression.WomExpression
+import wdl.draft2.model.expression.PureStandardLibraryFunctions
+import wdl.draft2.model.{NoLookup, WdlExpression}
+import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
@@ -40,8 +43,12 @@ object RuntimeAttributesValidation {
     validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
   }
 
-  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+  def validateCpu(cpu: Option[WomValue], onMissingKey: => ErrorOr[Int Refined Positive]): ErrorOr[Int Refined Positive] = {
     validateWithValidation(cpu, CpuValidation.instance, onMissingKey)
+  }
+
+  def validateMaxRetries(maxRetries: Option[WomValue], onMissingKey: => ErrorOr[Int]): ErrorOr[Int] = {
+    validateWithValidation(maxRetries, MaxRetriesValidation.instance, onMissingKey)
   }
 
   private def validateWithValidation[T](valueOption: Option[WomValue],
@@ -69,11 +76,7 @@ object RuntimeAttributesValidation {
   }
 
   def parseMemoryString(k: String, s: WomString): ErrorOr[MemorySize] = {
-    MemoryValidation.validateMemoryString(k, s)
-  }
-
-  def parseMemoryInteger(k: String, i: WomInteger): ErrorOr[MemorySize] = {
-    MemoryValidation.validateMemoryInteger(k, i)
+    InformationValidation.validateString(k, s)
   }
 
   def withDefault[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
@@ -132,7 +135,7 @@ object RuntimeAttributesValidation {
     * @return The keys and extracted values.
     */
   def toMetadataStrings(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Map[String, String] = {
-    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.mapValues(unpackOption)
+    val attributeOptions: Map[String, Option[Any]] = validatedRuntimeAttributes.attributes.safeMapValues(unpackOption)
 
     val attributes: Map[String, String] = attributeOptions collect {
       case (name, Some(values: Traversable[_])) => (name, values.mkString(","))
@@ -406,20 +409,20 @@ trait RuntimeAttributesValidation[ValidatedType] {
     * @return The new version of this validation.
     */
   final def configDefaultWomValue(optionalRuntimeConfig: Option[Config]): Option[WomValue] = {
-    optionalRuntimeConfig flatMap { config =>
-      val value = config.getValue(key).unwrapped()
-      coercion.collectFirst({
-        case womType if womType.coerceRawValue(value).isSuccess => {
-          womType.coerceRawValue(value).get
+    optionalRuntimeConfig collect {
+      case config if config.hasPath(key) =>
+        val value = config.getValue(key).unwrapped()
+        coercion collectFirst {
+          case womType if womType.coerceRawValue(value).isSuccess => womType.coerceRawValue(value).get
+        } getOrElse {
+          BadDefaultAttribute(WomString(value.toString))
         }
-      }) orElse Option(BadDefaultAttribute(WomString(value.toString)))
     }
   }
 
   final def configDefaultValue(optionalRuntimeConfig: Option[Config]): Option[String] = {
-    optionalRuntimeConfig match {
-      case Some(config) if config.hasPath(key) => Option(config.getValue(key).unwrapped().toString)
-      case _ => None
+    optionalRuntimeConfig collect {
+      case config if config.hasPath(key) => config.getValue(key).unwrapped().toString
     }
   }
 

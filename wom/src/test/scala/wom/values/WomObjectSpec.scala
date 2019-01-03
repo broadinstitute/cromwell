@@ -27,16 +27,16 @@ class WomObjectSpec extends FlatSpec with Matchers with TryValues {
       array should have size 1
 
       //Attributes
-      array.head.value should contain key "one"
-      array.head.value should contain key "two"
-      array.head.value should contain key "three"
-      array.head.value should contain key "four"
+      array.head.values should contain key "one"
+      array.head.values should contain key "two"
+      array.head.values should contain key "three"
+      array.head.values should contain key "four"
 
       //Values
-      array.head.value.get("one") shouldBe Some(WomString("one"))
-      array.head.value.get("two") shouldBe Some(WomString("four"))
-      array.head.value.get("three") shouldBe Some(WomString("nine"))
-      array.head.value.get("four") shouldBe Some(WomString("sixteen"))
+      array.head.values.get("one") shouldBe Some(WomString("one"))
+      array.head.values.get("two") shouldBe Some(WomString("four"))
+      array.head.values.get("three") shouldBe Some(WomString("nine"))
+      array.head.values.get("four") shouldBe Some(WomString("sixteen"))
     }
   }
 
@@ -72,22 +72,22 @@ class WomObjectSpec extends FlatSpec with Matchers with TryValues {
 
       //Attributes
       array foreach { a =>
-        a.value should contain key "one"
-        a.value should contain key "two"
-        a.value should contain key "three"
-        a.value should contain key "four"
+        a.values should contain key "one"
+        a.values should contain key "two"
+        a.values should contain key "three"
+        a.values should contain key "four"
       }
 
       //Values
-      array.head.value.get("one") shouldBe Some(WomString("one"))
-      array.head.value.get("two") shouldBe Some(WomString("four"))
-      array.head.value.get("three") shouldBe Some(WomString("nine"))
-      array.head.value.get("four") shouldBe Some(WomString("sixteen"))
+      array.head.values.get("one") shouldBe Some(WomString("one"))
+      array.head.values.get("two") shouldBe Some(WomString("four"))
+      array.head.values.get("three") shouldBe Some(WomString("nine"))
+      array.head.values.get("four") shouldBe Some(WomString("sixteen"))
 
-      array(1).value.get("one") shouldBe Some(WomString("one"))
-      array(1).value.get("two") shouldBe Some(WomString("eight"))
-      array(1).value.get("three") shouldBe Some(WomString("twentyseven"))
-      array(1).value.get("four") shouldBe Some(WomString("sixtyfour"))
+      array(1).values.get("one") shouldBe Some(WomString("one"))
+      array(1).values.get("two") shouldBe Some(WomString("eight"))
+      array(1).values.get("three") shouldBe Some(WomString("twentyseven"))
+      array(1).values.get("four") shouldBe Some(WomString("sixtyfour"))
     }
   }
 

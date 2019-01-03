@@ -1,0 +1,36 @@
+{
+  "##_COMMENT1": "INPUT BAM",
+  "HaplotypeCallerGvcf_GATK4.input_bam": "gs://gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bam",
+  "HaplotypeCallerGvcf_GATK4.input_bam_index": "gs://gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bai",
+
+  "##_COMMENT2": "REFERENCE FILES",
+  "HaplotypeCallerGvcf_GATK4.ref_dict": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+
+  "##_COMMENT3": "INTERVALS",
+  "HaplotypeCallerGvcf_GATK4.scattered_calling_intervals_list": "gs://gatk-test-data/intervals/hg38_wgs_scattered_calling_intervals.txt",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.interval_padding": 100,
+
+  "##_COMMENT4": "DOCKERS",
+  "HaplotypeCallerGvcf_GATK4.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0",
+
+  "##_COMMENT5": "PATHS",
+  "HaplotypeCallerGvcf_GATK4.gatk_path": "/gatk/gatk",
+
+  "##_COMMENT6": "JAVA OPTIONS",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.java_opt": "-Xms8000m",
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.java_opt": "-Xms2000m",
+
+  "##_COMMENT7": "MEMORY ALLOCATION",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.mem_size": "10 GB",
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.mem_size": "3 GB",
+
+  "##_COMMENT8": "DISK SIZE ALLOCATION",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.disk_size": 100,
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.disk_size": 100,
+
+  "##_COMMENT9": "PREEMPTION",
+  "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.preemptible_tries": 3,
+  "HaplotypeCallerGvcf_GATK4.MergeGVCFs.preemptible_tries": 3
+}

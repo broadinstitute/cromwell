@@ -3,12 +3,13 @@ package cromwell.backend
 import akka.actor.{ActorRef, Props}
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPathsWithDocker
+import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.core.{CallOutputs, NoIoFunctionSet}
 import cromwell.core.path.Path
+import cromwell.core.path.PathFactory.PathBuilders
 import net.ceedubs.ficus.Ficus._
-import wom.expression.IoFunctionSet
-import wom.graph.TaskCallNode
+import wom.expression.{IoFunctionSet, NoIoFunctionSet}
+import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext
 
@@ -38,7 +39,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowInitializationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                        ioActor: ActorRef,
-                                       calls: Set[TaskCallNode],
+                                       calls: Set[CommandCallNode],
                                        serviceRegistryActor: ActorRef,
                                        restarting: Boolean): Option[Props] = None
 
@@ -54,7 +55,8 @@ trait BackendLifecycleActorFactory {
 
   lazy val jobExecutionTokenType: JobExecutionTokenType = {
     val concurrentJobLimit = configurationDescriptor.backendConfig.as[Option[Int]]("concurrent-job-limit")
-    JobExecutionTokenType(name, concurrentJobLimit)
+    val hogFactor = configurationDescriptor.globalConfig.getInt("system.hog-safety.hog-factor")
+    JobExecutionTokenType(name, concurrentJobLimit, hogFactor)
   }
 
   /* ****************************** */
@@ -63,7 +65,7 @@ trait BackendLifecycleActorFactory {
 
   def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor,
                                      ioActor: ActorRef,
-                                     calls: Set[TaskCallNode],
+                                     calls: Set[CommandCallNode],
                                      jobExecutionMap: JobExecutionMap,
                                      workflowOutputs: CallOutputs,
                                      initializationData: Option[BackendInitializationData]): Option[Props] = None
@@ -72,7 +74,7 @@ trait BackendLifecycleActorFactory {
   /*           Call Caching         */
   /* ****************************** */
 
-  def fileHashingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = None
+  def fileHashingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Option[ActorRef]) => Props] = None
 
   /**
     * Providing this method to generate Props for a cache hit copying actor is optional.
@@ -83,7 +85,7 @@ trait BackendLifecycleActorFactory {
     *
     * Simples!
     */
-  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef) => Props] = None
+  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = None
 
   /* ****************************** */
   /*              Misc.             */
@@ -96,6 +98,8 @@ trait BackendLifecycleActorFactory {
                                   initializationData: Option[BackendInitializationData],
                                   ioActor: ActorRef,
                                   ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
+  
+  def pathBuilders(initializationDataOption: Option[BackendInitializationData]): PathBuilders = List.empty
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {
     new WorkflowPathsWithDocker(workflowDescriptor, backendConfig).executionRoot
@@ -112,9 +116,18 @@ trait BackendLifecycleActorFactory {
     */
   def requestedKeyValueStoreKeys: Seq[String] = Seq.empty
 
+  /**
+    * A set of KV store keys that are requested and looked up on behalf of all backends before running each job.
+    */
+  def defaultKeyValueStoreKeys: Seq[String] = Seq(BackendLifecycleActorFactory.FailedRetryCountKey)
+
   /*
    * Returns credentials that can be used to authenticate to a docker registry server
    * in order to obtain a docker hash.
    */
-  def dockerHashCredentials(initializationDataOption: Option[BackendInitializationData]): List[Any] = List.empty
+  def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationDataOption: Option[BackendInitializationData]): List[Any] = List.empty
+}
+
+object BackendLifecycleActorFactory {
+  val FailedRetryCountKey = "FailedRetryCount"
 }

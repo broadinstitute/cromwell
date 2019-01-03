@@ -1,12 +1,13 @@
 package cromwell.engine.workflow.lifecycle.initialization
 
 import akka.actor.{ActorRef, FSM, Props}
+import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
 import cromwell.backend.BackendLifecycleActor.BackendActorAbortedResponse
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowInitializationActor}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{PossiblyNotRootWorkflowId, RootWorkflowId}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.WorkflowLifecycleActor._
@@ -44,18 +45,27 @@ object WorkflowInitializationActor {
   case object WorkflowInitializationAbortedResponse extends EngineLifecycleActorAbortedResponse with WorkflowInitializationResponse
   final case class WorkflowInitializationFailedResponse(reasons: Seq[Throwable]) extends WorkflowLifecycleFailureResponse with WorkflowInitializationResponse
 
-  def props(workflowId: WorkflowId,
+  def props(workflowIdForLogging: PossiblyNotRootWorkflowId,
+            rootWorkflowIdForLogging: RootWorkflowId,
             workflowDescriptor: EngineWorkflowDescriptor,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             restarting: Boolean): Props = {
-    Props(new WorkflowInitializationActor(workflowId, workflowDescriptor, ioActor, serviceRegistryActor, restarting)).withDispatcher(EngineDispatcher)
+    Props(new WorkflowInitializationActor(
+      workflowIdForLogging = workflowIdForLogging,
+      rootWorkflowIdForLogging = rootWorkflowIdForLogging,
+      workflowDescriptor = workflowDescriptor,
+      ioActor = ioActor,
+      serviceRegistryActor = serviceRegistryActor,
+      restarting = restarting
+    )).withDispatcher(EngineDispatcher)
   }
 
   case class BackendActorAndBackend(actor: ActorRef, backend: String)
 }
 
-case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
+case class WorkflowInitializationActor(workflowIdForLogging: PossiblyNotRootWorkflowId,
+                                       rootWorkflowIdForLogging: RootWorkflowId,
                                        workflowDescriptor: EngineWorkflowDescriptor,
                                        ioActor: ActorRef,
                                        serviceRegistryActor: ActorRef,
@@ -85,7 +95,7 @@ case class WorkflowInitializationActor(workflowIdForLogging: WorkflowId,
     case Event(StartInitializationCommand, _) =>
       val backendInitializationActors = Try {
         for {
-          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).mapValues(_.keySet)
+          (backend, calls) <- workflowDescriptor.backendAssignments.groupBy(_._2).safeMapValues(_.keySet)
           props <- CromwellBackends.backendLifecycleFactoryActorByName(backend).map(factory =>
             factory.workflowInitializationActorProps(workflowDescriptor.backendDescriptor, ioActor, calls, serviceRegistryActor, restarting)
           ).valueOr(errors => throw AggregatedMessageException("Cannot validate backend factories", errors.toList))

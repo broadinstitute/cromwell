@@ -14,6 +14,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case WorkflowSuccessTest => "successfully run"
     case WorkflowFailureTest => "fail during execution"
     case RunTwiceExpectingCallCachingTest => "call cache the second run of"
+    case RunThriceExpectingCallCachingTest => "call cache the third run of"
     case RunTwiceExpectingNoCallCachingTest => "NOT call cache the second run of"
     case RunFailingTwiceExpectingNoCallCachingTest => "Fail the first run and NOT call cache the second run of"
     case SubmitFailureTest => "fail to submit"
@@ -37,6 +38,7 @@ object CentaurTestFormat {
   case object WorkflowSuccessTest extends CentaurTestFormat("WorkflowSuccess")
   case object WorkflowFailureTest extends CentaurTestFormat("WorkflowFailure")
   case object RunTwiceExpectingCallCachingTest extends CentaurTestFormat("RunTwiceExpectingCallCaching")
+  case object RunThriceExpectingCallCachingTest extends CentaurTestFormat(name = "RunThriceExpectingCallCaching")
   case object RunTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunTwiceExpectingNoCallCaching")
   case object RunFailingTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunFailingTwiceExpectingNoCallCaching")
   case object SubmitFailureTest extends CentaurTestFormat("SubmitFailure")
@@ -92,6 +94,7 @@ object CentaurTestFormat {
       WorkflowSuccessTest,
       WorkflowFailureTest,
       RunTwiceExpectingCallCachingTest,
+      RunThriceExpectingCallCachingTest,
       RunTwiceExpectingNoCallCachingTest,
       RunFailingTwiceExpectingNoCallCachingTest,
       CromwellRestartWithRecover,

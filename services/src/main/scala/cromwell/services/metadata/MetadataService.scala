@@ -4,8 +4,8 @@ import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
-import cromwell.core.{JobKey, WorkflowId, WorkflowState}
-import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.core._
+import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
 import wom.core._
 import wom.values._
@@ -17,9 +17,16 @@ object MetadataService {
 
   final val MetadataServiceName = "MetadataService"
 
-  final case class WorkflowQueryResult(id: String, name: Option[String], status: Option[String], start: Option[OffsetDateTime], end: Option[OffsetDateTime], labels: Option[Map[String, String]], parentWorkflowId: Option[String])
+  final case class WorkflowQueryResult(id: String,
+                                       name: Option[String],
+                                       status: Option[String],
+                                       submission: Option[OffsetDateTime],
+                                       start: Option[OffsetDateTime],
+                                       end: Option[OffsetDateTime],
+                                       labels: Option[Map[String, String]],
+                                       parentWorkflowId: Option[String])
 
-  final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult])
+  final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult], totalResultsCount: Int)
 
   final case class QueryMetadata(page: Option[Int], pageSize: Option[Int], totalRecords: Option[Int])
 
@@ -62,8 +69,14 @@ object MetadataService {
     }
   }
 
-  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataServiceAction
-  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataServiceAction
+  sealed trait MetadataWriteAction extends MetadataServiceAction {
+    def events: Iterable[MetadataEvent]
+    def size: Int = events.size
+  }
+  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataWriteAction 
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataWriteAction
+
+  final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 
   final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
                                              excludeKeysOption: Option[NonEmptyList[String]],
@@ -120,25 +133,59 @@ object MetadataService {
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
+  private implicit class EnhancedWomTraversable(val womValues: Traversable[WomValue]) extends AnyVal {
+    def toEvents(metadataKey: MetadataKey): List[MetadataEvent] = if (womValues.isEmpty) {
+      List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
+    } else {
+      womValues.toList
+        .zipWithIndex
+        .flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
+    }
+  }
+  
+  private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = value match {
+    case Some(v) => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue(v))
+    case None => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue("", MetadataNull))
+  }
+  
   def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
-    case WomArray(_, valueSeq) =>
-      if (valueSeq.isEmpty) {
-        List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
-      } else {
-        val zippedSeq = valueSeq.zipWithIndex
-        zippedSeq.toList flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
-      }
+    case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey)
     case WomMap(_, valueMap) =>
       if (valueMap.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
       } else {
         valueMap.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value) }
       }
+    case objectLike: WomObjectLike =>
+      if (objectLike.values.isEmpty) {
+        List(MetadataEvent.empty(metadataKey))
+      } else {
+        objectLike.values.toList flatMap { case (key, value) => womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":$key"), value) }
+      }
     case WomOptionalValue(_, Some(value)) =>
       womValueToMetadataEvents(metadataKey, value)
     case WomPair(left, right) =>
       womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
         womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
+    case populated: WomMaybePopulatedFile =>
+      import mouse.all._
+      val secondaryFiles = populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
+
+      List(
+        MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("File")),
+        populated.valueOption |> toPrimitiveEvent(metadataKey, "location"),
+        populated.checksumOption |> toPrimitiveEvent(metadataKey, "checksum"),
+        populated.sizeOption |> toPrimitiveEvent(metadataKey, "size"),
+        populated.formatOption |> toPrimitiveEvent(metadataKey, "format"),
+        populated.contentsOption |> toPrimitiveEvent(metadataKey, "contents")
+      ) ++ secondaryFiles
+    case listedDirectory: WomMaybeListedDirectory =>
+      import mouse.all._
+      val listing = listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
+      List(
+        MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("Directory")),
+        listedDirectory.valueOption |> toPrimitiveEvent(metadataKey, "location")
+      ) ++ listing
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }
@@ -174,7 +221,7 @@ object MetadataService {
         }
         message ++ indexedCauseEvents
 
-      case other @ _ =>
+      case _ =>
         val message = List(MetadataEvent(metadataKey.copy(key = s"$metadataKeyAndFailureIndex:message"), MetadataValue(t.getMessage)))
         val causeKey = metadataKey.copy(key = s"$metadataKeyAndFailureIndex:causedBy")
         val cause = Option(t.getCause) map { cause => throwableToMetadataEvents(causeKey, cause, 0) } getOrElse emptyCauseList

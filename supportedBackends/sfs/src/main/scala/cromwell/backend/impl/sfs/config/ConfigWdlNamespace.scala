@@ -3,7 +3,7 @@ package cromwell.backend.impl.sfs.config
 import com.typesafe.config.Config
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import net.ceedubs.ficus.Ficus._
-import wdl._
+import wdl.draft2.model.{WdlNamespace, WdlTask}
 import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}
@@ -94,6 +94,7 @@ object ConfigWdlNamespace {
        |String $StdoutInput
        |String $StderrInput
        |String $ScriptInput
+       |String $JobShellInput
        |""".stripMargin
 
   /**
@@ -112,5 +113,6 @@ object ConfigWdlNamespace {
     s"""
        |String $JobIdInput
        |String $DockerCidInput
+       |String $JobShellInput
        |""".stripMargin
 }

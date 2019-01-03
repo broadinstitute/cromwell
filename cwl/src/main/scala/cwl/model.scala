@@ -1,50 +1,17 @@
 package cwl
 
-import cats.data.NonEmptyList
-import eu.timepit.refined._
-import cats.syntax.either._
-import shapeless.{:+:, CNil, Witness}
-import shapeless.syntax.singleton._
-import cwl.LinkMergeMethod.LinkMergeMethod
+import cwl.CommandLineTool.{CommandBindingSortingKey, SortKeyAndCommandPart}
+import cwl.SchemaDefRequirement.SchemaDefTypes
+import cwl.CwlType.CwlType
 import cwl.WorkflowStepInput.InputSource
-import common.validation.ErrorOr.ErrorOr
 import cwl.command.ParentName
-import io.circe.Json
+import cwl.internal.GigabytesToBytes
+import eu.timepit.refined._
+import shapeless.syntax.singleton._
+import shapeless.{:+:, CNil, Coproduct, Inl, Inr, Poly1, Witness}
 import wom.types.WomType
-import wom.graph.WomIdentifier
-import wom.graph.GraphNodePort.OutputPort
-import wom.graph.expression.ExposedExpressionNode
-
-case class WorkflowStepInput(
-  id: String,
-  source: Option[InputSource] = None,
-  linkMerge: Option[LinkMergeMethod] = None,
-  default: Option[CwlAny] = None,
-  valueFrom: Option[StringOrExpression] = None) {
-
-  def toExpressionNode(sourceMappings: Map[String, OutputPort],
-                       outputTypeMap: Map[String, WomType],
-                       inputs: Set[String]
-                      )(implicit parentName: ParentName): ErrorOr[ExposedExpressionNode] = {
-    val source = this.source.flatMap(_.select[String]).get
-    val lookupId = FullyQualifiedName(source).id
-
-    val outputTypeMapWithIDs = outputTypeMap.map {
-      case (key, value) => FullyQualifiedName(key).id -> value
-    }
-    (for {
-      inputType <- outputTypeMapWithIDs.get(lookupId).
-        toRight(NonEmptyList.one(s"couldn't find $lookupId as derived from $source in map\n${outputTypeMapWithIDs.mkString("\n")}"))
-      womExpression = WorkflowStepInputExpression(this, inputType, inputs)
-      identifier = WomIdentifier(id)
-      ret <- ExposedExpressionNode.fromInputMapping(identifier, womExpression, inputType, sourceMappings).toEither
-    } yield ret).toValidated
-  }
-}
-
-object WorkflowStepInput {
-  type InputSource = String :+: Array[String] :+: CNil
-}
+import wom.values.WomValue
+import mouse.all._
 
 object WorkflowStepInputSource {
   object String {
@@ -55,99 +22,141 @@ object WorkflowStepInputSource {
   }
 }
 
-case class InputParameter(
-                           id: String,
-                           label: Option[String] = None,
-                           secondaryFiles:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[
-                                 Expression :+:
-                                 String :+:
-                                 CNil] :+:
-                               CNil] = None,
-                           format:
-                             Option[
-                               Expression :+:
-                               String :+:
-                               Array[String] :+:
-                               CNil] = None,
-                           streamable: Option[Boolean] = None,
-                           doc: Option[String :+: Array[String] :+: CNil] = None,
-                           inputBinding: Option[CommandLineBinding] = None,
-                           default: Option[Json] = None, //can be of type "Any" which... sucks.
-                           `type`: Option[MyriadInputType] = None) {
-
-  type `type` = MyriadInputType
-  type Id = String
-}
-
+/**
+  * Describes a bespoke type.
+  *
+  * @param name This field actually does _not_ appear in the v1.0 schema, but it is used anyway in the conformance tests.
+  *             After some consideration it was determined that we should close our eyes and pretend it is in the spec.  It
+  *             makes its formal appearance as a required field in v1.1.
+  */
 case class InputRecordSchema(
-  `type`: W.`"record"`.T,
-  fields: Option[Array[InputRecordField]],
-  label: Option[String])
+  name: String,
+  fields: Option[Array[InputRecordField]] = None,
+  `type`: W.`"record"`.T = W("record").value,
+  label: Option[String] = None) {
+
+}
 
 case class InputRecordField(
   name: String,
   `type`: MyriadInputType,
-  doc: Option[String],
-  inputBinding: Option[CommandLineBinding],
-  label: Option[String])
+  doc: Option[String] = None,
+  inputBinding: Option[InputCommandLineBinding],
+  label: Option[String] = None)
 
-case class InputEnumSchema(
-  symbols: Array[String],
-  `type`: W.`"enum"`.T,
-  label: Option[String],
-  inputBinding: Option[CommandLineBinding])
-
-case class InputArraySchema(
+case class InputArraySchema
+(
   items: MyriadInputType,
   `type`: W.`"array"`.T = Witness("array").value,
   label: Option[String] = None,
-  inputBinding: Option[CommandLineBinding] = None)
+  inputBinding: Option[InputCommandLineBinding] = None,
+  // IAS.secondaryFiles are NOT listed in 1.0 spec, but according to jgentry they will be, maybe
+  secondaryFiles: Option[SecondaryFiles] = None
+)
 
-case class CommandLineBinding(
+trait CommandLineBinding {
+  def loadContents: Option[Boolean]
+  def position: Option[Int]
+  def prefix: Option[String]
+  def separate: Option[Boolean]
+  def itemSeparator: Option[String]
+  def optionalValueFrom: Option[StringOrExpression]
+  def shellQuote: Option[Boolean]
+  // separate defaults to true
+  def effectiveSeparate = separate.getOrElse(true)
+}
+
+object InputCommandLineBinding {
+  def default = InputCommandLineBinding()
+}
+
+case class InputCommandLineBinding(
                                loadContents: Option[Boolean] = None,
                                position: Option[Int] = None,
                                prefix: Option[String] = None,
-                               separate: Option[String] = None,
+                               separate: Option[Boolean] = None,
                                itemSeparator: Option[String] = None,
                                valueFrom: Option[StringOrExpression] = None,
-                               shellQuote: Option[Boolean] = None)
+                               shellQuote: Option[Boolean] = None) extends CommandLineBinding {
+  override val optionalValueFrom = valueFrom
 
-case class WorkflowOutputParameter(
-                                    id: String,
-                                    label: Option[String] = None,
-                                    secondaryFiles:
-                                      Option[
-                                        Expression :+:
-                                        String :+:
-                                        Array[
-                                          Expression :+:
-                                          String :+:
-                                          CNil] :+:
-                                        CNil] = None,
-                                    format: Option[Expression :+: String :+: Array[String] :+: CNil] = None,
-                                    streamable: Option[Boolean] = None,
-                                    doc: Option[String :+: Array[String] :+: CNil] = None,
-                                    outputBinding: Option[CommandOutputBinding] = None,
-                                    outputSource: Option[WorkflowOutputParameter#OutputSource] = None,
-                                    linkMerge: Option[LinkMergeMethod] = None,
-                                    `type`: Option[MyriadOutputType] = None) {
+  def toCommandPart(sortingKey: CommandBindingSortingKey, boundValue: WomValue, hasShellCommandRequirement: Boolean, expressionLib: ExpressionLib) = {
+    SortKeyAndCommandPart(sortingKey, InputCommandLineBindingCommandPart(this, boundValue)(hasShellCommandRequirement, expressionLib))
+  }
+}
 
-  type OutputSource = String :+: Array[String] :+: CNil
-  type `type` = MyriadOutputType
-  type Id = String
+// valueFrom is required for command line bindings in the argument section: http://www.commonwl.org/v1.0/CommandLineTool.html#CommandLineBinding
+case class ArgumentCommandLineBinding(
+                               valueFrom: StringOrExpression,
+                               loadContents: Option[Boolean] = None,
+                               position: Option[Int] = None,
+                               prefix: Option[String] = None,
+                               separate: Option[Boolean] = None,
+                               itemSeparator: Option[String] = None,
+                               shellQuote: Option[Boolean] = None) extends CommandLineBinding {
+  override val optionalValueFrom = Option(valueFrom)
 }
 
 case class InputBinding(position: Int, prefix: String)
 
+object MyriadOutputInnerTypeCacheableString extends Poly1 {
+  import Case._
+
+  private def cacheableOutputRecordFieldString(field: OutputRecordField): String = {
+    val fieldType = field.`type`.fold(MyriadOutputTypeCacheableString)
+    val lqn = field.name.substring(field.name.lastIndexOf('#') + 1)
+    s"OutputRecordField($lqn,$fieldType,${field.doc},${field.outputBinding})"
+  }
+
+  implicit def recordSchema: Aux[OutputRecordSchema, String] = at[OutputRecordSchema] {
+    s =>
+      val t = s.`type`
+      s"OutputRecordSchema($t,${s.fields.map(a => "Array(" + a.map(cacheableOutputRecordFieldString).mkString(",") + ")" )},${s.label})"
+  }
+
+  implicit def arraySchema: Aux[OutputArraySchema, String] = at[OutputArraySchema] {
+    a =>
+      val is: String = a.items.fold(MyriadOutputTypeCacheableString)
+      val t = a.`type`
+      s"OutputArraySchema($is,$t,${a.label},${a.outputBinding})"
+  }
+
+  implicit def enumSchema: Aux[OutputEnumSchema, String] = at[OutputEnumSchema] { _.toString }
+  implicit def cwlType: Aux[CwlType, String] = at[CwlType] { _.toString }
+  implicit def string: Aux[String, String] = at[String] { identity }
+}
+
+
+object MyriadOutputTypeCacheableString extends Poly1 {
+  import Case._
+
+  implicit def one: Aux[MyriadOutputInnerType, String] = at[MyriadOutputInnerType] {
+    _.fold(MyriadOutputInnerTypeCacheableString)
+  }
+
+  implicit def many: Aux[Array[MyriadOutputInnerType], String] = at[Array[MyriadOutputInnerType]] { a =>
+    val strings: Array[String] = a.map(_.fold(MyriadOutputInnerTypeCacheableString))
+    "Array(" + strings.mkString(",") + ")"
+  }
+}
+
+object SecondaryFilesCacheableString extends Poly1 {
+  import Case._
+
+  implicit def one: Aux[StringOrExpression, String] = at[StringOrExpression] {
+    _.toString
+  }
+
+  implicit def array: Aux[Array[StringOrExpression], String] = at[Array[StringOrExpression]] {
+    _.mkString("Array(", ",", ")")
+  }
+
+}
+
 case class OutputRecordSchema(
   `type`: W.`"record"`.T,
   fields: Option[Array[OutputRecordField]],
-  label: Option[String]
-  )
+  label: Option[String])
 
 case class OutputRecordField(
   name: String,
@@ -155,29 +164,47 @@ case class OutputRecordField(
   doc: Option[String],
   outputBinding: Option[CommandOutputBinding])
 
-case class OutputEnumSchema(
-  symbols: Array[String],
-  `type`: W.`"enum"`.T,
-  label: Option[String],
-  outputBinding: Option[CommandOutputBinding])
-
-
-
 case class OutputArraySchema(
   items: MyriadOutputType,
   `type`: W.`"array"`.T = Witness("array").value,
   label: Option[String] = None,
   outputBinding: Option[CommandOutputBinding] = None)
 
-
 case class InlineJavascriptRequirement(
   `class`: W.`"InlineJavascriptRequirement"`.T = "InlineJavascriptRequirement".narrow,
   expressionLib: Option[Array[String]] = None)
 
 case class SchemaDefRequirement(
-  `class`: W.`"SchemaDefRequirement"`.T,
-  types: Array[InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil]
-  )
+  types: Array[SchemaDefTypes] = Array.empty,
+  `class`: W.`"SchemaDefRequirement"`.T = Witness("SchemaDefRequirement").value) {
+
+  def lookupType(tpe: String): Option[WomType] =
+    lookupCwlType(tpe).flatMap{
+      case Inl(inputRecordSchema) => MyriadInputInnerTypeToWomType.inputRecordSchemaToWomType(inputRecordSchema).apply(this) |> Option.apply
+      case _ => None
+    }
+
+  //Currently only InputRecordSchema has a name in the spec, so it is the only thing that can be referenced via string
+  def lookupCwlType(tpe: String): Option[SchemaDefTypes] = {
+
+    def matchesType(inputEnumSchema: InputEnumSchema): Boolean = {
+      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id}
+    }
+
+    types.toList.flatMap {
+    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id=>
+          List(Coproduct[SchemaDefTypes](inputRecordSchema))
+    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if matchesType(inputEnumSchema)=>
+      List(Coproduct[SchemaDefTypes](inputEnumSchema))
+    case _ => List()
+    }.headOption
+  }
+}
+
+object SchemaDefRequirement {
+  type SchemaDefTypes = InputRecordSchema :+: InputEnumSchema :+: InputArraySchema :+: CNil
+
+}
 
 //There is a large potential for regex refinements on these string types
 case class DockerRequirement(
@@ -235,13 +262,13 @@ case class ResourceRequirement(
                                 outdirMax: Option[ResourceRequirementType]) {
   def effectiveCoreMin = coresMin.orElse(coresMax)
   def effectiveCoreMax = coresMax.orElse(coresMin)
-  
-  def effectiveRamMin = ramMin.orElse(ramMax)
-  def effectiveRamMax = ramMax.orElse(ramMin)
-  
+
+  def effectiveRamMin = ramMin.orElse(ramMax).map(_.fold(GigabytesToBytes))
+  def effectiveRamMax = ramMax.orElse(ramMin).map(_.fold(GigabytesToBytes))
+
   def effectiveTmpdirMin = tmpdirMin.orElse(tmpdirMax)
   def effectiveTmpdirMax = tmpdirMax.orElse(tmpdirMin)
-  
+
   def effectiveOutdirMin = outdirMin.orElse(outdirMax)
   def effectiveOutdirMax = outdirMax.orElse(outdirMin)
 }

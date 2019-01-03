@@ -1,6 +1,7 @@
 package cromwell.engine
 
-import wdl._
+import akka.actor.ActorRef
+import wdl.draft2.model._
 
 import scala.util.{Failure, Success, Try}
 
@@ -20,3 +21,5 @@ sealed trait WorkflowFailureMode {
 }
 case object ContinueWhilePossible extends WorkflowFailureMode { override val allowNewCallsAfterFailure = true }
 case object NoNewCalls extends WorkflowFailureMode { override val allowNewCallsAfterFailure = false }
+
+case class SubWorkflowStart(actorRef: ActorRef)

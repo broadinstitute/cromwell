@@ -3,7 +3,7 @@ testFormat: workflowfailure
 
 
 files {
-  wdl: failures/invalid_wdl/invalid_wdl.wdl
+  workflow: failures/invalid_wdl/invalid_wdl.wdl
 }
 
 metadata {

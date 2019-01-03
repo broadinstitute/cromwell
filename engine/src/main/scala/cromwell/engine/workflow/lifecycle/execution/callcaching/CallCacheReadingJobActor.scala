@@ -1,12 +1,13 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching.HashingFailedMessage
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult, PartialFileHashingResult}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCachePathPrefixes
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, InitialHashingResult, NextBatchOfFileHashesRequest, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
-import cromwell.core.Dispatcher.EngineDispatcher
 
 /**
   * Receives hashes from the CallCacheHashingJobActor and makes requests to the database to determine whether or not there might be a hit
@@ -22,13 +23,13 @@ import cromwell.core.Dispatcher.EngineDispatcher
   * Sends the response to its parent.
   * In case of a CacheHit, stays alive in case using the hit fails and it needs to fetch the next one. Otherwise just dies.
   */
-class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
+class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
   
   startWith(WaitingForInitialHash, CCRJANoData)
   
   when(WaitingForInitialHash) {
-    case Event(InitialHashingResult(_, aggregatedBaseHash), CCRJANoData) =>
-      callCacheReadActor ! HasMatchingInitialHashLookup(aggregatedBaseHash)
+    case Event(InitialHashingResult(_, aggregatedBaseHash, hints), CCRJANoData) =>
+      callCacheReadActor ! HasMatchingInitialHashLookup(aggregatedBaseHash, hints)
       goto(WaitingForHashCheck) using CCRJAWithData(sender(), aggregatedBaseHash, None, 1)
   }
   
@@ -41,14 +42,11 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
   }
   
   when(WaitingForFileHashes) {
-    case Event(PartialFileHashingResult(hashes), _) =>
-      callCacheReadActor ! HasMatchingInputFilesHashLookup(hashes)
-      goto(WaitingForHashCheck)
     case Event(CompleteFileHashingResult(_, aggregatedFileHash), data: CCRJAWithData) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.currentHitNumber)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash), data.currentHitNumber, prefixesHint)
       goto(WaitingForCacheHitOrMiss) using data.withFileHash(aggregatedFileHash)
     case Event(NoFileHashesResult, data: CCRJAWithData) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None), data.currentHitNumber)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None), data.currentHitNumber, prefixesHint)
       goto(WaitingForCacheHitOrMiss)
   }
   
@@ -59,7 +57,7 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
     case Event(CacheLookupNoHit, _) =>
       cacheMiss
     case Event(NextHit, CCRJAWithData(_, aggregatedInitialHash, aggregatedFileHash, currentHitNumber)) =>
-      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash), currentHitNumber)
+      callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash), currentHitNumber, prefixesHint)
       stay()
   }
   
@@ -81,8 +79,8 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef) extends LoggingFSM[
 
 object CallCacheReadingJobActor {
   
-  def props(callCacheReadActor: ActorRef) = {
-    Props(new CallCacheReadingJobActor(callCacheReadActor)).withDispatcher(EngineDispatcher)
+  def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) = {
+    Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint)).withDispatcher(EngineDispatcher)
   }
   
   sealed trait CallCacheReadingJobActorState

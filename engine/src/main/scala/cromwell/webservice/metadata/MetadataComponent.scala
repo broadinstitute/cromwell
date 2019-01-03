@@ -1,12 +1,14 @@
 package cromwell.webservice.metadata
 
-import cats.{Monoid, Semigroup}
-import cats.instances.map._
 import cats.instances.list._
+import cats.instances.map._
 import cats.syntax.foldable._
-import cromwell.core.{ExecutionStatus, WorkflowMetadataKeys, WorkflowState}
+import cats.{Monoid, Semigroup}
+import common.collections.EnhancedCollections._
+import cromwell.core._
+import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.services.metadata._
-import spray.json.{JsArray, _}
+import spray.json._
 
 import scala.collection.immutable.TreeMap
 import scala.language.postfixOps
@@ -41,7 +43,7 @@ object MetadataComponent {
 
   implicit val metadataComponentJsonWriter: JsonWriter[MetadataComponent] = JsonWriter.func2Writer[MetadataComponent] {
     case MetadataList(values) => JsArray(values.values.toVector map { _.toJson(this.metadataComponentJsonWriter) })
-    case MetadataObject(values) => JsObject(values.mapValues(_.toJson(this.metadataComponentJsonWriter)))
+    case MetadataObject(values) => JsObject(values.safeMapValues(_.toJson(this.metadataComponentJsonWriter)))
     case primitive: MetadataPrimitive => metadataPrimitiveJsonWriter.write(primitive)
     case MetadataEmptyComponent => JsObject.empty
     case MetadataNullComponent => JsNull
@@ -117,7 +119,6 @@ object MetadataComponent {
   }
   
   def fromMetadataKeyAndPrimitive(metadataKey: String, innerComponent: MetadataComponent) = {
-    import MetadataKey._
     metadataKey.split(KeySplitter).map(_.unescapeMeta).foldRight(innerComponent)(parseKeyChunk)
   }
 }

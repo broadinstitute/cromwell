@@ -1,9 +1,10 @@
 package cromwell.database.slick
 
-import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.tuple._
+import cats.syntax.apply._
 import cats.syntax.foldable._
+import com.rms.miu.slickcats.DBIOInstances._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables._
@@ -56,23 +57,47 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String)
+  case class PrefixAndLength(prefix: String, length: Int)
+
+  private def prefixesAndLengths(prefixes: List[String]): List[PrefixAndLength] = {
+    val doNotMatch = PrefixAndLength("", 1)
+    // `total` is ps.apply as a total function which returns an Option[String] instead of a String.
+    // `total` returns `None` if there is no element at the specified index.
+    val total = prefixes.lift
+    // Take the first three prefixes that have been supplied or fallback values that will intentionally fail to match anything.
+    (0 to 2).toList map { total(_) map { p => PrefixAndLength(p, p.length) } getOrElse doNotMatch }
+  }
+
+  override def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String, callCachePrefixes: Option[List[String]] = None)
                                                               (implicit ec: ExecutionContext): Future[Boolean] = {
-    val action = dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
-
+    val action = callCachePrefixes match {
+      case None => dataAccess.existsCallCachingEntriesForBaseAggregationHash(baseAggregationHash).result
+      case Some(ps) =>
+        val one :: two :: three :: _ = prefixesAndLengths(ps)
+        dataAccess.existsCallCachingEntriesForBaseAggregationHashWithCallCachePrefix(
+          (baseAggregationHash,
+            one.prefix, one.length,
+            two.prefix, two.length,
+            three.prefix, three.length)).result
+    }
     runTransaction(action)
   }
 
-  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], hitNumber: Int)
+  override def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], hitNumber: Int)
                                          (implicit ec: ExecutionContext): Future[Option[Int]] = {
-    val action = dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
 
-    runTransaction(action)
-  }
-
-  override def hasMatchingCallCachingEntriesForHashKeyValues(hashKeyHashValues: NonEmptyList[(String, String)])
-                                                            (implicit ec: ExecutionContext): Future[Boolean] = {
-    val action = dataAccess.existsMatchingCachingEntryIdsForHashKeyHashValues(hashKeyHashValues).result
+    val action = callCachePathPrefixes match {
+      case None =>
+        dataAccess.callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, hitNumber).result.headOption
+      case Some(ps) =>
+        val one :: two :: three :: _ = prefixesAndLengths(ps)
+        dataAccess.callCachingEntriesForAggregatedHashesWithPrefixes(
+          baseAggregationHash, inputFilesAggregationHash,
+          one.prefix, one.length,
+          two.prefix, two.length,
+          three.prefix, three.length,
+          hitNumber).result.headOption
+    }
 
     runTransaction(action)
   }
@@ -92,12 +117,32 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
-  override def cacheEntryExistsForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
-                                      (implicit ec: ExecutionContext): Future[Boolean] = {
+  private def callCacheJoinFromEntryQuery(callCachingEntry: CallCachingEntry)
+                            (implicit ec: ExecutionContext): DBIO[CallCachingJoin] = {
+    val callCachingEntryId = callCachingEntry.callCachingEntryId.get
+    val callCachingSimpletonEntries: DBIO[Seq[CallCachingSimpletonEntry]] = dataAccess.
+      callCachingSimpletonEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingDetritusEntries: DBIO[Seq[CallCachingDetritusEntry]] = dataAccess.
+      callCachingDetritusEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingHashEntries: DBIO[Seq[CallCachingHashEntry]] = dataAccess.
+      callCachingHashEntriesForCallCachingEntryId(callCachingEntryId).result
+    val callCachingAggregationEntries: DBIO[Option[CallCachingAggregationEntry]] = dataAccess.
+      callCachingAggregationForCacheEntryId(callCachingEntryId).result.headOption
+    
+    (callCachingHashEntries, callCachingAggregationEntries, callCachingSimpletonEntries, callCachingDetritusEntries) mapN { 
+      case (hashes, aggregation, simpletons, detrituses) =>
+        CallCachingJoin(callCachingEntry, hashes, aggregation, simpletons, detrituses)
+    }
+  }
+
+  override def callCacheJoinForCall(workflowExecutionUuid: String, callFqn: String, index: Int)
+                                   (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     val action = for {
       callCachingEntryOption <- dataAccess.
         callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
-    } yield callCachingEntryOption.nonEmpty
+      callCacheJoin <- callCachingEntryOption
+        .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.All]](DBIO.successful(None))(callCacheJoinFromEntryQuery(_).map(Option.apply))
+    } yield callCacheJoin
 
     runTransaction(action)
   }

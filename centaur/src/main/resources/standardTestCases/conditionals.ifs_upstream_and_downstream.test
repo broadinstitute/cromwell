@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 tags: [ conditionals ]
 
 files {
-  wdl: conditionals_tests/ifs_upstream_and_downstream/ifs_upstream_and_downstream.wdl
+  workflow: conditionals_tests/ifs_upstream_and_downstream/ifs_upstream_and_downstream.wdl
 }
 
 metadata {

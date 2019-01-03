@@ -1,6 +1,6 @@
 package cromwell.database.slick
 
-import java.sql.Connection
+import java.sql.{Connection, PreparedStatement, Statement}
 
 import com.typesafe.config.Config
 import cromwell.database.slick.tables.DataAccessComponent
@@ -11,7 +11,7 @@ import slick.basic.DatabaseConfig
 import slick.jdbc.{JdbcCapabilities, JdbcProfile}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 object SlickDatabase {
   /**
@@ -37,10 +37,15 @@ object SlickDatabase {
     // generate unique schema instances that don't conflict.
     //
     // Otherwise, create one DataAccess and hold on to the reference.
-    if (slickDatabase.databaseConfig.as[Option[Boolean]]("slick.createSchema").getOrElse(true)) {
+    if (slickDatabase.databaseConfig.getOrElse("slick.createSchema", true)) {
       import slickDatabase.dataAccess.driver.api._
       Await.result(slickDatabase.database.run(slickDatabase.dataAccess.schema.create), Duration.Inf)
     }
+  }
+
+  def getDatabaseConfig(name: String, parentConfig: Config): Config = {
+    val rootDatabaseConfig = parentConfig.getConfig("database")
+    rootDatabaseConfig.getOrElse(name, rootDatabaseConfig)
   }
 }
 
@@ -65,9 +70,11 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
   val database = slickConfig.db
 
-  SlickDatabase.log.info(s"Running with database $urlKey = ${databaseConfig.getString(urlKey)}")
+  override lazy val connectionDescription = databaseConfig.getString(urlKey)
 
-  protected[this] lazy val insertBatchSize = databaseConfig.as[Option[Int]]("insert-batch-size").getOrElse(2000)
+  SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")
+
+  protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
 
   protected[this] lazy val useSlickUpserts =
     dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
@@ -80,7 +87,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     }
   }
 
-  override def withConnection[A](block: (Connection) => A): A = {
+  override def withConnection[A](block: Connection => A): A = {
     /*
      TODO: Should this withConnection() method have a (implicit?) timeout parameter, that it passes on to Await.result?
      If we run completely asynchronously, nest calls to withConnection, and then call flatMap, the outer connection may
@@ -95,5 +102,36 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   protected[this] def runTransaction[R](action: DBIO[R]): Future[R] = {
     database.run(action.transactionally)
+  }
+
+  /*
+    * Upsert the provided values in batch.
+    * Fails the query if one or more upsert failed.
+    * Adapted from https://github.com/slick/slick/issues/1781
+   */
+  protected[this] def createBatchUpsert[T](description: String,
+                                           compiled: dataAccess.driver.JdbcCompiledInsert,
+                                           values: Iterable[T]
+                                          )(implicit ec: ExecutionContext): DBIO[Unit] = {
+    SimpleDBIO { context =>
+      context.session.withPreparedStatement[Array[Int]](compiled.upsert.sql) { st: PreparedStatement =>
+        values.foreach { update =>
+          st.clearParameters()
+          compiled.upsert.converter.set(update, st)
+          st.addBatch()
+        }
+        st.executeBatch()
+      }
+    } flatMap { upsertCounts =>
+      val failures = upsertCounts.filter(_ == Statement.EXECUTE_FAILED)
+      if (failures.isEmpty) DBIO.successful(())
+      else {
+        val valueList = values.toList
+        val failedRequests = failures.map(valueList(_))
+        DBIO.failed(new RuntimeException(
+          s"$description failed to upsert the following rows: ${failedRequests.mkString(", ")}"
+        ))
+      }
+    }
   }
 }

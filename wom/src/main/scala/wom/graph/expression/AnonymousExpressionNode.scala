@@ -4,7 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.expression.WomExpression
 import wom.graph.GraphNode.GraphNodeSetter
 import wom.graph.GraphNodePort.{InputPort, OutputPort}
-import wom.graph.{TaskCallNode, WomIdentifier}
+import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.WomType
 
 object AnonymousExpressionNode {
@@ -39,5 +39,5 @@ case class TaskCallInputExpressionNode(override val identifier: WomIdentifier,
    * to be able to look up backend mapping for the target call in order to have the correct `IoFunctionSet` to
    * evaluate task call input expressions.
    */
-  val taskCallNodeReceivingInput: GraphNodeSetter[TaskCallNode] = new GraphNodeSetter[TaskCallNode]
+  val taskCallNodeReceivingInput: GraphNodeSetter[CommandCallNode] = new GraphNodeSetter[CommandCallNode]
 }

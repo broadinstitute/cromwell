@@ -1,14 +1,10 @@
 package common.validation
 
-import java.net.URL
-
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, ValidatedNel}
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
 import common.validation.Validation._
-import net.ceedubs.ficus.Ficus._
 import org.scalatest.{FlatSpec, Matchers}
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
@@ -39,14 +35,6 @@ class ValidationSpec extends FlatSpec with Matchers with Mockito {
     val context = "warnings"
     warnNotRecognized(keys, reference, context, mockLogger)
     warnings should be(empty)
-  }
-
-  it should "read config URLs with urlReader" in {
-    val config = ConfigFactory.parseString("""url: "http://hello/world"""")
-    val url = config.as[URL]("url")
-    url.getProtocol should be ("http")
-    url.getHost should be("hello")
-    url.getPath should be("/world")
   }
 
   it should "convert a valid to a successful future" in {

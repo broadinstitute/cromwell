@@ -5,11 +5,11 @@ import cromwell.core.WorkflowOptions.WorkflowOption
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
 import wom.callable.Callable
-import wom.graph.TaskCallNode
+import wom.graph.CommandCallNode
 
 case class EngineWorkflowDescriptor(topLevelCallable: Callable,
                                     backendDescriptor: BackendWorkflowDescriptor,
-                                    backendAssignments: Map[TaskCallNode, String],
+                                    backendAssignments: Map[CommandCallNode, String],
                                     failureMode: WorkflowFailureMode,
                                     pathBuilders: List[PathBuilder],
                                     callCachingMode: CallCachingMode,
@@ -23,6 +23,8 @@ case class EngineWorkflowDescriptor(topLevelCallable: Callable,
   def isRootWorkflow: Boolean = rootWorkflow.parentWorkflow.isEmpty
 
   lazy val id = backendDescriptor.id
+  lazy val possiblyNotRootWorkflowId = id.toPossiblyNotRoot
+  lazy val rootWorkflowId = rootWorkflow.id.toRoot
   lazy val callable = backendDescriptor.callable
   lazy val name = callable.name
   lazy val knownValues = backendDescriptor.knownValues

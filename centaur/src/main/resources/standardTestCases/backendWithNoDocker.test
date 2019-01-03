@@ -3,7 +3,7 @@ backends: [LocalNoDocker]
 testFormat: runtwiceexpectingcallcaching
 
 files {
-  wdl: backendWithNoDocker/backendWithNoDocker.wdl
+  workflow: backendWithNoDocker/backendWithNoDocker.wdl
 }
 
 metadata {

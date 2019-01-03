@@ -1,0 +1,18 @@
+name: draft3_placeholder_attributes
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: wdl_draft3/placeholder_attributes/placeholder_attributes.wdl
+}
+
+metadata {
+  workflowName: placeholder_attributes
+  "outputs.placeholder_attributes.lines.0": good
+  "outputs.placeholder_attributes.lines.1": good
+  "outputs.placeholder_attributes.lines.2": good
+  "outputs.placeholder_attributes.lines.3": good
+  "outputs.placeholder_attributes.lines.4": "1___2___3___4___5"
+}

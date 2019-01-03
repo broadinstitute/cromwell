@@ -1,0 +1,29 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Test Service API",
+    "description": "Test Service API",
+    "version": "1.2.3"
+  },
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/hello": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Says hello via get"
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Says hello via post"
+          }
+        }
+      }
+    }
+  }
+}

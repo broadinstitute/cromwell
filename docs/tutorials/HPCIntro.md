@@ -36,11 +36,7 @@ The `actor-factory` above tells cromwell that you will be using the `config` sec
 You'll likely also want to change the default backend to your new backend, by setting this configuration value:
 
 ```hocon
-backend {
-  providers {
-    default = SGE
-  }
-}
+backend.default = SGE
 ```
 
 #### Specifying the runtime attributes for your HPC tasks
@@ -141,12 +137,12 @@ backend.providers.SGE.config {
 When Cromwell runs a task, it will fill in a template for the job using the declared runtime attributes. This specific template will vary depending on the requirements of your HPC cluster. For example, say you normally submit jobs to SGE using:
 
 ```bash
-qsub -terse -V -b n -N my_job_name \
+qsub -terse -V -b y -N my_job_name \
   -wd /path/to/working_directory \
-  -o /path/to/stdout \
-  -e /path/to/stderr \
+  -o /path/to/stdout.qsub \
+  -e /path/to/stderr.qsub \
   -pe smp 1 -l mem_free=0.5g -q short \
-  myScript.bash
+  /usr/bin/env bash myScript.bash
 ```
 
 For this particular SGE cluster, the above sets the working directory, stdout and stderr paths, the number of cpus to 1, the memory to half a gigabyte, and runs on the short queue.
@@ -159,16 +155,16 @@ backend.providers.SGE.config {
   qsub \
   -terse \
   -V \
-  -b n \
+  -b y \
   -N ${job_name} \
   -wd ${cwd} \
-  -o ${out} \
-  -e ${err} \
+  -o ${out}.qsub \
+  -e ${err}.qsub \
   -pe smp ${cpu} \
   ${"-l mem_free=" + memory_gb + "g"} \
   ${"-q " + sge_queue} \
   ${"-P " + sge_project} \
-  ${script}
+  /usr/bin/env bash ${script}
   """
 }
 ```
@@ -197,7 +193,7 @@ Whenever Cromwell restarts it checks to see if a job has completed by searching 
 
 ```hocon
 backend.providers.SGE.config {
-  check-alive = "qdel ${job_id}"
+  check-alive = "qstat -j ${job_id}"
 }
 ```
 
@@ -236,7 +232,7 @@ backend {
         qsub \
         -terse \
         -V \
-        -b n \
+        -b y \
         -N ${job_name} \
         -wd ${cwd} \
         -o ${out} \
@@ -245,11 +241,11 @@ backend {
         ${"-l mem_free=" + memory_gb + "g"} \
         ${"-q " + sge_queue} \
         ${"-P " + sge_project} \
-        ${script}
+        /usr/bin/env bash ${script}
         """
-    
+
         job-id-regex = "(\\d+)"
-    
+
         kill = "qdel ${job_id}"
         check-alive = "qstat -j ${job_id}"
       }

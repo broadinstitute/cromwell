@@ -7,19 +7,20 @@ import akka.actor._
 import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
+import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.core.abort.WorkflowAbortFailureResponse
+import cromwell.core.actor.BatchActor.QueueWeight
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
-import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
+import cromwell.engine.workflow.WorkflowManagerActor.{PreventNewWorkflowsFromStarting, RetrieveNewWorkflows}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreSubmitActor}
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
-import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, WorkflowOutputs}
-import cromwell.services.metadata.impl.WriteMetadataActor.{CheckPendingWrites, HasPendingWrites, NoPendingWrites}
+import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, ListenToMetadataWriteActor, WorkflowOutputs}
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.webservice.metadata.MetadataBuilderActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
@@ -39,9 +40,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                 gracefulShutdown: Boolean,
                                 abortJobsOnTerminate: Boolean
                                 )(implicit materializer: ActorMaterializer)
-  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate) with LoggingFSM[RunnerState, SwraData] {
-
-  override val serverMode = false
+  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate, false) with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
@@ -50,6 +49,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   override lazy val jobStoreActor = context.actorOf(EmptyJobStoreActor.props, "JobStoreActor")
   override lazy val subWorkflowStoreActor = context.actorOf(EmptySubWorkflowStoreActor.props, "SubWorkflowStoreActor")
 
+  log.info("{}: Version {}", Tag, VersionUtil.getVersion("cromwell-engine"))
   startWith(NotStarted, EmptySwraData)
 
   when (NotStarted) {
@@ -60,10 +60,12 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   }
 
   when (SubmittedWorkflow) {
-    case Event(WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id), SubmittedSwraData(replyTo)) =>
+    case Event(WorkflowStoreSubmitActor.WorkflowSubmittedToStore(id, WorkflowSubmitted), SubmittedSwraData(replyTo)) =>
       log.info(s"$Tag: Workflow submitted UUID($id)")
       // Since we only have a single workflow, force the WorkflowManagerActor's hand in case the polling rate is long
       workflowManagerActor ! RetrieveNewWorkflows
+      // After that - prevent the WMA from trying to start new workflows
+      workflowManagerActor ! PreventNewWorkflowsFromStarting
       schedulePollRequest()
       goto(RunningWorkflow) using RunningSwraData(replyTo, id)
   }
@@ -77,28 +79,26 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
       stay()
     case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
       log.info(s"$Tag workflow finished with status '$WorkflowSucceeded'.")
-      serviceRegistryActor ! CheckPendingWrites
+      serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using SucceededSwraData(replyTo, id)
     case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
       log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
-      serviceRegistryActor ! CheckPendingWrites
+      serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed"))
     case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
       log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
-      serviceRegistryActor ! CheckPendingWrites
+      serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using AbortedSwraData(replyTo, id)
   }
   
   when (WaitingForFlushedMetadata) {
-    case Event(HasPendingWrites, _) => 
-      context.system.scheduler.scheduleOnce(1 second, serviceRegistryActor, CheckPendingWrites)(context.system.dispatcher, self)
-      stay()
-    case Event(NoPendingWrites, data: SucceededSwraData) =>
+    case Event(QueueWeight(weight), _) if weight > 0 => stay()
+    case Event(QueueWeight(_), data: SucceededSwraData) =>
       val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
         s"CompleteRequest-Workflow-${data.id}-request-${UUID.randomUUID()}")
       metadataBuilder ! WorkflowOutputs(data.id)
       goto(RequestingOutputs)
-    case Event(NoPendingWrites, data : TerminalSwraData) =>
+    case Event(QueueWeight(_), data : TerminalSwraData) =>
       requestMetadataOrIssueReply(data)
   }
 
@@ -156,15 +156,17 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
 
   private def issueSuccessReply(replyTo: ActorRef): State = {
     replyTo.tell(msg = (), sender = self) // Because replyTo ! () is the parameterless call replyTo.!()
-    context.stop(self)
+    done
     stay()
   }
 
   private def issueFailureReply(replyTo: ActorRef, e: Throwable): State = {
     replyTo ! Status.Failure(e)
-    context.stop(self)
+    done
     stay()
   }
+  
+  private [workflow] def done() = {}
 
   private def issueReply(data: TerminalSwraData) = {
     data match {
@@ -180,7 +182,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     data match {
       case EmptySwraData =>
         log.error(e, "Cannot issue response. Need a 'replyTo' address to issue the exception response")
-        context.stop(self)
+        done
         stay()
       case SubmittedSwraData(replyTo) =>
         issueFailureReply(replyTo, e)

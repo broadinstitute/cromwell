@@ -27,22 +27,25 @@ class FetchCachedResultsActor(cacheResultId: CallCachingEntryId, replyTo: ActorR
   {
     implicit val ec: ExecutionContext = context.dispatcher
 
-    callCache.fetchCachedResult(cacheResultId) onComplete {
-      case Success(Some(result)) =>
+    callCache.fetchCachedResult(cacheResultId) map {
+      case Some(result) =>
         val simpletons = result.callCachingSimpletonEntries map toSimpleton
         val jobDetritusFiles = result.callCachingDetritusEntries map { jobDetritusEntry =>
           jobDetritusEntry.detritusKey -> jobDetritusEntry.detritusValue.toRawString
         }
-        val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
-                                    result.callCachingEntry.callFullyQualifiedName,
-                                    result.callCachingEntry.jobIndex).mkString(":")
 
-        replyTo ! CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap,
-                                              result.callCachingEntry.returnCode,
-                                              cacheResultId, sourceCacheDetails)
-      case Success(None) =>
+        val sourceCacheDetails = Seq(result.callCachingEntry.workflowExecutionUuid,
+          result.callCachingEntry.callFullyQualifiedName,
+          result.callCachingEntry.jobIndex).mkString(":")
+
+        CachedOutputLookupSucceeded(simpletons, jobDetritusFiles.toMap,
+          result.callCachingEntry.returnCode,
+          cacheResultId, sourceCacheDetails)
+      case None =>
         val reason = new RuntimeException(s"Cache hit vanished between discovery and retrieval: $cacheResultId")
-        replyTo ! CachedOutputLookupFailed(cacheResultId, reason)
+        CachedOutputLookupFailed(cacheResultId, reason)
+    } onComplete {
+      case Success(sendMe) => replyTo ! sendMe
       case Failure(t) => replyTo ! CachedOutputLookupFailed(cacheResultId, t)
     }
   }

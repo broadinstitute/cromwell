@@ -70,8 +70,6 @@ inputs:
       type:
       - 'null'
       - string
-    - name: reference__twobit
-      type: File
     - name: config__algorithm__recalibrate
       type:
       - string

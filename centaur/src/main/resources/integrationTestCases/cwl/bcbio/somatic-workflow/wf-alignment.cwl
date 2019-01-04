@@ -13,9 +13,12 @@ inputs:
       type:
       - 'null'
       - string
+      - boolean
+      - long
     - name: files
       type:
-        items: File
+      - 'null'
+      - items: File
         type: array
     - name: config__algorithm__trim_reads
       type:
@@ -35,17 +38,31 @@ inputs:
       - string
     - name: rgnames__rg
       type: string
+    - name: config__algorithm__umi_type
+      type:
+      - 'null'
+      - string
     - name: rgnames__lane
       type: string
     - name: reference__bwa__indexes
-      type: File
+      type:
+      - 'null'
+      - File
     - name: config__algorithm__bam_clean
       type:
       - string
       - 'null'
       - boolean
     - name: config__algorithm__aligner
-      type: string
+      type:
+      - 'null'
+      - string
+      - boolean
+    - name: reference__minimap2__indexes
+      type:
+      - 'null'
+      - items: 'null'
+        type: array
     - name: rgnames__pl
       type: string
     - name: rgnames__pu
@@ -60,7 +77,9 @@ inputs:
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions
-      type: File
+      type:
+      - 'null'
+      - File
     name: alignment_rec
     type: record
 outputs:
@@ -91,6 +110,18 @@ outputs:
   - 'null'
   - items: File
     type: array
+- id: umi_bam
+  outputSource: merge_split_alignments/umi_bam
+  secondaryFiles:
+  - .bai
+  type:
+  - File
+  - 'null'
+- id: config__algorithm__rawumi_avg_cov
+  outputSource: merge_split_alignments/config__algorithm__rawumi_avg_cov
+  type:
+  - int
+  - 'null'
 requirements:
 - class: EnvVarRequirement
   envDef:
@@ -118,6 +149,8 @@ steps:
   - id: hla__fastq
   - id: work_bam_plus__disc
   - id: work_bam_plus__sr
+  - id: config__algorithm__rawumi_avg_cov
+  - id: umi_bam
   run: steps/process_alignment.cwl
   scatter:
   - process_alignment_rec
@@ -136,9 +169,15 @@ steps:
     source: process_alignment/work_bam_plus__sr
   - id: hla__fastq_toolinput
     source: process_alignment/hla__fastq
+  - id: umi_bam_toolinput
+    source: process_alignment/umi_bam
+  - id: config__algorithm__rawumi_avg_cov_toolinput
+    source: process_alignment/config__algorithm__rawumi_avg_cov
   out:
   - id: align_bam
   - id: work_bam_plus__disc
   - id: work_bam_plus__sr
   - id: hla__fastq
+  - id: umi_bam
+  - id: config__algorithm__rawumi_avg_cov
   run: steps/merge_split_alignments.cwl

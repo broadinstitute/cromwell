@@ -10,10 +10,18 @@ inputs:
         type: string
       - name: description
         type: string
+      - name: config__algorithm__svprioritize
+        type: File
+      - name: genome_resources__variation__gc_profile
+        type: File
       - name: reference__snpeff__hg19
         type: File
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
         - 'null'
@@ -72,6 +80,10 @@ inputs:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -147,6 +159,11 @@ outputs:
         type:
         - File
         - 'null'
+      - name: sv__supplemental
+        type:
+          items:
+          - File
+          type: array
       - name: svvalidate__summary
         type:
         - File
@@ -155,8 +172,16 @@ outputs:
         type: string
       - name: description
         type: string
+      - name: config__algorithm__svprioritize
+        type: File
+      - name: genome_resources__variation__gc_profile
+        type: File
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
         - 'null'
@@ -207,6 +232,10 @@ outputs:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'

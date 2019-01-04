@@ -5,7 +5,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=single-parallel
-- sentinel_outputs=work_bam,align_bam,hla__fastq,work_bam_plus__disc,work_bam_plus__sr
+- sentinel_outputs=work_bam,align_bam,hla__fastq,work_bam_plus__disc,work_bam_plus__sr,config__algorithm__rawumi_avg_cov,umi_bam
 - sentinel_inputs=alignment_rec:record,process_alignment_rec:record
 - run_number=0
 baseCommand:
@@ -21,11 +21,11 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 1030
+  outdirMin: 1033
   ramMin: 4096
-  tmpdirMin: 3
+  tmpdirMin: 5
 - class: dx:InputResourceRequirement
-  indirMin: 7
+  indirMin: 10
 - class: SoftwareRequirement
   packages:
   - package: bwa
@@ -93,9 +93,12 @@ inputs:
       type:
       - 'null'
       - string
+      - boolean
+      - long
     - name: files
       type:
-        items: File
+      - 'null'
+      - items: File
         type: array
     - name: config__algorithm__trim_reads
       type:
@@ -115,17 +118,31 @@ inputs:
       - string
     - name: rgnames__rg
       type: string
+    - name: config__algorithm__umi_type
+      type:
+      - 'null'
+      - string
     - name: rgnames__lane
       type: string
     - name: reference__bwa__indexes
-      type: File
+      type:
+      - 'null'
+      - File
     - name: config__algorithm__bam_clean
       type:
       - string
       - 'null'
       - boolean
     - name: config__algorithm__aligner
-      type: string
+      type:
+      - 'null'
+      - string
+      - boolean
+    - name: reference__minimap2__indexes
+      type:
+      - 'null'
+      - items: 'null'
+        type: array
     - name: rgnames__pl
       type: string
     - name: rgnames__pu
@@ -140,7 +157,9 @@ inputs:
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions
-      type: File
+      type:
+      - 'null'
+      - File
     name: alignment_rec
     type: record
 - id: process_alignment_rec
@@ -186,6 +205,16 @@ outputs:
   - File
   - 'null'
 - id: work_bam_plus__sr
+  secondaryFiles:
+  - .bai
+  type:
+  - File
+  - 'null'
+- id: config__algorithm__rawumi_avg_cov
+  type:
+  - int
+  - 'null'
+- id: umi_bam
   secondaryFiles:
   - .bai
   type:

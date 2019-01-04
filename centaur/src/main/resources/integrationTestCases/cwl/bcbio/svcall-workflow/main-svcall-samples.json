@@ -560,14 +560,14 @@
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/snpeff--hg19-wf.tar.gz"
         }
     ],
-    "reference__twobit": [
+    "reference__versions": [
         {
             "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/ucsc/hg19.2bit"
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
         },
         {
             "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/ucsc/hg19.2bit"
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
         }
     ],
     "resources": [

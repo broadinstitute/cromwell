@@ -47,7 +47,7 @@ import scala.util.{Failure, Success, Try}
 class EngineJobExecutionActor(replyTo: ActorRef,
                               jobDescriptorKey: BackendJobDescriptorKey,
                               workflowDescriptor: EngineWorkflowDescriptor,
-                              factory: BackendLifecycleActorFactory,
+                              backendLifecycleActorFactory: BackendLifecycleActorFactory,
                               initializationData: Option[BackendInitializationData],
                               restarting: Boolean,
                               val serviceRegistryActor: ActorRef,
@@ -58,7 +58,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               workflowDockerLookupActor: ActorRef,
                               jobTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
-                              backendName: String,
                               callCachingMode: CallCachingMode,
                               command: BackendJobExecutionActorCommand,
                               fileHashCachingActor: Option[ActorRef],
@@ -86,8 +85,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // There's no need to check for a cache hit again if we got preempted, or if there's no result copying actor defined
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
   private[execution] var effectiveCallCachingMode = {
-    if (factory.fileHashingActorProps.isEmpty) CallCachingOff
-    else if (factory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) {
+    if (backendLifecycleActorFactory.fileHashingActorProps.isEmpty) CallCachingOff
+    else if (backendLifecycleActorFactory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) {
       callCachingMode.withoutRead
     } else callCachingMode
   }
@@ -163,7 +162,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   when(CheckingCacheEntryExistence) {
     // There was already a cache entry for this job
     case Event(join: CallCachingJoin, NoData) =>
-      Try(join.toJobSuccess(jobDescriptorKey, factory.pathBuilders(initializationData))).map({ jobSuccess =>
+      Try(join.toJobSuccess(jobDescriptorKey, backendLifecycleActorFactory.pathBuilders(initializationData))).map({ jobSuccess =>
         // We can't create a CallCacheHashes to give to the SucceededResponseData here because it involves knowledge of
         // which hashes are file hashes and which are not. We can't know that (nor do we care) when pulling them from the
         // database. So instead manually publish the hashes here.
@@ -474,7 +473,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def requestExecutionToken(): Unit = {
-    jobTokenDispenserActor ! JobExecutionTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, factory.jobExecutionTokenType)
+    jobTokenDispenserActor ! JobExecutionTokenRequest(workflowDescriptor.backendDescriptor.hogGroup, backendLifecycleActorFactory.jobExecutionTokenType)
   }
 
   // Return the execution token (if we have one)
@@ -529,7 +528,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   def prepareJob(valueStore: ValueStore) = {
     writeCallCachingModeToMetadata()
     val jobPreparationActorName = s"BackendPreparationActor_for_$jobTag"
-    val jobPrepProps = JobPreparationActor.props(workflowDescriptor, jobDescriptorKey, factory, workflowDockerLookupActor = workflowDockerLookupActor,
+    val jobPrepProps = JobPreparationActor.props(workflowDescriptor, jobDescriptorKey, backendLifecycleActorFactory, workflowDockerLookupActor = workflowDockerLookupActor,
       initializationData, serviceRegistryActor = serviceRegistryActor, ioActor = ioActor, backendSingletonActor = backendSingletonActor)
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! CallPreparation.Start(valueStore)
@@ -542,7 +541,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   def initializeJobHashing(jobDescriptor: BackendJobDescriptor, activity: CallCachingActivity, callCachingEligible: CallCachingEligible): Try[ActorRef] = {
-    val maybeFileHashingActorProps = factory.fileHashingActorProps map {
+    val maybeFileHashingActorProps = backendLifecycleActorFactory.fileHashingActorProps map {
       _.apply(jobDescriptor, initializationData, serviceRegistryActor, ioActor, fileHashCachingActor)
     }
 
@@ -555,8 +554,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           initializationData,
           fileHashingActorProps,
           CallCacheReadingJobActor.props(callCacheReadActor, callCachePathPrefixes),
-          factory.runtimeAttributeDefinitions(initializationData),
-          backendName,
+          backendLifecycleActorFactory.runtimeAttributeDefinitions(initializationData),
+          backendLifecycleActorFactory.nameForCallCachingPurposes,
           activity,
           callCachingEligible,
           callCachePathPrefixes
@@ -585,7 +584,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                                       data: ResponsePendingData,
                                       cacheResultId: CallCachingEntryId,
                                       cacheCopyAttempt: Int) = {
-    factory.cacheHitCopyingActorProps match {
+    backendLifecycleActorFactory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
         val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt, blacklistCache)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
@@ -766,7 +765,7 @@ object EngineJobExecutionActor {
   def props(replyTo: ActorRef,
             jobDescriptorKey: BackendJobDescriptorKey,
             workflowDescriptor: EngineWorkflowDescriptor,
-            factory: BackendLifecycleActorFactory,
+            backendLifecycleActorFactory: BackendLifecycleActorFactory,
             initializationData: Option[BackendInitializationData],
             restarting: Boolean,
             serviceRegistryActor: ActorRef,
@@ -777,7 +776,6 @@ object EngineJobExecutionActor {
             workflowDockerLookupActor: ActorRef,
             jobTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
-            backendName: String,
             callCachingMode: CallCachingMode,
             command: BackendJobExecutionActorCommand,
             fileHashCacheActor: Option[ActorRef],
@@ -786,7 +784,7 @@ object EngineJobExecutionActor {
       replyTo = replyTo,
       jobDescriptorKey = jobDescriptorKey,
       workflowDescriptor = workflowDescriptor,
-      factory = factory,
+      backendLifecycleActorFactory = backendLifecycleActorFactory,
       initializationData = initializationData,
       restarting = restarting,
       serviceRegistryActor = serviceRegistryActor,
@@ -797,7 +795,6 @@ object EngineJobExecutionActor {
       workflowDockerLookupActor = workflowDockerLookupActor,
       jobTokenDispenserActor = jobTokenDispenserActor,
       backendSingletonActor = backendSingletonActor,
-      backendName = backendName: String,
       callCachingMode = callCachingMode,
       command = command,
       fileHashCachingActor = fileHashCacheActor,

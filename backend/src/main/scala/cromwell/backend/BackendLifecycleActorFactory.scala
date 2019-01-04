@@ -25,6 +25,8 @@ trait BackendLifecycleActorFactory {
     */
   def name: String
 
+  def nameForCallCachingPurposes: String = configurationDescriptor.backendConfig.getOrElse("name-for-call-caching-purposes", name)
+
   /**
     * Config values for the backend, and a pointer to the global config.
     *

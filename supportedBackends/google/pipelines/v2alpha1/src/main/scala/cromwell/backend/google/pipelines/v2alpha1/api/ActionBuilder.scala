@@ -64,19 +64,9 @@ object ActionBuilder {
   def withImage(image: String) = new Action()
     .setImageUri(image)
 
-  /**
-    * The Docker image to report runtime metrics to Stackdriver Monitoring API.
-    * It is currently hard-coded, with the assumption that if folks use PAPI v2,
-    * they would want to get monitoring over a Google service as well.
-    *
-    * However, it could be made into a configuration option overridable
-    * at the workflow and/or Cromwell config levels, at the cost
-    * of additional complexity in configuration.
-    */
-  val monitoringImage = "quay.io/broadinstitute/cromwell-monitor"
-  def monitoringAction(environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
+  def monitoringAction(image: String, environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
     new Action()
-      .setImageUri(monitoringImage)
+      .setImageUri(image)
       .withFlags(List(ActionFlag.RunInBackground))
       .withMounts(mounts)
       .setEnvironment(environment.asJava)

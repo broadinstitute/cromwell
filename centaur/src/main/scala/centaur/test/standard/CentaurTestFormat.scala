@@ -19,6 +19,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case RunFailingTwiceExpectingNoCallCachingTest => "Fail the first run and NOT call cache the second run of"
     case SubmitFailureTest => "fail to submit"
     case InstantAbort => "abort a workflow immediately after submission"
+    case _: PapiUpgradeTest => "make sure a PAPI v1 to v2 upgrade preserves call caching when the `name-for-call-caching-purposes` attribute is used"
     case _: CromwellRestartWithRecover => "survive a Cromwell restart and recover jobs"
     case _: CromwellRestartWithoutRecover => "survive a Cromwell restart"
     case _: ScheduledAbort => "abort a workflow mid run"
@@ -43,7 +44,7 @@ object CentaurTestFormat {
   case object RunFailingTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunFailingTwiceExpectingNoCallCaching")
   case object SubmitFailureTest extends CentaurTestFormat("SubmitFailure")
   case object InstantAbort extends CentaurTestFormat("InstantAbort")
-  
+
   object CromwellRestartWithRecover extends CentaurTestFormat("CromwellRestartWithRecover") with WithCallMarker {
     val build = CromwellRestartWithRecover.apply _
   }
@@ -73,7 +74,12 @@ object CentaurTestFormat {
     val build = WorkflowFailureRestartWithoutRecover.apply _
   }
   case class WorkflowFailureRestartWithoutRecover(callMarker: CallMarker) extends CentaurTestFormat(WorkflowFailureRestartWithoutRecover.name) with RestartFormat
-  
+
+  object PapiUpgradeTest extends CentaurTestFormat("PapiUpgrade") with WithCallMarker {
+    val build = PapiUpgradeTest.apply _
+  }
+  case class PapiUpgradeTest(callMarker: CallMarker) extends CentaurTestFormat(PapiUpgradeTest.name) with RestartFormat
+
   def fromConfig(conf: Config): Checked[CentaurTestFormat] = {
     
     CallMarker.fromConfig(conf).toEither flatMap { callMarker =>
@@ -104,7 +110,8 @@ object CentaurTestFormat {
       InstantAbort,
       ScheduledAbort,
       WorkflowFailureRestartWithRecover,
-      WorkflowFailureRestartWithoutRecover
+      WorkflowFailureRestartWithoutRecover,
+      PapiUpgradeTest
     ).collectFirst({
       case format: WithCallMarker if format.name.equalsIgnoreCase(testFormat) => withCallMarker(format.name, format.build)
       case format if format.name.equalsIgnoreCase(testFormat) => format.validNelCheck

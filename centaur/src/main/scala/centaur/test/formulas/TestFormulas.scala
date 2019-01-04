@@ -157,4 +157,23 @@ object TestFormulas {
       _ <- validateSubmitFailure(workflow, expectedSubmitResponse, actualSubmitResponse)
     } yield actualSubmitResponse
   }
+
+  def papiUpgrade(workflowDefinition: Workflow, callMarker: CallMarker): Test[SubmitResponse] = {
+    CentaurConfig.runMode match {
+      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+        for {
+          first <- submitWorkflow(workflowDefinition)
+          jobId <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
+          _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
+          _ = CromwellManager.startCromwell(postRestart)
+          _ <- pollUntilStatus(first, workflowDefinition, Succeeded)
+          second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.
+          _ <- printHashDifferential(first, second)
+          metadata <- validateMetadata(second, workflowDefinition, Option(first.id.id))
+          _ <- validateNoCacheMisses(second, metadata, workflowDefinition)
+          _ <- validateDirectoryContentsCounts(workflowDefinition, second, metadata)
+        } yield SubmitResponse(second)
+      case _ => Test.invalidTestDefinition("Configuration not supported by PapiUpgradeTest", workflowDefinition)
+    }
+  }
 }

@@ -20,8 +20,8 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 10241
-  ramMin: 6144
+  outdirMin: 1026
+  ramMin: 4096
   tmpdirMin: 1
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -43,13 +43,18 @@ inputs:
         type: string
       - name: reference__fasta__base
         type: File
+      - name: metadata__phenotype
+        type: string
       - name: config__algorithm__vcfanno
         type:
-        - 'null'
-        - items: 'null'
+          items: File
           type: array
       - name: config__algorithm__variantcaller
-        type: string
+        type:
+        - string
+        - 'null'
+      - name: genome_resources__variation__1000g
+        type: File
       - name: config__algorithm__coverage_interval
         type:
         - string
@@ -60,18 +65,20 @@ inputs:
         type: File
       - name: metadata__batch
         type: string
+      - name: config__algorithm__umi_type
+        type:
+        - 'null'
+        - string
       - name: genome_resources__variation__lcr
         type:
         - 'null'
         - string
-      - name: genome_resources__variation__1000g
-        type: File
       - name: config__algorithm__min_allele_fraction
         type: double
       - name: vrn_file
         type:
+        - File
         - 'null'
-        - string
       - name: genome_resources__variation__train_hapmap
         type: File
       - name: reference__genome_context
@@ -80,8 +87,8 @@ inputs:
           type: array
       - name: config__algorithm__validate
         type:
-        - 'null'
         - File
+        - 'null'
       - name: reference__snpeff__hg19
         type: File
       - name: config__algorithm__validate_regions
@@ -93,11 +100,7 @@ inputs:
       - name: genome_resources__variation__exac
         type: File
       - name: genome_resources__variation__gnomad_exome
-        type:
-        - 'null'
-        - string
-      - name: metadata__phenotype
-        type: string
+        type: File
       - name: genome_resources__aliases__human
         type:
         - string
@@ -106,7 +109,9 @@ inputs:
       - name: config__algorithm__tools_off
         type:
         - 'null'
-        - items: 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: genome_resources__variation__dbsnp
         type: File
@@ -129,7 +134,9 @@ inputs:
       - name: config__algorithm__tools_on
         type:
         - 'null'
-        - items: 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: config__algorithm__effects
         type: string

@@ -4,7 +4,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=batch-single
-- sentinel_outputs=vc_rec:batch_samples;validate__summary;validate__tp;validate__fp;validate__fn;resources;description;vrn_file;reference__fasta__base;config__algorithm__vcfanno;config__algorithm__variantcaller;config__algorithm__coverage_interval;metadata__batch;config__algorithm__min_allele_fraction;reference__genome_context;config__algorithm__validate;reference__snpeff__hg19;config__algorithm__validate_regions;genome_build;metadata__phenotype;genome_resources__aliases__human;config__algorithm__tools_off;config__algorithm__ensemble;analysis;config__algorithm__tools_on;config__algorithm__effects;config__algorithm__variant_regions;genome_resources__aliases__ensembl;config__algorithm__exclude_regions;reference__rtg;genome_resources__aliases__snpeff;config__algorithm__variant_regions_merged;regions__sample_callable;config__algorithm__callable_regions
+- sentinel_outputs=vc_rec:batch_samples;validate__summary;validate__tp;validate__fp;validate__fn;resources;description;vrn_file;reference__fasta__base;metadata__phenotype;config__algorithm__vcfanno;config__algorithm__variantcaller;config__algorithm__coverage_interval;metadata__batch;config__algorithm__umi_type;config__algorithm__min_allele_fraction;reference__genome_context;config__algorithm__validate;reference__snpeff__hg19;config__algorithm__validate_regions;genome_build;genome_resources__aliases__human;config__algorithm__tools_off;config__algorithm__ensemble;analysis;config__algorithm__tools_on;config__algorithm__effects;config__algorithm__variant_regions;genome_resources__aliases__ensembl;config__algorithm__exclude_regions;reference__rtg;genome_resources__aliases__snpeff;config__algorithm__variant_regions_merged;regions__sample_callable;config__algorithm__callable_regions
 - sentinel_inputs=batch_rec:record,vrn_file:var
 - run_number=0
 baseCommand:
@@ -20,9 +20,9 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 10244
-  ramMin: 6144
-  tmpdirMin: 2
+  outdirMin: 1031
+  ramMin: 4096
+  tmpdirMin: 4
 - class: dx:InputResourceRequirement
   indirMin: 1
 - class: SoftwareRequirement
@@ -59,13 +59,18 @@ inputs:
         type: string
       - name: reference__fasta__base
         type: File
+      - name: metadata__phenotype
+        type: string
       - name: config__algorithm__vcfanno
         type:
-        - 'null'
-        - items: 'null'
+          items: File
           type: array
       - name: config__algorithm__variantcaller
-        type: string
+        type:
+        - string
+        - 'null'
+      - name: genome_resources__variation__1000g
+        type: File
       - name: config__algorithm__coverage_interval
         type:
         - string
@@ -76,18 +81,20 @@ inputs:
         type: File
       - name: metadata__batch
         type: string
+      - name: config__algorithm__umi_type
+        type:
+        - 'null'
+        - string
       - name: genome_resources__variation__lcr
         type:
         - 'null'
         - string
-      - name: genome_resources__variation__1000g
-        type: File
       - name: config__algorithm__min_allele_fraction
         type: double
       - name: vrn_file
         type:
+        - File
         - 'null'
-        - string
       - name: genome_resources__variation__train_hapmap
         type: File
       - name: reference__genome_context
@@ -96,8 +103,8 @@ inputs:
           type: array
       - name: config__algorithm__validate
         type:
-        - 'null'
         - File
+        - 'null'
       - name: reference__snpeff__hg19
         type: File
       - name: config__algorithm__validate_regions
@@ -109,11 +116,7 @@ inputs:
       - name: genome_resources__variation__exac
         type: File
       - name: genome_resources__variation__gnomad_exome
-        type:
-        - 'null'
-        - string
-      - name: metadata__phenotype
-        type: string
+        type: File
       - name: genome_resources__aliases__human
         type:
         - string
@@ -122,7 +125,9 @@ inputs:
       - name: config__algorithm__tools_off
         type:
         - 'null'
-        - items: 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: genome_resources__variation__dbsnp
         type: File
@@ -145,7 +150,9 @@ inputs:
       - name: config__algorithm__tools_on
         type:
         - 'null'
-        - items: 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: config__algorithm__effects
         type: string
@@ -221,19 +228,26 @@ outputs:
         type: File
       - name: reference__fasta__base
         type: File
+      - name: metadata__phenotype
+        type: string
       - name: config__algorithm__vcfanno
         type:
-        - 'null'
-        - items: 'null'
+          items: File
           type: array
       - name: config__algorithm__variantcaller
-        type: string
+        type:
+        - string
+        - 'null'
       - name: config__algorithm__coverage_interval
         type:
         - string
         - 'null'
       - name: metadata__batch
         type: string
+      - name: config__algorithm__umi_type
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__min_allele_fraction
         type: double
       - name: reference__genome_context
@@ -242,8 +256,8 @@ outputs:
           type: array
       - name: config__algorithm__validate
         type:
-        - 'null'
         - File
+        - 'null'
       - name: reference__snpeff__hg19
         type: File
       - name: config__algorithm__validate_regions
@@ -251,8 +265,6 @@ outputs:
         - 'null'
         - File
       - name: genome_build
-        type: string
-      - name: metadata__phenotype
         type: string
       - name: genome_resources__aliases__human
         type:
@@ -262,7 +274,9 @@ outputs:
       - name: config__algorithm__tools_off
         type:
         - 'null'
-        - items: 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: config__algorithm__ensemble
         type:
@@ -273,7 +287,9 @@ outputs:
       - name: config__algorithm__tools_on
         type:
         - 'null'
-        - items: 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: config__algorithm__effects
         type: string

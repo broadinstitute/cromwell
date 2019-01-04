@@ -21,9 +21,9 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 10249
-  ramMin: 6144
-  tmpdirMin: 5
+  outdirMin: 1038
+  ramMin: 4096
+  tmpdirMin: 7
 - class: dx:InputResourceRequirement
   indirMin: 1
 - class: SoftwareRequirement
@@ -75,6 +75,10 @@ inputs:
       - string
       - 'null'
       - boolean
+    - name: config__algorithm__coverage
+      type:
+      - File
+      - 'null'
     - name: genome_resources__variation__dbsnp
       type: File
     - name: genome_resources__variation__polyx
@@ -88,7 +92,9 @@ inputs:
     - name: config__algorithm__tools_on
       type:
       - 'null'
-      - items: 'null'
+      - items:
+        - 'null'
+        - string
         type: array
     - name: config__algorithm__variant_regions
       type:
@@ -108,10 +114,6 @@ inputs:
       - File
       - 'null'
     - name: config__algorithm__variant_regions_orig
-      type:
-      - File
-      - 'null'
-    - name: config__algorithm__coverage
       type:
       - File
       - 'null'

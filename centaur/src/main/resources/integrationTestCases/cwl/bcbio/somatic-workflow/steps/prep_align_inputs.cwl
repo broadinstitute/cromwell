@@ -20,11 +20,11 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 10244
-  ramMin: 6144
-  tmpdirMin: 2
+  outdirMin: 1031
+  ramMin: 4096
+  tmpdirMin: 4
 - class: dx:InputResourceRequirement
-  indirMin: 4
+  indirMin: 5
 - class: SoftwareRequirement
   packages:
   - package: grabix
@@ -64,9 +64,12 @@ inputs:
       type:
       - 'null'
       - string
+      - boolean
+      - long
     - name: files
       type:
-        items: File
+      - 'null'
+      - items: File
         type: array
     - name: config__algorithm__trim_reads
       type:
@@ -86,17 +89,31 @@ inputs:
       - string
     - name: rgnames__rg
       type: string
+    - name: config__algorithm__umi_type
+      type:
+      - 'null'
+      - string
     - name: rgnames__lane
       type: string
     - name: reference__bwa__indexes
-      type: File
+      type:
+      - 'null'
+      - File
     - name: config__algorithm__bam_clean
       type:
       - string
       - 'null'
       - boolean
     - name: config__algorithm__aligner
-      type: string
+      type:
+      - 'null'
+      - string
+      - boolean
+    - name: reference__minimap2__indexes
+      type:
+      - 'null'
+      - items: 'null'
+        type: array
     - name: rgnames__pl
       type: string
     - name: rgnames__pu
@@ -111,7 +128,9 @@ inputs:
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions
-      type: File
+      type:
+      - 'null'
+      - File
     name: alignment_rec
     type: record
 outputs:

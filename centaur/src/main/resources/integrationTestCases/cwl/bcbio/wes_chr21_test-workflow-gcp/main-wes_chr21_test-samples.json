@@ -928,6 +928,16 @@
             "path": "gs://bcbiodata/collections/GRCh37/snpeff--GRCh37.75-wf.tar.gz"
         }
     ],
+    "reference__twobit": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/collections/GRCh37/ucsc/GRCh37.2bit"
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/collections/GRCh37/ucsc/GRCh37.2bit"
+        }
+    ],
     "reference__versions": [
         {
             "class": "File",

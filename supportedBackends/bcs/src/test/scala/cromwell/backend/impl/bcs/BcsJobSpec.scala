@@ -1,6 +1,5 @@
 package cromwell.backend.impl.bcs
 
-import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.batchcompute.pojo.v20151111.TaskDescription
 import wom.values._
 
@@ -9,7 +8,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
   behavior of s"BcsJob"
 
-  val mockBcsClient = mock[BatchComputeClient]
+  val mockBcsClient = mock[BcsAsyncBackendJobExecutionActor]
   val name = "cromwell"
   val description = name
   val command = "python main.py"

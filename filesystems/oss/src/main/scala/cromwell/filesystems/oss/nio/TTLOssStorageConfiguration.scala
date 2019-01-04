@@ -15,10 +15,11 @@ object TTLOssStorageConfiguration {
   def defaultRefreshInterval: Long = 30 * 60
 
   val REFRESH_INTERVAL = "refresh-interval"
+
+  def apply(config: Config): TTLOssStorageConfiguration = new TTLOssStorageConfiguration(config)
 }
 
-trait TTLOssStorageConfiguration extends OssStorageConfiguration {
-  def config: Config
+class TTLOssStorageConfiguration(config: Config) extends OssStorageConfiguration {
 
   override def endpoint: String = config.as[Option[String]](OssStorageConfiguration.ENDPOINT_KEY) getOrElse("")
 
@@ -26,7 +27,7 @@ trait TTLOssStorageConfiguration extends OssStorageConfiguration {
 
   override def accessKey: String = config.as[Option[String]](OssStorageConfiguration.ACCESS_KEY_KEY) getOrElse("")
 
-  override def stsToken: Option[String] = config.as[Option[String]](OssStorageConfiguration.SECURITY_TOKEN_KEY)
+  override def securityToken: Option[String] = config.as[Option[String]](OssStorageConfiguration.SECURITY_TOKEN_KEY)
 
   def refreshInterval: Long = config.as[Option[Long]](TTLOssStorageConfiguration.REFRESH_INTERVAL).getOrElse(TTLOssStorageConfiguration.defaultRefreshInterval)
 
@@ -47,6 +48,8 @@ trait TTLOssStorageConfiguration extends OssStorageConfiguration {
   }
 }
 
+/*
 final class EngineTTLOssStorageConfiguration extends TTLOssStorageConfiguration {
   def config: Config = TTLOssStorageConfiguration.config.getConfig("engine.filesystems.oss.auth")
 }
+*/

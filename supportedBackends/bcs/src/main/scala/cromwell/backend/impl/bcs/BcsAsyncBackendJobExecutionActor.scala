@@ -354,20 +354,16 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     }
   }
 
-  private[bcs] lazy val bcsEnvs: Map[String, String] =
-  {
+  private[bcs] lazy val bcsEnvs: Map[String, String] = {
     val mount = ossPathToMount(bcsJobPaths.script.asInstanceOf[OssPath])
 
     Map(
       BcsJobPaths.BcsEnvCwdKey -> commandDirectory.pathAsString,
-      BcsJobPaths.BcsEnvExecKey -> bcsJobPaths.script.pathAsString,
+      BcsJobPaths.BcsEnvExecKey -> mount.dest.pathAsString,
       BcsJobPaths.BcsEnvStdoutKey -> commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename).pathAsString,
-      BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.defaultStderrFilename).pathAsString,
-      BcsConfiguration.OssEndpointKey -> bcsConfiguration.ossEndpoint,
-      BcsConfiguration.OssIdKey -> bcsConfiguration.ossAccessId,
-      BcsConfiguration.OssSecretKey -> bcsConfiguration.ossAccessKey,
-      BcsConfiguration.OssTokenKey -> bcsConfiguration.ossSecurityToken
-  )
+      BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.defaultStderrFilename).pathAsString
+    )
+  }
 
   private[bcs] lazy val bcsMounts: Seq[BcsMount] ={
     generateBcsInputs(jobDescriptor)

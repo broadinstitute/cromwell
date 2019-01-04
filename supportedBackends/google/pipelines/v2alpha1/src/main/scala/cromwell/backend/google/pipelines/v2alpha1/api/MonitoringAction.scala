@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
+import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 
 trait MonitoringAction {
@@ -15,7 +16,7 @@ trait MonitoringAction {
     val DiskMounts = "DISK_MOUNTS"
   }
 
-  def monitoringActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {
+  private def monitoringAction(createPipelineParameters: CreatePipelineParameters, image: String, mounts: List[Mount]): List[Action] = {
     val job = createPipelineParameters.jobDescriptor
 
     val environment = Map(
@@ -26,10 +27,19 @@ trait MonitoringAction {
       Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
     )
 
-    val monitoringAction = ActionBuilder.monitoringAction(environment, mounts)
+    val monitoringAction = ActionBuilder.monitoringAction(image, environment, mounts)
 
     val describeAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
 
     List(describeAction, monitoringAction)
+  }
+
+  def monitoringActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {
+    val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
+
+    workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption match {
+      case Some(image) => monitoringAction(createPipelineParameters, image, mounts)
+      case None => List.empty
+    }
   }
 }

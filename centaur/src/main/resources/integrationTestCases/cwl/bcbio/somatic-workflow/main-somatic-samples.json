@@ -1,89 +1,54 @@
 {
     "analysis": [
-        "variant",
-        "variant",
-        "variant",
-        "variant"
+        "variant2",
+        "variant2"
     ],
     "config__algorithm__adapters": [
-        [],
-        [],
         [],
         []
     ],
     "config__algorithm__align_split_size": [
         null,
-        "False",
-        25000,
         null
     ],
     "config__algorithm__aligner": [
-        null,
         "bwa",
-        "False",
-        "minimap2"
+        "bwa"
     ],
     "config__algorithm__bam_clean": [
         "False",
-        "False",
-        "False",
         "False"
     ],
-    "config__algorithm__coverage": [
-        null,
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/automated/coverage_transcripts-bam.bed"
-        },
-        null,
-        null
-    ],
     "config__algorithm__coverage_interval": [
-        null,
-        null,
         null,
         null
     ],
     "config__algorithm__effects": [
         "snpeff",
-        "snpeff",
-        "snpeff",
         "snpeff"
     ],
     "config__algorithm__ensemble": [
         null,
-        "{\"numpass\": 2}",
-        "{\"numpass\": 2}",
         null
     ],
     "config__algorithm__exclude_regions": [
         [],
-        [],
-        [],
         []
     ],
     "config__algorithm__mark_duplicates": [
-        "False",
         "True",
-        "False",
         "True"
     ],
     "config__algorithm__min_allele_fraction": [
-        10.0,
-        0.5,
         10.0,
         10.0
     ],
     "config__algorithm__nomap_split_size": [
         250,
-        250,
-        50,
         250
     ],
     "config__algorithm__nomap_split_targets": [
         20,
-        20,
-        100,
         20
     ],
     "config__algorithm__qc": [
@@ -95,29 +60,6 @@
             "picard",
             "qsignature",
             "samtools",
-            "variants"
-        ],
-        [
-            "contamination",
-            "coverage",
-            "fastqc",
-            "peddy",
-            "picard",
-            "qsignature",
-            "qualimap",
-            "samtools",
-            "variants",
-            "viral"
-        ],
-        [
-            "contamination",
-            "coverage",
-            "fastqc",
-            "peddy",
-            "picard",
-            "qsignature",
-            "qualimap",
-            "samtools",
             "variants",
             "viral"
         ],
@@ -129,203 +71,127 @@
             "picard",
             "qsignature",
             "samtools",
-            "umi",
             "variants",
             "viral"
         ]
     ],
     "config__algorithm__recalibrate": [
         "False",
-        "False",
-        "False",
         "False"
+    ],
+    "config__algorithm__svcaller": [
+        [
+            "manta"
+        ],
+        [
+            "manta"
+        ]
+    ],
+    "config__algorithm__svprioritize": [
+        null,
+        null
+    ],
+    "config__algorithm__svvalidate": [
+        null,
+        null
     ],
     "config__algorithm__tools_off": [
         [],
-        [
-            "vqsr"
-        ],
-        [
-            "vqsr"
-        ],
         []
     ],
     "config__algorithm__tools_on": [
         [],
-        [
-            "qualimap_full"
-        ],
-        [
-            "qualimap_full"
-        ],
         []
     ],
     "config__algorithm__trim_reads": [
         "False",
-        "False",
-        "False",
         "False"
     ],
-    "config__algorithm__umi_type": [
-        null,
-        null,
-        null,
-        "fastq_name"
-    ],
     "config__algorithm__validate": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/reference_material/7_100326_FC6107FAAXX-grade.vcf"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/reference_material/7_100326_FC6107FAAXX-grade.vcf"
-        },
         null,
-        null
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/reference_material/Test1-grade.vcf.gz",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/reference_material/Test1-grade.vcf.gz.tbi"
+                }
+            ]
+        }
     ],
     "config__algorithm__validate_regions": [
         null,
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/automated/variant_regions-bam.bed"
-        },
-        null,
-        null
+        }
     ],
     "config__algorithm__variant_regions": [
-        null,
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/automated/variant_regions-bam.bed"
         },
-        null,
-        null
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/automated/variant_regions-bam.bed"
+        }
     ],
     "config__algorithm__variantcaller": [
-        null,
         [
-            "germline:freebayes",
-            "somatic:vardict",
-            "somatic:strelka2",
-            "somatic:mutect2"
-        ],
-        [
-            "germline:freebayes",
-            "somatic:vardict",
-            "somatic:strelka2",
-            "somatic:mutect2"
+            "vardict"
         ],
         [
             "vardict"
         ]
     ],
     "config__algorithm__vcfanno": [
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.conf"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.lua"
-            }
-        ],
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.conf"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.lua"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/somatic.conf"
-            }
-        ],
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.conf"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.lua"
-            }
-        ],
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.conf"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/gemini.lua"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/config/vcfanno/somatic.conf"
-            }
-        ]
+        [],
+        []
     ],
     "description": [
-        "VarOnly",
         "Test2",
-        "Test1",
-        "Umi1"
+        "Test1"
     ],
     "files": [
-        null,
         [
             {
                 "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/7_100326_FC6107FAAXX_1.fq.gz"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/7_100326_FC6107FAAXX_2.fq.gz"
+                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/6_100326_FC6107FAAXX.bam",
+                "secondaryFiles": [
+                    {
+                        "class": "File",
+                        "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/6_100326_FC6107FAAXX.bam.bai"
+                    }
+                ]
             }
         ],
         [
             {
                 "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/6_100326_FC6107FAAXX.bam"
-            }
-        ],
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/7_wumis_R1.fq.gz"
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/7_wumis_R2.fq.gz"
+                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/7_100326_FC6107FAAXX.bam",
+                "secondaryFiles": [
+                    {
+                        "class": "File",
+                        "path": "gs://bcbiodata/test_bcbio_cwl/testdata/100326_FC6107FAAXX/7_100326_FC6107FAAXX.bam.bai"
+                    }
+                ]
             }
         ]
     ],
     "genome_build": [
         "hg19",
-        "hg19",
-        "hg19",
         "hg19"
     ],
     "genome_resources__aliases__ensembl": [
-        "homo_sapiens_vep_83_GRCh37",
-        "homo_sapiens_vep_83_GRCh37",
         "homo_sapiens_vep_83_GRCh37",
         "homo_sapiens_vep_83_GRCh37"
     ],
     "genome_resources__aliases__human": [
         "True",
-        "True",
-        "True",
         "True"
     ],
     "genome_resources__aliases__snpeff": [
-        "hg19",
-        "hg19",
         "hg19",
         "hg19"
     ],
@@ -337,37 +203,9 @@
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rnaseq/ref-transcripts.bed"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rnaseq/ref-transcripts.bed"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rnaseq/ref-transcripts.bed"
         }
     ],
     "genome_resources__variation__1000g": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/1000g.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/1000g.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/1000g.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/1000g.vcf.gz.tbi"
-                }
-            ]
-        },
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/1000g.vcf.gz",
@@ -409,49 +247,9 @@
                     "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/clinvar.vcf.gz.tbi"
                 }
             ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/clinvar.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/clinvar.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/clinvar.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/clinvar.vcf.gz.tbi"
-                }
-            ]
         }
     ],
     "genome_resources__variation__cosmic": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/cosmic.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/cosmic.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/cosmic.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/cosmic.vcf.gz.tbi"
-                }
-            ]
-        },
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/cosmic.vcf.gz",
@@ -493,55 +291,13 @@
                     "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/dbsnp.vcf.gz.tbi"
                 }
             ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/dbsnp.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/dbsnp.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/dbsnp.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/dbsnp.vcf.gz.tbi"
-                }
-            ]
         }
     ],
     "genome_resources__variation__encode_blacklist": [
         null,
-        null,
-        null,
         null
     ],
     "genome_resources__variation__esp": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/esp.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/esp.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/esp.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/esp.vcf.gz.tbi"
-                }
-            ]
-        },
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/esp.vcf.gz",
@@ -583,103 +339,29 @@
                     "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/exac.vcf.gz.tbi"
                 }
             ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/exac.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/exac.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/exac.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/exac.vcf.gz.tbi"
-                }
-            ]
         }
+    ],
+    "genome_resources__variation__gc_profile": [
+        null,
+        null
+    ],
+    "genome_resources__variation__germline_het_pon": [
+        null,
+        null
     ],
     "genome_resources__variation__gnomad_exome": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
-                }
-            ]
-        }
+        null,
+        null
     ],
     "genome_resources__variation__lcr": [
-        null,
-        null,
         null,
         null
     ],
     "genome_resources__variation__polyx": [
         null,
-        null,
-        null,
         null
     ],
     "genome_resources__variation__train_hapmap": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/hapmap_3.3.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/hapmap_3.3.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/hapmap_3.3.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/hapmap_3.3.vcf.gz.tbi"
-                }
-            ]
-        },
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/hapmap_3.3.vcf.gz",
@@ -721,42 +403,17 @@
                     "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/Mills_Devine_2hit.indels.vcf.gz.tbi"
                 }
             ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/Mills_Devine_2hit.indels.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/Mills_Devine_2hit.indels.vcf.gz.tbi"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/Mills_Devine_2hit.indels.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/Mills_Devine_2hit.indels.vcf.gz.tbi"
-                }
-            ]
         }
     ],
     "metadata__batch": [
         "b1",
-        "b1",
-        "b1",
-        "b2"
+        "b1"
     ],
     "metadata__phenotype": [
-        "",
-        "tumor",
         "normal",
         "tumor"
     ],
     "reference__bwa__indexes": [
-        null,
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/bwa/hg19.fa.amb",
@@ -779,38 +436,30 @@
                 }
             ]
         },
-        null,
-        null
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/bwa/hg19.fa.amb",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/bwa/hg19.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/bwa/hg19.fa.bwt"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/bwa/hg19.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/bwa/hg19.fa.sa"
+                }
+            ]
+        }
     ],
     "reference__fasta__base": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa.fai"
-                },
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.dict"
-                }
-            ]
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa.fai"
-                },
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.dict"
-                }
-            ]
-        },
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa",
@@ -884,67 +533,9 @@
                     }
                 ]
             }
-        ],
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test.bed.gz",
-                "secondaryFiles": [
-                    {
-                        "class": "File",
-                        "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test.bed.gz.tbi"
-                    }
-                ]
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test2.bed.gz",
-                "secondaryFiles": [
-                    {
-                        "class": "File",
-                        "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test2.bed.gz.tbi"
-                    }
-                ]
-            }
-        ],
-        [
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test.bed.gz",
-                "secondaryFiles": [
-                    {
-                        "class": "File",
-                        "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test.bed.gz.tbi"
-                    }
-                ]
-            },
-            {
-                "class": "File",
-                "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test2.bed.gz",
-                "secondaryFiles": [
-                    {
-                        "class": "File",
-                        "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/problem_regions/GA4GH/test2.bed.gz.tbi"
-                    }
-                ]
-            }
         ]
     ],
-    "reference__minimap2__indexes": [
-        null,
-        null,
-        null,
-        []
-    ],
     "reference__rtg": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rtg--hg19.sdf-wf.tar.gz"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rtg--hg19.sdf-wf.tar.gz"
-        },
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rtg--hg19.sdf-wf.tar.gz"
@@ -962,14 +553,6 @@
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/snpeff--hg19-wf.tar.gz"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/snpeff--hg19-wf.tar.gz"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/snpeff--hg19-wf.tar.gz"
         }
     ],
     "reference__versions": [
@@ -980,70 +563,41 @@
         {
             "class": "File",
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
         }
     ],
+    "reference__viral": [
+        null,
+        null
+    ],
     "resources": [
-        "{}",
-        "{}",
         "{}",
         "{}"
     ],
     "rgnames__lane": [
-        "VarOnly",
         "Test2",
-        "Test1",
-        "Umi1"
+        "Test1"
     ],
     "rgnames__lb": [
-        null,
-        null,
         null,
         null
     ],
     "rgnames__pl": [
         "illumina",
-        "illumina",
-        "illumina",
         "illumina"
     ],
     "rgnames__pu": [
-        "VarOnly",
         "Test2",
-        "Test1",
-        "Umi1"
+        "Test1"
     ],
     "rgnames__rg": [
-        "VarOnly",
         "Test2",
-        "Test1",
-        "Umi1"
+        "Test1"
     ],
     "rgnames__sample": [
-        "VarOnly",
         "Test2",
-        "Test1",
-        "Umi1"
+        "Test1"
     ],
     "vrn_file": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/reference_material/7_100326_FC6107FAAXX-Test1.vcf.gz",
-            "secondaryFiles": [
-                {
-                    "class": "File",
-                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/reference_material/7_100326_FC6107FAAXX-Test1.vcf.gz.tbi"
-                }
-            ]
-        },
-        null,
         null,
         null
     ]

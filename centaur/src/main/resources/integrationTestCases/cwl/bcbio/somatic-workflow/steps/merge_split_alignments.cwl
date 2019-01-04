@@ -4,8 +4,8 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=single-merge
-- sentinel_outputs=align_bam,work_bam_plus__disc,work_bam_plus__sr,hla__fastq,umi_bam,config__algorithm__rawumi_avg_cov
-- sentinel_inputs=alignment_rec:record,work_bam:var,align_bam:var,work_bam_plus__disc:var,work_bam_plus__sr:var,hla__fastq:var,umi_bam:var,config__algorithm__rawumi_avg_cov:var
+- sentinel_outputs=align_bam,work_bam_plus__disc,work_bam_plus__sr,hla__fastq
+- sentinel_inputs=alignment_rec:record,work_bam:var,align_bam:var,work_bam_plus__disc:var,work_bam_plus__sr:var,hla__fastq:var
 - run_number=0
 baseCommand:
 - bcbio_nextgen.py
@@ -20,11 +20,11 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 1041
-  ramMin: 4096
-  tmpdirMin: 9
+  outdirMin: 10251
+  ramMin: 6144
+  tmpdirMin: 6
 - class: dx:InputResourceRequirement
-  indirMin: 5
+  indirMin: 4
 - class: SoftwareRequirement
   packages:
   - package: biobambam
@@ -48,12 +48,9 @@ inputs:
       type:
       - 'null'
       - string
-      - boolean
-      - long
     - name: files
       type:
-      - 'null'
-      - items: File
+        items: File
         type: array
     - name: config__algorithm__trim_reads
       type:
@@ -73,31 +70,17 @@ inputs:
       - string
     - name: rgnames__rg
       type: string
-    - name: config__algorithm__umi_type
-      type:
-      - 'null'
-      - string
     - name: rgnames__lane
       type: string
     - name: reference__bwa__indexes
-      type:
-      - 'null'
-      - File
+      type: File
     - name: config__algorithm__bam_clean
       type:
       - string
       - 'null'
       - boolean
     - name: config__algorithm__aligner
-      type:
-      - 'null'
-      - string
-      - boolean
-    - name: reference__minimap2__indexes
-      type:
-      - 'null'
-      - items: 'null'
-        type: array
+      type: string
     - name: rgnames__pl
       type: string
     - name: rgnames__pu
@@ -112,9 +95,7 @@ inputs:
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions
-      type:
-      - 'null'
-      - File
+      type: File
     name: alignment_rec
     type: record
 - id: work_bam
@@ -156,20 +137,6 @@ inputs:
     - items: File
       type: array
     type: array
-- id: umi_bam_toolinput
-  secondaryFiles:
-  - .bai
-  type:
-    items:
-    - File
-    - 'null'
-    type: array
-- id: config__algorithm__rawumi_avg_cov_toolinput
-  type:
-    items:
-    - int
-    - 'null'
-    type: array
 outputs:
 - id: align_bam
   secondaryFiles:
@@ -194,16 +161,6 @@ outputs:
   - 'null'
   - items: File
     type: array
-- id: umi_bam
-  secondaryFiles:
-  - .bai
-  type:
-  - File
-  - 'null'
-- id: config__algorithm__rawumi_avg_cov
-  type:
-  - int
-  - 'null'
 requirements:
 - class: InlineJavascriptRequirement
 - class: InitialWorkDirRequirement

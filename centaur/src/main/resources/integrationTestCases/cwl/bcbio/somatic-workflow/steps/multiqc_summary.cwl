@@ -20,9 +20,9 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1033
-  ramMin: 2048
-  tmpdirMin: 5
+  outdirMin: 10246
+  ramMin: 3072
+  tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
 - class: SoftwareRequirement
@@ -55,9 +55,7 @@ inputs:
       - name: config__algorithm__tools_off
         type:
         - 'null'
-        - items:
-          - 'null'
-          - string
+        - items: 'null'
           type: array
       - name: config__algorithm__qc
         type:
@@ -66,9 +64,7 @@ inputs:
       - name: config__algorithm__tools_on
         type:
         - 'null'
-        - items:
-          - 'null'
-          - string
+        - items: 'null'
           type: array
       name: qcout_rec
       type: record

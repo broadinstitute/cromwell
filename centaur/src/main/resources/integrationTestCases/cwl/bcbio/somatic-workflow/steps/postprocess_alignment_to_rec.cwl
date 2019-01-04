@@ -4,7 +4,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-combined
-- sentinel_outputs=postprocess_alignment_rec:resources;description;reference__fasta__base;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;genome_resources__variation__lcr;config__algorithm__recalibrate;config__algorithm__coverage;genome_resources__variation__dbsnp;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__tools_on;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;config__algorithm__variant_regions_orig;config__algorithm__coverage_merged;config__algorithm__coverage_orig;config__algorithm__seq2c_bed_ready
+- sentinel_outputs=postprocess_alignment_rec:resources;description;reference__fasta__base;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;genome_resources__variation__lcr;config__algorithm__recalibrate;genome_resources__variation__dbsnp;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__tools_on;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;config__algorithm__variant_regions_orig;config__algorithm__coverage;config__algorithm__coverage_merged;config__algorithm__coverage_orig;config__algorithm__seq2c_bed_ready
 - sentinel_inputs=align_bam:var,config__algorithm__coverage_interval:var,config__algorithm__exclude_regions:var,config__algorithm__variant_regions:var,config__algorithm__variant_regions_merged:var,config__algorithm__variant_regions_orig:var,config__algorithm__coverage:var,config__algorithm__coverage_merged:var,config__algorithm__coverage_orig:var,config__algorithm__seq2c_bed_ready:var,config__algorithm__recalibrate:var,config__algorithm__tools_on:var,genome_resources__rnaseq__gene_bed:var,genome_resources__variation__dbsnp:var,genome_resources__variation__lcr:var,genome_resources__variation__polyx:var,genome_resources__variation__encode_blacklist:var,reference__fasta__base:var,resources:var,description:var
 - run_number=0
 baseCommand:
@@ -20,9 +20,9 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1031
-  ramMin: 2048
-  tmpdirMin: 4
+  outdirMin: 10244
+  ramMin: 3072
+  tmpdirMin: 2
 - class: dx:InputResourceRequirement
   indirMin: 0
 inputs:
@@ -100,9 +100,7 @@ inputs:
   type:
     items:
     - 'null'
-    - items:
-      - 'null'
-      - string
+    - items: 'null'
       type: array
     type: array
 - id: genome_resources__rnaseq__gene_bed
@@ -174,10 +172,6 @@ outputs:
         - string
         - 'null'
         - boolean
-      - name: config__algorithm__coverage
-        type:
-        - File
-        - 'null'
       - name: genome_resources__variation__dbsnp
         type: File
       - name: genome_resources__variation__polyx
@@ -191,9 +185,7 @@ outputs:
       - name: config__algorithm__tools_on
         type:
         - 'null'
-        - items:
-          - 'null'
-          - string
+        - items: 'null'
           type: array
       - name: config__algorithm__variant_regions
         type:
@@ -213,6 +205,10 @@ outputs:
         - File
         - 'null'
       - name: config__algorithm__variant_regions_orig
+        type:
+        - File
+        - 'null'
+      - name: config__algorithm__coverage
         type:
         - File
         - 'null'

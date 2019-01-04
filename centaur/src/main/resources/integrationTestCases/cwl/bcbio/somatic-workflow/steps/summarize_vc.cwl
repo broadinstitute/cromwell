@@ -5,7 +5,7 @@ arguments:
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-combined
 - sentinel_outputs=variants__calls,variants__gvcf,variants__samples,validate__grading_summary,validate__grading_plots
-- sentinel_inputs=vc_rec:record,ensemble_rec:record
+- sentinel_inputs=vc_rec:record
 - run_number=0
 baseCommand:
 - bcbio_nextgen.py
@@ -20,8 +20,8 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1026
-  ramMin: 2048
+  outdirMin: 10241
+  ramMin: 3072
   tmpdirMin: 1
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -60,26 +60,19 @@ inputs:
           type: File
         - name: reference__fasta__base
           type: File
-        - name: metadata__phenotype
-          type: string
         - name: config__algorithm__vcfanno
           type:
-            items: File
+          - 'null'
+          - items: 'null'
             type: array
         - name: config__algorithm__variantcaller
-          type:
-          - string
-          - 'null'
+          type: string
         - name: config__algorithm__coverage_interval
           type:
           - string
           - 'null'
         - name: metadata__batch
           type: string
-        - name: config__algorithm__umi_type
-          type:
-          - 'null'
-          - string
         - name: config__algorithm__min_allele_fraction
           type: double
         - name: reference__genome_context
@@ -88,8 +81,8 @@ inputs:
             type: array
         - name: config__algorithm__validate
           type:
-          - File
           - 'null'
+          - File
         - name: reference__snpeff__hg19
           type: File
         - name: config__algorithm__validate_regions
@@ -97,6 +90,8 @@ inputs:
           - 'null'
           - File
         - name: genome_build
+          type: string
+        - name: metadata__phenotype
           type: string
         - name: genome_resources__aliases__human
           type:
@@ -106,9 +101,7 @@ inputs:
         - name: config__algorithm__tools_off
           type:
           - 'null'
-          - items:
-            - 'null'
-            - string
+          - items: 'null'
             type: array
         - name: config__algorithm__ensemble
           type:
@@ -119,9 +112,7 @@ inputs:
         - name: config__algorithm__tools_on
           type:
           - 'null'
-          - items:
-            - 'null'
-            - string
+          - items: 'null'
             type: array
         - name: config__algorithm__effects
           type: string
@@ -153,27 +144,6 @@ inputs:
         name: vc_rec
         type: record
       type: array
-    type: array
-- id: ensemble_rec
-  type:
-    items:
-      fields:
-      - name: ensemble__vrn_file
-        type:
-        - File
-        - 'null'
-      - name: ensemble__validate__summary
-        type:
-        - File
-        - 'null'
-      - name: ensemble__batch_samples
-        type:
-          items: string
-          type: array
-      - name: ensemble__batch_id
-        type: string
-      name: ensemble_rec
-      type: record
     type: array
 outputs:
 - id: variants__calls

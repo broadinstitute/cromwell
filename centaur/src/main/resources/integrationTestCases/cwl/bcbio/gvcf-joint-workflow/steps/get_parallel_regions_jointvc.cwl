@@ -73,6 +73,8 @@ inputs:
         type:
         - string
         - 'null'
+      - name: genome_resources__variation__train_hapmap
+        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -84,9 +86,7 @@ inputs:
         - 'null'
         - string
       - name: config__algorithm__min_allele_fraction
-        type: double
-      - name: genome_resources__variation__train_hapmap
-        type: File
+        type: long
       - name: reference__genome_context
         type:
           items: File
@@ -105,8 +105,6 @@ inputs:
         type: string
       - name: genome_resources__variation__exac
         type: File
-      - name: genome_resources__variation__gnomad_exome
-        type: File
       - name: genome_resources__aliases__human
         type:
         - string
@@ -114,8 +112,7 @@ inputs:
         - boolean
       - name: config__algorithm__tools_off
         type:
-        - 'null'
-        - items: 'null'
+          items: string
           type: array
       - name: genome_resources__variation__dbsnp
         type: File
@@ -140,7 +137,10 @@ inputs:
           items: string
           type: array
       - name: config__algorithm__effects
-        type: string
+        type:
+        - string
+        - 'null'
+        - boolean
       - name: config__algorithm__variant_regions
         type:
         - File

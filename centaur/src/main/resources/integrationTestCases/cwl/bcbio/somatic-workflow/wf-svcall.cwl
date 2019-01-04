@@ -10,6 +10,10 @@ inputs:
         type: string
       - name: description
         type: string
+      - name: config__algorithm__svprioritize
+        type:
+        - 'null'
+        - string
       - name: reference__snpeff__hg19
         type: File
       - name: genome_build
@@ -23,12 +27,13 @@ inputs:
         type: string
       - name: config__algorithm__tools_on
         type:
-          items: string
+        - 'null'
+        - items: 'null'
           type: array
       - name: config__algorithm__svvalidate
         type:
-        - File
         - 'null'
+        - string
       - name: genome_resources__aliases__snpeff
         type: string
       - name: work_bam_plus__disc
@@ -105,8 +110,6 @@ inputs:
         type:
         - 'null'
         - string
-      - name: config__algorithm__sv_regions
-        type: File
       - name: config__algorithm__variant_regions
         type:
         - File
@@ -147,6 +150,11 @@ outputs:
         type:
         - File
         - 'null'
+      - name: sv__supplemental
+        type:
+          items:
+          - File
+          type: array
       - name: svvalidate__summary
         type:
         - File
@@ -155,6 +163,10 @@ outputs:
         type: string
       - name: description
         type: string
+      - name: config__algorithm__svprioritize
+        type:
+        - 'null'
+        - string
       - name: genome_build
         type: string
       - name: config__algorithm__tools_off
@@ -166,12 +178,13 @@ outputs:
         type: string
       - name: config__algorithm__tools_on
         type:
-          items: string
+        - 'null'
+        - items: 'null'
           type: array
       - name: config__algorithm__svvalidate
         type:
-        - File
         - 'null'
+        - string
       - name: genome_resources__aliases__snpeff
         type: string
       - name: regions__sample_callable
@@ -240,8 +253,6 @@ outputs:
         type:
         - 'null'
         - string
-      - name: config__algorithm__sv_regions
-        type: File
       - name: config__algorithm__variant_regions
         type:
         - File

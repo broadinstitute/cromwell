@@ -1,64 +1,40 @@
-class: Workflow
+$namespaces:
+  dx: https://www.dnanexus.com/cwl#
+arguments:
+- position: 0
+  valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
+- sentinel_parallel=multi-combined
+- sentinel_outputs=sv_coverage_rec:depth__bins__normalized;depth__bins__background;resources;description;depth__bins__target;depth__bins__antitarget;regions__bins__target;regions__bins__antitarget;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;depth__variant_regions__regions;config__algorithm__callable_regions
+- sentinel_inputs=sv_rawcoverage_rec:record
+- run_number=0
+baseCommand:
+- bcbio_nextgen.py
+- runfn
+- normalize_sv_coverage
+- cwl
+class: CommandLineTool
 cwlVersion: v1.0
-hints: []
+hints:
+- class: DockerRequirement
+  dockerImageId: quay.io/bcbio/bcbio-vc
+  dockerPull: quay.io/bcbio/bcbio-vc
+- class: ResourceRequirement
+  coresMin: 2
+  outdirMin: 1028
+  ramMin: 4096
+  tmpdirMin: 2
+- class: dx:InputResourceRequirement
+  indirMin: 1
+- class: SoftwareRequirement
+  packages:
+  - package: cnvkit
+    specs:
+    - https://anaconda.org/bioconda/cnvkit
 inputs:
-- id: sv_batch_rec
+- id: sv_rawcoverage_rec
   type:
     items:
       fields:
-      - name: resources
-        type: string
-      - name: description
-        type: string
-      - name: reference__snpeff__hg19
-        type: File
-      - name: genome_build
-        type: string
-      - name: config__algorithm__tools_off
-        type:
-        - 'null'
-        - items: 'null'
-          type: array
-      - name: analysis
-        type: string
-      - name: config__algorithm__tools_on
-        type:
-          items: string
-          type: array
-      - name: config__algorithm__svvalidate
-        type:
-        - File
-        - 'null'
-      - name: genome_resources__aliases__snpeff
-        type: string
-      - name: work_bam_plus__disc
-        type:
-        - File
-        - 'null'
-      - name: work_bam_plus__sr
-        type:
-        - File
-        - 'null'
-      - name: regions__sample_callable
-        type:
-        - File
-        - 'null'
-      - name: variants__samples
-        type:
-          items:
-            items:
-            - File
-            - 'null'
-            type: array
-          type: array
-      - name: depth__bins__normalized
-        type:
-        - File
-        - 'null'
-      - name: depth__bins__background
-        type:
-        - File
-        - 'null'
       - name: depth__bins__target
         type:
         - File
@@ -67,6 +43,10 @@ inputs:
         type:
         - File
         - 'null'
+      - name: resources
+        type: string
+      - name: description
+        type: string
       - name: regions__bins__target
         type:
         - File
@@ -82,7 +62,9 @@ inputs:
       - name: reference__fasta__base
         type: File
       - name: config__algorithm__svcaller
-        type: string
+        type:
+          items: string
+          type: array
       - name: config__algorithm__coverage_interval
         type:
         - string
@@ -105,8 +87,6 @@ inputs:
         type:
         - 'null'
         - string
-      - name: config__algorithm__sv_regions
-        type: File
       - name: config__algorithm__variant_regions
         type:
         - File
@@ -130,62 +110,14 @@ inputs:
         - 'null'
       - name: config__algorithm__callable_regions
         type: File
-      name: sv_batch_rec
+      name: sv_rawcoverage_rec
       type: record
     type: array
 outputs:
-- id: sv_rec
-  outputSource: detect_sv/sv_rec
+- id: sv_coverage_rec
   type:
     items:
       fields:
-      - name: sv__variantcaller
-        type:
-        - string
-        - 'null'
-      - name: sv__vrn_file
-        type:
-        - File
-        - 'null'
-      - name: svvalidate__summary
-        type:
-        - File
-        - 'null'
-      - name: resources
-        type: string
-      - name: description
-        type: string
-      - name: genome_build
-        type: string
-      - name: config__algorithm__tools_off
-        type:
-        - 'null'
-        - items: 'null'
-          type: array
-      - name: analysis
-        type: string
-      - name: config__algorithm__tools_on
-        type:
-          items: string
-          type: array
-      - name: config__algorithm__svvalidate
-        type:
-        - File
-        - 'null'
-      - name: genome_resources__aliases__snpeff
-        type: string
-      - name: regions__sample_callable
-        type:
-        - File
-        - 'null'
-      - name: variants__samples
-        type:
-          items:
-            items:
-            - File
-            - 'null'
-            type: array
-          type: array
       - name: depth__bins__normalized
         type:
         - File
@@ -194,6 +126,10 @@ outputs:
         type:
         - File
         - 'null'
+      - name: resources
+        type: string
+      - name: description
+        type: string
       - name: depth__bins__target
         type:
         - File
@@ -217,7 +153,9 @@ outputs:
       - name: reference__fasta__base
         type: File
       - name: config__algorithm__svcaller
-        type: string
+        type:
+          items: string
+          type: array
       - name: config__algorithm__coverage_interval
         type:
         - string
@@ -240,8 +178,6 @@ outputs:
         type:
         - 'null'
         - string
-      - name: config__algorithm__sv_regions
-        type: File
       - name: config__algorithm__variant_regions
         type:
         - File
@@ -251,6 +187,10 @@ outputs:
         - 'null'
         - items: 'null'
           type: array
+      - name: align_bam
+        type:
+        - File
+        - 'null'
       - name: config__algorithm__variant_regions_merged
         type:
         - File
@@ -261,21 +201,12 @@ outputs:
         - 'null'
       - name: config__algorithm__callable_regions
         type: File
-      name: sv_rec
+      name: sv_coverage_rec
       type: record
     type: array
 requirements:
-- class: EnvVarRequirement
-  envDef:
-  - envName: MPLCONFIGDIR
-    envValue: .
-- class: ScatterFeatureRequirement
-- class: SubworkflowFeatureRequirement
-steps:
-- id: detect_sv
-  in:
-  - id: sv_batch_rec
-    source: sv_batch_rec
-  out:
-  - id: sv_rec
-  run: steps/detect_sv.cwl
+- class: InlineJavascriptRequirement
+- class: InitialWorkDirRequirement
+  listing:
+  - entry: $(JSON.stringify(inputs))
+    entryname: cwl.inputs.json

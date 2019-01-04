@@ -4,7 +4,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-combined
-- sentinel_outputs=sv__calls,svvalidate__grading_summary,svvalidate__grading_plots
+- sentinel_outputs=sv__calls,sv__supplemental,sv__prioritize__tsv,sv__prioritize__raw,svvalidate__grading_summary,svvalidate__grading_plots
 - sentinel_inputs=sv_rec:record
 - run_number=0
 baseCommand:
@@ -39,6 +39,11 @@ inputs:
           type:
           - File
           - 'null'
+        - name: sv__supplemental
+          type:
+            items:
+            - File
+            type: array
         - name: svvalidate__summary
           type:
           - File
@@ -47,6 +52,10 @@ inputs:
           type: string
         - name: description
           type: string
+        - name: config__algorithm__svprioritize
+          type:
+          - 'null'
+          - string
         - name: genome_build
           type: string
         - name: config__algorithm__tools_off
@@ -58,12 +67,13 @@ inputs:
           type: string
         - name: config__algorithm__tools_on
           type:
-            items: string
+          - 'null'
+          - items: 'null'
             type: array
         - name: config__algorithm__svvalidate
           type:
-          - File
           - 'null'
+          - string
         - name: genome_resources__aliases__snpeff
           type: string
         - name: regions__sample_callable
@@ -132,8 +142,6 @@ inputs:
           type:
           - 'null'
           - string
-        - name: config__algorithm__sv_regions
-          type: File
         - name: config__algorithm__variant_regions
           type:
           - File
@@ -159,6 +167,29 @@ inputs:
     type: array
 outputs:
 - id: sv__calls
+  type:
+    items:
+      items:
+      - File
+      - 'null'
+      type: array
+    type: array
+- id: sv__supplemental
+  type:
+    items:
+      items:
+      - File
+      type: array
+    type: array
+- id: sv__prioritize__tsv
+  type:
+    items:
+      items:
+      - File
+      - 'null'
+      type: array
+    type: array
+- id: sv__prioritize__raw
   type:
     items:
       items:

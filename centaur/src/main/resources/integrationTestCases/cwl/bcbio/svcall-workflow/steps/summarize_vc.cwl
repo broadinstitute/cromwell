@@ -21,7 +21,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 1
   outdirMin: 1025
-  ramMin: 3072
+  ramMin: 2048
   tmpdirMin: 1
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -73,7 +73,7 @@ inputs:
         - name: metadata__batch
           type: string
         - name: config__algorithm__min_allele_fraction
-          type: double
+          type: long
         - name: reference__genome_context
           type:
             items: File

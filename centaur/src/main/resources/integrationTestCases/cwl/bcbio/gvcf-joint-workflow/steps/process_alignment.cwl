@@ -4,7 +4,7 @@ $namespaces:
 arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
-- sentinel_parallel=single-parallel
+- sentinel_parallel=single-single
 - sentinel_outputs=work_bam,align_bam,hla__fastq,work_bam_plus__disc,work_bam_plus__sr
 - sentinel_inputs=alignment_rec:record,process_alignment_rec:record
 - run_number=0
@@ -91,8 +91,9 @@ inputs:
       type: string
     - name: config__algorithm__align_split_size
       type:
-      - 'null'
       - string
+      - 'null'
+      - boolean
     - name: files
       type:
         items: File
@@ -106,7 +107,10 @@ inputs:
       type: File
     - name: config__algorithm__adapters
       type:
-        items: string
+      - 'null'
+      - items:
+        - 'null'
+        - string
         type: array
     - name: rgnames__lb
       type:
@@ -138,8 +142,6 @@ inputs:
       type: string
     - name: rgnames__sample
       type: string
-    - name: config__algorithm__variant_regions
-      type: File
     name: alignment_rec
     type: record
 - id: process_alignment_rec

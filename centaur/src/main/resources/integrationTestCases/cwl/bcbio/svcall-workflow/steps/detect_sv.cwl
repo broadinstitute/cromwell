@@ -5,7 +5,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=batch-single
-- sentinel_outputs=sv_rec:sv__variantcaller;sv__vrn_file;sv__supplemental;svvalidate__summary;resources;description;config__algorithm__svprioritize;genome_resources__variation__gc_profile;genome_build;genome_resources__variation__germline_het_pon;config__algorithm__tools_off;analysis;config__algorithm__tools_on;config__algorithm__svvalidate;genome_resources__aliases__snpeff;regions__sample_callable;variants__samples;depth__bins__normalized;depth__bins__background;depth__bins__target;depth__bins__antitarget;regions__bins__target;regions__bins__antitarget;regions__bins__gcannotated;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__sv_regions;config__algorithm__variant_regions;config__algorithm__exclude_regions;config__algorithm__variant_regions_merged;depth__variant_regions__regions;config__algorithm__callable_regions
+- sentinel_outputs=sv_rec:sv__variantcaller;sv__vrn_file;svvalidate__summary;resources;description;genome_build;config__algorithm__tools_off;analysis;config__algorithm__tools_on;config__algorithm__svvalidate;genome_resources__aliases__snpeff;regions__sample_callable;variants__samples;depth__bins__normalized;depth__bins__background;depth__bins__target;depth__bins__antitarget;regions__bins__target;regions__bins__antitarget;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__sv_regions;config__algorithm__variant_regions;config__algorithm__exclude_regions;config__algorithm__variant_regions_merged;depth__variant_regions__regions;config__algorithm__callable_regions
 - sentinel_inputs=sv_batch_rec:record
 - run_number=0
 baseCommand:
@@ -22,7 +22,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 2
   outdirMin: 1030
-  ramMin: 6144
+  ramMin: 8192
   tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -37,9 +37,6 @@ hints:
   - package: delly
     specs:
     - https://anaconda.org/bioconda/delly
-  - package: duphold
-    specs:
-    - https://anaconda.org/bioconda/duphold
   - package: extract-sv-reads
     specs:
     - https://anaconda.org/bioconda/extract-sv-reads
@@ -86,12 +83,6 @@ hints:
     - https://anaconda.org/bioconda/r
     version:
     - 3.4.1
-  - package: r-base=3.4.1=h4fe35fd_8
-    specs:
-    - https://anaconda.org/bioconda/r-base=3.4.1=h4fe35fd_8
-  - package: xorg-libxt
-    specs:
-    - https://anaconda.org/bioconda/xorg-libxt
   - package: vawk
     specs:
     - https://anaconda.org/bioconda/vawk
@@ -106,18 +97,10 @@ inputs:
         type: string
       - name: description
         type: string
-      - name: config__algorithm__svprioritize
-        type: File
-      - name: genome_resources__variation__gc_profile
-        type: File
       - name: reference__snpeff__hg19
         type: File
       - name: genome_build
         type: string
-      - name: genome_resources__variation__germline_het_pon
-        type:
-        - 'null'
-        - string
       - name: config__algorithm__tools_off
         type:
         - 'null'
@@ -176,10 +159,6 @@ inputs:
         - File
         - 'null'
       - name: regions__bins__antitarget
-        type:
-        - File
-        - 'null'
-      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -254,11 +233,6 @@ outputs:
         type:
         - File
         - 'null'
-      - name: sv__supplemental
-        type:
-          items:
-          - File
-          type: array
       - name: svvalidate__summary
         type:
         - File
@@ -267,16 +241,8 @@ outputs:
         type: string
       - name: description
         type: string
-      - name: config__algorithm__svprioritize
-        type: File
-      - name: genome_resources__variation__gc_profile
-        type: File
       - name: genome_build
         type: string
-      - name: genome_resources__variation__germline_het_pon
-        type:
-        - 'null'
-        - string
       - name: config__algorithm__tools_off
         type:
         - 'null'
@@ -327,10 +293,6 @@ outputs:
         - File
         - 'null'
       - name: regions__bins__antitarget
-        type:
-        - File
-        - 'null'
-      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'

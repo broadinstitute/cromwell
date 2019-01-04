@@ -86,9 +86,6 @@ hints:
   - package: varscan
     specs:
     - https://anaconda.org/bioconda/varscan
-  - package: moreutils
-    specs:
-    - https://anaconda.org/bioconda/moreutils
   - package: vcfanno
     specs:
     - https://anaconda.org/bioconda/vcfanno
@@ -103,9 +100,6 @@ hints:
     - https://anaconda.org/bioconda/r
     version:
     - 3.4.1
-  - package: r-base=3.4.1=h4fe35fd_8
-    specs:
-    - https://anaconda.org/bioconda/r-base=3.4.1=h4fe35fd_8
   - package: perl
     specs:
     - https://anaconda.org/bioconda/perl
@@ -137,6 +131,8 @@ inputs:
         type:
         - string
         - 'null'
+      - name: genome_resources__variation__train_hapmap
+        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -148,12 +144,12 @@ inputs:
         - 'null'
         - string
       - name: config__algorithm__min_allele_fraction
-        type: double
+        type: long
       - name: vrn_file
         type:
         - 'null'
         - string
-      - name: genome_resources__variation__train_hapmap
+      - name: reference__twobit
         type: File
       - name: reference__genome_context
         type:
@@ -173,8 +169,6 @@ inputs:
         type: string
       - name: genome_resources__variation__exac
         type: File
-      - name: genome_resources__variation__gnomad_exome
-        type: File
       - name: genome_resources__aliases__human
         type:
         - string
@@ -182,8 +176,7 @@ inputs:
         - boolean
       - name: config__algorithm__tools_off
         type:
-        - 'null'
-        - items: 'null'
+          items: string
           type: array
       - name: genome_resources__variation__dbsnp
         type: File
@@ -208,7 +201,10 @@ inputs:
           items: string
           type: array
       - name: config__algorithm__effects
-        type: string
+        type:
+        - string
+        - 'null'
+        - boolean
       - name: config__algorithm__variant_regions
         type:
         - File

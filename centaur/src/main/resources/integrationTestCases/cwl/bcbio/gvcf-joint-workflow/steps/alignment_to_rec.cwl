@@ -4,8 +4,8 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-combined
-- sentinel_outputs=alignment_rec:resources;description;config__algorithm__align_split_size;files;config__algorithm__trim_reads;reference__fasta__base;config__algorithm__adapters;rgnames__lb;rgnames__rg;rgnames__lane;reference__bwa__indexes;config__algorithm__bam_clean;config__algorithm__aligner;rgnames__pl;rgnames__pu;config__algorithm__mark_duplicates;analysis;rgnames__sample;config__algorithm__variant_regions
-- sentinel_inputs=files:var,analysis:var,config__algorithm__align_split_size:var,reference__fasta__base:var,rgnames__pl:var,rgnames__sample:var,rgnames__pu:var,rgnames__lane:var,rgnames__rg:var,rgnames__lb:var,reference__bwa__indexes:var,config__algorithm__aligner:var,config__algorithm__trim_reads:var,config__algorithm__adapters:var,config__algorithm__bam_clean:var,config__algorithm__variant_regions:var,config__algorithm__mark_duplicates:var,resources:var,description:var
+- sentinel_outputs=alignment_rec:resources;description;config__algorithm__align_split_size;files;config__algorithm__trim_reads;reference__fasta__base;config__algorithm__adapters;rgnames__lb;rgnames__rg;rgnames__lane;reference__bwa__indexes;config__algorithm__bam_clean;config__algorithm__aligner;rgnames__pl;rgnames__pu;config__algorithm__mark_duplicates;analysis;rgnames__sample
+- sentinel_inputs=files:var,analysis:var,config__algorithm__align_split_size:var,reference__fasta__base:var,rgnames__pl:var,rgnames__sample:var,rgnames__pu:var,rgnames__lane:var,rgnames__rg:var,rgnames__lb:var,reference__bwa__indexes:var,config__algorithm__aligner:var,config__algorithm__trim_reads:var,config__algorithm__adapters:var,config__algorithm__bam_clean:var,config__algorithm__mark_duplicates:var,resources:var,description:var
 - run_number=0
 baseCommand:
 - bcbio_nextgen.py
@@ -39,8 +39,9 @@ inputs:
 - id: config__algorithm__align_split_size
   type:
     items:
-    - 'null'
     - string
+    - 'null'
+    - boolean
     type: array
 - id: reference__fasta__base
   secondaryFiles:
@@ -98,7 +99,10 @@ inputs:
 - id: config__algorithm__adapters
   type:
     items:
-      items: string
+    - 'null'
+    - items:
+      - 'null'
+      - string
       type: array
     type: array
 - id: config__algorithm__bam_clean
@@ -107,10 +111,6 @@ inputs:
     - string
     - 'null'
     - boolean
-    type: array
-- id: config__algorithm__variant_regions
-  type:
-    items: File
     type: array
 - id: config__algorithm__mark_duplicates
   type:
@@ -138,8 +138,9 @@ outputs:
         type: string
       - name: config__algorithm__align_split_size
         type:
-        - 'null'
         - string
+        - 'null'
+        - boolean
       - name: files
         type:
           items: File
@@ -153,7 +154,10 @@ outputs:
         type: File
       - name: config__algorithm__adapters
         type:
-          items: string
+        - 'null'
+        - items:
+          - 'null'
+          - string
           type: array
       - name: rgnames__lb
         type:
@@ -185,8 +189,6 @@ outputs:
         type: string
       - name: rgnames__sample
         type: string
-      - name: config__algorithm__variant_regions
-        type: File
       name: alignment_rec
       type: record
     type: array

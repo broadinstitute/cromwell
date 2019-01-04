@@ -21,9 +21,9 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 1033
+  outdirMin: 1030
   ramMin: 4096
-  tmpdirMin: 5
+  tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
 - class: SoftwareRequirement
@@ -85,32 +85,20 @@ inputs:
       type: string
     - name: reference__fasta__base
       type: File
-    - name: metadata__phenotype
-      type: string
     - name: config__algorithm__coverage_interval
       type:
       - string
       - 'null'
     - name: metadata__batch
       type: string
-    - name: config__algorithm__umi_type
-      type:
-      - 'null'
-      - string
     - name: reference__versions
       type: File
     - name: genome_build
       type: string
-    - name: config__algorithm__coverage
-      type:
-      - File
-      - 'null'
     - name: config__algorithm__tools_off
       type:
       - 'null'
-      - items:
-        - 'null'
-        - string
+      - items: 'null'
         type: array
     - name: config__algorithm__qc
       type:
@@ -121,9 +109,7 @@ inputs:
     - name: config__algorithm__tools_on
       type:
       - 'null'
-      - items:
-        - 'null'
-        - string
+      - items: 'null'
         type: array
     - name: config__algorithm__variant_regions
       type:
@@ -133,15 +119,11 @@ inputs:
       type:
       - File
       - 'null'
-    - name: config__algorithm__rawumi_avg_cov
-      type:
-      - int
-      - 'null'
-    - name: umi_bam
+    - name: config__algorithm__variant_regions_merged
       type:
       - File
       - 'null'
-    - name: config__algorithm__variant_regions_merged
+    - name: config__algorithm__coverage
       type:
       - File
       - 'null'
@@ -216,9 +198,7 @@ outputs:
     - name: config__algorithm__tools_off
       type:
       - 'null'
-      - items:
-        - 'null'
-        - string
+      - items: 'null'
         type: array
     - name: config__algorithm__qc
       type:
@@ -227,9 +207,7 @@ outputs:
     - name: config__algorithm__tools_on
       type:
       - 'null'
-      - items:
-        - 'null'
-        - string
+      - items: 'null'
         type: array
     name: qcout_rec
     type: record

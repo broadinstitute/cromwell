@@ -4,7 +4,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=batch-single
-- sentinel_outputs=vc_rec:batch_samples;validate__summary;validate__tp;validate__fp;validate__fn;resources;description;vrn_file;reference__fasta__base;metadata__phenotype;config__algorithm__vcfanno;config__algorithm__variantcaller;genome_resources__variation__1000g;config__algorithm__coverage_interval;genome_resources__variation__clinvar;genome_resources__variation__esp;metadata__batch;genome_resources__variation__lcr;config__algorithm__min_allele_fraction;genome_resources__variation__train_hapmap;reference__genome_context;config__algorithm__validate;reference__snpeff__hg19;config__algorithm__validate_regions;genome_build;genome_resources__variation__exac;genome_resources__variation__gnomad_exome;genome_resources__aliases__human;config__algorithm__tools_off;genome_resources__variation__dbsnp;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;genome_resources__variation__cosmic;config__algorithm__ensemble;analysis;config__algorithm__tools_on;config__algorithm__effects;config__algorithm__variant_regions;genome_resources__aliases__ensembl;config__algorithm__exclude_regions;reference__rtg;genome_resources__variation__train_indels;genome_resources__aliases__snpeff;config__algorithm__variant_regions_merged;regions__sample_callable;config__algorithm__callable_regions
+- sentinel_outputs=vc_rec:batch_samples;validate__summary;validate__tp;validate__fp;validate__fn;resources;description;vrn_file;reference__fasta__base;metadata__phenotype;config__algorithm__vcfanno;config__algorithm__variantcaller;genome_resources__variation__1000g;config__algorithm__coverage_interval;genome_resources__variation__train_hapmap;genome_resources__variation__clinvar;genome_resources__variation__esp;metadata__batch;genome_resources__variation__lcr;config__algorithm__min_allele_fraction;reference__genome_context;config__algorithm__validate;reference__snpeff__hg19;config__algorithm__validate_regions;genome_build;genome_resources__variation__exac;genome_resources__aliases__human;config__algorithm__tools_off;genome_resources__variation__dbsnp;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;genome_resources__variation__cosmic;config__algorithm__ensemble;analysis;config__algorithm__tools_on;config__algorithm__effects;config__algorithm__variant_regions;genome_resources__aliases__ensembl;config__algorithm__exclude_regions;reference__rtg;genome_resources__variation__train_indels;genome_resources__aliases__snpeff;config__algorithm__variant_regions_merged;regions__sample_callable;config__algorithm__callable_regions
 - sentinel_inputs=batch_rec:record,vrn_file:var
 - run_number=0
 baseCommand:
@@ -73,6 +73,8 @@ inputs:
         type:
         - string
         - 'null'
+      - name: genome_resources__variation__train_hapmap
+        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -84,12 +86,12 @@ inputs:
         - 'null'
         - string
       - name: config__algorithm__min_allele_fraction
-        type: double
+        type: long
       - name: vrn_file
         type:
         - 'null'
         - string
-      - name: genome_resources__variation__train_hapmap
+      - name: reference__twobit
         type: File
       - name: reference__genome_context
         type:
@@ -109,8 +111,6 @@ inputs:
         type: string
       - name: genome_resources__variation__exac
         type: File
-      - name: genome_resources__variation__gnomad_exome
-        type: File
       - name: genome_resources__aliases__human
         type:
         - string
@@ -118,8 +118,7 @@ inputs:
         - boolean
       - name: config__algorithm__tools_off
         type:
-        - 'null'
-        - items: 'null'
+          items: string
           type: array
       - name: genome_resources__variation__dbsnp
         type: File
@@ -144,7 +143,10 @@ inputs:
           items: string
           type: array
       - name: config__algorithm__effects
-        type: string
+        type:
+        - string
+        - 'null'
+        - boolean
       - name: config__algorithm__variant_regions
         type:
         - File
@@ -231,6 +233,8 @@ outputs:
         type:
         - string
         - 'null'
+      - name: genome_resources__variation__train_hapmap
+        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -242,9 +246,7 @@ outputs:
         - 'null'
         - string
       - name: config__algorithm__min_allele_fraction
-        type: double
-      - name: genome_resources__variation__train_hapmap
-        type: File
+        type: long
       - name: reference__genome_context
         type:
           items: File
@@ -263,8 +265,6 @@ outputs:
         type: string
       - name: genome_resources__variation__exac
         type: File
-      - name: genome_resources__variation__gnomad_exome
-        type: File
       - name: genome_resources__aliases__human
         type:
         - string
@@ -272,8 +272,7 @@ outputs:
         - boolean
       - name: config__algorithm__tools_off
         type:
-        - 'null'
-        - items: 'null'
+          items: string
           type: array
       - name: genome_resources__variation__dbsnp
         type: File
@@ -298,7 +297,10 @@ outputs:
           items: string
           type: array
       - name: config__algorithm__effects
-        type: string
+        type:
+        - string
+        - 'null'
+        - boolean
       - name: config__algorithm__variant_regions
         type:
         - File

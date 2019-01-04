@@ -20,7 +20,7 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1026
+  outdirMin: 1025
   ramMin: 2048
   tmpdirMin: 1
 - class: dx:InputResourceRequirement
@@ -46,16 +46,10 @@ inputs:
       type: string
     - name: reference__fasta__base
       type: File
-    - name: config__algorithm__coverage
-      type:
-      - 'null'
-      - File
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions
-      type:
-      - 'null'
-      - File
+      type: File
     name: prep_samples_rec
     type: record
 outputs:

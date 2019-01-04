@@ -22,7 +22,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 2
   outdirMin: 1033
-  ramMin: 6144
+  ramMin: 4096
   tmpdirMin: 5
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -70,6 +70,8 @@ inputs:
       type:
       - 'null'
       - string
+    - name: reference__twobit
+      type: File
     - name: config__algorithm__recalibrate
       type:
       - string

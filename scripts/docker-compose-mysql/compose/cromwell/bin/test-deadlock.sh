@@ -23,6 +23,7 @@ done
 BATCHES_TO_RUN=100
 WF_PER_BATCH=10
 TOTAL_WFS=$(( BATCHES_TO_RUN * WF_PER_BATCH ))
+inputs=$(for ((i=1; i <= $WF_PER_BATCH; i++)); do echo -n ',{}'; done | cut -c2-)
 for _ in $(seq $BATCHES_TO_RUN); do
   echo $(date)
   curl \
@@ -30,7 +31,7 @@ for _ in $(seq $BATCHES_TO_RUN); do
     "http://lb:80/api/workflows/v1/batch" \
     -H 'Content-Type: multipart/form-data' \
     -F 'workflowSource=workflow w {call t} task t { command{echo "hello"} }' \
-    -F 'workflowInputs=[{},{},{},{},{},{},{},{},{},{}]'
+    -F "workflowInputs=[$inputs]"
   echo
 done
 

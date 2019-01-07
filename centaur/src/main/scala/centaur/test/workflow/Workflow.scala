@@ -2,20 +2,18 @@ package centaur.test.workflow
 
 import java.nio.file.Path
 
-import common.validation.Validation._
 import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import configs.Result
 import configs.syntax._
 import cromwell.api.CromwellClient
 import cromwell.api.model.WorkflowSingleSubmission
-
-import scala.util.{Failure, Success, Try}
 
 final case class Workflow private(testName: String,
                                   data: WorkflowData,
@@ -23,7 +21,8 @@ final case class Workflow private(testName: String,
                                   notInMetadata: List[String],
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
                                   backends: BackendsRequirement,
-                                  retryTestFailures: Boolean) {
+                                  retryTestFailures: Boolean,
+                                  allowOtherOutputs: Boolean) {
   def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,
@@ -45,13 +44,6 @@ final case class Workflow private(testName: String,
 }
 
 object Workflow {
-
-  def fromPath(path: Path): ErrorOr[Workflow] = {
-    Try(ConfigFactory.parseFile(path.toFile)) match {
-      case Success(c) => Workflow.fromConfig(c, path.getParent)
-      case Failure(_) => invalidNel(s"Invalid test config: $path")
-    }
-  }
 
   def fromConfig(conf: Config, configFile: File): ErrorOr[Workflow] = {
     conf.get[String]("name") match {
@@ -75,9 +67,13 @@ object Workflow {
           case Result.Failure(_) => invalidNel(s"No 'files' block in $configFile")
         }
         val retryTestFailuresErrorOr = validate(conf.get[Boolean]("retryTestFailures").valueOrElse(true))
+        val allowOtherOutputs: Boolean = conf.get[Boolean]("allowOtherOutputs") match {
+          case Result.Success(allow) => allow
+          case Result.Failure(_) => true
+        }
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures)
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs = allowOtherOutputs)
         }
 
       case Result.Failure(_) => invalidNel(s"No name for: $configFile")

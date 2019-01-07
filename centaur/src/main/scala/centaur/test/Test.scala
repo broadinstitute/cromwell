@@ -379,10 +379,26 @@ object Operations {
           }
         }
 
+        def validateAllowOtherOutputs(actualMetadata: WorkflowMetadata): IO[Unit] = {
+          if (workflowSpec.allowOtherOutputs) IO.unit
+          else {
+            val actualOutputs: Iterable[String] = actualMetadata.asFlat.value.keys.filter(_.startsWith("outputs."))
+            val expectedOutputs: Iterable[String] = workflowSpec.metadata.map(w => w.value.keys.filter(_.startsWith("outputs."))).getOrElse(List.empty)
+            val diff = actualOutputs.toSet.diff(expectedOutputs.toSet)
+            if (diff.nonEmpty) {
+              val message = s"Found unwanted keys in metadata with `allow-other-outputs` = false: ${diff.mkString(", ")}"
+              IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
+            } else{
+              IO.unit
+            }
+          }
+        }
+
         cleanUpImports(workflow)
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
+          _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata

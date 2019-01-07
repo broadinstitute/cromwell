@@ -1,0 +1,7 @@
+name: fail_slow
+testFormat: workflowfailure
+allowOtherOutputs: false
+
+files {
+  workflow: failing_fast_and_slow/fail.wdl
+}

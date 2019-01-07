@@ -5,7 +5,7 @@ workflow afters {
     String where = "/tmp/helloFile"
   }
 
-  # Should not impact 'read' because it happens before the second read:
+  # Should not impact 'read' because the second write overwrites it:
   call write_to_shared as foo1 { input: i = 5, where = where }
 
   # Scatter once to replace the contents with something else:
@@ -14,12 +14,7 @@ workflow afters {
   }
 
   # The call to 'read':
-  call read_from_shared
-    after foo2
-    { input:
-      where = where
-#      , ready = foo2.done[0]
-    }
+  call read_from_shared after foo2 { input: where = where }
 
   # Should not impact 'read' because it happens afterwards:
   call write_to_shared as foo3 after read_from_shared { input: i = 77, where = where }

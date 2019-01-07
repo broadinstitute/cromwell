@@ -5,7 +5,7 @@ workflow afters {
     String where = "/tmp/helloFile"
   }
 
-  # Should not impact 'read' because it happens before the second read:
+  # Should not impact 'read' because the second write overwrites it:
   call write_to_shared as foo1 { input: i = 5, where = where }
 
   # Conditionally do (and don't) call a write:

@@ -38,7 +38,6 @@ object ExecutionStore {
 
       key match {
         case scatteredCallCompletion: ScatteredCallCompletionKey =>
-          println(s"${statusTable.row(scatteredCallCompletion.node).size} == ${scatteredCallCompletion.totalIndices}?")
           statusTable.row(scatteredCallCompletion.node).size == scatteredCallCompletion.totalIndices
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then

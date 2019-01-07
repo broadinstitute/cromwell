@@ -2,7 +2,6 @@ package wdl.transforms.biscayne.ast2wdlom
 
 import better.files.File
 import org.scalatest.{FlatSpec, Matchers}
-import wdl.model.draft3.elements.{ExpressionElement, _}
 import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}

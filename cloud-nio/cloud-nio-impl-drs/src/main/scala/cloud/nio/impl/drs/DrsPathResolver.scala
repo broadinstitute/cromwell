@@ -1,18 +1,21 @@
 package cloud.nio.impl.drs
 
 import cats.effect.{IO, Resource}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 import spray.json._
-//???
+
+//Do not remove this import. If removed IntelliJ throws error for method 'executeMarthaRequest' stating
+//'value map is not a member of cats.effect.Resource[cats.effect.IO,org.apache.http.client.methods.CloseableHttpResponse]'
 import cats.syntax.functor._
 
 
 case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
-  private val DrsPathToken = "$${drsPath}"
+  private val DrsPathToken = "${drsPath}"
 
   private def unexpectedExceptionResponse(status: StatusLine): RuntimeException = {
     new RuntimeException(s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
@@ -42,18 +45,13 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 
     responseContentIO.flatMap(responseContent => IO(responseContent.parseJson.convertTo[MarthaResponse])).handleErrorWith {
       e =>
-        val errorMsg = new RuntimeException(s"Failed to parse response from Martha into a case class.")
-        errorMsg.addSuppressed(e)
+        val errorMsg = new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}")
         IO.raiseError(errorMsg)
     }
   }
 
 
   private def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
-//    val a: Resource[IO, CloseableHttpClient] = Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
-//    a.flatMap(httpClient =>
-//      Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))
-//    )
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
       httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))

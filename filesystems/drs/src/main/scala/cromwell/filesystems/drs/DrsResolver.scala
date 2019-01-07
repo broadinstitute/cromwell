@@ -1,6 +1,7 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse, Url}
+import cats.effect.IO
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, Url}
 
 
 object DrsResolver {
@@ -15,11 +16,13 @@ object DrsResolver {
     }
   }
 
-  def getContainerRelativePath(drsPath: DrsPath): String = {
+  def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
     val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
-    val marthaResponse: MarthaResponse = drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString).unsafeRunSync()
 
-    //Currently, Martha only supports resolving DRS paths to GCS paths
-    extractPathRelativeToScheme(drsPath.pathAsString, marthaResponse.dos.data_object.urls, GcsScheme)
+    for {
+      marthaResponse <- drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
+      //Currently, Martha only supports resolving DRS paths to GCS paths
+      relativePath <- IO(extractPathRelativeToScheme(drsPath.pathAsString, marthaResponse.dos.data_object.urls, GcsScheme))
+    } yield relativePath
   }
 }

@@ -24,7 +24,7 @@ hints:
   ramMin: 3072
   tmpdirMin: 119
 - class: dx:InputResourceRequirement
-  indirMin: 60001
+  indirMin: 1
 - class: SoftwareRequirement
   packages:
   - package: multiqc

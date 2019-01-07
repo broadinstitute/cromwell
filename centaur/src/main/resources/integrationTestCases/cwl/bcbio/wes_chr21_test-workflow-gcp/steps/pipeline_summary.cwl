@@ -25,7 +25,7 @@ hints:
   ramMin: 49152
   tmpdirMin: 119
 - class: dx:InputResourceRequirement
-  indirMin: 63008
+  indirMin: 3008
 - class: SoftwareRequirement
   packages:
   - package: bcftools

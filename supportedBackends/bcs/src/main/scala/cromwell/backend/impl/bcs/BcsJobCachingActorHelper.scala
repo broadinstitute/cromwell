@@ -7,12 +7,12 @@ import cromwell.core.path.Path
 
 object BcsJobCachingActorHelper {
   val workerScript: String =
-    s"""
-       |#!/bin/bash
-       |export script=$$cwd/ $$(basename $$exec)
+    s"""|#!/bin/bash
+       |export script=$$cwd/$$(basename $$exec)
        |export rc=$$cwd/rc
        |
        |(
+       |mkdir -p $$cwd
        |cp -rf $$exec $$script
        |cd $$cwd
        |/bin/bash -c $$script

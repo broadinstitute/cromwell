@@ -21,16 +21,17 @@ object TTLOssStorageConfiguration {
 
 class TTLOssStorageConfiguration(config: Config) extends OssStorageConfiguration {
 
-  override def endpoint: String = config.as[Option[String]](OssStorageConfiguration.ENDPOINT_KEY) getOrElse("")
+  override def endpoint: String = config.as[Option[String]](authPath(OssStorageConfiguration.ENDPOINT_KEY)) getOrElse("")
 
-  override def accessId: String = config.as[Option[String]](OssStorageConfiguration.ACCESS_ID_KEY) getOrElse("")
+  override def accessId: String = config.as[Option[String]](authPath(OssStorageConfiguration.ACCESS_ID_KEY)) getOrElse("")
 
-  override def accessKey: String = config.as[Option[String]](OssStorageConfiguration.ACCESS_KEY_KEY) getOrElse("")
+  override def accessKey: String = config.as[Option[String]](authPath(OssStorageConfiguration.ACCESS_KEY_KEY)) getOrElse("")
 
-  override def securityToken: Option[String] = config.as[Option[String]](OssStorageConfiguration.SECURITY_TOKEN_KEY)
+  override def securityToken: Option[String] = config.as[Option[String]](authPath(OssStorageConfiguration.SECURITY_TOKEN_KEY))
 
   def refreshInterval: Long = config.as[Option[Long]](TTLOssStorageConfiguration.REFRESH_INTERVAL).getOrElse(TTLOssStorageConfiguration.defaultRefreshInterval)
 
+  private def authPath(key: String): String = s"auth.$key"
   private var lastClientUpdateTime: Long = 0
 
   private var oldClient: Option[OSSClient] = None

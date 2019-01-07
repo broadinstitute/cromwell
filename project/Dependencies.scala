@@ -302,7 +302,12 @@ object Dependencies {
   )
 
   private val aliyunBatchComputeDependencies = List(
-    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV,
+    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
+      // stax is included twice by oss 3.1.0 and cause assembly merge conflicts via stax vs. javax.xml.stream
+      exclude("stax", "stax-api")
+      // javax.activation:activation has been replaced. https://stackoverflow.com/a/46493809
+      // The old version was causing an assembly merge conflict.
+      exclude("javax.activation", "activation"),
     "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV
   )
 

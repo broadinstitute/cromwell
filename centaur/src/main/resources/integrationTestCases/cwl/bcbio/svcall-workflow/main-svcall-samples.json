@@ -40,8 +40,8 @@
         "True"
     ],
     "config__algorithm__min_allele_fraction": [
-        10,
-        10
+        10.0,
+        10.0
     ],
     "config__algorithm__nomap_split_size": [
         250,
@@ -75,19 +75,25 @@
     ],
     "config__algorithm__svcaller": [
         [
-            "manta",
-            "lumpy",
             "cnvkit",
-            "delly",
-            "titancna"
+            "manta",
+            "lumpy"
         ],
         [
-            "manta",
-            "lumpy",
             "cnvkit",
-            "delly",
-            "titancna"
+            "manta",
+            "lumpy"
         ]
+    ],
+    "config__algorithm__svprioritize": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/automated/variant_regions-bam.bed"
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/automated/variant_regions-bam.bed"
+        }
     ],
     "config__algorithm__svvalidate": [
         {
@@ -132,12 +138,10 @@
     ],
     "config__algorithm__variantcaller": [
         [
-            "vardict",
-            "mutect2"
+            "vardict"
         ],
         [
-            "vardict",
-            "mutect2"
+            "vardict"
         ]
     ],
     "config__algorithm__vcfanno": [
@@ -358,6 +362,42 @@
             ]
         }
     ],
+    "genome_resources__variation__gc_profile": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/gc/GC_profile.1000bp.cnp"
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/coverage/gc/GC_profile.1000bp.cnp"
+        }
+    ],
+    "genome_resources__variation__germline_het_pon": [
+        null,
+        null
+    ],
+    "genome_resources__variation__gnomad_exome": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
+                }
+            ]
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/variation/gnomad_exome.vcf.gz.tbi"
+                }
+            ]
+        }
+    ],
     "genome_resources__variation__lcr": [
         null,
         null
@@ -560,14 +600,76 @@
             "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/snpeff--hg19-wf.tar.gz"
         }
     ],
-    "reference__twobit": [
+    "reference__versions": [
         {
             "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/ucsc/hg19.2bit"
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
         },
         {
             "class": "File",
-            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/ucsc/hg19.2bit"
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/versions.csv"
+        }
+    ],
+    "reference__viral": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.amb"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.sa"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.dict"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.bwt"
+                }
+            ]
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.amb"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.sa"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.dict"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/viral/gdc-viral.fa.bwt"
+                }
+            ]
         }
     ],
     "resources": [

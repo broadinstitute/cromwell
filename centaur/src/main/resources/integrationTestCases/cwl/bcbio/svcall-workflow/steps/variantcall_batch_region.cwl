@@ -22,7 +22,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 2
   outdirMin: 1030
-  ramMin: 4096
+  ramMin: 6144
   tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -86,6 +86,9 @@ hints:
   - package: varscan
     specs:
     - https://anaconda.org/bioconda/varscan
+  - package: moreutils
+    specs:
+    - https://anaconda.org/bioconda/moreutils
   - package: vcfanno
     specs:
     - https://anaconda.org/bioconda/vcfanno
@@ -100,6 +103,9 @@ hints:
     - https://anaconda.org/bioconda/r
     version:
     - 3.4.1
+  - package: r-base=3.4.1=h4fe35fd_8
+    specs:
+    - https://anaconda.org/bioconda/r-base=3.4.1=h4fe35fd_8
   - package: perl
     specs:
     - https://anaconda.org/bioconda/perl
@@ -127,8 +133,6 @@ inputs:
         type:
         - string
         - 'null'
-      - name: genome_resources__variation__train_hapmap
-        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -142,12 +146,12 @@ inputs:
       - name: genome_resources__variation__1000g
         type: File
       - name: config__algorithm__min_allele_fraction
-        type: long
+        type: double
       - name: vrn_file
         type:
         - 'null'
         - string
-      - name: reference__twobit
+      - name: genome_resources__variation__train_hapmap
         type: File
       - name: reference__genome_context
         type:
@@ -166,6 +170,8 @@ inputs:
       - name: genome_build
         type: string
       - name: genome_resources__variation__exac
+        type: File
+      - name: genome_resources__variation__gnomad_exome
         type: File
       - name: metadata__phenotype
         type: string

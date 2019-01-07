@@ -1,0 +1,24 @@
+name: cromwell_restart
+testFormat: CromwellRestartWithRecover
+backends: [Papiv1]
+callMark: cromwell_restart.cromwell_killer
+retryTestFailures: false
+
+files {
+  workflow: cromwell_restart/cromwell_restart.wdl
+  options: cromwell_restart/cromwell_restart.options
+}
+
+metadata {
+  workflowName: cromwell_restart
+  status: Succeeded
+  "calls.cromwell_restart.first_task.executionStatus": Done
+  "calls.cromwell_restart.cromwell_killer.executionStatus": Done
+  "calls.cromwell_restart.third_task.executionStatus": Done
+  "calls.cromwell_restart.first_task.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
+  "calls.cromwell_restart.first_task.backend": "Papiv2"
+  "calls.cromwell_restart.cromwell_killer.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
+  "calls.cromwell_restart.cromwell_killer.backend": "Papiv2"
+  "calls.cromwell_restart.third_task.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
+  "calls.cromwell_restart.third_task.backend": "Papiv2"
+}

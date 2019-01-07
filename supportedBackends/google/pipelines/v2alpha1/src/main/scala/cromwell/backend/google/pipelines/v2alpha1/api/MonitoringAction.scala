@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import scala.collection.JavaConverters._
 
 trait MonitoringAction {
   object Env {
@@ -30,8 +31,11 @@ trait MonitoringAction {
     val monitoringAction = ActionBuilder.monitoringAction(image, environment, mounts)
 
     val describeAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
+      .setFlags(List(ActionFlag.RunInBackground.toString).asJava)
 
-    List(describeAction, monitoringAction)
+    val terminationAction = ActionBuilder.monitoringTerminationAction()
+
+    List(describeAction, monitoringAction, terminationAction)
   }
 
   def monitoringActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {

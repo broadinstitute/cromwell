@@ -20,8 +20,8 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1027
-  ramMin: 2048
+  outdirMin: 10243
+  ramMin: 3072
   tmpdirMin: 2
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -56,8 +56,16 @@ inputs:
           type:
           - 'null'
           - string
+        - name: genome_resources__variation__gc_profile
+          type:
+          - 'null'
+          - string
         - name: genome_build
           type: string
+        - name: genome_resources__variation__germline_het_pon
+          type:
+          - 'null'
+          - string
         - name: config__algorithm__tools_off
           type:
           - 'null'
@@ -109,6 +117,10 @@ inputs:
           - File
           - 'null'
         - name: regions__bins__antitarget
+          type:
+          - File
+          - 'null'
+        - name: regions__bins__gcannotated
           type:
           - File
           - 'null'

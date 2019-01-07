@@ -21,8 +21,8 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 1030
-  ramMin: 4096
+  outdirMin: 10246
+  ramMin: 6144
   tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -95,11 +95,17 @@ inputs:
       type: File
     - name: genome_build
       type: string
+    - name: metadata__phenotype
+      type: string
     - name: config__algorithm__tools_off
       type:
       - 'null'
       - items: 'null'
         type: array
+    - name: reference__viral
+      type:
+      - 'null'
+      - string
     - name: config__algorithm__qc
       type:
         items: string

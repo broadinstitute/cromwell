@@ -14,10 +14,18 @@ inputs:
         type:
         - 'null'
         - string
+      - name: genome_resources__variation__gc_profile
+        type:
+        - 'null'
+        - string
       - name: reference__snpeff__hg19
         type: File
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
         - 'null'
@@ -77,6 +85,10 @@ inputs:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -167,8 +179,16 @@ outputs:
         type:
         - 'null'
         - string
+      - name: genome_resources__variation__gc_profile
+        type:
+        - 'null'
+        - string
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
         - 'null'
@@ -220,6 +240,10 @@ outputs:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'

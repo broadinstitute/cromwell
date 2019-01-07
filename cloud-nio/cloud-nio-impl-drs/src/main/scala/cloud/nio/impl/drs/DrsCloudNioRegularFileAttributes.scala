@@ -15,7 +15,8 @@ class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathR
   }
 
   override def fileHash: Option[String] = {
-    val checksumsArrayOption = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.checksums
+    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath).unsafeRunSync()
+    val checksumsArrayOption = marthaResponse.dos.data_object.checksums
 
     checksumsArrayOption match {
       case Some(checksumsArray) => checksumsArray.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
@@ -24,7 +25,8 @@ class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathR
   }
 
   override def lastModifiedTime(): FileTime = {
-    val lastModifiedInStringOption = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.updated
+    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath).unsafeRunSync()
+    val lastModifiedInStringOption = marthaResponse.dos.data_object.updated
 
     lastModifiedInStringOption match {
       case Some(lastModifiedInString) => {
@@ -36,7 +38,8 @@ class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathR
   }
 
   override def size(): Long = {
-    val sizeOption = drsPathResolver.resolveDrsThroughMartha(drsPath).dos.data_object.size
+    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath).unsafeRunSync()
+    val sizeOption = marthaResponse.dos.data_object.size
 
     sizeOption match {
       case Some(size) => size

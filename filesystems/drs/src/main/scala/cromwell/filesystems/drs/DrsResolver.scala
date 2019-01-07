@@ -1,12 +1,12 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse, CloudUrl}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse, Url}
 
 
 object DrsResolver {
   private val GcsScheme: String = "gs"
 
-  private def extractPathRelativeToScheme(drsPath: String, urlArray: Array[CloudUrl], scheme: String): String = {
+  private def extractPathRelativeToScheme(drsPath: String, urlArray: Array[Url], scheme: String): String = {
     val schemeUrlOption = urlArray.find(u => u.url.startsWith(scheme))
 
     schemeUrlOption match {
@@ -17,12 +17,9 @@ object DrsResolver {
 
   def getContainerRelativePath(drsPath: DrsPath): String = {
     val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
-    val marthaResponseObj: MarthaResponse = drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
+    val marthaResponse: MarthaResponse = drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString).unsafeRunSync()
 
     //Currently, Martha only supports resolving DRS paths to GCS paths
-    extractPathRelativeToScheme(drsPath.pathAsString, marthaResponseObj.dos.data_object.urls, GcsScheme)
+    extractPathRelativeToScheme(drsPath.pathAsString, marthaResponse.dos.data_object.urls, GcsScheme)
   }
 }
-
-
-case class UrlNotFoundException(drsPath: String, scheme: String) extends Exception(s"DRS was not able to find a $scheme url associated with $drsPath.")

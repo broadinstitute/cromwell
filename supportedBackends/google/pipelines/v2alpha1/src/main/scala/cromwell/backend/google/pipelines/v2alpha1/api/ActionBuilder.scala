@@ -64,12 +64,35 @@ object ActionBuilder {
   def withImage(image: String) = new Action()
     .setImageUri(image)
 
+  /**
+    * Define a shared PID namespace for the monitoring container and its termination controller
+    */
+  private val monitoringPidNamespace = "monitoring"
+
   def monitoringAction(image: String, environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
     new Action()
       .setImageUri(image)
       .withFlags(List(ActionFlag.RunInBackground))
       .withMounts(mounts)
       .setEnvironment(environment.asJava)
+      .setPidNamespace(monitoringPidNamespace)
+
+  /**
+    * monitoringTerminationAction is needed to gracefully terminate monitoring action,
+    * because PAPIv2 currently sends SIGKILL to terminate background actions.
+    *
+    * A fixed timeout is used to avoid hunting for monitoring PID.
+    */
+
+  private val monitoringTerminationImage = "alpine"
+  private val monitoringTerminationGraceTime = 10
+
+  def monitoringTerminationAction(): Action =
+    new Action()
+      .setImageUri(monitoringTerminationImage)
+      .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime")
+      .withFlags(List(ActionFlag.AlwaysRun))
+      .setPidNamespace(monitoringPidNamespace)
 
   def userAction(docker: String,
                  scriptContainerPath: String,

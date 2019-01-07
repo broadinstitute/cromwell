@@ -6,7 +6,7 @@ from google.cloud.monitoring_v3.types import LabelDescriptor, MetricDescriptor, 
 from os import environ
 import psutil as ps
 import requests
-from signal import signal, SIGINT, SIGTERM
+from signal import signal, SIGTERM
 from sys import stderr
 from time import sleep, time
 
@@ -193,7 +193,6 @@ def signal_handler(signum, frame):
   running = False
 
 running = True
-signal(SIGINT, signal_handler)
 signal(SIGTERM, signal_handler)
 
 ### Main loop
@@ -203,7 +202,7 @@ signal(SIGTERM, signal_handler)
 #
 # However, if it detects a container termination signal,
 # it *should* report the final metric
-# right after the current measurement, and then exit.
+# right after the current measurement, and then exit normally.
 
 reset()
 while running:
@@ -211,3 +210,4 @@ while running:
   if not running or report_time >= REPORT_TIME_SEC:
     report()
     reset()
+exit(0)

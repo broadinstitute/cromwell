@@ -3,6 +3,7 @@ package cromwell.backend.impl.bcs
 import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
+import com.aliyuncs.batchcompute.pojo.v20151111.MountEntry
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.backend.impl.bcs.BcsMount.PathType
@@ -89,7 +90,39 @@ trait BcsMount {
   var src: PathType
   var dest: PathType
   var writeSupport: Boolean
+
+  def toBcsMountEntry: MountEntry
 }
 
-final case class BcsInputMount(var src: PathType, var dest: PathType, var writeSupport: Boolean) extends BcsMount
-final case class BcsOutputMount(var src: PathType, var dest: PathType, var writeSupport: Boolean) extends BcsMount
+final case class BcsInputMount(var src: PathType, var dest: PathType, var writeSupport: Boolean) extends BcsMount {
+  def toBcsMountEntry: MountEntry = {
+    var destStr = BcsMount.toString(dest)
+    if (BcsMount.toString(src).endsWith("/") && !destStr.endsWith("/")) {
+      destStr += "/"
+    }
+
+    val entry = new MountEntry
+    entry.setSource(BcsMount.toString(src))
+    entry.setDestination(destStr)
+    entry.setWriteSupport(writeSupport)
+
+    entry
+  }
+
+}
+final case class BcsOutputMount(var src: PathType, var dest: PathType, var writeSupport: Boolean) extends BcsMount {
+  def toBcsMountEntry: MountEntry = {
+    var srcStr = BcsMount.toString(src)
+    if (BcsMount.toString(dest).endsWith("/") && !srcStr.endsWith("/")) {
+      srcStr += "/"
+    }
+
+
+    val entry = new MountEntry
+    entry.setSource(srcStr)
+    entry.setDestination(BcsMount.toString(dest))
+    entry.setWriteSupport(writeSupport)
+
+    entry
+  }
+}

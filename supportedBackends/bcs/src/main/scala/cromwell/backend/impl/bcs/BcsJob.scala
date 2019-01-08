@@ -168,13 +168,10 @@ final case class BcsJob(name: String,
     val cluster = runtime.cluster getOrElse(throw new IllegalArgumentException("cluster id or auto cluster configuration is mandatory"))
     cluster.fold(handleClusterId, handleAutoCluster)
 
+    val mnts = new Mounts
     mounts foreach  {
       case input: BcsInputMount =>
-        var destStr = BcsMount.toString(input.dest)
-        if (BcsMount.toString(input.src).endsWith("/") && !destStr.endsWith("/")) {
-          destStr += "/"
-        }
-        lazyTask.addInputMapping(BcsMount.toString(input.src), destStr)
+        mnts.addEntries(input.toBcsMountEntry)
       case output: BcsOutputMount =>
         var srcStr = BcsMount.toString(output.src)
         if (BcsMount.toString(output.dest).endsWith("/") && !srcStr.endsWith("/")) {
@@ -182,6 +179,8 @@ final case class BcsJob(name: String,
         }
         lazyTask.addOutputMapping(srcStr, BcsMount.toString(output.dest))
     }
+
+    lazyTask.setMounts(mnts)
 
     lazyTask
   }

@@ -170,17 +170,17 @@ final case class BcsJob(name: String,
 
     mounts foreach  {
       case input: BcsInputMount =>
-        var destStr = input.dest.pathAsString
-        if (input.src.pathAsString.endsWith("/") && !destStr.endsWith("/")) {
+        var destStr = BcsMount.toString(input.dest)
+        if (BcsMount.toString(input.src).endsWith("/") && !destStr.endsWith("/")) {
           destStr += "/"
         }
-        lazyTask.addInputMapping(input.src.pathAsString, destStr)
+        lazyTask.addInputMapping(BcsMount.toString(input.src), destStr)
       case output: BcsOutputMount =>
-        var srcStr = output.src.pathAsString
-        if (output.dest.pathAsString.endsWith("/") && !srcStr.endsWith("/")) {
+        var srcStr = BcsMount.toString(output.src)
+        if (BcsMount.toString(output.dest).endsWith("/") && !srcStr.endsWith("/")) {
           srcStr += "/"
         }
-        lazyTask.addOutputMapping(srcStr, output.dest.pathAsString)
+        lazyTask.addOutputMapping(srcStr, BcsMount.toString(output.dest))
     }
 
     lazyTask

@@ -64,8 +64,8 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     val tmp = DefaultPathBuilder.get("/" + ossPath.pathWithoutScheme)
     val dir = tmp.getParent
     val local = BcsJobPaths.BcsTempInputDirectory.resolve(dir.pathAsString.md5SumShort).resolve(tmp.getFileName)
-    val ret = BcsInputMount(ossPath, local, writeSupport = false)
-    if (!inputMounts.exists(mount => mount.src == ossPath && mount.dest == local)) {
+    val ret = BcsInputMount(Left(ossPath), Left(local), writeSupport = false)
+    if (!inputMounts.exists(mount => mount.src == Left(ossPath) && mount.dest == Left(local))) {
       inputMounts :+= ret
     }
 
@@ -73,7 +73,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   }
 
   private[bcs] def womFileToMount(file: WomFile): Option[BcsInputMount] = file match {
-    case path if userDefinedMounts exists(bcsMount => path.valueString.startsWith(bcsMount.src.pathAsString)) => None
+    case path if userDefinedMounts exists(bcsMount => path.valueString.startsWith(BcsMount.toString(bcsMount.src))) => None
     case path => PathFactory.buildPath(path.valueString, initializationData.pathBuilders) match {
       case ossPath: OssPath => Some(ossPathToMount(ossPath))
       case _ => None
@@ -160,7 +160,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
     val src = relativePath(wdlFile.valueString)
 
-    BcsOutputMount(src, destination, writeSupport = false)
+    BcsOutputMount(Left(src), Left(destination), writeSupport = false)
   }
 
   private[bcs] def getOssFileName(ossPath: OssPath): String = {
@@ -173,17 +173,23 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   private[bcs] def localizeOssPath(ossPath: OssPath): String = {
     if (isOutputOssFileString(ossPath.pathAsString) && !ossPath.isAbsolute) {
       if (ossPath.exists) {
-        ossPathToMount(ossPath).dest.normalize().pathAsString
+        ossPathToMount(ossPath).dest match {
+          case Left(p) => p.normalize().pathAsString
+          case _ => throw new RuntimeException("only support oss")
+        }
       } else {
         commandDirectory.resolve(getOssFileName(ossPath)).normalize().pathAsString
       }
     } else {
       userDefinedMounts collectFirst {
-        case bcsMount: BcsMount if ossPath.pathAsString.startsWith(bcsMount.src.pathAsString) =>
-          bcsMount.dest.resolve(ossPath.pathAsString.stripPrefix(bcsMount.src.pathAsString)).pathAsString
+        case bcsMount: BcsMount if ossPath.pathAsString.startsWith(BcsMount.toString(bcsMount.src)) =>
+          bcsMount.dest match {
+            case Left(p) => p.resolve(ossPath.pathAsString.stripPrefix(BcsMount.toString(bcsMount.src))).pathAsString
+            case _ => throw new RuntimeException("only support oss")
+          }
       } getOrElse {
         val mount = ossPathToMount(ossPath)
-        mount.dest.pathAsString
+        BcsMount.toString(mount.dest)
       }
     }
   }
@@ -249,12 +255,12 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   }
 
   private[bcs] lazy val rcBcsOutput = BcsOutputMount(
-    commandDirectory.resolve(bcsJobPaths.returnCodeFilename), bcsJobPaths.returnCode, writeSupport = false)
+    Left(commandDirectory.resolve(bcsJobPaths.returnCodeFilename)), Left(bcsJobPaths.returnCode), writeSupport = false)
 
   private[bcs] lazy val stdoutBcsOutput = BcsOutputMount(
-    commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename), standardPaths.output, writeSupport = false)
+    Left(commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename)), Left(standardPaths.output), writeSupport = false)
   private[bcs] lazy val stderrBcsOutput = BcsOutputMount(
-    commandDirectory.resolve(bcsJobPaths.defaultStderrFilename), standardPaths.error, writeSupport = false)
+    Left(commandDirectory.resolve(bcsJobPaths.defaultStderrFilename)), Left(standardPaths.error), writeSupport = false)
 
   private[bcs] lazy val uploadBcsWorkerPackage = {
     bcsJobPaths.workerPath.writeByteArray(BcsJobCachingActorHelper.workerScript.getBytes)(OpenOptions.default)
@@ -304,7 +310,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
   private[bcs] def wdlFileToOssPath(bcsOutputs: Seq[BcsMount])(wdlFile: WomFile): WomFile = {
     bcsOutputs collectFirst {
-      case bcsOutput if bcsOutput.src.pathAsString.endsWith(wdlFile.valueString) => WomFile(WomSingleFileType, bcsOutput.dest.pathAsString)
+      case bcsOutput if BcsMount.toString(bcsOutput.src).endsWith(wdlFile.valueString) => WomFile(WomSingleFileType, BcsMount.toString(bcsOutput.dest))
     } getOrElse wdlFile
   }
 
@@ -359,7 +365,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
     Map(
       BcsJobPaths.BcsEnvCwdKey -> commandDirectory.pathAsString,
-      BcsJobPaths.BcsEnvExecKey -> mount.dest.pathAsString,
+      BcsJobPaths.BcsEnvExecKey -> BcsMount.toString(mount.dest),
       BcsJobPaths.BcsEnvStdoutKey -> commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename).pathAsString,
       BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.defaultStderrFilename).pathAsString
     )

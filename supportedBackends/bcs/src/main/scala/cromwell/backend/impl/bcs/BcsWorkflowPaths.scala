@@ -33,6 +33,6 @@ case class BcsWorkflowPaths(override val workflowDescriptor: BackendWorkflowDesc
     private[bcs] def getWorkflowInputMounts: BcsInputMount = {
         val src = workflowRoot
         val dest = BcsJobPaths.BcsTempInputDirectory.resolve(src.pathWithoutScheme)
-        BcsInputMount(src, dest, true)
+        BcsInputMount(Left(src), Left(dest), true)
     }
 }

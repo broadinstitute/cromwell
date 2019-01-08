@@ -6,10 +6,9 @@ import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.backend.impl.bcs.BcsMount.PathType
-import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
-import cromwell.filesystems.oss.OssPath
+import cromwell.core.path.{Path, PathBuilder, PathFactory}
 
-import scala.util.Try
+import scala.util.{Success, Try}
 import scala.util.matching.Regex
 
 object BcsMount {
@@ -28,7 +27,7 @@ object BcsMount {
 
   var pathBuilders: List[PathBuilder] = List()
 
-  val remotePrefix = supportFileSystemTypes + """://[^\s]+"""
+  val remotePrefix = s"""(?:$supportFileSystemTypes)""" + """://[^\s]+"""
   val localPath = """/[^\s]+"""
   val writeSupport = """true|false"""
 
@@ -55,17 +54,18 @@ object BcsMount {
   }
 
   private def validateRemote(value: String): ErrorOr[PathType] = {
-    PathFactory.buildPath(value, pathBuilders) match {
-      case p: Path =>
+    Try(PathFactory.buildPath(value, pathBuilders)) match {
+      case Success(p) =>
+        println(s"haha$p")
         Left(p).validNel
-      case _=>
+      case _ =>
         Right(value).validNel
     }
   }
   private def validateLocal(remote: String, local: String): ErrorOr[PathType] = {
     if (remote.endsWith("/") == local.endsWith("/")) {
-      PathFactory.buildPath(local, pathBuilders) match {
-        case p: Path =>
+      Try(PathFactory.buildPath(local, pathBuilders)) match {
+        case Success(p) =>
           Left(p).validNel
         case _=>
           Right(local).validNel

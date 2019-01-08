@@ -135,7 +135,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedDocker = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
   val expectedFailOnStderr = false
   val expectedUserData = Some(Vector(new BcsUserData("key", "value")))
-  val expectedMounts = Some(Vector(new BcsInputMount(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get, DefaultPathBuilder.build("/home/inputs/").get, false)))
+  val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Left(DefaultPathBuilder.build("/home/inputs/").get), false)))
   val expectedCluster = Some(Left("cls-mycluster"))
   val expectedSystemDisk = Some(BcsSystemDisk("cloud", 50))
   val expectedDataDsik = Some(BcsDataDisk("cloud", 250, "/home/data/"))

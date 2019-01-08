@@ -1,13 +1,15 @@
 package cloud.nio.impl.drs
 
 import cats.effect.{IO, Resource}
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.parser.decode
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
-import spray.json._
 
 //Do not remove this import. If removed IntelliJ throws error for method 'executeMarthaRequest' stating
 //'value map is not a member of cats.effect.Resource[cats.effect.IO,org.apache.http.client.methods.CloseableHttpResponse]'
@@ -15,6 +17,14 @@ import cats.syntax.functor._
 
 
 case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
+
+  implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
+  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
+  implicit lazy val dataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
+  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
+  implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+
   private val DrsPathToken = "${drsPath}"
 
   private def unexpectedExceptionResponse(status: StatusLine): RuntimeException = {
@@ -32,8 +42,6 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 
 
   private def httpResponseToMarthaResponse(httpResponse: HttpResponse): IO[MarthaResponse] = {
-    import MarthaResponseJsonSupport._
-
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
@@ -43,7 +51,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
           .toRight(unexpectedExceptionResponse(responseStatusLine))
       )
 
-    responseContentIO.flatMap(responseContent => IO(responseContent.parseJson.convertTo[MarthaResponse])).handleErrorWith {
+    responseContentIO.flatMap(responseContent => IO.fromEither(decode[MarthaResponse](responseContent))).handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
     }
   }
@@ -74,15 +82,6 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
 
-object MarthaResponseJsonSupport extends DefaultJsonProtocol {
-  implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
-  implicit val checksumFormat: JsonFormat[ChecksumObject] = jsonFormat2(ChecksumObject)
-  implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat4(DosDataObject)
-  implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
-  implicit val saDataObjectFormat: JsonFormat[SADataObject] = jsonFormat1(SADataObject)
-  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat2(MarthaResponse)
-}
-
 case class Url(url: String)
 
 case class ChecksumObject(checksum: String, `type`: String)
@@ -94,6 +93,6 @@ case class DosDataObject(size: Option[Long],
 
 case class DosObject(data_object: DosDataObject)
 
-case class SADataObject(data: JsObject)
+case class SADataObject(data: Json)
 
 case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[SADataObject])

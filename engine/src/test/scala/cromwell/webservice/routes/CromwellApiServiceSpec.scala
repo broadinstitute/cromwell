@@ -17,7 +17,8 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{Workflow
 import cromwell.services.healthmonitor.HealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess, WorkflowDescription}
+import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess}
+import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.EngineStatsActor
 import mouse.boolean._

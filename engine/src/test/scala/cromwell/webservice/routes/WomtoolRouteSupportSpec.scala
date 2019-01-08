@@ -6,7 +6,7 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshaller._
 import akka.stream.ActorMaterializer
 import akka.testkit._
-import cromwell.services.womtool.WomtoolServiceMessages.WorkflowDescription
+import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.WomtoolRouteSupportSpec.MockWomtoolRouteSupport
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._

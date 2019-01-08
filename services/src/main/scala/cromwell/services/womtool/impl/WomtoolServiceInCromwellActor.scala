@@ -11,6 +11,7 @@ import cromwell.languages.util.ImportResolver.HttpResolver
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.services.womtool.WomtoolServiceMessages._
+import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wom.core.WorkflowSource
 import wom.executable.WomBundle

@@ -7,6 +7,7 @@ import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.ServicesSpec
 import cromwell.services.womtool.WomtoolServiceMessages._
+import cromwell.services.womtool.models.WorkflowDescription
 import wom.core._
 
 class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {

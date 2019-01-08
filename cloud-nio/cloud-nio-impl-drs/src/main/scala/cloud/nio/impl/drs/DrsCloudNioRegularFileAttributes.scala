@@ -1,51 +1,57 @@
 package cloud.nio.impl.drs
 
 import java.nio.file.attribute.FileTime
+import java.time.{LocalDateTime, ZoneOffset}
 
+import cats.effect.IO
 import cloud.nio.spi.CloudNioRegularFileAttributes
 import com.typesafe.config.Config
-
-import scala.concurrent.duration._
 
 
 class DrsCloudNioRegularFileAttributes(config: Config, drsPath: String, drsPathResolver: DrsPathResolver) extends CloudNioRegularFileAttributes{
 
   private def throwRuntimeException(missingKey: String) = {
-    throw new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
+    new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
   }
+
+  private def timeInStringToFileTime(timeInString: String): FileTime = {
+    //Here timeInString is assumed to be a ISO-8601 DateTime without timezone
+    val instant = LocalDateTime.parse(timeInString).toInstant(ZoneOffset.UTC)
+    FileTime.from(instant)
+  }
+
 
   override def fileHash: Option[String] = {
-    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath).unsafeRunSync()
-    val checksumsArrayOption = marthaResponse.dos.data_object.checksums
+    drsPathResolver.resolveDrsThroughMartha(drsPath).map(marthaResponse => {
+      val checksumsArrayOption = marthaResponse.dos.data_object.checksums
 
-    checksumsArrayOption match {
-      case Some(checksumsArray) => checksumsArray.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
-      case None => None
-    }
+      checksumsArrayOption match {
+        case Some(checksumsArray) => checksumsArray.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
+        case None => None
+      }
+    }).unsafeRunSync()
   }
+
 
   override def lastModifiedTime(): FileTime = {
-    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath).unsafeRunSync()
-    val lastModifiedInStringOption = marthaResponse.dos.data_object.updated
+    val lastModifiedInStringIO =  for {
+      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
+      lastModifiedInString <- IO.fromEither(marthaResponse.dos.data_object.updated.map(timeInStringToFileTime).toRight(throwRuntimeException("updated")))
+    } yield lastModifiedInString
 
-    lastModifiedInStringOption match {
-      case Some(lastModifiedInString) => {
-        val lastModifiedInDuration = Duration.apply(lastModifiedInString).toMillis
-        FileTime.fromMillis(lastModifiedInDuration)
-      }
-      case None => throwRuntimeException("updated")
-    }
+    lastModifiedInStringIO.unsafeRunSync()
   }
+
 
   override def size(): Long = {
-    val marthaResponse = drsPathResolver.resolveDrsThroughMartha(drsPath).unsafeRunSync()
-    val sizeOption = marthaResponse.dos.data_object.size
+    val sizeIO = for {
+      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
+      size <- IO.fromEither(marthaResponse.dos.data_object.size.toRight(throwRuntimeException("size")))
+    } yield size
 
-    sizeOption match {
-      case Some(size) => size
-      case None => throwRuntimeException("size")
-    }
+    sizeIO.unsafeRunSync()
   }
+
 
   override def fileKey(): String = drsPath
 }

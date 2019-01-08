@@ -40,12 +40,12 @@ class DrsCloudNioFileProvider(config: Config,
 
 
   private def checkIfPathExistsThroughMartha(drsPath: String): Boolean = {
-    val a = drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
+    val pathExistsIO = drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
       val errorMsg = s"Status line was null for martha response $marthaResponse."
       DrsCloudNioFileProvider.convertOptionToIOWithErrorMsg(Option(marthaResponse.getStatusLine), errorMsg)
     }.map(_.getStatusCode == HttpStatus.SC_OK)
 
-    a.unsafeRunSync()
+    pathExistsIO.unsafeRunSync()
   }
 
 

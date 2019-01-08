@@ -22,8 +22,10 @@ object DrsResolver {
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
     val drsFileSystemProviderOption = drsPath.drsPath.getFileSystem.provider.cast[DrsCloudNioFileSystemProvider]
 
+    val noFileSystemForDrsError = s"Unable to cast file system provider to DrsCloudNioFileSystemProvider for DRS path $drsPath."
+
     for {
-      drsFileSystemProvider <- DrsCloudNioFileProvider.convertOptionToIOWithErrorMsg(drsFileSystemProviderOption, s"Unable to cast file system provider to DrsCloudNioFileSystemProvider for DRS path $drsPath.")
+      drsFileSystemProvider <- DrsCloudNioFileProvider.convertOptionToIOWithErrorMsg(drsFileSystemProviderOption, noFileSystemForDrsError)
       marthaResponse <- drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
       //Currently, Martha only supports resolving DRS paths to GCS paths
       relativePath <- IO.fromEither(extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme))

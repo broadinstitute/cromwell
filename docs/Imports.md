@@ -19,10 +19,12 @@ import "my-wdl-in-the-root-directory.wdl" as file_import1
 import "my/wdl/sub/directory/example.wdl" as file_import2
 ```
 
-If there exists a `my/wdl/sub/directory/imports/importing_an_import.wdl`, `my/wdl/sub/directory/example.wdl` could import it relatively like so:
-```wdl
-import "imports/importing_an_import.wdl" as file_import3
-```
+Imports from your submitted workflow are evaluated relative to the base of the zip file. In other cases, import paths are relative to the file you are currently importing from, for example:
+
+>If there exists a `my/wdl/sub/directory/imports/importing_an_import.wdl`, `my/wdl/sub/directory/example.wdl` could import it relatively like so:
+>```wdl
+>import "imports/importing_an_import.wdl" as file_import3
+>```
 
 Here's a complete example showing both http(s) and file-based imports workflow in WDL:
 

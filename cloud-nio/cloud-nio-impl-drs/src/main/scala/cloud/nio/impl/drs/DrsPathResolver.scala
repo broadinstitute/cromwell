@@ -44,9 +44,50 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
       )
 
     responseContentIO.flatMap(responseContent => IO(responseContent.parseJson.convertTo[MarthaResponse])).handleErrorWith {
-      e =>
-        val errorMsg = new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}")
-        IO.raiseError(errorMsg)
+      e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
+    }
+
+    val sampleResponse =
+      raw"""
+           |{
+           |    "dos": {
+           |        "data_object": {
+           |            "urls": [
+           |                {
+           |                    "url": "s3://wb-mock-drs-dev/protected/special_data.txt"
+           |                }
+           |            ],
+           |            "version": "2018-03-23T123738.145535Z",
+           |            "content_type": "text/plain",
+           |            "checksums": [
+           |                {
+           |                    "checksum": "DD51FAD9",
+           |                    "type": "crc32c"
+           |                }
+           |            ],
+           |            "id": "09def97f-19d6-4de5-b1a1-5551784344f1",
+           |            "size": 164
+           |        }
+           |    },
+           |    "googleServiceAccount": {
+           |        "data": {
+           |            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+           |            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+           |            "client_email": "mock-provider-user-service-acc@broad-dsde-dev.iam.gserviceaccount.com",
+           |            "client_id": "102327840668511205237",
+           |            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/mock-provider-user-service-acc%40broad-dsde-dev.iam.gserviceaccount.com",
+           |            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC5I9AXB/n6VMGM\nbMUpYtSZ1cEPzwFhDvvf8x0REq2782RCL2W60Lq2gjScRqgtdcEFPukfoKgjpy9u\nYhNDxYnDQubFL6fBjpGJ0aw/9oCc1pATmcgTVnML95cbyBrVndImwkOuw+0RDsge\n57TwbZ737XE/+kWMIJEjqkL3WYghib9VDWGVx2Ou50ZhCRH/Uftx0QKlZBp3NDys\n4RM8IEdL3XBhpN31Ts8V1UktluoSdXzbyZ5YUl+IvPS+78VWqpAirl8L8HE5Tf/X\nFacnc8yiC9lwZGR7OAXqG23R7nr8rzlLhgq9fPavLGMzBvrLYRTj9IP39Xw4e4ET\nR7O9C49lAgMBAAECggEABRtKG73aP5+42vZhFdF7tbvh9bKrAhICETJJJKBpmbE5\nRw4RoJkt8pIdgLX+NjV08SpuubLvuv6wiJCR9suVui9ijXZ8CmheoU40PGtrLr2d\nqby9z7K8Z6HDpujaZ0v8G5o+IwLqdg78psWTWxJa+9GueapIjXiUfZxY+S5HWqLA\nMP1+LJPfmGlHKOXZ1t9VK+ql3Ja0MALnNALAgY4INAqM4zbNXVEKbFUkzu+N965L\n3IPIvd40TmKFaHdPoAeHDwXZTEkems3newaKjY35sLP0ewZu2FkXt891mdgOMnqY\nuQq0mIjg/yRB/1EUMNhow685Jzdkg6kEuGPBTYHmPQKBgQD//fS0YQRz59BcutE9\nDkBgsTUlFcZnsYjkuhJMwNde8KFrgsI2UIEiC8bja00v8qluDJ+Q8w6XMrqxbYR/\nol23/1YU2T7ctqItHXbygzQc5dFE2/w8olCKv4X7sO5AfbZAq6cMtL0vJjBb9jC0\nIZAGQWZ/4biBf/ebvGw2X9KGawKBgQC5JUqM6C+g2wdNCnucMQ5jZCg9x/6lBzng\nVvxl2pzT28PXfdNrcFjUc29W4K9IFmmyjC50EkiewhaveDcYqx7aU3YULMfsm7Z/\npuA9ktlnIVkMuQEHNiVDzpnHGsVnUER5B53+SI1Vw9CUKWCQ4eg+WOojdsrTS8VR\nMfgX1VWVbwKBgQDGHqThaWiJz7I54jgH+dynON65qeWY4RTieIOrNWA50SAM1fE7\nGgkm8VhnL+dYIYUxb8Ga7BGxwQguQ2VVZrMDsTDNB+mX5h0Tr4ccX6DYcKEKmvrX\nboPJLjsitSdfcCu6V178/XChafvpYFsHPiZ6QOl0NZyXVROsSyKw3m5PqwKBgAre\nNIUW8AzKLqCIF/9wJb8R1wbhYYJAbVZM5N35ujD5eoKAwVNSMfSunf+EiuV5Y1T2\nw5dOp3KiRACi1uEc0l/QfGLsygOKlGjj28/hed+C5p5Hkdbhh8h2LTKx0Jqi7JIK\nL20IxzsclnbMAv4eNKrMP1o7k+ZZUUjV3RFRFYgDAoGBAMlfHqClgXO9p0C2zpl3\nmu3TSHiTsRo0XIxIqfBOoq5iAd8vAnh4VlrMEmrP+QD5yBXjgoga1YxibV+89kGi\ny9TMfo1AcZToAeV37iYGcyEi0MRl3aH97iT7JdCXZ0c2I88cBWdtKqlEYmbnaX/L\no7TAvyeSyVl0MnUJy/92C2Ut\n-----END PRIVATE KEY-----\n",
+           |            "private_key_id": "ac16680eb18feaec5c499c643263c0678d430e1a",
+           |            "project_id": "broad-dsde-dev",
+           |            "token_uri": "https://oauth2.googleapis.com/token",
+           |            "type": "service_account"
+           |        }
+           |    }
+           |}
+         """.stripMargin
+
+    IO(sampleResponse.parseJson.convertTo[MarthaResponse]).handleErrorWith {
+      e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
     }
   }
 

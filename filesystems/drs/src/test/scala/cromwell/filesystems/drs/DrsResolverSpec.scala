@@ -26,7 +26,7 @@ class DrsResolverSpec extends FlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def drsReadInterpreter(drsPath: String, marthaResponse: MarthaResponse): IO[ReadableByteChannel] = ???
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = ???
 
   private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeOAuth2Creds, httpClientBuilder, drsReadInterpreter)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider)
@@ -51,9 +51,9 @@ class DrsResolverSpec extends FlatSpec with Matchers {
   it should "throw GcsUrlNotFoundException when DRS path doesn't resolve to at least one GCS url" in {
     val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToNoGcsPath).get.asInstanceOf[DrsPath]
 
-    the[UrlNotFoundException] thrownBy {
+    the[RuntimeException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
-    } should have message s"DRS was not able to find a gs url associated with ${drsPath.pathAsString}."
+    } should have message s"Error while resolving DRS path: ${drsPath.pathAsString}. Error: UrlNotFoundException: No gs url associated with given DRS path."
   }
 
   it should "throw Runtime Exception when Martha can't find the given DRS path " in {

@@ -136,12 +136,22 @@ object WdlWriterImpl {
     }
   }
 
-  implicit val callElementWriter: WdlWriter[CallElement] = new WdlWriter[CallElement] {
-    override def toWdlV1(a: CallElement) = {
+  object CallElementWriter {
+    def withoutBody(a: CallElement): String = {
       val aliasExpression = a.alias match {
         case Some(alias) => s" as $alias"
         case None => ""
       }
+
+      val afterExpression = if (a.afters.nonEmpty) a.afters.map(after => s" after $after").mkString(" ") else ""
+
+      s"call ${a.callableReference}$aliasExpression$afterExpression"
+    }
+  }
+
+  implicit val callElementWriter: WdlWriter[CallElement] = new WdlWriter[CallElement] {
+
+    override def toWdlV1(a: CallElement): String = {
 
       val bodyExpression = a.body match {
         case Some(body) =>
@@ -151,7 +161,7 @@ object WdlWriterImpl {
         case None => ""
       }
 
-      s"call ${a.callableReference}$aliasExpression$bodyExpression"
+      s"${CallElementWriter.withoutBody(a)}$bodyExpression"
     }
   }
 

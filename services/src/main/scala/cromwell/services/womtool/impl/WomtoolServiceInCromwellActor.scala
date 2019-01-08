@@ -8,11 +8,12 @@ import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.HttpResolver
-import cromwell.languages.LanguageFactory
+import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.services.womtool.WomtoolServiceMessages._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wom.core.WorkflowSource
+import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -69,18 +70,23 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // No inputs: just load up the WomBundle
       factory.getWomBundle(workflow, "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
-        case Right(_) => WorkflowDescription(valid = true, List.empty)
-        case Left(errors) => WorkflowDescription(valid = false, errors.toList)
+        case Right(bundle: WomBundle) =>
+          WorkflowDescription.fromBundle(bundle)
+        case Left(errors) =>
+          WorkflowDescription.withErrors(errors.toList)
       }
     } else {
       // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
       factory.getWomBundle(workflow, "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
-            case Right(_) => WorkflowDescription(valid = true, List.empty)
-            case Left(errors) => WorkflowDescription(valid = false, errors.toList)
+            case Right(executable: ValidatedWomNamespace) =>
+              WorkflowDescription.fromNamespace(executable)
+            case Left(errors) =>
+              WorkflowDescription.withErrors(errors.toList)
           }
-        case Left(errors) => WorkflowDescription(valid = false, errors.toList)
+        case Left(errors) =>
+          WorkflowDescription.withErrors(errors.toList)
       }
     }
 

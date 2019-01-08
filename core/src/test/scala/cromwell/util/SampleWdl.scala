@@ -2,11 +2,10 @@ package cromwell.util
 
 import java.util.UUID
 
-import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import spray.json._
 import wom.core.{ExecutableInputMap, WorkflowJson, WorkflowSource}
-import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 import scala.language.postfixOps
@@ -524,31 +523,6 @@ object SampleWdl {
     override val rawInputs: Map[String, Any] = Map.empty
   }
 
-  case class ArrayLiteral(catRootDir: Path) extends SampleWdl {
-    createFileArray(catRootDir)
-    def cleanup() = cleanupFileArray(catRootDir)
-
-    override def workflowSource(runtime: String = "") =
-      s"""
-        |task cat {
-        |  Array[File]+ files
-        |  command {
-        |    cat -s $${sep = ' ' files}
-        |  }
-        |  output {
-        |    Array[String] lines = read_lines(stdout())
-        |  }
-        |}
-        |
-        |workflow wf {
-        |  Array[File] arr = ["f1", "f2", "f3"]
-        |  call cat {input: files = arr}
-        |}
-      """.stripMargin
-
-    override val rawInputs = Map.empty[String, String]
-  }
-
   case class MapLiteral(catRootDir: Path) extends SampleWdl {
     createFileArray(catRootDir)
     def cleanup() = cleanupFileArray(catRootDir)
@@ -926,46 +900,6 @@ object SampleWdl {
         "w.map_file" -> createCannedFile("map.txt", CannedMap).pathAsString
       )
     }
-  }
-
-  object ArrayOfArrays extends SampleWdl {
-    override def workflowSource(runtime: String = "") =
-      s"""task subtask {
-        |  Array[File] a
-        |  command {
-        |    cat $${sep = " " a}
-        |  }
-        |  output {
-        |    String concatenated = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow wf {
-        |  Array[Array[File]] nested_file
-        |
-        |  scatter(n in nested_file) {
-        |    call subtask {
-        |      input: a = n
-        |    }
-        |  }
-        |}
-      """.stripMargin
-
-    val tempDir = DefaultPathBuilder.createTempDirectory("ArrayOfArray")
-    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Option(tempDir))
-    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Option(tempDir))
-    val thirdFile = createCannedFile(prefix = "third", contents = "third\n", dir = Option(tempDir))
-    val fourthFile = createCannedFile(prefix = "fourth", contents = "fourth\n", dir = Option(tempDir))
-
-    override val rawInputs = Map(
-      "wf.nested_file" ->
-        WomArray(WomArrayType(WomArrayType(WomStringType)),
-        Seq(
-          WomArray(WomArrayType(WomStringType), Seq(firstFile.pathAsString, secondFile.pathAsString).map(WomString)),
-          WomArray(WomArrayType(WomStringType), Seq(thirdFile.pathAsString, fourthFile.pathAsString).map(WomString))
-        )
-      )
-    )
   }
 
   object CallCachingHashingWdl extends SampleWdl {

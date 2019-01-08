@@ -103,9 +103,7 @@ inputs:
       - items: 'null'
         type: array
     - name: reference__viral
-      type:
-      - 'null'
-      - string
+      type: File
     - name: config__algorithm__qc
       type:
         items: string

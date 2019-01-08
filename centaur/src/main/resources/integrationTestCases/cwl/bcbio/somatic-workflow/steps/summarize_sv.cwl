@@ -25,6 +25,11 @@ hints:
   tmpdirMin: 2
 - class: dx:InputResourceRequirement
   indirMin: 1
+- class: SoftwareRequirement
+  packages:
+  - package: bcbio-prioritize
+    specs:
+    - https://anaconda.org/bioconda/bcbio-prioritize
 inputs:
 - id: sv_rec
   type:
@@ -57,9 +62,7 @@ inputs:
           - 'null'
           - string
         - name: genome_resources__variation__gc_profile
-          type:
-          - 'null'
-          - string
+          type: File
         - name: genome_build
           type: string
         - name: genome_resources__variation__germline_het_pon
@@ -109,6 +112,10 @@ inputs:
           - File
           - 'null'
         - name: depth__bins__antitarget
+          type:
+          - File
+          - 'null'
+        - name: depth__bins__seq2c
           type:
           - File
           - 'null'
@@ -164,6 +171,10 @@ inputs:
           - items: 'null'
             type: array
         - name: config__algorithm__variant_regions_merged
+          type:
+          - File
+          - 'null'
+        - name: config__algorithm__seq2c_bed_ready
           type:
           - File
           - 'null'

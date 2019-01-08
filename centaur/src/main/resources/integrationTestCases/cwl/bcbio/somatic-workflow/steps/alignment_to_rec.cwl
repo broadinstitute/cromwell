@@ -27,8 +27,6 @@ hints:
   indirMin: 0
 inputs:
 - id: files
-  secondaryFiles:
-  - .bai
   type:
     items:
       items: File

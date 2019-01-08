@@ -9,8 +9,6 @@ inputs:
     - string
     type: array
 - id: files
-  secondaryFiles:
-  - .bai
   type:
     items:
       items: File
@@ -78,9 +76,7 @@ inputs:
     type: array
 - id: genome_resources__variation__gc_profile
   type:
-    items:
-    - 'null'
-    - string
+    items: File
     type: array
 - id: rgnames__lb
   type:
@@ -227,10 +223,10 @@ inputs:
     items: File
     type: array
 - id: genome_resources__variation__gnomad_exome
+  secondaryFiles:
+  - .tbi
   type:
-    items:
-    - 'null'
-    - string
+    items: File
     type: array
 - id: config__algorithm__recalibrate
   type:
@@ -283,10 +279,15 @@ inputs:
     - string
     type: array
 - id: reference__viral
+  secondaryFiles:
+  - .amb
+  - .ann
+  - .sa
+  - .pac
+  - ^.dict
+  - .bwt
   type:
-    items:
-    - 'null'
-    - string
+    items: File
     type: array
 - id: genome_resources__variation__cosmic
   secondaryFiles:
@@ -537,6 +538,8 @@ steps:
   in:
   - id: rgnames__sample
     source: rgnames__sample
+  - id: config__algorithm__svcaller
+    source: config__algorithm__svcaller
   - id: config__algorithm__variant_regions
     source: config__algorithm__variant_regions
   - id: reference__fasta__base
@@ -793,6 +796,8 @@ steps:
     source: postprocess_alignment/config__algorithm__variant_regions
   - id: config__algorithm__variant_regions_merged
     source: postprocess_alignment/config__algorithm__variant_regions_merged
+  - id: config__algorithm__seq2c_bed_ready
+    source: postprocess_alignment/config__algorithm__seq2c_bed_ready
   - id: config__algorithm__svcaller
     source: config__algorithm__svcaller
   - id: depth__variant_regions__regions

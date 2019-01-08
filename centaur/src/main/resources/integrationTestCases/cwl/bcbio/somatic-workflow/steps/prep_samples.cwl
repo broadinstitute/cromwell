@@ -46,6 +46,10 @@ inputs:
       type: string
     - name: reference__fasta__base
       type: File
+    - name: config__algorithm__svcaller
+      type:
+        items: string
+        type: array
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions

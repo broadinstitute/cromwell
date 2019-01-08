@@ -176,10 +176,15 @@ inputs:
       type: array
     type: array
 - id: reference__viral
+  secondaryFiles:
+  - .amb
+  - .ann
+  - .sa
+  - .pac
+  - ^.dict
+  - .bwt
   type:
-    items:
-    - 'null'
-    - string
+    items: File
     type: array
 - id: resources
   type:
@@ -218,9 +223,7 @@ outputs:
         - items: 'null'
           type: array
       - name: reference__viral
-        type:
-        - 'null'
-        - string
+        type: File
       - name: config__algorithm__qc
         type:
           items: string

@@ -196,10 +196,10 @@ inputs:
     items: File
     type: array
 - id: genome_resources__variation__gnomad_exome
+  secondaryFiles:
+  - .tbi
   type:
-    items:
-    - 'null'
-    - string
+    items: File
     type: array
 - id: genome_resources__variation__1000g
   secondaryFiles:
@@ -326,9 +326,7 @@ outputs:
         - name: genome_resources__variation__exac
           type: File
         - name: genome_resources__variation__gnomad_exome
-          type:
-          - 'null'
-          - string
+          type: File
         - name: metadata__phenotype
           type: string
         - name: genome_resources__aliases__human

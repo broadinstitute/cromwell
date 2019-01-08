@@ -14,10 +14,8 @@ object DrsResolver {
     val schemeUrlOption = urlArray.find(_.url.startsWith(scheme))
 
     schemeUrlOption match {
-      case Some(schemeUrl) =>
-        Right(schemeUrl.url)
-      case None =>
-        Left(UrlNotFoundException(scheme))
+      case Some(schemeUrl) => Right(schemeUrl.url)
+      case None => Left(UrlNotFoundException(scheme))
     }
   }
 

@@ -1,11 +1,10 @@
 package cromwell.filesystems.drs
 
 import java.nio.channels.ReadableByteChannel
-import java.util.Date
 
 import cats.effect.IO
 import cloud.nio.impl.drs.MarthaResponse
-import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.{FlatSpec, Matchers}
@@ -21,14 +20,13 @@ class DrsResolverSpec extends FlatSpec with Matchers {
       |""".stripMargin
   )
 
-  private lazy val fakeAccessToken = new AccessToken("ya29.1234567890qwertyuiopasdfghjklzxcvbnm", new Date())
-  private lazy val fakeOAuth2Creds = OAuth2Credentials.create(fakeAccessToken)
+  private lazy val fakeCredentials = NoCredentials.getInstance
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
   private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = ???
 
-  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeOAuth2Creds, httpClientBuilder, drsReadInterpreter)
+  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider)
 
   val gcsRelativePath = "mybucket/foo.txt"

@@ -6,8 +6,8 @@ import cats.effect.IO
 import cloud.nio.impl.drs._
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
+import io.circe.Json
 import org.apache.http.impl.client.HttpClientBuilder
-import spray.json.JsObject
 
 
 class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) extends DrsPathResolver(drsConfig, httpClientBuilder){
@@ -35,7 +35,7 @@ class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBui
       urls = urlArray
     )
 
-    IO(MarthaResponse(DosObject(dosDataObject), Option(SADataObject(JsObject.empty))))
+    IO(MarthaResponse(DosObject(dosDataObject), Option(SADataObject(Json.fromString("{}")))))
   }
 
   override def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String]): IO[MarthaResponse] = {

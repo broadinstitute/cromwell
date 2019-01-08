@@ -280,7 +280,8 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     BadPath("a bucket only path", s"dos://$bucket", s"dos://$bucket does not have a valid path. DRS doesn't support a host only path.")
   )
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = ???
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+    throw new UnsupportedOperationException("Currently DrsPathBuilderSpec doesn't need to use drs read interpreter.")
 
 
   private val marthaConfig: Config = ConfigFactory.parseString(

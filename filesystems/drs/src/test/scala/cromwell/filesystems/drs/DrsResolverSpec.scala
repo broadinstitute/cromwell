@@ -24,7 +24,8 @@ class DrsResolverSpec extends FlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = ???
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+    throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
 
   private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider)

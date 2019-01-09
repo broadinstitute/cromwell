@@ -1,0 +1,5 @@
+steps:
+    - name: 'gcr.io/cloud-builders/scala-sbt'
+      args: ['compile']
+options:
+    machineType: 'N1_HIGHCPU_8'

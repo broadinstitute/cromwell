@@ -1,6 +1,5 @@
 package cromwell.backend.impl.bcs
 
-
 import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.exceptions.{ClientException, ServerException}
@@ -14,10 +13,12 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.ExecutionEvent
 import cromwell.filesystems.oss.OssPath
 import wom.callable.Callable.OutputDefinition
+import wom.callable.RuntimeEnvironment
 import wom.core.FullyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.types.WomSingleFileType
 import wom.values._
+import mouse.all._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -215,6 +216,20 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   override def preProcessWomFile(womFile: WomFile): WomFile = mapWomFile(womFile)
 
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = mapWomFile(womFile)
+
+  override def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {
+    def localize(path: String): String = (WomSingleFile(path) |> mapRuntimeEnvs).valueString
+    env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
+  }
+
+  private[bcs] def mapRuntimeEnvs(womFile: WomSingleFile): WomFile = {
+    getPath(womFile.valueString) match {
+      case Success(ossPath: OssPath) =>
+        WomFile(WomSingleFileType, BcsJobPaths.BcsCommandDirectory.resolve(ossPath.pathWithoutScheme).pathAsString)
+      case _ => womFile
+    }
+
+  }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {

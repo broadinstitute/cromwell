@@ -22,7 +22,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 1
   outdirMin: 1028
-  ramMin: 2048
+  ramMin: 3072
   tmpdirMin: 2
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -59,8 +59,6 @@ inputs:
         type:
         - string
         - 'null'
-      - name: genome_resources__variation__train_hapmap
-        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -74,12 +72,12 @@ inputs:
       - name: genome_resources__variation__1000g
         type: File
       - name: config__algorithm__min_allele_fraction
-        type: long
+        type: double
       - name: vrn_file
         type:
         - 'null'
         - string
-      - name: reference__twobit
+      - name: genome_resources__variation__train_hapmap
         type: File
       - name: reference__genome_context
         type:
@@ -98,6 +96,8 @@ inputs:
       - name: genome_build
         type: string
       - name: genome_resources__variation__exac
+        type: File
+      - name: genome_resources__variation__gnomad_exome
         type: File
       - name: metadata__phenotype
         type: string

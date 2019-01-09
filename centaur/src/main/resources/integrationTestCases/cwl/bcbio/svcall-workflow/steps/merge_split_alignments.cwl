@@ -21,7 +21,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 2
   outdirMin: 1035
-  ramMin: 4096
+  ramMin: 6144
   tmpdirMin: 6
 - class: dx:InputResourceRequirement
   indirMin: 4
@@ -94,6 +94,10 @@ inputs:
       type: string
     - name: rgnames__sample
       type: string
+    - name: config__algorithm__variant_regions
+      type:
+      - 'null'
+      - string
     name: alignment_rec
     type: record
 - id: work_bam

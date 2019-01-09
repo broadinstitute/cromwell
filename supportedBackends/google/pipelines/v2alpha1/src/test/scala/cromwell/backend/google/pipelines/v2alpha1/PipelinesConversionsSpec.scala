@@ -34,7 +34,8 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = ???
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+    throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
 
   it should "create a DRS input parameter" in {
 

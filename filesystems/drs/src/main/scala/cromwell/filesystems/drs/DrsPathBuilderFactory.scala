@@ -65,8 +65,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
     val serviceAccount = marthaResponse.googleServiceAccount match {
-      case Some(googleSA) =>
-        googleSA.data.toString
+      case Some(googleSA) => googleSA.data.toString
       case None => throw new GoogleSANotFoundException
     }
 

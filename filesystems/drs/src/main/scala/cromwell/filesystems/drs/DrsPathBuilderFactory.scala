@@ -6,7 +6,7 @@ import java.nio.channels.ReadableByteChannel
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GcsFilePath, MarthaResponse, Url}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GcsFilePath, MarthaResponse}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.StorageOptions
@@ -40,15 +40,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private val GcsScheme = "gs"
 
-  private def extractUrlForScheme(drsPath: String, urlArray: Array[Url], scheme: String): Either[UrlNotFoundException, String] = {
-    val schemeUrlOption = urlArray.find(_.url.startsWith(scheme))
-
-    schemeUrlOption match {
-      case Some(schemeUrl) => Right(schemeUrl.url)
-      case None => Left(UrlNotFoundException(drsPath, scheme))
-    }
-  }
-
 
   private def gcsInputStream(gcsFile: GcsFilePath, serviceAccount: String): IO[ReadableByteChannel] = {
     val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
@@ -72,14 +63,14 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   }
 
 
-  private def drsReadInterpreter(drsPath: String, marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
     val serviceAccount = marthaResponse.googleServiceAccount match {
       case Some(googleSA) => googleSA.data.toString
-      case None => throw GoogleSANotFoundException(drsPath)
+      case None => throw new GoogleSANotFoundException
     }
 
     //Currently, Martha only supports resolving DRS paths to GCS paths
-    extractUrlForScheme(drsPath, marthaResponse.dos.data_object.urls, GcsScheme) match {
+    DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
       case Right(url) => inputReadChannel(url, GcsScheme, serviceAccount)
       case Left(e) => IO.raiseError(e)
     }
@@ -100,6 +91,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 
 
-case class GoogleSANotFoundException(drsPath: String) extends Exception(s"Error finding Google Service Account associated with DRS path $drsPath through Martha.")
+class GoogleSANotFoundException extends Exception(s"Error finding Google Service Account associated with DRS path through Martha.")
 
-case class UrlNotFoundException(drsPath: String, scheme: String) extends Exception(s"DRS was not able to find a $scheme url associated with $drsPath.")
+case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")

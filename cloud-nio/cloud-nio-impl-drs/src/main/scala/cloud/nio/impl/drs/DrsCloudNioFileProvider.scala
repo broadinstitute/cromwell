@@ -6,6 +6,7 @@ import cats.effect.IO
 import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import com.typesafe.config.Config
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
 import org.apache.http.impl.client.HttpClientBuilder
 
@@ -17,7 +18,7 @@ class DrsCloudNioFileProvider(config: Config,
                               drsPathResolver: DrsPathResolver,
                               authCredentials: OAuth2Credentials,
                               httpClientBuilder: HttpClientBuilder,
-                              drsReadInterpreter: (String, MarthaResponse) => IO[ReadableByteChannel]) extends CloudNioFileProvider {
+                              drsReadInterpreter: (MarthaResponse) => IO[ReadableByteChannel]) extends CloudNioFileProvider {
 
   private val AccessTokenAcceptableTTL = 1.minute
 
@@ -40,7 +41,8 @@ class DrsCloudNioFileProvider(config: Config,
 
   private def checkIfPathExistsThroughMartha(drsPath: String): Boolean = {
     val a = drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
-      IO.fromEither(Option(marthaResponse.getStatusLine).toRight(new RuntimeException(s"Status line was null for martha response $marthaResponse.")))
+      val errorMsg = s"Status line was null for martha response $marthaResponse."
+      DrsCloudNioFileProvider.convertOptionToIOWithErrorMsg(Option(marthaResponse.getStatusLine), errorMsg)
     }.map(_.getStatusCode == HttpStatus.SC_OK)
 
     a.unsafeRunSync()
@@ -76,10 +78,12 @@ class DrsCloudNioFileProvider(config: Config,
 
     val byteChannelIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, Option(freshAccessToken))
-      byteChannel <- drsReadInterpreter(getDrsPath(cloudHost, cloudPath), marthaResponse)
+      byteChannel <- drsReadInterpreter(marthaResponse)
     } yield byteChannel
 
-    byteChannelIO.unsafeRunSync()
+    byteChannelIO.handleErrorWith {
+        e => IO.raiseError(new RuntimeException(s"Error while reading from DRS path: $drsPath. Error: ${ExceptionUtils.getMessage(e)}"))
+    }.unsafeRunSync()
   }
 
 
@@ -91,6 +95,13 @@ class DrsCloudNioFileProvider(config: Config,
     Option(new DrsCloudNioRegularFileAttributes(config, getDrsPath(cloudHost,cloudPath), drsPathResolver))
 }
 
+
+object DrsCloudNioFileProvider {
+
+  def convertOptionToIOWithErrorMsg[A](option: Option[A], errorMsg: String): IO[A] = {
+    IO.fromEither(option.toRight(new RuntimeException(errorMsg)))
+  }
+}
 
 
 case class GcsFilePath(bucket: String, file: String)

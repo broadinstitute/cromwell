@@ -53,7 +53,7 @@ class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBui
 class MockDrsCloudNioFileSystemProvider(config: Config,
                                         credentials: OAuth2Credentials,
                                         httpClientBuilder: HttpClientBuilder,
-                                        drsReadInterpreter: (String, MarthaResponse) => IO[ReadableByteChannel]) extends DrsCloudNioFileSystemProvider(config, credentials, httpClientBuilder, drsReadInterpreter) {
+                                        drsReadInterpreter: (MarthaResponse) => IO[ReadableByteChannel]) extends DrsCloudNioFileSystemProvider(config, credentials, httpClientBuilder, drsReadInterpreter) {
 
   private lazy val fakeDrsConfig = DrsConfig("http://martha-url", "{}")
 

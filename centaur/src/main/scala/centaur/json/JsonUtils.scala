@@ -36,6 +36,7 @@ object JsonUtils {
           val maybePrefix = if (prefix.isEmpty) "" else s"$prefix."
           element match {
             case _: JsObject => accumulator.mergeWith(element.flatten(s"$maybePrefix$k.$idx"))
+            case a: JsArray => accumulator ++ JsObject(s"$maybePrefix$k.$idx" -> a).flatten()
             case x: JsValue => accumulator + (s"$maybePrefix$k.$idx" -> x)
           }
         }

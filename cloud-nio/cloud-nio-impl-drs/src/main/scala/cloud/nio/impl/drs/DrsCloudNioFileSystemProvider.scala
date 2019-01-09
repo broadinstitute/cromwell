@@ -8,6 +8,8 @@ import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
 import org.apache.http.impl.client.HttpClientBuilder
+import net.ceedubs.ficus.Ficus._
+import scala.concurrent.duration.FiniteDuration
 
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
@@ -19,11 +21,13 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
   private lazy val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
   private lazy val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
 
+  private lazy val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
+
   lazy val drsPathResolver = DrsPathResolver(drsConfig, httpClientBuilder)
 
   override def config: Config = rootConfig
 
-  override def fileProvider: CloudNioFileProvider = new DrsCloudNioFileProvider(rootConfig, getScheme, drsPathResolver, authCredentials, httpClientBuilder, drsReadInterpreter)
+  override def fileProvider: CloudNioFileProvider = new DrsCloudNioFileProvider(getScheme, accessTokenAcceptableTTL, drsPathResolver, authCredentials, httpClientBuilder, drsReadInterpreter)
 
   override def isFatal(exception: Exception): Boolean = false
 

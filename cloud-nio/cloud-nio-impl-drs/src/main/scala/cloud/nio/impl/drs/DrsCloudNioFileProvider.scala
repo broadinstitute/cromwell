@@ -5,7 +5,6 @@ import java.nio.channels.{ReadableByteChannel, WritableByteChannel}
 import cats.effect.IO
 import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
-import com.typesafe.config.Config
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
 import org.apache.http.impl.client.HttpClientBuilder
@@ -13,21 +12,19 @@ import org.apache.http.impl.client.HttpClientBuilder
 import scala.concurrent.duration._
 
 
-class DrsCloudNioFileProvider(config: Config,
-                              scheme: String,
+class DrsCloudNioFileProvider(scheme: String,
+                              accessTokenAcceptableTTL: Duration,
                               drsPathResolver: DrsPathResolver,
                               authCredentials: OAuth2Credentials,
                               httpClientBuilder: HttpClientBuilder,
                               drsReadInterpreter: (MarthaResponse) => IO[ReadableByteChannel]) extends CloudNioFileProvider {
-
-  private val AccessTokenAcceptableTTL = 1.minute
 
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
 
   private def getFreshAccessToken(credential: OAuth2Credentials): String = {
     def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
-      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(AccessTokenAcceptableTTL)
+      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(accessTokenAcceptableTTL)
     }
 
     Option(credential.getAccessToken) match {
@@ -39,18 +36,16 @@ class DrsCloudNioFileProvider(config: Config,
   }
 
 
-  private def checkIfPathExistsThroughMartha(drsPath: String): Boolean = {
-    val pathExistsIO = drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
+  private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
+    drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
       val errorMsg = s"Status line was null for martha response $marthaResponse."
       DrsCloudNioFileProvider.convertOptionToIOWithErrorMsg(Option(marthaResponse.getStatusLine), errorMsg)
     }.map(_.getStatusCode == HttpStatus.SC_OK)
-
-    pathExistsIO.unsafeRunSync()
   }
 
 
   override def existsPath(cloudHost: String, cloudPath: String): Boolean =
-    checkIfPathExistsThroughMartha(getDrsPath(cloudHost, cloudPath))
+    checkIfPathExistsThroughMartha(getDrsPath(cloudHost, cloudPath)).unsafeRunSync()
 
 
   override def existsPaths(cloudHost: String, cloudPathPrefix: String): Boolean =
@@ -92,7 +87,7 @@ class DrsCloudNioFileProvider(config: Config,
 
 
   override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
-    Option(new DrsCloudNioRegularFileAttributes(config, getDrsPath(cloudHost,cloudPath), drsPathResolver))
+    Option(new DrsCloudNioRegularFileAttributes(getDrsPath(cloudHost,cloudPath), drsPathResolver))
 }
 
 

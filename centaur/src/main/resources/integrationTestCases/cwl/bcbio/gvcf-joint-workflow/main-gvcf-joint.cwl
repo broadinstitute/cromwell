@@ -1,13 +1,12 @@
-cwlVersion: v1.0
 class: Workflow
+cwlVersion: v1.0
 hints: []
 inputs:
 - id: config__algorithm__align_split_size
   type:
     items:
-    - string
     - 'null'
-    - boolean
+    - string
     type: array
 - id: files
   type:
@@ -52,10 +51,7 @@ inputs:
 - id: config__algorithm__adapters
   type:
     items:
-    - 'null'
-    - items:
-      - 'null'
-      - string
+      items: string
       type: array
     type: array
 - id: genome_resources__variation__1000g
@@ -71,12 +67,6 @@ inputs:
     - string
     type: array
 - id: genome_resources__rnaseq__gene_bed
-  type:
-    items: File
-    type: array
-- id: genome_resources__variation__train_hapmap
-  secondaryFiles:
-  - .tbi
   type:
     items: File
     type: array
@@ -118,11 +108,15 @@ inputs:
     type: array
 - id: config__algorithm__min_allele_fraction
   type:
-    items: long
+    items: double
     type: array
 - id: config__algorithm__nomap_split_targets
   type:
     items: long
+    type: array
+- id: reference__versions
+  type:
+    items: File
     type: array
 - id: reference__bwa__indexes
   secondaryFiles:
@@ -139,7 +133,9 @@ inputs:
     - 'null'
     - string
     type: array
-- id: reference__twobit
+- id: genome_resources__variation__train_hapmap
+  secondaryFiles:
+  - .tbi
   type:
     items: File
     type: array
@@ -204,6 +200,12 @@ inputs:
   type:
     items: File
     type: array
+- id: genome_resources__variation__gnomad_exome
+  secondaryFiles:
+  - .tbi
+  type:
+    items: File
+    type: array
 - id: config__algorithm__recalibrate
   type:
     items:
@@ -227,7 +229,8 @@ inputs:
 - id: config__algorithm__tools_off
   type:
     items:
-      items: string
+    - 'null'
+    - items: 'null'
       type: array
     type: array
 - id: genome_resources__variation__dbsnp
@@ -289,10 +292,7 @@ inputs:
     type: array
 - id: config__algorithm__effects
   type:
-    items:
-    - string
-    - 'null'
-    - boolean
+    items: string
     type: array
 - id: config__algorithm__variant_regions
   type:
@@ -376,6 +376,20 @@ outputs:
     - File
     - 'null'
     type: array
+- id: versions__tools
+  outputSource: multiqc_summary/versions__tools
+  type:
+    items:
+    - File
+    - 'null'
+    type: array
+- id: versions__data
+  outputSource: multiqc_summary/versions__data
+  type:
+    items:
+    - File
+    - 'null'
+    type: array
 requirements:
 - class: EnvVarRequirement
   envDef:
@@ -416,6 +430,8 @@ steps:
     source: config__algorithm__adapters
   - id: config__algorithm__bam_clean
     source: config__algorithm__bam_clean
+  - id: config__algorithm__variant_regions
+    source: config__algorithm__variant_regions
   - id: config__algorithm__mark_duplicates
     source: config__algorithm__mark_duplicates
   - id: resources
@@ -431,9 +447,9 @@ steps:
     source: alignment_to_rec/alignment_rec
   out:
   - id: align_bam
-  - id: hla__fastq
   - id: work_bam_plus__disc
   - id: work_bam_plus__sr
+  - id: hla__fastq
   run: wf-alignment.cwl
   scatter:
   - alignment_rec
@@ -508,8 +524,6 @@ steps:
     source: genome_resources__variation__polyx
   - id: genome_resources__variation__encode_blacklist
     source: genome_resources__variation__encode_blacklist
-  - id: reference__twobit
-    source: reference__twobit
   - id: reference__fasta__base
     source: reference__fasta__base
   - id: resources
@@ -618,8 +632,6 @@ steps:
     source: config__algorithm__tools_off
   - id: reference__fasta__base
     source: reference__fasta__base
-  - id: reference__twobit
-    source: reference__twobit
   - id: reference__rtg
     source: reference__rtg
   - id: reference__genome_context
@@ -634,6 +646,8 @@ steps:
     source: genome_resources__variation__esp
   - id: genome_resources__variation__exac
     source: genome_resources__variation__exac
+  - id: genome_resources__variation__gnomad_exome
+    source: genome_resources__variation__gnomad_exome
   - id: genome_resources__variation__1000g
     source: genome_resources__variation__1000g
   - id: genome_resources__variation__lcr
@@ -708,6 +722,8 @@ steps:
     source: analysis
   - id: reference__fasta__base
     source: reference__fasta__base
+  - id: reference__versions
+    source: reference__versions
   - id: config__algorithm__tools_on
     source: config__algorithm__tools_on
   - id: config__algorithm__tools_off
@@ -718,6 +734,8 @@ steps:
     source: config__algorithm__qc
   - id: metadata__batch
     source: metadata__batch
+  - id: metadata__phenotype
+    source: metadata__phenotype
   - id: config__algorithm__coverage_interval
     source: postprocess_alignment/config__algorithm__coverage_interval
   - id: depth__variant_regions__regions
@@ -771,4 +789,6 @@ steps:
     source: pipeline_summary/qcout_rec
   out:
   - id: summary__multiqc
+  - id: versions__tools
+  - id: versions__data
   run: steps/multiqc_summary.cwl

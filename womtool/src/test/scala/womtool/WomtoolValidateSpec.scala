@@ -49,7 +49,7 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
           case None => Seq.empty[String]
         }
 
-        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination(""))
+        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination("Success!"))
       }
     }
 

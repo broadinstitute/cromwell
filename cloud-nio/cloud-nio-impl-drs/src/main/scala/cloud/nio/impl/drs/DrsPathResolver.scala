@@ -1,18 +1,20 @@
 package cloud.nio.impl.drs
 
 import cats.effect.{IO, Resource}
+import cats.instances.option._
+import cats.instances.string._
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
+import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
-import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
+import org.apache.http.{HttpResponse, HttpStatus}
 
-//Do not remove this import. If removed IntelliJ throws error for method 'executeMarthaRequest' stating
-//'value map is not a member of cats.effect.Resource[cats.effect.IO,org.apache.http.client.methods.CloseableHttpResponse]'
+//Do not remove this import. This import is required to compile, but IntelliJ doesn't correctly recognize that.
 import cats.syntax.functor._
 
 
@@ -25,11 +27,11 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
-  private val DrsPathToken = "${drsPath}"
+  private val DrsPathToken = "$${drsPath}"
 
-  private def unexpectedExceptionResponse(status: StatusLine): RuntimeException = {
-    new RuntimeException(s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
-  }
+//  private def unexpectedExceptionResponse(status: StatusLine): RuntimeException = {
+//    new RuntimeException(s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
+//  }
 
 
   private def makeHttpRequestToMartha(drsPath: String, serviceAccount: Option[String]): HttpPost = {
@@ -45,11 +47,9 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
-    val responseContentIO =
-      IO.fromEither(
-        marthaResponseEntityOption.filter { _ => responseStatusLine.getStatusCode == HttpStatus.SC_OK}
-          .toRight(unexpectedExceptionResponse(responseStatusLine))
-      )
+    val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
+    val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
+    val responseContentIO = DrsCloudNioFileProvider.toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap(responseContent => IO.fromEither(decode[MarthaResponse](responseContent))).handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
@@ -71,7 +71,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 
   /** *
     * Resolves the DRS path through Martha url provided in the config.
-    * Please note, this method makes a synchronous HTTP request to Martha.
+    * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
   def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): IO[MarthaResponse] = {
     rawMarthaResponse(drsPath, serviceAccount).use(httpResponseToMarthaResponse)

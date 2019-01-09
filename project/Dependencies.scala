@@ -195,6 +195,13 @@ object Dependencies {
     "literal"
   ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency
 
+  private val catsDependencies = List(
+    "org.typelevel" %% "cats-core" % catsV,
+    "org.typelevel" %% "alleycats-core" % catsV,
+    "org.typelevel" %% "mouse" % mouseV,
+    "org.typelevel" %% "kittens" % kittensV
+  )
+
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sVersion,
     "org.http4s" %% "http4s-blaze-client" % http4sVersion,
@@ -237,19 +244,12 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "com.google.oauth-client" % "google-oauth-client" % googleApiClientV
-  ) ++ circeDependencies
+  ) ++ circeDependencies ++ catsDependencies
 
   // Internal collections of dependencies
 
   private val betterFilesDependencies = List(
     "com.github.pathikrit" %% "better-files" % betterFilesV
-  )
-
-  private val catsDependencies = List(
-    "org.typelevel" %% "cats-core" % catsV,
-    "org.typelevel" %% "alleycats-core" % catsV,
-    "org.typelevel" %% "mouse" % mouseV,
-    "org.typelevel" %% "kittens" % kittensV
   )
 
   private val configDependencies = List(

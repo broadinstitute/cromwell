@@ -30,10 +30,16 @@ object ExecutionStore {
       * false otherwise.
       */
     def allDependenciesAreIn(statusTable: Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]) = {
-      def chooseIndex(port: OutputPort) = port match {
-        case _: ScatterGathererPort => None
-        case _: CallCompletionPort => None
-        case _ => key.index
+      def chooseIndex(port: OutputPort) = {
+        val result = port match {
+          case _: ScatterGathererPort => None
+//          case _: CallCompletionPort => None
+          case _ => key.index
+        }
+
+//        print(s"Choosing index $result for $port (for $key)")
+
+        result
       }
 
       key match {
@@ -45,7 +51,10 @@ object ExecutionStore {
           statusTable.row(scatterCollector.outputNodeToGather.singleUpstreamPort.executionNode).size == scatterCollector.scatterWidth
         case conditionalCollector: ConditionalCollectorKey =>
           val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
-          upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
+          val result = upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
+          println(s"$conditionalCollector readiness via ${upstreamPort.executionNode.fullyQualifiedName} at index ${chooseIndex(upstreamPort)} is $result")
+
+          result
         // In the general case, the dependencies are held by the upstreamPorts
         case _ =>
           key.node.upstreamPorts forall { p =>

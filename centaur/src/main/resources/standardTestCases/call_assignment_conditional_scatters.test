@@ -1,0 +1,11 @@
+name: call_assignment_conditional_scatters
+testFormat: workflowsuccess
+
+files {
+  workflow: call_assignment/call_assignment_conditional_scatters.wdl
+}
+
+metadata {
+  workflowName: call_assignment_conditional_scatters
+  status: Succeeded
+}

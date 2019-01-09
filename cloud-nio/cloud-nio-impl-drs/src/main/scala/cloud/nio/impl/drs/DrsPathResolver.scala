@@ -27,11 +27,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
-  private val DrsPathToken = "$${drsPath}"
-
-//  private def unexpectedExceptionResponse(status: StatusLine): RuntimeException = {
-//    new RuntimeException(s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
-//  }
+  private val DrsPathToken = "${drsPath}"
 
 
   private def makeHttpRequestToMartha(drsPath: String, serviceAccount: Option[String]): HttpPost = {

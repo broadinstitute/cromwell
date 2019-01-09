@@ -17,18 +17,18 @@ workflow call_assignment_conditional_scatters {
             }
         }
     }
-#    if (false) {
-#        scatter(delay in delays) {
-#            call myTask as myTask2 { input:
-#                a = harry,
-#                delay = delay
-#            }
-#        }
-#    }
+    if (false) {
+        scatter(delay in delays) {
+            call myTask as myTask2 { input:
+                a = harry,
+                delay = delay
+            }
+        }
+    }
 
     output {
         Array[Person]? harry_p = myTask
-#        Array[Person]? harry_p2 = myTask2
+        Array[Person]? harry_p2 = myTask2
     }
 }
 

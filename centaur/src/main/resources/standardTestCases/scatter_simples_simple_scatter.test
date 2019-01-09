@@ -1,0 +1,15 @@
+name: simple_scatter
+testFormat: workflowsuccess
+
+files {
+  workflow: scatter_simples/simple_scatter.wdl
+}
+
+metadata {
+  "outputs.scatter0.outside_scatter.out": 8000
+  "outputs.scatter0.inside_scatter.out.0": 1
+  "outputs.scatter0.inside_scatter.out.1": 2
+  "outputs.scatter0.inside_scatter.out.2": 3
+  "outputs.scatter0.inside_scatter.out.3": 4
+  "outputs.scatter0.inside_scatter.out.4": 5
+}

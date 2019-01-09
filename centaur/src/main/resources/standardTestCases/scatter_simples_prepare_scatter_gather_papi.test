@@ -1,0 +1,22 @@
+name: prepare_scatter_gather_papi
+testFormat: workflowsuccess
+backends: [Papi]
+
+files {
+  workflow: scatter_simples/prepare_scatter_gather.wdl
+  inputs: scatter_simples/prepare_scatter_gather.inputs
+}
+
+metadata {
+  "outputs.sc_test.do_prepare.split_files.0": "<<WORKFLOW_ROOT>>call-do_prepare/temp_aa"
+  "outputs.sc_test.do_prepare.split_files.1": "<<WORKFLOW_ROOT>>call-do_prepare/temp_ab"
+  "outputs.sc_test.do_prepare.split_files.2": "<<WORKFLOW_ROOT>>call-do_prepare/temp_ac"
+  "outputs.sc_test.do_prepare.split_files.3": "<<WORKFLOW_ROOT>>call-do_prepare/temp_ad"
+
+  "outputs.sc_test.do_scatter.count_file.0": "<<WORKFLOW_ROOT>>call-do_scatter/shard-0/output.txt"
+  "outputs.sc_test.do_scatter.count_file.1": "<<WORKFLOW_ROOT>>call-do_scatter/shard-1/output.txt"
+  "outputs.sc_test.do_scatter.count_file.2": "<<WORKFLOW_ROOT>>call-do_scatter/shard-2/output.txt"
+  "outputs.sc_test.do_scatter.count_file.3": "<<WORKFLOW_ROOT>>call-do_scatter/shard-3/output.txt"
+
+  "outputs.sc_test.do_gather.sum": 11
+}

@@ -479,64 +479,6 @@ object SampleWdl {
     )
   }
 
-  trait ZeroOrMorePostfixQuantifier extends SampleWdl {
-    override def workflowSource(runtime: String): WorkflowSource =
-      s"""
-        |task hello {
-        |  Array[String] person
-        |  command {
-        |    echo "hello $${sep = "," person}"
-        |  }
-        |  output {
-        |    String greeting = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow postfix {
-        |  call hello
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-  }
-
-  object ZeroOrMorePostfixQuantifierWorkflowWithArrayInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
-  }
-
-  object ZeroOrMorePostfixQuantifierWorkflowWithOneElementArrayInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
-  }
-
-  object ZeroOrMorePostfixQuantifierWorkflowWithZeroElementArrayInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq())
-  }
-
-  trait OneOrMorePostfixQuantifier extends SampleWdl {
-    override def workflowSource(runtime: String): WorkflowSource =
-      s"""
-        |task hello {
-        |  Array[String]+ person
-        |  command {
-        |    echo "hello $${sep = "," person}"
-        |  }
-        |  output {
-        |    String greeting = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow postfix {
-        |  call hello
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-  }
-
-  object OneOrMorePostfixQuantifierWorkflowWithArrayInput extends OneOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
-  }
-
-  object OneOrMorePostfixQuantifierWorkflowWithScalarInput extends OneOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
-  }
-
   object CurrentDirectory extends SampleWdl {
     override def workflowSource(runtime: String): String =
       """
@@ -709,27 +651,6 @@ object SampleWdl {
         |    call B {input: B_in = item}
         |    call C {input: C_in = B.B_out}
         |    call E
-        |  }
-        |  call D {input: D_in = B.B_out}
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-
-    override lazy val rawInputs = Map.empty[String, String]
-  }
-
-  object SiblingsScatterWdl extends ScatterWdl {
-    override def workflowSource(runtime: String = "") =
-      s"""$tasks
-        |
-        |workflow w {
-        |  call A
-        |  scatter (item in A.A_out) {
-        |    call B {input: B_in = item}
-        |    call C {input: C_in = B.B_out}
-        |    call E
-        |  }
-        |  scatter (item in A.A_out) {
-        |    call B as F {input: B_in = item}
         |  }
         |  call D {input: D_in = B.B_out}
         |}

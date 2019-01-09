@@ -12,12 +12,19 @@ There are two types of resources that are supported in imports: *http(s)* and *f
 import "http://mywdlrepository/my.wdl" as http_import1
 import "https://github.com/broadinstitute/cromwell/blob/master/engine/src/main/resources/3step.wdl" as http_import2
 ```
-To use a file-based import resource, you must provide a ZIP bundle of your resources and then use a path relative to that ZIP in your import statement. For example:
+To use a file-based import resource, provide a ZIP bundle of your resources and then use a path relative to that ZIP in your import statement. For example:
 
 ```wdl
 import "my-wdl-in-the-root-directory.wdl" as file_import1
 import "my/wdl/sub/directory/example.wdl" as file_import2
 ```
+
+Imports from your submitted workflow are evaluated relative to the base of the zip file. In other cases, import paths are relative to the file you are currently importing from, for example:
+
+>If there exists a `my/wdl/sub/directory/imports/importing_an_import.wdl`, `my/wdl/sub/directory/example.wdl` could import it relatively like so:
+>```wdl
+>import "imports/importing_an_import.wdl" as file_import3
+>```
 
 Here's a complete example showing both http(s) and file-based imports workflow in WDL:
 
@@ -52,7 +59,7 @@ my_wdl_2.wdl
 ```
 
 ---
-The mechanism to provide the ZIP file of resources to be imported differ between [Run](Modes#run) and [Server](Modes#server) mode.
+The mechanism to provide the ZIP file of resources to be imported differs between [Run](Modes#run) and [Server](Modes#server) mode.
 
 In [Run](Modes#run) mode, a sample command to run _workflow.wdl_ would be:  
 ```

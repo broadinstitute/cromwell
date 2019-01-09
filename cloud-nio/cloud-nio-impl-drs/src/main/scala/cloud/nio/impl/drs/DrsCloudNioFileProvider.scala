@@ -17,7 +17,7 @@ class DrsCloudNioFileProvider(scheme: String,
                               drsPathResolver: DrsPathResolver,
                               authCredentials: OAuth2Credentials,
                               httpClientBuilder: HttpClientBuilder,
-                              drsReadInterpreter: (MarthaResponse) => IO[ReadableByteChannel]) extends CloudNioFileProvider {
+                              drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends CloudNioFileProvider {
 
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
@@ -39,7 +39,7 @@ class DrsCloudNioFileProvider(scheme: String,
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
     drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
       val errorMsg = s"Status line was null for martha response $marthaResponse."
-      DrsCloudNioFileProvider.convertOptionToIOWithErrorMsg(Option(marthaResponse.getStatusLine), errorMsg)
+      DrsCloudNioFileProvider.toIO(Option(marthaResponse.getStatusLine), errorMsg)
     }.map(_.getStatusCode == HttpStatus.SC_OK)
   }
 
@@ -93,7 +93,7 @@ class DrsCloudNioFileProvider(scheme: String,
 
 object DrsCloudNioFileProvider {
 
-  def convertOptionToIOWithErrorMsg[A](option: Option[A], errorMsg: String): IO[A] = {
+  def toIO[A](option: Option[A], errorMsg: String): IO[A] = {
     IO.fromEither(option.toRight(new RuntimeException(errorMsg)))
   }
 }

@@ -1,5 +1,5 @@
 steps:
-    - name: 'gcr.io/cloud-builders-community/scala-sbt'
+    - name: 'gcr.io/broad-dsde-cromwell-dev/scala-sbt'
       args: ['compile']
 options:
     machineType: 'N1_HIGHCPU_8'

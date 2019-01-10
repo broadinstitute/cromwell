@@ -51,8 +51,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
       e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
     }
   }
-
-
+  
   private def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))

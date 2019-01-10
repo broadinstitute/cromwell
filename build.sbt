@@ -337,6 +337,7 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
 lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .withLibrarySettings(libraryName = "cloud-nio-impl-drs", dependencies = implDrsDependencies)
   .dependsOn(`cloud-nio-util`)
+  .dependsOn(common)
 
 lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
   .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies, pushDocker = false)

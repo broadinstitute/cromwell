@@ -5,6 +5,7 @@ import java.nio.channels.{ReadableByteChannel, WritableByteChannel}
 import cats.effect.IO
 import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
+import common.util.IOUtil
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
 import org.apache.http.impl.client.HttpClientBuilder
@@ -22,7 +23,8 @@ class DrsCloudNioFileProvider(scheme: String,
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
 
-  private def getFreshAccessToken(credential: OAuth2Credentials): String = {
+  //Based on method from GcrRegistry
+  private def getAccessToken(credential: OAuth2Credentials): String = {
     def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
       (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(accessTokenAcceptableTTL)
     }
@@ -39,7 +41,7 @@ class DrsCloudNioFileProvider(scheme: String,
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
     drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
       val errorMsg = s"Status line was null for martha response $marthaResponse."
-      DrsCloudNioFileProvider.toIO(Option(marthaResponse.getStatusLine), errorMsg)
+      IOUtil.toIO(Option(marthaResponse.getStatusLine), errorMsg)
     }.map(_.getStatusCode == HttpStatus.SC_OK)
   }
 
@@ -69,7 +71,7 @@ class DrsCloudNioFileProvider(scheme: String,
 
   override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
     val drsPath = getDrsPath(cloudHost,cloudPath)
-    val freshAccessToken = getFreshAccessToken(authCredentials)
+    val freshAccessToken = getAccessToken(authCredentials)
 
     val byteChannelIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, Option(freshAccessToken))
@@ -90,13 +92,6 @@ class DrsCloudNioFileProvider(scheme: String,
     Option(new DrsCloudNioRegularFileAttributes(getDrsPath(cloudHost,cloudPath), drsPathResolver))
 }
 
-
-object DrsCloudNioFileProvider {
-
-  def toIO[A](option: Option[A], errorMsg: String): IO[A] = {
-    IO.fromEither(option.toRight(new RuntimeException(errorMsg)))
-  }
-}
 
 
 case class GcsFilePath(bucket: String, file: String)

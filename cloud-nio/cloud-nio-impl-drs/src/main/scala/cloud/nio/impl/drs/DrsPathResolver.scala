@@ -3,6 +3,7 @@ package cloud.nio.impl.drs
 import cats.effect.{IO, Resource}
 import cats.instances.option._
 import cats.instances.string._
+import common.util.IOUtil
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
@@ -45,7 +46,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 
     val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
     val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
-    val responseContentIO = DrsCloudNioFileProvider.toIO(responseEntityOption, exceptionMsg)
+    val responseContentIO = IOUtil.toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap(responseContent => IO.fromEither(decode[MarthaResponse](responseContent))).handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))

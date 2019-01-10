@@ -14,7 +14,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
     new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
   }
 
-  private def timeInStringToFileTime(timeInString: String): IO[FileTime] = {
+  private def convertToFileTime(timeInString: String): IO[FileTime] = {
     //Here timeInString is assumed to be a ISO-8601 DateTime without timezone
     IO(LocalDateTime.parse(timeInString).toInstant(ZoneOffset.UTC)).map(FileTime.from).handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Error while parsing 'updated' value from Martha to FileTime for DRS path $drsPath. Reason: ${ExceptionUtils.getMessage(e)}."))
@@ -35,7 +35,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
     val lastModifiedIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
       lastModifiedInString <- IO.fromEither(marthaResponse.dos.data_object.updated.toRight(throwRuntimeException("updated")))
-      lastModified <- timeInStringToFileTime(lastModifiedInString)
+      lastModified <- convertToFileTime(lastModifiedInString)
     } yield lastModified
 
     lastModifiedIO.unsafeRunSync()

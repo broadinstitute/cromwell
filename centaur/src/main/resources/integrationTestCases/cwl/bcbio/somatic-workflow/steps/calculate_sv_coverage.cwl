@@ -4,7 +4,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-parallel
-- sentinel_outputs=sv_rawcoverage_rec:depth__bins__target;depth__bins__antitarget;resources;description;regions__bins__target;regions__bins__antitarget;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;depth__variant_regions__regions;config__algorithm__callable_regions
+- sentinel_outputs=sv_rawcoverage_rec:depth__bins__target;depth__bins__antitarget;depth__bins__seq2c;resources;description;regions__bins__target;regions__bins__antitarget;regions__bins__gcannotated;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;config__algorithm__seq2c_bed_ready;depth__variant_regions__regions;config__algorithm__callable_regions
 - sentinel_inputs=sv_bin_rec:record
 - run_number=0
 baseCommand:
@@ -20,8 +20,8 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 2
-  outdirMin: 1028
-  ramMin: 4096
+  outdirMin: 10244
+  ramMin: 6144
   tmpdirMin: 2
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -33,6 +33,9 @@ hints:
   - package: cnvkit
     specs:
     - https://anaconda.org/bioconda/cnvkit
+  - package: seq2c
+    specs:
+    - https://anaconda.org/bioconda/seq2c
 inputs:
 - id: sv_bin_rec
   type:
@@ -42,6 +45,10 @@ inputs:
       - File
       - 'null'
     - name: regions__bins__antitarget
+      type:
+      - File
+      - 'null'
+    - name: regions__bins__gcannotated
       type:
       - File
       - 'null'
@@ -95,6 +102,10 @@ inputs:
       - File
       - 'null'
     - name: config__algorithm__variant_regions_merged
+      type:
+      - File
+      - 'null'
+    - name: config__algorithm__seq2c_bed_ready
       type:
       - File
       - 'null'
@@ -118,6 +129,10 @@ outputs:
       type:
       - File
       - 'null'
+    - name: depth__bins__seq2c
+      type:
+      - File
+      - 'null'
     - name: resources
       type: string
     - name: description
@@ -127,6 +142,10 @@ outputs:
       - File
       - 'null'
     - name: regions__bins__antitarget
+      type:
+      - File
+      - 'null'
+    - name: regions__bins__gcannotated
       type:
       - File
       - 'null'
@@ -176,6 +195,10 @@ outputs:
       - File
       - 'null'
     - name: config__algorithm__variant_regions_merged
+      type:
+      - File
+      - 'null'
+    - name: config__algorithm__seq2c_bed_ready
       type:
       - File
       - 'null'

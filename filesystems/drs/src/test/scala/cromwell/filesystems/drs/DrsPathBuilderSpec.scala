@@ -1,9 +1,14 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import java.nio.channels.ReadableByteChannel
+
+import cats.effect.IO
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
+import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.core.path._
+import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -275,13 +280,21 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     BadPath("a bucket only path", s"dos://$bucket", s"dos://$bucket does not have a valid path. DRS doesn't support a host only path.")
   )
 
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+    throw new UnsupportedOperationException("Currently DrsPathBuilderSpec doesn't need to use drs read interpreter.")
+
+
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
-      |   url = "http://matha-url"
+      |   url = "http://martha-url"
       |   request.json-template = "{"key": "${holder}"}"
       |}
       |""".stripMargin
   )
 
-  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig))
+  private lazy val fakeCredentials = NoCredentials.getInstance
+
+  private lazy val httpClientBuilder = HttpClientBuilder.create()
+
+  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter))
 }

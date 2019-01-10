@@ -24,7 +24,7 @@ hints:
   ramMin: 3072
   tmpdirMin: 119
 - class: dx:InputResourceRequirement
-  indirMin: 0
+  indirMin: 64000
 inputs:
 - id: analysis
   type:

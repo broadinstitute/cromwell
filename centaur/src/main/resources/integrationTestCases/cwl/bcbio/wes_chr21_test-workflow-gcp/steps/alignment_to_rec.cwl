@@ -24,7 +24,7 @@ hints:
   ramMin: 3072
   tmpdirMin: 89
 - class: dx:InputResourceRequirement
-  indirMin: 0
+  indirMin: 64000
 inputs:
 - id: files
   secondaryFiles:

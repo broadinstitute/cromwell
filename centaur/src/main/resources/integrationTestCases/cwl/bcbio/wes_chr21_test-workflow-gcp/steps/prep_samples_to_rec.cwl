@@ -24,7 +24,7 @@ hints:
   ramMin: 3072
   tmpdirMin: 256
 - class: dx:InputResourceRequirement
-  indirMin: 0
+  indirMin: 64000
 inputs:
 - id: rgnames__sample
   type:

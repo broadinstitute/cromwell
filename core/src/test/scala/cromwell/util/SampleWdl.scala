@@ -130,26 +130,6 @@ object SampleWdl {
     val OutputValue = "Hello world!"
   }
 
-  object HelloWorldWithoutWorkflow extends SampleWdl {
-    override def workflowSource(runtime: String = "") =
-      s"""
-        |task hello {
-        |  String addressee
-        |  command {
-        |    echo "Hello $${addressee}!"
-        |  }
-        |  output {
-        |    String salutation = read_string(stdout())
-        |  }
-        |}
-      """.stripMargin
-
-    val Addressee = "hello.hello.addressee"
-    val rawInputs = Map(Addressee -> "world")
-    val OutputKey = "hello.hello.salutation"
-    val OutputValue = "Hello world!\n"
-  }
-
   object GoodbyeWorld extends SampleWdl {
     override def workflowSource(runtime: String = "") =
       """
@@ -312,19 +292,6 @@ object SampleWdl {
         | wc.count
         |}
       """.stripMargin).replaceAll("RUNTIME", runtime)
-  }
-
-  object ThreeStepWithInputsInTheOutputsSection extends ThreeStepTemplate {
-    override def workflowSource(runtime: String = "") = sourceString(outputsSection =
-      """
-        |output {
-        | cgrep.pattern
-        |}
-      """.stripMargin).replaceAll("RUNTIME", runtime)
-  }
-
-  object ThreeStepLargeJson extends ThreeStepTemplate {
-    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
   }
 
   object WorkflowOutputsWithFiles extends SampleWdl {
@@ -521,44 +488,6 @@ object SampleWdl {
         |}
       """.stripMargin.replace("RUNTIME", runtime)
     override val rawInputs: Map[String, Any] = Map.empty
-  }
-
-  case class MapLiteral(catRootDir: Path) extends SampleWdl {
-    createFileArray(catRootDir)
-    def cleanup() = cleanupFileArray(catRootDir)
-
-    override def workflowSource(runtime: String = "") =
-      s"""
-        |task write_map {
-        |  Map[File, String] file_to_name
-        |  command {
-        |    cat $${write_map(file_to_name)}
-        |  }
-        |  output {
-        |    String contents = read_string(stdout())
-        |  }
-        |}
-        |
-        |task read_map {
-        |  command <<<
-        |    python <<CODE
-        |    map = {'x': 500, 'y': 600, 'z': 700}
-        |    print("\\n".join(["{}\\t{}".format(k,v) for k,v in map.items()]))
-        |    CODE
-        |  >>>
-        |  output {
-        |    Map[String, Int] out_map = read_map(stdout())
-        |  }
-        |}
-        |
-        |workflow wf {
-        |  Map[File, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
-        |  call write_map {input: file_to_name = map}
-        |  call read_map
-        |}
-      """.stripMargin
-
-    override val rawInputs = Map.empty[String, String]
   }
 
   class ScatterWdl extends SampleWdl {

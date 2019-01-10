@@ -81,8 +81,9 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
       factory.getWomBundle(workflow, "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
-            case Right(executable: ValidatedWomNamespace) =>
-              WorkflowDescription.fromNamespace(executable)
+            // Throw away the executable, all we care about is whether it created successfully (i.e. the inputs are valid)
+            case Right(_: ValidatedWomNamespace) =>
+              WorkflowDescription.fromBundle(bundle)
             case Left(errors) =>
               WorkflowDescription.withErrors(errors.toList)
           }

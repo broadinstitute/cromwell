@@ -1,6 +1,5 @@
 package cromwell.services.womtool.models
 
-import cromwell.languages.ValidatedWomNamespace
 import wom.executable.WomBundle
 
 // Very provisional types for some of these, and perhaps the defaults will go away later in development
@@ -26,31 +25,43 @@ case object WorkflowDescription {
   }
 
   def fromBundle(bundle: WomBundle): WorkflowDescription = {
-    WorkflowDescription(
-      valid = true,
-      errors = List.empty,
-      name = bundle.primaryCallable.map(_.name).getOrElse(""),
-      inputs = List.empty,
-      outputs = List.empty,
-      images = List.empty,
-      submittedDescriptorType = Map.empty,
-      importedDescriptorTypes = List.empty,
-      meta = Map.empty
-    )
-  }
 
-  def fromNamespace(namespace: ValidatedWomNamespace): WorkflowDescription = {
-    WorkflowDescription(
-      valid = true,
-      errors = List.empty,
-      name = namespace.executable.entryPoint.name,
-      inputs = List.empty,
-      outputs = List.empty,
-      images = List.empty,
-      submittedDescriptorType = Map.empty,
-      importedDescriptorTypes = List.empty,
-      meta = Map.empty
-    )
+    bundle.primaryCallable match {
+      case Some(callable) =>
+        val inputs = callable.inputs map { input =>
+          input.name + ", " + input.womType + ", " + (if (input.optional) "optional" else "required")
+        }
+
+        val outputs = callable.outputs map { output =>
+          output.name + ", " + output.womType
+        }
+
+        WorkflowDescription(
+          valid = true,
+          errors = List.empty,
+          name = callable.name,
+          inputs = inputs,
+          outputs = outputs,
+          images = List.empty,
+          submittedDescriptorType = Map.empty,
+          importedDescriptorTypes = List.empty,
+          meta = Map.empty
+        )
+
+      case None =>
+        WorkflowDescription(
+          valid = true,
+          errors = List.empty,
+          name = "",
+          inputs = List.empty,
+          outputs = List.empty,
+          images = List.empty,
+          submittedDescriptorType = Map.empty,
+          importedDescriptorTypes = List.empty,
+          meta = Map.empty
+        )
+
+    }
   }
 
 }

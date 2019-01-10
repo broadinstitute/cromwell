@@ -302,6 +302,7 @@ lazy val languageFactoryCore = (project in languageFactoryRoot / "language-facto
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
   .withLibrarySettings("wdl-draft2", draft2LanguageFactoryDependencies)
   .dependsOn(languageFactoryCore)
+  .dependsOn(common % "test->test")
   .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)
 

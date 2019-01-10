@@ -1,6 +1,6 @@
 steps:
     - name: 'gcr.io/broad-dsde-cromwell-dev/scala-sbt'
-      args: ['compile']
+      args: ['-Dakka.test.timefactor=1', '-Dbackend.providers.Local.config.filesystems.local.localization.0=copy', 'test']
 options:
     machineType: 'N1_HIGHCPU_8'
 

@@ -24,7 +24,12 @@ case object WorkflowDescription {
     )
   }
 
-  def fromBundle(bundle: WomBundle): WorkflowDescription = {
+  def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String): WorkflowDescription = {
+
+    val sdt = Map(
+      "descriptorType" -> languageName,
+      "descriptorTypeVersion" -> languageVersionName
+    )
 
     bundle.primaryCallable match {
       case Some(callable) =>
@@ -43,7 +48,7 @@ case object WorkflowDescription {
           inputs = inputs,
           outputs = outputs,
           images = List.empty,
-          submittedDescriptorType = Map.empty,
+          submittedDescriptorType = sdt,
           importedDescriptorTypes = List.empty,
           meta = Map.empty
         )
@@ -56,7 +61,7 @@ case object WorkflowDescription {
           inputs = List.empty,
           outputs = List.empty,
           images = List.empty,
-          submittedDescriptorType = Map.empty,
+          submittedDescriptorType = sdt,
           importedDescriptorTypes = List.empty,
           meta = Map.empty
         )

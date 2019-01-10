@@ -72,7 +72,7 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
       // No inputs: just load up the WomBundle
       factory.getWomBundle(workflow, "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
         case Right(bundle: WomBundle) =>
-          WorkflowDescription.fromBundle(bundle)
+          WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName)
         case Left(errors) =>
           WorkflowDescription.withErrors(errors.toList)
       }
@@ -83,7 +83,7 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             // Throw away the executable, all we care about is whether it created successfully (i.e. the inputs are valid)
             case Right(_: ValidatedWomNamespace) =>
-              WorkflowDescription.fromBundle(bundle)
+              WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName)
             case Left(errors) =>
               WorkflowDescription.withErrors(errors.toList)
           }

@@ -2,6 +2,8 @@ steps:
     - name: 'gcr.io/broad-dsde-cromwell-dev/scala-sbt'
       args: ['-Dakka.test.timefactor=1', '-Dbackend.providers.Local.config.filesystems.local.localization.0=copy', 'test']
       timeout: 7200s
+      env:
+          - 'LANG=en_US.utf8'
 options:
     machineType: 'N1_HIGHCPU_8'
 timeout: 7200s

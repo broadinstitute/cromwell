@@ -2,7 +2,7 @@ package cromwell.filesystems.drs
 
 import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, Url}
-import common.util.IOUtil
+import common.exception._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.syntax.typeable._
 
@@ -28,7 +28,7 @@ object DrsResolver {
     val noFileSystemForDrsError = s"Unable to cast file system provider to DrsCloudNioFileSystemProvider for DRS path $drsPath."
 
     for {
-      drsFileSystemProvider <- IOUtil.toIO(drsFileSystemProviderOption, noFileSystemForDrsError)
+      drsFileSystemProvider <- toIO(drsFileSystemProviderOption, noFileSystemForDrsError)
       marthaResponse <- drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
       //Currently, Martha only supports resolving DRS paths to GCS paths
       relativePath <- IO.fromEither(extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme))

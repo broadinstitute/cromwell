@@ -5,7 +5,7 @@ import java.nio.channels.{ReadableByteChannel, WritableByteChannel}
 import cats.effect.IO
 import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
-import common.util.IOUtil
+import common.exception._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
 import org.apache.http.impl.client.HttpClientBuilder
@@ -41,7 +41,7 @@ class DrsCloudNioFileProvider(scheme: String,
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
     drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
       val errorMsg = s"Status line was null for martha response $marthaResponse."
-      IOUtil.toIO(Option(marthaResponse.getStatusLine), errorMsg)
+      toIO(Option(marthaResponse.getStatusLine), errorMsg)
     }.map(_.getStatusCode == HttpStatus.SC_OK)
   }
 

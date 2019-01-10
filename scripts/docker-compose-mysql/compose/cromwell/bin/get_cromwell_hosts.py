@@ -16,14 +16,13 @@ our_container = \
 project_name = our_container['Labels']['com.docker.compose.project']
 service_name = 'cromwell'
 filters = [
-  'com.docker.compose.project={}'.format(project_name),
-  'com.docker.compose.service={}'.format(service_name)
+  'com.docker.compose.project={}'.format(project_name)
 ]
 
 containers = cli.containers(filters={'label': filters})
 
 hostname_list = []
-for container in containers:
+for container in [x for x in containers if x['Labels']['com.docker.compose.service'].startswith(service_name)]:
   project = container['Labels']['com.docker.compose.project']
   service = container['Labels']['com.docker.compose.service']
   number = container['Labels']['com.docker.compose.container-number']

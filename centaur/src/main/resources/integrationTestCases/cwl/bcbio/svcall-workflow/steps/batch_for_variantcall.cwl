@@ -4,8 +4,8 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-batch
-- sentinel_outputs=batch_rec:resources;description;reference__fasta__base;config__algorithm__vcfanno;config__algorithm__variantcaller;config__algorithm__coverage_interval;genome_resources__variation__train_hapmap;genome_resources__variation__clinvar;genome_resources__variation__esp;metadata__batch;genome_resources__variation__lcr;genome_resources__variation__1000g;config__algorithm__min_allele_fraction;vrn_file;reference__twobit;reference__genome_context;config__algorithm__validate;reference__snpeff__hg19;config__algorithm__validate_regions;genome_build;genome_resources__variation__exac;metadata__phenotype;genome_resources__aliases__human;config__algorithm__tools_off;genome_resources__variation__dbsnp;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;genome_resources__variation__cosmic;config__algorithm__ensemble;analysis;config__algorithm__tools_on;config__algorithm__effects;config__algorithm__variant_regions;genome_resources__aliases__ensembl;config__algorithm__exclude_regions;reference__rtg;genome_resources__variation__train_indels;genome_resources__aliases__snpeff;align_bam;config__algorithm__variant_regions_merged;regions__sample_callable;config__algorithm__callable_regions
-- sentinel_inputs=analysis:var,genome_build:var,align_bam:var,vrn_file:var,metadata__batch:var,metadata__phenotype:var,config__algorithm__callable_regions:var,regions__sample_callable:var,config__algorithm__variantcaller:var,config__algorithm__ensemble:var,config__algorithm__vcfanno:var,config__algorithm__coverage_interval:var,config__algorithm__effects:var,config__algorithm__min_allele_fraction:var,config__algorithm__exclude_regions:var,config__algorithm__variant_regions:var,config__algorithm__variant_regions_merged:var,config__algorithm__validate:var,config__algorithm__validate_regions:var,config__algorithm__tools_on:var,config__algorithm__tools_off:var,reference__fasta__base:var,reference__twobit:var,reference__rtg:var,reference__genome_context:var,genome_resources__variation__clinvar:var,genome_resources__variation__cosmic:var,genome_resources__variation__dbsnp:var,genome_resources__variation__esp:var,genome_resources__variation__exac:var,genome_resources__variation__1000g:var,genome_resources__variation__lcr:var,genome_resources__variation__polyx:var,genome_resources__variation__encode_blacklist:var,genome_resources__aliases__ensembl:var,genome_resources__aliases__human:var,genome_resources__aliases__snpeff:var,reference__snpeff__hg19:var,genome_resources__variation__train_hapmap:var,genome_resources__variation__train_indels:var,resources:var,description:var
+- sentinel_outputs=batch_rec:resources;description;reference__fasta__base;config__algorithm__vcfanno;config__algorithm__variantcaller;config__algorithm__coverage_interval;genome_resources__variation__clinvar;genome_resources__variation__esp;metadata__batch;genome_resources__variation__lcr;genome_resources__variation__1000g;config__algorithm__min_allele_fraction;vrn_file;genome_resources__variation__train_hapmap;reference__genome_context;config__algorithm__validate;reference__snpeff__hg19;config__algorithm__validate_regions;genome_build;genome_resources__variation__exac;genome_resources__variation__gnomad_exome;metadata__phenotype;genome_resources__aliases__human;config__algorithm__tools_off;genome_resources__variation__dbsnp;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;genome_resources__variation__cosmic;config__algorithm__ensemble;analysis;config__algorithm__tools_on;config__algorithm__effects;config__algorithm__variant_regions;genome_resources__aliases__ensembl;config__algorithm__exclude_regions;reference__rtg;genome_resources__variation__train_indels;genome_resources__aliases__snpeff;align_bam;config__algorithm__variant_regions_merged;regions__sample_callable;config__algorithm__callable_regions
+- sentinel_inputs=analysis:var,genome_build:var,align_bam:var,vrn_file:var,metadata__batch:var,metadata__phenotype:var,config__algorithm__callable_regions:var,regions__sample_callable:var,config__algorithm__variantcaller:var,config__algorithm__ensemble:var,config__algorithm__vcfanno:var,config__algorithm__coverage_interval:var,config__algorithm__effects:var,config__algorithm__min_allele_fraction:var,config__algorithm__exclude_regions:var,config__algorithm__variant_regions:var,config__algorithm__variant_regions_merged:var,config__algorithm__validate:var,config__algorithm__validate_regions:var,config__algorithm__tools_on:var,config__algorithm__tools_off:var,reference__fasta__base:var,reference__rtg:var,reference__genome_context:var,genome_resources__variation__clinvar:var,genome_resources__variation__cosmic:var,genome_resources__variation__dbsnp:var,genome_resources__variation__esp:var,genome_resources__variation__exac:var,genome_resources__variation__gnomad_exome:var,genome_resources__variation__1000g:var,genome_resources__variation__lcr:var,genome_resources__variation__polyx:var,genome_resources__variation__encode_blacklist:var,genome_resources__aliases__ensembl:var,genome_resources__aliases__human:var,genome_resources__aliases__snpeff:var,reference__snpeff__hg19:var,genome_resources__variation__train_hapmap:var,genome_resources__variation__train_indels:var,resources:var,description:var
 - run_number=0
 baseCommand:
 - bcbio_nextgen.py
@@ -21,7 +21,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 1
   outdirMin: 1030
-  ramMin: 2048
+  ramMin: 3072
   tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 0
@@ -96,7 +96,7 @@ inputs:
     type: array
 - id: config__algorithm__min_allele_fraction
   type:
-    items: long
+    items: double
     type: array
 - id: config__algorithm__exclude_regions
   type:
@@ -149,10 +149,6 @@ inputs:
   type:
     items: File
     type: array
-- id: reference__twobit
-  type:
-    items: File
-    type: array
 - id: reference__rtg
   type:
     items: File
@@ -190,6 +186,12 @@ inputs:
     items: File
     type: array
 - id: genome_resources__variation__exac
+  secondaryFiles:
+  - .tbi
+  type:
+    items: File
+    type: array
+- id: genome_resources__variation__gnomad_exome
   secondaryFiles:
   - .tbi
   type:
@@ -280,8 +282,6 @@ outputs:
           type:
           - string
           - 'null'
-        - name: genome_resources__variation__train_hapmap
-          type: File
         - name: genome_resources__variation__clinvar
           type: File
         - name: genome_resources__variation__esp
@@ -295,12 +295,12 @@ outputs:
         - name: genome_resources__variation__1000g
           type: File
         - name: config__algorithm__min_allele_fraction
-          type: long
+          type: double
         - name: vrn_file
           type:
           - 'null'
           - string
-        - name: reference__twobit
+        - name: genome_resources__variation__train_hapmap
           type: File
         - name: reference__genome_context
           type:
@@ -319,6 +319,8 @@ outputs:
         - name: genome_build
           type: string
         - name: genome_resources__variation__exac
+          type: File
+        - name: genome_resources__variation__gnomad_exome
           type: File
         - name: metadata__phenotype
           type: string

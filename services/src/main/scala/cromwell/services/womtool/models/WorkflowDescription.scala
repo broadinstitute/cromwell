@@ -1,5 +1,8 @@
 package cromwell.services.womtool.models
 
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto.deriveEncoder
+import io.circe.generic.semiauto.deriveDecoder
 import wom.executable.WomBundle
 
 // Very provisional types for some of these, and perhaps the defaults will go away later in development
@@ -76,4 +79,6 @@ case object WorkflowDescription {
     }
   }
 
+  implicit val workflowDescriptionEncoder: Encoder[WorkflowDescription] = deriveEncoder[WorkflowDescription]
+  implicit val workflowDescriptionDecoder: Decoder[WorkflowDescription] = deriveDecoder[WorkflowDescription]
 }

@@ -13,6 +13,7 @@ import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe.generic.auto._
+import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -64,7 +65,7 @@ trait WomtoolRouteSupport extends WebServiceUtils {
 
     onComplete(serviceRegistryActor.ask(DescribeRequest(wsfc)).mapTo[DescribeResult]) {
       case Success(response: DescribeSuccess) =>
-        complete(response.description)
+        complete(response.description.asJson)
       case Success(response: DescribeFailure) =>
         new Exception(response.reason).failRequest(StatusCodes.BadRequest)
       case Failure(e) =>

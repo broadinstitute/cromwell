@@ -14,10 +14,18 @@ inputs:
         type:
         - 'null'
         - string
+      - name: genome_resources__variation__gc_profile
+        type:
+        - 'null'
+        - string
       - name: reference__snpeff__GRCh37_75
         type: File
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
           items: string
@@ -70,11 +78,19 @@ inputs:
         type:
         - File
         - 'null'
+      - name: depth__bins__seq2c
+        type:
+        - File
+        - 'null'
       - name: regions__bins__target
         type:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -119,6 +135,10 @@ inputs:
         type:
         - File
         - 'null'
+      - name: config__algorithm__seq2c_bed_ready
+        type:
+        - File
+        - 'null'
       - name: depth__variant_regions__regions
         type:
         - File
@@ -159,8 +179,16 @@ outputs:
         type:
         - 'null'
         - string
+      - name: genome_resources__variation__gc_profile
+        type:
+        - 'null'
+        - string
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
           items: string
@@ -205,11 +233,19 @@ outputs:
         type:
         - File
         - 'null'
+      - name: depth__bins__seq2c
+        type:
+        - File
+        - 'null'
       - name: regions__bins__target
         type:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -247,6 +283,10 @@ outputs:
         - items: 'null'
           type: array
       - name: config__algorithm__variant_regions_merged
+        type:
+        - File
+        - 'null'
+      - name: config__algorithm__seq2c_bed_ready
         type:
         - File
         - 'null'

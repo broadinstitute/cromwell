@@ -5,7 +5,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=batch-single
-- sentinel_outputs=sv_rec:sv__variantcaller;sv__vrn_file;sv__supplemental;svvalidate__summary;resources;description;config__algorithm__svprioritize;genome_build;config__algorithm__tools_off;analysis;config__algorithm__tools_on;config__algorithm__svvalidate;genome_resources__aliases__snpeff;regions__sample_callable;variants__samples;depth__bins__normalized;depth__bins__background;depth__bins__target;depth__bins__antitarget;regions__bins__target;regions__bins__antitarget;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;config__algorithm__variant_regions_merged;depth__variant_regions__regions;config__algorithm__callable_regions
+- sentinel_outputs=sv_rec:sv__variantcaller;sv__vrn_file;sv__supplemental;svvalidate__summary;resources;description;config__algorithm__svprioritize;genome_resources__variation__gc_profile;genome_build;genome_resources__variation__germline_het_pon;config__algorithm__tools_off;analysis;config__algorithm__tools_on;config__algorithm__svvalidate;genome_resources__aliases__snpeff;regions__sample_callable;variants__samples;depth__bins__normalized;depth__bins__background;depth__bins__target;depth__bins__antitarget;depth__bins__seq2c;regions__bins__target;regions__bins__antitarget;regions__bins__gcannotated;regions__bins__group;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;config__algorithm__variant_regions_merged;config__algorithm__seq2c_bed_ready;depth__variant_regions__regions;config__algorithm__callable_regions
 - sentinel_inputs=sv_batch_rec:record
 - run_number=0
 baseCommand:
@@ -21,7 +21,7 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 16
-  outdirMin: 1261
+  outdirMin: 10477
   ramMin: 49152
   tmpdirMin: 119
 - class: dx:InputResourceRequirement
@@ -110,10 +110,18 @@ inputs:
         type:
         - 'null'
         - string
+      - name: genome_resources__variation__gc_profile
+        type:
+        - 'null'
+        - string
       - name: reference__snpeff__GRCh37_75
         type: File
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
           items: string
@@ -166,11 +174,19 @@ inputs:
         type:
         - File
         - 'null'
+      - name: depth__bins__seq2c
+        type:
+        - File
+        - 'null'
       - name: regions__bins__target
         type:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -215,6 +231,10 @@ inputs:
         type:
         - File
         - 'null'
+      - name: config__algorithm__seq2c_bed_ready
+        type:
+        - File
+        - 'null'
       - name: depth__variant_regions__regions
         type:
         - File
@@ -254,8 +274,16 @@ outputs:
         type:
         - 'null'
         - string
+      - name: genome_resources__variation__gc_profile
+        type:
+        - 'null'
+        - string
       - name: genome_build
         type: string
+      - name: genome_resources__variation__germline_het_pon
+        type:
+        - 'null'
+        - string
       - name: config__algorithm__tools_off
         type:
           items: string
@@ -300,11 +328,19 @@ outputs:
         type:
         - File
         - 'null'
+      - name: depth__bins__seq2c
+        type:
+        - File
+        - 'null'
       - name: regions__bins__target
         type:
         - File
         - 'null'
       - name: regions__bins__antitarget
+        type:
+        - File
+        - 'null'
+      - name: regions__bins__gcannotated
         type:
         - File
         - 'null'
@@ -342,6 +378,10 @@ outputs:
         - items: 'null'
           type: array
       - name: config__algorithm__variant_regions_merged
+        type:
+        - File
+        - 'null'
+      - name: config__algorithm__seq2c_bed_ready
         type:
         - File
         - 'null'

@@ -20,11 +20,16 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1142
+  outdirMin: 10358
   ramMin: 3072
   tmpdirMin: 59
 - class: dx:InputResourceRequirement
   indirMin: 3024
+- class: SoftwareRequirement
+  packages:
+  - package: bcbio-prioritize
+    specs:
+    - https://anaconda.org/bioconda/bcbio-prioritize
 inputs:
 - id: sv_rec
   type:
@@ -56,8 +61,16 @@ inputs:
           type:
           - 'null'
           - string
+        - name: genome_resources__variation__gc_profile
+          type:
+          - 'null'
+          - string
         - name: genome_build
           type: string
+        - name: genome_resources__variation__germline_het_pon
+          type:
+          - 'null'
+          - string
         - name: config__algorithm__tools_off
           type:
             items: string
@@ -102,11 +115,19 @@ inputs:
           type:
           - File
           - 'null'
+        - name: depth__bins__seq2c
+          type:
+          - File
+          - 'null'
         - name: regions__bins__target
           type:
           - File
           - 'null'
         - name: regions__bins__antitarget
+          type:
+          - File
+          - 'null'
+        - name: regions__bins__gcannotated
           type:
           - File
           - 'null'
@@ -144,6 +165,10 @@ inputs:
           - items: 'null'
             type: array
         - name: config__algorithm__variant_regions_merged
+          type:
+          - File
+          - 'null'
+        - name: config__algorithm__seq2c_bed_ready
           type:
           - File
           - 'null'

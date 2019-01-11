@@ -4,8 +4,8 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-combined
-- sentinel_outputs=sv_bin_rec:regions__bins__target;regions__bins__antitarget;regions__bins__group;resources;description;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;depth__variant_regions__regions;config__algorithm__callable_regions
-- sentinel_inputs=align_bam:var,reference__fasta__base:var,metadata__batch:var,metadata__phenotype:var,config__algorithm__callable_regions:var,config__algorithm__coverage_interval:var,config__algorithm__exclude_regions:var,config__algorithm__variant_regions:var,config__algorithm__variant_regions_merged:var,config__algorithm__svcaller:var,depth__variant_regions__regions:var,genome_resources__variation__lcr:var,genome_resources__variation__polyx:var,genome_resources__variation__encode_blacklist:var,genome_resources__rnaseq__gene_bed:var,resources:var,description:var
+- sentinel_outputs=sv_bin_rec:regions__bins__target;regions__bins__antitarget;regions__bins__gcannotated;regions__bins__group;resources;description;reference__fasta__base;config__algorithm__svcaller;config__algorithm__coverage_interval;genome_resources__rnaseq__gene_bed;metadata__batch;genome_resources__variation__lcr;metadata__phenotype;genome_resources__variation__polyx;genome_resources__variation__encode_blacklist;config__algorithm__variant_regions;config__algorithm__exclude_regions;align_bam;config__algorithm__variant_regions_merged;config__algorithm__seq2c_bed_ready;depth__variant_regions__regions;config__algorithm__callable_regions
+- sentinel_inputs=align_bam:var,reference__fasta__base:var,metadata__batch:var,metadata__phenotype:var,config__algorithm__callable_regions:var,config__algorithm__coverage_interval:var,config__algorithm__exclude_regions:var,config__algorithm__variant_regions:var,config__algorithm__variant_regions_merged:var,config__algorithm__seq2c_bed_ready:var,config__algorithm__svcaller:var,depth__variant_regions__regions:var,genome_resources__variation__lcr:var,genome_resources__variation__polyx:var,genome_resources__variation__encode_blacklist:var,genome_resources__rnaseq__gene_bed:var,resources:var,description:var
 - run_number=0
 baseCommand:
 - bcbio_nextgen.py
@@ -20,7 +20,7 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1202
+  outdirMin: 10418
   ramMin: 3072
   tmpdirMin: 89
 - class: dx:InputResourceRequirement
@@ -86,6 +86,12 @@ inputs:
     - File
     - 'null'
     type: array
+- id: config__algorithm__seq2c_bed_ready
+  type:
+    items:
+    - File
+    - 'null'
+    type: array
 - id: config__algorithm__svcaller
   type:
     items:
@@ -141,6 +147,10 @@ outputs:
         type:
         - File
         - 'null'
+      - name: regions__bins__gcannotated
+        type:
+        - File
+        - 'null'
       - name: regions__bins__group
         type:
         - string
@@ -185,6 +195,10 @@ outputs:
         - File
         - 'null'
       - name: config__algorithm__variant_regions_merged
+        type:
+        - File
+        - 'null'
+      - name: config__algorithm__seq2c_bed_ready
         type:
         - File
         - 'null'

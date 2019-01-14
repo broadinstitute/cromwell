@@ -20,11 +20,11 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 10299
+  outdirMin: 1000000
   ramMin: 3072
-  tmpdirMin: 30
+  tmpdirMin: 1000000
 - class: dx:InputResourceRequirement
-  indirMin: 4687
+  indirMin: 1000000
 inputs:
 - id: vc_rec
   type:

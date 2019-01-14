@@ -685,56 +685,6 @@ object SampleWdl {
     )
   }
 
-  object WdlFunctionsAtWorkflowLevel extends SampleWdl {
-    val CannedArray =
-      """one
-        |two
-        |three
-        |four
-        |five
-      """.stripMargin.trim
-
-    val CannedMap =
-      s"""k1\tv1
-        |k2\tv2
-        |k3\tv3
-      """.stripMargin.trim
-
-    override def workflowSource(runtime: String): WorkflowSource =
-      s"""
-        |task a {
-        |  Array[String] array
-        |  Map[String, String] map
-        |
-        |  command {
-        |    echo $${sep = ' ' array} > concat
-        |  }
-        |  output {
-        |    String x = read_string("concat")
-        |    Map[String, String] y = map
-        |  }
-        |}
-        |
-        |workflow w {
-        |  File array_file
-        |  File map_file
-        |  Array[String] in_array = read_lines(array_file)
-        |  Map[String, String] in_map = read_map(map_file)
-        |  call a {input:
-        |    array = in_array,
-        |    map = in_map
-        |  }
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-
-    override val rawInputs = {
-      Map(
-        "w.array_file" -> createCannedFile("array.txt", CannedArray).pathAsString,
-        "w.map_file" -> createCannedFile("map.txt", CannedMap).pathAsString
-      )
-    }
-  }
-
   object CallCachingHashingWdl extends SampleWdl {
     override def workflowSource(runtime: String): WorkflowSource =
       s"""task t {

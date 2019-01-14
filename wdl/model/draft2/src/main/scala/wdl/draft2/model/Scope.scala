@@ -1,6 +1,8 @@
 package wdl.draft2.model
 
+import cats.syntax.validated._
 import common.collections.EnhancedCollections._
+import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.exception.VariableNotFoundException
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.draft2.model.values.WdlCallOutputsObject
@@ -41,7 +43,7 @@ trait Scope {
   }
 
   lazy val childGraphNodes: Set[WdlGraphNode] = children.toSet.filterByType[WdlGraphNode]
-  lazy val childGraphNodesSorted: List[WdlGraphNode] = {
+  lazy val childGraphNodesSorted: ErrorOr[List[WdlGraphNode]] = {
     // We can't use a classic ordering because the upstream / downstream order is not total over the set of nodes
     // Instead we use topological sorting to guarantee that we process the nodes top to bottom
     val edges = for {
@@ -49,9 +51,12 @@ trait Scope {
       upstreamNode <- child.upstreamAncestry if childGraphNodes.contains(upstreamNode)
     } yield DiEdge(upstreamNode, child)
 
-    Graph.from[WdlGraphNode, DiEdge](childGraphNodes, edges).topologicalSort match {
-      case Left(cycleNode) => throw new RuntimeException(s"This workflow contains a cyclic dependency on ${cycleNode.value.fullyQualifiedName}")
-      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).filter(childGraphNodes.contains)
+    val graph = Graph.from[WdlGraphNode, DiEdge](childGraphNodes, edges)
+    graph.topologicalSort match {
+      case Left(_) =>
+        val cycleNodes = childGraphNodes.filter(cgn => cgn.upstreamAncestry.contains(cgn)).map(_.toString).toList.sorted
+        s"This workflow contains cyclic dependencies containing these edges: ${cycleNodes.mkString(", ")}".invalidNel
+      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).filter(childGraphNodes.contains).validNel
     }
   }
 

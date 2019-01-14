@@ -95,7 +95,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     }
 
     val nodeList = scope.childGraphNodesSorted
-    val nodeAccumulator: ErrorOr[FoldState] = nodeList.foldLeft[ErrorOr[FoldState]](Valid(initialFoldState))(foldFunction)
+    val nodeAccumulator: ErrorOr[FoldState] = nodeList flatMap { _.foldLeft[ErrorOr[FoldState]](Valid(initialFoldState))(foldFunction) }
 
     def outerLinkInputs(nodes: Set[GraphNode]): Set[OuterGraphInputNode] = nodes flatMap {
       // NB: this curious type annotation just gives intelliJ a hand:

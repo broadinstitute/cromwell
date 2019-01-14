@@ -1,0 +1,4 @@
+Failed to process workflow definition 'cycle' (reason 1 of 1): This workflow contains a cyclic dependency:
+"call mirror as m1 {" -> "call mirror as m2 {"
+"call mirror as m2 {" -> "call mirror as m3 {"
+"call mirror as m3 {" -> "call mirror as m1 {"

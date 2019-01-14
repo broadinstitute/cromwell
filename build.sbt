@@ -124,6 +124,7 @@ lazy val drsFileSystem = (project in file("filesystems/drs"))
   .dependsOn(core)
   .dependsOn(core % "test->test")
   .dependsOn(`cloud-nio-impl-drs`)
+  .dependsOn(cloudSupport)
 
 lazy val databaseSql = (project in file("database/sql"))
   .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
@@ -302,6 +303,7 @@ lazy val languageFactoryCore = (project in languageFactoryRoot / "language-facto
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
   .withLibrarySettings("wdl-draft2", draft2LanguageFactoryDependencies)
   .dependsOn(languageFactoryCore)
+  .dependsOn(common % "test->test")
   .dependsOn(wdlModelDraft2)
   .dependsOn(wdlTransformsDraft2)
 
@@ -336,6 +338,7 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
 lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .withLibrarySettings(libraryName = "cloud-nio-impl-drs", dependencies = implDrsDependencies)
   .dependsOn(`cloud-nio-util`)
+  .dependsOn(common)
 
 lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
   .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies, pushDocker = false)

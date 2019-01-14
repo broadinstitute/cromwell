@@ -33,6 +33,7 @@ object Dependencies {
   private val googleCloudCoreV = "1.43.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
   private val googleCloudNioV = "0.61.0-alpha"
+  private val googleCloudStorageV = "1.35.0"
   private val googleCredentialsV = "0.8.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
@@ -181,6 +182,26 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV
   )
 
+  private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
+
+  private val circeDependencies = List(
+    "core",
+    "parser",
+    "generic",
+    "generic-extras",
+    "java8",
+    "shapes",
+    "refined",
+    "literal"
+  ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency
+
+  private val catsDependencies = List(
+    "org.typelevel" %% "cats-core" % catsV,
+    "org.typelevel" %% "alleycats-core" % catsV,
+    "org.typelevel" %% "mouse" % mouseV,
+    "org.typelevel" %% "kittens" % kittensV
+  )
+
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sVersion,
     "org.http4s" %% "http4s-blaze-client" % http4sVersion,
@@ -220,21 +241,15 @@ object Dependencies {
   )
 
   val implDrsDependencies = List(
-    "io.spray" %% "spray-json" % sprayJsonV,
-    "org.apache.commons" % "commons-lang3" % commonsLang3V
-  )
+    "org.apache.commons" % "commons-lang3" % commonsLang3V,
+    "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
+    "com.google.oauth-client" % "google-oauth-client" % googleApiClientV
+  ) ++ circeDependencies ++ catsDependencies
 
   // Internal collections of dependencies
 
   private val betterFilesDependencies = List(
     "com.github.pathikrit" %% "better-files" % betterFilesV
-  )
-
-  private val catsDependencies = List(
-    "org.typelevel" %% "cats-core" % catsV,
-    "org.typelevel" %% "alleycats-core" % catsV,
-    "org.typelevel" %% "mouse" % mouseV,
-    "org.typelevel" %% "kittens" % kittensV
   )
 
   private val configDependencies = List(
@@ -359,19 +374,6 @@ object Dependencies {
   private val refinedTypeDependenciesList = List(
     "eu.timepit" %% "refined" % refinedV
   )
-
-  private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
-
-  private val circeDependencies = List(
-    "core",
-    "parser",
-    "generic",
-    "generic-extras",
-    "java8",
-    "shapes",
-    "refined",
-    "literal"
-  ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 

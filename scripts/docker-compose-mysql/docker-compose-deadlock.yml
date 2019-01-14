@@ -37,7 +37,7 @@
 # ```
 version: '2.1'
 services:
-  cromwell:
+  cromwell_master:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     working_dir: /cromwell-working-dir
     volumes:
@@ -51,8 +51,30 @@ services:
     command: ["server"]
     environment:
       - JAVA_OPTS=-Dconfig.file=/app-config/test-deadlock.conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  cromwell_norefresh:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: /cromwell-working-dir
+    volumes:
+      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
+      - ./compose/cromwell/app-config:/app-config
+    links:
+      - mysql-db
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell_master:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - JAVA_OPTS=-Dconfig.file=/app-config/test-deadlock-norefresh.conf
   mysql-db:
     image: "mysql:5.7"
+    command: --general_log=1 --general-log-file=/var/log/mysql/cromwell_mysql.general.log
     environment:
       - MYSQL_ROOT_PASSWORD=cromwell
       - MYSQL_DATABASE=cromwell_db
@@ -67,7 +89,8 @@ services:
   lb:
     image: dockercloud/haproxy
     links:
-      - cromwell
+      - cromwell_master
+      - cromwell_norefresh
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -75,7 +98,8 @@ services:
   deadlocker:
     image: python:3.7
     links:
-      - cromwell
+      - cromwell_master
+      - cromwell_norefresh
       - lb
     volumes:
       - ./compose/cromwell/bin:/cromwell/bin

@@ -1,6 +1,10 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import java.nio.channels.ReadableByteChannel
+
+import cats.effect.IO
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
+import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
@@ -8,6 +12,7 @@ import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkin
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
 import eu.timepit.refined.refineMV
+import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
@@ -25,8 +30,16 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
       |""".stripMargin
   )
 
+  private lazy val fakeCredentials = NoCredentials.getInstance
+
+  private lazy val httpClientBuilder = HttpClientBuilder.create()
+
+  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+    throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
+
   it should "create a DRS input parameter" in {
-    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig))
+
+    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter))
     val drsPath = drsPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)

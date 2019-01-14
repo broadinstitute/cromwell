@@ -4,7 +4,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-combined
-- sentinel_outputs=summary__multiqc
+- sentinel_outputs=summary__multiqc,versions__tools,versions__data
 - sentinel_inputs=qcout_rec:record
 - run_number=0
 baseCommand:
@@ -21,7 +21,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 1
   outdirMin: 1030
-  ramMin: 2048
+  ramMin: 3072
   tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -48,6 +48,8 @@ inputs:
         - 'null'
       - name: description
         type: string
+      - name: reference__versions
+        type: File
       - name: genome_build
         type: string
       - name: config__algorithm__tools_off
@@ -68,6 +70,18 @@ inputs:
     type: array
 outputs:
 - id: summary__multiqc
+  type:
+    items:
+    - File
+    - 'null'
+    type: array
+- id: versions__tools
+  type:
+    items:
+    - File
+    - 'null'
+    type: array
+- id: versions__data
   type:
     items:
     - File

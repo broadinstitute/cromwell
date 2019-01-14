@@ -14,7 +14,7 @@ object ErrorOrAssertions {
 
     def shouldBeInvalid(errors: String*): Assertion = errorOr match {
       case Valid(mine) =>
-        fail(s"Unexpectedly 'Valid' Checked: ${mine}")
+        fail(s"Unexpectedly 'Valid' Checked: $mine")
       case Invalid(e) =>
         e.toList should be(errors.toList)
     }
@@ -35,7 +35,7 @@ object ErrorOrAssertions {
 
     def shouldBeInvalid(errors: String*): Assertion = checked match {
       case Right(mine) =>
-        fail(s"Unexpectedly 'Valid' Checked: ${mine}")
+        fail(s"Unexpectedly 'Valid' Checked: $mine")
       case Left(e) =>
         e.toList should be(errors.toList)
     }

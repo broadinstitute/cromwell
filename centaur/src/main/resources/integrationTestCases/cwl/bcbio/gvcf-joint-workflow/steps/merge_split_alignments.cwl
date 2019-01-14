@@ -21,7 +21,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 2
   outdirMin: 1035
-  ramMin: 6144
+  ramMin: 4096
   tmpdirMin: 6
 - class: dx:InputResourceRequirement
   indirMin: 4
@@ -61,8 +61,7 @@ inputs:
       type: File
     - name: config__algorithm__adapters
       type:
-      - 'null'
-      - items: 'null'
+        items: string
         type: array
     - name: rgnames__lb
       type:
@@ -95,9 +94,7 @@ inputs:
     - name: rgnames__sample
       type: string
     - name: config__algorithm__variant_regions
-      type:
-      - 'null'
-      - string
+      type: File
     name: alignment_rec
     type: record
 - id: work_bam

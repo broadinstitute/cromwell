@@ -5,7 +5,7 @@ arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
 - sentinel_parallel=multi-parallel
-- sentinel_outputs=qcout_rec:summary__qc;summary__metrics;description;genome_build;config__algorithm__tools_off;config__algorithm__qc;config__algorithm__tools_on
+- sentinel_outputs=qcout_rec:summary__qc;summary__metrics;description;reference__versions;genome_build;config__algorithm__tools_off;config__algorithm__qc;config__algorithm__tools_on
 - sentinel_inputs=qc_rec:record
 - run_number=0
 baseCommand:
@@ -22,7 +22,7 @@ hints:
 - class: ResourceRequirement
   coresMin: 2
   outdirMin: 1030
-  ramMin: 4096
+  ramMin: 6144
   tmpdirMin: 3
 - class: dx:InputResourceRequirement
   indirMin: 1
@@ -34,9 +34,9 @@ hints:
   - package: bedtools
     specs:
     - https://anaconda.org/bioconda/bedtools
-  - package: fastqc=0.11.7=4
+  - package: fastqc=0.11.7=5
     specs:
-    - https://anaconda.org/bioconda/fastqc=0.11.7=4
+    - https://anaconda.org/bioconda/fastqc=0.11.7=5
   - package: goleft
     specs:
     - https://anaconda.org/bioconda/goleft
@@ -91,13 +91,19 @@ inputs:
       - 'null'
     - name: metadata__batch
       type: string
+    - name: reference__versions
+      type: File
     - name: genome_build
+      type: string
+    - name: metadata__phenotype
       type: string
     - name: config__algorithm__tools_off
       type:
       - 'null'
       - items: 'null'
         type: array
+    - name: reference__viral
+      type: File
     - name: config__algorithm__qc
       type:
         items: string
@@ -188,6 +194,8 @@ outputs:
       - 'null'
     - name: description
       type: string
+    - name: reference__versions
+      type: File
     - name: genome_build
       type: string
     - name: config__algorithm__tools_off

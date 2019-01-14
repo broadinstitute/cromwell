@@ -1,81 +1,82 @@
 package cloud.nio.impl.drs
 
-import com.typesafe.config.Config
-import org.apache.http.{HttpStatus, StatusLine}
-import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
-import org.apache.http.entity.{ContentType, StringEntity}
-import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
+import cats.effect.{IO, Resource}
+import cats.instances.option._
+import cats.instances.string._
+import common.exception._
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.parser.decode
+import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.{ContentType, StringEntity}
+import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
-import spray.json._
+import org.apache.http.{HttpResponse, HttpStatus}
 
-import scala.util.{Failure, Success, Try}
-
-
-case class DrsPathResolver(config: Config) {
-  private val DrsPathToken = s"$${drsPath}"
-  private lazy val marthaUri = config.getString("martha.url")
-  private lazy val marthaRequestJsonTemplate = config.getString("martha.request.json-template")
-
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
+//Do not remove this import. This import is required to compile, but IntelliJ doesn't correctly recognize that.
+import cats.syntax.functor._
 
 
-  def makeHttpRequestToMartha(drsPath: String, httpClient: CloseableHttpClient): CloseableHttpResponse = {
-    val postRequest = new HttpPost(marthaUri)
-    val requestJson = marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
+case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
+
+  implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
+  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
+  implicit lazy val dataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
+  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
+  implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+
+  private val DrsPathToken = "${drsPath}"
+
+
+  private def makeHttpRequestToMartha(drsPath: String, serviceAccount: Option[String]): HttpPost = {
+    val postRequest = new HttpPost(drsConfig.marthaUri)
+    val requestJson = drsConfig.marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-    httpClient.execute(postRequest)
+    serviceAccount.foreach(sa => postRequest.setHeader("Authorization", s"Bearer $sa"))
+    postRequest
   }
 
 
-  /***
+  private def httpResponseToMarthaResponse(httpResponse: HttpResponse): IO[MarthaResponse] = {
+    val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
+    val responseStatusLine = httpResponse.getStatusLine
+
+    val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
+    val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
+    val responseContentIO = toIO(responseEntityOption, exceptionMsg)
+
+    responseContentIO.flatMap(responseContent => IO.fromEither(decode[MarthaResponse](responseContent))).handleErrorWith {
+      e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
+    }
+  }
+  
+  private def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
+    for {
+      httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
+      httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))
+    } yield httpResponse
+  }
+
+
+  def rawMarthaResponse(drsPath: String, serviceAccount: Option[String] = None): Resource[IO, HttpResponse] = {
+    val httpPost = makeHttpRequestToMartha(drsPath, serviceAccount)
+    executeMarthaRequest(httpPost)
+  }
+
+  /** *
     * Resolves the DRS path through Martha url provided in the config.
-    * Please note, this method makes a synchronous HTTP request to Martha.
+    * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
-  def resolveDrsThroughMartha(drsPath: String): MarthaResponse = {
-    import MarthaResponseJsonSupport._
-
-    def unexpectedExceptionResponse(status: StatusLine) = {
-      throw new RuntimeException(s"Unexpected response resolving $drsPath through Martha url $marthaUri. Error: ${status.getStatusCode} ${status.getReasonPhrase}.")
-    }
-
-    val httpClient: CloseableHttpClient = httpClientBuilder.build()
-
-    try {
-      val marthaResponse: CloseableHttpResponse = makeHttpRequestToMartha(drsPath, httpClient)
-      val marthaResponseEntityOption = Option(marthaResponse.getEntity).map(EntityUtils.toString)
-
-      try {
-        val responseStatusLine = marthaResponse.getStatusLine
-        val responseContent = if (responseStatusLine.getStatusCode == HttpStatus.SC_OK) {
-          marthaResponseEntityOption.getOrElse(unexpectedExceptionResponse(responseStatusLine))
-        } else {
-          unexpectedExceptionResponse(responseStatusLine)
-        }
-
-        Try(responseContent.parseJson.convertTo[MarthaResponse]) match {
-          case Success(marthaObj) => marthaObj
-          case Failure(e) => throw new RuntimeException(s"Failed to resolve DRS path $drsPath. Error while parsing the response from Martha. Error: ${ExceptionUtils.getMessage(e)}")
-        }
-      } finally {
-        Try(marthaResponse.close())
-        ()
-      }
-    } finally {
-      Try(httpClient.close())
-      ()
-    }
+  def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): IO[MarthaResponse] = {
+    rawMarthaResponse(drsPath, serviceAccount).use(httpResponseToMarthaResponse)
   }
 }
 
+case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
-object MarthaResponseJsonSupport extends DefaultJsonProtocol {
-  implicit val urlFormat: JsonFormat[Url] = jsonFormat1(Url)
-  implicit val checksumFormat: JsonFormat[ChecksumObject] = jsonFormat2(ChecksumObject)
-  implicit val dataObject: JsonFormat[DosDataObject] = jsonFormat4(DosDataObject)
-  implicit val dosObjectFormat: JsonFormat[DosObject] = jsonFormat1(DosObject)
-  implicit val marthaResponseFormat: JsonFormat[MarthaResponse] = jsonFormat1(MarthaResponse)
-}
 
 case class Url(url: String)
 
@@ -88,4 +89,6 @@ case class DosDataObject(size: Option[Long],
 
 case class DosObject(data_object: DosDataObject)
 
-case class MarthaResponse(dos: DosObject)
+case class SADataObject(data: Json)
+
+case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[SADataObject])

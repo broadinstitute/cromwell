@@ -191,7 +191,7 @@ case class WdlExpression(ast: AstNode) extends WomValue {
   def evaluateFiles(lookup: ScopedLookupFunction, functions: WdlFunctions[WomValue], coerceTo: WomType): Try[Seq[WomFile]] =
     WdlExpression.evaluateFiles(ast, lookup, functions, coerceTo)
 
-  def evaluateType(lookup: (String) => WomType, functions: WdlFunctions[WomType], from: Option[Scope] = None): Try[WomType] =
+  def evaluateType(lookup: String => WomType, functions: WdlFunctions[WomType], from: Option[Scope] = None): Try[WomType] =
     WdlExpression.evaluateType(ast, lookup, functions, from)
 
   def containsFunctionCall = ast.containsFunctionCalls

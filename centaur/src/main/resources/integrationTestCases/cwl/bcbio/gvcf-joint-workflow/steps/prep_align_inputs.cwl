@@ -3,7 +3,7 @@ $namespaces:
 arguments:
 - position: 0
   valueFrom: sentinel_runtime=cores,$(runtime['cores']),ram,$(runtime['ram'])
-- sentinel_parallel=single-single
+- sentinel_parallel=single-split
 - sentinel_outputs=process_alignment_rec:files;config__algorithm__quality_format;align_split
 - sentinel_inputs=alignment_rec:record
 - run_number=0
@@ -62,9 +62,8 @@ inputs:
       type: string
     - name: config__algorithm__align_split_size
       type:
-      - string
       - 'null'
-      - boolean
+      - string
     - name: files
       type:
         items: File
@@ -78,10 +77,7 @@ inputs:
       type: File
     - name: config__algorithm__adapters
       type:
-      - 'null'
-      - items:
-        - 'null'
-        - string
+        items: string
         type: array
     - name: rgnames__lb
       type:
@@ -113,27 +109,31 @@ inputs:
       type: string
     - name: rgnames__sample
       type: string
+    - name: config__algorithm__variant_regions
+      type: File
     name: alignment_rec
     type: record
 outputs:
 - id: process_alignment_rec
   type:
-    fields:
-    - name: files
-      type:
-      - 'null'
-      - items: File
-        type: array
-    - name: config__algorithm__quality_format
-      type:
-      - string
-      - 'null'
-    - name: align_split
-      type:
-      - string
-      - 'null'
-    name: process_alignment_rec
-    type: record
+    items:
+      fields:
+      - name: files
+        type:
+        - 'null'
+        - items: File
+          type: array
+      - name: config__algorithm__quality_format
+        type:
+        - string
+        - 'null'
+      - name: align_split
+        type:
+        - string
+        - 'null'
+      name: process_alignment_rec
+      type: record
+    type: array
 requirements:
 - class: InlineJavascriptRequirement
 - class: InitialWorkDirRequirement

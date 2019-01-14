@@ -1,13 +1,6 @@
 class: Workflow
 cwlVersion: v1.0
-hints:
-- class: ResourceRequirement
-  coresMin: 1
-  outdirMin: 1000000
-  ramMin: 49152
-  tmpdirMin: 1000000
-- class: dx:InputResourceRequirement
-  indirMin: 1000000
+hints: []
 inputs:
 - id: batch_rec
   type:

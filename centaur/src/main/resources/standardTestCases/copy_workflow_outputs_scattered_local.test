@@ -1,0 +1,68 @@
+name: copy_workflow_outputs_scattered_local
+backends: [Local]
+tags: [localdockertest]
+testFormat: workflowsuccess
+
+files {
+  workflow: copy_workflow_outputs/scattered.wdl
+  options: copy_workflow_outputs/scattered_local.options
+}
+
+fileSystemCheck: "local"
+outputExpectations: {
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-0/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-0/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-1/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-1/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-2/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-2/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-3/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-3/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-4/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-4/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-5/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-5/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-6/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-6/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-7/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-7/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-8/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-8/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-9/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/shard-9/execution/stderr": 1
+  "/tmp/logs/workflow.<<UUID>>.log": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-0/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-0/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-1/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-1/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-2/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-2/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-3/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-3/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-4/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-4/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-5/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-5/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-6/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-6/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-7/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-7/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-8/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-8/execution/B2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-9/execution/B1": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/shard-9/execution/B2": 1
+}
+
+allowOtherOutputs = false
+metadata {
+  "outputs.wfoutputs.A.outs.0": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-0/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-0/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.1": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-1/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-1/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.2": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-2/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-2/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.3": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-3/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-3/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.4": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-4/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-4/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.5": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-5/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-5/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.6": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-6/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-6/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.7": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-7/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-7/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.8": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-8/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-8/execution/B2\"]"
+  "outputs.wfoutputs.A.outs.9": ~>"[\"<<WORKFLOW_ROOT>>/call-A/shard-9/execution/B1\",\"<<WORKFLOW_ROOT>>/call-A/shard-9/execution/B2\"]"
+}

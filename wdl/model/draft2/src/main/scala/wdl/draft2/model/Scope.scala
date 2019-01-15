@@ -1,8 +1,8 @@
 package wdl.draft2.model
 
-import cats.syntax.validated._
+import common.Checked
 import common.collections.EnhancedCollections._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.Checked._
 import wdl.draft2.model.exception.VariableNotFoundException
 import wdl.draft2.model.expression.WdlFunctions
 import wdl.draft2.model.values.WdlCallOutputsObject
@@ -43,7 +43,7 @@ trait Scope {
   }
 
   lazy val childGraphNodes: Set[WdlGraphNode] = children.toSet.filterByType[WdlGraphNode]
-  lazy val childGraphNodesSorted: ErrorOr[List[WdlGraphNode]] = {
+  lazy val childGraphNodesSorted: Checked[List[WdlGraphNode]] = {
     // We can't use a classic ordering because the upstream / downstream order is not total over the set of nodes
     // Instead we use topological sorting to guarantee that we process the nodes top to bottom
     val edges = for {
@@ -55,8 +55,8 @@ trait Scope {
     graph.topologicalSort match {
       case Left(_) =>
         val cycleNodes = childGraphNodes.filter(cgn => cgn.upstreamAncestry.contains(cgn)).map(_.toString).toList.sorted
-        s"This workflow contains cyclic dependencies containing these edges: ${cycleNodes.mkString(", ")}".invalidNel
-      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).filter(childGraphNodes.contains).validNel
+        s"This workflow contains cyclic dependencies containing these edges: ${cycleNodes.mkString(", ")}".invalidNelCheck
+      case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).filter(childGraphNodes.contains).validNelCheck
     }
   }
 

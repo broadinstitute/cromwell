@@ -1,6 +1,6 @@
 steps:
     - name: 'gcr.io/broad-dsde-cromwell-dev/scala-sbt2'
-      args: ['-Dakka.test.timefactor=1', '-Dbackend.providers.Local.config.filesystems.local.localization.0=copy', 'core/test']
+      args: ['-Dsun.jnu.encoding=UTF-8', '-Dakka.test.timefactor=1', '-Dbackend.providers.Local.config.filesystems.local.localization.0=copy', 'core/testOnly', 'cromwell.core.path.DefaultPathBuilderSpec']
       timeout: 7200s
       env: ['LANG=en_US.utf8']
             #    - name: 'gcr.io/broad-dsde-cromwell-dev/scala-sbt2'

@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit localizationConfiguration: LocalizationConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
+  with MonitoringAction
   with Localization
   with UserAction
   with Delocalization {
@@ -56,7 +57,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ deLocalization
+      val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
+      val allActions = containerSetup ++ localization ++ userAction ++ deLocalization ++ monitoring
 
       val environment = Map.empty[String, String].asJava
 
@@ -76,8 +78,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             // Profile and Email scopes are requirements for interacting with Martha v2
             Oauth2Scopes.USERINFO_EMAIL,
             Oauth2Scopes.USERINFO_PROFILE,
-            // Monitoring Scopes as POC
-            "https://www.googleapis.com/auth/monitoring.write"
+            // Monitoring scope as POC
+            GenomicsFactory.MonitoringWrite,
           ).asJava
         )
 
@@ -154,4 +156,12 @@ object GenomicsFactory {
     * For some reason this scope isn't listed as a constant under CloudKMSScopes.
     */
   val KmsScope = "https://www.googleapis.com/auth/cloudkms"
+
+  /**
+    * Scope to write metrics to Stackdriver Monitoring API.
+    * Used by the monitoring action.
+    *
+    * For some reason we couldn't find this scope within Google libraries
+    */
+  val MonitoringWrite = "https://www.googleapis.com/auth/monitoring.write"
 }

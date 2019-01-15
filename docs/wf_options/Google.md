@@ -21,6 +21,6 @@ Keys | Possible Values | Description
   "google_compute_service_account": " my-new-svcacct@my-google-project.iam.gserviceaccount.com"
   "auth_bucket": "gs://my-auth-bucket/private",
   "monitoring_script": "gs://bucket/script.sh",
-  "monitoring_image": "gcr.io/my_google_project/my-monitoring-image"
+  "monitoring_image": "quay.io/broadinstitute/cromwell-monitor"
 }
 ```

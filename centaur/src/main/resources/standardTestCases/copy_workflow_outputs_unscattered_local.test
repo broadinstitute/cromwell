@@ -1,0 +1,32 @@
+name: copy_workflow_outputs_unscattered_local
+backends: [Local]
+tags: [localdockertest]
+testFormat: workflowsuccess
+
+files {
+  workflow: copy_workflow_outputs/unscattered.wdl
+  options: copy_workflow_outputs/unscattered_local.options
+}
+
+fileSystemCheck: "local"
+outputExpectations: {
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/stderr": 1
+  "/tmp/logs/workflow.<<UUID>>.log": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/out": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/out2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/out": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/out2": 1
+}
+
+allowOtherOutputs = false
+metadata {
+  "outputs.wfoutputs.A.out": "<<WORKFLOW_ROOT>>/call-A/execution/out"
+  "outputs.wfoutputs.A.out2": "<<WORKFLOW_ROOT>>/call-A/execution/out2"
+  "outputs.wfoutputs.B.outs.0": "<<WORKFLOW_ROOT>>/call-B/execution/out"
+  "outputs.wfoutputs.B.outs.1": "<<WORKFLOW_ROOT>>/call-B/execution/out2"
+}

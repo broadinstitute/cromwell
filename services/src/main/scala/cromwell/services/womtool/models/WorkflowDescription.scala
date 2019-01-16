@@ -40,6 +40,7 @@ case object WorkflowDescription {
           InputDescription(
             input.name,
             input.womType,
+            input.womType.toDisplayString,
             input.optional
           )
         }
@@ -47,7 +48,8 @@ case object WorkflowDescription {
         val outputs = callable.outputs map { output =>
           OutputDescription(
             output.name,
-            output.womType
+            output.womType,
+            output.womType.toDisplayString
           )
         }
 

@@ -6,7 +6,7 @@ import wom.types.WomType
 import cromwell.services.womtool.models.WomTypeJsonSupport.womTypeEncoder // IntelliJ is lying
 import cromwell.services.womtool.models.WomTypeJsonSupport.womTypeDecoder
 
-case class InputDescription(name: String, valueType: WomType, optional: Boolean)
+case class InputDescription(name: String, valueType: WomType, typeDisplayName: String, optional: Boolean)
 
 object InputDescription {
   implicit val inputDescriptionEncoder: Encoder[InputDescription] = deriveEncoder[InputDescription]

@@ -1,5 +1,8 @@
 package cromwell.services.womtool.models
 
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto.deriveEncoder
+import io.circe.generic.semiauto.deriveDecoder
 import wom.executable.WomBundle
 
 // Very provisional types for some of these, and perhaps the defaults will go away later in development
@@ -7,8 +10,8 @@ case class WorkflowDescription(
                                 valid: Boolean,
                                 errors: List[String],
                                 name: String = "",
-                                inputs: List[String] = List.empty,
-                                outputs: List[String] = List.empty,
+                                inputs: List[InputDescription] = List.empty,
+                                outputs: List[OutputDescription] = List.empty,
                                 images: List[String] = List.empty,
                                 submittedDescriptorType: Map[String, String] = Map.empty,
                                 importedDescriptorTypes: List[Map[String, String]] = List.empty,
@@ -34,11 +37,18 @@ case object WorkflowDescription {
     bundle.primaryCallable match {
       case Some(callable) =>
         val inputs = callable.inputs map { input =>
-          input.name + ", " + input.womType + ", " + (if (input.optional) "optional" else "required")
+          InputDescription(
+            input.name,
+            input.womType,
+            input.optional
+          )
         }
 
         val outputs = callable.outputs map { output =>
-          output.name + ", " + output.womType
+          OutputDescription(
+            output.name,
+            output.womType
+          )
         }
 
         WorkflowDescription(
@@ -57,7 +67,7 @@ case object WorkflowDescription {
         WorkflowDescription(
           valid = true,
           errors = List.empty,
-          name = "",
+          name = if (bundle.allCallables.size == 1) bundle.allCallables.head._1 else "", // No name if multiple tasks
           inputs = List.empty,
           outputs = List.empty,
           images = List.empty,
@@ -69,4 +79,6 @@ case object WorkflowDescription {
     }
   }
 
+  implicit val workflowDescriptionEncoder: Encoder[WorkflowDescription] = deriveEncoder[WorkflowDescription]
+  implicit val workflowDescriptionDecoder: Decoder[WorkflowDescription] = deriveDecoder[WorkflowDescription]
 }

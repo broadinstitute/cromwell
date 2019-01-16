@@ -7,10 +7,10 @@ import akka.http.scaladsl.unmarshalling.Unmarshaller._
 import akka.stream.ActorMaterializer
 import akka.testkit._
 import cromwell.services.womtool.models.WorkflowDescription
+import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionDecoder
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.WomtoolRouteSupportSpec.MockWomtoolRouteSupport
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-import io.circe.generic.auto._
 import org.scalatest.{AsyncFlatSpec, Matchers}
 
 import scala.concurrent.duration._

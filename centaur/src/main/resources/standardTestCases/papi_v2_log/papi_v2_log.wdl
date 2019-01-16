@@ -46,14 +46,14 @@ task check_log {
         grep -c 'Starting container setup.' log.txt
         grep -c 'Done container setup.' log.txt
         grep -c 'Starting localization.' log.txt
-        grep -c 'Localizing input gs://cloud-cromwell-dev/cromwell_execution/travis/papi_v2_log/' log.txt
+        grep -c 'Localizing input gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/papi_v2_log/' log.txt
         grep -c 'Done localization.' log.txt
         grep -c 'Running user action: docker run -v /mnt/local-disk:/cromwell_root --entrypoint= ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950 /bin/bash /cromwell_root/script' log.txt
         grep -c 'Starting delocalization.' log.txt
-        grep -c 'Delocalizing output /cromwell_root/written.txt -> gs://cloud-cromwell-dev/cromwell_execution/travis/papi_v2_log/' log.txt
-        grep -c 'Delocalizing output /cromwell_root/stdout -> gs://cloud-cromwell-dev/cromwell_execution/travis/papi_v2_log/' log.txt
-        grep -c 'Delocalizing output /cromwell_root/stderr -> gs://cloud-cromwell-dev/cromwell_execution/travis/papi_v2_log/' log.txt
-        grep -c 'Delocalizing output /cromwell_root/rc -> gs://cloud-cromwell-dev/cromwell_execution/travis/papi_v2_log/' log.txt
+        grep -c 'Delocalizing output /cromwell_root/written.txt -> gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/papi_v2_log/' log.txt
+        grep -c 'Delocalizing output /cromwell_root/stdout -> gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/papi_v2_log/' log.txt
+        grep -c 'Delocalizing output /cromwell_root/stderr -> gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/papi_v2_log/' log.txt
+        grep -c 'Delocalizing output /cromwell_root/rc -> gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/papi_v2_log/' log.txt
         grep -c 'Done delocalization.' log.txt
     }
     output {

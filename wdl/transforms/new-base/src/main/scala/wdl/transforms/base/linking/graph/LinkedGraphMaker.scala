@@ -40,11 +40,26 @@ object LinkedGraphMaker {
   }
 
   def getOrdering(linkedGraph: LinkedGraph): ErrorOr[List[WorkflowGraphElement]] = {
+
+    def nodeName(workflowGraphElement: WorkflowGraphElement): String = workflowGraphElement.toWdlV1.lines.toList.headOption.getOrElse("Unnamed Element").replace("\"", "")
+
     // Find the topological order in which we must create the graph nodes:
     val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }
 
-    Graph.from[WorkflowGraphElement, DiEdge](linkedGraph.elements, edges).topologicalSort match {
-      case Left(cycleNode) => s"This workflow contains a cyclic dependency starting on '${cycleNode.value.toWdlV1.lines.toList.head}'".invalidNel
+    val graph = Graph.from[WorkflowGraphElement, DiEdge](linkedGraph.elements, edges)
+    graph.topologicalSort match {
+      case Left(_) =>
+        graph.findCycle match {
+          case Some(cycle) =>
+            val edgeStrings = cycle.value.edges map { case graph.EdgeT(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            s"""This workflow contains a cyclic dependency:
+               |${edgeStrings.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+          case None =>
+            val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            s"""This workflow contains an elusive cyclic dependency amongst these edges:
+               |${edges.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+        }
+
       // This asInstanceOf is not required, but it suppresses an incorrect intelliJ error highlight:
       case Right(topologicalOrder) => topologicalOrder.toList.map(_.value).asInstanceOf[List[WorkflowGraphElement]].validNel
     }

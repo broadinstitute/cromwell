@@ -1,9 +1,10 @@
 package wdl.transforms.draft2.wdlom2wom
 
-import cats.data.Validated.Valid
+import cats.syntax.either._
 import cats.syntax.validated._
+import common.Checked
 import common.collections.EnhancedCollections._
-import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model._
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wom.graph.CallNode.CallNodeAndNewNodes
@@ -34,8 +35,8 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
       }.toMap
     )
 
-    def foldFunction(acc: ErrorOr[FoldState], node: WdlGraphNode): ErrorOr[FoldState] = acc flatMap { goodAcc =>
-      buildNode(goodAcc, node).leftMap(errors => errors.map(s"Unable to build WOM node for ${node.getClass.getSimpleName} '${node.womIdentifier.localName.value}': " + _))
+    def foldFunction(acc: Checked[FoldState], node: WdlGraphNode): Checked[FoldState] = acc flatMap { goodAcc =>
+      buildNode(goodAcc, node).leftMap(errors => errors.map(s"Unable to build WOM node for ${node.getClass.getSimpleName} '${node.womIdentifier.localName.value}': " + _)).toEither
     }
 
     def foldInGeneratedNodeAndNewInputs(acc: FoldState)(gnani: GeneratedNodeAndNewNodes): FoldState = {
@@ -95,7 +96,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
     }
 
     val nodeList = scope.childGraphNodesSorted
-    val nodeAccumulator: ErrorOr[FoldState] = nodeList.foldLeft[ErrorOr[FoldState]](Valid(initialFoldState))(foldFunction)
+    val nodeAccumulator: Checked[FoldState] = nodeList flatMap { _.foldLeft[Checked[FoldState]](Right(initialFoldState))(foldFunction) }
 
     def outerLinkInputs(nodes: Set[GraphNode]): Set[OuterGraphInputNode] = nodes flatMap {
       // NB: this curious type annotation just gives intelliJ a hand:
@@ -113,7 +114,7 @@ object WdlDraft2WomGraphMaker extends WomGraphMaker[Scope] {
 
     import common.validation.ErrorOr.ShortCircuitingFlatMap
     for {
-      foldState <- nodeAccumulator
+      foldState <- nodeAccumulator.toValidated
       graphNodes = foldState.nodes
       outerLinks = outerLinkInputs(graphNodes)
       g <- Graph.validateAndConstruct(graphNodes ++ outerLinks ++ includeGraphNodes)

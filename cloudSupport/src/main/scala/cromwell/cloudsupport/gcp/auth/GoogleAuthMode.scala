@@ -15,7 +15,7 @@ import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
-import com.google.auth.oauth2.{GoogleCredentials, ServiceAccountCredentials, UserCredentials}
+import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode._
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
@@ -116,7 +116,7 @@ sealed trait GoogleAuthMode {
   def name: String
 
   // Create a Credential object from the google.api.client.auth library (https://github.com/google/google-api-java-client)
-  private[auth] def credentials(options: OptionLookup, scopes: java.util.Collection[String]): Credentials
+  def credentials(options: OptionLookup, scopes: java.util.Collection[String]): OAuth2Credentials
 
   /**
     * Create a credential object suitable for use with Pipelines API.
@@ -124,7 +124,7 @@ sealed trait GoogleAuthMode {
     * @param options A lookup for external credential information.
     * @return Credentials with scopes compatible with the Genomics API compute and storage.
     */
-  def pipelinesApiCredentials(options: OptionLookup): Credentials = {
+  def pipelinesApiCredentials(options: OptionLookup): OAuth2Credentials = {
     credentials(options, PipelinesApiScopes.asJavaCollection)
   }
 
@@ -132,7 +132,7 @@ sealed trait GoogleAuthMode {
     * Alias for credentials(GoogleAuthMode.NoOptionLookup, scopes).
     * Only valid for credentials that are NOT externally provided, such as ApplicationDefault.
     */
-  def credentials(scopes: Iterable[String]): Credentials = {
+  def credentials(scopes: Iterable[String]): OAuth2Credentials = {
     credentials(GoogleAuthMode.NoOptionLookup, scopes.asJavaCollection)
   }
 
@@ -140,7 +140,7 @@ sealed trait GoogleAuthMode {
     * Alias for credentials(GoogleAuthMode.NoOptionLookup, scopes).
     * Only valid for credentials that are NOT externally provided, such as ApplicationDefault.
     */
-  def credentials(scopes: java.util.Collection[String]): Credentials = {
+  def credentials(scopes: java.util.Collection[String]): OAuth2Credentials = {
     credentials(GoogleAuthMode.NoOptionLookup, scopes)
   }
 
@@ -148,7 +148,7 @@ sealed trait GoogleAuthMode {
     * Alias for credentials(GoogleAuthMode.NoOptionLookup, Set.empty).
     * Only valid for credentials that are NOT externally provided and do not need scopes, such as ApplicationDefault.
     */
-  private[auth] def credentials(): Credentials = {
+  private[auth] def credentials(): OAuth2Credentials = {
     credentials(GoogleAuthMode.NoOptionLookup, java.util.Collections.emptySet[String])
   }
 
@@ -156,7 +156,7 @@ sealed trait GoogleAuthMode {
     * Alias for credentials(options, Set.empty).
     * Only valid for credentials that are NOT externally provided and do not need scopes, such as ApplicationDefault.
     */
-  private[auth] def credentials(options: OptionLookup): Credentials = {
+  private[auth] def credentials(options: OptionLookup): OAuth2Credentials = {
     credentials(options, java.util.Collections.emptySet[String])
   }
 
@@ -170,7 +170,7 @@ sealed trait GoogleAuthMode {
     */
   private[auth] var credentialsValidation: CredentialsValidation = refreshCredentials
 
-  protected def validateCredentials[A <: Credentials](credential: A): credential.type = {
+  protected def validateCredentials[A <: OAuth2Credentials](credential: A): credential.type = {
     Try(credentialsValidation(credential)) match {
       case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
       case Success(_) => credential
@@ -267,7 +267,7 @@ final case class UserMode(override val name: String,
     validateCredentials(UserCredentials.fromStream(secretsStream))
   }
 
-  override def credentials(unusedOptions: OptionLookup, unusedScopes: java.util.Collection[String]): Credentials = {
+  override def credentials(unusedOptions: OptionLookup, unusedScopes: java.util.Collection[String]): OAuth2Credentials = {
     userCredentials
   }
 }

@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobCommand}
@@ -40,13 +39,6 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     outputs = List(OutputDefinition("outString", WomStringType, mockStringExpression("hello")))
   )
 
-  val workflow = new WdlWorkflow(
-    unqualifiedName = workflowName,
-    workflowOutputWildcards = Seq.empty,
-    wdlSyntaxErrorFormatter = mock[WdlSyntaxErrorFormatter],
-    meta = Map.empty,
-    parameterMeta = Map.empty,
-    ast = null)
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 

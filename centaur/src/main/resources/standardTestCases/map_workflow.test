@@ -1,0 +1,12 @@
+name: map_workflow
+testFormat: workflowsuccess
+
+files {
+  workflow: map_workflow/map_workflow.wdl
+}
+
+metadata {
+  "outputs.wf.read_map.out_map.x": 500
+  "outputs.wf.read_map.out_map.y": 600
+  "outputs.wf.read_map.out_map.z": 700
+}

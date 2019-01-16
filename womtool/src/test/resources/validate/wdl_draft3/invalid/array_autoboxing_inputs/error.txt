@@ -1,0 +1,1 @@
+Failed to process workflow definition 'array_autoboxing_inputs' (reason 1 of 1): Failed to process 'call ls' (reason 1 of 1): Failed to supply input files = i (reason 1 of 1): Cannot coerce expression of type 'File' to 'Array[File]'

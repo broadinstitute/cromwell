@@ -1,4 +1,4 @@
 {
-   "jes_gcs_root" : "gs://cloud-cromwell-dev-another",
+   "jes_gcs_root" : "gs://cloud-cromwell-dev-self-cleaning-another",
    "call_cache_hit_path_prefixes": []
 }

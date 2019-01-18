@@ -101,7 +101,15 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   }
 
   protected[this] def runTransaction[R](action: DBIO[R]): Future[R] = {
-    database.run(action.transactionally)
+    runActionInternal(action.transactionally)
+  }
+
+  protected[this] def runAction[R](action: DBIO[R]): Future[R] = {
+    runActionInternal(action.withPinnedSession)
+  }
+
+  private def runActionInternal[R](action: DBIO[R]): Future[R] = {
+    database.run(action)
   }
 
   /*

@@ -92,21 +92,22 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
   }
 
   def poolState: JsObject = {
-    def hogGroupUsages: JsArray = {
-        val entries = hogGroupAssignments.map { case (name, set) =>
+    val (hogGroupUsages, hogLimitValue): (JsValue, JsValue) = hogLimitOption match {
+      case Some(hogLimit) =>
+        val entries = hogGroupAssignments.map { case (hogGroup, set) =>
           JsObject(Map(
-            "hog group" -> JsString(name),
+            "hog group" -> JsString(hogGroup),
             "used" -> JsNumber(set.size),
-            "available" -> JsBoolean(available(name).available)
+            "available" -> JsBoolean(hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit))
           ))
         }
-
-        JsArray(entries.toVector)
+        (JsArray(entries.toVector), JsNumber(hogLimit))
+      case None => (JsNull, JsNull)
     }
 
     JsObject(Map(
       "hog groups" -> hogGroupUsages,
-      "hog limit" -> hogLimitOption.map(JsNumber.apply).getOrElse(JsNull),
+      "hog limit" -> hogLimitValue,
       "capacity" -> JsNumber(capacity),
       "leased" -> JsNumber(leased)
     ))

@@ -8,13 +8,9 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionEncoder
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeResult, DescribeSuccess}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
-import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-import io.circe.generic.auto._
-import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -66,6 +62,10 @@ trait WomtoolRouteSupport extends WebServiceUtils {
 
     onComplete(serviceRegistryActor.ask(DescribeRequest(wsfc)).mapTo[DescribeResult]) {
       case Success(response: DescribeSuccess) =>
+        import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionEncoder
+        import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+        import io.circe.syntax._
+
         complete(response.description.asJson)
       case Success(response: DescribeFailure) =>
         new Exception(response.reason).failRequest(StatusCodes.BadRequest)

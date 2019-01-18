@@ -19,6 +19,30 @@
       "optional" : false
     },
     {
+      "name" : "nested_pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Pair",
+            "pairType" : {
+              "leftType" : {
+                "typeName" : "Int"
+              },
+              "rightType" : {
+                "typeName" : "Int"
+              }
+            }
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Pair[Int, Int], String]",
+      "optional" : false
+    },
+    {
       "name" : "optional_array",
       "valueType" : {
         "typeName" : "Optional",
@@ -50,6 +74,22 @@
       "optional" : true
     },
     {
+      "name" : "pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Int"
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Int, String]",
+      "optional" : false
+    },
+    {
       "name" : "vanilla_array",
       "valueType" : {
         "typeName" : "Array",
@@ -74,6 +114,29 @@
         }
       },
       "typeDisplayName" : "Array[Int?]"
+    },
+    {
+      "name" : "output_nested_pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Pair",
+            "pairType" : {
+              "leftType" : {
+                "typeName" : "Int"
+              },
+              "rightType" : {
+                "typeName" : "Int"
+              }
+            }
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Pair[Int, Int], String]"
     },
     {
       "name" : "output_optional_array",
@@ -103,6 +166,21 @@
         }
       },
       "typeDisplayName" : "Array[Int?]?"
+    },
+    {
+      "name" : "output_pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Int"
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Int, String]"
     },
     {
       "name" : "output_vanilla_array",

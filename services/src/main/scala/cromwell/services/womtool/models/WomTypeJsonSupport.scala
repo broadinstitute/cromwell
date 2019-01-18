@@ -17,6 +17,16 @@ object WomTypeJsonSupport {
               )
             )
           )
+        case a: WomPairType =>
+          Json.obj(
+            ("typeName", Json.fromString("Pair")),
+            ("pairType",
+              Json.obj(
+                ("leftType", womTypeEncoder.apply(a.leftType)),
+                ("rightType", womTypeEncoder.apply(a.rightType))
+              )
+            )
+          )
         case a: WomArrayType =>
           Json.obj(
             ("typeName", Json.fromString("Array")),

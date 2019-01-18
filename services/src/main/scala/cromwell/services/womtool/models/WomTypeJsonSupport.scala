@@ -32,6 +32,18 @@ object WomTypeJsonSupport {
             ("typeName", Json.fromString("Array")),
             ("arrayType", womTypeEncoder.apply(a.memberType))
           )
+        case a: WomCompositeType => // TODO: toDisplayString looks horribly wrong for this one
+          Json.obj(
+            ("typeName", Json.fromString("Object")),
+            ("objectFieldTypes", Json.fromValues(
+              a.typeMap map { entry =>
+                Json.obj(
+                  ("fieldName", Json.fromString(entry._1)),
+                  ("fieldType", womTypeEncoder.apply(entry._2))
+                )
+              }
+            ))
+          )
         case a: WomOptionalType =>
           Json.obj(
             ("typeName", Json.fromString("Optional")),

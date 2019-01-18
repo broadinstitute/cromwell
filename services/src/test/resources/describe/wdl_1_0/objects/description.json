@@ -1,0 +1,79 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "o",
+  "inputs" : [
+    {
+      "name" : "ms",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "WomCompositeType {\n myString -> String\nmyInt -> Int \n}",
+      "optional" : false
+    },
+    {
+      "name" : "obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : true
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "ms_output",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "WomCompositeType {\n myString -> String\nmyInt -> Int \n}"
+    },
+    {
+      "name" : "output_obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "1.0"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  }
+}

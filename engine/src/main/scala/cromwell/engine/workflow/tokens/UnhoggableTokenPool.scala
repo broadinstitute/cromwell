@@ -109,7 +109,8 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
       "hog groups" -> hogGroupUsages,
       "hog limit" -> hogLimitValue,
       "capacity" -> JsNumber(capacity),
-      "leased" -> JsNumber(leased)
+      "leased" -> JsNumber(leased),
+      "available" -> JsBoolean(leased < capacity)
     ))
   }
 }

@@ -36,11 +36,6 @@ object WomTypeJsonSupport {
   }
 
   implicit val womTypeDecoder: Decoder[WomType] = new Decoder[WomType] {
-    final def apply(c: HCursor): Decoder.Result[WomType] =
-    for {
-      _ <- c.downField("foo").as[String]
-    } yield {
-      WomStringType
-    }
+    final def apply(c: HCursor): Decoder.Result[WomType] = ???
   }
 }

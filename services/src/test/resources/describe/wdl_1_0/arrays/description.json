@@ -5,14 +5,17 @@
   "name" : "arrays",
   "inputs" : [
     {
-      "name" : "vanilla_array",
+      "name" : "array_of_optionals",
       "valueType" : {
         "typeName" : "Array",
         "arrayType" : {
-          "typeName" : "Int"
+          "typeName" : "Optional",
+          "optionalType" : {
+            "typeName" : "Int"
+          }
         }
       },
-      "typeDisplayName" : "Array[Int]",
+      "typeDisplayName" : "Array[Int?]",
       "optional" : false
     },
     {
@@ -47,17 +50,14 @@
       "optional" : true
     },
     {
-      "name" : "array_of_optionals",
+      "name" : "vanilla_array",
       "valueType" : {
         "typeName" : "Array",
         "arrayType" : {
-          "typeName" : "Optional",
-          "optionalType" : {
-            "typeName" : "Int"
-          }
+          "typeName" : "Int"
         }
       },
-      "typeDisplayName" : "Array[Int?]",
+      "typeDisplayName" : "Array[Int]",
       "optional" : false
     }
   ],
@@ -76,6 +76,19 @@
       "typeDisplayName" : "Array[Int?]"
     },
     {
+      "name" : "output_optional_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          }
+        }
+      },
+      "typeDisplayName" : "Array[Int]?"
+    },
+    {
       "name" : "output_optional_array_of_optionals",
       "valueType" : {
         "typeName" : "Optional",
@@ -90,19 +103,6 @@
         }
       },
       "typeDisplayName" : "Array[Int?]?"
-    },
-    {
-      "name" : "output_optional_array",
-      "valueType" : {
-        "typeName" : "Optional",
-        "optionalType" : {
-          "typeName" : "Array",
-          "arrayType" : {
-            "typeName" : "Int"
-          }
-        }
-      },
-      "typeDisplayName" : "Array[Int]?"
     },
     {
       "name" : "output_vanilla_array",

@@ -36,7 +36,7 @@ case object WorkflowDescription {
 
     bundle.primaryCallable match {
       case Some(callable) =>
-        val inputs = callable.inputs map { input =>
+        val inputs = callable.inputs.sortBy(_.name) map { input =>
           InputDescription(
             input.name,
             input.womType,
@@ -45,7 +45,7 @@ case object WorkflowDescription {
           )
         }
 
-        val outputs = callable.outputs map { output =>
+        val outputs = callable.outputs.sortBy(_.name) map { output =>
           OutputDescription(
             output.name,
             output.womType,

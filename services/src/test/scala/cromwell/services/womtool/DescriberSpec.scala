@@ -14,7 +14,7 @@ class DescriberSpec extends FlatSpec with Matchers {
 
   CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
 
-  behavior of "womtool validate"
+  behavior of "cromwell.services.womtool.Describer"
 
   it should "test at least one version" in {
     languageVersions.isEmpty should be(false)
@@ -23,7 +23,7 @@ class DescriberSpec extends FlatSpec with Matchers {
   // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
   languageVersions.filterNot(f => f.name.contains(".DS")) foreach { versionDirectory =>
     versionDirectory.path.toFile.listFiles().filterNot(f => f.getName.contains(".DS")) foreach { caseDirectory: java.io.File =>
-      it should s"successfully describe ${caseDirectory.getName} (${versionDirectory.name})" in {
+      it should s" describe ${caseDirectory.getName} (${versionDirectory.name})" in {
         val workflow = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow.wdl").toFile).mkString
         val description = scala.io.Source.fromFile(caseDirectory.toPath.resolve("description.json").toFile).mkString
 

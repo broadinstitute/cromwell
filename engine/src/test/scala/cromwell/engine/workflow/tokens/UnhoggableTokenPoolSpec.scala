@@ -45,14 +45,32 @@ class UnhoggableTokenPoolSpec extends FlatSpec with Matchers with Eventually {
             case TokenTypeExhausted => fail(s"Unhoggable token pool ran out after $index tokens distributed to $hogGroupNumber")
             case HogLimitExceeded => fail(s"Unhoggable token pool making unfounded accusations of hogging after $index tokens distributed to $hogGroupNumber")
           }
+
+          val acquiredTokensForGroup = index + 1
+
+          val poolState = pool.poolState
+          poolState.leased should be(hogGroupNumber * hogLimit + acquiredTokensForGroup)
+
+          val hogGroupState = poolState.hogGroups.get.find(_.hogGroup == hogGroup).get
+          hogGroupState.used should be(acquiredTokensForGroup)
+          hogGroupState.atLimit should be(acquiredTokensForGroup == hogLimit)
         }
+
         // Step two: one more is too many...
+        val nextAcquisition = pool.tryAcquire(hogGroup)
+        val poolState = pool.poolState
+
         if (hogGroupNumber != tokenType.hogFactor - 1) {
           // While the overall token type is not full we get the hog limit push-back:
-          pool.tryAcquire(hogGroup) should be(HogLimitExceeded)
+          nextAcquisition should be(HogLimitExceeded)
+          pool.available("other") should be(UnhoggableTokenPool.TokensAvailable)
+          poolState.available should be(true)
+
         } else {
           // The final time, the entire token type is used up so we get this instead:
-          pool.tryAcquire(hogGroup) should be(TokenTypeExhausted)
+          nextAcquisition should be(TokenTypeExhausted)
+          pool.available("other") should be(UnhoggableTokenPool.TokenTypeExhausted)
+          poolState.available should be(false)
         }
       }
     }

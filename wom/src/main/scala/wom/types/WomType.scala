@@ -45,7 +45,7 @@ trait WomType {
   protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType == this
 
   /**
-    * Friendly name, suitable for UIs, may change over time
+    * Friendly name, suitable for UIs, may change over time (if you are confident all clients will support the change)
     * @return String
     */
   def displayName: String = callCachingName

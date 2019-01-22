@@ -34,17 +34,17 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
 
     hogLimitOption match {
       case None if leased < capacity => TokensAvailable
-      case None => ComeBackLater
+      case None => TokenTypeExhausted
       case Some(hogLimit) =>
         if (leased < capacity) {
           synchronized {
             if (hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit)) {
               TokensAvailable
             } else {
-              Oink
+              HogLimitExceeded
             }
           }
-        } else ComeBackLater
+        } else TokenTypeExhausted
     }
   }
 
@@ -61,10 +61,10 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
                 val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)
                 hogGroupAssignments += hogGroup -> (thisHogSet + hoggingLease.get)
                 hoggingLease
-              case None => ComeBackLater
+              case None => TokenTypeExhausted
             }
           } else {
-            if (leased == capacity) ComeBackLater else Oink
+            if (leased == capacity) TokenTypeExhausted else HogLimitExceeded
           }
         }
       case None =>
@@ -72,7 +72,7 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
           case Some(lease) =>
             val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)
             hoggingLease
-          case None => ComeBackLater
+          case None => TokenTypeExhausted
         }
     }
   }
@@ -111,7 +111,7 @@ object UnhoggableTokenPool {
   // 10 Million
   val MaxCapacity = 10 * 1000 * 1000
 
-  trait UnhoggableTokenPoolResult
+  sealed trait UnhoggableTokenPoolResult
 
   final class TokenHoggingLease(lease: Lease[JobExecutionToken], hogGroup: String, pool: UnhoggableTokenPool) extends Lease[JobExecutionToken] with UnhoggableTokenPoolResult {
     private[this] val dirty = new AtomicBoolean(false)
@@ -129,7 +129,7 @@ object UnhoggableTokenPool {
     }
   }
 
-  trait UnhoggableTokenPoolAvailability { def available: Boolean }
+  sealed trait UnhoggableTokenPoolAvailability { def available: Boolean }
 
   case object TokensAvailable extends UnhoggableTokenPoolAvailability {
     override def available: Boolean = true
@@ -138,14 +138,14 @@ object UnhoggableTokenPool {
   /**
     * You didn't get a lease because the pool is empty
     */
-  case object ComeBackLater extends UnhoggableTokenPoolAvailability with UnhoggableTokenPoolResult {
+  case object TokenTypeExhausted extends UnhoggableTokenPoolAvailability with UnhoggableTokenPoolResult {
     override def available: Boolean = false
   }
 
   /**
     * You didn't get a lease... because you're being a hog
     */
-  case object Oink extends UnhoggableTokenPoolAvailability with UnhoggableTokenPoolResult {
+  case object HogLimitExceeded extends UnhoggableTokenPoolAvailability with UnhoggableTokenPoolResult {
     override def available: Boolean = false
   }
 

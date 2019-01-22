@@ -67,11 +67,11 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
             (queues + (hogGroup -> newQueue), remainingHogGroups ++ queuesTried :+ hogGroup)
           }
           DequeueResult(Some(LeasedActor(placeholder, thl)), TokenQueue(newQueues, newQueueOrder, eventLogger, pool))
-        case ComeBackLater =>
+        case TokenTypeExhausted =>
           // The pool is completely full right now, so there's no benefit trying the other hog groups:
           eventLogger.outOfTokens(tokenType.backend)
           DequeueResult(None, this)
-        case Oink =>
+        case HogLimitExceeded =>
           eventLogger.flagTokenHog(hogGroup)
           recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
       }
@@ -91,10 +91,10 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     queues.keys.exists { hg =>
       pool.available(hg) match {
         case TokensAvailable => true
-        case ComeBackLater =>
+        case TokenTypeExhausted =>
           eventLogger.outOfTokens(tokenType.backend)
           false
-        case Oink =>
+        case HogLimitExceeded =>
           eventLogger.flagTokenHog(hg)
           false
       }
@@ -119,7 +119,7 @@ object TokenQueue {
   final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
 
   @JsonCodec
-  final case class TokenQueueState(queues: Vector[TokenQueueSize], poolState: TokenPoolState)
+  final case class TokenQueueState(groupsNeedingTokens: Vector[TokenQueueSize], poolState: TokenPoolState)
 
   @JsonCodec
   final case class TokenQueueSize(hogGroup: String, size: Int)

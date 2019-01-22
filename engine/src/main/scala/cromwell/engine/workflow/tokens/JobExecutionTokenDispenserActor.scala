@@ -191,7 +191,7 @@ object JobExecutionTokenDispenserActor {
   implicit val tokenEncoder = deriveEncoder[JobExecutionTokenType]
 
   @JsonCodec(encodeOnly = true)
-  final case class TokenDispenserState(queues: Vector[TokenTypeState], pointer: Int, leased: Int)
+  final case class TokenDispenserState(tokenTypes: Vector[TokenTypeState], pointer: Int, leased: Int)
 
   @JsonCodec(encodeOnly = true)
   final case class TokenTypeState(tokenType: JobExecutionTokenType, queue: TokenQueueState)

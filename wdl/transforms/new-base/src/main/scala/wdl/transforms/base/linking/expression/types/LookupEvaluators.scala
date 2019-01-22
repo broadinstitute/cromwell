@@ -56,7 +56,7 @@ object LookupEvaluators {
       (a.expressionElement.evaluateType(linkedValues), a.index.evaluateType(linkedValues), a.index.validNel) flatMapN {
         case (a: WomArrayType, WomIntegerType, _) => a.memberType.validNel
         case (WomMapType(keyType, valueType), lookupType, _) if keyType.isCoerceableFrom(lookupType) => valueType.validNel
-        case (WomCompositeType(typeMap), WomStringType, StringLiteral(str)) => typeMap.get(str) match {
+        case (WomCompositeType(typeMap, _), WomStringType, StringLiteral(str)) => typeMap.get(str) match {
           case Some(innerType) => innerType.validNel
           case None => s"Type evaluation failed. No such field '$str' for expression $a".invalidNel
         }
@@ -81,7 +81,7 @@ object LookupEvaluators {
     val tail = NonEmptyList.fromList(lookupChain.tail)
 
     val thisValue: ErrorOr[WomType] = womType match {
-      case WomCompositeType(typeMap) => typeMap.get(key).toErrorOr(s"No such field '$key' on type ${womType.toDisplayString}.")
+      case WomCompositeType(typeMap, _) => typeMap.get(key).toErrorOr(s"No such field '$key' on type ${womType.toDisplayString}.")
       case WomObjectType => WomAnyType.validNel
       case WomPairType(left, _) if key == "left" => left.validNel
       case WomPairType(_, right) if key == "right" => right.validNel

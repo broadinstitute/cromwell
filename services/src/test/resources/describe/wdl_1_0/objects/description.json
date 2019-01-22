@@ -5,7 +5,7 @@
   "name" : "o",
   "inputs" : [
     {
-      "name" : "ms",
+      "name" : "my_struct",
       "valueType" : {
         "typeName" : "Object",
         "objectFieldTypes" : [
@@ -23,11 +23,11 @@
           }
         ]
       },
-      "typeDisplayName" : "WomCompositeType {\n myString -> String\nmyInt -> Int \n}",
+      "typeDisplayName" : "MyStruct",
       "optional" : false
     },
     {
-      "name" : "ms_optional",
+      "name" : "my_struct_optional",
       "valueType" : {
         "typeName" : "Object",
         "objectFieldTypes" : [
@@ -45,7 +45,7 @@
           }
         ]
       },
-      "typeDisplayName" : "WomCompositeType {\n myString -> String\nmyInt -> Int \n}",
+      "typeDisplayName" : "MyStruct",
       "optional" : true
     },
     {
@@ -63,11 +63,9 @@
       },
       "typeDisplayName" : "Object",
       "optional" : true
-    }
-  ],
-  "outputs" : [
+    },
     {
-      "name" : "ms_output",
+      "name" : "other",
       "valueType" : {
         "typeName" : "Object",
         "objectFieldTypes" : [
@@ -85,7 +83,31 @@
           }
         ]
       },
-      "typeDisplayName" : "WomCompositeType {\n myString -> String\nmyInt -> Int \n}"
+      "typeDisplayName" : "OtherStruct",
+      "optional" : false
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "my_struct_output",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "MyStruct"
     },
     {
       "name" : "output_obj",

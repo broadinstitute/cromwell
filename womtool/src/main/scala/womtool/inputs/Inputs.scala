@@ -36,7 +36,7 @@ object Inputs {
   }
 
   private def womTypeToJson(womType: WomType, default: Option[WomExpression]): JsValue = (womType, default) match {
-    case (WomCompositeType(typeMap), _) => JsObject(
+    case (WomCompositeType(typeMap, _), _) => JsObject(
       typeMap.map { case (name, wt) => name -> womTypeToJson(wt, None) }
     )
     case (_, Some(d)) => JsString(s"${womType.toDisplayString} (optional, default = ${d.sourceString})")

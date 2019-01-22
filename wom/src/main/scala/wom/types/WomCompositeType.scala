@@ -8,7 +8,7 @@ import common.validation.Validation._
 import spray.json.JsObject
 import wom.values.{WomMap, WomObject, WomObjectLike, WomValue}
 
-case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectTypeLike {
+case class WomCompositeType(typeMap: Map[String, WomType], structName: Option[String] = None) extends WomObjectTypeLike {
 
   private def validateType(values: Map[String, Any])(key: String, expectedType: WomType): ErrorOr[(String, WomValue)] = {
     (values.get(key), expectedType) match {
@@ -44,10 +44,6 @@ case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectType
   }
 
   override val toDisplayString = {
-    val fieldType = typeMap.map({
-      case (key, value) => s"$key -> ${value.toDisplayString}"
-    }).mkString("\n")
-    
-    s"WomCompositeType {\n $fieldType \n}"
+    structName.getOrElse("Object")
   }
 }

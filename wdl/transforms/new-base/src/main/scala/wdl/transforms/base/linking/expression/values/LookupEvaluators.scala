@@ -113,7 +113,7 @@ object LookupEvaluators {
 
     val thisValue: ErrorOr[WomValue] = womValue match {
       case WomObject(values, _) if values.contains(key) => values(key).validNel
-      case WomObject(_, WomCompositeType(typeMap)) if typeMap.contains(key) => typeMap(key) match {
+      case WomObject(_, WomCompositeType(typeMap, _)) if typeMap.contains(key) => typeMap(key) match {
         case WomOptionalType(innerType) => WomOptionalValue(innerType, None).validNel
         case other => s"Composite value was unexpectedly missing a field: '$key' (expected type ${other.toDisplayString}). Report this bug! Static validation failed.".invalidNel
       }

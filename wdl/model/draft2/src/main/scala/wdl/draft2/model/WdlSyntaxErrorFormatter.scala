@@ -221,7 +221,7 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
   def badTargetTypeForMemberAccess(memberAccess: MemberAccess, unexpectedType: WomType): String = {
     val rhsAst = memberAccess.ast.getAttribute("rhs").asInstanceOf[Terminal]
 
-    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhsString}' was a ${unexpectedType.toDisplayString} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
+    s"""ERROR: Bad target for member access '${memberAccess.memberAccessString}': '${memberAccess.lhsString}' was a ${unexpectedType.callCachingName} (line ${rhsAst.getLine}, col ${rhsAst.getColumn}):
        |
      |${pointToSource(rhsAst)}
      """.stripMargin
@@ -290,14 +290,14 @@ case class WdlSyntaxErrorFormatter(terminalMap: Map[Terminal, WorkflowSource]) e
   }
 
   def taskOutputExpressionTypeDoesNotMatchDeclaredType(outputName: Terminal, outputType: WomType, expressionType: WomType) = {
-    s"""ERROR: ${outputName.getSourceString} is declared as a ${outputType.toDisplayString} but the expression evaluates to a ${expressionType.toDisplayString}:
+    s"""ERROR: ${outputName.getSourceString} is declared as a ${outputType.callCachingName} but the expression evaluates to a ${expressionType.callCachingName}:
        |
        |${pointToSource(outputName)}
      """.stripMargin
   }
 
   def declarationExpressionNotCoerceableToTargetType(declName: Terminal, declType: WomType, evaluatedType: WomType) = {
-    s"""ERROR: Value '${declName.getSourceString}' is declared as a '${declType.toDisplayString}' but the expression evaluates to '${evaluatedType.toDisplayString}':
+    s"""ERROR: Value '${declName.getSourceString}' is declared as a '${declType.callCachingName}' but the expression evaluates to '${evaluatedType.callCachingName}':
         |
        |${pointToSource(declName)}
      """.stripMargin

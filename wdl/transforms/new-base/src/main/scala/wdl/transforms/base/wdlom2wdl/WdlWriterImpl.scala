@@ -184,7 +184,7 @@ object WdlWriterImpl {
   }
 
   implicit val primitiveTypeElementWriter: WdlWriter[WomPrimitiveType] = new WdlWriter[WomPrimitiveType] {
-    override def toWdlV1(a: WomPrimitiveType) = a.toDisplayString
+    override def toWdlV1(a: WomPrimitiveType) = a.callCachingName
   }
 
   implicit val workflowDefinitionElementWriter: WdlWriter[WorkflowDefinitionElement] = new WdlWriter[WorkflowDefinitionElement] {

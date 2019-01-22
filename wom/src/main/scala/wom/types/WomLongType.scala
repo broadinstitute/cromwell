@@ -4,7 +4,7 @@ import spray.json.{JsNumber, JsString}
 import wom.values.{WomInteger, WomLong, WomString}
 
 case object WomLongType extends WomPrimitiveType {
-  val toDisplayString: String = "Long"
+  val callCachingName: String = "Long"
 
   override protected def coercion = {
     case i: Long => WomLong(i)

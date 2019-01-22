@@ -493,25 +493,25 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   )
 
   forAll (constantExpressions) { (expression, value) =>
-    it should s"evaluate $expression into ${value.valueString} (${value.womType.toDisplayString})" in {
+    it should s"evaluate $expression into ${value.valueString} (${value.womType.callCachingName})" in {
       constEval(expression) shouldEqual value
     }
   }
 
   forAll (constantExpressions) { (expression, value) =>
-    it should s"evaluate $expression into type ${value.womType.toDisplayString}" in {
+    it should s"evaluate $expression into type ${value.womType.callCachingName}" in {
       constEvalType(expression) shouldEqual value.womType
     }
   }
 
   forAll (identifierLookupExpressions) { (expression, value) =>
-    it should s"evaluate $expression into ${value.valueString} (${value.womType.toDisplayString})" in {
+    it should s"evaluate $expression into ${value.valueString} (${value.womType.callCachingName})" in {
       identifierEval(expression) shouldEqual value
     }
   }
 
   forAll (identifierLookupExpressions) { (expression, value) =>
-    it should s"evaluate $expression into type ${value.womType.toDisplayString}" in {
+    it should s"evaluate $expression into type ${value.womType.callCachingName}" in {
       // need to skip the object expressions because we don't know the types of sub-objects
       if (!expression.startsWith("o.key")) constEvalType(expression) shouldEqual value.womType
     }

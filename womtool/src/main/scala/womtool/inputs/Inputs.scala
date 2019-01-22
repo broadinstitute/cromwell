@@ -39,8 +39,8 @@ object Inputs {
     case (WomCompositeType(typeMap, _), _) => JsObject(
       typeMap.map { case (name, wt) => name -> womTypeToJson(wt, None) }
     )
-    case (_, Some(d)) => JsString(s"${womType.toDisplayString} (optional, default = ${d.sourceString})")
-    case (_: WomOptionalType, _) => JsString(s"${womType.toDisplayString} (optional)")
-    case (_, _) => JsString(s"${womType.toDisplayString}")
+    case (_, Some(d)) => JsString(s"${womType.callCachingName} (optional, default = ${d.sourceString})")
+    case (_: WomOptionalType, _) => JsString(s"${womType.callCachingName} (optional)")
+    case (_, _) => JsString(s"${womType.callCachingName}")
   }
 }

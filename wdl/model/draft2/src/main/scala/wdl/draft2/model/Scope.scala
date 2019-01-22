@@ -310,7 +310,7 @@ trait Scope {
           }
         case callOutput: CallOutput => handleCallEvaluation(callOutput.call) flatMap {
           case outputs: WdlCallOutputsObject => outputs.outputs.get(callOutput.unqualifiedName).map(Success(_)).getOrElse(Failure(new Exception(s"No output ${callOutput.unqualifiedName} found in ${callOutput.call.unqualifiedName}'s outputs")))
-          case other => Failure(new Exception(s"Call outputs unexpectedly evaluated to a ${other.womType.toDisplayString}"))
+          case other => Failure(new Exception(s"Call outputs unexpectedly evaluated to a ${other.womType.callCachingName}"))
         }
         case call: WdlCall => handleCallEvaluation(call)
         case scatter: Scatter => handleScatterResolution(scatter)

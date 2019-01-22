@@ -37,7 +37,7 @@ object IfElementToGraphNode {
 
     val conditionVariableTypeValidation: ErrorOr[Unit] = conditionExpression.evaluateType(a.linkableValues) flatMap {
       case WomBooleanType | WomAnyType => ().validNel
-      case other => s"Invalid type for condition variable: ${other.toDisplayString}".invalidNel
+      case other => s"Invalid type for condition variable: ${other.callCachingName}".invalidNel
     }
 
     final case class RequiredOuterPorts(valueGeneratorPorts: Map[String, OutputPort], completionPorts: Map[String, CallNode])

@@ -67,7 +67,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       data.valueStore.get(expressionNode.singleOutputPort, None) map {
         case WomArrayLike(arrayLike) => ScatterVariableAndValue(scatterVariableNode, arrayLike).validNel
         case v: WomValue =>
-          s"Scatter collection ${expressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel
+          s"Scatter collection ${expressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.callCachingName}".invalidNel
       } getOrElse {
         s"Could not find an array value for scatter $tag. Missing array should have come from expression ${expressionNode.womExpression.sourceString}".invalidNel
       }

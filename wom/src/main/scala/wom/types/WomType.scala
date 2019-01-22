@@ -30,10 +30,10 @@ trait WomType {
       case WomOptionalValue(_, Some(v)) => coerceRawValue(v)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from wom value(s) '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
-          s" '${womValue.womType.toDisplayString}' to '$toDisplayString'."))
+          s" '${womValue.womType.callCachingName}' to '$callCachingName'."))
       case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +
-          s" '${Option(any.getClass.getCanonicalName).getOrElse(any.getClass.getName)}' to '$toDisplayString'."))
+          s" '${Option(any.getClass.getCanonicalName).getOrElse(any.getClass.getName)}' to '$callCachingName'."))
       case _ => Try(coercion(any))
     }
   }
@@ -44,7 +44,17 @@ trait WomType {
   }
   protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType == this
 
-  def toDisplayString: String
+  /**
+    * Friendly name, suitable for UIs, may change over time
+    * @return String
+    */
+  def displayName: String = callCachingName
+
+  /**
+    * Stable name for call cache hashing, may expose extra information to help compute equality more granularly, must never change
+    * @return String
+    */
+  def callCachingName: String
 
   def invalid(operation: String) = Failure(new WomExpressionException(s"Type evaluation cannot determine type from expression: $operation"))
   def add(rhs: WomType): Try[WomType] = invalid(s"$this + $rhs")

@@ -39,7 +39,7 @@ class WomMapTypeSpec extends FlatSpec with Matchers  {
     }
   }
   it should "stringify its type" in {
-    stringIntMap.womType.toDisplayString shouldEqual "Map[String, Int]"
+    stringIntMap.womType.callCachingName shouldEqual "Map[String, Int]"
   }
   it should "coerce a coerceable object into a WomMap" in {
     WomMapType(WomStringType, WomIntegerType).coerceRawValue(coerceableObject) match {

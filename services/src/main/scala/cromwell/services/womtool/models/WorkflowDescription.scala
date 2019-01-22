@@ -40,7 +40,7 @@ case object WorkflowDescription {
           InputDescription(
             input.name,
             input.womType,
-            input.womType.toDisplayString,
+            input.womType.displayName,
             input.optional
           )
         }
@@ -49,7 +49,7 @@ case object WorkflowDescription {
           OutputDescription(
             output.name,
             output.womType,
-            output.womType.toDisplayString
+            output.womType.displayName
           )
         }
 

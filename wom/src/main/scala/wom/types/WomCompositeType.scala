@@ -15,7 +15,7 @@ case class WomCompositeType(typeMap: Map[String, WomType], structName: Option[St
       case (Some(value), _) => expectedType.coerceRawValue(value).toErrorOr.map(key -> _)
       case (None, coerceTo: WomOptionalType) => (key -> coerceTo.none).validNel
       case (None, _) =>
-        s"No value for field '$key' with non optional type '${expectedType.toDisplayString}' has been provided".invalidNel
+        s"No value for field '$key' with non optional type '${expectedType.callCachingName}' has been provided".invalidNel
     }
   }
 
@@ -43,7 +43,13 @@ case class WomCompositeType(typeMap: Map[String, WomType], structName: Option[St
     }
   }
 
-  override val toDisplayString = {
-    structName.getOrElse("Object")
+  override val displayName: String = structName.getOrElse("Object")
+
+  override val callCachingName = {
+    val fieldType = typeMap.map({
+      case (key, value) => s"$key -> ${value.callCachingName}"
+    }).mkString("\n")
+
+    s"WomCompositeType {\n $fieldType \n}"
   }
 }

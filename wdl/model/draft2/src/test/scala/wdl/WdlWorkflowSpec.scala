@@ -125,7 +125,7 @@ class WdlWorkflowSpec extends WordSpec with Matchers {
           case output: WorkflowOutputExpectation =>
             output.unqualifiedName == src.unqualifiedName &&
             "main_workflow." + output.unqualifiedName == src.locallyQualifiedName(src.parent.get) &&
-              output.womType.toDisplayString == src.womType.toDisplayString &&
+              output.womType.callCachingName == src.womType.callCachingName &&
               output.sourceString == src.requiredExpression.toWomString
           case _ => false
         }

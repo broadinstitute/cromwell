@@ -3,6 +3,7 @@ package cromwell.services.womtool.models
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.deriveEncoder
 import io.circe.generic.semiauto.deriveDecoder
+import wom.callable.Callable.{FixedInputDefinition, InputDefinition, InputDefinitionWithDefault}
 import wom.executable.WomBundle
 
 // Very provisional types for some of these, and perhaps the defaults will go away later in development
@@ -36,13 +37,37 @@ case object WorkflowDescription {
 
     bundle.primaryCallable match {
       case Some(callable) =>
-        val inputs = callable.inputs.sortBy(_.name) map { input =>
-          InputDescription(
-            input.name,
-            input.womType,
-            input.womType.displayName,
-            input.optional
-          )
+        val inputs = callable.inputs.sortBy(_.name) map { input: InputDefinition =>
+
+          input match {
+            // TODO: is there a cool kids way to do this?
+            // I tried `thing @ (_: FixedInputDefinition | _: InputDefinitionWithDefault)` but Scala does not know `thing` has a `default`
+            case i: FixedInputDefinition =>
+              InputDescription(
+                input.name,
+                input.womType,
+                input.womType.displayName,
+                input.optional,
+                Option(i.default)
+              )
+            case i: InputDefinitionWithDefault =>
+              InputDescription(
+                input.name,
+                input.womType,
+                input.womType.displayName,
+                input.optional,
+                Option(i.default)
+              )
+            case _ =>
+              InputDescription(
+                input.name,
+                input.womType,
+                input.womType.displayName,
+                input.optional,
+                None
+              )
+          }
+
         }
 
         val outputs = callable.outputs.sortBy(_.name) map { output =>

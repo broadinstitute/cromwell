@@ -1,79 +1,85 @@
 {
-  "valid": true,
-  "errors": [],
-  "name": "wdl_draft_2_map",
-  "inputs": [
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "wdl_draft_2_map",
+  "inputs" : [
     {
-      "name": "input_1",
-      "valueType": {
-        "typeName": "Map",
-        "mapType": {
-          "keyType": {
-            "typeName": "Int"
+      "name" : "input_1",
+      "valueType" : {
+        "typeName" : "Map",
+        "mapType" : {
+          "keyType" : {
+            "typeName" : "Int"
           },
-          "valueType": {
-            "typeName": "Map",
-            "mapType": {
-              "keyType": {
-                "typeName": "Map",
-                "mapType": {
-                  "keyType": {
-                    "typeName": "String"
+          "valueType" : {
+            "typeName" : "Map",
+            "mapType" : {
+              "keyType" : {
+                "typeName" : "Map",
+                "mapType" : {
+                  "keyType" : {
+                    "typeName" : "String"
                   },
-                  "valueType": {
-                    "typeName": "Int"
+                  "valueType" : {
+                    "typeName" : "Int"
                   }
                 }
               },
-              "valueType": {
-                "typeName": "String"
+              "valueType" : {
+                "typeName" : "String"
               }
             }
           }
         }
       },
-      "typeDisplayName": "Map[Int, Map[Map[String, Int], String]]",
-      "optional": false
+      "typeDisplayName" : "Map[Int, Map[Map[String, Int], String]]",
+      "optional" : false,
+      "default" : null
     }
   ],
-  "outputs": [
+  "outputs" : [
     {
-      "name": "output_1",
-      "valueType": {
-        "typeName": "Map",
-        "mapType": {
-          "keyType": {
-            "typeName": "Int"
+      "name" : "output_1",
+      "valueType" : {
+        "typeName" : "Map",
+        "mapType" : {
+          "keyType" : {
+            "typeName" : "Int"
           },
-          "valueType": {
-            "typeName": "Map",
-            "mapType": {
-              "keyType": {
-                "typeName": "Map",
-                "mapType": {
-                  "keyType": {
-                    "typeName": "String"
+          "valueType" : {
+            "typeName" : "Map",
+            "mapType" : {
+              "keyType" : {
+                "typeName" : "Map",
+                "mapType" : {
+                  "keyType" : {
+                    "typeName" : "String"
                   },
-                  "valueType": {
-                    "typeName": "Int"
+                  "valueType" : {
+                    "typeName" : "Int"
                   }
                 }
               },
-              "valueType": {
-                "typeName": "String"
+              "valueType" : {
+                "typeName" : "String"
               }
             }
           }
         }
       },
-      "typeDisplayName": "Map[Int, Map[Map[String, Int], String]]"
+      "typeDisplayName" : "Map[Int, Map[Map[String, Int], String]]"
     }
   ],
-  "images": [],
-  "submittedDescriptorType": {
-    "descriptorType": "WDL",
-    "descriptorTypeVersion": "draft-2"
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
   },
-  "importedDescriptorTypes": [],
-  "meta": {}
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  }
 }

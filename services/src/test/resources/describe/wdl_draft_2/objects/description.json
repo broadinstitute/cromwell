@@ -10,7 +10,8 @@
         "typeName" : "Object"
       },
       "typeDisplayName" : "Object",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     },
     {
       "name" : "obj_optional",
@@ -18,7 +19,8 @@
         "typeName" : "Object"
       },
       "typeDisplayName" : "Object",
-      "optional" : true
+      "optional" : true,
+      "default" : "{\"a\": \"is for apple\"}"
     }
   ],
   "outputs" : [

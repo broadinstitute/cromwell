@@ -16,7 +16,20 @@
         }
       },
       "typeDisplayName" : "Array[Int?]",
-      "optional" : false
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "default_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        }
+      },
+      "typeDisplayName" : "Array[Int]",
+      "optional" : true,
+      "default" : "[1, 2, 4, 8]"
     },
     {
       "name" : "nested_pair",
@@ -40,7 +53,8 @@
         }
       },
       "typeDisplayName" : "Pair[Pair[Int, Int], String]",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     },
     {
       "name" : "optional_array",
@@ -54,7 +68,8 @@
         }
       },
       "typeDisplayName" : "Array[Int]?",
-      "optional" : true
+      "optional" : true,
+      "default" : null
     },
     {
       "name" : "optional_array_of_optionals",
@@ -71,7 +86,8 @@
         }
       },
       "typeDisplayName" : "Array[Int?]?",
-      "optional" : true
+      "optional" : true,
+      "default" : null
     },
     {
       "name" : "pair",
@@ -87,7 +103,8 @@
         }
       },
       "typeDisplayName" : "Pair[Int, String]",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     },
     {
       "name" : "vanilla_array",
@@ -98,7 +115,8 @@
         }
       },
       "typeDisplayName" : "Array[Int]",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     }
   ],
   "outputs" : [

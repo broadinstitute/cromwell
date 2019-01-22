@@ -24,7 +24,8 @@
         ]
       },
       "typeDisplayName" : "MyStruct",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     },
     {
       "name" : "my_struct_optional",
@@ -46,7 +47,8 @@
         ]
       },
       "typeDisplayName" : "MyStruct",
-      "optional" : true
+      "optional" : true,
+      "default" : "{ \"myString\": \"zardoz\", \"myInt\": 58 }"
     },
     {
       "name" : "obj",
@@ -54,7 +56,8 @@
         "typeName" : "Object"
       },
       "typeDisplayName" : "Object",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     },
     {
       "name" : "obj_optional",
@@ -62,7 +65,8 @@
         "typeName" : "Object"
       },
       "typeDisplayName" : "Object",
-      "optional" : true
+      "optional" : true,
+      "default" : "{ \"a\": \"is for apple\" }"
     },
     {
       "name" : "other",
@@ -84,7 +88,8 @@
         ]
       },
       "typeDisplayName" : "OtherStruct",
-      "optional" : false
+      "optional" : false,
+      "default" : null
     }
   ],
   "outputs" : [

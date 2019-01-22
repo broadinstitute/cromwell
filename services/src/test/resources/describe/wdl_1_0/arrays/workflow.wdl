@@ -9,6 +9,7 @@ workflow arrays {
     Array[Int?]? optional_array_of_optionals
     Pair[Int, String] pair
     Pair[Pair[Int, Int], String] nested_pair
+    Array[Int] default_array = [1, 2,     4, 8] # checking that we're doing something nicer than printing the string - result has no spaces
   }
 
   output {

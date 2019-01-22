@@ -74,7 +74,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       valid = true,
       errors = List.empty,
       name = "wf_hello",
-      inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", optional = false)),
+      inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", optional = false, default = None)),
       outputs = List.empty,
       images = List.empty,
       submittedDescriptorType = Map(
@@ -142,7 +142,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
             valid = true,
             errors = List.empty,
             name = "my_workflow",
-            inputs = List(InputDescription("i", WomIntegerType, "Int", optional = false)),
+            inputs = List(InputDescription("i", WomIntegerType, "Int", optional = false, default = None)),
             outputs = List(OutputDescription("o", WomIntegerType, "Int")),
             images = List.empty,
             submittedDescriptorType = Map(

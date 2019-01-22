@@ -436,7 +436,7 @@ object Dependencies {
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
-  ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++
+  ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies

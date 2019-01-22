@@ -3,21 +3,12 @@ package cromwell.engine.workflow.tokens
 import akka.actor.ActorRef
 import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor, TokenQueuePlaceholder}
-import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{ComeBackLater, Oink, TokenHoggingLease, TokensAvailable}
+import cromwell.engine.workflow.tokens.TokenQueue._
+import cromwell.engine.workflow.tokens.UnhoggableTokenPool._
+import io.circe.generic.JsonCodec
 import io.github.andrebeat.pool.Lease
-import spray.json.{JsArray, JsNumber, JsObject, JsString}
 
 import scala.collection.immutable.Queue
-
-object TokenQueue {
-  case class DequeueResult(leasedActor: Option[LeasedActor], tokenQueue: TokenQueue)
-  case class LeasedActor(queuePlaceholder: TokenQueuePlaceholder, lease: Lease[JobExecutionToken]) {
-    def actor: ActorRef = queuePlaceholder.actor
-  }
-  def apply(tokenType: JobExecutionTokenType, logger: TokenEventLogger) = new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
-  final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
-}
 
 /**
   * A queue assigned to a pool.
@@ -109,18 +100,27 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
       }
     }
 
-  def statusPrint: JsObject = {
+  def tokenQueueState = {
+    val queueSizes: Vector[TokenQueueSize] = queueOrder map { hogGroupName =>
+      val queue = queues(hogGroupName)
+      TokenQueueSize(hogGroupName, queue.size)
+    }
 
-    val queueSizes = JsArray(queues.toVector.map { case (name, q) =>
-      JsObject(Map(
-        "name" -> JsString(name),
-        "queue size" -> JsNumber(q.size)
-      ))
-    })
-
-    JsObject(Map(
-      "queue" -> queueSizes,
-      "pool" -> pool.poolState
-    ))
+    TokenQueueState(queueSizes, pool.poolState)
   }
+}
+
+object TokenQueue {
+  case class DequeueResult(leasedActor: Option[LeasedActor], tokenQueue: TokenQueue)
+  case class LeasedActor(queuePlaceholder: TokenQueuePlaceholder, lease: Lease[JobExecutionToken]) {
+    def actor: ActorRef = queuePlaceholder.actor
+  }
+  def apply(tokenType: JobExecutionTokenType, logger: TokenEventLogger) = new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
+  final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
+
+  @JsonCodec
+  final case class TokenQueueState(queues: Vector[TokenQueueSize], poolState: TokenPoolState)
+
+  @JsonCodec
+  final case class TokenQueueSize(hogGroup: String, size: Int)
 }

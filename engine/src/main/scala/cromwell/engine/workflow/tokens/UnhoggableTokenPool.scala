@@ -6,8 +6,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool._
+import io.circe.generic.JsonCodec
 import io.github.andrebeat.pool._
-import spray.json._
 
 import scala.collection.immutable.HashSet
 import scala.collection.mutable
@@ -91,27 +91,19 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
     }
   }
 
-  def poolState: JsObject = {
-    val (hogGroupUsages, hogLimitValue): (JsValue, JsValue) = hogLimitOption match {
+  def poolState: TokenPoolState = {
+    val (hogGroupUsages, hogLimitValue): (Option[Set[HogGroupState]], Option[Int]) = hogLimitOption match {
       case Some(hogLimit) =>
-        val entries = hogGroupAssignments.map { case (hogGroup, set) =>
-          JsObject(Map(
-            "hog group" -> JsString(hogGroup),
-            "used" -> JsNumber(set.size),
-            "available" -> JsBoolean(hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit))
-          ))
+        synchronized {
+          val entries: Set[HogGroupState] = hogGroupAssignments.toSet[(String, HashSet[JobExecutionToken])].map { case (hogGroup, set) =>
+            HogGroupState(hogGroup, set.size, !hogGroupAssignments.get(hogGroup).forall(_.size < hogLimit))
+          }
+          (Option(entries), Option(hogLimit))
         }
-        (JsArray(entries.toVector), JsNumber(hogLimit))
-      case None => (JsNull, JsNull)
+      case None => (None, None)
     }
 
-    JsObject(Map(
-      "hog groups" -> hogGroupUsages,
-      "hog limit" -> hogLimitValue,
-      "capacity" -> JsNumber(capacity),
-      "leased" -> JsNumber(leased),
-      "available" -> JsBoolean(leased < capacity)
-    ))
+    TokenPoolState(hogGroupUsages, hogLimitValue, capacity, leased, leased < capacity)
   }
 }
 
@@ -156,5 +148,11 @@ object UnhoggableTokenPool {
   case object Oink extends UnhoggableTokenPoolAvailability with UnhoggableTokenPoolResult {
     override def available: Boolean = false
   }
+
+  @JsonCodec
+  final case class HogGroupState(hogGroup: String, used: Int, atLimit: Boolean)
+
+  @JsonCodec
+  final case class TokenPoolState(hogGroups: Option[Set[HogGroupState]], hogLimit: Option[Int], capacity: Int, leased: Int, available: Boolean)
 
 }

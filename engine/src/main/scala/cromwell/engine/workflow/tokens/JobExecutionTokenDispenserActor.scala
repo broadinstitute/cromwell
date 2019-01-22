@@ -7,13 +7,16 @@ import cromwell.core.{ExecutionStatus, JobExecutionToken}
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.TokensAvailable
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
-import cromwell.engine.workflow.tokens.TokenQueue.{LeasedActor, TokenQueuePlaceholder}
+import cromwell.engine.workflow.tokens.TokenQueue.{LeasedActor, TokenQueuePlaceholder, TokenQueueState}
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import io.circe.generic.JsonCodec
+import io.circe.Printer
 import io.github.andrebeat.pool.Lease
-import spray.json.{JsArray, JsNumber, JsObject, JsString}
+import io.circe.syntax._
+import io.circe.generic.semiauto._
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -156,23 +159,17 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     ()
   }
 
-  def tokenDispenserState: JsObject = {
-    val queueStates = JsArray(tokenQueues.toVector.map { case (tokenType, queue) =>
-      JsObject(Map(
-        "token type" -> JsString(s"BACKEND=${tokenType.backend}/TOKENLIMIT=${tokenType.maxPoolSize}/HOGFACTOR=${tokenType.hogFactor}"),
-        "queue state" -> queue.statusPrint
-      ))
-    })
+  def tokenDispenserState: TokenDispenserState = {
+    val queueStates: Vector[TokenTypeState] = tokenQueues.toVector.map { case (tokenType, queue) =>
+      TokenTypeState(tokenType, queue.tokenQueueState)
+    }
 
-    JsObject(Map("Token Dispenser state" -> JsObject(Map(
-      "queues" -> queueStates,
-      "pointer" -> JsNumber(currentTokenQueuePointer),
-      "total token assignments" -> JsNumber(tokenAssignments.size)
-    ))))
+    TokenDispenserState(queueStates, currentTokenQueuePointer, tokenAssignments.size)
   }
 
   private def logTokenAllocation(someInterval: FiniteDuration): Unit = {
-    log.info(tokenDispenserState.prettyPrint)
+
+    log.info(tokenDispenserState.asJson.pretty(Printer.spaces2))
 
     // Schedule the next log event:
     context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobExecutionTokenAllocation(someInterval) }(context.dispatcher)
@@ -189,5 +186,14 @@ object JobExecutionTokenDispenserActor {
 
   case object JobExecutionTokenReturn
   case object JobExecutionTokenDispensed
-  case class LogJobExecutionTokenAllocation(someInterval: FiniteDuration)
+  final case class LogJobExecutionTokenAllocation(someInterval: FiniteDuration)
+
+  implicit val tokenEncoder = deriveEncoder[JobExecutionTokenType]
+
+  @JsonCodec(encodeOnly = true)
+  final case class TokenDispenserState(queues: Vector[TokenTypeState], pointer: Int, leased: Int)
+
+  @JsonCodec(encodeOnly = true)
+  final case class TokenTypeState(tokenType: JobExecutionTokenType, queue: TokenQueueState)
+
 }

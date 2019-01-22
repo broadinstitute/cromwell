@@ -998,15 +998,6 @@ definitions:
         type: string
         description: The in-language expression used to evaluate a default value for this parameter, if
           none is supplied.
-      documentation:
-        type: string
-        description: Documentation for this parameter provided in the tool descriptor file.
-      parameter_meta:
-        type: object
-        description: An open set of key/value pairs echoing any custom parameter information in the description file.
-        example:
-          description: "This input provides the BAM file for processing"
-          localization_optional: true
   ToolOutputParameter:
     type: object
     description: >-
@@ -1020,22 +1011,6 @@ definitions:
         description: The name of this input value (formatted as expected by the tool)
       valueType:
         $ref: '#/definitions/ValueType'
-      optional:
-        type: boolean
-        description: Whether the tool allows this value to not be specified
-      default:
-        type: string
-        description: The in-language expression used to evaluate a default value for this parameter, if
-          none is supplied.
-      documentation:
-        type: string
-        description: Documentation for this parameter provided in the tool descriptor file.
-      parameter_meta:
-        type: object
-        description: An open set of key/value pairs echoing any custom parameter information in the description file.
-        example:
-          description: "This input provides the BAM file for processing"
-          localization_optional: true
   ValueType:
     description: The type expected for a given value.
     type: object

@@ -1,6 +1,6 @@
 package cromwell.services.womtool.models
 
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.{Encoder, Json}
 import wom.types._
 
 object WomTypeJsonSupport {
@@ -60,7 +60,4 @@ object WomTypeJsonSupport {
     }
   }
 
-  implicit val womTypeDecoder: Decoder[WomType] = new Decoder[WomType] {
-    final def apply(c: HCursor): Decoder.Result[WomType] = ???
-  }
 }

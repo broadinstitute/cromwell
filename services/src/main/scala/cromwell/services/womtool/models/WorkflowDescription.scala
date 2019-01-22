@@ -2,7 +2,6 @@ package cromwell.services.womtool.models
 
 import io.circe.{Decoder, Encoder}
 import io.circe.generic.semiauto.deriveEncoder
-import io.circe.generic.semiauto.deriveDecoder
 import wom.callable.Callable.{FixedInputDefinition, InputDefinition, InputDefinitionWithDefault}
 import wom.executable.WomBundle
 
@@ -107,5 +106,8 @@ case object WorkflowDescription {
   }
 
   implicit val workflowDescriptionEncoder: Encoder[WorkflowDescription] = deriveEncoder[WorkflowDescription]
-  implicit val workflowDescriptionDecoder: Decoder[WorkflowDescription] = deriveDecoder[WorkflowDescription]
+
+  // We need this decoder to exist for `responseAs[WorkflowDescription]` to work in `cromwell.webservice.routes.WomtoolRouteSupportSpec`
+  // That test doesn't actually inspect any of the JSON, so this is deliberate and works adequately for now.
+  implicit def workflowDescriptionDecoder: Decoder[WorkflowDescription] = ???
 }

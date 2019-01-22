@@ -30,7 +30,7 @@ object ImportResolver {
   case class ImportResolutionRequest(toResolve: String, currentResolvers: List[ImportResolver])
   case class ResolvedImportBundle(source: WorkflowSource, newResolvers: List[ImportResolver])
 
-  sealed trait ImportResolver {
+  trait ImportResolver {
     def name: String
     protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle]
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>

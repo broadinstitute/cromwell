@@ -984,6 +984,7 @@ definitions:
       - name
       - valueType
       - optional
+      - default
     properties:
       name:
         type: string

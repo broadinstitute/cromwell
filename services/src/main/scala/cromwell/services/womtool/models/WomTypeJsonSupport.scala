@@ -4,6 +4,9 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import wom.types._
 
 object WomTypeJsonSupport {
+
+  // We use `wom.types.WomType.callCachingName` instead of `wom.types.WomType.displayName` here because
+  // the type hierarchy is designed for machine readability and should similarly be stable.
   implicit val womTypeEncoder: Encoder[WomType] = new Encoder[WomType] {
     final def apply(a: WomType): Json = {
       a match {

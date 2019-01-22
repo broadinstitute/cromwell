@@ -1,0 +1,44 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "o",
+  "inputs" : [
+    {
+      "name" : "obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : false
+    },
+    {
+      "name" : "obj_optional",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : true
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "output_obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  }
+}

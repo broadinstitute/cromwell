@@ -27,7 +27,37 @@
       "optional" : false
     },
     {
+      "name" : "ms_optional",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "WomCompositeType {\n myString -> String\nmyInt -> Int \n}",
+      "optional" : true
+    },
+    {
       "name" : "obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : false
+    },
+    {
+      "name" : "obj_optional",
       "valueType" : {
         "typeName" : "Object"
       },

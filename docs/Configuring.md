@@ -292,7 +292,7 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
-Read the [Abort](cromwell_features/Abort) page to learn more about how abort works.
+Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about how abort works.
 
 ### Call caching
 

@@ -103,7 +103,7 @@
 
                 </rollingPolicy>
                 <encoder>
-                    <pattern>%d{yyyy-MM-dd HH:mm:ss,SSS} [%thread] %-5level %logger{35} - %msg%n</pattern>
+                    <pattern>%msg%n</pattern>
                 </encoder>
             </appender>
         </then>
@@ -123,9 +123,12 @@
         <appender-ref ref="STANDARD_APPENDER" />
         <appender-ref ref="PRETTY_APPENDER" />
         <appender-ref ref="FILEROLLER_APPENDER" />
-        <appender-ref ref="METADATA_FILEROLLER_APPENDER" />
         <appender-ref ref="Sentry" />
     </root>
+
+    <logger name="metadata_logger" level="info" additivity="false">
+        <appender-ref ref="METADATA_FILEROLLER_APPENDER" />
+    </logger>
 
     <logger name="com.zaxxer.hikari" level="ERROR"/>
     <logger name="HikariPool" level="ERROR"/>

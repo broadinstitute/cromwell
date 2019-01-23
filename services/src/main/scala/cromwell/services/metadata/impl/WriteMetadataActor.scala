@@ -10,6 +10,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 import io.circe.generic.auto._
 import io.circe.syntax._
+import io.circe.Printer.noSpaces
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
@@ -25,13 +26,13 @@ class WriteMetadataActor(override val batchSize: Int,
     with MetadataDatabaseAccess
     with MetadataServicesStore {
 
-  val logger = LoggerFactory.getLogger("METADATA_FILEROLLER_APPENDER")
+  val logger = LoggerFactory.getLogger("metadata_logger")
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
     e.toVector.flatMap(_.events).foreach{
       case e:MetadataEvent/*(MetadataKey(workflowId, jobKeyOption, key), valueOption, offsetDateTime)*/ =>
-        logger.info(s"${e.key.key}|${e.asJson}")
+        logger.info(s"${e.key.key}|${e.asJson.pretty(noSpaces)}")
     }
 
     val (putWithoutResponse, putWithResponse) = e.foldLeft(empty)({

@@ -275,6 +275,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       factory <- findFactory(sourceAndResolvers._1).toIOChecked
       outputRuntimeExtractor <- factory.womOutputRuntimeExtractor.toValidated.toIOChecked
       validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
+      _ = sourceAndResolvers._2.foreach(_.close())
       _ = pushNamespaceMetadata(validatedNamespace)
       ewd <- buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toIOChecked
     } yield ewd

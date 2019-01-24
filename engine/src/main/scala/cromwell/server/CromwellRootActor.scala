@@ -2,7 +2,7 @@ package cromwell.server
 
 import akka.actor.SupervisorStrategy.{Escalate, Restart}
 import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, OneForOneStrategy}
-//import akka.event.Logging
+import akka.event.Logging
 import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
@@ -29,7 +29,6 @@ import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStore, SubWork
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -55,8 +54,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
   // Make sure the filesystems are initialized at startup
   val _ = CromwellFileSystems.instance
 
-  //private val logger = Logging(context.system, this)
-  private val logger = LoggerFactory.getLogger("METADATA_FILEROLLER_APPENDER")
+  private val logger = Logging(context.system, this)
   protected val config = ConfigFactory.load()
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)

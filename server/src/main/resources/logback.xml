@@ -73,42 +73,7 @@
             </appender>
         </then>
         <else>
-            <appender name="FILEROLLER_APPENDER" class="ch.qos.logback.core.ConsoleAppender" />
-        </else>
-    </if>
-
-    <if condition='property("METADATA_FILEROLLER_DIR").equals("")'>
-        <then><property name="METADATA_FILEROLLER_DIR" value="/var/log/cromwell" /></then>
-    </if>
-
-    <if condition='property("METADATA_FILEROLLER_MAXHISTORY").equals("")'>
-        <then> <property name="METADATA_FILEROLLER_MAXHISTORY" value="30" /> </then>
-    </if>
-
-    <if condition='property("METADATA_FILEROLLER_NAME").equals("")'>
-        <then> <property name="METADATA_FILEROLLER_NAME" value="cromwell_metadata.log" /> </then>
-    </if>
-
-    <if condition='property("METADATA_LOG_MODE").toUpperCase().equals("FILEROLLER")'>
-        <then>
-            <appender name="METADATA_FILEROLLER_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
-
-                <file>${METADATA_FILEROLLER_DIR}/${METADATA_FILEROLLER_NAME}</file>
-
-                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-
-                    <maxHistory>${METADATA_FILEROLLER_MAXHISTORY}</maxHistory>
-
-                    <fileNamePattern>${METADATA_FILEROLLER_DIR}/%d{yyyyMMddHH}-${METADATA_FILEROLLER_NAME}</fileNamePattern>
-
-                </rollingPolicy>
-                <encoder>
-                    <pattern>%msg%n</pattern>
-                </encoder>
-            </appender>
-        </then>
-        <else>
-            <appender name="METADATA_FILEROLLER_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
+            <appender name="FILEROLLER_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
         </else>
     </if>
 
@@ -125,10 +90,6 @@
         <appender-ref ref="FILEROLLER_APPENDER" />
         <appender-ref ref="Sentry" />
     </root>
-
-    <logger name="metadata_logger" level="info" additivity="false">
-        <appender-ref ref="METADATA_FILEROLLER_APPENDER" />
-    </logger>
 
     <logger name="com.zaxxer.hikari" level="ERROR"/>
     <logger name="HikariPool" level="ERROR"/>

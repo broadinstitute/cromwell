@@ -36,6 +36,7 @@ object ImportResolver {
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>
       innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(s"resolve '${request.toResolve}' using resolver: '$name'")
     }
+    def close(): Try[Unit]
   }
 
   object DirectoryResolver {
@@ -127,6 +128,8 @@ object ImportResolver {
         val shortPathToDirectory = Paths.get(absolutePathToDirectory).toFile.getCanonicalFile.toPath.getFileName.toString
         s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
     }
+
+    override def close(): Try[Unit]= Try(directory.delete(swallowIOExceptions = true))
   }
 
   def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
@@ -180,6 +183,8 @@ object ImportResolver {
         }).contextualizeErrors(s"download $toLookup")
       }
     }
+
+    override def close(): Try[Unit] = Try(())
   }
 
   object HttpResolver {

@@ -184,7 +184,7 @@ object ImportResolver {
       }
     }
 
-    override def close(): Try[Unit] = Try(())
+    override def close(): Try[Unit] = Success(())
   }
 
   object HttpResolver {

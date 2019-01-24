@@ -40,8 +40,8 @@ inputs:
     type: array
 - id: reference__fasta__base
   secondaryFiles:
-  - .fai
   - ^.dict
+  - .fai
   type:
     items: File
     type: array
@@ -176,7 +176,12 @@ inputs:
 - id: reference__viral
   secondaryFiles:
   - .fai
+  - .ann
+  - .sa
+  - .pac
+  - .amb
   - ^.dict
+  - .bwt
   type:
     items: File
     type: array

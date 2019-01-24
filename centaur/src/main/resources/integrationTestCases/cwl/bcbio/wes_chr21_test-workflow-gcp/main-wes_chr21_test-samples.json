@@ -24,6 +24,10 @@
         "bwa",
         "bwa"
     ],
+    "config__algorithm__archive": [
+        null,
+        null
+    ],
     "config__algorithm__bam_clean": [
         "False",
         "False"
@@ -551,11 +555,11 @@
             "secondaryFiles": [
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
                 },
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
                 }
             ]
         },
@@ -565,11 +569,11 @@
             "secondaryFiles": [
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
                 },
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
                 }
             ]
         }
@@ -957,11 +961,31 @@
             "secondaryFiles": [
                 {
                     "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.dict"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.amb"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.bwt"
+                },
+                {
+                    "class": "File",
                     "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.fai"
                 },
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.dict"
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.sa"
                 }
             ]
         },
@@ -971,11 +995,31 @@
             "secondaryFiles": [
                 {
                     "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.dict"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.amb"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.bwt"
+                },
+                {
+                    "class": "File",
                     "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.fai"
                 },
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.dict"
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.sa"
                 }
             ]
         }

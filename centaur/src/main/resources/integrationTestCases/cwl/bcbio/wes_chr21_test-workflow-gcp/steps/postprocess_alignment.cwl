@@ -92,6 +92,10 @@ inputs:
       - 'null'
       - items: 'null'
         type: array
+    - name: config__algorithm__archive
+      type:
+      - 'null'
+      - string
     - name: align_bam
       type:
       - File

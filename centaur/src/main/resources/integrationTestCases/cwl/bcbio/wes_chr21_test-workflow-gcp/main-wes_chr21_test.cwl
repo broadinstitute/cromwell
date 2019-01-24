@@ -22,8 +22,8 @@ inputs:
     type: array
 - id: reference__fasta__base
   secondaryFiles:
-  - .fai
   - ^.dict
+  - .fai
   type:
     items: File
     type: array
@@ -280,7 +280,12 @@ inputs:
 - id: reference__viral
   secondaryFiles:
   - .fai
+  - .ann
+  - .sa
+  - .pac
+  - .amb
   - ^.dict
+  - .bwt
   type:
     items: File
     type: array
@@ -352,6 +357,12 @@ inputs:
 - id: rgnames__pu
   type:
     items: string
+    type: array
+- id: config__algorithm__archive
+  type:
+    items:
+    - 'null'
+    - string
     type: array
 outputs:
 - id: rgnames__sample_out
@@ -564,6 +575,8 @@ steps:
   in:
   - id: align_bam
     source: alignment/align_bam
+  - id: config__algorithm__archive
+    source: config__algorithm__archive
   - id: config__algorithm__coverage_interval
     source: config__algorithm__coverage_interval
   - id: config__algorithm__exclude_regions

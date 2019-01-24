@@ -42,8 +42,8 @@ inputs:
     type: array
 - id: reference__fasta__base
   secondaryFiles:
-  - .fai
   - ^.dict
+  - .fai
   type:
     items: File
     type: array

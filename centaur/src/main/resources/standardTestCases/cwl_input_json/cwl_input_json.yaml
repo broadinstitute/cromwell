@@ -44,7 +44,7 @@ $graph:
   class: CommandLineTool
   hints:
   - class: DockerRequirement
-    dockerPull: "stedolan/jq:latest"
+    dockerPull: "cfmanteiga/alpine-bash-curl-jq:latest"
   inputs:
   - id: input_record
     type:

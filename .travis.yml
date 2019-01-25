@@ -40,6 +40,14 @@ env:
     - BUILD_TYPE=dockerDeadlock
     - BUILD_TYPE=dockerScripts
     - BUILD_TYPE=sbt
+  global:
+    # This is the variable `VAULT_TOKEN_GIT_COMMITTED`.
+    #
+    # WARNING: THIS ACCESS TOKEN WILL EXPIRE TOWARDS THE THIRD WEEK OF FEB `19.
+    #
+    # Hopefully https://support.travis-ci.com/hc/en-us/requests/3231 is resolved by then and we can
+    # go back to using variables set in the Travis Repository Settings.
+    secure: "lVQOcEcSHDu3GAzg4QqjxTTJHZs5W4waTHFOVqq20+D8T+r0vNuiNciicB0zqxPtoOLFRPqoEAKnbtDzOpRqPdGKu4HVyFPf8FFVRh1VINp35PH25ScUYk8TXmd5xFhoDpKzFV3QT1zSKR7Cv5Pd5qkvAoL2KXLMCCmxd3p8F0A="
 script:
   - src/ci/bin/test.sh
 notifications:

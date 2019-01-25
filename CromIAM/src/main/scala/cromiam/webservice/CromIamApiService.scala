@@ -66,9 +66,11 @@ trait CromIamApiService extends RequestSupport
     log,
     serviceRegistryActor)
 
-  lazy val samClient = new SamClient(configuration.samConfig.scheme,
-    configuration.samConfig.interface,
-    configuration.samConfig.port,
+  lazy val samClient = new SamClient(
+    configuration.samConfig.http.scheme,
+    configuration.samConfig.http.interface,
+    configuration.samConfig.http.port,
+    configuration.samConfig.checkSubmitWhitelist,
     log,
     serviceRegistryActor)
 

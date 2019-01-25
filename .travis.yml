@@ -21,7 +21,7 @@ before_cache:
   - find $HOME/.sbt -name "*.lock" -print -delete
 env:
   global:
-    - secure: Hvf+6hnM8cqLP93BGhPKqbq1QgyTMRboDeK5/cnNHqSnVLLR/AhRsTx/ltEQ/cppbUUirKRDXdNK59Q3n6QwvE4tX8Ke6jV3iHjtgOZrDHC+nqJ6iGBZSFX/fXtQwkab7UkaSkNlTWkP+bZ+ikHtqMrrekXpYtbYexsrDorgIMA=
+    - secure: DJ+gc9VMjFJQ/BcUaqZxeQ6A+dSJe3qAB+Cby+LkebFZaYLpee2r9CPfkeyzMQd/oy/nHLG0bkbv1EPu60Xf+lsQQIvNTyzem/9HpiQRyTSYS6W/kF1igDgmocRoQcHo0e5SJepL2BW0vpFQBEaYS95yIEimzkIAEyemlhqwSLc=
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=centaurAws

@@ -20,6 +20,8 @@ before_cache:
   - find $HOME/.coursier/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt -name "*.lock" -print -delete
 env:
+  global:
+    - secure: Hvf+6hnM8cqLP93BGhPKqbq1QgyTMRboDeK5/cnNHqSnVLLR/AhRsTx/ltEQ/cppbUUirKRDXdNK59Q3n6QwvE4tX8Ke6jV3iHjtgOZrDHC+nqJ6iGBZSFX/fXtQwkab7UkaSkNlTWkP+bZ+ikHtqMrrekXpYtbYexsrDorgIMA=
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - BUILD_TYPE=centaurAws

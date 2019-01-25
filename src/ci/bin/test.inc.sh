@@ -430,6 +430,9 @@ cromwell::private::vault_login() {
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${PAPI_TOKEN}"
+                echo "==========="
+                echo ${PAPI_TOKEN} | cut -d '-' -f1,3
+                echo "==========="
                 docker run --rm \
                     -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
                     broadinstitute/dsde-toolbox \

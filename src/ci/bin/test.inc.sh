@@ -430,6 +430,8 @@ cromwell::private::vault_login() {
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${JES_TOKEN}"
+                # See note in .travis.yml
+                vault_token="${VAULT_TOKEN_GIT_COMMITTED}"
                 docker run --rm \
                     -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
                     broadinstitute/dsde-toolbox \

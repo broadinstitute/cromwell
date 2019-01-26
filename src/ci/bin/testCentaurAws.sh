@@ -19,13 +19,11 @@ pip install awscli --upgrade --user
 export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_credentials
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
-# The following tests are skipped:
-#
-# -i singlesample.aws \
-#   Fails as of 2018-09-25 due to an over-eager .stripMargin
 
 cromwell::build::run_centaur \
     -i hello \
-    -i haplotypcaller.aws
+    -i long_cmd \
+    -i haplotypecaller.aws \
+    -i singlesample.aws \
 
 cromwell::build::generate_code_coverage

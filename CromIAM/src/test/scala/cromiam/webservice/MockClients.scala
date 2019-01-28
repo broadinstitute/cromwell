@@ -32,12 +32,11 @@ class MockCromwellClient()(implicit system: ActorSystem,
     val userIdHeader = httpRequest.headers.find(header => header.name.equalsIgnoreCase("OIDC_CLAIM_user_id"))
 
     userIdHeader match {
-      case Some(header) => {
+      case Some(header) =>
         header.value match {
           case s if s.equalsIgnoreCase(authorizedUserCollectionStr) => Future.successful(HttpResponse(status = OK, entity = "Response from Cromwell"))
           case s => Future.failed(new Exception(s"This is unexpected! Cromwell should not receive request from unauthorized user! OIDC_CLAIM_user_id: $s is not authorized."))
         }
-      }
       case None => Future.failed(new Exception("This is unexpected! No OIDC_CLAIM_user_id provided for authorization!"))
     }
   }
@@ -68,10 +67,18 @@ class MockCromwellClient()(implicit system: ActorSystem,
   }
 }
 
-class MockSamClient()(implicit system: ActorSystem,
+class MockSamClient(checkSubmitWhitelist: Boolean = true)
+                   (implicit system: ActorSystem,
                       ece: ExecutionContextExecutor,
                       materializer: ActorMaterializer)
-  extends SamClient("http", "bar", 1, NoLogging, ActorRef.noSender)(system, ece, materializer) {
+  extends SamClient(
+    "http",
+    "bar",
+    1,
+    checkSubmitWhitelist,
+    NoLogging,
+    ActorRef.noSender
+  )(system, ece, materializer) {
 
   val authorizedUserCollectionStr: String = "123456789"
   val unauthorizedUserCollectionStr: String = "987654321"
@@ -94,7 +101,7 @@ class MockSamClient()(implicit system: ActorSystem,
     }
   }
 
-  override def isSubmitWhitelisted(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
+  override def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
     if (user.userId.value.equalsIgnoreCase(notWhitelistedUser)) Future.successful(false)
     else Future.successful(true)
   }

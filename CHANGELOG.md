@@ -72,6 +72,21 @@ The endpoint is still undergoing heavy development and should not be used in pro
 
 On Hold workflows may now be aborted.
 
+#### Command fixes for AWS and TES
+
+The AWS and TES backends can now handle calls that generate longer command lines. Like the other
+backends, commands scripts are first written to a file, the file is downloaded to the execution
+host, and then the localized script is run.
+
+Also fixed are AWS `command {}` blocks that use `|` at the start of a line. For example:
+
+```
+command {
+  echo hello world \
+  | cat
+}
+```
+
 ## 36 Release Notes
 
 ### Extra configuration options

@@ -1,4 +1,4 @@
-name: haplotypcaller
+name: haplotypecaller
 testFormat: workflowsuccess
 
 files {

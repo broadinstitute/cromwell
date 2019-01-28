@@ -33,6 +33,7 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
+import org.apache.commons.lang3.StringUtils
 import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
@@ -168,6 +169,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   lazy val jobShell: String = configurationDescriptor.backendConfig.getOrElse("job-shell",
     configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
+
+  lazy val abbreviateCommandLength: Int = configurationDescriptor.backendConfig.getOrElse("abbreviate-command-length",
+    configurationDescriptor.globalConfig.getOrElse("system.abbreviate-command-length", 0))
 
   /**
     * The local path where the command will run.
@@ -310,8 +314,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
-    jobLogger.info(s"`${instantiatedCommand.commandString}`")
-    tellMetadata(Map(CallMetadataKeys.CommandLine -> instantiatedCommand.commandString))
+    val commandString = instantiatedCommand.commandString
+    val commandStringAbbreviated = StringUtils.abbreviateMiddle(commandString, "...", abbreviateCommandLength)
+    jobLogger.info(s"`$commandStringAbbreviated`")
+    tellMetadata(Map(CallMetadataKeys.CommandLine -> commandStringAbbreviated))
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
@@ -391,7 +397,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |""".stripMargin
       .replace("SCRIPT_PREAMBLE", scriptPreamble)
       .replace("ENVIRONMENT_VARIABLES", environmentVariables)
-      .replace("INSTANTIATED_COMMAND", instantiatedCommand.commandString)
+      .replace("INSTANTIATED_COMMAND", commandString)
       .replace("SCRIPT_EPILOGUE", scriptEpilogue)
       .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir))
   }

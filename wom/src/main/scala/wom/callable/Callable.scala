@@ -78,6 +78,10 @@ object Callable {
     }
   }
 
+  sealed trait HasDefault extends InputDefinition {
+    val default: WomExpression
+  }
+
   /**
     * An input definition that has a default value supplied. Typical WDL example would be a declaration like: "Int x = 5"
     */
@@ -85,7 +89,7 @@ object Callable {
                                               womType: WomType,
                                               default: WomExpression,
                                               valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
-                                              parameterMeta: Option[MetaValueElement] = None) extends InputDefinition
+                                              parameterMeta: Option[MetaValueElement] = None) extends HasDefault
 
   object FixedInputDefinition {
     def apply(name: String, womType: WomType, default: WomExpression): FixedInputDefinition = {
@@ -103,7 +107,7 @@ object Callable {
                                         womType: WomType,
                                         default: WomExpression,
                                         valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
-                                        parameterMeta: Option[MetaValueElement] = None) extends InputDefinition
+                                        parameterMeta: Option[MetaValueElement] = None) extends HasDefault
 
   object OptionalInputDefinition {
     def apply(name: String, womType: WomOptionalType): OptionalInputDefinition = OptionalInputDefinition(LocalName(name), womType, InputDefinition.IdentityValueMapper, None)

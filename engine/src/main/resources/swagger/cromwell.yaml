@@ -1079,8 +1079,8 @@ definitions:
   DescriptorType:
     type: string
     description: >-
-      A list of descriptor types that are used tool (e.g. CWL v1.0,
-      WDL 1.0). Note that these files can also include associated Docker/container files
+      One from a list of descriptor type strings (e.g. CWL, WDL).
+      Note that these files can also include associated Docker/container files
       and test parameters that further describe a version of a tool
     example: "WDL"
     enum:

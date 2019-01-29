@@ -7,6 +7,8 @@ import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
 import io.circe.Json
 import org.scalatest.{Assertion, FlatSpec, Matchers}
 
+import scala.util.Try
+
 class DescriberSpec extends FlatSpec with Matchers {
 
   val validationTestCases = File("services/src/test/resources/describe")
@@ -27,12 +29,15 @@ class DescriberSpec extends FlatSpec with Matchers {
         val workflow = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow.wdl").toFile).mkString
         val description = scala.io.Source.fromFile(caseDirectory.toPath.resolve("description.json").toFile).mkString
 
+        val workflowType = Try(scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflowType").toFile).mkString.stripLineEnd).toOption
+        val workflowTypeVersion = Try(scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflowTypeVersion").toFile).mkString.stripLineEnd).toOption
+
         val wsfc = WorkflowSourceFilesCollection(
           workflowSource = Some(workflow),
           workflowUrl = None,
           workflowRoot = None,
-          workflowType = None,
-          workflowTypeVersion = None,
+          workflowType = workflowType,
+          workflowTypeVersion = workflowTypeVersion,
           inputsJson = "",
           workflowOptionsJson = "",
           labelsJson = "",

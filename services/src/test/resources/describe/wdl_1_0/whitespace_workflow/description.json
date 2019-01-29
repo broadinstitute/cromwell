@@ -1,0 +1,21 @@
+{
+  "valid" : false,
+  "errors" : [
+    "ERROR: Unexpected end of file"
+  ],
+  "name" : "",
+  "inputs" : [
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  }
+}

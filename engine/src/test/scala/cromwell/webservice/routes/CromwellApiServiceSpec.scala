@@ -197,8 +197,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       check {
         assertResult(
           s"""{
-             |  "status": "fail",
-             |  "message": "Error(s): Error while validating workflow url: unknown protocol: htpps"
+             |  "message": "Error(s): Error while validating workflow url: unknown protocol: htpps",
+             |  "status": "fail"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }
@@ -257,8 +257,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       check {
         assertResult(
           s"""{
-             |  "status": "fail",
-             |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
+             |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}",
+             |  "status": "fail"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }
@@ -442,8 +442,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.NotFound) { status }
           assertResult(
             s"""{
-               |  "status": "fail",
-               |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
+               |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}",
+               |  "status": "fail"
                |}""".stripMargin) {
             responseAs[String].parseJson.prettyPrint
           }
@@ -457,8 +457,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.BadRequest) { status }
           assertResult(
             s"""{
-               |  "status": "fail",
-               |  "message": "Invalid workflow ID: 'foo'."
+               |  "message": "Invalid workflow ID: 'foo'.",
+               |  "status": "fail"
                |}""".stripMargin) {
             responseAs[String].parseJson.prettyPrint
           }

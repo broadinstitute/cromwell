@@ -29,6 +29,7 @@ scripts/docker-compose-mysql/compose/mysql/data
 artifactory_credentials.properties
 aws_credentials
 bcs_application.conf
+bcs_login.inc.sh
 centaur_secure.inc.conf
 cromwell-centaur-requester-pays-service-account.json
 cromwell-centaur-service-account.json

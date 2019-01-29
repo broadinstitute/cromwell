@@ -16,7 +16,7 @@ import java.util.Set;
 import org.apache.tika.Tika;
 
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.sync.ResponseBytes;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -118,7 +118,7 @@ public class S3SeekableByteChannel implements SeekableByteChannel {
 
             S3Client client = path.getFileSystem().getClient();
 
-            client.putObject(builder.build(), RequestBody.of(stream, length));
+            client.putObject(builder.build(), RequestBody.fromInputStream(stream, length));
         }
     }
 

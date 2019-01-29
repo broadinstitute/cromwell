@@ -1,7 +1,7 @@
 package org.lerch.s3fs;
 
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.sync.ResponseInputStream;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
@@ -13,6 +13,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -388,7 +389,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         builder.bucket(bucketName)
                .key(directoryKey)
                .contentLength(0L);
-        s3Path.getFileSystem().getClient().putObject(builder.build(), RequestBody.of(new byte[0]));
+        s3Path.getFileSystem().getClient().putObject(builder.build(), RequestBody.fromBytes(new byte[0]));
     }
 
     @Override
@@ -641,7 +642,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
      * only 4 testing
      */
 
-    protected static ConcurrentMap<String, S3FileSystem> getFilesystems() {
+    @VisibleForTesting
+    public static ConcurrentMap<String, S3FileSystem> getFilesystems() {
         return fileSystems;
     }
 

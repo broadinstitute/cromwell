@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o errexit -o nounset -o pipefail
+
 # A set of common functions for use in other scripts.
 #
 # Functions:
@@ -20,15 +22,15 @@
 #
 #   - crmcit
 #     Simulate a centaur integration test build. Example: `crmcit=y src/ci/bin/testCentaurPapiV2.sh`
-#
+
 cromwell::private::check_debug() {
     # shellcheck disable=SC2154
-    if [ -n "${crmdbg:+set}" ]; then
-        set -x
+    if [[ -n "${crmdbg:+set}" ]]; then
+        set -o xtrace
     fi
 
     # shellcheck disable=SC2154
-    if [ -n "${crmcit:+set}" ]; then
+    if [[ -n "${crmcit:+set}" ]]; then
         CROMWELL_BUILD_CENTAUR_TYPE="integration"
     fi
 }
@@ -39,9 +41,9 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
-    if [ "${TRAVIS-false}" = "true" ]; then
+    if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
-    elif [ "${JENKINS-false}" = "true" ]; then
+    elif [[ "${JENKINS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
@@ -70,6 +72,12 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_WAIT_FOR_IT_URL="https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
     CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_build_exit_functions.$$"
+
+    if [[ -n "${VIRTUAL_ENV:+set}" ]]; then
+      CROMWELL_BUILD_IS_VIRTUAL_ENV=true
+    else
+      CROMWELL_BUILD_IS_VIRTUAL_ENV=false
+    fi
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -158,15 +166,15 @@ cromwell::private::create_build_variables() {
 
     CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
 
-    if [ -z "${CROMWELL_BUILD_OPTIONAL_SECURE-}" ]; then
+    if [[ -z "${CROMWELL_BUILD_OPTIONAL_SECURE-}" ]]; then
         CROMWELL_BUILD_OPTIONAL_SECURE=false
     fi
 
-    if [ -z "${CROMWELL_BUILD_REQUIRES_SECURE-}" ]; then
+    if [[ -z "${CROMWELL_BUILD_REQUIRES_SECURE-}" ]]; then
         CROMWELL_BUILD_REQUIRES_SECURE=false
     fi
 
-    if [ -z "${JES_TOKEN-}" ]; then
+    if [[ -z "${JES_TOKEN-}" ]]; then
         JES_TOKEN="jes token is not set as an environment variable"
     fi
 
@@ -190,6 +198,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
     export CROMWELL_BUILD_IS_SECURE
+    export CROMWELL_BUILD_IS_VIRTUAL_ENV
     export CROMWELL_BUILD_LOG_DIRECTORY
     export CROMWELL_BUILD_MYSQL_HOSTNAME
     export CROMWELL_BUILD_MYSQL_PASSWORD
@@ -243,12 +252,12 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE="papiUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS="papiUpgradeNewWorkflows"
 
-    if [ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]; then
-        if [[ "${CROMWELL_BUILD_TYPE}" = centaurEngineUpgrade* ]]; then
+    if [[ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]]; then
+        if [[ "${CROMWELL_BUILD_TYPE}" == centaurEngineUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}"
-        elif [[ "${CROMWELL_BUILD_TYPE}" = centaurPapiUpgradeNewWorkflows* ]]; then
+        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgradeNewWorkflows* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}"
-        elif [[ "${CROMWELL_BUILD_TYPE}" = centaurPapiUpgrade* ]]; then
+        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}"
         else
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_STANDARD}"
@@ -285,7 +294,8 @@ cromwell::private::create_centaur_variables() {
 cromwell::private::verify_secure_build() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            if [ "${CROMWELL_BUILD_IS_SECURE}" != "true" ] && [ "${CROMWELL_BUILD_REQUIRES_SECURE}" = "true" ]; then
+            if [[ "${CROMWELL_BUILD_IS_SECURE}" != "true" ]] && \
+                [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]]; then
                 echo "********************************************************"
                 echo "********************************************************"
                 echo "**                                                    **"
@@ -344,8 +354,22 @@ cromwell::private::delete_sbt_boot() {
     rm -rf ~/.sbt/boot/
 }
 
+cromwell::private::pip_install() {
+    local pip_package
+    pip_package="${1:?pip_install called without a package}"; shift
+
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        sudo -H pip install "${pip_package}" "$@"
+    elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
+        pip install "${pip_package}" "$@"
+    else
+        pip install "${pip_package}" --user "$@"
+    fi
+}
+
 cromwell::private::upgrade_pip() {
-    sudo -H pip install --upgrade pip
+    cromwell::private::pip_install pip --upgrade
+    cromwell::private::pip_install requests[security] --ignore-installed
 }
 
 cromwell::private::install_wait_for_it() {
@@ -378,13 +402,12 @@ cromwell::private::pull_common_docker_images() {
 cromwell::private::install_cwltest() {
     # TODO: No clue why these are needed for cwltool. If you know please update this comment.
     sudo apt-get install procps || true
-    sudo -H pip install 'requests[security]'
-    sudo -H pip install --ignore-installed cwltool=="${CROMWELL_BUILD_CWL_TOOL_VERSION}"
-    sudo -H pip install cwltest=="${CROMWELL_BUILD_CWL_TEST_VERSION}"
+    cromwell::private::pip_install cwltool=="${CROMWELL_BUILD_CWL_TOOL_VERSION}" --ignore-installed
+    cromwell::private::pip_install cwltest=="${CROMWELL_BUILD_CWL_TEST_VERSION}"
 }
 
 cromwell::private::checkout_pinned_cwl() {
-    if [ ! -d "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" ]; then
+    if [[ ! -d "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" ]]; then
         git clone \
             https://github.com/common-workflow-language/common-workflow-language.git \
             "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}"
@@ -414,7 +437,7 @@ cromwell::private::docker_login() {
     else
         local dockerhub_auth_include
         dockerhub_auth_include="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/dockerhub_auth.inc.sh"
-        if [ -f "${dockerhub_auth_include}" ]; then
+        if [[ -f "${dockerhub_auth_include}" ]]; then
             # shellcheck source=/dev/null
             source "${dockerhub_auth_include}"
         fi
@@ -424,7 +447,7 @@ cromwell::private::docker_login() {
 cromwell::private::vault_login() {
     if cromwell::private::is_xtrace_enabled; then
         cromwell::private::exec_silent_function cromwell::private::vault_login
-    elif [ "${CROMWELL_BUILD_IS_SECURE}" = "true" ]; then
+    elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
             "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
                 # Login to vault to access secrets
@@ -435,7 +458,6 @@ cromwell::private::vault_login() {
                     broadinstitute/dsde-toolbox \
                     vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
                 || true
-                unset vault_token
                 ;;
             *)
                 ;;
@@ -445,7 +467,7 @@ cromwell::private::vault_login() {
 
 cromwell::private::render_secure_resources() {
     sbt renderCiResources \
-    || if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
+    || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
         echo "Continuing without rendering secure resources."
     else
@@ -466,7 +488,7 @@ cromwell::private::copy_all_resources() {
 }
 
 cromwell::private::setup_secure_resources() {
-    if [ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ] || [ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]; then
+    if [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]] || [[ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
             "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
                 cromwell::private::vault_login
@@ -486,7 +508,7 @@ cromwell::private::setup_secure_resources() {
 }
 
 cromwell::private::make_build_directories() {
-    if [ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]; then
+    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]; then
         sudo chmod -R a+w .
     fi
     mkdir -p "${CROMWELL_BUILD_LOG_DIRECTORY}"
@@ -516,7 +538,7 @@ cromwell::private::setup_prior_version_resources() {
     export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
 
     prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
-    if [ -f "${prior_config}" ]; then
+    if [[ -f "${prior_config}" ]]; then
         CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
         export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
     fi
@@ -594,14 +616,14 @@ cromwell::private::start_build_heartbeat() {
 }
 
 cromwell::private::start_cromwell_log_tail() {
-    while [ ! -f "${CROMWELL_BUILD_CROMWELL_LOG}" ]; do
+    while [[ ! -f "${CROMWELL_BUILD_CROMWELL_LOG}" ]]; do
         sleep 2
     done && tail -n 0 -f "${CROMWELL_BUILD_CROMWELL_LOG}" 2> /dev/null &
     CROMWELL_BUILD_CROMWELL_LOG_TAIL_PID=$!
 }
 
 cromwell::private::start_centaur_log_tail() {
-    while [ ! -f "${CROMWELL_BUILD_CENTAUR_LOG}" ]; do
+    while [[ ! -f "${CROMWELL_BUILD_CENTAUR_LOG}" ]]; do
         sleep 2
     done && tail -n 0 -f "${CROMWELL_BUILD_CENTAUR_LOG}" 2> /dev/null &
     CROMWELL_BUILD_CENTAUR_LOG_TAIL_PID=$!
@@ -618,25 +640,25 @@ cromwell::private::cat_conformance_log() {
 }
 
 cromwell::private::kill_build_heartbeat() {
-    if [ -n "${CROMWELL_BUILD_HEARTBEAT_PID:+set}" ]; then
+    if [[ -n "${CROMWELL_BUILD_HEARTBEAT_PID:+set}" ]]; then
         cromwell::private::kill_tree "${CROMWELL_BUILD_HEARTBEAT_PID}"
     fi
 }
 
 cromwell::private::kill_cromwell_log_tail() {
-    if [ -n "${CROMWELL_BUILD_CROMWELL_LOG_TAIL_PID:+set}" ]; then
+    if [[ -n "${CROMWELL_BUILD_CROMWELL_LOG_TAIL_PID:+set}" ]]; then
         cromwell::private::kill_tree "${CROMWELL_BUILD_CROMWELL_LOG_TAIL_PID}"
     fi
 }
 
 cromwell::private::kill_centaur_log_tail() {
-    if [ -n "${CROMWELL_BUILD_CENTAUR_LOG_TAIL_PID:+set}" ]; then
+    if [[ -n "${CROMWELL_BUILD_CENTAUR_LOG_TAIL_PID:+set}" ]]; then
         cromwell::private::kill_tree ${CROMWELL_BUILD_CENTAUR_LOG_TAIL_PID}
     fi
 }
 
 cromwell::private::run_exit_functions() {
-    if [ -f "${CROMWELL_BUILD_EXIT_FUNCTIONS}" ]; then
+    if [[ -f "${CROMWELL_BUILD_EXIT_FUNCTIONS}" ]]; then
         local exit_function
         while read exit_function; do
           ${exit_function} || true
@@ -649,7 +671,7 @@ cromwell::private::run_exit_functions() {
 # Requires one positional parameter, the function to run.
 cromwell::private::add_exit_function() {
     local exit_function
-    exit_function="${1:?add_exit_function called without a function}"
+    exit_function="${1:?add_exit_function called without a function}"; shift
     echo "${exit_function}" >> "${CROMWELL_BUILD_EXIT_FUNCTIONS}"
     trap cromwell::private::run_exit_functions TERM EXIT
 }
@@ -657,10 +679,11 @@ cromwell::private::add_exit_function() {
 cromwell::private::exec_silent_function() {
     local silent_function
     local xtrace_restore_function
-    silent_function="${1:?exec_silent_function called without a function}"
-    xtrace_restore_function="$(shopt -po xtrace)"
+    silent_function="${1:?exec_silent_function called without a function}"; shift
+
+    xtrace_restore_function="$(shopt -po xtrace || true)"
     shopt -uo xtrace
-    ${silent_function}
+    ${silent_function} "$@"
     ${xtrace_restore_function}
 }
 
@@ -672,7 +695,7 @@ cromwell::private::is_xtrace_enabled() {
 cromwell::private::kill_tree() {
   local pid
   local cpid
-  pid="${1:?kill_tree called without a pid}"
+  pid="${1:?kill_tree called without a pid}"; shift
   for cpid in $(pgrep -P "${pid}"); do
     cromwell::private::kill_tree "${cpid}"
   done
@@ -716,18 +739,18 @@ cromwell::build::setup_common_environment() {
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    if [ "${CROMWELL_BUILD_CENTAUR_TYPE}" = "${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}" ]; then
+    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}" ]]; then
         cromwell::private::setup_prior_version_resources
-    elif [ "${CROMWELL_BUILD_CENTAUR_TYPE}" = "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]; then
+    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]]; then
         cromwell::private::setup_prior_version_resources
         export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_37_papi_v2_upgrade.application.conf"
-    elif [ "${CROMWELL_BUILD_CENTAUR_TYPE}" = "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}" ]; then
+    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}" ]]; then
         export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_37_papi_v2_upgrade.application.conf"
     fi;
     cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::add_exit_function cromwell::private::cat_centaur_log
     fi
     cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
@@ -745,7 +768,7 @@ cromwell::build::run_centaur() {
 
 cromwell::build::setup_conformance_environment() {
     cromwell::private::export_conformance_variables
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ]; then
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::install_cwltest
     fi
     cromwell::private::checkout_pinned_cwl
@@ -757,7 +780,7 @@ cromwell::build::setup_conformance_environment() {
 
 cromwell::build::assemble_jars() {
     cromwell::private::find_cromwell_jar
-    if [ "${CROMWELL_BUILD_IS_CI}" = "true" ] || ! cromwell::private::exists_cromwell_jar; then
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]] || ! cromwell::private::exists_cromwell_jar; then
         echo "Please wait, building jars…"
         cromwell::private::assemble_jars
     fi
@@ -769,17 +792,17 @@ cromwell::build::assemble_jars() {
 }
 
 cromwell::build::generate_code_coverage() {
-    if [ "${CROMWELL_BUILD_GENERATE_COVERAGE}" = "true" ]; then
+    if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         cromwell::private::generate_code_coverage
     fi
 }
 
 cromwell::build::publish_artifacts() {
-    if [ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ] && \
-        [ "${CROMWELL_BUILD_TYPE}" == "sbt" ] && \
-        [ "${CROMWELL_BUILD_EVENT}" == "push" ]; then
+    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
+        [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
+        [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
 
-        if [ "${CROMWELL_BUILD_BRANCH}" = "develop" ]; then
+        if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]]; then
             # Publish images for both the "cromwell develop branch" and the "cromwell dev environment".
             CROMWELL_SBT_DOCKER_TAGS=develop,dev \
                 cromwell::private::publish_artifacts_and_docker \
@@ -790,18 +813,51 @@ cromwell::build::publish_artifacts() {
             # Docker tags float. "30" is the latest hotfix. Those dockers are published here on each hotfix commit.
             cromwell::private::publish_artifacts_and_docker -Dproject.isSnapshot=false
 
-        elif [ -n "${CROMWELL_BUILD_TAG:+set}" ]; then
+        elif [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
             # Artifact tags are static. Once "30" is set that is only "30" forever. Those artifacts are published here.
             cromwell::private::publish_artifacts_only \
                 -Dproject.version="${CROMWELL_BUILD_TAG}" \
                 -Dproject.isSnapshot=false
 
-        elif [ "${CROMWELL_BUILD_IS_SECURE}" = "true" ]; then
+        elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
             cromwell::private::publish_artifacts_check
 
         fi
 
     fi
+}
+
+cromwell::build::exec_retry_function() {
+    local retried_function
+    local retry_count
+    local attempt
+    local exit_status
+
+    retried_function="${1:?exec_retry_function called without a function}"; shift
+    retry_count="${1:-3}"; shift || true
+    sleep_seconds="${1:-15}"; shift || true
+
+    # https://unix.stackexchange.com/a/82610
+    # https://stackoverflow.com/a/17336953
+    for attempt in $(seq 0 ${retry_count}); do
+        [[ ${attempt} -gt 0 ]] && sleep ${sleep_seconds}
+        ${retried_function} && exit_status=0 && break || exit_status=$?
+    done
+    return ${exit_status}
+}
+
+cromwell::build::exec_silent_function() {
+    local silent_function
+    silent_function="${1:?exec_silent_function called without a function}"; shift
+    if cromwell::private::is_xtrace_enabled; then
+        cromwell::private::exec_silent_function ${silent_function} "$@"
+    else
+        ${silent_function} "$@"
+    fi
+}
+
+cromwell::build::pip_install() {
+    cromwell::private::pip_install "$@"
 }
 
 cromwell::build::add_exit_function() {

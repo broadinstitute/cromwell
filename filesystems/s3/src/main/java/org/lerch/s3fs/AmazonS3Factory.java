@@ -1,14 +1,16 @@
 package org.lerch.s3fs;
 
-import software.amazon.awssdk.core.auth.AwsCredentialsProvider;
-import software.amazon.awssdk.core.auth.StaticCredentialsProvider;
-import software.amazon.awssdk.core.auth.AwsCredentials;
-import software.amazon.awssdk.core.auth.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.http.SdkHttpClient;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
-import software.amazon.awssdk.services.s3.S3AdvancedConfiguration;
-import software.amazon.awssdk.core.client.builder.ClientHttpConfiguration;
-import software.amazon.awssdk.core.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.services.s3.S3Configuration;
 
 import java.net.URI;
 import java.util.Properties;
@@ -51,8 +53,8 @@ public abstract class AmazonS3Factory {
             builder.endpointOverride(uri);
 
         builder.credentialsProvider(getCredentialsProvider(props))
-               .httpConfiguration(getHttpConfiguration(props))
-               .advancedConfiguration(getAdvancedConfiguration(props))
+               .httpClient(getSdkHttpClient(props))
+               .serviceConfiguration(getConfiguration(props))
                .overrideConfiguration(getOverrideConfiguration(props));
                //.region(getRegion(props));
 
@@ -62,10 +64,7 @@ public abstract class AmazonS3Factory {
     /**
      * should return a new S3Client
      *
-     * @param credentialsProvider     AWSCredentialsProvider mandatory
-     * @param clientConfiguration     ClientConfiguration mandatory
-     * @param requestMetricsCollector RequestMetricCollector mandatory
-     * @return {@link software.amazon.awssdk.services.s3.AmazonS3}
+     * @return {@link software.amazon.awssdk.services.s3.S3Client}
      */
     protected abstract S3Client createS3Client(S3ClientBuilder builder);
 
@@ -79,17 +78,17 @@ public abstract class AmazonS3Factory {
     }
 
     protected AwsCredentials getAWSCredentials(Properties props) {
-        return AwsCredentials.create(props.getProperty(ACCESS_KEY), props.getProperty(SECRET_KEY));
+        return AwsBasicCredentials.create(props.getProperty(ACCESS_KEY), props.getProperty(SECRET_KEY));
     }
 
-    protected ClientHttpConfiguration getHttpConfiguration(Properties props) {
+    protected SdkHttpClient getSdkHttpClient(Properties props) {
         // TODO: custom http configuration based on properties
-        return ClientHttpConfiguration.builder().build();
+        return ApacheHttpClient.builder().build();
     }
 
-    protected S3AdvancedConfiguration getAdvancedConfiguration(Properties props) {
+    protected S3Configuration getConfiguration(Properties props) {
         // TODO: custom configuration based on properties
-        return S3AdvancedConfiguration.builder().build();
+        return S3Configuration.builder().build();
     }
 
     protected ClientOverrideConfiguration getOverrideConfiguration(Properties props) {

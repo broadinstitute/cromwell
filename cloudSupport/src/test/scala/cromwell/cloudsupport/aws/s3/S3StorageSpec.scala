@@ -29,9 +29,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 package cromwell.cloudsupport.aws.s3
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import org.scalatest.{FlatSpec, Matchers, Tag}
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.regions.Region
 
 class S3StorageSpec extends FlatSpec with Matchers {
 
@@ -45,14 +45,17 @@ class S3StorageSpec extends FlatSpec with Matchers {
   }
 
   it should "build s3 storage" taggedAs S3StorageSpecUtils.AwsTest in {
-    val configuration = S3Storage.s3AdvancedConfiguration(false, true)
+    val configuration = S3Storage.s3Configuration(dualstackEnabled = true)
     configuration.accelerateModeEnabled should be(false)
     configuration.dualstackEnabled should be(true)
     configuration.pathStyleAccessEnabled should be(false)
   }
 
   it should "build s3 client with credentials" taggedAs S3StorageSpecUtils.AwsTest in {
-    S3Storage.s3Client(AnonymousCredentialsProvider.create.getCredentials, Option(Region.US_EAST_1))
+    S3Storage.s3Client(
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      Option(Region.US_EAST_1)
+    )
   }
 
 }

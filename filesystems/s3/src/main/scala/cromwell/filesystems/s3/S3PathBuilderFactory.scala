@@ -42,7 +42,7 @@ import cromwell.core.WorkflowOptions
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.{ExecutionContext, Future}
-import software.amazon.awssdk.core.auth.AwsCredentials
+import software.amazon.awssdk.auth.credentials.AwsCredentials
 
 // The constructor of this class is required to be Config, Config by cromwell
 // So, we need to take this config and get the AuthMode out of it

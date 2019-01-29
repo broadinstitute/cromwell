@@ -32,10 +32,10 @@ import java.util.concurrent.TimeUnit;
 public class S3Utils {
 
     /**
-     * Get the {@link S3ObjectSummary} that represent this Path or her first child if this path not exists
+     * Get the {@link S3Object} that represent this Path or her first child if this path not exists
      *
      * @param s3Path {@link S3Path}
-     * @return {@link S3ObjectSummary}
+     * @return {@link S3Object}
      * @throws NoSuchFileException if not found the path and any child
      */
     public S3Object getS3ObjectSummary(S3Path s3Path) throws NoSuchFileException {
@@ -54,7 +54,7 @@ public class S3Utils {
                 .eTag(metadata.eTag())
                 .owner(acl.owner())
                 .size(metadata.contentLength())
-                .storageClass(metadata.storageClassString());
+                .storageClass(metadata.storageClassAsString());
 
             return builder.build();
         } catch (S3Exception e) {

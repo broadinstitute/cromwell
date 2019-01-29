@@ -163,7 +163,7 @@ object WdlNamespace {
       case Some(ast) =>
         WdlNamespace(ast, resource, workflowSource, importResolver, importedAs, root = root)
       case None =>
-        throw new IllegalArgumentException("Could not build AST from workflow source. Source may be empty, or contain only comments and/or whitespace.")
+        throw new IllegalArgumentException("Could not build AST from workflow source. Source is empty or contains only comments and whitespace.")
     }
   }
 

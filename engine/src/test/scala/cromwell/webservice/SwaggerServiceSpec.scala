@@ -38,19 +38,16 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
       check {
         status should be(StatusCodes.OK)
 
-        /*
-        BUG: Right now swagger-parser says that type is unexpected in security definitions. Should be fixed in
-        https://github.com/swagger-api/swagger-parser/pull/232/files#diff-392413c3c16ae4930f710f815575830dR30
-
-        Still don't know why they choose not to print the proper location.
-         */
-        val swaggerBugMsg = "attribute type is unexpected"
+        // https://github.com/swagger-api/swagger-parser/issues/976
+        val swaggerBugMsg = "needs to be defined as a path parameter in path or operation level"
 
         val body = responseAs[String]
         val resultWithInfo = new SwaggerParser().readWithInfo(body)
+        val swaggerVersion = resultWithInfo.getSwagger.getSwagger
+        val swaggerMessages = resultWithInfo.getMessages.asScala.filterNot(_ contains swaggerBugMsg)
 
-        resultWithInfo.getSwagger.getSwagger should be("2.0")
-        resultWithInfo.getMessages.asScala.filterNot(_ == swaggerBugMsg) should be(empty)
+        swaggerVersion should be("2.0")
+        swaggerMessages should be(empty)
 
         resultWithInfo.getSwagger.getDefinitions.asScala foreach {
           case (defKey, defVal) => defVal.getProperties.asScala foreach {

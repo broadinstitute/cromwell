@@ -17,14 +17,14 @@ FUNNEL_CONF="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/funnel.conf"
 
 # Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
 ulimit -n "$(ulimit -n -H)"
-if [ ! -f "${FUNNEL_PATH}" ]; then
+if [[ ! -f "${FUNNEL_PATH}" ]]; then
     FUNNEL_TAR_GZ="funnel-${CROMWELL_BUILD_OS}-amd64-0.5.0.tar.gz"
     curl "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${FUNNEL_TAR_GZ}" -o "${FUNNEL_TAR_GZ}" -L
     tar xzf "${FUNNEL_TAR_GZ}"
 fi
 
 shutdown_funnel() {
-    if [ -n "${FUNNEL_PID+set}" ]; then
+    if [[ -n "${FUNNEL_PID+set}" ]]; then
         cromwell::build::kill_tree "${FUNNEL_PID}"
     fi
 }
@@ -32,7 +32,7 @@ shutdown_funnel() {
 cromwell::build::add_exit_function shutdown_funnel
 
 mkdir -p logs
-nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" > logs/funnel.log 2>&1 &
+nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" &> logs/funnel.log &
 
 FUNNEL_PID=$!
 

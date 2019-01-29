@@ -15,7 +15,7 @@ cromwell::build::assemble_jars
 
 
 # Installing the AWS CLI
-pip install awscli --upgrade --user
+cromwell::build::pip_install awscli --upgrade
 export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_credentials
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 

@@ -31,7 +31,7 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 import cromwell.backend.io.JobPathsSpecHelper._
@@ -59,7 +59,11 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
 
@@ -78,7 +82,11 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
 
@@ -101,7 +109,11 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
     

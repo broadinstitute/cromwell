@@ -42,7 +42,7 @@ import common.validation.Validation._
 import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, AwsAuthMode, CustomKeyMode, DefaultMode}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.regions.Region
 
 final case class AwsConfiguration private (applicationName: String,
                                            authsByName: Map[String, AwsAuthMode],
@@ -99,10 +99,7 @@ object AwsConfiguration {
       }
 
       def assumeRoleAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] = validate {
-        val externalId = authConfig.hasPath("external-id") match {
-          case true => authConfig.getString("external-id")
-          case _ => ""
-        }
+        val externalId = authConfig.getOrElse("external-id", "")
         AssumeRoleMode(
           name,
           // We won't do anything with this now, but it is required for

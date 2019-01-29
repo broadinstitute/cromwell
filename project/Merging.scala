@@ -36,7 +36,7 @@ object Merging {
           val oldStrategy = (assemblyMergeStrategy in assembly).value
           oldStrategy(x)
       }
-    case "asm-license.txt" | "overview.html" | "cobertura.properties" =>
+    case "asm-license.txt" | "module-info.class" | "overview.html" | "cobertura.properties" =>
       MergeStrategy.discard
     case PathList("mime.types") =>
       MergeStrategy.last

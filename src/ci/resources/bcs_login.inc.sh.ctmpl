@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Used to login bcs from the command line. If/when there is a better way to bcs login please update testCentaurBcs.sh
+# and remove all traces of this include.
+
+set -o errexit -o nounset -o pipefail
+
+local bcs_access_id
+local bcs_access_key
+
+{{with $cromwellBcs := vault (printf "secret/dsde/cromwell/common/cromwell-bcs")}}
+bcs_access_id="{{$cromwellBcs.Data.access_id}}"
+bcs_access_key="{{$cromwellBcs.Data.access_key}}"
+{{end}}
+
+cromwell::build::exec_silent_function \
+  cromwell::private::bcs::bcs_run login us-east-1 "${bcs_access_id}" "${bcs_access_key}" >/dev/null

@@ -5,7 +5,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-if [ "${CROMWELL_BUILD_EVENT}" != "cron" ]; then
+if [[ "${CROMWELL_BUILD_EVENT}" != "cron" ]]; then
     echo "TESK integration tests run only as a CRON JOB"
     exit 0
 fi
@@ -28,7 +28,7 @@ export TESK_INPUT_FTP_PREFIX
 export CROMWELL_BUILD_CWL_TEST_PARALLELISM
 
 shutdown_cromwell() {
-    if [ -n "${CROMWELL_PID+set}" ]; then
+    if [[ -n "${CROMWELL_PID+set}" ]]; then
         cromwell::build::kill_tree "${CROMWELL_PID}"
     fi
 }

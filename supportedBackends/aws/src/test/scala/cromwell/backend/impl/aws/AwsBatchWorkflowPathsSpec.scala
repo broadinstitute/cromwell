@@ -31,7 +31,7 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 // import cromwell.cloudsupport.aws.auth.AwsBatchAuthModeSpec
@@ -57,7 +57,11 @@ class AwsBatchWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     )
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
 
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)(system)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
     workflowPaths.executionRoot.pathAsString should be("s3://my-cromwell-workflows-bucket/")
     workflowPaths.workflowRoot.pathAsString should
       be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")

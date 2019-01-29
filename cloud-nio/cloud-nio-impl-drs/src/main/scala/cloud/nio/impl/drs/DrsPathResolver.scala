@@ -15,10 +15,6 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus}
 
-//Do not remove this import. This import is required to compile, but IntelliJ doesn't correctly recognize that.
-import cats.syntax.functor._
-
-
 case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder

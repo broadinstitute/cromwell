@@ -47,7 +47,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import org.slf4j.LoggerFactory
 import fs2.Stream
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.regions.Region
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -104,25 +104,25 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //       later, so I'm leaving it here for potential future use.
     script.concat(s"""
     |echo "MIME-Version: 1.0
-    |Content-Type: multipart/alternative; boundary="${boundary}"
-
-    |--${boundary}
+    |Content-Type: multipart/alternative; boundary="$boundary"
+    |
+    |--$boundary
     |Content-Type: text/plain
     |Content-Disposition: attachment; filename="rc.txt"
     |"
-    |cat ${dockerRc}
-    |echo "--${boundary}
+    |cat $dockerRc
+    |echo "--$boundary
     |Content-Type: text/plain
     |Content-Disposition: attachment; filename="stdout.txt"
     |"
-    |cat ${dockerStdout}
-    |echo "--${boundary}
+    |cat $dockerStdout
+    |echo "--$boundary
     |Content-Type: text/plain
     |Content-Disposition: attachment; filename="stderr.txt"
     |"
-    |cat ${dockerStderr}
-    |echo "--${boundary}--"
-    |exit $$(cat ${dockerRc})
+    |cat $dockerStderr
+    |echo "--$boundary--"
+    |exit $$(cat $dockerRc)
     """).stripMargin
   }
   def submitJob[F[_]]()(

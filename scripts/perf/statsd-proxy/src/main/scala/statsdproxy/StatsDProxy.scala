@@ -42,7 +42,7 @@ object StatsDProxy extends IOApp with StrictLogging {
     // Re-wrap the packet in the redirect address, send it, and then unpack it to create a stream of bytes that can be written to a file
     pipedToOutbound <- Stream(Packet(redirectAddress, receivedPacket.bytes))
       .covary[IO]
-      .to(clientSocket.writes())
+      .through(clientSocket.writes())
       .map(_ => receivedPacket.bytes.toVector :+ '\n'.toByte)
       .flatMap(Stream.emits(_))
   } yield pipedToOutbound

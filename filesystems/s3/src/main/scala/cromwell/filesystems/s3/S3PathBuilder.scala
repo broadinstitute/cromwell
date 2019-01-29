@@ -32,15 +32,15 @@ package cromwell.filesystems.s3
 
 import java.net.URI
 import com.google.common.net.UrlEscapers
-import software.amazon.awssdk.core.auth.AwsCredentials
-import software.amazon.awssdk.services.s3.{S3AdvancedConfiguration,S3Client}
+import software.amazon.awssdk.auth.credentials.AwsCredentials
+import software.amazon.awssdk.services.s3.{S3Configuration,S3Client}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.regions.Region
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -110,7 +110,7 @@ object S3PathBuilder {
   }
 
   def fromAuthMode(authMode: AwsAuthMode,
-                   configuration: S3AdvancedConfiguration,
+                   configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
     val credentials = authMode.credential((key: String) => options.get(key).get)
@@ -125,7 +125,7 @@ object S3PathBuilder {
   }
 
   def fromCredentials(credentials: AwsCredentials,
-                      configuration: S3AdvancedConfiguration,
+                      configuration: S3Configuration,
                       options: WorkflowOptions,
                       storageRegion: Option[Region]): S3PathBuilder = {
     new S3PathBuilder(S3Storage.s3Client(credentials, storageRegion), configuration)
@@ -133,7 +133,7 @@ object S3PathBuilder {
 }
 
 class S3PathBuilder(client: S3Client,
-                     configuration: S3AdvancedConfiguration
+                     configuration: S3Configuration
                      ) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
   def build(string: String): Try[S3Path] = {
@@ -142,7 +142,9 @@ class S3PathBuilder(client: S3Client,
         Try {
           // TODO: System.getenv needs to turn into a full Auth thingy
           // TODO: This assumes the "global endpoint". Need to handle other endpoints
-          val s3Path = new S3FileSystemProvider().getFileSystem(URI.create("s3:////"), System.getenv).getPath(s"""/${bucket}/${path}""")
+          val s3Path = new S3FileSystemProvider()
+            .getFileSystem(URI.create("s3:////"), System.getenv)
+            .getPath(s"""/$bucket/$path""")
           S3Path(s3Path, bucket, client)
         }
       case PossiblyValidRelativeS3Path => Failure(new IllegalArgumentException(s"$string does not have a s3 scheme"))
@@ -161,7 +163,7 @@ case class S3Path private[s3](nioPath: NioPath,
 
   override def pathAsString: String = {
     // pathWithoutScheme will have a leading '/', so by only prepending 's3:/', we'll end up with s3:// as expected
-    s"s3:/${pathWithoutScheme}"
+    s"s3:/$pathWithoutScheme"
   }
 
   override def pathWithoutScheme: String =
@@ -179,7 +181,7 @@ case class S3Path private[s3](nioPath: NioPath,
     if (originalPath.startsWith("s3")) return nioPath.toAbsolutePath.toString
     originalPath.charAt(0) match {
       case '/' =>  nioPath.toAbsolutePath.toString
-      case _ => nioPath.resolve(s"/${bucket}/${originalPath}").toAbsolutePath.toString
+      case _ => nioPath.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
     }
   }
 }

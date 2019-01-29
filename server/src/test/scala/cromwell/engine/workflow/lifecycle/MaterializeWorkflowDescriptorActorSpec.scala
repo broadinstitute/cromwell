@@ -84,7 +84,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.knownValues.head._2 shouldBe WomString("world")
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
-            wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2", "Label1" -> "valu£1")
+            wfDesc.backendDescriptor.customLabels shouldBe
+              Labels("Label1" -> "valu£1", "label1" -> "value1", "label2" -> "value2")
             // Default backend assignment is "Local":
             wfDesc.backendAssignments foreach {
               case (call, assignment) if call.callable.name.equals("hello") => assignment shouldBe "Local"

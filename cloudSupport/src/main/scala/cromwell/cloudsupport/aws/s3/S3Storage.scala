@@ -30,12 +30,11 @@
  */
 package cromwell.cloudsupport.aws.s3
 
-import software.amazon.awssdk.services.s3.S3AdvancedConfiguration
-import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.core.auth.{AwsCredentials, StaticCredentialsProvider}
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.auth.credentials.{AwsCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 object S3Storage {
   val DefaultConfiguration = {
@@ -43,30 +42,30 @@ object S3Storage {
     val dualstackEnabled = ConfigFactory.load().as[Option[Boolean]]("s3.dual-stack").getOrElse(false)
     val pathStyleAccessEnabled = ConfigFactory.load().as[Option[Boolean]]("s3.path-style-access").getOrElse(false)
 
-    S3AdvancedConfiguration.builder
+    S3Configuration.builder
       .accelerateModeEnabled(accelerateModeEnabled)
       .dualstackEnabled(dualstackEnabled)
       .pathStyleAccessEnabled(pathStyleAccessEnabled)
       .build
   }
 
-  def s3Client(configuration: S3AdvancedConfiguration, credentials: AwsCredentials, region: Option[Region]): S3Client = {
+  def s3Client(configuration: S3Configuration, credentials: AwsCredentials, region: Option[Region]): S3Client = {
     val builder = S3Client.builder
-      .advancedConfiguration(configuration)
+      .serviceConfiguration(configuration)
       .credentialsProvider(StaticCredentialsProvider.create(credentials))
-      region.foreach(builder.region)
-      builder.build
+    region.foreach(builder.region)
+    builder.build
   }
 
   def s3Client(credentials: AwsCredentials, region: Option[Region]): S3Client = {
-    s3Client(s3AdvancedConfiguration(), credentials, region)
+    s3Client(s3Configuration(), credentials, region)
   }
 
-  def s3AdvancedConfiguration(accelerateModeEnabled: Boolean = false,
-                              dualstackEnabled: Boolean = false,
-                              pathStyleAccessEnabled: Boolean = false): S3AdvancedConfiguration = {
+  def s3Configuration(accelerateModeEnabled: Boolean = false,
+                      dualstackEnabled: Boolean = false,
+                      pathStyleAccessEnabled: Boolean = false): S3Configuration = {
 
-    S3AdvancedConfiguration.builder
+    S3Configuration.builder
       .accelerateModeEnabled(accelerateModeEnabled)
       .dualstackEnabled(dualstackEnabled)
       .pathStyleAccessEnabled(pathStyleAccessEnabled)

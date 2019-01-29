@@ -196,7 +196,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
       restrictMetadataAccess = false
     )
     authJsonOption shouldNot be(empty)
-    authJsonOption.get should be(
+    normalize(authJsonOption.get) should be(
       normalize(
         """
           |{
@@ -229,7 +229,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
       restrictMetadataAccess = true
     )
     authJsonOption shouldNot be(empty)
-    authJsonOption.get should be(
+    normalize(authJsonOption.get) should be(
       normalize(
         """
           |{

@@ -1,0 +1,13 @@
+name: docker_alpine
+backends: [LocalBourneShell]
+testFormat: workflowsuccess
+tags: [localdockertest]
+
+files {
+  workflow: docker_alpine/docker_alpine.wdl
+}
+
+fileSystemCheck: "local"
+outputExpectations: {
+  "<<WORKFLOW_ROOT>>/call-mkdir/execution/empty_dir/.file": 1
+}

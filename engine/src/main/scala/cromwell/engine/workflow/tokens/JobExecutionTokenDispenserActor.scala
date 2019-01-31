@@ -38,7 +38,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     sendGaugeJob(ExecutionStatus.QueuedInCromwell.toString, tokenQueues.values.map(_.size).sum.toLong)
   }
 
-  val effectiveLogInterval: Option[FiniteDuration] = logInterval.filter(_ == 0.seconds)
+  val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
 
   val tokenEventLogger = effectiveLogInterval match {
     case Some(someInterval) => new CachingTokenEventLogger(log, someInterval)

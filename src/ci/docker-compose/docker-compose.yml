@@ -17,6 +17,7 @@ services:
     volumes:
       - ${PWD}:${PWD}
       - /var/run/docker.sock:/var/run/docker.sock
+    network_mode: "host"
     links:
       - mysql-db
   mysql-db:
@@ -25,4 +26,3 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
       - MYSQL_ROOT_PASSWORD=
       - MYSQL_DATABASE=cromwell_test
-network_mode: "host"

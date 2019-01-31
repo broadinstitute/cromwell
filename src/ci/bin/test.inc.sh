@@ -174,8 +174,8 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_REQUIRES_SECURE=false
     fi
 
-    if [[ -z "${JES_TOKEN-}" ]]; then
-        JES_TOKEN="jes token is not set as an environment variable"
+    if [[ -z "${VAULT_TOKEN-}" ]]; then
+        VAULT_TOKEN="vault token is not set as an environment variable"
     fi
 
     CROMWELL_BUILD_RANDOM_256_BITS_BASE64="$(dd bs=1 count=32 if=/dev/urandom 2>/dev/null | base64 | tr -d '\n')"
@@ -452,7 +452,7 @@ cromwell::private::vault_login() {
             "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
                 # Login to vault to access secrets
                 local vault_token
-                vault_token="${JES_TOKEN}"
+                vault_token="${VAULT_TOKEN}"
                 docker run --rm \
                     -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
                     broadinstitute/dsde-toolbox \

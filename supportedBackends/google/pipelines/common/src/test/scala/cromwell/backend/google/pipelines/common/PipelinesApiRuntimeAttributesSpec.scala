@@ -25,7 +25,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
     )))
   }
 
-  val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, Vector("us-central1-b", "us-central1-a"), 0, 10,
+  val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
     MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
@@ -277,6 +277,18 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(4))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
     }
+  }
+
+  "should parse cpuPlatform correctly" in {
+    val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
+    val workflowOptionsJson =
+      """{
+        |  "default_runtime_attributes": { "cpuPlatform": "the platform" }
+        |}
+      """.stripMargin.parseJson.asInstanceOf[JsObject]
+    val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
+    val expectedRuntimeAttributes = expectedDefaults.copy(cpuPlatform = Some("the platform"))
+    assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
   }
 
   private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],

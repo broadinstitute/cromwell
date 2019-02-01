@@ -443,13 +443,14 @@ object Operations {
                                       submittedWorkflow: SubmittedWorkflow,
                                       metadata: WorkflowMetadata): Test[Unit] = new Test[Unit] {
     private val workflowId = submittedWorkflow.id.id.toString
+    private val workflowRoot = submittedWorkflow.workflow.workflowRoot.getOrElse("<<WORKFLOW_ROOT>>")
 
     override def run: IO[Unit] = workflowDefinition.directoryContentCounts match {
       case None => IO.unit
       case Some(directoryContentCountCheck) =>
         val counts = directoryContentCountCheck.expectedDrectoryContentsCounts map {
           case (directory, count) =>
-            val substitutedDir = directory.replaceAll("<<UUID>>", workflowId)
+            val substitutedDir = directory.replaceAll("<<UUID>>", workflowId).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot)
             (substitutedDir, count, directoryContentCountCheck.checkFiles.countObjectsAtPath(substitutedDir))
         }
 

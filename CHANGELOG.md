@@ -2,6 +2,15 @@
 
 ## 36.1 Release Notes
 
+### Changing configuration options
+
+#### Logging Token Distribution
+
+In cases where its not obvious why jobs are queued in Cromwell, you can enable logging for the Job Execution Token Dispenser, using
+the `system.hog-safety.token-log-interval-seconds` configuration value.
+
+The default, `0`, means that no logging will occur. 
+
 ### Backend name for call caching purposes
 
 Previous versions of Cromwell incorporated the name of the backend on which a call was run into the call cache hashes generated for that call.

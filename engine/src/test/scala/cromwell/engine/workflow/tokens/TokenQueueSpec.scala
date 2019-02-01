@@ -9,10 +9,12 @@ import org.scalatest.{FlatSpecLike, Matchers}
 class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
   behavior of "TokenQueue"
   val tokenType = JobExecutionTokenType("pool1", Option(1), 1)
-  
+
+  val tokenEventLogger = NullTokenEventLogger
+
   it should "enqueue" in {
     val probe = TestProbe().ref
-    val tq = TokenQueue(tokenType)
+    val tq = TokenQueue(tokenType, tokenEventLogger)
     tq.queues shouldBe empty
     val queueWith1 = tq.enqueue(TokenQueuePlaceholder(probe, "hogGroupA"))
     queueWith1.queues.flatMap(_._2).head.actor shouldBe probe
@@ -23,7 +25,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
   it should "dequeue" in {
     val probe = TestProbe().ref
-    val tq = TokenQueue(tokenType).enqueue(TokenQueuePlaceholder(probe, "hogGroupA"))
+    val tq = TokenQueue(tokenType, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe, "hogGroupA"))
     tq.queueOrder should be(List("hogGroupA"))
     val dequeued = tq.dequeue
     dequeued.leasedActor shouldBe defined
@@ -37,7 +39,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
   it should "return true for available iff there's an element in the queue and room in the pool" in {
     val probe1 = TestProbe().ref
     val probe2 = TestProbe().ref
-    val tq = TokenQueue(tokenType)
+    val tq = TokenQueue(tokenType, tokenEventLogger)
     // queue is empty
     tq.available shouldBe false
     
@@ -62,7 +64,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
     val refA1 = TestProbe("A1").ref
 
     // Start with an empty queue which can dish out up to 1 token each, to up to 2 hog groups:
-    val tq = TokenQueue(JobExecutionTokenType("pool1", Option(2), 2))
+    val tq = TokenQueue(JobExecutionTokenType("pool1", Option(2), 2), tokenEventLogger)
     tq.available shouldBe false
 
     val queueWith1 = tq.enqueue(TokenQueuePlaceholder(refA1, "hogGroupA"))
@@ -137,7 +139,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
 
     val jobsPerHogGroup = jobCount / hogGroupCount
 
-    val fullQueue = fillQueue(TokenQueue(tokenType), jobsPerHogGroup, hogGroups.toList)
+    val fullQueue = fillQueue(TokenQueue(tokenType, tokenEventLogger), jobsPerHogGroup, hogGroups.toList)
     val actualFullQueueSizes = fullQueue.queueOrder.map(queueName => fullQueue.queues(queueName).size)
     val expectedFullQueueSizes = (0 until 25).toVector.map(_ => 6)
     actualFullQueueSizes should be(expectedFullQueueSizes)

@@ -238,6 +238,16 @@ object Dependencies {
     "com.rms.miu" %% "slick-cats" % slickCatsV
   )
 
+  private val akkaDependencies = List(
+    "com.typesafe.akka" %% "akka-actor" % akkaV,
+    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
+  )
+
+  private val akkaStreamDependencies = List(
+    "com.typesafe.akka" %% "akka-stream" % akkaV,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test
+  ) ++ akkaDependencies
+
   private val liquibaseDependencies = List(
     "org.liquibase" % "liquibase-core" % liquibaseV,
     // This is to stop liquibase from being so noisy by default
@@ -453,8 +463,8 @@ object Dependencies {
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
     "org.scalamock" %% "scalamock" % scalamockV % Test
-  ) ++ configDependencies ++ catsDependencies ++ googleApiClientDependencies ++ statsDDependencies ++
-    betterFilesDependencies ++
+  ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
+    googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies
 

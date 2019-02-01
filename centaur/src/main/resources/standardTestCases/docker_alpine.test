@@ -5,9 +5,10 @@ tags: [localdockertest]
 
 files {
   workflow: docker_alpine/docker_alpine.wdl
+  options: docker_alpine/docker_alpine.options
 }
 
 fileSystemCheck: "local"
 outputExpectations: {
-  "<<WORKFLOW_ROOT>>/call-mkdir/execution/empty_dir/.file": 1
+  "/tmp/outputs/docker_alpine/<<UUID>>/call-mkdir/execution/empty_dir/.file": 1
 }

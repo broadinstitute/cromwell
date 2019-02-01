@@ -31,6 +31,7 @@ object GpuResource {
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
 
 final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
+                                               cpuPlatform: Option[String],
                                                gpuResource: Option[GpuResource],
                                                zones: Vector[String],
                                                preemptible: Int,
@@ -62,10 +63,15 @@ object PipelinesApiRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = WomString(s"${PipelinesApiWorkingDisk.Name} 10 SSD")
 
+  val CpuPlatformKey = "cpuPlatform"
+  private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
+
   private val MemoryDefaultValue = "2048 MB"
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
+  private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = cpuPlatformValidationInstance
 
   private def cpuMinValidation(runtimeConfig: Option[Config]):RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instanceMin
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
@@ -136,6 +142,7 @@ object PipelinesApiRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       bootDiskSizeValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
+      cpuPlatformValidation(runtimeConfig),
       dockerValidation,
       outDirMinValidation,
       tmpDirMinValidation,
@@ -145,6 +152,7 @@ object PipelinesApiRuntimeAttributes {
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): PipelinesApiRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
     // GPU
     lazy val nvidiaDriverVersion = runtimeAttrsConfig.flatMap(_.as[Option[String]]("nvidia-driver-version")).getOrElse(GpuResource.DefaultNvidiaDriverVersion)
@@ -178,6 +186,7 @@ object PipelinesApiRuntimeAttributes {
 
     new PipelinesApiRuntimeAttributes(
       cpu,
+      cpuPlatform,
       gpuResource,
       zones,
       preemptible,

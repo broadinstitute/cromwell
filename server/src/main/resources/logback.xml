@@ -34,7 +34,6 @@
                     <layout class="cromwell.logging.TerminalLayout" />
                 </encoder>
             </appender>
-            <logger name="liquibase" level="WARN"/>
         </then>
         <else>
             <appender name="PRETTY_APPENDER" class="ch.qos.logback.core.helpers.NOPAppender" />
@@ -130,6 +129,7 @@
         <appender-ref ref="METADATA_FILEROLLER_APPENDER" />
     </logger>
 
+    <logger name="liquibase" level="WARN"/>
     <logger name="com.zaxxer.hikari" level="ERROR"/>
     <logger name="HikariPool" level="ERROR"/>
     <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>

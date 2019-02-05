@@ -280,7 +280,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
       eventually { nextInLine(3).underlyingActor.hasToken shouldBe true }
 
       // And kill off the rest of the actors:
-      (withTokens.toList :+ nextInLine(3)) foreach { actor => actor ! PoisonPill }
+      (withTokens :+ nextInLine(3)) foreach { actor => actor ! PoisonPill }
     }
 
     actorRefUnderTest.underlyingActor.tokenQueues.map(x => x._2.size).sum should be(0)
@@ -289,7 +289,7 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
 
   before {
-    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 4.second)))
+    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 4.second), None))
   }
   after {
     actorRefUnderTest = null

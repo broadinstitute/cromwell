@@ -20,7 +20,7 @@ import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.metadata.MetadataBuilderRegulatorActor
 import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
-import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowId}
+import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowIdInMetadata, validateWorkflowIdInMetadataSummaries}
 import cromwell.webservice.routes.MetadataRouteSupport._
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.WorkflowJsonSupport._
@@ -94,13 +94,14 @@ trait MetadataRouteSupport extends HttpInstrumentation {
             instrumentRequest {
               Labels.validateMapOfLabels(parameterMap) match {
                 case Valid(labels) =>
-                  val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
+                  val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
                     val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
                     lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
                   }
                   onComplete(response) {
                     case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
                     case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+                    case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
                     case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
                     case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
 
@@ -154,7 +155,7 @@ object MetadataRouteSupport {
                                   metadataBuilderRegulatorActor: ActorRef)
                                  (implicit timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
-    validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
   }
 
   def completeMetadataBuilderResponse(response: Future[MetadataBuilderActorResponse]): Route = {

@@ -43,6 +43,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
+  override def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+    val action = dataAccess.workflowMetadataSummaryEntryExistsForWorkflowExecutionUuid(workflowExecutionUuid).result
+    runTransaction(action)
+  }
+
   override def queryMetadataEntries(workflowExecutionUuid: String)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result

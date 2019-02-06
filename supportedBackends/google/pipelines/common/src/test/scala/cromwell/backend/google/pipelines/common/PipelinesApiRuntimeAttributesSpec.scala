@@ -287,7 +287,7 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
         |}
       """.stripMargin.parseJson.asInstanceOf[JsObject]
     val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
-    val expectedRuntimeAttributes = expectedDefaults.copy(cpuPlatform = Some("the platform"))
+    val expectedRuntimeAttributes = expectedDefaults.copy(cpuPlatform = Option("the platform"))
     assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
   }
 

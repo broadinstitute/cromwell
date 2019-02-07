@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "cromiam.fullname" . }}-configuration
+data:
+  cromiam.conf: |
+        cromiam {
+          interface = "0.0.0.0"
+          port = 8080
+        }
+
+        sam {
+          interface = "{{ .Values.sam }}"
+          port = 443
+          scheme = "https"
+        }
+
+        cromwell {
+          interface = "{{ .Values.cromwell }}"
+          port = 443
+          scheme = "https"
+        }
+
+        cromwell_abort {
+          interface = "cromiam-cromwell1-abort-priv.dsde-alpha.broadinstitute.org"
+          port = 443
+          scheme = "https"
+        }
+
+
+        swagger_oauth {
+          client_id = "1005074806481-1qb0l8djib0fbj64oqv4jodp1glsgqql.apps.googleusercontent.com"
+          realm = "broad-dsde-alpha"
+          app_name = "cromiam"
+        }
+
+        akka {
+          log-dead-letters = "off"
+          loggers = ["akka.event.slf4j.Slf4jLogger"]
+        }
+
+

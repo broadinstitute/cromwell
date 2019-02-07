@@ -2,6 +2,8 @@
 
     <!-- default properties for FILEROLLER need to be set upfront -->
 
+    <variable name="LOG_LEVEL" value="${LOG_LEVEL:-INFO}" />
+
     <if condition='property("FILEROLLER_DIR").equals("")'>
         <then><property name="FILEROLLER_DIR" value="/var/log/cromwell" /></then>
     </if>

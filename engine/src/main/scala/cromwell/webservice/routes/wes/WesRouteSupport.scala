@@ -7,7 +7,7 @@ import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.services.metadata.MetadataService.{GetStatus, MetadataServiceResponse, StatusLookupFailed, StatusLookupResponse}
-import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowId}
+import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 
 import scala.concurrent.ExecutionContext
@@ -53,7 +53,7 @@ trait WesRouteSupport extends HttpInstrumentation {
             pathPrefix("runs") {
               concat(
                 path(Segment / "status") { possibleWorkflowId =>
-                  val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
+                  val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
                   // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
                   onComplete(response) {
                     case Success(s: StatusLookupResponse) =>

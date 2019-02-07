@@ -96,7 +96,8 @@ object MetadataService {
     def onFailure(possibleWorkflowId: String, throwable: Throwable): Unit
   }
 
-  final case class ValidateWorkflowId(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
+  final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
+  final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses

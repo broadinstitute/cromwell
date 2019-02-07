@@ -136,25 +136,24 @@ object ImportResolver {
   case class ZipResolver(zipContents: Array[Byte], workflowId: WorkflowId) extends ImportResolver {
 
     // Based on https://github.com/google/jimfs/issues/47#issuecomment-311360741
-    lazy val zipMemoryMappedFilesystem: FileSystem = {
+    private lazy val zipMemoryMappedFilesystem: FileSystem = {
+      // Step 1: write the zip bytes to a known path on a fresh Google JimFS in-memory filesystem
+      // It would be nice to use JimFS for everything, but it lacks an unzip function
+      val zipPath = zipByteMaterializationFilesystem.getPath("/imports.zip")
+      Files.write(zipPath, zipContents)
 
-      // Write the zip bytes to a specific path on a fresh Google JimFS in-memory filesystem and return the path
-      lazy val zipPath = {
-        // Use workflow ID and `lazy` because name must be globally unique
-        val zipFilesystem = Jimfs.newFileSystem("jimfs-workflow-" + workflowId.toString, Configuration.unix())
-
-        val zipPath = zipFilesystem.getPath("/imports.zip")
-        Files.write(zipPath, zipContents)
-
-        zipPath
-      }
-
+      // Step 2: take the zip path and instantiate a Java zip filesystem provider from it
+      // It would be nice to use Java zipfs for everything, but it only accepts a path, not bytes
       val env = new java.util.HashMap[String, String]()
       env.put("create", "false") // `true` means "create the zip if it doesn't exist" - would mean we have a bug
       env.put("encoding", "UTF-8")
 
-      // Map the zip into memory using the Java zip filesystem provider
       FileSystems.newFileSystem(new java.net.URI("jar:" + zipPath.toUri), env)
+    }
+
+    private lazy val zipByteMaterializationFilesystem: FileSystem = {
+      // Use workflow ID and `lazy` because name must be globally unique
+      Jimfs.newFileSystem("jimfs-workflow-" + workflowId.toString, Configuration.unix())
     }
 
     override def name: String = s"Zip Resolver for zip of length ${zipContents.length}"
@@ -169,6 +168,7 @@ object ImportResolver {
     override def close(): Try[Unit] = Try {
       // Not sure if this is necessary
       zipMemoryMappedFilesystem.close()
+      zipByteMaterializationFilesystem.close()
     }
   }
 

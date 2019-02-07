@@ -132,11 +132,15 @@ object ImportResolver {
     override def close(): Try[Unit] = Success(())
   }
 
+  // !!! Warning: does not yet work for nested directories !!!
   case class ZipResolver(zipContents: Array[Byte], workflowId: WorkflowId) extends ImportResolver {
 
+    // Based on https://github.com/google/jimfs/issues/47#issuecomment-311360741
     lazy val zipMemoryMappedFilesystem: FileSystem = {
 
-      def zipPath(zipContents: Array[Byte]) = {
+      // Write the zip bytes to a specific path on a fresh Google JimFS in-memory filesystem and return the path
+      lazy val zipPath = {
+        // Use workflow ID and `lazy` because name must be globally unique
         val zipFilesystem = Jimfs.newFileSystem("jimfs-workflow-" + workflowId.toString, Configuration.unix())
 
         val zipPath = zipFilesystem.getPath("/imports.zip")
@@ -146,10 +150,11 @@ object ImportResolver {
       }
 
       val env = new java.util.HashMap[String, String]()
-      env.put("create", "false")
+      env.put("create", "false") // `true` means "create the zip if it doesn't exist" - would mean we have a bug
       env.put("encoding", "UTF-8")
 
-      FileSystems.newFileSystem(new java.net.URI("jar:" + zipPath(zipContents).toUri), env)
+      // Map the zip into memory using the Java zip filesystem provider
+      FileSystems.newFileSystem(new java.net.URI("jar:" + zipPath.toUri), env)
     }
 
     override def name: String = s"Zip Resolver for zip of length ${zipContents.length}"

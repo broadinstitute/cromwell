@@ -7,9 +7,7 @@ import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.core.path.BetterFileMethods.OpenOptions
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.config.CromwellLanguages
 import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver, ResolvedImportBundle}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
@@ -20,34 +18,8 @@ import wom.expression.IoFunctionSet
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomSingleFile, WomValue}
 
-import scala.util.{Failure, Success, Try}
 
 object LanguageFactoryUtil {
-
-  /**
-    * Unzip the imports.zip and validate that it was good.
-    * @param zipContents the zip contents
-    * @return where the imports were unzipped to
-    */
-  def createImportsDirectory(zipContents: Array[Byte], workflowId: WorkflowId): ErrorOr[Path] = {
-
-    def makeZipFile: Try[Path] = Try {
-      DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
-    }
-
-    def unZipFile(f: Path) = Try(f.unzip)
-
-    val importsFile = for {
-      zipFile <- makeZipFile
-      unzipped <- unZipFile(zipFile)
-      _ <- Try(zipFile.delete(swallowIOExceptions = true))
-    } yield unzipped
-
-    importsFile match {
-      case Success(unzippedDirectory: Path) => unzippedDirectory.validNel
-      case Failure(t) => t.getMessage.invalidNel
-    }
-  }
 
   def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
     evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither

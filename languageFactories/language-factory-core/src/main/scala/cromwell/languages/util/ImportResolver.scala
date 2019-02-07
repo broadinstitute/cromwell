@@ -1,9 +1,10 @@
 package cromwell.languages.util
 
 import java.net.{URI, URL}
-import java.nio.file.{FileSystem, FileSystems, OpenOption, Paths, Path => NioPath}
-import java.util
+import java.nio.file.{FileSystem, FileSystems, Files, Paths, Path => NioPath}
 
+import com.google.common.jimfs.Configuration
+import com.google.common.jimfs.Jimfs
 import better.files.File
 import cats.data.NonEmptyList
 import cats.effect.IO
@@ -17,7 +18,6 @@ import common.validation.ErrorOr._
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import better.files.File.OpenOptions
 import cromwell.core.WorkflowId
 import wom.core.WorkflowSource
 
@@ -134,20 +134,22 @@ object ImportResolver {
 
   case class ZipResolver(zipContents: Array[Byte], workflowId: WorkflowId) extends ImportResolver {
 
-    // https://docs.oracle.com/javase/7/docs/technotes/guides/io/fsp/zipfilesystemprovider.html
     lazy val zipMemoryMappedFilesystem: FileSystem = {
-      val env = new util.HashMap[String, String]()
+
+      def zipPath(zipContents: Array[Byte]) = {
+        val zipFilesystem = Jimfs.newFileSystem("jimfs-workflow-" + workflowId.toString, Configuration.unix())
+
+        val zipPath = zipFilesystem.getPath("/imports.zip")
+        Files.write(zipPath, zipContents)
+
+        zipPath
+      }
+
+      val env = new java.util.HashMap[String, String]()
       env.put("create", "false")
       env.put("encoding", "UTF-8")
 
-      // TODO: write the bytes to a zip on a different in-memory filesystem
-//      val zipfs = FileSystems.newFileSystem(URI.create("memory:///?name=asdf"), env)
-//      zipfs.provider().newByteChannel(Paths.get("/zipped_imports"), new util.HashSet[OpenOption]())
-
-      val zipPath = DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
-      val filesystem = FileSystems.newFileSystem(new java.net.URI("jar:file:" + zipPath), env)
-      zipPath.delete(swallowIOExceptions = true)
-      filesystem
+      FileSystems.newFileSystem(new java.net.URI("jar:" + zipPath(zipContents).toUri), env)
     }
 
     override def name: String = s"Zip Resolver for zip of length ${zipContents.length}"
@@ -156,7 +158,7 @@ object ImportResolver {
       val pathOnFilesystem: NioPath = zipMemoryMappedFilesystem.getPath(path)
       val contents = File(pathOnFilesystem).contentAsString
 
-      ResolvedImportBundle(contents, List(this)).validNelCheck
+      ResolvedImportBundle(contents, List()).validNelCheck
     }
 
     override def close(): Try[Unit] = Try {

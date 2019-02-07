@@ -381,7 +381,8 @@ object Dependencies {
 
   val languageFactoryDependencies = List(
     "com.softwaremill.sttp" %% "core" % sttpV,
-    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV
+    "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV,
+    "com.google.jimfs" % "jimfs" % "1.1" % Test
   )
 
   val draft2LanguageFactoryDependencies = List(

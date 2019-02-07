@@ -14,7 +14,6 @@ import cromwell.api.model.Label
 import net.ceedubs.ficus.Ficus._
 import org.http4s.client.{Client, JavaNetClientBuilder}
 import spray.json._
-import org.http4s.dsl.io._
 
 import scala.concurrent.ExecutionContext
 
@@ -40,7 +39,7 @@ case class WorkflowData(workflowContent: Option[String],
 object WorkflowData {
   val blockingEC = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
   implicit val cs: ContextShift[IO] = IO.contextShift(blockingEC)
-  val httpClient: Client[IO] = JavaNetClientBuilder(blockingEC).create[IO]
+  val httpClient: Client[IO] = JavaNetClientBuilder[IO](blockingEC).create
   val gcsStorage = StorageOptions.getDefaultInstance.getService
 
   def fromConfig(filesConfig: Config, fullConfig: Config, basePath: File): ErrorOr[WorkflowData] = {

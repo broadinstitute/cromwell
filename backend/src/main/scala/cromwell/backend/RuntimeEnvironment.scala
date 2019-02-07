@@ -28,10 +28,10 @@ object RuntimeEnvironmentBuilder {
 
       val cores: Int Refined Positive = CpuValidation.instanceMin.validate(runtimeAttributes).getOrElse(minimums.cores)
 
-      val memoryInMiB: Double =
+      val memoryInMB: Double =
         MemoryValidation.instance().
           validate(runtimeAttributes).
-          map(_.to(MemoryUnit.MiB).amount).
+          map(_.to(MemoryUnit.MB).amount).
           getOrElse(minimums.ram.amount)
 
       //TODO: Read these from somewhere else
@@ -39,7 +39,7 @@ object RuntimeEnvironmentBuilder {
 
       val tempPathSize: Long = minimums.outputPathSize
 
-      RuntimeEnvironment(outputPath, tempPath, cores, memoryInMiB, outputPathSize, tempPathSize)
+      RuntimeEnvironment(outputPath, tempPath, cores, memoryInMB, outputPathSize, tempPathSize)
   }
 
   /**
@@ -54,6 +54,6 @@ object RuntimeEnvironmentBuilder {
 }
 
 case class MinimumRuntimeSettings(cores: Int Refined Positive = refineMV(1),
-                                  ram: MemorySize = MemorySize(4, MemoryUnit.GiB),
+                                  ram: MemorySize = MemorySize(4, MemoryUnit.GB),
                                   outputPathSize: Long = Long.MaxValue,
                                   tempPathSize: Long = Long.MaxValue)

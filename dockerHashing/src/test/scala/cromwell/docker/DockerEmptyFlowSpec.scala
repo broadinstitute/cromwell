@@ -1,14 +1,14 @@
 package cromwell.docker
 
-import cromwell.docker.DockerHashActor.DockerHashUnknownRegistry
+import cromwell.docker.DockerInfoActor.DockerHashUnknownRegistry
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 
-class DockerEmptyFlowSpec extends DockerFlowSpec("DockerEmptyFlowSpec") with FlatSpecLike with Matchers {
+class DockerEmptyFlowSpec extends DockerRegistrySpec("DockerEmptyFlowSpec") with FlatSpecLike with Matchers {
   behavior of "An empty docker flow"
 
-  override protected def registryFlows: Seq[DockerFlow] = Seq()
+  override protected def registryFlows: Seq[DockerRegistry] = Seq()
 
   it should "send an unrecognized host message back for a public docker hash" in {
     dockerActor ! makeRequest("ubuntu:latest")

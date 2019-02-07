@@ -35,7 +35,7 @@ object Collection {
 
   // LabelContainsCollectionException is a class because of ScalaTest, some of the constructs don't play well w/ case objects
   final class LabelContainsCollectionException extends Exception(s"Submitted labels contain the key $CollectionLabelName, which is not allowed\n")
-  private final case class InvalidLabelsException(labels: String) extends Exception(s"Labels must be a valid JSON object, received: $labels\n")
+  final case class InvalidLabelsException(labels: String) extends Exception(s"Labels must be a valid JSON object, received: $labels\n")
 
   /**
     * Returns the default collection for a user.

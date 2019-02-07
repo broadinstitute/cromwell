@@ -1,6 +1,9 @@
 package wom.values
 
 import cats.Applicative
+import cats.syntax.functor._
+import common.validation.IOChecked.IOChecked
+import wom.expression.IoFunctionSet
 import wom.types.{WomOptionalType, WomType}
 
 import scala.annotation.tailrec
@@ -138,6 +141,8 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
       WomOptionalValue(_)
     }
   } getOrElse applicative.pure(this)
+
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(_.initialize(ioFunctionSet)).widen
 }
 
 object WomOptionalValue {

@@ -14,6 +14,3 @@ docker_password="{{$cromwellDockerhub.Data.password}}"
 {{end}}
 
 docker login --username "${docker_username}" --password "${docker_password}"
-
-unset docker_username
-unset docker_password

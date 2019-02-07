@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
-import wom.values.{WomInteger, WomString}
+import wom.values.{WomLong, WomString}
 
 import scala.util.{Failure, Success}
 
@@ -31,7 +31,7 @@ object MemoryValidation {
     instance(attributeName).configDefaultValue(config)
   def withDefaultMemory(attributeName: String = RuntimeAttributesKeys.MemoryKey, memorySize: String): RuntimeAttributesValidation[MemorySize] = {
     MemorySize.parse(memorySize) match {
-      case Success(memory) => instance(attributeName).withDefault(WomInteger(memory.bytes.toInt))
+      case Success(memory) => instance(attributeName).withDefault(WomLong(memory.bytes.toLong))
       case Failure(_) => instance(attributeName).withDefault(BadDefaultAttribute(WomString(memorySize.toString)))
     }
   }

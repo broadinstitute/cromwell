@@ -1,5 +1,6 @@
 package cromwell.engine.io
 
+import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
 
 import akka.NotUsed
@@ -145,6 +146,7 @@ trait IoCommandContext[T] extends StreamContext {
   def request: IoCommand[T]
   def replyTo: ActorRef
   def fail(failure: Throwable): IoResult = (request.fail(failure), this)
+  def failReadForbidden(failure: Throwable, forbiddenPath: String): IoResult = (request.failReadForbidden(failure, forbiddenPath), this)
   def success(value: T): IoResult = (request.success(value), this)
 }
 
@@ -208,6 +210,7 @@ object IoActor {
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
+    case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
     case other => isTransient(other)
   }
 

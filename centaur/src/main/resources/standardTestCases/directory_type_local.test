@@ -1,0 +1,15 @@
+name: directory_type_local
+testFormat: workflowsuccess
+tags: [localdockertest, "wdl_biscayne"]
+backends: [Local, LocalNoDocker]
+
+files {
+  workflow: wdl_biscayne/directory_type/directory_type.wdl
+  inputs: wdl_biscayne/directory_type/directory_type_local_inputs.json
+}
+
+metadata {
+  workflowName: directory_type
+  "outputs.directory_type.out.0": "foo text"
+  "outputs.directory_type.out.1": "foo text2"
+}

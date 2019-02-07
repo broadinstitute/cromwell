@@ -16,7 +16,6 @@ files {
 metadata {
   "submittedFiles.workflowType": CWL
   "submittedFiles.workflowTypeVersion": v1.0
-  "workflowName": "main"
-  "calls.main.failures.0.message": "Call input and runtime attributes evaluation failed for main"
-  "calls.main.failures.0.causedBy.0.message": "Failed to evaluate input 'reference' (reason 1 of 1): edam:format_1930 is not compatible with http://galaxyproject.org/formats/fasta"
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Failed to evaluate input 'reference' (reason 1 of 1): edam:format_1930 is not compatible with http://galaxyproject.org/formats/fasta"
 }

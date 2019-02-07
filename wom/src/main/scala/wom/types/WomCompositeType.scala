@@ -24,9 +24,9 @@ case class WomCompositeType(typeMap: Map[String, WomType]) extends WomObjectType
   }
 
   override protected def coercion = {
-    case composite: WomObjectLike if isCoerceableFrom(composite.womType) => WomObject.withType(composite.values, this)
-    case map: WomMap if WomStringType.isCoerceableFrom(map.womType.keyType) => WomObject.withType(map.value.map({ case (k, v) => k.valueString -> v }), this)
-    case jsObject: JsObject => WomObject.withType(jsObject.fields, this)
+    case composite: WomObjectLike if isCoerceableFrom(composite.womType) => WomObject.withTypeUnsafe(composite.values, this)
+    case map: WomMap if WomStringType.isCoerceableFrom(map.womType.keyType) => WomObject.withTypeUnsafe(map.value.map({ case (k, v) => k.valueString -> v }), this)
+    case jsObject: JsObject => WomObject.withTypeUnsafe(jsObject.fields, this)
   }
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = {

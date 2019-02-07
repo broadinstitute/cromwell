@@ -10,17 +10,17 @@ backend {
       actor-factory = "cromwell.backend.impl.bcs.BcsBackendLifecycleActorFactory"
 
       config {
-        root = "oss://broad-test/cromwell-dir"
-        region = "cn-hangzhou"
+        root = "oss://cloud-cromwell-dev-self-cleaning/cromwell-dir"
+        region = "us-east-1"
         access-id = "{{$cromwellBcs.Data.access_id}}"
         access-key = "{{$cromwellBcs.Data.access_key}}"
 
-        concurrent-job-limit = 1000
+        concurrent-job-limit = 50
 
         filesystems {
           oss {
             auth {
-              endpoint = "oss-cn-hangzhou.aliyuncs.com"
+              endpoint = "oss-us-east-1.aliyuncs.com"
               access-id = "{{$cromwellBcs.Data.access_id}}"
               access-key = "{{$cromwellBcs.Data.access_key}}"
             }
@@ -35,7 +35,8 @@ backend {
           #cluster: "OnDemand ecs.sn1.medium img-ubuntu"
           # Alternatively leave a fixed cluster spun up via:
           # bcs cc travis_test_cluster -i img-ubuntu -t ecs.sn1.medium -n 1 -d 'travis test cluster'
-          cluster: "cls-4tf87ceg15legjo0ri4003"
+          cluster: "OnDemand ecs.sn1.medium img-ubuntu"
+          cluster: ${?CROMWELL_BUILD_BCS_CLUSTER_ID}
 
           # TODO: We should continue to allow users and our Travis test to cache images in their own OSS bucket
           # BUT we should also be able to check the hash of the image in OSS using the config supplied credentials
@@ -67,7 +68,7 @@ engine {
   filesystems {
     oss {
       auth {
-        endpoint = "oss-cn-hangzhou.aliyuncs.com"
+        endpoint = "oss-us-east-1.aliyuncs.com"
         access-id = "{{$cromwellBcs.Data.access_id}}"
         access-key = "{{$cromwellBcs.Data.access_key}}"
       }

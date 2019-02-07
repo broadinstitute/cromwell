@@ -22,7 +22,7 @@ class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecut
     RequiredInputDefinition("c", WomStringType) -> WomString("helloC"),
     RequiredInputDefinition("d", WomArrayType(WomStringType)) -> WomArray(WomArrayType(WomStringType), List(WomString("helloD0"), WomString("helloD1"))),
     RequiredInputDefinition("e", WomCompositeType(Map("fa" -> WomSingleFileType, "fb" -> WomIntegerType)))
-      -> WomObject.withType(Map("fa" -> WomSingleFile("helloEfa"), "fb" -> WomInteger(0)), WomCompositeType(Map("fa" -> WomSingleFileType, "fb" -> WomIntegerType))),
+      -> WomObject.withTypeUnsafe(Map("fa" -> WomSingleFile("helloEfa"), "fb" -> WomInteger(0)), WomCompositeType(Map("fa" -> WomSingleFileType, "fb" -> WomIntegerType))),
     RequiredInputDefinition("f", WomBooleanType) -> WomBoolean.True,
     RequiredInputDefinition("g", WomBooleanType) -> WomBoolean.False,
     RequiredInputDefinition("h", WomIntegerType) -> WomInteger(0),

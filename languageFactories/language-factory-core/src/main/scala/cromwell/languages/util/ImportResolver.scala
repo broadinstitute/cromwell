@@ -18,6 +18,7 @@ import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import java.nio.file.{Path => NioPath}
 
+import cromwell.core.WorkflowId
 import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
@@ -29,7 +30,7 @@ object ImportResolver {
   case class ImportResolutionRequest(toResolve: String, currentResolvers: List[ImportResolver])
   case class ResolvedImportBundle(source: WorkflowSource, newResolvers: List[ImportResolver])
 
-  sealed trait ImportResolver {
+  trait ImportResolver {
     def name: String
     protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle]
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>
@@ -128,8 +129,8 @@ object ImportResolver {
     }
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[ImportResolver] = {
-    LanguageFactoryUtil.validateImportsDirectory(zippedImports) map { dir =>
+  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
+    LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
       DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
     }
   }

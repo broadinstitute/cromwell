@@ -19,8 +19,8 @@ object LiteralEvaluators {
     override def renameIdentifiers(a: StringExpression, renamingMap: Map[String, String])
                                   (implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): StringExpression = StringExpression(
       a.pieces map {
-        case sl: StringLiteral => sl
         case sp: StringPlaceholder => StringPlaceholder(expressionElementRenamer.renameIdentifiers(sp.expr, renamingMap)(expressionElementRenamer))
+        case other => other
       }
     )
   }

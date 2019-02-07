@@ -1,0 +1,17 @@
+name: cwl_relative_imports_url
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: relative_imports
+
+files {
+  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/cwl_relative_imports/workflow.cwl"
+}
+
+metadata {
+  status: Succeeded
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+  "calls.relative_imports.globSort.outputs.letters": "a b c w x y z"
+  "outputs.relative_imports.letters": "a b c w x y z"
+}

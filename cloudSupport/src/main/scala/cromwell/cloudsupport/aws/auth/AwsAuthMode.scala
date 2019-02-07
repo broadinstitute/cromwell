@@ -30,20 +30,14 @@
  */
 package cromwell.cloudsupport.aws.auth
 
-import software.amazon.awssdk.core.auth.{AwsCredentials,
-                                         AwsSessionCredentials,
-                                         AnonymousCredentialsProvider,
-                                         DefaultCredentialsProvider,
-                                         StaticCredentialsProvider}
-import software.amazon.awssdk.core.regions.Region
-import software.amazon.awssdk.services.sts.{STSClient}
-import software.amazon.awssdk.services.sts.model.{GetCallerIdentityRequest,
-                                                  AssumeRoleRequest}
-
-import cromwell.cloudsupport.aws.auth.AwsAuthMode.OptionLookup
-
-import org.slf4j.LoggerFactory
 import com.google.api.client.json.jackson2.JacksonFactory
+import cromwell.cloudsupport.aws.auth.AwsAuthMode.OptionLookup
+import org.slf4j.LoggerFactory
+import software.amazon.awssdk.auth.credentials._
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.sts.StsClient
+import software.amazon.awssdk.services.sts.model.{AssumeRoleRequest, GetCallerIdentityRequest}
+
 import scala.util.{Failure, Success, Try}
 
 object AwsAuthMode {
@@ -71,9 +65,9 @@ sealed trait AwsAuthMode {
     * All traits in this file are sealed, all classes final, meaning things
     * like Mockito or other java/scala overrides cannot work.
     */
-   private[auth] var credentialValidation: ((AwsCredentials, Option[String]) => Unit) =
+   private[auth] var credentialValidation: (AwsCredentials, Option[String]) => Unit =
      (credentials: AwsCredentials, region: Option[String]) => {
-       val builder = STSClient.builder
+       val builder = StsClient.builder
 
        //If the region argument exists in config, set it in the builder.
        //Otherwise it is left unset and the AwsCredential builder will look in various places to supply,
@@ -97,7 +91,7 @@ sealed trait AwsAuthMode {
 case object MockAuthMode extends AwsAuthMode {
   override val name = "no_auth"
 
-  lazy val _credential = AnonymousCredentialsProvider.create.getCredentials
+  lazy val _credential = AnonymousCredentialsProvider.create.resolveCredentials()
 
   override def credential(options: OptionLookup): AwsCredentials = _credential
 }
@@ -113,7 +107,7 @@ final case class CustomKeyMode(override val name: String,
     // Validate credentials synchronously here, without retry.
     // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
-    validateCredential(AwsCredentials.create(accessKey, secretKey), region)
+    validateCredential(AwsBasicCredentials.create(accessKey, secretKey), region)
   }
 
   override def credential(options: OptionLookup): AwsCredentials = _credential
@@ -130,7 +124,7 @@ final case class DefaultMode(override val name: String, region: Option[String]) 
     // Validate credentials synchronously here, without retry.
     // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
-    validateCredential(DefaultCredentialsProvider.create.getCredentials, region)
+    validateCredential(DefaultCredentialsProvider.create.resolveCredentials(), region)
   }
 
   override def credential(options: OptionLookup): AwsCredentials = _credential
@@ -157,7 +151,7 @@ final case class AssumeRoleMode(override val name: String,
     if (! externalId.isEmpty) requestBuilder.externalId(externalId)
     val request = requestBuilder.build
 
-    val builder = STSClient.builder
+    val builder = StsClient.builder
     region.foreach(str => builder.region(Region.of(str)))
     // See comment above regarding builder
     baseAuthObj match{

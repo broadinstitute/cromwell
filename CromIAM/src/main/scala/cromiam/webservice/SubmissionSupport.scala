@@ -30,7 +30,7 @@ trait SubmissionSupport extends RequestSupport {
     post {
       extractUserAndRequest { (user, request) =>
         log.info("Received submission request from user " + user.userId)
-        authorizeAsync(samClient.isSubmitWhitelisted(user)) {
+        authorizeAsync(samClient.isSubmitWhitelisted(user, request)) {
           extractSubmission(user) { submission =>
             complete {
               forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity))
@@ -46,18 +46,20 @@ trait SubmissionSupport extends RequestSupport {
                                           submissionRequest: HttpRequest): Future[HttpResponse] = {
     log.info("Forwarding submission request for " + user.userId + " with collection " + collection.name + " to Cromwell")
 
-    def registerWithSam(collection: Collection): Future[Unit] = {
-      samClient.requestSubmission(user, collection) recoverWith {
-        case SamDenialException => Future.failed(SamDenialException)
+    def registerWithSam(collection: Collection, httpRequest: HttpRequest): Future[Unit] = {
+      samClient.requestSubmission(user, collection, httpRequest) recoverWith {
+        case e: SamDenialException => Future.failed(e)
+        case SamRegisterCollectionException(statusCode) => Future.failed(SamRegisterCollectionException(statusCode))
         case e => Future.failed(SamConnectionFailure("new workflow registration", e))
       }
     }
 
     (for {
+      _ <- registerWithSam(collection, submissionRequest)
       resp <- cromwellClient.forwardToCromwell(submissionRequest)
-      _ <- registerWithSam(collection)
     } yield resp) recover {
-      case SamDenialException => SamDenialResponse
+      case _: SamDenialException => SamDenialResponse
+      case SamRegisterCollectionException(statusCode) => SamRegisterCollectionExceptionResp(statusCode)
     }
   }
 }

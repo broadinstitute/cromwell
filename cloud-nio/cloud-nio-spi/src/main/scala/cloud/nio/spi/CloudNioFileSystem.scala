@@ -9,6 +9,7 @@ object CloudNioFileSystem {
   val Separator: String = "/"
 }
 
+//TODO: Use stronger type for CloudNioFileSystemProvider to avoid casting
 class CloudNioFileSystem(override val provider: CloudNioFileSystemProvider, val host: String) extends FileSystem {
 
   override def getPath(first: String, more: String*): CloudNioPath = getCloudNioPath(UnixPath.getPath(first, more: _*))

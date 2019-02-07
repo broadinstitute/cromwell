@@ -24,6 +24,7 @@ object ConfigHashingStrategy {
       hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
         case "path" => HashPathStrategy(checkSiblingMd5)
         case "file" => HashFileStrategy(checkSiblingMd5)
+        case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
@@ -75,6 +76,15 @@ final case class HashPathStrategy(checkSiblingMd5: Boolean) extends ConfigHashin
   }
 
   override val description = "hash file path"
+}
+
+final case class HashPathModTimeStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+  override def hash(file: Path): Try[String] = {
+    // Add the last modified date here to make sure these are the files we are looking for.
+    Try(DigestUtils.md5Hex(file.toAbsolutePath.pathAsString + file.lastModifiedTime.toString))
+  }
+
+  override val description = "hash file path and last modified time"
 }
 
 final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {

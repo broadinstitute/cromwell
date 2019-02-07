@@ -28,7 +28,7 @@ object Testing {
       .map(_.split(",").toList.map(_.trim))
       .getOrElse(AllTestTags)
 
-  private val spanScaleFactor: String = sys.env.getOrElse("CROMWELL_BUILD_SPAN_SCALE_FACTOR", "1")
+  private val spanScaleFactor: String = sys.env.getOrElse("CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR", "1")
 
   /*
   The arguments that will be added to the default test config, but removed from all other configs.

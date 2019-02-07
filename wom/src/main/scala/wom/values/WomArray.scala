@@ -3,8 +3,11 @@ package wom.values
 import cats.Applicative
 import cats.instances.list._
 import cats.syntax.traverse._
+import cats.syntax.functor._
 import common.util.TryUtil
+import common.validation.IOChecked.IOChecked
 import wom.TsvSerializable
+import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 
@@ -71,6 +74,8 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
       }
     }
   }
+
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(_.initialize(ioFunctionSet)).widen
 
   def size = value.size
 

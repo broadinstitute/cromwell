@@ -148,6 +148,32 @@ On every poll, Cromwell will take at limited number of new submissions, provided
 system.max-workflow-launch-count = 50
 ```
 
+***Abort configuration***
+
+Cromwell will scan for abort requests using default configuration values equivalent to those below. In most circumstances
+there shouldn't be a need to override these defaults.
+
+```hocon
+system {
+  abort {
+    # How frequently Cromwell should scan for aborts.
+    scan-frequency: 30 seconds
+
+    # The cache of in-progress aborts. Cromwell will add entries to this cache once a WorkflowActor has been messaged to abort.
+    # If on the next scan an 'Aborting' status is found for a workflow that has an entry in this cache, Cromwell will not ask
+    # the associated WorkflowActor to abort again.
+    cache {
+      # Guava cache concurrency.
+      concurrency: 1
+      # How long entries in the cache should live from the time they are added to the cache.
+      ttl: 20 minutes
+      # Maximum number of entries in the cache.
+      size: 100000
+    }
+  }
+}
+```
+
 ### Database
 
 **Using a MySQL Database**
@@ -266,11 +292,11 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
-Read the [Abort](Abort) page to learn more about how abort works.
+Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about how abort works.
 
 ### Call caching
 
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](CallCaching).
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](cromwell_features/CallCaching).
 
 To enable Call Caching, add the following to your Cromwell configuration:
 
@@ -290,23 +316,21 @@ Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-option
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
 
-```
+```HOCON
       config {
-        ...
         filesystems {
-          ...
           local {
-            ...
             caching {
               # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
               duplication-strategy: [
                 "hard-link", "soft-link", "copy"
               ]
 
-              # Possible values: file, path
+              # Possible values: file, path, path+modtime
               # "file" will compute an md5 hash of the file content.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
+              # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
               # Default: file
               hashing-strategy: "file"
 

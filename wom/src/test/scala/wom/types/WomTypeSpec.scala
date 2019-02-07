@@ -179,7 +179,10 @@ class WomTypeSpec extends FlatSpec with Matchers {
       ))
     ), WomObjectType),
     (List(WomIntegerType, WomFloatType), WomFloatType),
-    (List(WomIntegerType, WomBooleanType), WomStringType)
+    (List(WomIntegerType, WomBooleanType), WomStringType),
+    (List(WomOptionalType(WomMaybeEmptyArrayType(WomSingleFileType)), WomMaybeEmptyArrayType(WomNothingType)), WomOptionalType(WomMaybeEmptyArrayType(WomSingleFileType))),
+    (List(WomMaybeEmptyArrayType(WomSingleFileType), WomMaybeEmptyArrayType(WomNothingType)), WomMaybeEmptyArrayType(WomSingleFileType)),
+    (List(WomMaybeEmptyArrayType(WomStringType), WomMaybeEmptyArrayType(WomIntegerType), WomMaybeEmptyArrayType(WomNothingType)), WomMaybeEmptyArrayType(WomStringType))
   )
 
   lcsTestCases foreach { case (types, expectedLcs) =>

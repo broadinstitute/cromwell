@@ -9,23 +9,26 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Parse.Parse
 import org.slf4j.Logger
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object Validation {
+
+  private type ThrowableToStringFunction = Throwable => String
+  private def defaultThrowableToString: ThrowableToStringFunction = t => t.getMessage
+
   def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)
     if (unrecognizedKeys.nonEmpty) {
       logger.warn(s"Unrecognized configuration key(s) for $context: ${unrecognizedKeys.mkString(", ")}")
     }
   }
-  
+
   def validate[A](block: => A): ErrorOr[A] = Try(block) match {
     case Success(result) => result.validNel
-    case Failure(f) => f.getMessage.invalidNel
+    case Failure(f) => defaultThrowableToString(f).invalidNel
   }
 
   implicit class ValidationOps[B,A](val v: ValidatedNel[B, A]) {
@@ -40,13 +43,16 @@ object Validation {
   }
 
   implicit class TryValidation[A](val t: Try[A]) extends AnyVal {
-    def toErrorOr: ErrorOr[A] = {
-      Validated.fromTry(t).leftMap(_.getMessage).toValidatedNel[String, A] 
+    def toErrorOr: ErrorOr[A] = toErrorOr(defaultThrowableToString)
+    def toErrorOr(throwableToStringFunction: ThrowableToStringFunction): ErrorOr[A] = {
+      Validated.fromTry(t).leftMap(throwableToStringFunction).toValidatedNel[String, A]
     }
 
-    def toErrorOrWithContext(context: String): ErrorOr[A] = toChecked
+    def toErrorOrWithContext(context: String): ErrorOr[A] = toErrorOrWithContext(context, defaultThrowableToString)
+    def toErrorOrWithContext(context: String,
+                            throwableToStringFunction: ThrowableToStringFunction): ErrorOr[A] = toChecked(throwableToStringFunction)
       .contextualizeErrors(context)
-      .leftMap({contextualizedErrors => 
+      .leftMap({contextualizedErrors =>
         if (t.failed.isFailure) {
           val errors = new StringWriter
           t.failed.get.printStackTrace(new PrintWriter(errors))
@@ -55,9 +61,12 @@ object Validation {
       })
       .toValidated
 
-    def toChecked: Checked[A] = {
-      Either.fromTry(t).leftMap(ex => NonEmptyList.of(ex.getMessage))
+    def toChecked: Checked[A] = toChecked(defaultThrowableToString)
+    def toChecked(throwableToStringFunction: ThrowableToStringFunction): Checked[A] = {
+      Either.fromTry(t).leftMap { ex => NonEmptyList.one(throwableToStringFunction(ex)) }
     }
+
+    def toCheckedWithContext(context: String, throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
   }
 
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {
@@ -80,7 +89,6 @@ object Validation {
       val total = errors.size
       errors.zipWithIndex map { case (err, i) => s"Failed to $s (reason ${i + 1} of $total): $err" }
     }
-
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {
@@ -90,10 +98,6 @@ object Validation {
 
     def toChecked(errorMessage: String): Checked[A] = {
       Either.fromOption(o, NonEmptyList.of(errorMessage))
-    }
-
-    def toParse(errorMessage: String): Parse[A] = {
-      Parse.checkedParse(Either.fromOption(o, NonEmptyList.of(errorMessage)))
     }
   }
 }

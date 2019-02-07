@@ -1,0 +1,33 @@
+name: copy_workflow_outputs_unscattered_papi
+backends: [Papiv2]
+testFormat: workflowsuccess
+
+files {
+  workflow: copy_workflow_outputs/unscattered.wdl
+  options: copy_workflow_outputs/unscattered_papi.options
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-B/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-B/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-C/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-C/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/workflowLogDir/workflow.<<UUID>>.log": 1
+  # The seeming insanity of the '2' appears to do with the way the GCS filesystem matches prefixes. This is intended to
+  # match only the 'out' file but apparently in this circumstance 'out' is reported as a directory with two entries?
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/out": 2
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/out2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-B/out": 2
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-B/out2": 1
+}
+
+allowOtherOutputs = false
+metadata {
+  "outputs.wfoutputs.A.out":    "<<WORKFLOW_ROOT>>call-A/out"
+  "outputs.wfoutputs.A.out2":   "<<WORKFLOW_ROOT>>call-A/out2"
+  "outputs.wfoutputs.B.outs.0": "<<WORKFLOW_ROOT>>call-B/out"
+  "outputs.wfoutputs.B.outs.1": "<<WORKFLOW_ROOT>>call-B/out2"
+}

@@ -24,12 +24,14 @@ object AstToCallElement {
       case None => None.validNel
     }
 
+    val afterValidation: ErrorOr[Vector[String]] = ast.getAttributeAsVector[String]("after", optional = true).toValidated
+
     implicit val astNodeToCallBodyElement: CheckedAtoB[GenericAstNode, CallBodyElement] = astNodeToAst andThen CheckedAtoB.fromCheck(convertBodyElement _)
 
     val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
-    (callableNameValidation, aliasValidation, callBodyValidation) mapN { (name, alias, body) =>
-      CallElement(name, alias, body)
+    (callableNameValidation, aliasValidation, afterValidation, callBodyValidation) mapN { (name, alias, after, body) =>
+      CallElement(name, alias, after, body)
     }
   }
 

@@ -1,17 +1,19 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import cats.data.NonEmptyList
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowSubmissionResponse
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 class InMemoryWorkflowStore extends WorkflowStore {
 
-  var workflowStore = Map.empty[SubmittedWorkflow, WorkflowStoreState]
+  var workflowStore = Map.empty[WorkflowIdAndSources, WorkflowStoreState]
 
   /**
     * Adds the requested WorkflowSourceFiles to the store and returns a WorkflowId for each one (in order)
@@ -19,10 +21,10 @@ class InMemoryWorkflowStore extends WorkflowStore {
     */
   override def add(sources: NonEmptyList[WorkflowSourceFilesCollection])(implicit ec: ExecutionContext): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
     val actualWorkflowState = if (sources.head.workflowOnHold) WorkflowStoreState.OnHold else WorkflowStoreState.Submitted
-    val submittedWorkflows = sources map { SubmittedWorkflow(WorkflowId.randomId(), _) -> actualWorkflowState }
-    workflowStore = workflowStore ++ submittedWorkflows.toList.toMap
-    Future.successful(submittedWorkflows map {
-      case (SubmittedWorkflow(id, _), _) => WorkflowSubmissionResponse(actualWorkflowState, id)
+    val addedWorkflows = sources map { WorkflowIdAndSources(WorkflowId.randomId(), _) -> actualWorkflowState }
+    workflowStore ++= addedWorkflows.toList.toMap
+    Future.successful(addedWorkflows map {
+      case (WorkflowIdAndSources(id, _), _) => WorkflowSubmissionResponse(actualWorkflowState, id)
     })
   }
 
@@ -36,20 +38,11 @@ class InMemoryWorkflowStore extends WorkflowStore {
     workflowStore = workflowStore ++ updatedWorkflows
 
     val workflowsToStart = startableWorkflows map {
-      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, workflow.sources, Submitted)
+      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, OffsetDateTime.now, workflow.sources, Submitted)
       case _ => throw new IllegalArgumentException("This workflow is not currently in a startable state")
     }
 
     Future.successful(workflowsToStart.toList)
-  }
-
-  override def remove(id: WorkflowId)(implicit ec: ExecutionContext): Future[Boolean] = {
-    if (workflowStore.exists(_._1.id == id)) {
-      workflowStore = workflowStore filterNot { _._1.id == id }
-      Future.successful(true)
-    } else {
-      Future.successful(false)
-    }
   }
 
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
@@ -64,21 +57,29 @@ class InMemoryWorkflowStore extends WorkflowStore {
     Future.successful(())
   }
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
-    if (workflowStore.exists(_._1.id == id)) {
-      val state = workflowStore.find(_._1.id == id)
-      workflowStore = workflowStore ++ workflowStore.find(_._1.id == id).map({ _._1 -> WorkflowStoreState.Aborting }).toMap
-      // In memory workflows can never be restarted (since this is destroyed on a server restart)
-      Future.successful(state.map(_ => false))
-    } else {
-      Future.successful(None)
+  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+    workflowStore collectFirst {
+      case (workflowIdAndSources, workflowStoreState) if workflowIdAndSources.id == id =>
+        (workflowIdAndSources, workflowStoreState)
+    } match {
+      case Some((workflowIdAndSources, WorkflowStoreState.OnHold)) =>
+        workflowStore -= workflowIdAndSources
+        Future.successful(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
+      case Some((workflowIdAndSources, _)) =>
+        workflowStore += workflowIdAndSources -> WorkflowStoreState.Aborting
+        // In memory workflows can never be restarted (since this is destroyed on a server restart)
+        Future.successful(WorkflowStoreAbortResponse.AbortRequested)
+      case None =>
+        Future.successful(WorkflowStoreAbortResponse.NotFound)
     }
   }
 
-  override def writeWorkflowHeartbeats(workflowIds: Set[WorkflowId])(implicit ec: ExecutionContext): Future[Int] =
+  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int] =
     Future.successful(workflowIds.size)
 
   override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
+
+  override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(List.empty)
 }
 
-final case class SubmittedWorkflow(id: WorkflowId, sources: WorkflowSourceFilesCollection)
+final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

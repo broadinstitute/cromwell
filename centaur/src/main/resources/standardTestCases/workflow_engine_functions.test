@@ -1,0 +1,13 @@
+name: workflow_engine_functions
+testFormat: workflowsuccess
+
+files {
+  workflow: workflow_engine_functions/workflow_engine_functions.wdl
+}
+
+metadata {
+  "outputs.w.hello": "hello"
+  "outputs.w.world": "world"
+  "outputs.w.bar": "bar"
+  "outputs.w.qux": "qux"
+}

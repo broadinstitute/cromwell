@@ -93,6 +93,7 @@ package object consumed {
       case a: Sub => a.expressionConsumedValueHooks(expressionValueConsumer)
 
       // New WDL biscayne expressions:
+      case a: Keys => a.expressionConsumedValueHooks(expressionValueConsumer)
       case a: AsMap => a.expressionConsumedValueHooks(expressionValueConsumer)
       case a: AsPairs => a.expressionConsumedValueHooks(expressionValueConsumer)
       case a: CollectByKey => a.expressionConsumedValueHooks(expressionValueConsumer)

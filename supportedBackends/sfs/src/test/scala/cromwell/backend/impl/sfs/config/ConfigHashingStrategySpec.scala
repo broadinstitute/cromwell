@@ -49,7 +49,6 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     val initData = mock[StandardInitializationData]
     initData.workflowPaths returns workflowPaths
-
     SingleFileHashRequest(null, null, WomSingleFile(requestFile.pathAsString), Option(initData))
   }
 
@@ -90,6 +89,50 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     forAll(table) { (check, withMd5, expected) =>
       md5File.delete(swallowIOExceptions = true)
       val checkSibling = makeStrategy("path", Option(check))
+
+      checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
+
+      val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
+      val symlink = DefaultPathBuilder.get(symLinkRequest.file.valueString)
+
+      symlink.isSymbolicLink shouldBe true
+      DigestUtils.md5Hex(symlink.pathAsString) should not be expected
+      checkSibling.getHash(symLinkRequest, mock[LoggingAdapter]) shouldBe Success(expected)
+    }
+  }
+
+  it should "create a path+modtime hashing strategy from config" in {
+    val defaultSibling = makeStrategy("path+modtime")
+    defaultSibling.isInstanceOf[HashPathModTimeStrategy] shouldBe true
+    defaultSibling.checkSiblingMd5 shouldBe false
+
+    val checkSibling = makeStrategy("path+modtime", Option(true))
+
+    checkSibling.isInstanceOf[HashPathModTimeStrategy] shouldBe true
+    checkSibling.checkSiblingMd5 shouldBe true
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file path and last modified time."
+
+    val dontCheckSibling = makeStrategy("path+modtime", Option(false))
+
+    dontCheckSibling.isInstanceOf[HashPathModTimeStrategy] shouldBe true
+    dontCheckSibling.checkSiblingMd5 shouldBe false
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file path and last modified time."
+  }
+
+  it should "have a path+modtime hashing strategy and use md5 sibling file when appropriate" in {
+    // Have to define this here to make sure the timestamp is correct. Since the beforeAll() function modifies the file.
+    val pathModTimeHash = DigestUtils.md5Hex(file.pathAsString + file.lastModifiedTime.toString)
+    val table = Table(
+      ("check", "withMd5", "expected"),
+      (true, true, md5FileHash),
+      (false, true, pathModTimeHash),
+      (true, false, pathModTimeHash),
+      (false, false, pathModTimeHash)
+    )
+
+    forAll(table) { (check, withMd5, expected) =>
+      md5File.delete(swallowIOExceptions = true)
+      val checkSibling = makeStrategy("path+modtime", Option(check))
 
       checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
 

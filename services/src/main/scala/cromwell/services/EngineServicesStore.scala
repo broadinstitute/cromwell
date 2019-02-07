@@ -5,10 +5,10 @@ import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.EngineSqlDatabase
 
 object EngineServicesStore {
-  val EngineLiquibaseSettings = LiquibaseSettings("changelog.xml")
+  lazy val EngineLiquibaseSettings = LiquibaseSettings("changelog.xml")
 
   import ServicesStore.EnhancedSqlDatabase
 
-  val engineDatabaseInterface: EngineSqlDatabase =
+  lazy val engineDatabaseInterface: EngineSqlDatabase =
     EngineSlickDatabase.fromParentConfig().initialized(EngineServicesStore.EngineLiquibaseSettings)
 }

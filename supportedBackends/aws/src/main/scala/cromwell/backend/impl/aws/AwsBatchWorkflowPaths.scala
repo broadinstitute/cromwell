@@ -31,7 +31,7 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.core.auth.{AwsCredentials}
+import software.amazon.awssdk.auth.credentials.AwsCredentials
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPaths

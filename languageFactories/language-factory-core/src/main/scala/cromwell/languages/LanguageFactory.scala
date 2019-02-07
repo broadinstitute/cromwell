@@ -2,13 +2,14 @@ package cromwell.languages
 
 import com.typesafe.config.Config
 import common.Checked
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import common.validation.Checked._
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
 import wom.core._
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
+import wom.runtime.WomOutputRuntimeExtractor
 
 trait LanguageFactory {
 
@@ -27,6 +28,11 @@ trait LanguageFactory {
 
   lazy val strictValidation: Boolean = !config.as[Option[Boolean]]("strict-validation").contains(false)
 
+  lazy val womOutputRuntimeExtractor: Checked[Option[WomOutputRuntimeExtractor]] = config.getAs[Config]("output-runtime-extractor") match {
+    case Some(c) => WomOutputRuntimeExtractor.fromConfig(c).map(Option.apply).toEither
+    case _ => None.validNelCheck
+  }
+
   def getWomBundle(workflowSource: WorkflowSource,
                    workflowOptionsJson: WorkflowOptionsJson,
                    importResolvers: List[ImportResolver],
@@ -42,7 +48,7 @@ trait LanguageFactory {
                         importLocalFilesystem: Boolean,
                         workflowIdForLogging: WorkflowId,
                         ioFunctions: IoFunctionSet,
-                        importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace]
+                        importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace]
 
   /**
     * In case no version is specified: does this language factory feel like it might be suitable for this file?

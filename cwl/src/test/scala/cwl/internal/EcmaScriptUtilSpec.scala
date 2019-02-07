@@ -4,7 +4,6 @@ import common.validation.Validation._
 import delight.rhinosandox.exceptions.ScriptDurationException
 import org.mozilla.javascript.{EcmaError, EvaluatorException}
 import org.scalatest.{FlatSpec, Matchers}
-import wom.expression.DefaultSizeIoFunctionSet
 import wom.types._
 import wom.values._
 
@@ -12,7 +11,7 @@ class EcmaScriptUtilSpec extends FlatSpec with Matchers {
 
   behavior of "EcmaScriptUtil"
 
-  private lazy val encoder = new EcmaScriptEncoder(DefaultSizeIoFunctionSet)
+  private lazy val encoder = new EcmaScriptEncoder()
 
   it should "lookup a map entry with a string key" in {
     val values =

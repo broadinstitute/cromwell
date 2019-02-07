@@ -6,6 +6,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core._
@@ -25,7 +26,7 @@ import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationA
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
-import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig}
+import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 
@@ -43,13 +44,7 @@ object WorkflowActor {
   case object AbortWorkflowCommand extends WorkflowActorCommand
   case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
 
-  /**
-    * Responses from the WorkflowActor
-    */
-  sealed trait WorkflowActorResponse
-  case class WorkflowSucceededResponse(workflowId: WorkflowId) extends WorkflowActorResponse
-  case class WorkflowAbortedResponse(workflowId: WorkflowId) extends WorkflowActorResponse
-  case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable]) extends Exception with WorkflowActorResponse
+  case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable])
 
   /**
     * States for the WorkflowActor FSM
@@ -144,9 +139,7 @@ object WorkflowActor {
   case object StartNewWorkflow extends StartMode
   case object RestartExistingWorkflow extends StartMode
 
-  def props(workflowId: WorkflowId,
-            startMode: StartableState,
-            workflowSourceFilesCollection: WorkflowSourceFilesCollection,
+  def props(workflowToStart: WorkflowToStart,
             conf: Config,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
@@ -162,12 +155,11 @@ object WorkflowActor {
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
             totalJobsByRootWf: AtomicInteger,
-            fileHashCacheActor: Option[ActorRef]): Props = {
+            fileHashCacheActor: Option[ActorRef],
+            blacklistCache: Option[BlacklistCache]): Props = {
     Props(
       new WorkflowActor(
-        workflowId = workflowId,
-        initialStartableState = startMode,
-        workflowSourceFilesCollection = workflowSourceFilesCollection,
+        workflowToStart = workflowToStart,
         conf = conf,
         ioActor = ioActor,
         serviceRegistryActor = serviceRegistryActor,
@@ -183,16 +175,15 @@ object WorkflowActor {
         serverMode = serverMode,
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor)).withDispatcher(EngineDispatcher)
+        fileHashCacheActor = fileHashCacheActor,
+        blacklistCache = blacklistCache)).withDispatcher(EngineDispatcher)
   }
 }
 
 /**
   * Class that orchestrates a single workflow.
   */
-class WorkflowActor(val workflowId: WorkflowId,
-                    initialStartableState: StartableState,
-                    workflowSourceFilesCollection: WorkflowSourceFilesCollection,
+class WorkflowActor(workflowToStart: WorkflowToStart,
                     conf: Config,
                     ioActor: ActorRef,
                     override val serviceRegistryActor: ActorRef,
@@ -208,11 +199,13 @@ class WorkflowActor(val workflowId: WorkflowId,
                     serverMode: Boolean,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                     totalJobsByRootWf: AtomicInteger,
-                    fileHashCacheActor: Option[ActorRef])
+                    fileHashCacheActor: Option[ActorRef],
+                    blacklistCache: Option[BlacklistCache])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
+  private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState) = workflowToStart
   override val workflowIdForLogging = workflowId.toPossiblyNotRoot
   override val rootWorkflowIdForLogging = workflowId.toRoot
 
@@ -255,7 +248,7 @@ class WorkflowActor(val workflowId: WorkflowId,
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
-      actor ! MaterializeWorkflowDescriptorCommand(workflowSourceFilesCollection, conf)
+      actor ! MaterializeWorkflowDescriptorCommand(sources, conf)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     // If the workflow is not being restarted then we can abort it immediately as nothing happened yet
     case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)
@@ -306,7 +299,8 @@ class WorkflowActor(val workflowId: WorkflowId,
         startState = data.effectiveStartableState,
         rootConfig = conf,
         totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor), name = s"WorkflowExecutionActor-$workflowId")
+        fileHashCacheActor = fileHashCacheActor,
+        blacklistCache = blacklistCache), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
       
@@ -432,7 +426,7 @@ class WorkflowActor(val workflowId: WorkflowId,
           * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
           * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
           */
-        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(workflowSourceFilesCollection.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
+        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(sources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
         val system = context.system
         val ec = context.system.dispatcher
         def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system)
@@ -502,6 +496,6 @@ class WorkflowActor(val workflowId: WorkflowId,
     goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint (stateName, failures))
   }
 
-  private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId)
+  private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId, submissionTime)
 
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
@@ -31,6 +31,7 @@ cp \
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
+    "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
     -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 
 cromwell::build::generate_code_coverage

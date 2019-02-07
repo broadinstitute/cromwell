@@ -7,7 +7,7 @@ import cats.instances.list._
 import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey}
+import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys}
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.expression.IoFunctionSet
@@ -47,6 +47,20 @@ object BiscayneValueEvaluators {
     }
   }
 
+  implicit val keysFunctionEvaluator: ValueEvaluator[Keys] = new ValueEvaluator[Keys] {
+    override def evaluateValue(a: Keys,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
+
+      processValidatedSingleValue[WomMap, WomArray](expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)) {
+        case WomMap(WomMapType(keyType, _), values) => EvaluatedValue(WomArray(WomArrayType(keyType), values.keys.toList), Seq.empty).validNel
+        case other => s"Invalid call of 'keys' on parameter of type '${other.womType.toDisplayString}' (expected Map[X, Y])".invalidNel
+      }
+    }
+  }
+
   implicit val asPairsFunctionEvaluator: ValueEvaluator[AsPairs] = new ValueEvaluator[AsPairs] {
     override def evaluateValue(a: AsPairs, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
@@ -57,7 +71,7 @@ object BiscayneValueEvaluators {
           }
           EvaluatedValue(WomArray(WomArrayType(WomPairType(keyType, valueType)), validPairs), Seq.empty).validNel
 
-        case other => s"Invalid call of 'as_pairs' on parameter of type '${other.womType.toDisplayString}' (expected Array[Pair[X, Y]])".invalidNel
+        case other => s"Invalid call of 'as_pairs' on parameter of type '${other.womType.toDisplayString}' (expected Map[X, Y])".invalidNel
       }
     }
   }
@@ -78,7 +92,7 @@ object BiscayneValueEvaluators {
           }
 
         case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'collect_by_key' on type ${womType.toDisplayString}. Keys must be primitive but got ${x.toDisplayString}.".invalidNel
-        case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.toDisplayString}' (expected Array[Pair[X, Y]])".invalidNel
+        case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.toDisplayString}' (expected Map[X, Y])".invalidNel
       } (coercer = WomArrayType(WomPairType(WomAnyType, WomAnyType)))
     }
   }

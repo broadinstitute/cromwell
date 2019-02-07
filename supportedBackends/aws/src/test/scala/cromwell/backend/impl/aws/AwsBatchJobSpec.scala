@@ -31,11 +31,7 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
-import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
-import org.specs2.mock.Mockito
-import cromwell.util.SampleWdl
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
@@ -80,12 +76,12 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     |export HOME="$HOME"
     |(
     |  cd /cromwell_root
-
+    |
     |)
     |(
     |  cd /cromwell_root
-
-
+    |
+    |
     |  echo "Hello World! Welcome to Cromwell . . . on AWS!" >&2
     |)  > '/cromwell_root/hello-stdout.log' 2> '/cromwell_root/hello-stderr.log'
     |echo $? > /cromwell_root/hello-rc.txt.tmp
@@ -97,32 +93,32 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     |(
     |  cd /cromwell_root
     |  sync
-
-
+    |
+    |
     |)
     |mv /cromwell_root/hello-rc.txt.tmp /cromwell_root/hello-rc.txt"""
 
     val boundary = "d283898f11be0dee6f9ac01470450bee"
     val expectedscript = script.concat(s"""
     |echo "MIME-Version: 1.0
-    |Content-Type: multipart/alternative; boundary="${boundary}"
-
-    |--${boundary}
+    |Content-Type: multipart/alternative; boundary="$boundary"
+    |
+    |--$boundary
     |Content-Type: text/plain
     |Content-Disposition: attachment; filename="rc.txt"
     |"
     |cat /cromwell_root/hello-rc.txt
-    |echo "--${boundary}
+    |echo "--$boundary
     |Content-Type: text/plain
     |Content-Disposition: attachment; filename="stdout.txt"
     |"
     |cat /cromwell_root/hello-stdout.log
-    |echo "--${boundary}
+    |echo "--$boundary
     |Content-Type: text/plain
     |Content-Disposition: attachment; filename="stderr.txt"
     |"
     |cat /cromwell_root/hello-stderr.log
-    |echo "--${boundary}--"
+    |echo "--$boundary--"
     |exit $$(cat /cromwell_root/hello-rc.txt)
     """).stripMargin
 
@@ -131,7 +127,11 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
       inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
     )
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workFlowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)(system)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workFlowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val call = workFlowDescriptor.callable.taskCallNodes.head
     val jobKey = BackendJobDescriptorKey(call, None, 1)

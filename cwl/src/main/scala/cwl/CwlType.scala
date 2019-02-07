@@ -3,10 +3,10 @@ package cwl
 import cats.instances.list._
 import cats.instances.option._
 import cats.syntax.traverse._
+import cats.syntax.functor._
 import cats.syntax.validated._
-import common.validation.ErrorOr.{ErrorOr, _}
-import common.validation.Validation._
-import cwl.FileParameter._
+import common.validation.ErrorOr._
+import common.validation.IOChecked._
 import eu.timepit.refined._
 import mouse.all._
 import shapeless.Poly1
@@ -61,14 +61,14 @@ case class File private
         case (None, None) =>
           "Cannot convert CWL File to WomValue without either a location, a path, or contents".invalidNel
         case (None, Some(content)) =>
-          new WomMaybePopulatedFile(None, checksum, size, format, contents) with LazyWomFile {
-            override def initialize(ioFunctionSet: IoFunctionSet) = {
-              val name = basename.getOrElse(content.hashCode.toString)
-              sync(ioFunctionSet.writeFile(name, content)).toErrorOr map { writtenFile =>
-                this.copy(valueOption = Option(writtenFile.value))
-              }
+          val initializeFunction: WomMaybePopulatedFile => IoFunctionSet => IOChecked[WomValue] = { file =>ioFunctionSet =>
+            val name = basename.getOrElse(content.hashCode.toString)
+            ioFunctionSet.writeFile(name, content).toIOChecked map { writtenFile =>
+              file.copy(valueOption = Option(writtenFile.value))
             }
-          }.valid
+          }
+
+          new WomMaybePopulatedFile(None, checksum, size, format, contents, initializeFunction = initializeFunction).valid
         case (_, _) =>
           WomMaybePopulatedFile(valueOption, checksum, size, format, contents, secondaryFiles).valid
       }
@@ -122,13 +122,13 @@ object File {
     }
   }
 
-  def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet)(visited: Vector[String] = Vector.empty): ErrorOr[WomMaybeListedDirectory] = {
+  def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet)(visited: Vector[String] = Vector.empty): IOChecked[WomMaybeListedDirectory] = {
     for {
-      listing <- sync(ioFunctions.listDirectory(directory)(visited)).toErrorOr
-      fileListing <- listing.toList.traverse{
-        case IoDirectory(e) => recursivelyBuildDirectory(e, ioFunctions)(visited :+ directory)
-        case IoFile(e) => WomMaybePopulatedFile(e).validNel
-      }
+      listing <- ioFunctions.listDirectory(directory)(visited).toIOChecked
+      fileListing <- listing.toList.traverse[IOChecked, WomFile]({
+        case IoDirectory(e) => recursivelyBuildDirectory(e, ioFunctions)(visited :+ directory).widen
+        case IoFile(e) => WomMaybePopulatedFile(e).validIOChecked.widen
+      })
     } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
   }
 
@@ -139,7 +139,7 @@ object File {
   def secondaryStringFile(primaryWomFile: WomFile,
                           stringWomFileType: WomFileType,
                           secondaryValue: String,
-                          ioFunctions: IoFunctionSet): ErrorOr[WomFile] = {
+                          ioFunctions: IoFunctionSet): IOChecked[WomFile] = {
     val secondaryRelativeFileName = File.relativeFileName(primaryWomFile.value, secondaryValue)
 
     // If the primary file is an absolute path, and the secondary is not, make the secondary file an absolute path and a sibling of the primary
@@ -148,8 +148,8 @@ object File {
 
     // If the secondary file is in fact a directory, look into it and build its listing
     for {
-      isDirectory <- sync(ioFunctions.isDirectory(filePath)).toErrorOr
-      file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions)() else WomFile(stringWomFileType, filePath).validNel
+      isDirectory <- ioFunctions.isDirectory(filePath).toIOChecked
+      file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions)() else WomFile(stringWomFileType, filePath).validIOChecked
     } yield file
   }
 
@@ -248,13 +248,12 @@ case class Directory private
       path.orElse(location) map { value =>
         WomMaybeListedDirectory(Option(value), listingOption, basename).valid
       } getOrElse {
-        new WomMaybeListedDirectory(None, listingOption, basename) with LazyWomFile {
-          override def initialize(ioFunctionSet: IoFunctionSet) = {
-            sync(ioFunctionSet.createTemporaryDirectory(basename)).toErrorOr map { tempDir =>
-              this.copy(valueOption = Option(tempDir))
-            }
-          }
-        }.valid
+        val initializeFunction: WomMaybeListedDirectory => IoFunctionSet => IOChecked[WomValue] = { dir =>ioFunctionSet =>
+          ioFunctionSet.createTemporaryDirectory(basename).toIOChecked map { tempDir =>
+            dir.copy(valueOption = Option(tempDir))
+          } 
+        }
+        new WomMaybeListedDirectory(None, listingOption, basename, initializeFunction = initializeFunction).valid
       }
     }
   }

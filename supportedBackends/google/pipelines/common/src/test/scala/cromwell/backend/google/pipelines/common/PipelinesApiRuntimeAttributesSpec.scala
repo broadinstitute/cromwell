@@ -26,10 +26,10 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
   }
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    MemorySize(2.048, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
-  "JesRuntimeAttributes" should {
+  "PipelinesApiRuntimeAttributes" should {
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]

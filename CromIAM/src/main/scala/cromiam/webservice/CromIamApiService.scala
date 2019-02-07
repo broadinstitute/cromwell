@@ -1,24 +1,26 @@
 package cromiam.webservice
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.event.LoggingAdapter
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
+import com.typesafe.config.Config
+import cromiam.auth.Collection.validateLabels
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
-import Collection.validateLabels
+import cromiam.instrumentation.CromIamInstrumentation
 import cromiam.sam.SamClient
 import cromiam.sam.SamClient.{CollectionAuthorizationRequest, SamConnectionFailure, SamDenialException, SamDenialResponse}
 import cromiam.server.config.CromIamServerConfig
 import cromiam.server.status.StatusService
 import cromiam.webservice.CromIamApiService._
-
+import cromwell.services.ServiceRegistryActor
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 trait SwaggerService extends SwaggerUiResourceHttpService {
@@ -30,13 +32,17 @@ trait SwaggerService extends SwaggerUiResourceHttpService {
 trait CromIamApiService extends RequestSupport
   with EngineRouteSupport
   with SubmissionSupport
-  with QuerySupport {
+  with QuerySupport
+  with CromIamInstrumentation {
 
   implicit val system: ActorSystem
   implicit def executor: ExecutionContextExecutor
   implicit val materializer: ActorMaterializer
 
+  protected def rootConfig: Config
   protected def configuration: CromIamServerConfig
+
+  override lazy val serviceRegistryActor: ActorRef = system.actorOf(ServiceRegistryActor.props(rootConfig), "ServiceRegistryActor")
 
   val log: LoggingAdapter
 
@@ -51,14 +57,22 @@ trait CromIamApiService extends RequestSupport
   lazy val cromwellClient = new CromwellClient(configuration.cromwellConfig.scheme,
     configuration.cromwellConfig.interface,
     configuration.cromwellConfig.port,
-    log)
+    log,
+    serviceRegistryActor)
 
   lazy val cromwellAbortClient = new CromwellClient(configuration.cromwellAbortConfig.scheme,
     configuration.cromwellAbortConfig.interface,
     configuration.cromwellAbortConfig.port,
-    log)
+    log,
+    serviceRegistryActor)
 
-  lazy val samClient = new SamClient(configuration.samConfig.scheme, configuration.samConfig.interface, configuration.samConfig.port, log)
+  lazy val samClient = new SamClient(
+    configuration.samConfig.http.scheme,
+    configuration.samConfig.http.interface,
+    configuration.samConfig.http.port,
+    configuration.samConfig.checkSubmitWhitelist,
+    log,
+    serviceRegistryActor)
 
   val statusService: StatusService
 
@@ -95,7 +109,7 @@ trait CromIamApiService extends RequestSupport
   def workflowOutputsRoute: Route = workflowGetRouteWithId("outputs")
   def workflowLogsRoute: Route = workflowGetRouteWithId("logs")
   def metadataRoute: Route = workflowGetRouteWithId("metadata")
-  def timingRoute: Route = workflowGetRouteWithId("metadata")
+  def timingRoute: Route = workflowGetRouteWithId("timing")
   def statusRoute: Route = workflowGetRouteWithId("status")
   def labelGetRoute: Route = workflowGetRouteWithId(Labels)
 
@@ -173,8 +187,8 @@ trait CromIamApiService extends RequestSupport
                                              cromwellAuthClient: CromwellClient,
                                              cromwellRequestClient: CromwellClient): Future[HttpResponse] = {
     def authForCollection(collection: Collection): Future[Unit] = {
-      samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action)) recoverWith {
-        case SamDenialException => Future.failed(SamDenialException)
+      samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action), request) recoverWith {
+        case e: SamDenialException => Future.failed(e)
         case e =>
           log.error(e, "Unable to connect to Sam {}", e)
           Future.failed(SamConnectionFailure("authorization", e))
@@ -183,12 +197,12 @@ trait CromIamApiService extends RequestSupport
 
 
     (for {
-      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellAuthClient.getRootWorkflow(id, user)))
-      collections <- Future.sequence(rootWorkflowIds.map(id => cromwellAuthClient.collectionForWorkflow(id, user))).map(_.distinct)
+      rootWorkflowIds <- Future.sequence(workflowIds.map(id => cromwellAuthClient.getRootWorkflow(id, user, request)))
+      collections <- Future.sequence(rootWorkflowIds.map(id => cromwellAuthClient.collectionForWorkflow(id, user, request))).map(_.distinct)
       _ <- collections traverse authForCollection
       resp <- cromwellRequestClient.forwardToCromwell(request)
     } yield resp) recover {
-      case SamDenialException => SamDenialResponse
+      case _: SamDenialException => SamDenialResponse
       case other => HttpResponse(status = InternalServerError, entity = s"CromIAM unexpected error: $other")
     }
   }

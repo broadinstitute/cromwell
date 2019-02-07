@@ -2,7 +2,7 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
-import common.validation.Parse.Parse
+import common.validation.IOChecked._
 import io.circe.Printer
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
@@ -12,7 +12,7 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
   behavior of "CwlPreProcessor"
 
   val resourcesRoot = File(getClass.getResource(".").getPath)
-  val echoFileTool = resourcesRoot / "echo_tool.cwl"
+  val echoFileTool = CwlFileReference(resourcesRoot / "echo_tool.cwl", None)
 
   it should "flatten a simple file" in {
     validate(makeTestRoot("simple_workflow"), None) { mockSaladingFunction =>
@@ -36,7 +36,7 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
    */
   it should "flatten file with sub workflow, self reference and valid cyclic dependency" in {
     val testRoot = makeTestRoot("complex_workflow")
-    val subWorkflow =  testRoot / "sub" / "sub_workflow.cwl"
+    val subWorkflow =  CwlFileReference(testRoot / "sub" / "sub_workflow.cwl", Some("sub-echo-workflow-1"))
 
     validate(testRoot, Option("echo-workflow-2")) { mockSaladingFunction =>
       mockSaladingFunction.expects(echoFileTool).onCall(CwlPreProcessor.saladCwlFile)
@@ -57,8 +57,8 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
   it should "detect invalid transitive cyclic dependencies (A => B => C => A) and fail" in {
     val testRoot = makeTestRoot("transitive_cyclic_dependency")
 
-    val subWorkflow1 = testRoot / "sub_workflow_1.cwl"
-    val subWorkflow2 =  testRoot / "sub_workflow_2.cwl"
+    val subWorkflow1 = CwlFileReference(testRoot / "sub_workflow_1.cwl", None)
+    val subWorkflow2 =  CwlFileReference(testRoot / "sub_workflow_2.cwl", None)
 
     validate(testRoot, None,
       expectedFailure = Option(
@@ -73,8 +73,8 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
   it should "pre-process inlined workflows" in {
     val testRoot = makeTestRoot("deep_nesting")
 
-    val subWorkflow1 = testRoot / "wc-tool.cwl"
-    val subWorkflow2 =  testRoot / "parseInt-tool.cwl"
+    val subWorkflow1 = CwlFileReference(testRoot / "wc-tool.cwl", None)
+    val subWorkflow2 =  CwlFileReference(testRoot / "parseInt-tool.cwl", None)
 
     validate(testRoot, None, uuidExtractor = Option("step0/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/")) { mockSaladingFunction =>
       mockSaladingFunction.expects(subWorkflow1).onCall(CwlPreProcessor.saladCwlFile)
@@ -88,21 +88,21 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
                   root: Option[String],
                   expectedFailure: Option[NonEmptyList[String]] = None,
                   uuidExtractor: Option[String] = None
-                 )(additionalValidation: MockFunction1[File, Parse[String]] => T) = {
-    val rootWorkflow = testRoot / "root_workflow.cwl"
+                 )(additionalValidation: MockFunction1[CwlReference, IOChecked[String]] => T) = {
+    val rootWorkflowReference = CwlFileReference(testRoot / "root_workflow.cwl", root)
 
     // Mocking the salad function allows us to validate how many times it is called exactly and with which parameters
-    val mockSaladingFunction = mockFunction[File, Parse[String]]
+    val mockSaladingFunction = mockFunction[CwlReference, IOChecked[String]]
     val preProcessor = new CwlPreProcessor(mockSaladingFunction)
 
     val saladExpectations = additionalValidation
       // Always validate that the root is saladed
-      .andThen(_ => mockSaladingFunction.expects(rootWorkflow).onCall(CwlPreProcessor.saladCwlFile))
+      .andThen(_ => mockSaladingFunction.expects(rootWorkflowReference).onCall(CwlPreProcessor.saladCwlFile))
 
     // Asserts that dependencies are only saladed once and exactly once
     inAnyOrder(saladExpectations(mockSaladingFunction))
 
-    val process = preProcessor.preProcessCwlFile(rootWorkflow, root).value.unsafeRunSync()
+    val process = preProcessor.preProcessCwl(rootWorkflowReference).value.unsafeRunSync()
 
     (process, expectedFailure) match {
       case (Left(errors), Some(failures)) => errors shouldBe failures

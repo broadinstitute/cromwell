@@ -390,9 +390,12 @@ object WomToWdlom {
       else
         None
 
+      val afters = call.nonInputBasedPrerequisites.map(_.localName).toVector
+
       CallElement(
         callableName,
         maybeAlias,
+        afters,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       ).validNelCheck
     }

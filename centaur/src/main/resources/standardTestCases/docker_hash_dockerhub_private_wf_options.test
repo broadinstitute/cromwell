@@ -4,7 +4,7 @@ backends: [Papiv2NoDockerHubConfig]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub_private.wdl
-  # Updated the options to with read_from_cache: false for
+  # Updated the options to read_from_cache: false for
   # https://github.com/broadinstitute/cromwell/issues/3998
   options: rendered/private_docker_papi_v2_usa.options
 }

@@ -10,10 +10,12 @@ import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.labels.Labels
 import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
+import cromwell.docker.DockerInfoActor.DockerSize
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
+import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.WomArray.WomArrayLike
 import wom.values._
 
@@ -37,6 +39,7 @@ case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescriptor,
                                 runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                 evaluatedTaskInputs: WomEvaluatedCallInputs,
                                 maybeCallCachingEligible: MaybeCallCachingEligible,
+                                dockerSize: Option[DockerSize],
                                 prefetchedKvStoreEntries: Map[String, KvResponse]) {
 
   val fullyQualifiedInputs: Map[String, WomValue] = evaluatedTaskInputs map { case (declaration, value) =>
@@ -67,8 +70,9 @@ object BackendWorkflowDescriptor {
             callable: ExecutableCallable,
             knownValues: Map[OutputPort, WomValue],
             workflowOptions: WorkflowOptions,
-            customLabels: Labels) = {
-    new BackendWorkflowDescriptor(id, callable, knownValues, workflowOptions, customLabels, List.empty)
+            customLabels: Labels,
+            outputRuntimeExtractor: Option[WomOutputRuntimeExtractor] = None) = {
+    new BackendWorkflowDescriptor(id, callable, knownValues, workflowOptions, customLabels, List.empty, outputRuntimeExtractor)
   }
 }
 
@@ -80,7 +84,8 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
                                      knownValues: Map[OutputPort, WomValue],
                                      workflowOptions: WorkflowOptions,
                                      customLabels: Labels,
-                                     breadCrumbs: List[BackendJobBreadCrumb]) {
+                                     breadCrumbs: List[BackendJobBreadCrumb],
+                                     outputRuntimeExtractor: Option[WomOutputRuntimeExtractor]) {
 
   val rootWorkflow = breadCrumbs.headOption.map(_.callable).getOrElse(callable)
   val possiblyNotRootWorkflowId = id.toPossiblyNotRoot

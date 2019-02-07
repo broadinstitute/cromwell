@@ -153,7 +153,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "test_attempt" -> Option(testEnvironment.attempt + 1),
       "test_message" -> Option(centaurTestException.message),
       "test_name" -> Option(testEnvironment.name),
-      "test_stack_trace" -> centaurTestException.causeOption.map(ExceptionUtils.getStackTrace),
+      "test_stack_trace" -> Option(ExceptionUtils.getStackTrace(centaurTestException)),
       "test_timestamp" -> Option(OffsetDateTime.now.toString),
       "test_workflow_id" -> centaurTestException.workflowIdOption,
     ).collect {

@@ -127,4 +127,5 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def done: Boolean = executionStore.isDone
+  def stalled: Boolean = executionStore.isStalled
 }

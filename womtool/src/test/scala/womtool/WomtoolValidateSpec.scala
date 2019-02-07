@@ -13,7 +13,6 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
 
   behavior of "womtool validate"
 
-
   it should "test at least one version" in {
     languageVersions.isEmpty should be(false)
   }
@@ -50,7 +49,7 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
           case None => Seq.empty[String]
         }
 
-        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination(""))
+        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination("Success!"))
       }
     }
 

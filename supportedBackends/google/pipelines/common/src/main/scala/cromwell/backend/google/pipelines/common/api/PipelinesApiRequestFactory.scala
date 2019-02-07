@@ -4,10 +4,12 @@ import com.google.api.client.http.HttpRequest
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
+import wom.runtime.WomOutputRuntimeExtractor
 
 /**
   * The PipelinesApiRequestFactory defines the HttpRequests needed to run jobs
@@ -71,7 +73,9 @@ object PipelinesApiRequestFactory {
                                       labels: Labels,
                                       preemptible: Boolean,
                                       jobShell: String,
-                                      privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken]) {
+                                      privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
+                                      womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
+                                      adjustedSizeDisks: Seq[PipelinesApiAttachedDisk]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

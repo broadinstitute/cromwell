@@ -1,0 +1,15 @@
+name: afters
+testFormat: workflowsuccess
+backends: [LocalNoDocker]
+tags: [localdockertest]
+
+files {
+  workflow: afters/afters.wdl
+  options: afters/afters.options.json
+}
+
+metadata {
+  workflowName: afters
+  status: Succeeded
+  "outputs.afters.result": 6
+}

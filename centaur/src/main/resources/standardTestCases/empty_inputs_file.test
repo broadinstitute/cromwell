@@ -1,0 +1,15 @@
+name: empty_inputs_file
+testFormat: submitfailure
+
+files {
+  workflow: invalid_inputs_json/invalid_inputs_json.wdl
+  inputs: invalid_inputs_json/empty_inputs_file.inputs
+}
+
+submit {
+  statusCode: 400
+  message: """{
+  "status": "fail",
+  "message": "Error(s): Input file is not a valid yaml or json. Inputs data: ''. Error: MatchError: null."
+}"""
+}

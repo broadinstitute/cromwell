@@ -8,12 +8,13 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Parse._
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.webservice.PartialWorkflowSources
+import cwl.preprocessor.CwlFileReference
 import cwl.preprocessor.CwlPreProcessor
 import org.slf4j.Logger
 
@@ -66,7 +67,7 @@ case class CommandLineArguments(command: Option[Command] = None,
       val workflowPath = File(workflowSourcePath.pathAsString)
 
       logger.info("Pre Processing Workflow...")
-      lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlFileToString(workflowPath, workflowRoot)
+      lazy val preProcessedCwl = cwlPreProcessor.preProcessCwlToString(CwlFileReference(workflowPath, workflowRoot))
 
       Try(preProcessedCwl.value.unsafeRunSync())
         .toChecked

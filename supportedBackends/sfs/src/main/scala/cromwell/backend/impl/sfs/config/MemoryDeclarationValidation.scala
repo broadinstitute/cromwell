@@ -50,12 +50,13 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     val womValue = declaration.expression.get.evaluate(NoLookup, NoFunctions).get
     val amount: Double = defaultAmount(womValue)
     val memorySize = MemorySize(amount, declarationMemoryUnit)
-    validation.withDefault(WomInteger(memorySize.bytes.toInt))
+    validation.withDefault(WomLong(memorySize.bytes.toLong))
   }
 
   private def defaultAmount(womValue: WomValue): Double = {
     womValue match {
       case WomInteger(value) => value.toDouble
+      case WomLong(value) => value.toDouble
       case WomFloat(value) => value
       case WomOptionalValue(_, Some(optionalWdlValue)) => defaultAmount(optionalWdlValue)
       case other => throw new RuntimeException(s"Unsupported memory default: $other")
@@ -83,9 +84,10 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
   }
 
   private def coerceMemorySize(womType: WomType)(value: MemorySize): WomValue = {
+    val amount = value.to(declarationMemoryUnit).amount
     womType match {
-      case WomIntegerType => WomInteger(value.to(declarationMemoryUnit).amount.toInt)
-      case WomFloatType => WomFloat(value.to(declarationMemoryUnit).amount)
+      case WomIntegerType | WomLongType => WomLong(amount.toLong)
+      case WomFloatType => WomFloat(amount)
       case WomOptionalType(optionalType) => coerceMemorySize(optionalType)(value)
       case other => throw new RuntimeException(s"Unsupported wdl type for memory: $other")
     }

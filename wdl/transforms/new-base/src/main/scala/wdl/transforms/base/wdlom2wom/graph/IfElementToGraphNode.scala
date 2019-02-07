@@ -40,28 +40,40 @@ object IfElementToGraphNode {
       case other => s"Invalid type for condition variable: ${other.toDisplayString}".invalidNel
     }
 
-    val requiredOuterValuesValidation: ErrorOr[Set[String]] = {
+    final case class RequiredOuterPorts(valueGeneratorPorts: Map[String, OutputPort], completionPorts: Map[String, CallNode])
+
+    val foundOuterGeneratorsValidation: ErrorOr[RequiredOuterPorts] = {
       val required: ErrorOr[Set[UnlinkedConsumedValueHook]] = graphElements.toList.traverse { element => element.graphElementConsumedValueHooks(a.availableTypeAliases, a.callables) }.map(_.toSet.flatten)
       val generated: ErrorOr[Set[GeneratedValueHandle]] = graphElements.toList.traverse { element => element.generatedValueHandles(a.availableTypeAliases, a.callables) }.map(_.toSet.flatten)
 
-      (required, generated) mapN { (r, g) => r collect {
-        case hook @ UnlinkedIdentifierHook(id) if !g.exists(_.linkableName == id) => a.linkableValues(hook).linkableName
-        case hook @ UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") => a.linkableValues(hook).linkableName
-      }}
-    }
+      def makeLink(hook: UnlinkedConsumedValueHook): (String, OutputPort) = {
+        val name = a.linkableValues(hook).linkableName
+        val port = a.linkablePorts(name)
+        name -> port
+      }
 
-    val foundOuterGeneratorsValidation: ErrorOr[Map[String, OutputPort]] = requiredOuterValuesValidation map { requiredOuterValues =>
-      (requiredOuterValues map { name =>
-        name -> a.linkablePorts(name)
-      }).toMap
+      (required, generated) mapN { (r, g) =>
+        val requiredOuterValues = r collect {
+          case hook@UnlinkedIdentifierHook(id) if !g.exists(_.linkableName == id) => makeLink(hook)
+          case hook@UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) if !g.exists(_.linkableName == first) && !g.exists(_.linkableName == s"$first.$second") => makeLink(hook)
+        }
+        val requiredCompletionPorts = r collect {
+          case UnlinkedAfterCallHook(upstreamCallName) if !g.exists {
+            case GeneratedCallFinishedHandle(`upstreamCallName`) => true
+            case _ => false
+          } => upstreamCallName -> a.upstreamCalls.values.find(_.localName == upstreamCallName).get
+        }
+
+        RequiredOuterPorts(requiredOuterValues.toMap, requiredCompletionPorts.toMap)
+      }
     }
 
     (conditionExpressionNodeValidation, conditionVariableTypeValidation, foundOuterGeneratorsValidation) flatMapN { (expressionNode, _, foundOuterGenerators) =>
-      val ogins: Set[GraphNode] = (foundOuterGenerators.toList map { case (name: String, port: OutputPort) =>
+      val ogins: Set[GraphNode] = (foundOuterGenerators.valueGeneratorPorts.toList map { case (name: String, port: OutputPort) =>
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = true)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins, a.availableTypeAliases, a.workflowName, insideAScatter = a.insideAnotherScatter, a.callables)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins, foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName, insideAScatter = a.insideAnotherScatter, a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -74,6 +86,7 @@ object IfElementToGraphNode {
 }
 
 final case class ConditionalNodeMakerInputs(node: IfElement,
+                                            upstreamCalls: Map[String, CallNode],
                                             linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                             linkablePorts: Map[String, OutputPort],
                                             availableTypeAliases: Map[String, WomType],

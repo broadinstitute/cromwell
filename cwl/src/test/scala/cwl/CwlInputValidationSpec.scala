@@ -5,7 +5,7 @@ import cwl.CwlDecoder.decodeCwlFile
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
-import wom.expression.{NoIoFunctionSet, WomExpression}
+import wom.expression.NoIoFunctionSet
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort
 import wom.types.{WomArrayType, WomStringType}
@@ -134,7 +134,7 @@ class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenProp
     }
 
     // w0 has no input value in the input file, so it should fallback to the default value
-    validInputs(w0OutputPort.name).select[WomExpression].get.sourceString shouldBe "hi w0 !"
+    validInputs(w0OutputPort.name).select[WomValue].get.valueString shouldBe "hi w0 !"
     validInputs(w1OutputPort.name) shouldBe
       Coproduct[ResolvedExecutableInput](WomMaybePopulatedFile(
         valueOption = Option(inputTempFile.toString()),

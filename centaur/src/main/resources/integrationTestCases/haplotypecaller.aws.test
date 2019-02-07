@@ -1,4 +1,4 @@
-name: haplotypcaller.aws
+name: haplotypecaller.aws
 testFormat: workflowsuccess
 backends: [ AWSBATCH ]
 

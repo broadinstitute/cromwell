@@ -1,6 +1,7 @@
 package cromwell.webservice
 
 import common.exception.MessageAggregation
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json._
 import wdl.draft2.model.FullyQualifiedName
 import wom.values.WomValue
@@ -25,7 +26,7 @@ object APIResponse {
       case exceptionWithErrors: MessageAggregation =>
         FailureResponse(status, exceptionWithErrors.getMessage,
           Option(JsArray(exceptionWithErrors.errorMessages.toList.map(JsString(_)).toVector)))
-      case e: Throwable => FailureResponse(status, e.getMessage, None)
+      case e: Throwable => FailureResponse(status, e.getMessage, Option(e.getCause).map(c => JsArray(JsString(ExceptionUtils.getMessage(c)))))
     }
   }
 

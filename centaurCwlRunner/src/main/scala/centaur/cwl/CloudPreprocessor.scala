@@ -1,7 +1,7 @@
 package centaur.cwl
 import better.files.File
 import com.typesafe.config.Config
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import cwl.preprocessor.CwlPreProcessor
 import io.circe.optics.JsonPath
 import io.circe.optics.JsonPath._
@@ -62,7 +62,7 @@ class CloudPreprocessor(config: Config, prefixConfigPath: String) {
   /**
     * Pre-process input file by prefixing all files and directories with the cloud prefix
     */
-  def preProcessInput(input: String): Parse[String] = cwlPreProcessor.preProcessInputFiles(input, prefixLocation)
+  def preProcessInput(input: String): IOChecked[String] = cwlPreProcessor.preProcessInputFiles(input, prefixLocation)
 
   // Check if the given path (as an array or object) has a DockerRequirement element
   def hasDocker(jsonPath: JsonPath)(json: Json): Boolean = {
@@ -92,7 +92,7 @@ class CloudPreprocessor(config: Config, prefixConfigPath: String) {
       .getOrElse(workflow.deepMerge(DefaultDockerHintList))
   } else workflow
   
-  private val prefixDefaultFilesInCwl = cwlPreProcessor.mapFilesAndDirectories(prefixLocation) _
+  private val prefixDefaultFilesInCwl = CwlPreProcessor.mapFilesAndDirectories(prefixLocation) _
 
   /**
     * Pre-process the workflow by adding a default docker hint iff it doesn't have one

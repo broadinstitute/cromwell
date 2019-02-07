@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 
 /**
@@ -21,4 +23,4 @@ case object RestartableAborting extends StartableState {
   override val restarted = true
 }
 
-final case class WorkflowToStart(id: WorkflowId, sources: WorkflowSourceFilesCollection, state: StartableState)
+final case class WorkflowToStart(id: WorkflowId, submissionTime: OffsetDateTime, sources: WorkflowSourceFilesCollection, state: StartableState)

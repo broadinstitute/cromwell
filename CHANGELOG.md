@@ -1,12 +1,123 @@
 # Cromwell Change Log
 
+## 37 Release Notes
+
+### Docker
+
+- Adds support for retrieving docker digests of asia.gcr.io images
+- Adds configuration settings for docker digest lookups. See the `docker` section of the `reference.conf` for more information 
+- Attempt to automatically adjust the boot disk size on the Google Cloud Backend (version 2) if the size of the image is greater than the default disk size or the required disk size in the runtime attributes.
+Only works for registries that support the version 2 of the manifest schema (https://docs.docker.com/registry/spec/manifest-v2-2/)
+At this date (12/09/18) this includes GCR and Dockerhub.
+
+### Added new call cache path+modtime hashing strategy.
+
+Call caching hashes with this new strategy are based on the path and the last modified time of the file.
+
+### Instance independent abort
+
+For multi-instance Cromwell deployments sharing a single database, earlier versions of Cromwell required abort
+requests to be sent specifically to the instance that was running the targeted workflow. Cromwell 37 now
+allows abort commands to be sent to any Cromwell instance in the shared-database deployment. Configuration details
+[here](https://cromwell.readthedocs.io/en/develop/Configuring/abort-configuration).
+
+
+### Call cache blacklisting
+
+The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.
+More info [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-copy-authorization-failure-prefix-blacklisting).
+
+### WDL
+
+- All memory units in WDL are now treated as base-2.
+For instance `1 KB == 1 KiB == 1024 Bytes`.
+
+### Backend name for call caching purposes
+
+Previous versions of Cromwell incorporated the name of the backend on which a call was run into the call cache hashes generated for that call.
+Unfortunately this made it impossible to change the name of a backend without losing all previously run calls as potential cache hits.
+Cromwell 37 introduces the `name-for-call-caching-purposes` backend configuration option as a means of decoupling the backend name from the
+value used for the backend name for call caching purposes.
+
+### CWL
+
+Support `InputResourceRequirement` hint
+
+### Changing configuration options
+
+#### Logging Token Distribution
+
+In cases where its not obvious why jobs are queued in Cromwell, you can enable logging for the Job Execution Token Dispenser, using
+the `system.hog-safety.token-log-interval-seconds` configuration value.
+
+The default, `0`, means that no logging will occur. 
+
+#### HTTP Filesystem
+
+- The HTTP filesystem is now enabled for engine use by default. To continue without an HTTP filesystem, you can add the 
+following content into the appropriate stanza of your configuration file:
+```
+engine {
+  filesystems {
+    http { 
+      enabled: false 
+    }
+  }
+}
+``` 
+- When the value `exit-code-timeout-seconds` is set, `check-alive` command is now only called once every timeout interval instead of each poll.
+
+### Beta preview of new Womtool `/describe` endpoint
+
+This new endpoint brings the functionality of Womtool to the world of web services. Submit workflows for validation and receive a JSON description in response.
+
+The endpoint is still undergoing heavy development and should not be used in production. The final version will ship in a future release of Cromwell; watch this space.   
+
+### Bug fixes
+
+- Fixed a regression in Cromwell 36 that could cause operations on empty arrays to fail with a spurious type error (closes [#4318](https://github.com/broadinstitute/cromwell/issues/4318))
+
+#### Abort On Hold Workflows
+
+On Hold workflows may now be aborted.
+
+#### Command fixes for AWS and TES
+
+The AWS and TES backends can now handle calls that generate longer command lines. Like the other
+backends, commands scripts are first written to a file, the file is downloaded to the execution
+host, and then the localized script is run.
+
+Also fixed are AWS `command {}` blocks that use `|` at the start of a line. For example:
+
+```
+command {
+  echo hello world \
+  | cat
+}
+```
+
 ## 36 Release Notes
 
 ### Extra configuration options
 
 The value `exit-code-timeout-seconds` can now set in a backend configuration.
-Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#Exit-code-timeout)
+Details [here](https://cromwell.readthedocs.io/en/develop/backends/HPC/#exit-code-timeout)
 
+### [AWS S3 file transfers are now encrypted](https://github.com/broadinstitute/cromwell/pull/4264)
+
+### Bug fixes
+
+#### Metadata Request Coalescing
+
+Coalesce metadata requests to eliminate expensive and redundant queries and metadata construction.
+
+#### Eliminate redundant SFS logging and metadata 
+
+Eliminate superfluous logging and metadata publishing in the shared filesystem backend on poll intervals where there was not a state change.
+
+#### AWS region configuration respected throughout
+
+Previously US-EAST-1 was hardcoded in places.
 
 ## 35 Release Notes
 

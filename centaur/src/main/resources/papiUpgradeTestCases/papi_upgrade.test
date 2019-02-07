@@ -1,0 +1,27 @@
+name: papi_upgrade
+testFormat: PapiUpgrade
+backends: [Papi]
+tags: [papi_upgrade]
+callMark: papi_upgrade.cromwell_killer
+retryTestFailures: false
+
+files {
+  workflow: papi_upgrade/papi_upgrade.wdl
+  inputs: papi_upgrade/papi_upgrade.inputs
+  second-options: papi_upgrade/papi_upgrade_second.options
+}
+
+metadata {
+  workflowName: papi_upgrade
+  status: Succeeded
+  "calls.papi_upgrade.sum.callCaching.hit": true
+
+  # This is the MD5 of "Papi" not "Papiv2" as expected with `name-for-call-caching-purposes = Papi`
+  # computer: me$ echo -n Papi | md5 | tr '[:lower:]' '[:upper:]'
+  # 36EF4A8AB268D1A1C74D8108C93D48ED
+  # computer: me$
+  "calls.papi_upgrade.sum.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
+
+  # The actual backend name used is still recorded here
+  "calls.papi_upgrade.sum.backend": Papiv2
+}

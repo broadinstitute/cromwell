@@ -9,20 +9,21 @@ import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
-import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor
+import cromwell.backend.standard.callcaching.{BlacklistCache, RootWorkflowFileHashCacheActor}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{WorkflowAborted, WorkflowId}
+import cromwell.core.{CacheConfig, WorkflowId}
+import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
-import cromwell.engine.SubWorkflowStart
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Try
 
 object WorkflowManagerActor {
@@ -41,10 +42,10 @@ object WorkflowManagerActor {
   sealed trait WorkflowManagerActorCommand extends WorkflowManagerActorMessage
   case object RetrieveNewWorkflowsKey
   case object RetrieveNewWorkflows extends WorkflowManagerActorCommand
-  final case class AbortWorkflowCommand(id: WorkflowId, restarted: Boolean) extends WorkflowManagerActorCommand
   case object AbortAllWorkflowsCommand extends WorkflowManagerActorCommand
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
+  case class AbortWorkflowsCommand(ids: Set[WorkflowId]) extends WorkflowManagerActorCommand
 
   def props(config: Config,
             workflowStore: ActorRef,
@@ -168,26 +169,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(SubscribeToWorkflowCommand(id), data) =>
       data.workflows.get(id) foreach {_ ! SubscribeTransitionCallBack(sender())}
       stay()
-    case Event(WorkflowManagerActor.AbortWorkflowCommand(id, restarted), stateData) =>
-      val workflowActor = stateData.workflows.get(id)
-      workflowActor match {
-        case Some(actor) =>
-          actor ! WorkflowActor.AbortWorkflowCommand
-          stay()
-        /*
-          * If there's no actor for this workflow yet but it's being restarted, then we need to wait.
-          * That's because we do want to restart this workflow so that we can reconnect to its jobs and update their status.
-          * Eventually this workflow will be fetched from the workflow store and restarted.
-         */
-        case None if restarted =>
-          stay()
-        // If the workflow is not being restarted, then we can just declare it aborted
-        case None =>
-          pushCurrentStateToMetadataService(id, WorkflowAborted)
-          // This will remove the entry from the workflow store
-          params.jobStoreActor ! RegisterWorkflowCompleted(id)
-          stay()
-      }
     case Event(AbortAllWorkflowsCommand, data) if data.workflows.isEmpty =>
       goto(Done)
     case Event(AbortAllWorkflowsCommand, data) =>
@@ -242,6 +223,12 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   when (Done) { FSM.NullFunction }
 
   whenUnhandled {
+    case Event(AbortWorkflowsCommand(ids), stateData) =>
+      for {
+        id <- ids
+        actor <- stateData.workflows.get(id)
+      } yield actor ! WorkflowActor.AbortWorkflowCommand
+      stay()
     case Event(PreventNewWorkflowsFromStarting, _) =>
       timers.cancel(RetrieveNewWorkflowsKey)
       sender() ! akka.Done
@@ -296,10 +283,13 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     val fileHashCacheActor: Option[ActorRef] =
       if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor))) else None
 
+    val callCachingBlacklistCache: Option[BlacklistCache] = for {
+      config <- config.as[Option[Config]]("call-caching.blacklist-cache")
+      cacheConfig <- CacheConfig.optionalConfig(config, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
+    } yield BlacklistCache(cacheConfig)
+
     val wfProps = WorkflowActor.props(
-      workflowId = workflowId,
-      startMode = workflow.state,
-      workflowSourceFilesCollection = workflow.sources,
+      workflowToStart = workflow,
       conf = config,
       ioActor = params.ioActor,
       serviceRegistryActor = params.serviceRegistryActor,
@@ -315,7 +305,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       serverMode = params.serverMode,
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
-      fileHashCacheActor = fileHashCacheActor)
+      fileHashCacheActor = fileHashCacheActor,
+      blacklistCache = callCachingBlacklistCache)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

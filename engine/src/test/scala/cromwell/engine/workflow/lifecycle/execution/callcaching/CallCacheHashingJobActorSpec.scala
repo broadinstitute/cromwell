@@ -34,7 +34,7 @@ class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with B
       "continueOnReturnCode" -> WomInteger(0),
       "docker" -> WomString("ubuntu:latest")
     )
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
     jobDescriptor
   }
 

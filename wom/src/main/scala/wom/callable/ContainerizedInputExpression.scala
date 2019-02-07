@@ -1,6 +1,6 @@
 package wom.callable
 
-import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
 import wom.values.{WomFile, WomValue}
 
@@ -10,7 +10,7 @@ import wom.values.{WomFile, WomValue}
 trait ContainerizedInputExpression {
   def evaluate(hostInputValues: Map[String, WomValue],
                containerizedInputValues: Map[String, WomValue],
-               ioFunctionSet: IoFunctionSet): ErrorOr[List[AdHocValue]]
+               ioFunctionSet: IoFunctionSet): IOChecked[List[AdHocValue]]
 }
 
 final case class AdHocValue(womValue: WomFile, alternativeName: Option[String], inputName: Option[String])

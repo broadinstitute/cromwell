@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
 import wom.callable.Callable._
 import wom.graph.GraphNode._
-import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.GraphNodePort.{InputPort, NodeCompletionPort, OutputPort}
 import wom.graph.expression.ExpressionNode
 
 trait GraphNode {
@@ -35,6 +35,8 @@ trait GraphNode {
     */
   def outputPorts: Set[GraphNodePort.OutputPort]
 
+  val completionPort = NodeCompletionPort(_ => this)
+
   def outputByName(name: String): ErrorOr[GraphNodePort.OutputPort] = {
     outputPorts.find(_.name == name) match {
       case Some(port) => port.validNel
@@ -51,8 +53,16 @@ trait GraphNode {
     * The set of all OuterGraphInputNodes which are somewhere upstream of this Node (in the same graph)
     */
   lazy val upstreamOuterGraphInputNodes: Set[OuterGraphInputNode] = upstreamAncestry.filterByType[OuterGraphInputNode]
-  lazy val upstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  protected def calculateUpstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  lazy val upstreamPorts: Set[OutputPort] = calculateUpstreamPorts
   lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)
+
+  def containedCalls: Set[CallNode] = this match {
+    case c: CallNode => Set(c)
+    case s: ScatterNode => s.innerGraph.nodes.flatMap(_.containedCalls)
+    case c: ConditionalNode => c.innerGraph.nodes.flatMap(_.containedCalls)
+    case _ => Set.empty
+  }
 }
 
 object GraphNode {

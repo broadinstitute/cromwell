@@ -160,6 +160,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     ))
   }
 
+  def writeScriptFile(): Future[Unit] = {
+    commandScriptContents.fold(
+      errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
+      asyncIo.writeAsync(jobPaths.script, _, Seq.empty)
+    )
+  }
+
   override def executeAsync(): Future[ExecutionHandle] = {
     // create call exec dir
     tesJobPaths.callExecutionRoot.createPermissionedDirectories()
@@ -168,6 +175,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       Future.successful)
 
     for {
+      _ <- writeScriptFile()
       taskMessage <- taskMessageFuture
       entity <- Marshal(taskMessage).to[RequestEntity]
       ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity))

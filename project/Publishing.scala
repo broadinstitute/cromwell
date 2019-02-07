@@ -5,6 +5,7 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
+import ContinuousIntegration._
 
 import scala.sys.process._
 
@@ -117,12 +118,12 @@ object Publishing {
 
   val verifyArtifactoryCredentialsExist = taskKey[Unit]("Verify that the artifactory credentials file exists.")
 
-  def artifactorySettings: Seq[Setting[_]] = List(
+  val artifactorySettings: Seq[Setting[_]] = List(
     publishTo := Option(artifactoryResolver(isSnapshot.value)),
     credentials ++= artifactoryCredentials,
   )
 
-  def rootArtifactorySettings: Seq[Setting[_]] = List(
+  val rootArtifactorySettings: Seq[Setting[_]] = List(
     verifyArtifactoryCredentialsExist := {
       if (!artifactoryCredentialsFile.exists) {
         throw new FileNotFoundException(

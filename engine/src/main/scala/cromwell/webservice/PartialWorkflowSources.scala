@@ -12,12 +12,13 @@ import cats.syntax.apply._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.core.labels.Label
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.slf4j.LoggerFactory
-import spray.json.{JsObject, JsValue, _}
+import spray.json._
 import wdl.draft2.model.WorkflowJson
 import wom.core._
 
@@ -117,7 +118,7 @@ object PartialWorkflowSources {
         case Some(inputs) => workflowInputsValidation(inputs)
         case None => Vector.empty.validNel
       }
-      val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse({
+      val workflowInputsAux: ErrorOr[Map[Int, String]] = formData.toList.flatTraverse[ErrorOr, (Int, String)]({
         case (name, value) if name.startsWith(WorkflowInputsAuxPrefix) =>
           Try(name.stripPrefix(WorkflowInputsAuxPrefix).toInt).toErrorOr.map(index => List((index, value.utf8String)))
         case _ => List.empty.validNel
@@ -167,10 +168,17 @@ object PartialWorkflowSources {
     import _root_.io.circe.Printer
     import cats.syntax.validated._
 
-    yaml.parser.parse(data) match {
-      // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
-      case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
-      case Left(error) => s"Input file is not valid yaml nor json: ${error.getMessage}".invalidNel
+    val parseInputsTry = Try {
+      yaml.parser.parse(data) match {
+        // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
+        case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
+        case Left(error) => s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
+      }
+    }
+
+    parseInputsTry match {
+      case Success(v) => v
+      case Failure(error) => s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
     }
   }
 
@@ -182,7 +190,9 @@ object PartialWorkflowSources {
         case (true, false) => "No inputs were provided".invalidNel
         case _ =>
           val sortedInputAuxes = pws.workflowInputsAux.toSeq.sortBy { case (index, _) => index } map { case(_, inputJson) => Option(inputJson) }
-          (pws.workflowInputs map { workflowInputSet: WorkflowJson => mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).toString }).validNel
+          pws.workflowInputs.toList.traverse[ErrorOr, String] { workflowInputSet: WorkflowJson =>
+            mergeMaps(Seq(Option(workflowInputSet)) ++ sortedInputAuxes).map(_.toString)
+          }
       }
 
     def validateOptions(options: Option[WorkflowOptionsJson]): ErrorOr[WorkflowOptions] =
@@ -231,9 +241,13 @@ object PartialWorkflowSources {
     }
   }
 
-  def mergeMaps(allInputs: Seq[Option[String]]): JsObject = {
-    val convertToMap = allInputs.map(x => toMap(x))
-    JsObject(convertToMap reduce (_ ++ _))
+  def mergeMaps(allInputs: Seq[Option[String]]): ErrorOr[JsObject] = {
+    val convertToMap = allInputs.toList.traverse(toMap)
+
+    convertToMap match {
+      case Valid(validMapSeq) => JsObject(validMapSeq reduce (_ ++ _)).validNel
+      case Invalid(error) => error.invalid
+    }
   }
 
   def validateWorkflowUrl(workflowUrl: String): ErrorOr[WorkflowUrl] = {
@@ -249,15 +263,15 @@ object PartialWorkflowSources {
     else convertStringToUrl(workflowUrl)
   }
 
-  private def toMap(someInput: Option[String]): Map[String, JsValue] = {
-    import spray.json._
+  private def toMap(someInput: Option[String]): ErrorOr[Map[String, JsValue]] = {
     someInput match {
-      case Some(inputs: String) => inputs.parseJson match {
-        case JsObject(inputMap) => inputMap
-        case _ =>
-          throw new RuntimeException(s"Submitted inputs couldn't be processed, please check for syntactical errors")
+      case Some(input: String) =>  {
+        Try(input.parseJson).toErrorOrWithContext(s"parse input: '$input', which is not a valid json. Please check for syntactical errors.") flatMap {
+          case JsObject(inputMap) => inputMap.validNel
+          case j: JsValue => s"Submitted input '$input' of type ${j.getClass.getSimpleName} is not a JSON object.".invalidNel
+        }
       }
-      case None => Map.empty
+      case None => Map.empty[String, JsValue].validNel
     }
   }
 }

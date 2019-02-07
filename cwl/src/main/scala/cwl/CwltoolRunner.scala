@@ -2,15 +2,15 @@ package cwl
 
 import ammonite.ops.ImplicitWd._
 import ammonite.ops._
-import better.files.{File => BFile}
 import com.typesafe.config.ConfigFactory
+import cwl.preprocessor.CwlReference
 import org.broadinstitute.heterodon.ExecAndEval
 
 /**
   * Interface for running cwltool.
   */
 sealed trait CwltoolRunner {
-  def salad(file: BFile): String
+  def salad(reference: CwlReference): String
 }
 
 object CwltoolRunner {
@@ -26,13 +26,13 @@ object CwltoolRunner {
   * Runs cwltool as an external process.
   */
 final class CwltoolProcess extends CwltoolRunner {
-  override def salad(file: BFile): String = {
-    val commandResult: CommandResult = %%("cwltool", "--quiet", "--print-pre", file.toString)
+  override def salad(reference: CwlReference): String = {
+    val commandResult: CommandResult = %%("cwltool", "--quiet", "--print-pre", reference.pathAsString)
     commandResult.exitCode match {
       case 0 => commandResult.out.string
       case error =>
         throw new RuntimeException(
-          s"running CwlTool on file $file resulted in exit code $error and stderr ${commandResult.err.string}")
+          s"running CwlTool on file ${reference.pathAsString} resulted in exit code $error and stderr ${commandResult.err.string}")
     }
   }
 }
@@ -62,10 +62,10 @@ final class CwltoolHeterodon extends CwltoolRunner {
      |    return json.dumps(processobj, indent=4)
      |""".stripMargin
 
-  private def cwltoolSaladEvalStatement(file: BFile): String = s"cwltool_salad('${file.pathAsString}')"
+  private def cwltoolSaladEvalStatement(reference: CwlReference): String = s"cwltool_salad('${reference.pathAsString}')"
 
-  def salad(file: BFile): String = {
+  def salad(reference: CwlReference): String = {
     val execAndEval = new ExecAndEval()
-    execAndEval.apply(cwltoolSaladExecScript, cwltoolSaladEvalStatement(file)).asInstanceOf[String]
+    execAndEval.apply(cwltoolSaladExecScript, cwltoolSaladEvalStatement(reference)).asInstanceOf[String]
   }
 }

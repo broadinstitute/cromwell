@@ -1,8 +1,7 @@
 package wom.executable
 
-import common.Checked
-import common.validation.Checked._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked
+import common.validation.IOChecked._
 import wom.callable.ExecutableCallable
 import wom.executable.Executable.{DelayedCoercionFunction, InputParsingFunction, ResolvedExecutableInputs}
 import wom.expression.IoFunctionSet
@@ -12,10 +11,10 @@ private [executable] object ExecutableValidation {
 
   private [executable] def validateExecutable(entryPoint: ExecutableCallable,
                                               inputParsingFunction: InputParsingFunction,
-                                              parseGraphInputs: (Graph, Map[String, DelayedCoercionFunction], IoFunctionSet) => ErrorOr[ResolvedExecutableInputs],
+                                              parseGraphInputs: (Graph, Map[String, DelayedCoercionFunction], IoFunctionSet) => IOChecked[ResolvedExecutableInputs],
                                               inputFile: Option[String],
-                                              ioFunctions: IoFunctionSet): Checked[Executable] = for {
-    parsedInputs <- inputFile.map(inputParsingFunction).getOrElse(Map.empty[String, DelayedCoercionFunction].validNelCheck)
-    validatedInputs <- parseGraphInputs(entryPoint.graph, parsedInputs, ioFunctions).toEither
+                                              ioFunctions: IoFunctionSet): IOChecked[Executable] = for {
+    parsedInputs <- inputFile.map(inputParsingFunction).map(_.toIOChecked).getOrElse(IOChecked.pure(Map.empty[String, DelayedCoercionFunction]))
+    validatedInputs <- parseGraphInputs(entryPoint.graph, parsedInputs, ioFunctions)
   } yield Executable(entryPoint, validatedInputs)
 }

@@ -3,12 +3,14 @@ package wom.values
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 
-import cats.syntax.validated._
-import common.validation.ErrorOr.ErrorOr
+import cats.effect.IO
+import cats.instances.list._
+import cats.syntax.parallel._
+import common.validation.IOChecked
+import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
 import wom.types._
 
-import scala.concurrent.Future
 import scala.util.{Success, Try}
 
 sealed trait WomFile extends WomValue {
@@ -105,11 +107,18 @@ sealed trait WomFile extends WomValue {
   /**
     * If relevant, load the size of the file.
     */
-  def withSize(ioFunctionSet: IoFunctionSet): Future[WomFile] = Future.successful(this)
+  def withSize(ioFunctionSet: IoFunctionSet): IO[WomFile] = IO.pure(this)
+  
+  def sizeOption: Option[Long] = None
 
-  protected val recoverFileNotFound: PartialFunction[Throwable, this.type] = {
-    case _: NoSuchFileException | _: FileNotFoundException => this
-    case e if e.getCause != null && recoverFileNotFound.isDefinedAt(e.getCause) => recoverFileNotFound.apply(e.getCause)
+  protected def recoverFileNotFound[A](fallback: A)(t: Throwable): IO[A] = {
+    if (isFileNotFound(t)) IO.pure(fallback) else IO.raiseError(t)
+  }
+
+  def isFileNotFound(t: Throwable): Boolean = t match {
+    case _: NoSuchFileException | _: FileNotFoundException => true
+    case other if other.getCause != null => isFileNotFound(t.getCause)
+    case _ => false
   }
 }
 
@@ -121,35 +130,6 @@ object WomFile {
       case WomGlobFileType => WomGlobFile(value)
       case WomMaybeListedDirectoryType => WomMaybeListedDirectory(value)
       case WomMaybePopulatedFileType => WomMaybePopulatedFile(value)
-    }
-  }
-}
-
-/**
-  * Mix in this trait when creating a WomFile to signal that its actionable path cannot be determined when the object is instantiated.
-  * Instead, provide an initialize method that needs to be called when appropriate to perform initialization.
-  * The returned value should NOT be a LazyWomFile
-  */
-trait LazyWomFile { this: WomFile =>
-  def initialize(ioFunctionSet: IoFunctionSet): ErrorOr[WomFile]
-}
-
-object LazyWomFile {
-  implicit class InitializableWomValue(val womValue: WomValue) extends AnyVal {
-    def initialize(ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = womValue match {
-      case lazyFile: LazyWomFile => lazyFile.initialize(ioFunctionSet)
-      case array: WomArray => array.traverse(_.initialize(ioFunctionSet))
-      case array: WomObjectLike => array.traverse(_.initialize(ioFunctionSet))
-      case map: WomMap => map.traverseValues(_.initialize(ioFunctionSet))
-      case optional: WomOptionalValue => optional.traverse(_.initialize(ioFunctionSet))
-      case other => other.validNel
-    }
-  }
-
-  implicit class InitializableWomFile(val womFile: WomFile) extends AnyVal {
-    def initializeWomFile(ioFunctionSet: IoFunctionSet): ErrorOr[WomFile] = womFile match {
-      case lazyFile: LazyWomFile => lazyFile.initialize(ioFunctionSet)
-      case other => other.validNel
     }
   }
 }
@@ -228,10 +208,11 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
     f.applyOrElse[WomFile, WomFile](this, identity)
   }
 
-  override def withSize(ioFunctionSet: IoFunctionSet): Future[WomFile] = {
-    ioFunctionSet.size(value)
-      .map(s => WomMaybePopulatedFile(valueOption = Option(value), sizeOption = Option(s)))(ioFunctionSet.ec)
-      .recover(recoverFileNotFound)(ioFunctionSet.ec)
+  override def withSize(ioFunctionSet: IoFunctionSet): IO[WomFile] = {
+    IO.fromFuture(IO { ioFunctionSet.size(value)})
+      .map(Option.apply)
+      .handleErrorWith(recoverFileNotFound(None))
+      .map(s => WomMaybePopulatedFile(valueOption = Option(value), sizeOption = s))
   }
 }
 
@@ -281,7 +262,8 @@ final case class WomGlobFile(value: String) extends WomPrimitiveFile {
   */
 case class WomMaybeListedDirectory(valueOption: Option[String] = None,
                                    listingOption: Option[Seq[WomFile]] = None,
-                                   basename: Option[String] = None) extends WomFile {
+                                   basename: Option[String] = None,
+                                   initializeFunction: WomMaybeListedDirectory => IoFunctionSet => IOChecked[WomValue] = { dir => _ => IOChecked.pure(dir) }) extends WomFile {
   override def value: String = {
     valueOption.getOrElse(throw new UnsupportedOperationException(s"value is not available: $this"))
   }
@@ -304,6 +286,20 @@ case class WomMaybeListedDirectory(valueOption: Option[String] = None,
     f.applyOrElse[WomFile, WomFile](copy, identity)
   }
 
+  override def withSize(ioFunctionSet: IoFunctionSet): IO[WomFile] = {
+    import ioFunctionSet.cs
+
+    listingOption.map({
+      _.toList
+        .parTraverse[IO, IO.Par, WomFile](_.withSize(ioFunctionSet))
+        .map(listingWithSize => this.copy(listingOption = Option(listingWithSize)))
+    })
+      .getOrElse(IO.pure(this))
+  }
+
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = initializeFunction(this)(ioFunctionSet)
+  
+  override def sizeOption = listingOption.map(_.flatMap(_.sizeOption).sum)
 }
 
 object WomMaybeListedDirectory {
@@ -322,10 +318,12 @@ object WomMaybeListedDirectory {
   */
 case class WomMaybePopulatedFile(valueOption: Option[String] = None,
                                  checksumOption: Option[String] = None,
-                                 sizeOption: Option[Long] = None,
+                                 override val sizeOption: Option[Long] = None,
                                  formatOption: Option[String] = None,
                                  contentsOption: Option[String] = None,
-                                 secondaryFiles: Seq[WomFile] = Vector.empty) extends WomFile {
+                                 secondaryFiles: Seq[WomFile] = Vector.empty,
+                                 initializeFunction: WomMaybePopulatedFile => IoFunctionSet => IOChecked[WomValue] = { file => _ => IOChecked.pure(file) }
+                                ) extends WomFile {
   override def value: String = {
     valueOption.getOrElse(throw new UnsupportedOperationException(s"value is not available: $this"))
   }
@@ -348,16 +346,22 @@ case class WomMaybePopulatedFile(valueOption: Option[String] = None,
     f.applyOrElse[WomFile, WomFile](copy, identity)
   }
 
-  override def withSize(ioFunctionSet: IoFunctionSet): Future[WomMaybePopulatedFile] = {
-    implicit val ec = ioFunctionSet.ec
-    (sizeOption, contentsOption) match {
-      case (Some(_), _) => Future.successful(this)
-      case (None, Some(contents)) => Future.successful(this.copy(sizeOption = Option(contents.length.toLong)))
-      case _ => ioFunctionSet.size(value)
-        .map(s => this.copy(sizeOption = Option(s)))(ec)
-        .recover(recoverFileNotFound)(ec)
+  override def withSize(ioFunctionSet: IoFunctionSet): IO[WomMaybePopulatedFile] = {
+    import ioFunctionSet.cs
+
+    val ioSize: IO[Option[Long]] = (sizeOption, contentsOption) match {
+      case (Some(s), _) => IO.pure(Option(s))
+      case (None, Some(contents)) => IO.pure(Option(contents.length.toLong))
+      case _ => IO.fromFuture(IO { ioFunctionSet.size(value) }).map(Option.apply).handleErrorWith(recoverFileNotFound(sizeOption))
     }
+    
+    for {
+      size <- ioSize
+      secondaryFilesWithSize <- secondaryFiles.toList.parTraverse[IO, IO.Par, WomFile](_.withSize(ioFunctionSet))
+    } yield this.copy(sizeOption = size, secondaryFiles = secondaryFilesWithSize)
   }
+
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = initializeFunction(this)(ioFunctionSet)
 }
 
 object WomMaybePopulatedFile {

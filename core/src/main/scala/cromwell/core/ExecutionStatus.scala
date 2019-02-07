@@ -6,6 +6,7 @@ object ExecutionStatus extends Enumeration {
   val TerminalStatuses = Set(Failed, Done, Aborted, Bypassed, Unstartable)
   val TerminalOrRetryableStatuses = TerminalStatuses + RetryableFailure
   val NonTerminalStatuses = values.diff(TerminalOrRetryableStatuses)
+  val ActiveStatuses = Set(WaitingForQueueSpace, QueuedInCromwell, Starting, Running, Aborting)
 
   implicit val ExecutionStatusOrdering = Ordering.by { status: ExecutionStatus =>
     status match {

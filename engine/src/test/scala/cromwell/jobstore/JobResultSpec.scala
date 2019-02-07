@@ -17,7 +17,7 @@ class JobResultSpec extends FlatSpec with Matchers {
     val asJson = success.toJson
 
     val jsonString = asJson.toString()
-    jsonString shouldBe """{"returnCode":0,"jobOutputs":{"abc":"hello"}}"""
+    jsonString shouldBe """{"jobOutputs":{"abc":"hello"},"returnCode":0}"""
   }
 
   it should "write more complicated WdlValues" in {
@@ -25,7 +25,7 @@ class JobResultSpec extends FlatSpec with Matchers {
     val asJson = success.toJson
 
     val jsonString = asJson.toString()
-    jsonString shouldBe """{"returnCode":0,"jobOutputs":{"abc":{"hello":4,"goodbye":6}}}"""
+    jsonString shouldBe """{"jobOutputs":{"abc":{"hello":4,"goodbye":6}},"returnCode":0}"""
   }
 
   it should "write JSON for job failures" in {
@@ -34,6 +34,6 @@ class JobResultSpec extends FlatSpec with Matchers {
     val asJson = failure.toJson
 
     val jsonString = asJson.toString()
-    jsonString shouldBe """{"returnCode":0,"reason":"abc","retryable":false}"""
+    jsonString shouldBe """{"reason":"abc","retryable":false,"returnCode":0}"""
   }
 }

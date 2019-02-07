@@ -1,10 +1,10 @@
 package cromwell.webservice
 
-import java.time.OffsetDateTime
+import java.time.{OffsetDateTime, ZoneOffset}
 import java.util.UUID
 
-import akka.testkit._
 import akka.pattern.ask
+import akka.testkit._
 import akka.util.Timeout
 import cromwell.core._
 import cromwell.services.metadata.MetadataService._
@@ -18,22 +18,22 @@ import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.language.postfixOps
+import cromwell.webservice.MetadataBuilderActorSpec._
+
 
 class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
-  behavior of "MetadataParser"
+  behavior of "MetadataBuilderActor"
 
-  val defaultTimeout = 200 millis
+  val defaultTimeout: FiniteDuration = 1.second.dilated
   implicit val timeout: Timeout = defaultTimeout
-
-  val mockServiceRegistry = TestProbe()
 
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
                              expectedRes: String): Future[Assertion] = {
+    val mockServiceRegistry = TestProbe()
     val mba = system.actorOf(MetadataBuilderActor.props(mockServiceRegistry.ref))
     val response = mba.ask(action).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, action)
@@ -462,6 +462,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val subQueryAction = GetMetadataQueryAction(subQuery)
     
     val parentProbe = TestProbe()
+    val mockServiceRegistry = TestProbe()
+
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, mainQueryAction)
@@ -506,6 +508,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val queryNoExpandAction = GetMetadataQueryAction(queryNoExpand)
     
     val parentProbe = TestProbe()
+    val mockServiceRegistry = TestProbe()
+
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(mockServiceRegistry.ref), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataBuilderActorResponse]
     mockServiceRegistry.expectMsg(defaultTimeout, queryNoExpandAction)
@@ -533,4 +537,160 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     bmr map { b => b.response shouldBe nonExpandedRes.parseJson}
 
   }
+
+  it should "group execution events properly" in {
+    val workflowId = WorkflowId.randomId()
+
+    val events = List(
+      // Foo should produce a synthetic grouping event with span [Interval1.Start, Interval2.end].
+      ee(workflowId, Foo, eventIndex = 1, StartTime, Interval2.start),
+      ee(workflowId, Foo, eventIndex = 1, EndTime, Interval2.end),
+      ee(workflowId, Foo, eventIndex = 1, Grouping, Localizing),
+      ee(workflowId, Foo, eventIndex = 2, StartTime, Interval1.start),
+      ee(workflowId, Foo, eventIndex = 2, EndTime, Interval1.end),
+      ee(workflowId, Foo, eventIndex = 2, Grouping, Localizing),
+
+      // Bar should produce a synthetic grouping event with span [Interval3.Start, None] (no closing end timestamp for the last event)
+      ee(workflowId, Bar, eventIndex = 3, StartTime, Interval5.start),
+      ee(workflowId, Bar, eventIndex = 3, Grouping, Delocalizing),
+      ee(workflowId, Bar, eventIndex = 4, StartTime, Interval3.start),
+      ee(workflowId, Bar, eventIndex = 4, EndTime, Interval3.end),
+      ee(workflowId, Bar, eventIndex = 4, Grouping, Delocalizing),
+      ee(workflowId, Bar, eventIndex = 5, StartTime, Interval4.start),
+      ee(workflowId, Bar, eventIndex = 5, EndTime, Interval4.end),
+      ee(workflowId, Bar, eventIndex = 5, Grouping, Delocalizing),
+
+      ee(workflowId, Baz, eventIndex = 6, StartTime, Interval2.start),
+      ee(workflowId, Baz, eventIndex = 6, EndTime, Interval2.end),
+      ee(workflowId, Baz, eventIndex = 6, Grouping, Localizing),
+      ee(workflowId, Baz, eventIndex = 7, StartTime, Interval1.start),
+      ee(workflowId, Baz, eventIndex = 7, EndTime, Interval1.end),
+      ee(workflowId, Baz, eventIndex = 7, Grouping, Localizing),
+
+      // Qux should not get grouped.
+      ee(workflowId, Qux, eventIndex = 8, StartTime, Interval7.start),
+      ee(workflowId, Qux, eventIndex = 8, EndTime, Interval7.end),
+
+      // These 'plain events' don't have groups and aren't executionEvents. These are just here to make sure their presence doesn't
+      // cause problems.
+      pe(workflowId, Quux, StartTime, Interval8.start),
+      pe(workflowId, Quux, EndTime, Interval8.end),
+
+      pe(workflowId, Corge, StartTime, Interval9.start),
+      pe(workflowId, Corge, EndTime, Interval9.end)
+    )
+
+    // The values for `eventIndex` are purely artifacts of how the logic in `groupEvents` chooses one of the keys
+    // in the real execution events to use as the key for the synthetic execution events. If that logic changes
+    // these expectations should be updated. Whatever logic is used should probably use one of the keys from the
+    // real execution events to prevent colliding with any other set of events.
+    val expectations = Set(
+      ee(workflowId, Foo, eventIndex = 1, StartTime, Interval1.start),
+      ee(workflowId, Foo, eventIndex = 1, EndTime, Interval2.end),
+      ee(workflowId, Foo, eventIndex = 1, Description, Localizing.name),
+
+      ee(workflowId, Bar, eventIndex = 3, StartTime, Interval3.start),
+      ee(workflowId, Bar, eventIndex = 3, Description, Delocalizing.name),
+
+      ee(workflowId, Baz, eventIndex = 6, StartTime, Interval1.start),
+      ee(workflowId, Baz, eventIndex = 6, EndTime, Interval2.end),
+      ee(workflowId, Baz, eventIndex = 6, Description, Localizing.name),
+
+      ee(workflowId, Qux, eventIndex = 8, StartTime, Interval7.start),
+      ee(workflowId, Qux, eventIndex = 8, EndTime, Interval7.end),
+
+      pe(workflowId, Quux, StartTime, Interval8.start),
+      pe(workflowId, Quux, EndTime, Interval8.end),
+
+      pe(workflowId, Corge, StartTime, Interval9.start),
+      pe(workflowId, Corge, EndTime, Interval9.end)
+    )
+
+    val actual = MetadataBuilderActor.groupEvents(events).toSet
+
+    def filterEventsByCall(events: Iterable[MetadataEvent])(call: Call): Iterable[MetadataEvent] = {
+      events collect { case e@MetadataEvent(MetadataKey(_, Some(MetadataJobKey(n, _, _)), _), _, _) if call.name == n => e}
+    }
+
+    val calls = List(Foo, Bar, Baz, Qux, Quux, Corge)
+    val actuals = calls map filterEventsByCall(actual)
+    val expecteds = calls map filterEventsByCall(expectations)
+
+    val matchesExpectations = (actuals zip expecteds) map {
+      case (as, es) => (as.toList.map { _.toString } sorted) == (es.toList.map { _.toString } sorted)
+    }
+    matchesExpectations.reduceLeft(_ && _) shouldBe true
+  }
+}
+
+object MetadataBuilderActorSpec {
+
+  val y2k = OffsetDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)
+
+  case class Interval(start: OffsetDateTime, end: OffsetDateTime) {
+    def after: Interval = Interval(start = this.end.plusHours(1), end = this.end.plusHours(2))
+  }
+
+  val Interval1 = Interval(y2k, y2k.plusHours(1))
+  val Interval2 = Interval1.after
+  val Interval3 = Interval2.after
+  val Interval4 = Interval3.after
+  val Interval5 = Interval4.after
+  val Interval6 = Interval5.after
+  val Interval7 = Interval6.after
+  val Interval8 = Interval7.after
+  val Interval9 = Interval8.after
+
+  sealed trait Attr {
+    val name: String
+  }
+
+  case object StartTime extends Attr {
+    override val name = "startTime"
+  }
+
+  case object EndTime extends Attr {
+    override val name = "endTime"
+  }
+
+  case object Grouping extends Attr {
+    override val name = "grouping"
+  }
+
+  case object Description extends Attr {
+    override val name = "description"
+  }
+
+  sealed trait Call {
+    def name: String = getClass.getSimpleName.toLowerCase.takeWhile(_.isLetter)
+  }
+  case object Foo extends Call
+  case object Bar extends Call
+  case object Baz extends Call
+  case object Qux extends Call
+  case object Quux extends Call
+  case object Corge extends Call
+
+  sealed trait Grouping {
+    def name: String = getClass.getSimpleName.takeWhile(_.isLetter)
+  }
+  case object Localizing extends Grouping
+  case object Delocalizing extends Grouping
+
+  def executionEventName(i: Int, a: Attr): String = s"executionEvents[$i]:${a.name}"
+
+  def executionEventKey(workflowId: WorkflowId, call: Call, eventIndex: Int, attr: Attr): MetadataKey = MetadataKey(workflowId, Option(MetadataJobKey(call.name, None, 1)), executionEventName(eventIndex, attr))
+
+
+  def ee(workflowId: WorkflowId, call: Call, eventIndex: Int, attr: Attr, value: Any): MetadataEvent = {
+    val metadataValue = value match {
+      case g: Grouping => g.name
+      case o => o
+    }
+    new MetadataEvent(executionEventKey(workflowId, call, eventIndex, attr), Option(MetadataValue(metadataValue)), y2k)
+  }
+
+  def eventKey(workflowId: WorkflowId, call: Call, attr: Attr): MetadataKey = MetadataKey(workflowId, Option(MetadataJobKey(call.name, None, 1)), attr.name)
+
+  def pe(workflowId: WorkflowId, call: Call, attr: Attr, value: Any): MetadataEvent = new MetadataEvent(eventKey(workflowId, call, attr), Option(MetadataValue(value)), y2k)
 }

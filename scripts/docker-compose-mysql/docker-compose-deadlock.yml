@@ -1,0 +1,107 @@
+# Runs a cluster of cromwells exiting with a failure if when an error occurs.
+
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+# WARNING                                                         WARNING
+# WARNING                                                         WARNING
+# WARNING               !!FOR TEST PURPOSES ONLY!!                WARNING
+# WARNING                                                         WARNING
+# WARNING      This debug configuration is setup to run with      WARNING
+# WARNING         a very high workflow heartbeat polling          WARNING
+# WARNING            frequency, and then exit when a              WARNING
+# WARNING        MySQLTransactionRollbackException occurs!        WARNING
+# WARNING                                                         WARNING
+# WARNING                                                         WARNING
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+# Startup:
+# ```
+# CROMWELL_TAG=develop \
+# docker-compose \
+#   -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
+#   up \
+#   --scale cromwell=3 \
+#   --exit-code-from deadlocker
+# ```
+
+# Cleanup:
+# ```
+# docker-compose \
+#   -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
+#   down \
+#   -v \
+# && rm -r \
+#   scripts/docker-compose-mysql/cromwell-executions \
+#   scripts/docker-compose-mysql/compose/mysql/data
+# ```
+version: '2.1'
+services:
+  cromwell_master:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: /cromwell-working-dir
+    volumes:
+      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
+      - ./compose/cromwell/app-config:/app-config
+    links:
+      - mysql-db
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - JAVA_OPTS=-Dconfig.file=/app-config/test-deadlock.conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  cromwell_norefresh:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: /cromwell-working-dir
+    volumes:
+      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
+      - ./compose/cromwell/app-config:/app-config
+    links:
+      - mysql-db
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell_master:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - JAVA_OPTS=-Dconfig.file=/app-config/test-deadlock-norefresh.conf
+  mysql-db:
+    image: "mysql:5.7"
+    command: --general_log=1 --general-log-file=/var/log/mysql/cromwell_mysql.general.log
+    environment:
+      - MYSQL_ROOT_PASSWORD=cromwell
+      - MYSQL_DATABASE=cromwell_db
+    volumes:
+      - ./compose/mysql/init:/docker-entrypoint-initdb.d
+      - ./compose/mysql/data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "service", "mysql", "status"]
+      interval: 2s
+      timeout: 30s
+      retries: 15
+  lb:
+    image: dockercloud/haproxy
+    links:
+      - cromwell_master
+      - cromwell_norefresh
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8000:80
+  deadlocker:
+    image: python:3.7
+    links:
+      - cromwell_master
+      - cromwell_norefresh
+      - lb
+    volumes:
+      - ./compose/cromwell/bin:/cromwell/bin
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["bash", "/cromwell/bin/test-deadlock.sh"]

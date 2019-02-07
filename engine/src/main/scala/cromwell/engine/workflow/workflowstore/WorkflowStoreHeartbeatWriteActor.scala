@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import akka.actor.{ActorRef, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -9,14 +11,12 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWr
 import cromwell.services.EnhancedBatchActor
 
 import scala.concurrent.Future
-import akka.pattern.ask
-import akka.util.Timeout
 
-case class WorkflowStoreHeartbeatWriteActor(workflowStoreCoordinatedWriteActor: ActorRef,
+case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAccess,
                                             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                                             override val serviceRegistryActor: ActorRef)
 
-  extends EnhancedBatchActor[WorkflowId](
+  extends EnhancedBatchActor[(WorkflowId, OffsetDateTime)](
     flushRate = workflowHeartbeatConfig.heartbeatInterval,
     batchSize = workflowHeartbeatConfig.writeBatchSize) {
 
@@ -27,29 +27,28 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreCoordinatedWriteActor: 
     *
     * @return the number of elements processed
     */
-  override protected def process(data: NonEmptyVector[WorkflowId]): Future[Int] = instrumentedProcess {
-    implicit val timeout = Timeout(WorkflowStoreCoordinatedWriteActor.Timeout)
-    workflowStoreCoordinatedWriteActor.ask(WorkflowStoreCoordinatedWriteActor.WriteHeartbeats(data)).mapTo[Int]
+  override protected def process(data: NonEmptyVector[(WorkflowId, OffsetDateTime)]): Future[Int] = instrumentedProcess {
+    workflowStoreAccess.writeWorkflowHeartbeats(data)
   }
 
   override def receive = enhancedReceive.orElse(super.receive)
-  override protected def weightFunction(command: WorkflowId) = 1
+  override protected def weightFunction(command: (WorkflowId, OffsetDateTime)) = 1
   override protected def instrumentationPath = NonEmptyList.of("store", "heartbeat-writes")
   override protected def instrumentationPrefix = InstrumentationPrefixes.WorkflowPrefix
-  override def commandToData(snd: ActorRef): PartialFunction[Any, WorkflowId] = {
-    case command: WorkflowStoreWriteHeartbeatCommand => command.workflowId
+  override def commandToData(snd: ActorRef): PartialFunction[Any, (WorkflowId, OffsetDateTime)] = {
+    case command: WorkflowStoreWriteHeartbeatCommand => (command.workflowId, command.submissionTime)
   }
 }
 
 object WorkflowStoreHeartbeatWriteActor {
   def props(
-             workflowStoreCoordindatedWriteActor: ActorRef,
+             workflowStoreAccess: WorkflowStoreAccess,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig,
              serviceRegistryActor: ActorRef
            ): Props =
     Props(
       WorkflowStoreHeartbeatWriteActor(
-        workflowStoreCoordinatedWriteActor = workflowStoreCoordindatedWriteActor,
+        workflowStoreAccess = workflowStoreAccess,
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         serviceRegistryActor = serviceRegistryActor
       )).withDispatcher(EngineDispatcher)

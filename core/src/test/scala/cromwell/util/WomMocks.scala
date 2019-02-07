@@ -17,11 +17,11 @@ object WomMocks {
   val EmptyWorkflowDefinition = mockWorkflowDefinition("emptyWorkflow")
 
   def mockTaskCall(identifier: WomIdentifier, definition: CommandTaskDefinition = EmptyTaskDefinition) = {
-    CommandCallNode(identifier, definition, Set.empty, List.empty, (_, localName) => WomIdentifier(localName = localName))
+    CommandCallNode(identifier, definition, Set.empty, List.empty, Set.empty, (_, localName) => WomIdentifier(localName = localName))
   }
   
   def mockWorkflowCall(identifier: WomIdentifier, definition: WorkflowDefinition = EmptyWorkflowDefinition) = {
-    WorkflowCallNode(identifier, definition, Set.empty, List.empty, (_, localName) => identifier.combine(localName))
+    WorkflowCallNode(identifier, definition, Set.empty, List.empty, Set.empty, (_, localName) => identifier.combine(localName))
   }
 
   def mockWorkflowDefinition(name: String) = {

@@ -23,7 +23,6 @@ filesystems {
       #              going forward with the cache hit.
       duplication-strategy = "copy"
     }
-  
   }
 }
 ```

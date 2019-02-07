@@ -1,0 +1,15 @@
+name: invalid_inputs_json_object
+testFormat: submitfailure
+
+files {
+  workflow: invalid_inputs_json/invalid_inputs_json.wdl
+  inputs: invalid_inputs_json/invalid_inputs_json_object.inputs
+}
+
+submit {
+  statusCode: 400
+  message: """{
+  "status": "fail",
+  "message": "Error(s): Submitted input '\"this_is_not_a_valid_json_object\"' of type JsString is not a JSON object."
+}"""
+}

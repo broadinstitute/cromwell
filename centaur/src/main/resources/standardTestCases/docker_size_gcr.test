@@ -1,0 +1,15 @@
+name: docker_size_gcr
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: docker_size/docker_size_gcr.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.docker_size_gcr.large_gcr_image_with_hash.bootDiskSize": 17
+  "outputs.docker_size_gcr.large_gcr_image_with_tag.bootDiskSize": 17
+}
+
+workflowType: WDL

@@ -66,12 +66,13 @@ pages:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md
 - For Developers:
-    - How to Build: Building.md
-    - Architecture: Arch.md
-    - Instrumentation: Instrumentation.md
-    - Integration tests: Centaur.md
-    - Security: Security.md
-    - Contribute to docs: Contribute.md
+    - How to Build: developers/Building.md
+    - Architecture: developers/Arch.md
+    - Instrumentation: developers/Instrumentation.md
+    - Integration tests: developers/Centaur.md
+    - Security: developers/Security.md
+    - Contribute to docs: developers/Contribute.md
+    - CWL Parsing: developers/CwlParsing.md
 
 theme: readthedocs
 

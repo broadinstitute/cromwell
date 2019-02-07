@@ -15,6 +15,7 @@ import common.exception.MessageAggregation
 import common.util.StringUtil._
 import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -32,11 +33,11 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
+import org.apache.commons.lang3.StringUtils
 import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
 import wom.graph.LocalName
-import wom.values.LazyWomFile._
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
@@ -168,6 +169,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   lazy val jobShell: String = configurationDescriptor.backendConfig.getOrElse("job-shell",
     configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
+
+  lazy val abbreviateCommandLength: Int = configurationDescriptor.backendConfig.getOrElse("abbreviate-command-length",
+    configurationDescriptor.globalConfig.getOrElse("system.abbreviate-command-length", 0))
 
   /**
     * The local path where the command will run.
@@ -310,8 +314,10 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
   def commandScriptContents: ErrorOr[String] = {
-    jobLogger.info(s"`${instantiatedCommand.commandString}`")
-    tellMetadata(Map(CallMetadataKeys.CommandLine -> instantiatedCommand.commandString))
+    val commandString = instantiatedCommand.commandString
+    val commandStringAbbreviated = StringUtils.abbreviateMiddle(commandString, "...", abbreviateCommandLength)
+    jobLogger.info(s"`$commandStringAbbreviated`")
+    tellMetadata(Map(CallMetadataKeys.CommandLine -> commandStringAbbreviated))
 
     val cwd = commandDirectory
     val rcPath = cwd./(jobPaths.returnCodeFilename)
@@ -350,7 +356,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         s"""(
            |# add a .file in every empty directory to facilitate directory delocalization on the cloud
            |cd $cwd
-           |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
+           |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
            |)""".stripMargin)
 
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
@@ -391,7 +397,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         |""".stripMargin
       .replace("SCRIPT_PREAMBLE", scriptPreamble)
       .replace("ENVIRONMENT_VARIABLES", environmentVariables)
-      .replace("INSTANTIATED_COMMAND", instantiatedCommand.commandString)
+      .replace("INSTANTIATED_COMMAND", commandString)
       .replace("SCRIPT_EPILOGUE", scriptEpilogue)
       .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir))
   }
@@ -475,10 +481,13 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
 
     val evaluateAndInitialize = (containerizedInputExpression: ContainerizedInputExpression) => for {
       mapped <- mappedInputs
-      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toEither
-      initialized <- evaluated.traverse[ErrorOr, AdHocValue]({ adHocValue =>
-        adHocValue.womValue.initializeWomFile(backendEngineFunctions).map(i => adHocValue.copy(womValue = i))
-      }).toEither
+      evaluated <- containerizedInputExpression.evaluate(unmappedInputs, mapped, backendEngineFunctions).toChecked
+      initialized <- evaluated.traverse[IOChecked, AdHocValue]({ adHocValue =>
+        adHocValue.womValue.initialize(backendEngineFunctions).map({
+          case file: WomFile => adHocValue.copy(womValue = file)
+          case _ => adHocValue
+        })
+      }).toChecked
     } yield initialized
 
     callable.adHocFileCreation.toList

@@ -4,7 +4,7 @@ import cwl._
 import shapeless.Poly1
 import wom.RuntimeAttributesKeys._
 import wom.expression.{ValueAsAnExpression, WomExpression}
-import wom.values.WomString
+import wom.values.{WomLong, WomString}
 
 object RequirementToAttributeMap extends Poly1 {
   type ResourcesToExpressionMap = (Set[String], ExpressionLib) => Map[String, WomExpression]
@@ -55,6 +55,10 @@ object RequirementToAttributeMap extends Poly1 {
         resource.effectiveOutdirMin.toList.map(toExpression).map(OutDirMinKey -> _),
         resource.effectiveOutdirMax.toList.map(toExpression).map(OutDirMaxKey -> _)
       ).flatten.toMap
+  }
+
+  implicit def fromInputResourceRequirement: Case.Aux[DnaNexusInputResourceRequirement, ResourcesToExpressionMap] = at[DnaNexusInputResourceRequirement] {
+    case DnaNexusInputResourceRequirement(_, indirMin) => (_, _) => indirMin.map(value => ValueAsAnExpression(WomLong(value))).map(DnaNexusInputDirMinKey -> _).toMap
   }
 
   implicit def fromSubWorkflow: Case.Aux[SubworkflowFeatureRequirement, ResourcesToExpressionMap] = at[SubworkflowFeatureRequirement] {

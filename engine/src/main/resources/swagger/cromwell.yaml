@@ -212,7 +212,7 @@ paths:
     post:
       operationId: abort
       summary: Abort a running workflow
-      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will make a best effort attempt to immediately halt any currently running jobs from this workflow.
+      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will schedule a halt of all currently running jobs from this workflow.
       parameters:
         - $ref: '#/parameters/versionParam'
         - $ref: '#/parameters/singleId'
@@ -308,7 +308,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/query':
     get:
-      operationId: query
+      operationId: queryGet
       summary: Get workflows matching some criteria
       description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
@@ -457,7 +457,7 @@ paths:
         '500':
           $ref: '#/responses/ServerError'
     post:
-      operationId: query
+      operationId: queryPost
       summary: Get workflows matching some criteria
       description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
@@ -611,22 +611,42 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
-  '/engine/{version}/stats':
-    get:
-      operationId: stats
-      summary: Returns basic statistics from this Cromwell server.
+  '/api/womtool/{version}/describe':
+    post:
+      operationId: describe
+      summary: Machine-readable description of a workflow, including inputs and outputs
+      description: This endpoint is undergoing active development. Its performance has not been validated and it **should not be called on a production instance of Cromwell**.
+      consumes:
+        - multipart/form-data
       parameters:
         - $ref: '#/parameters/versionParam'
-      tags:
-        - Engine
+        - name: workflowSource
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
+          type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowInputs
+          description: JSON or YAML file containing the inputs as an object.
+          required: false
+          type: file
+          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
+        - $ref: '#/parameters/workflowTypeVersionParam'
       responses:
         '200':
-          description: Successful Request
+          description: Workflow description.
           schema:
-            $ref: '#/definitions/StatsResponse'
+            $ref: '#/definitions/WorkflowDescription'
+      tags:
+        - "Womtool (beta)"
   '/engine/{version}/version':
     get:
-      operationId: version
+      operationId: engineVersion
       summary: Return the version of this Cromwell server
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -639,7 +659,7 @@ paths:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
     get:
-      operationId: status
+      operationId: engineStatus
       summary: Return the current health status of any monitored subsystems
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -820,6 +840,23 @@ definitions:
         type: string
         format: date-time
         description: The time at which this failure occurred
+  WorkflowDescription:
+    required:
+      - valid
+      - errors
+    properties:
+      valid:
+        type: boolean
+        description: Whether the workflow and inputs as submitted passed validation
+      errors:
+        type: array
+        items:
+          type: string
+        example:
+          - "The 'errors' field will be filled if 'valid' is false"
+          - "We might also provide warnings to a 'valid' workflow here"
+          - "Otherwise, 'errors' will be the empty array"
+        description: The set of validation failure messages
   WorkflowQueryParameter:
     description: Workflow query parameters
     minProperties: 1
@@ -948,18 +985,6 @@ definitions:
       defaultBackend:
         type: string
         description: The default backend of this server
-  StatsResponse:
-    description: Provides engine level statistics for things running inside the system
-    required:
-      - workflows
-      - jobs
-    properties:
-      workflows:
-        type: integer
-        description: The number of currently running workflows
-      jobs:
-        type: integer
-        description: The number of currently running jobs
   VersionResponse:
     description: Returns the version of Cromwell
     properties:

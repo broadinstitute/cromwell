@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import cats.data.NonEmptyList
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
@@ -9,7 +10,7 @@ import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
 import cromwell.backend.google.pipelines.v2alpha1.api.{ActionBuilder, ActionFlag}
-import cromwell.filesystems.demo.dos.DemoDosPath
+import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import simulacrum.typeclass
@@ -26,28 +27,29 @@ import scala.language.implicitConversions
 
 trait PipelinesParameterConversions {
   implicit val fileInputToParameter = new ToParameter[PipelinesApiFileInput] {
-    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])(implicit retryPolicy: LocalizationConfiguration) = NonEmptyList.of {
-      val labels = Map(
-        Key.Tag -> Value.Localization,
-        Key.InputName -> fileInput.name
-      )
-
+    override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])
+                          (implicit retryPolicy: LocalizationConfiguration): NonEmptyList[Action] = {
       lazy val config = ConfigFactory.load
-      fileInput.cloudPath match {
-        case _: DemoDosPath =>
+
+      val labels = ActionBuilder.parameterLabels(fileInput)
+      val describeAction = ActionBuilder.describeParameter(fileInput, labels)
+      val localizationAction = fileInput.cloudPath match {
+        case drsPath: DrsPath =>
           import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.ShellPath
           import collection.JavaConverters._
 
-          val demoDosDockerImage = config.getString("demo.dos.localization.docker-image")
-          val demoDosCommandTemplate = config.getString("demo.dos.localization.command-template")
-          val demoDosMarthaUrl = config.getString("demo.dos.martha.url")
-          val demoDosCommand = demoDosCommandTemplate
-            .replace(s"$${dosPath}", fileInput.cloudPath.escape)
+          val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
+
+          val drsDockerImage = config.getString("drs.localization.docker-image")
+          val drsCommandTemplate = config.getString("drs.localization.command-template")
+          val drsMarthaUrl = drsFileSystemProvider.config.getString("martha.url")
+          val drsCommand = drsCommandTemplate
+            .replace(s"$${drsPath}", fileInput.cloudPath.escape)
             .replace(s"$${containerPath}", fileInput.containerPath.escape)
-          val marthaEnv = Map("MARTHA_URL" -> demoDosMarthaUrl)
+          val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
           ActionBuilder
-            .withImage(demoDosDockerImage)
-            .withCommand("/bin/sh", "-c", demoDosCommand)
+            .withImage(drsDockerImage)
+            .withCommand("/bin/sh", "-c", drsCommand)
             .withMounts(mounts)
             .setEnvironment(marthaEnv.asJava)
             .withLabels(labels)
@@ -86,19 +88,26 @@ trait PipelinesParameterConversions {
             .setEntrypoint("")
         case _ => cloudSdkShellAction(localizeFile(fileInput.cloudPath, fileInput.containerPath))(mounts, labels = labels)
       }
+
+      NonEmptyList.of(describeAction, localizationAction)
     }
   }
 
   implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
-    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])(implicit retryPolicy: LocalizationConfiguration) =  NonEmptyList.of {
-      cloudSdkShellAction(
+    override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])
+                          (implicit retryPolicy: LocalizationConfiguration): NonEmptyList[Action] = {
+      val labels = ActionBuilder.parameterLabels(directoryInput)
+      val describeAction = ActionBuilder.describeParameter(directoryInput, labels)
+      val localizationAction = cloudSdkShellAction(
         localizeDirectory(directoryInput.cloudPath, directoryInput.containerPath)
-      )(mounts, labels =  Map(Key.Tag -> Value.Localization))
+      )(mounts = mounts, labels = labels)
+      NonEmptyList.of(describeAction, localizationAction)
     }
   }
 
   implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
-    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])(implicit retryPolicy: LocalizationConfiguration) = {
+    override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])
+                          (implicit retryPolicy: LocalizationConfiguration): NonEmptyList[Action] = {
       // If the output is a "secondary file", it actually could be a directory but we won't know before runtime.
       // The fileOrDirectory method will generate a command that can cover both cases
       val copy = if (fileOutput.secondary)
@@ -109,30 +118,41 @@ trait PipelinesParameterConversions {
       lazy val copyOnlyIfExists = ifExist(fileOutput.containerPath) { copy }
 
       val copyCommand = if (fileOutput.optional || fileOutput.secondary) copyOnlyIfExists else copy
-      
+
+      val labels = ActionBuilder.parameterLabels(fileOutput)
+      val describeAction = ActionBuilder.describeParameter(fileOutput, labels)
+
       val delocalizationAction = cloudSdkShellAction(
         copyCommand
-      )(mounts = mounts, flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
+      )(mounts = mounts, flags = List(ActionFlag.AlwaysRun), labels = labels)
 
       // If the file should be uploaded periodically, create 2 actions, a background one with periodic upload, and a normal one
       // that will run at the end and make sure we get the most up to date version of the file
       fileOutput.uploadPeriod match {
         case Some(period) =>
+          val periodicLabels = labels collect {
+            case (key, _) if key == Key.Tag => key -> Value.Background
+            case (key, value) => key -> value
+          }
           val periodic = cloudSdkShellAction(
             every(period) { copyCommand }
-          )(mounts = mounts, flags = List(ActionFlag.RunInBackground), labels = Map(Key.Tag -> Value.Background))
+          )(mounts = mounts, flags = List(ActionFlag.RunInBackground), labels = periodicLabels)
 
-          NonEmptyList.of(delocalizationAction, periodic)
-        case None => NonEmptyList.of(delocalizationAction)
+          NonEmptyList.of(describeAction, delocalizationAction, periodic)
+        case None => NonEmptyList.of(describeAction, delocalizationAction)
       }
     }
   }
 
   implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
-    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) = NonEmptyList.of {
-      cloudSdkShellAction(
+    override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount])
+                          (implicit localizationConfiguration: LocalizationConfiguration): NonEmptyList[Action] = {
+      val labels = ActionBuilder.parameterLabels(directoryOutput)
+      val describeAction = ActionBuilder.describeParameter(directoryOutput, labels)
+      val delocalizationAction = cloudSdkShellAction(
         delocalizeDirectory(directoryOutput.containerPath, directoryOutput.cloudPath, None)
-      )(mounts, List(ActionFlag.AlwaysRun), labels =  Map(Key.Tag -> Value.Delocalization))
+      )(mounts = mounts, flags = List(ActionFlag.AlwaysRun), labels = labels)
+      NonEmptyList.of(describeAction, delocalizationAction)
     }
   }
 

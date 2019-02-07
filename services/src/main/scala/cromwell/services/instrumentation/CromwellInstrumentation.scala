@@ -1,6 +1,7 @@
 package cromwell.services.instrumentation
 
-import akka.actor.{Actor, ActorRef, Cancellable}
+import akka.actor.{Actor, ActorRef, Timers}
+import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
 import cromwell.services.instrumentation.CromwellInstrumentation._
@@ -110,17 +111,17 @@ trait CromwellInstrumentation {
 /**
   * Helper trait to provide a scheduler function that can be used for instrumentation purposes
   */
-trait CromwellInstrumentationScheduler { this: Actor =>
-  // The system dispatcher should be fine ? Do we need a special one for instrumentation ?
-  implicit private val instrumentationEc = context.system.dispatcher
+trait CromwellInstrumentationScheduler { this: Actor with Timers =>
+  private case object InstrumentationTimerKey
+  private case object InstrumentationTimerAction extends ControlMessage
 
-  private var scheduledInstrumentationTimers: Vector[Cancellable] = Vector.empty
-  
-  def scheduleInstrumentation(f: => Unit) = {
-    scheduledInstrumentationTimers = scheduledInstrumentationTimers :+ context.system.scheduler.schedule(InstrumentationRate, InstrumentationRate)(f)
+  def startInstrumentationTimer() = {
+    timers.startSingleTimer(InstrumentationTimerKey, InstrumentationTimerAction, InstrumentationRate)
   }
 
-  override def postStop(): Unit = {
-    scheduledInstrumentationTimers foreach { _.cancel() }
+  protected def instrumentationReceive(instrumentationAction: () => Unit): Receive = {
+    case InstrumentationTimerAction => 
+      instrumentationAction()
+      timers.startSingleTimer(InstrumentationTimerKey, InstrumentationTimerAction, InstrumentationRate)
   }
 }

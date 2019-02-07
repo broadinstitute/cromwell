@@ -8,7 +8,7 @@ backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
 files {
-  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/cwl_format/cwl_format.cwl"
+  workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/cwl_format/cwl_format_url.cwl"
   inputs: cwl_format/cwl_format_valid.yaml
   options: cwl_format/cwl_format.options
 }

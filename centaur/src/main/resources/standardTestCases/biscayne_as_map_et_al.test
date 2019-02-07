@@ -9,6 +9,14 @@ files {
 metadata {
   workflowName: biscayne_as_map_et_al
   status: Succeeded
+
+  "outputs.biscayne_as_map_et_al.x_map_keys_out.0": "a"
+  "outputs.biscayne_as_map_et_al.x_map_keys_out.1": "b"
+  "outputs.biscayne_as_map_et_al.x_map_keys_out.2": "c"
+
+  "outputs.biscayne_as_map_et_al.y_map_keys_out.0": "a"
+  "outputs.biscayne_as_map_et_al.y_map_keys_out.1": "b"
+
   "outputs.biscayne_as_map_et_al.x_as_pairs_out.0.left": "a"
   "outputs.biscayne_as_map_et_al.x_as_pairs_out.0.right": 1
   "outputs.biscayne_as_map_et_al.x_as_pairs_out.1.left": "b"

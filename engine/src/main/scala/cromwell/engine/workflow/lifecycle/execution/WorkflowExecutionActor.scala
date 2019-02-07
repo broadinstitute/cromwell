@@ -13,9 +13,11 @@ import com.typesafe.config.Config
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
@@ -186,6 +188,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       val newData = startRunnableNodes(data)
       sendHeartBeat()
       stay() using newData
+    case Event(ExecutionHeartBeat, data) if data.stalled =>
+      handleWorkflowStalled(data)
     case Event(ExecutionHeartBeat, _) =>
       sendHeartBeat()
       stay()
@@ -309,7 +313,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
-    import LazyWomFile._
     import WorkflowExecutionActor.EnhancedWorkflowOutputs
     import cats.instances.list._
     import cats.syntax.traverse._
@@ -352,10 +355,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       .map(outputNode =>
       outputNode -> data.valueStore.get(outputNode.graphOutputPort, None)
     )
-      .toList.traverse[ErrorOr, (GraphOutputNode, WomValue)]({
+      .toList.traverse[IOChecked, (GraphOutputNode, WomValue)]({
       case (name, Some(value)) => value.initialize(data.expressionLanguageFunctions).map(name -> _)
       case (name, None) =>
-        s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidNel
+        s"Cannot find an output value for ${name.identifier.fullyQualifiedName.value}".invalidIOChecked
     })
       // Convert the list of tuples to a Map
       .map(_.toMap)
@@ -363,6 +366,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     workflowOutputValuesValidation
       .map(handleSuccessfulWorkflowOutputs)
       .valueOr(handleWorkflowOutputsFailure)
+      .unsafeRunSync()
+  }
+
+  def handleWorkflowStalled(data: WorkflowExecutionActorData): State = {
+    val notStarted = data.executionStore.unstarted.mkString(System.lineSeparator, System.lineSeparator, "")
+    context.parent ! WorkflowExecutionFailedResponse(
+      data.jobExecutionMap,
+      new Exception(s"Workflow is making no progress but has the following unstarted job keys: $notStarted")
+    )
+    goto(WorkflowExecutionFailedState)
   }
 
   private def handleNonRetryableFailure(stateData: WorkflowExecutionActorData,
@@ -509,6 +522,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case key @ ExpressionKey(expr: TaskCallInputExpressionNode, _) => processRunnableTaskCallInputExpression(key, data, expr)
       case key: ExpressionKey => key.processRunnable(data.expressionLanguageFunctions, data.valueStore, self)
       case key: ScatterCollectorKey => key.processRunnable(data)
+      case key: ScatteredCallCompletionKey => key.processRunnable(data)
       case key: ScatterKey => key.processRunnable(data, self, MaxScatterWidth)
       case other =>
         workflowLogger.error(s"${other.tag} is not a runnable key")
@@ -532,8 +546,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val taskCallNode = expressionNode.taskCallNodeReceivingInput.get(())
 
     (for {
-      jobKey <- data.executionStore.keyForNode(taskCallNode).toChecked(s"No job key found for call node $taskCallNode")
-      backendJobDescriptorKey <- Option(jobKey) collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job key not a BackendJobDescriptorKey: $jobKey"
+      jobKeys <- NonEmptyList.fromList(data.executionStore.keysForNode(taskCallNode).toList).toChecked(s"No job key found for call node $taskCallNode")
+      backendJobDescriptorKey <- jobKeys.toList collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job keys included no BackendJobDescriptorKeys: ${jobKeys.toList.mkString(", ")}"
       factory <- backendFactoryForTaskCallNode(taskCallNode)
       backendInitializationData = params.initializationData.get(factory.name)
       functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData, params.ioActor, ioEc)
@@ -590,16 +604,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   }
 
   private def startEJEA(jobKey: BackendJobDescriptorKey,
-                        backendFactory: BackendLifecycleActorFactory,
+                        backendLifecycleActorFactory: BackendLifecycleActorFactory,
                         command: BackendJobExecutionActorCommand): WorkflowExecutionDiff = {
     val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
-    val backendName = backendFactory.name
+    val backendName = backendLifecycleActorFactory.name
     val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
     val ejeaProps = EngineJobExecutionActor.props(
       self,
       jobKey,
       workflowDescriptor,
-      backendFactory,
+      backendLifecycleActorFactory,
       params.initializationData.get(backendName),
       restarting = params.startState.restarted,
       serviceRegistryActor = serviceRegistryActor,
@@ -610,10 +624,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       workflowDockerLookupActor = params.workflowDockerLookupActor,
       jobTokenDispenserActor = params.jobTokenDispenserActor,
       backendSingleton,
-      backendName,
       workflowDescriptor.callCachingMode,
       command,
-      fileHashCacheActor = params.fileHashCacheActor
+      fileHashCacheActor = params.fileHashCacheActor,
+      blacklistCache = params.blacklistCache
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -650,7 +664,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.startState,
         params.rootConfig,
         params.totalJobsByRootWf,
-        fileHashCacheActor = params.fileHashCacheActor), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
+        fileHashCacheActor = params.fileHashCacheActor,
+        blacklistCache = params.blacklistCache), s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
 
     context watch sweaRef
@@ -765,7 +780,8 @@ object WorkflowExecutionActor {
                                            startState: StartableState,
                                            rootConfig: Config,
                                            totalJobsByRootWf: AtomicInteger,
-                                           fileHashCacheActor: Option[ActorRef]
+                                           fileHashCacheActor: Option[ActorRef],
+                                           blacklistCache: Option[BlacklistCache]
                                          )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -782,7 +798,8 @@ object WorkflowExecutionActor {
             startState: StartableState,
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
-            fileHashCacheActor: Option[ActorRef]): Props = {
+            fileHashCacheActor: Option[ActorRef],
+            blacklistCache: Option[BlacklistCache]): Props = {
     Props(
       WorkflowExecutionActor(
         WorkflowExecutionActorParams(
@@ -800,7 +817,8 @@ object WorkflowExecutionActor {
           startState,
           rootConfig,
           totalJobsByRootWf,
-          fileHashCacheActor = fileHashCacheActor
+          fileHashCacheActor = fileHashCacheActor,
+          blacklistCache = blacklistCache
         )
       )
     ).withDispatcher(EngineDispatcher)

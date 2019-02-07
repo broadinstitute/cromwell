@@ -6,13 +6,15 @@ import cromwell.CromwellTestKitWordSpec
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
+import cromwell.engine.workflow.CoordinatedWorkflowStoreBuilder
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
-import cromwell.engine.workflow.workflowstore.{SqlWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreCoordinatedWriteActor}
+import cromwell.engine.workflow.workflowstore._
 import cromwell.services.EngineServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import cromwell.util.WomMocks
+import mouse.all._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
 import wdl.draft2.model.WdlExpression
@@ -26,7 +28,7 @@ object SubWorkflowStoreSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mockito {
+class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreBuilder with Matchers with Mockito {
   "SubWorkflowStore" should {
     "work" in {
       lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
@@ -34,8 +36,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with Matchers with Mo
 
       lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
       val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
-      val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(workflowStore))
-      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, coordinator, TestProbe().ref, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, workflowStore |> access, TestProbe().ref, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
 
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()

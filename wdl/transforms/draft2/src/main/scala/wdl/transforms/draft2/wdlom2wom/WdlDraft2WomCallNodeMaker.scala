@@ -133,7 +133,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
           ogin <- expressionNode.upstreamOuterGraphInputNodes
         } yield ogin
 
-        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins))
+        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins), Set.empty)
 
         // If the created node is a `TaskCallNode` the created input expressions should be `TaskCallInputExpressionNode`s
         // and should be assigned a reference to the `TaskCallNode`. This is used in the `WorkflowExecutionActor` to

@@ -1,0 +1,67 @@
+name: copy_workflow_outputs_scattered_papi
+backends: [Papiv2]
+testFormat: workflowsuccess
+
+files {
+  workflow: copy_workflow_outputs/scattered.wdl
+  options: copy_workflow_outputs/scattered_papi.options
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-0/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-0/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-1/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-1/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-2/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-2/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-3/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-3/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-4/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-4/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-5/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-5/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-6/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-6/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-7/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-7/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-8/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-8/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-9/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wfoutputs/<<UUID>>/call-A/shard-9/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/workflowLogDir/workflow.<<UUID>>.log": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-0/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-0/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-1/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-1/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-2/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-2/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-3/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-3/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-4/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-4/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-5/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-5/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-6/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-6/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-7/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-7/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-8/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-8/B2": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-9/B1": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wfoutputs/<<UUID>>/call-A/shard-9/B2": 1
+}
+
+allowOtherOutputs = false
+metadata {
+  "outputs.wfoutputs.A.outs.0": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-0/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-0/B2\"]"
+  "outputs.wfoutputs.A.outs.1": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-1/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-1/B2\"]"
+  "outputs.wfoutputs.A.outs.2": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-2/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-2/B2\"]"
+  "outputs.wfoutputs.A.outs.3": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-3/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-3/B2\"]"
+  "outputs.wfoutputs.A.outs.4": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-4/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-4/B2\"]"
+  "outputs.wfoutputs.A.outs.5": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-5/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-5/B2\"]"
+  "outputs.wfoutputs.A.outs.6": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-6/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-6/B2\"]"
+  "outputs.wfoutputs.A.outs.7": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-7/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-7/B2\"]"
+  "outputs.wfoutputs.A.outs.8": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-8/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-8/B2\"]"
+  "outputs.wfoutputs.A.outs.9": ~>"[\"<<WORKFLOW_ROOT>>call-A/shard-9/B1\",\"<<WORKFLOW_ROOT>>call-A/shard-9/B2\"]"
+}

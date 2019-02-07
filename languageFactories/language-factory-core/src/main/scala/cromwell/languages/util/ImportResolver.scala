@@ -3,13 +3,12 @@ package cromwell.languages.util
 import java.net.{URI, URL}
 import java.nio.file.{FileSystem, FileSystems, Files, Paths, Path => NioPath}
 
-import com.google.common.jimfs.Configuration
-import com.google.common.jimfs.Jimfs
 import better.files.File
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.syntax.either._
 import cats.syntax.validated._
+import com.google.common.jimfs.{Configuration, Jimfs}
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import common.Checked

@@ -56,7 +56,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
-  def filterWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
+  private def filterWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
                                            workflowStatuses: Set[String],
                                            workflowNames: Set[String],
                                            workflowExecutionUuids: Set[String],
@@ -73,7 +73,7 @@ trait WorkflowMetadataSummaryEntryComponent {
 
       // All fields but UUID are nullable, necessitating the folds.  If these fields are null in the database we want to
       // filter the row if the relevant filter has been specified.
-      val startTimestampFilter = startTimestampOption.
+      val startTimestampFilter: Option[Rep[Boolean]] = startTimestampOption.
         map(startTimestamp => workflowMetadataSummaryEntry.startTimestamp.fold(ifEmpty = exclude)(_ >= startTimestamp))
       val endTimestampFilter = endTimestampOption.
         map(endTimestamp => workflowMetadataSummaryEntry.endTimestamp.fold(ifEmpty = exclude)(_ <= endTimestamp))

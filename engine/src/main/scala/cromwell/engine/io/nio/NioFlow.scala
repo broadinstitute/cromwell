@@ -14,7 +14,9 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
@@ -110,6 +112,10 @@ class NioFlow(parallelism: Int,
     hash.file match {
       case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
+      case awsPath: S3Path => {
+        val h = HeadObjectRequest.builder().bucket(awsPath.bucket).key(awsPath.key)
+        awsPath.client.headObject(awsPath.bucket)
+      }
       case path => IO.fromEither(
         tryWithResource(() => path.newInputStream) { inputStream =>
           org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)

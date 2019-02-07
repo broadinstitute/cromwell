@@ -259,7 +259,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
       else List.empty
 
-    val zippedResolverCheck: IOChecked[Option[DirectoryResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
+    val zippedResolverCheck: IOChecked[Option[ZipResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
       case None => None.validNelCheck
       case Some(zipContent) => zippedImportResolver(zipContent, workflowId).toEither.map(Option.apply)
     })

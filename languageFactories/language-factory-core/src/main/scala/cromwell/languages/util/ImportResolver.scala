@@ -1,7 +1,8 @@
 package cromwell.languages.util
 
 import java.net.{URI, URL}
-import java.nio.file.Paths
+import java.nio.file.{FileSystem, FileSystems, OpenOption, Paths, Path => NioPath}
+import java.util
 
 import better.files.File
 import cats.data.NonEmptyList
@@ -16,8 +17,7 @@ import common.validation.ErrorOr._
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import java.nio.file.{Path => NioPath}
-
+import better.files.File.OpenOptions
 import cromwell.core.WorkflowId
 import wom.core.WorkflowSource
 
@@ -129,13 +129,45 @@ object ImportResolver {
         s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
     }
 
-    override def close(): Try[Unit]= Try(directory.delete(swallowIOExceptions = true))
+    override def close(): Try[Unit] = Success(())
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
-    LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
-      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
+  case class ZipResolver(zipContents: Array[Byte], workflowId: WorkflowId) extends ImportResolver {
+
+    // https://docs.oracle.com/javase/7/docs/technotes/guides/io/fsp/zipfilesystemprovider.html
+    lazy val zipMemoryMappedFilesystem: FileSystem = {
+      val env = new util.HashMap[String, String]()
+      env.put("create", "false")
+      env.put("encoding", "UTF-8")
+
+      // TODO: write the bytes to a zip on a different in-memory filesystem
+//      val zipfs = FileSystems.newFileSystem(URI.create("memory:///?name=asdf"), env)
+//      zipfs.provider().newByteChannel(Paths.get("/zipped_imports"), new util.HashSet[OpenOption]())
+
+      val zipPath = DefaultPathBuilder.createTempFile(s"imports_workflow_${workflowId}_", ".zip").writeByteArray(zipContents)(OpenOptions.default)
+      val filesystem = FileSystems.newFileSystem(new java.net.URI("jar:file:" + zipPath), env)
+      zipPath.delete(swallowIOExceptions = true)
+      filesystem
     }
+
+    override def name: String = s"Zip Resolver for zip of length ${zipContents.length}"
+
+    override protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
+      val pathOnFilesystem: NioPath = zipMemoryMappedFilesystem.getPath(path)
+      val contents = File(pathOnFilesystem).contentAsString
+
+      ResolvedImportBundle(contents, List(this)).validNelCheck
+    }
+
+    override def close(): Try[Unit] = Try {
+      // Not sure if this is necessary
+      zipMemoryMappedFilesystem.close()
+    }
+  }
+
+  // This is where we commit the original sin of turning into an in-memory Array[Byte] into a stateful global eternal directory on the filesystem
+  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[ZipResolver] = {
+    Try(ZipResolver(zippedImports, workflowId)).toErrorOr
   }
 
   case class HttpResolver(relativeTo: Option[String] = None, headers: Map[String, String] = Map.empty) extends ImportResolver {

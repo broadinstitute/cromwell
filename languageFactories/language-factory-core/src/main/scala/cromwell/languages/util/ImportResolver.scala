@@ -166,13 +166,11 @@ object ImportResolver {
     }
 
     override def close(): Try[Unit] = Try {
-      // Not sure if this is necessary
       zipMemoryMappedFilesystem.close()
       zipByteMaterializationFilesystem.close()
     }
   }
 
-  // This is where we commit the original sin of turning into an in-memory Array[Byte] into a stateful global eternal directory on the filesystem
   def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[ZipResolver] = {
     Try(ZipResolver(zippedImports, workflowId)).toErrorOr
   }

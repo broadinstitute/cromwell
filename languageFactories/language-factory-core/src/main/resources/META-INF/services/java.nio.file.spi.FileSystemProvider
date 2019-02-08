@@ -1,2 +1,3 @@
 # Required for certain packaging/run configurations to find and load the JimFS classes
 com.google.common.jimfs.SystemJimfsFileSystemProvider
+com.google.common.jimfs.JimfsFileSystemProvider

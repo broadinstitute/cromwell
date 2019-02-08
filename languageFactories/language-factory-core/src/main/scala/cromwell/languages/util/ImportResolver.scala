@@ -131,8 +131,7 @@ object ImportResolver {
     override def close(): Try[Unit] = Success(())
   }
 
-  // !!! Warning: does not yet work for nested directories !!!
-  case class ZipResolver(zipContents: Array[Byte], workflowId: WorkflowId) extends ImportResolver {
+  case class ZipResolver(zipContents: Array[Byte], workflowId: WorkflowId, startingPath: String = "/") extends ImportResolver {
 
     // Based on https://github.com/google/jimfs/issues/47#issuecomment-311360741
     private lazy val zipMemoryMappedFilesystem: FileSystem = {
@@ -151,20 +150,29 @@ object ImportResolver {
     }
 
     private lazy val zipByteMaterializationFilesystem: FileSystem = {
-      // Use workflow ID and `lazy` because name must be globally unique
-      Jimfs.newFileSystem("jimfs-workflow-" + workflowId.toString, Configuration.unix())
+      // Include workflow ID and `startingPath` because names must be globally unique
+      // Must be a val so FS is created at most once
+      Jimfs.newFileSystem("jimfs-workflow-" + workflowId.toString + "-path-" + startingPath.hashCode, Configuration.unix())
     }
 
     override def name: String = s"Zip Resolver for zip of length ${zipContents.length}"
 
     override protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
-      val pathOnFilesystem: NioPath = zipMemoryMappedFilesystem.getPath(path)
-      val contents = File(pathOnFilesystem).contentAsString
+      val pathOnFilesystem: NioPath = zipMemoryMappedFilesystem.getPath(startingPath + path)
+      val maybeContents = Try(File(pathOnFilesystem).contentAsString)
 
-      ResolvedImportBundle(contents, List()).validNelCheck
+      maybeContents match {
+        case Success(contents) =>
+          // Add a copy of this resolver, `cd`'d to the directory of the WDL we just imported
+          ResolvedImportBundle(contents, currentResolvers :+ this.copy(startingPath = pathOnFilesystem.getParent.toString + "/")).validNelCheck
+        case Failure(exception) =>
+          s"This resolver could not read the file at $path: ${exception.getMessage}".invalidNelCheck
+      }
     }
 
     override def close(): Try[Unit] = Try {
+      // TODO: make sure we don't bail out if the first one fails
+      // TODO: make sure the new resolvers created in innerResolver also get closed
       zipMemoryMappedFilesystem.close()
       zipByteMaterializationFilesystem.close()
     }

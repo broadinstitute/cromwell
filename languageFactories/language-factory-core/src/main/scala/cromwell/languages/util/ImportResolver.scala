@@ -146,7 +146,7 @@ object ImportResolver {
       env.put("create", "false") // `true` means "create the zip if it doesn't exist" - would mean we have a bug
       env.put("encoding", "UTF-8")
 
-      FileSystems.newFileSystem(new java.net.URI("jar:" + zipPath.toUri), env)
+      FileSystems.newFileSystem(zipPath, null)
     }
 
     private lazy val zipByteMaterializationFilesystem: FileSystem = {

@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 38 Release Notes
+
+### Bug fixes
+- Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
+
 ## 37 Release Notes
 
 ### Docker
@@ -76,7 +81,6 @@ The endpoint is still undergoing heavy development and should not be used in pro
 ### Bug fixes
 
 - Fixed a regression in Cromwell 36 that could cause operations on empty arrays to fail with a spurious type error (closes [#4318](https://github.com/broadinstitute/cromwell/issues/4318))
-- Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
 
 #### Abort On Hold Workflows
 

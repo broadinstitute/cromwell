@@ -312,7 +312,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         |}
       """.stripMargin
 
-    val workflowId = CromwellApiServiceSpec.ExistingWorkflowId
+    val workflowId = CromwellApiServiceSpec.SummarizedWorkflowId
 
     Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
       akkaHttpService.metadataRoutes ~>
@@ -334,6 +334,24 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
 
         actualResult shouldBe expectedResults
       }
+  }
+
+  it should "fail when assigning valid labels to an unsummarized workflow ID" in {
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val unsummarizedId = CromwellApiServiceSpec.ExistingWorkflowId
+    Patch(s"/workflows/$version/$unsummarizedId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status shouldBe StatusCodes.NotFound
+      }
+
   }
 }
 

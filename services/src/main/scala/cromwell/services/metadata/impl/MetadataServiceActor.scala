@@ -81,8 +81,16 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     actor
   }
 
-  private def validateWorkflowId(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
-    workflowExistsWithId(possibleWorkflowId.toString) onComplete {
+  private def validateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
+    workflowWithIdExistsInMetadata(possibleWorkflowId.toString) onComplete {
+      case Success(true) => sender ! RecognizedWorkflowId
+      case Success(false) => sender ! UnrecognizedWorkflowId
+      case Failure(e) => sender ! FailedToCheckWorkflowId(new RuntimeException(s"Failed lookup attempt for workflow ID $possibleWorkflowId", e))
+    }
+  }
+
+  private def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
+    workflowWithIdExistsInMetadataSummaries(possibleWorkflowId.toString) onComplete {
       case Success(true) => sender ! RecognizedWorkflowId
       case Success(false) => sender ! UnrecognizedWorkflowId
       case Failure(e) => sender ! FailedToCheckWorkflowId(new RuntimeException(s"Failed lookup attempt for workflow ID $possibleWorkflowId", e))
@@ -95,7 +103,8 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor
     case listen: Listen => writeActor forward listen
-    case v: ValidateWorkflowId => validateWorkflowId(v.possibleWorkflowId, sender())
+    case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
+    case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: ReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }
     case MetadataSummarySuccess => scheduleSummary()

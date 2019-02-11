@@ -29,6 +29,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
+  def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
+
   def queryMetadataEntries(workflowExecutionUuid: String)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 

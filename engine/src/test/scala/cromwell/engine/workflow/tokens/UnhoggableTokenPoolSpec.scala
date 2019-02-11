@@ -1,9 +1,10 @@
 package cromwell.engine.workflow.tokens
 
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{ComeBackLater, Oink, TokenHoggingLease}
+import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{HogLimitExceeded, TokenHoggingLease, TokenTypeExhausted, TokensAvailable}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpec, Matchers}
+
 import scala.concurrent.duration._
 
 class UnhoggableTokenPoolSpec extends FlatSpec with Matchers with Eventually {
@@ -41,43 +42,65 @@ class UnhoggableTokenPoolSpec extends FlatSpec with Matchers with Eventually {
         (0 until hogLimit) foreach { index =>
           pool.tryAcquire(hogGroup) match {
             case _: TokenHoggingLease => // great!
-            case ComeBackLater => fail(s"Unhoggable token pool ran out after $index tokens distributed to $hogGroupNumber")
-            case Oink => fail(s"Unhoggable token pool making unfounded accusations of hogging after $index tokens distributed to $hogGroupNumber")
+            case TokenTypeExhausted => fail(s"Unhoggable token pool ran out after $index tokens distributed to $hogGroupNumber")
+            case HogLimitExceeded => fail(s"Unhoggable token pool making unfounded accusations of hogging after $index tokens distributed to $hogGroupNumber")
           }
-        }
-        // Step two: one more is too many...
-        pool.tryAcquire(hogGroup) should be(Oink)
-      }
 
-      // Any more requests should be told to come back later:
-      pool.tryAcquire("somebody else") should be(ComeBackLater)
+          val acquiredTokensForGroup = index + 1
+
+          val poolState = pool.poolState
+          poolState.leased should be(hogGroupNumber * hogLimit + acquiredTokensForGroup)
+
+          val hogGroupState = poolState.hogGroups.get.find(_.hogGroup == hogGroup).get
+          hogGroupState.used should be(acquiredTokensForGroup)
+          hogGroupState.atLimit should be(acquiredTokensForGroup == hogLimit)
+        }
+
+        // Step two: one more is too many...
+        val nextAcquisition = pool.tryAcquire(hogGroup)
+        val poolState = pool.poolState
+
+        if (hogGroupNumber != tokenType.hogFactor - 1) {
+          // While the overall token type is not full we get the hog limit push-back:
+          nextAcquisition should be(HogLimitExceeded)
+          pool.available("other") should be(UnhoggableTokenPool.TokensAvailable)
+          poolState.available should be(true)
+
+        } else {
+          // The final time, the entire token type is used up so we get this instead:
+          nextAcquisition should be(TokenTypeExhausted)
+          pool.available("other") should be(UnhoggableTokenPool.TokenTypeExhausted)
+          poolState.available should be(false)
+        }
+      }
     }
   }
 
   it should "allow tokens to be returned" in {
     // A pool distributing tokens with a hogLimit of 2:
-    val hogLimit2Pool = new UnhoggableTokenPool(JobExecutionTokenType("backend", Some(150), 75))
+    val hogLimitPool = new UnhoggableTokenPool(JobExecutionTokenType("backend", Some(150), 75))
 
     // Use all the "group1" tokens:
-    val lease1 = hogLimit2Pool.tryAcquire("group1").asInstanceOf[TokenHoggingLease]
-    val lease2 = hogLimit2Pool.tryAcquire("group1").asInstanceOf[TokenHoggingLease]
-    hogLimit2Pool.tryAcquire("group1") should be(Oink)
+    val lease1 = hogLimitPool.tryAcquire("group1").asInstanceOf[TokenHoggingLease]
+    val lease2 = hogLimitPool.tryAcquire("group1").asInstanceOf[TokenHoggingLease]
+    hogLimitPool.available("group1") shouldBe HogLimitExceeded
+    hogLimitPool.tryAcquire("group1") should be(HogLimitExceeded)
 
     lease1.release()
-    eventually { hogLimit2Pool.available("group1") shouldBe true }
-    hogLimit2Pool.tryAcquire("group1") match {
+    eventually { hogLimitPool.available("group1") shouldBe TokensAvailable }
+    hogLimitPool.tryAcquire("group1") match {
       case _: TokenHoggingLease => // Great!
       case other => fail(s"expected lease but got $other")
     }
-    hogLimit2Pool.tryAcquire("group1") should be(Oink)
+    hogLimitPool.tryAcquire("group1") should be(HogLimitExceeded)
 
     lease2.release()
-    eventually { hogLimit2Pool.available("group1") shouldBe true }
-    hogLimit2Pool.tryAcquire("group1") match {
+    eventually { hogLimitPool.available("group1") shouldBe TokensAvailable }
+    hogLimitPool.tryAcquire("group1") match {
       case _: TokenHoggingLease => // Great!
       case other => fail(s"expected lease but got $other")
     }
-    hogLimit2Pool.tryAcquire("group1") should be(Oink)
+    hogLimitPool.tryAcquire("group1") should be(HogLimitExceeded)
   }
 
 }

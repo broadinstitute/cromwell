@@ -45,6 +45,15 @@ Support `InputResourceRequirement` hint
 
 ### Changing configuration options
 
+#### Logging Token Distribution
+
+In cases where its not obvious why jobs are queued in Cromwell, you can enable logging for the Job Execution Token Dispenser, using
+the `system.hog-safety.token-log-interval-seconds` configuration value.
+
+The default, `0`, means that no logging will occur. 
+
+#### HTTP Filesystem
+
 - The HTTP filesystem is now enabled for engine use by default. To continue without an HTTP filesystem, you can add the 
 following content into the appropriate stanza of your configuration file:
 ```

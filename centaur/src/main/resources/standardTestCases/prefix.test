@@ -3,6 +3,8 @@ testFormat: workflowsuccess
 
 files {
   workflow: prefix/prefix.wdl
+  # https://github.com/broadinstitute/cromwell/issues/4590
+  options: prefix/prefix.options
 }
 
 metadata {

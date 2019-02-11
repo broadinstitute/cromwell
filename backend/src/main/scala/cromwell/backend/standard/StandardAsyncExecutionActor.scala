@@ -356,7 +356,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         s"""(
            |# add a .file in every empty directory to facilitate directory delocalization on the cloud
            |cd $cwd
-           |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
+           |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
            |)""".stripMargin)
 
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming

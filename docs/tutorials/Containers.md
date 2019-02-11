@@ -27,13 +27,54 @@ We'll discuss:
 
 ### Let's get started
 
-Container's are specified on a per-task level, this can be achieved in WDL ou specify a container in WDL as a Docker tag in the runtime section of a task
+Container's are specified on a per-task level, this can be achieved in WDL by specifying a [`docker`](https://software.broadinstitute.org/wdl/documentation/spec#docker) tag in the `runtime` section. For example, specifying that the following WDL script should use the container `ubuntu:latest` can be achieved by:
+
+```wdl
+task hello_world {
+    String name = "World"
+    command {
+        echo 'Hello, ${name}'
+    }
+    output {
+        File out = stdout()
+    }
+    runtime {
+        docker: 'ubuntu:latest'
+    }
+}
+
+workflow hello {
+    call hello_world
+}
+```
+
+<!-- Similar in CWL, you can specifiy a [`DockerRequirement`](https://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement) inside the requirements section:
+
+```cwl
+cwlVersion: v1.0
+class: CommandLineTool
+baseCommand: echo
+inputs:
+    name:
+        type: string
+        default: "World"
+        inputBinding:
+          prefix: "Hello, "
+outputs:
+    out: stdout
+
+requirements:
+    DockerRequirement:
+        dockerPull: "ubuntu:latest"
+``` -->
 
 #### Docker
 
 Docker is a popular container technology that is natively supported by Cromwell and WDL. No extra configuration must be provided to allow docker to run (provided Docker is installed).
 
 ##### Shortfalls of Docker
+
+Docker can allow running users to gain superuser privileges, called the [Docker daemon attack surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). In HPC and multi-user environments, Docker recommends that "only trusted users should be allowed to control your Docker Daemon" [source](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that's tagged with docker containers.
 
 #### Singularity
 

@@ -8,6 +8,13 @@ The `ConfigBackendLifecycleActorFactory` path variables `script`, `out` and `err
 and without docker. Similarly, when killing a docker task the `kill-docker` configuration key is now used instead of
 `kill`. For more information see the [online documentation](https://cromwell.readthedocs.io/en/stable/backends/SGE/).
 
+### No-op Health Monitor is now the default health monitor
+
+Previous versions of Cromwell defaulted to using a health monitor service that checked Docker Hub and engine database status.
+Neither check was useful if the `status` endpoint was never consulted as is likely the case in most deployments. Cromwell 38
+now defaults to a `NoopHealthMonitorServiceActor` which does nothing. The previous health service implementation is still
+available as `StandardHealthMonitorServiceActor`.
+
 ### Bug fixes
 - Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
 

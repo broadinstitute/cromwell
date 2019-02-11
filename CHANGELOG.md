@@ -399,6 +399,12 @@ In addition, the following changes are to be expected:
 * Error messages for failed jobs might differ from V1
 * The Pipelines API log file content might differ from V1
 
+**Permissions***:
+With Pipelines API v2, the mode of authentication (ie, Application Default, User Service Account, default compute service account, etc) will need to have these permissions on the bucket holding the Cromwell directory (root directory):
+* storage.objects.list
+* storage.objects.create
+* storage.objects.delete
+
 **Important (If you're running Cromwell with a Google backend, read this)**:
 The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
 Please update your configuration accordingly.

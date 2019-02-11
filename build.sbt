@@ -283,6 +283,8 @@ lazy val womtool = project
 
 lazy val cromiam = (project in file("CromIAM")) // TODO: git mv CromIAM to a canonical lowercased name
   .withExecutableSettings("cromiam", cromiamDependencies, cromiamSettings)
+  .configs(IntegrationTest)
+  .settings(Defaults.itSettings)
   .dependsOn(common)
   .dependsOn(cromwellApiClient)
   .dependsOn(services)

@@ -25,6 +25,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.10"
   private val ficusV = "1.4.4"
   private val fs2V = "1.0.3"
+  private val gatlingV = "3.0.3"
   private val googleApiClientV = "1.28.0"
   private val googleCloudCoreV = "1.61.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
@@ -473,7 +474,9 @@ object Dependencies {
     "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
-    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
+    "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV,
+    "io.gatling.highcharts" % "gatling-charts-highcharts" % gatlingV  % "test,it",
+    "io.gatling"            % "gatling-test-framework"    % gatlingV % "test,it"
   ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies = coreDependencies ++ akkaHttpDependencies

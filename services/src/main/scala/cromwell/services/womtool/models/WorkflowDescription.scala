@@ -97,7 +97,7 @@ case object WorkflowDescription {
   implicit val workflowDescriptionEncoder: Encoder[WorkflowDescription] = deriveEncoder[WorkflowDescription]
 
   // We need this decoder to exist for `responseAs[WorkflowDescription]` to work in `cromwell.webservice.routes.WomtoolRouteSupportSpec`
-  // That test doesn't actually inspect any of the JSON, so this is deliberate and works adequately for now.
+  // That test only inspects some fields in the JSON, so this works adequately for now.
   implicit val workflowDescriptionDecoder: Decoder[WorkflowDescription] = (c: HCursor) => {
     for {
       valid <- c.downField("valid").as[Boolean]

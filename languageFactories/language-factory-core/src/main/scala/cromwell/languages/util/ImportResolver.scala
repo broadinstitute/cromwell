@@ -36,7 +36,7 @@ object ImportResolver {
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>
       innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(s"resolve '${request.toResolve}' using resolver: '$name'")
     }
-    def close(): Try[Unit]
+    def close(): ErrorOr[Unit]
   }
 
   object DirectoryResolver {
@@ -130,11 +130,14 @@ object ImportResolver {
         s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
     }
 
-    override def close(): Try[Unit] =
+    override def close(): ErrorOr[Unit] =
       if (deleteOnClose)
-        Try(directory.delete(swallowIOExceptions = true))
+        Try {
+          directory.delete(swallowIOExceptions = false)
+          ()
+        }.toErrorOr
       else
-        Success(())
+        ().validNel
   }
 
   def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
@@ -189,7 +192,7 @@ object ImportResolver {
       }
     }
 
-    override def close(): Try[Unit] = Success(())
+    override def close(): ErrorOr[Unit] = ().validNel
   }
 
   object HttpResolver {

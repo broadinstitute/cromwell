@@ -10,5 +10,5 @@ import cromwell.services.healthmonitor.HealthMonitorServiceActor.MonitoredSubsys
   */
 class NoopHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends HealthMonitorServiceActor {
-  override val subsystems: Set[MonitoredSubsystem] = Set.empty[MonitoredSubsystem]
+  override lazy val subsystems: Set[MonitoredSubsystem] = Set.empty[MonitoredSubsystem]
 }

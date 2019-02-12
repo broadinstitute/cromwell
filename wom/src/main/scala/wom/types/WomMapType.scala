@@ -4,7 +4,7 @@ import spray.json.JsObject
 import wom.values.{WomMap, WomObjectLike}
 
 case class WomMapType(keyType: WomType, valueType: WomType) extends WomType {
-  val callCachingName: String = s"Map[${keyType.callCachingName}, ${valueType.callCachingName}]"
+  val stableName: String = s"Map[${keyType.stableName}, ${valueType.stableName}]"
 
   override protected def coercion = {
     case m: Map[_, _] if m.nonEmpty => WomMap.coerceMap(m, this)

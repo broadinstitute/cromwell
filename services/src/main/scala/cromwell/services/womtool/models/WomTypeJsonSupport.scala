@@ -54,7 +54,7 @@ object WomTypeJsonSupport {
           )
         case _ =>
           Json.obj(
-            ("typeName", Json.fromString(a.callCachingName))
+            ("typeName", Json.fromString(a.stableName))
           )
       }
     }

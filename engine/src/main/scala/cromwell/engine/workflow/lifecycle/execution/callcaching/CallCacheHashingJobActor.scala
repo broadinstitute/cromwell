@@ -308,7 +308,7 @@ object CallCacheHashingJobActor {
       womType match {
         case c: WomCompositeType =>
           val fieldTypes = c.typeMap map {
-            case (key, value) => s"$key -> ${value.callCachingName}"
+            case (key, value) => s"$key -> ${value.stableName}"
           }
           "CompositeType_digest_" + fieldTypes.mkString("\n").md5Sum
         case a: WomArrayType =>
@@ -320,7 +320,7 @@ object CallCacheHashingJobActor {
         case c: WomCoproductType =>
           val hashStrings = c.types.toList.map(_.toHashKeyString).mkString(",")
           s"Coproduct($hashStrings)"
-        case o => o.callCachingName
+        case o => o.stableName
       }
     }
   }

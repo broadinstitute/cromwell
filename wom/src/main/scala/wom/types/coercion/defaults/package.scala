@@ -25,9 +25,9 @@ package object defaults {
   private def defaultCoercionForType[A](typeObject: WomType)(implicit classTag: ClassTag[A]): WomTypeCoercer[A] = new WomTypeCoercer[A] {
     override def coerceToType(any: Any): ErrorOr[A] = typeObject.coerceRawValue(any).toErrorOr flatMap {
       case womValue: A => womValue.validNel
-      case other => s"Bad coercion in ${getClass.getSimpleName}! Coercion should have created ${typeObject.callCachingName} but instead created ${other.womType.callCachingName}".invalidNel
+      case other => s"Bad coercion in ${getClass.getSimpleName}! Coercion should have created ${typeObject.stableName} but instead created ${other.womType.stableName}".invalidNel
     }
     override def coercionDefined(any: Any): Boolean = typeObject.coercionDefined(any)
-    override def toDisplayString: String = typeObject.callCachingName
+    override def toDisplayString: String = typeObject.stableName
   }
 }

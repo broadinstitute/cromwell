@@ -25,10 +25,10 @@ object WomArray {
 
   def apply(womType: WomArrayType, value: Seq[WomValue]): WomArray = {
     if (womType == WomMaybeEmptyArrayType.EmptyArrayType && value.nonEmpty) {
-      throw new UnsupportedOperationException(s"An ${womType.callCachingName} must be empty but instead has value: ${value.mkString(", ")}")
+      throw new UnsupportedOperationException(s"An ${womType.stableName} must be empty but instead has value: ${value.mkString(", ")}")
     }
     if (womType.guaranteedNonEmpty && value.isEmpty) {
-      throw new UnsupportedOperationException(s"An ${womType.callCachingName} must contain at least one element")
+      throw new UnsupportedOperationException(s"An ${womType.stableName} must contain at least one element")
     }
 
     val coercedValue = TryUtil.sequence(value map womType.memberType.coerceRawValue)
@@ -89,7 +89,7 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
         } mkString
 
         Success(tsvString)
-      case _ => Failure(new UnsupportedOperationException(s"Cannot TSV serialize a ${this.womType.callCachingName} (valid types are Array[Primitive], Array[Array[Primitive]], or Array[Object])"))
+      case _ => Failure(new UnsupportedOperationException(s"Cannot TSV serialize a ${this.womType.stableName} (valid types are Array[Primitive], Array[Array[Primitive]], or Array[Object])"))
     }
   }
 

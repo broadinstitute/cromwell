@@ -41,8 +41,8 @@ object BiscayneValueEvaluators {
             }
           }
 
-        case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'as_map' on type ${womType.callCachingName}. Keys must be primitive but got ${x.callCachingName}.".invalidNel
-        case other => s"Invalid call of 'as_map' on parameter of type '${other.womType.callCachingName}' (expected Array[Pair[X, Y]])".invalidNel
+        case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'as_map' on type ${womType.stableName}. Keys must be primitive but got ${x.stableName}.".invalidNel
+        case other => s"Invalid call of 'as_map' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       } (coercer = WomArrayType(WomPairType(WomAnyType, WomAnyType)))
     }
   }
@@ -56,7 +56,7 @@ object BiscayneValueEvaluators {
 
       processValidatedSingleValue[WomMap, WomArray](expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)) {
         case WomMap(WomMapType(keyType, _), values) => EvaluatedValue(WomArray(WomArrayType(keyType), values.keys.toList), Seq.empty).validNel
-        case other => s"Invalid call of 'keys' on parameter of type '${other.womType.callCachingName}' (expected Map[X, Y])".invalidNel
+        case other => s"Invalid call of 'keys' on parameter of type '${other.womType.stableName}' (expected Map[X, Y])".invalidNel
       }
     }
   }
@@ -71,7 +71,7 @@ object BiscayneValueEvaluators {
           }
           EvaluatedValue(WomArray(WomArrayType(WomPairType(keyType, valueType)), validPairs), Seq.empty).validNel
 
-        case other => s"Invalid call of 'as_pairs' on parameter of type '${other.womType.callCachingName}' (expected Map[X, Y])".invalidNel
+        case other => s"Invalid call of 'as_pairs' on parameter of type '${other.womType.stableName}' (expected Map[X, Y])".invalidNel
       }
     }
   }
@@ -91,8 +91,8 @@ object BiscayneValueEvaluators {
 
           }
 
-        case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'collect_by_key' on type ${womType.callCachingName}. Keys must be primitive but got ${x.callCachingName}.".invalidNel
-        case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.callCachingName}' (expected Map[X, Y])".invalidNel
+        case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'collect_by_key' on type ${womType.stableName}. Keys must be primitive but got ${x.stableName}.".invalidNel
+        case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.stableName}' (expected Map[X, Y])".invalidNel
       } (coercer = WomArrayType(WomPairType(WomAnyType, WomAnyType)))
     }
   }

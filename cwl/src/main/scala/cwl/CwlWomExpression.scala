@@ -169,7 +169,7 @@ object InitialWorkDirFileGeneratorExpression {
               List(AdHocValue(file, alternativeName = None, inputName = None)).validNel
             case other =>
               val error = "InitialWorkDirRequirement listing expression must be File or Array[File] but got %s: %s"
-                .format(other, other.womType.callCachingName)
+                .format(other, other.womType.stableName)
               error.invalidNel
           }
         }

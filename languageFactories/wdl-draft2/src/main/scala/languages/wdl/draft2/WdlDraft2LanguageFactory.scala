@@ -56,7 +56,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
       val list: List[Checked[Unit]] = inputs.map({ case (k, v) =>
         allDeclarations.find(_.fullyQualifiedName == k) match {
           case Some(decl) if decl.womType.coerceRawValue(v).isFailure =>
-            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.callCachingName}, got ${v.womType.callCachingName}".invalidNelCheck[Unit]
+            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.stableName}, got ${v.womType.stableName}".invalidNelCheck[Unit]
           case _ => ().validNelCheck
         }
       }).toList

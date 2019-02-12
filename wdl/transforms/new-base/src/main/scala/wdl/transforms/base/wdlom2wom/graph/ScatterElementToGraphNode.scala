@@ -55,7 +55,7 @@ object ScatterElementToGraphNode {
     val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
       case a: WomArrayType => a.memberType.validNel
       case WomAnyType => WomAnyType.validNel
-      case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.callCachingName}".invalidNel
+      case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.stableName}".invalidNel
     }
 
     final case class RequiredOuterPorts(valueGeneratorPorts: Map[String, OutputPort], completionPorts: Map[String, CallNode])

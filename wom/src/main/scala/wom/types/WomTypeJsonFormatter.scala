@@ -6,7 +6,7 @@ import wom.core.FullyQualifiedName
 
 object WomTypeJsonFormatter extends DefaultJsonProtocol {
   implicit object WomTypeJsonFormat extends RootJsonFormat[WomType] {
-    def write(womType: WomType) = JsString(womType.callCachingName)
+    def write(womType: WomType) = JsString(womType.stableName)
     def read(value: JsValue) = ???
   }
 
@@ -14,7 +14,7 @@ object WomTypeJsonFormatter extends DefaultJsonProtocol {
     def write(inputs: Map[FullyQualifiedName, InputDefinition]) = {
       JsObject(inputs map { case (fqn, input) =>
         val optional = if (input.optional) "(optional) " else ""
-        fqn -> JsString(s"$optional${input.womType.callCachingName}")
+        fqn -> JsString(s"$optional${input.womType.stableName}")
       })
     }
     def read(value: JsValue) = ???

@@ -85,13 +85,13 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
 
   def toWdlString: String = {
     val expr = expression.map(e => s" = ${e.toWomString}").getOrElse("")
-    s"${womType.callCachingName} $unqualifiedName$expr"
+    s"${womType.stableName} $unqualifiedName$expr"
   }
 
   final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences(this))
 
   override def toString: String = {
-    s"[Declaration type=${womType.callCachingName} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
+    s"[Declaration type=${womType.stableName} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
   }
 }
 

@@ -42,7 +42,7 @@ case object WorkflowDescription {
               InputDescription(
                 input.name,
                 input.womType,
-                input.womType.displayName,
+                input.womType.friendlyName,
                 input.optional,
                 Option(i.default)
               )
@@ -50,7 +50,7 @@ case object WorkflowDescription {
               InputDescription(
                 input.name,
                 input.womType,
-                input.womType.displayName,
+                input.womType.friendlyName,
                 input.optional,
                 None
               )
@@ -62,7 +62,7 @@ case object WorkflowDescription {
           OutputDescription(
             output.name,
             output.womType,
-            output.womType.displayName
+            output.womType.friendlyName
           )
         }
 

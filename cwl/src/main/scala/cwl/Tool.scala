@@ -10,7 +10,7 @@ import cwl.Tool.inlineJavascriptRequirements
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import shapeless.Inl
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{Callable, MetaValueElement, TaskDefinition}
 import wom.executable.Executable
@@ -138,7 +138,7 @@ trait Tool {
             val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-            InputDefinitionWithDefault(
+            OverridableInputDefinitionWithDefault(
               inputName,
               inputType,
               ValueAsAnExpression(defaultWomValue),

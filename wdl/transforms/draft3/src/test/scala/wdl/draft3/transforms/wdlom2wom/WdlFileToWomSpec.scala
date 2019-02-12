@@ -11,7 +11,7 @@ import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.transforms.base.wdlom2wom._
-import wom.callable.Callable.{FixedInputDefinition, OptionalInputDefinition}
+import wom.callable.Callable.{FixedInputDefinitionWithDefault, OptionalInputDefinition}
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
@@ -113,7 +113,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     b.allCallables.size should be(2)
     b.allCallables.get("a")match {
       case Some(taskA) =>
-        taskA.inputs.filter(_.isInstanceOf[FixedInputDefinition]).map(_.name).toSet should be(Set("rld", "__world1", "__world2"))
+        taskA.inputs.filter(_.isInstanceOf[FixedInputDefinitionWithDefault]).map(_.name).toSet should be(Set("rld", "__world1", "__world2"))
         taskA.inputs.filter(_.isInstanceOf[OptionalInputDefinition]).map(_.name).toSet should be(Set("world1", "world2"))
         taskA.inputs.map(_.name).toSet should be(Set("rld", "__world1", "__world2", "world1", "world2"))
         taskA.outputs.map(_.name).toSet should be(Set("out"))

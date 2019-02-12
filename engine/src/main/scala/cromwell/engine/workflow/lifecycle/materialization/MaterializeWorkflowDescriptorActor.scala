@@ -7,8 +7,10 @@ import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.NonEmptyList
 import cats.effect.IO
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.either._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
@@ -304,9 +306,18 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       factory <- errorOrParse(findFactory(sourceAndResolvers._1))
       outputRuntimeExtractor <- errorOrParse(factory.womOutputRuntimeExtractor.toValidated)
       validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
+      closeResult = sourceAndResolvers._2.traverse(_.close())
       _ = pushNamespaceMetadata(validatedNamespace)
       ewd <- fromEither[IO](buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toEither)
-    } yield ewd
+    } yield {
+      closeResult match {
+        case Valid(_) => ()
+        case Invalid(errorsList) =>
+          logger.warn(s"Import resolver(s) closed with errors: [${errorsList.toList.mkString(", ")}]")
+      }
+
+      ewd
+    }
   }
 
   private def publishWorkflowSourceToMetadata(id: WorkflowId, workflowSource: WorkflowSource): Unit = {

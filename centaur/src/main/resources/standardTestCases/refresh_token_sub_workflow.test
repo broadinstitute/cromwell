@@ -1,3 +1,5 @@
+ignore: true
+
 name: refresh_token_sub_workflow
 testFormat: workflowsuccess
 backends: [Papi-Refresh]

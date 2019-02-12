@@ -35,6 +35,7 @@ object ImportResolver {
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>
       innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(s"resolve '${request.toResolve}' using resolver: '$name'")
     }
+    def close(): ErrorOr[Unit]
   }
 
   object DirectoryResolver {
@@ -65,7 +66,8 @@ object ImportResolver {
 
   case class DirectoryResolver(directory: Path,
                                dontEscapeFrom: Option[String] = None,
-                               customName: Option[String]) extends ImportResolver {
+                               customName: Option[String],
+                               deleteOnClose: Boolean = false) extends ImportResolver {
     lazy val absolutePathToDirectory: String = directory.toJava.getCanonicalPath
 
     override def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
@@ -126,11 +128,20 @@ object ImportResolver {
         val shortPathToDirectory = Paths.get(absolutePathToDirectory).toFile.getCanonicalFile.toPath.getFileName.toString
         s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
     }
+
+    override def close(): ErrorOr[Unit] =
+      if (deleteOnClose)
+        Try {
+          directory.delete(swallowIOExceptions = false)
+          ()
+        }.toErrorOr
+      else
+        ().validNel
   }
 
   def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[ImportResolver] = {
     LanguageFactoryUtil.validateImportsDirectory(zippedImports) map { dir =>
-      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
+      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None, deleteOnClose = true)
     }
   }
 
@@ -179,6 +190,8 @@ object ImportResolver {
         }).contextualizeErrors(s"download $toLookup")
       }
     }
+
+    override def close(): ErrorOr[Unit] = ().validNel
   }
 
   object HttpResolver {

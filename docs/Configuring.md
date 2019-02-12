@@ -292,11 +292,11 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
-Read the [Abort](Abort) page to learn more about how abort works.
+Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about how abort works.
 
 ### Call caching
 
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](CallCaching).
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](cromwell_features/CallCaching).
 
 To enable Call Caching, add the following to your Cromwell configuration:
 

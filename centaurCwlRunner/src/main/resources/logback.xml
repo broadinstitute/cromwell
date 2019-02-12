@@ -27,4 +27,22 @@
     https://github.com/owlcs/owlapi/blob/owlapi-parent-5.1.7/api/src/main/java/org/semanticweb/owlapi/utilities/Injector.java#L383
     -->
     <logger name="org.semanticweb.owlapi.utilities.Injector" level="error" additivity="false"/>
+
+    <!--
+    Silence Akka warning logging of:
+    10:18:20.629 [centaur-acting-like-a-system-akka.actor.default-dispatcher-8] WARN  akka.io.InetAddressDnsResolver - No caching TTL defined. Using default value Ttl(30 seconds).
+
+    via:
+    https://github.com/akka/akka/blob/v2.5.19/akka-actor/src/main/scala/akka/io/InetAddressDnsResolver.scala#L40
+    -->
+    <logger name="akka.io.InetAddressDnsResolver" level="error" additivity="false"/>
+
+    <!--
+    Silence Akka-Http warning logging of:
+    00:53:57.537 [centaur-acting-like-a-system-akka.actor.default-dispatcher-10] WARN  akka.http.impl.engine.client.PoolGateway - Connection attempt failed. Backing off new connection attempts for at least 100 milliseconds.
+
+    via:
+    https://github.com/akka/akka-http/blob/v10.1.7/akka-http-core/src/main/scala/akka/http/impl/engine/client/pool/NewHostConnectionPool.scala#L134
+    -->
+    <logger name="akka.http.impl.engine.client.PoolGateway" level="error" additivity="false"/>
 </configuration>

@@ -105,7 +105,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     } ~
     path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
       instrumentRequest {
-        onComplete(validateWorkflowId(possibleWorkflowId, serviceRegistryActor)) {
+        onComplete(validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor)) {
           case Success(workflowId) => completeTimingRouteResponse(metadataLookupForTimingRoute(workflowId))
           case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
           case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
@@ -141,7 +141,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   path("workflows" / Segment / Segment / "releaseHold") { (_, possibleWorkflowId) =>
     post {
       instrumentRequest {
-        val response = validateWorkflowId(possibleWorkflowId, serviceRegistryActor) flatMap { workflowId =>
+        val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { workflowId =>
           workflowStoreActor.ask(WorkflowStoreActor.WorkflowOnHoldToSubmittedCommand(workflowId)).mapTo[WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedResponse]
         }
         onComplete(response){
@@ -282,12 +282,26 @@ object CromwellApiService {
     case e: Exception => e.errorRequest(StatusCodes.InternalServerError)
   }
 
-  def validateWorkflowId(possibleWorkflowId: String,
-                         serviceRegistryActor: ActorRef)
-                        (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
+  def validateWorkflowIdInMetadata(possibleWorkflowId: String,
+                                   serviceRegistryActor: ActorRef)
+                                  (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse] map {
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] map {
+          case RecognizedWorkflowId => w
+          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
+          case FailedToCheckWorkflowId(t) => throw t
+        }
+      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+    }
+  }
+
+  def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: String,
+                                            serviceRegistryActor: ActorRef)
+                                           (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
+    Try(WorkflowId.fromString(possibleWorkflowId)) match {
+      case Success(w) =>
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadataSummaries(w)).mapTo[WorkflowValidationResponse] map {
           case RecognizedWorkflowId => w
           case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
           case FailedToCheckWorkflowId(t) => throw t

@@ -308,7 +308,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/query':
     get:
-      operationId: query
+      operationId: queryGet
       summary: Get workflows matching some criteria
       description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
@@ -457,7 +457,7 @@ paths:
         '500':
           $ref: '#/responses/ServerError'
     post:
-      operationId: query
+      operationId: queryPost
       summary: Get workflows matching some criteria
       description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
@@ -646,7 +646,7 @@ paths:
         - "Womtool (beta)"
   '/engine/{version}/version':
     get:
-      operationId: version
+      operationId: engineVersion
       summary: Return the version of this Cromwell server
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -659,7 +659,7 @@ paths:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
     get:
-      operationId: status
+      operationId: engineStatus
       summary: Return the current health status of any monitored subsystems
       parameters:
         - $ref: '#/parameters/versionParam'

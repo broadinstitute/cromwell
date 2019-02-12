@@ -4,7 +4,8 @@ import java.time.format.DateTimeFormatter
 import io.github.swagger2markup.Swagger2MarkupConverter
 import io.github.swagger2markup.builder.Swagger2MarkupConfigBuilder
 import io.github.swagger2markup.markup.builder.MarkupLanguage
-import org.apache.commons.lang3.ClassUtils
+import org.apache.commons.lang3.{ClassUtils, StringUtils}
+import sbt.Keys._
 import sbt._
 
 /**
@@ -16,6 +17,8 @@ import sbt._
   */
 object GenerateRestApiDocs {
   private lazy val generateRestApiDocs = taskKey[Unit]("Generates the docs/api/RESTAPI.md")
+  private lazy val checkRestApiDocs =
+    taskKey[Unit]("Compares the existing docs/api/RESTAPI.md against the generated version")
 
   /** Returns a timestamped preamble for the modified markdown output. */
   private def preamble(): String = {
@@ -67,7 +70,7 @@ object GenerateRestApiDocs {
     content match {
       case PathsRegex(start, paths, end) =>
         val replacedPaths = paths.linesWithSeparators map {
-          case PathRegex(description) => s"## $description"
+          case PathRegex(pathDescription) => s"## $pathDescription"
           case other => other
         }
         replacedPaths.mkString(start, "", end)
@@ -121,10 +124,7 @@ object GenerateRestApiDocs {
     }
   }
 
-  /**
-    * Generates the markdown from the swagger YAML, with some Cromwell customizations.
-    */
-  private def writeModifiedMarkdown(): Unit = {
+  private def getModifiedMarkdown: String = {
     withPatchedClassLoader {
       val config = new Swagger2MarkupConfigBuilder()
         .withMarkupLanguage(MarkupLanguage.MARKDOWN)
@@ -134,13 +134,37 @@ object GenerateRestApiDocs {
         .withConfig(config)
         .build()
       val contents = converter.toString
-      val replacedContents = preamble() + replaceGenerics(replacePaths(contents))
-      IO.write(RestApiMarkdownFile, replacedContents)
+      replaceGenerics(replacePaths(contents))
+    }
+  }
+
+  /**
+    * Generates the markdown from the swagger YAML, with some Cromwell customizations.
+    */
+  private def writeModifiedMarkdown(): Unit = {
+    val replacedContents = preamble() + getModifiedMarkdown
+    IO.write(RestApiMarkdownFile, replacedContents)
+  }
+
+  /**
+    * Compares the generated markdown against the existing markdown.
+    */
+  private def checkModifiedMarkdown(log: Logger): Unit = {
+    val markdownContents = StringUtils.substringAfter(IO.read(RestApiMarkdownFile), "-->" + System.lineSeparator)
+    val generatedContents = getModifiedMarkdown
+    if (markdownContents != generatedContents) {
+      val message = "The file docs/api/RESTAPI.md is not up to date. Please run: sbt generateRestApiDocs"
+      // Throwing the exception below should log the message... but it doesn't on sbt 1.2.1, so do it here.
+      log.error(message)
+      throw new IllegalStateException(message)
+    } else {
+      log.info("checkRestApiDocs: The file docs/api/RESTAPI.md is up to date.")
     }
   }
 
   // Returns a settings including the `generateRestApiDocs` task.
   val generateRestApiDocsSettings: Seq[Setting[_]] = List(
-    generateRestApiDocs := writeModifiedMarkdown()
+    generateRestApiDocs := writeModifiedMarkdown(),
+    checkRestApiDocs := checkModifiedMarkdown(streams.value.log),
   )
 }

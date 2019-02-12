@@ -12,7 +12,7 @@ files {
 
 metadata {
   status: Failed
-  "submittedFiles.labels": "{\"label-key-1\":\"label-value-1\",\"label-key-2\":\"label-value-2\",\"only-key\":\"\",\"fc-id\":\"0123-abcd-4567-efgh\"}"
+  "submittedFiles.labels": "{\"fc-id\":\"0123-abcd-4567-efgh\",\"label-key-1\":\"label-value-1\",\"label-key-2\":\"label-value-2\",\"only-key\":\"\"}"
   "labels.label-key-1": "label-value-1"
   "labels.label-key-2": "label-value-2"
   "labels.only-key": ""

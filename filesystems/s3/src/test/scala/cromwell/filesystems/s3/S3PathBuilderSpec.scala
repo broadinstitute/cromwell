@@ -30,14 +30,14 @@
  */
 package cromwell.filesystems.s3
 
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.Tags.AwsTest
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.prop.Tables.Table
 import org.scalatest.{FlatSpecLike, Matchers}
-import software.amazon.awssdk.core.regions.Region
+import software.amazon.awssdk.regions.Region
 
 class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
 
@@ -48,8 +48,8 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     val wfOptionsWithProject = WorkflowOptions.empty
 
     S3PathBuilder.fromCredentials(
-      AnonymousCredentialsProvider.create.getCredentials,
-      S3Storage.s3AdvancedConfiguration(),
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      S3Storage.s3Configuration(),
       wfOptionsWithProject,
       Option(Region.US_EAST_1)
     )
@@ -382,8 +382,8 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
 
   private lazy val pathBuilder = {
     S3PathBuilder.fromCredentials(
-      AnonymousCredentialsProvider.create.getCredentials,
-      S3Storage.s3AdvancedConfiguration(),
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      S3Storage.s3Configuration(),
       WorkflowOptions.empty,
       Option(Region.US_EAST_1)
     )

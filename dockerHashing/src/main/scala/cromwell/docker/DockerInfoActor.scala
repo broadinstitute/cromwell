@@ -9,14 +9,15 @@ import com.google.common.cache.CacheBuilder
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
+import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.gcr.GcrRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import fs2.Pipe
 import fs2.concurrent.{NoneTerminatedQueue, Queue}
 import net.ceedubs.ficus.Ficus._
 import org.http4s.client.blaze.BlazeClientBuilder
@@ -112,7 +113,7 @@ final class DockerInfoActor(
   /*
    * Sends back responses and adds to cache in case of success. Used as the sink for each registry stream.
    */
-  val streamSink = fs2.Sink[IO, (DockerInfoResponse, DockerInfoContext)] {
+  val streamSink: Pipe[IO, (DockerInfoResponse, DockerInfoContext), Unit] = _ evalMap {
     case (response: DockerInfoSuccessResponse, dockerInfoContext) =>
       dockerInfoContext.replyTo ! response
       IO.pure(cache.put(dockerInfoContext.dockerImageID, response.dockerInformation))
@@ -148,7 +149,7 @@ final class DockerInfoActor(
           // Run requests in parallel - allow nbThreads max concurrent requests - order doesn't matter
           .parEvalMapUnordered(registry.config.nbThreads)({ request => registry.run(request)(client) })
           // Send to the sink for finalization of the result
-          .to(streamSink)
+          .through(streamSink)
       })
 
       // Start the stream now asynchronously. It will keep running until we terminate the queue by sending None to it

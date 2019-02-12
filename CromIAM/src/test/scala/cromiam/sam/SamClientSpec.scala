@@ -19,6 +19,7 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll  
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   val samClient = new MockSamClient()
+  val samClientNoWhitelist = new MockSamClient(checkSubmitWhitelist = false)
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
   val authorizedUserWithCollection: User = User(WorkbenchUserId(samClient.authorizedUserCollectionStr), authorization)

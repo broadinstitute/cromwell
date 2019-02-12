@@ -45,6 +45,15 @@ Support `InputResourceRequirement` hint
 
 ### Changing configuration options
 
+#### Logging Token Distribution
+
+In cases where its not obvious why jobs are queued in Cromwell, you can enable logging for the Job Execution Token Dispenser, using
+the `system.hog-safety.token-log-interval-seconds` configuration value.
+
+The default, `0`, means that no logging will occur. 
+
+#### HTTP Filesystem
+
 - The HTTP filesystem is now enabled for engine use by default. To continue without an HTTP filesystem, you can add the 
 following content into the appropriate stanza of your configuration file:
 ```
@@ -71,6 +80,21 @@ The endpoint is still undergoing heavy development and should not be used in pro
 #### Abort On Hold Workflows
 
 On Hold workflows may now be aborted.
+
+#### Command fixes for AWS and TES
+
+The AWS and TES backends can now handle calls that generate longer command lines. Like the other
+backends, commands scripts are first written to a file, the file is downloaded to the execution
+host, and then the localized script is run.
+
+Also fixed are AWS `command {}` blocks that use `|` at the start of a line. For example:
+
+```
+command {
+  echo hello world \
+  | cat
+}
+```
 
 ## 36 Release Notes
 

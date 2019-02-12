@@ -44,10 +44,10 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   private val commandScript = Input(
     name = Option("commandScript"),
     description = Option(fullyQualifiedTaskName + ".commandScript"),
-    url = None,
+    url = Option(tesPaths.script.pathAsString),
     path = tesPaths.callExecutionDockerRoot.resolve("script").toString,
     `type` = Option("FILE"),
-    content = Option(commandScriptContents)
+    content = None
   )
 
   private val commandScriptOut = Output(

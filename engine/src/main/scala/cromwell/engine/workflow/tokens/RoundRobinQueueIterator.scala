@@ -12,7 +12,7 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
   private val numberOfQueues = initialTokenQueue.size
   // Indicate the index of next queue to try to dequeue from.
   // In case token queues have been removed since the last time an iterator was created on this token queue list, make sure the pointer is in range.
-  private var pointer: Int = if (numberOfQueues == 0) 0 else initialPointer % numberOfQueues
+  private[this] var pointer: Int = if (numberOfQueues == 0) 0 else initialPointer % numberOfQueues
   // List of queues available
   private[this] var tokenQueues: List[TokenQueue] = initialTokenQueue
 
@@ -34,28 +34,26 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
   def unexpectedlyEmpty: LeasedActor =
     throw new IllegalStateException("Token iterator is empty")
 
-  // Goes over the queues and returns the first element that can be dequeued
+  // Goes over the JobExecutionTokenType queues and returns the first element that can be dequeued.
+  // NB: In normal usage, there's one queue per backend.
   private def findFirst: Option[LeasedActor] = {
     // Starting from pointer make a list of indices circling back to pointer
     // This will ensure we try all the queues, as well as keep rotating
     // and don't keep emptying the same queue as long as it has elements
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
-    ((pointer until numberOfQueues) ++ (0 until pointer))
-      .toStream
-      .map(index => tokenQueues(index).dequeue -> index)
-      .map {
-        case original @ (DequeueResult(None, newTokenQueue), index) =>
-          tokenQueues = tokenQueues.updated(index, newTokenQueue)
-          original
-        case other => other
-      }
-      .collectFirst({
-        case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>
-          // Update the tokenQueues with the new queue
-          tokenQueues = tokenQueues.updated(index, newTokenQueue)
-          // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available
-          pointer = (index + 1) % numberOfQueues
-          dequeuedActor
-      })
+
+    val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).toStream
+    val dequeuedTokenStream = indexStream.map(index => tokenQueues(index).dequeue -> index)
+
+    val firstLeasedActor = dequeuedTokenStream.collectFirst({
+      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>
+        // Update the tokenQueues with the new queue
+        tokenQueues = tokenQueues.updated(index, newTokenQueue)
+        // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available
+        pointer = (index + 1) % numberOfQueues
+        dequeuedActor
+    })
+
+    firstLeasedActor
   }
 }

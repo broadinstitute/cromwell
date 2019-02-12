@@ -14,6 +14,7 @@ import cromiam.instrumentation.CromIamInstrumentation
 import cromiam.sam.SamClient._
 import cromiam.sam.SamResourceJsonSupport._
 import cromiam.server.status.StatusCheckedSubsystem
+import mouse.boolean._
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
@@ -23,13 +24,22 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
      out into workbench-libs. We should replace this with that once the stars line up but for now it doesn't seem
      worth it. If one finds themselves making heavy changes to this file, that statement should be reevaluated.
  */
-class SamClient(scheme: String, interface: String, port: Int, log: LoggingAdapter, serviceRegistryActorRef: ActorRef)
+class SamClient(scheme: String,
+                interface: String,
+                port: Int,
+                checkSubmitWhitelist: Boolean,
+                log: LoggingAdapter,
+                serviceRegistryActorRef: ActorRef)
                (implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: ActorMaterializer) extends StatusCheckedSubsystem with CromIamInstrumentation {
 
   override val statusUri = uri"$samBaseUri/status"
   override val serviceRegistryActor: ActorRef = serviceRegistryActorRef
 
   def isSubmitWhitelisted(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
+    checkSubmitWhitelist.fold(isSubmitWhitelistedSam(user, cromIamRequest), Future.successful(true))
+  }
+
+  def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
     val request = HttpRequest(
       method = HttpMethods.GET,
       uri = samSubmitWhitelistUri,

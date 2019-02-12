@@ -197,8 +197,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       check {
         assertResult(
           s"""{
-             |  "status": "fail",
-             |  "message": "Error(s): Error while validating workflow url: unknown protocol: htpps"
+             |  "message": "Error(s): Error while validating workflow url: unknown protocol: htpps",
+             |  "status": "fail"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }
@@ -257,8 +257,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       check {
         assertResult(
           s"""{
-             |  "status": "fail",
-             |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
+             |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}",
+             |  "status": "fail"
              |}""".stripMargin) {
           responseAs[String].parseJson.prettyPrint
         }
@@ -442,8 +442,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.NotFound) { status }
           assertResult(
             s"""{
-               |  "status": "fail",
-               |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}"
+               |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId.toString}",
+               |  "status": "fail"
                |}""".stripMargin) {
             responseAs[String].parseJson.prettyPrint
           }
@@ -457,8 +457,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult(StatusCodes.BadRequest) { status }
           assertResult(
             s"""{
-               |  "status": "fail",
-               |  "message": "Invalid workflow ID: 'foo'."
+               |  "message": "Invalid workflow ID: 'foo'.",
+               |  "status": "fail"
                |}""".stripMargin) {
             responseAs[String].parseJson.prettyPrint
           }
@@ -476,7 +476,9 @@ object CromwellApiServiceSpec {
   val AbortingWorkflowId = WorkflowId.fromString("2e3503f5-24f5-4a01-a4d1-bb1088bb5c1e")
   val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId)
+  val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
+  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SummarizedWorkflowId)
+  val SummarizedWorkflowIds = Set(SummarizedWorkflowId)
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -524,8 +526,11 @@ object CromwellApiServiceSpec {
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
           None, Some(WorkflowSucceeded.toString), None, None, None, labels, parentWorkflowId)), 1), None)
         sender ! response
-      case ValidateWorkflowId(id) =>
+      case ValidateWorkflowIdInMetadata(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
+        else sender ! MetadataService.UnrecognizedWorkflowId
+      case ValidateWorkflowIdInMetadataSummaries(id) =>
+        if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
       case GetCurrentStatus =>
         sender ! StatusCheckResponse(
@@ -550,6 +555,7 @@ object CromwellApiServiceSpec {
       case PutMetadataActionAndRespond(events, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
+          case CromwellApiServiceSpec.SummarizedWorkflowId => sender ! MetadataWriteSuccess(events)
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }

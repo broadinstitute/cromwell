@@ -62,6 +62,7 @@ pages:
     - Overview: filesystems/Filesystems.md
     - Google Cloud Storage: filesystems/GoogleCloudStorage.md
     - HTTP: filesystems/HTTP.md
+    - Data Repository Service: filesystems/DataRepositoryService.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md

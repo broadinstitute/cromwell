@@ -370,7 +370,7 @@ submit-docker = """
 ```
 
 In addition, to run `udocker`, you'll have to make sure `hash-lookup` is disabled.
-Refer to [this section](#docker_digests) for more detail.
+Refer to [this section](#docker-digests) for more detail.
 
 ### Configuration in Detail
 The behaviour of Cromwell with containers can be modified using a few other options.

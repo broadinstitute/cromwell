@@ -44,7 +44,7 @@ sealed trait WomArrayType extends WomType {
   }
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
-    case WomArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WomNothingType
+    case WomArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType)
     case mapType: WomMapType => isCoerceableFrom(mapType.equivalentArrayType)
     case _ => false
   }

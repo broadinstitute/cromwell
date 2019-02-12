@@ -29,6 +29,7 @@ object AstNodeToExpressionElement {
 
       case t: GenericTerminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
       case t: GenericTerminal if t.getTerminalStr == "identifier" => IdentifierLookup(t.getSourceString).validNel
+      case t: GenericTerminal if t.getTerminalStr == "none" => NoneLiteralElement.validNel
 
       case a: GenericAst if a.getName == "StringLiteral" => handleStringLiteral(a)
       case a: GenericAst if lhsRhsOperators.contains(a.getName) => useValidatedLhsAndRhs(a, lhsRhsOperators(a.getName))

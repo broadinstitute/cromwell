@@ -41,6 +41,7 @@ object WdlWriterImpl {
   implicit val expressionElementWriter: WdlWriter[ExpressionElement] = new WdlWriter[ExpressionElement] {
     override def toWdlV1(a: ExpressionElement) = a match {
       case a: PrimitiveLiteralExpressionElement => a.toWdlV1
+      case a: NoneLiteralElement.type => a.toWdlV1
       case a: StringExpression => "\"" + a.pieces.map(_.toWdlV1).mkString + "\""
       case a: StringLiteral => "\"" + StringEscapeUtils.escapeJava(a.value) + "\""
       case a: ObjectLiteral =>
@@ -491,5 +492,9 @@ object WdlWriterImpl {
 
   implicit val primitiveLiteralExpressionElementWriter: WdlWriter[PrimitiveLiteralExpressionElement] = new WdlWriter[PrimitiveLiteralExpressionElement] {
     override def toWdlV1(a: PrimitiveLiteralExpressionElement) = a.value.toWomString
+  }
+
+  implicit val noneLiteralExpressionElementWriter: WdlWriter[NoneLiteralElement.type] = new WdlWriter[NoneLiteralElement.type] {
+    override def toWdlV1(a: NoneLiteralElement.type): String = "None"
   }
 }

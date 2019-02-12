@@ -24,6 +24,10 @@
         "bwa",
         "bwa"
     ],
+    "config__algorithm__archive": [
+        null,
+        null
+    ],
     "config__algorithm__bam_clean": [
         "False",
         "False"
@@ -390,6 +394,18 @@
             ]
         }
     ],
+    "genome_resources__variation__gc_profile": [
+        null,
+        null
+    ],
+    "genome_resources__variation__germline_het_pon": [
+        null,
+        null
+    ],
+    "genome_resources__variation__gnomad_exome": [
+        null,
+        null
+    ],
     "genome_resources__variation__lcr": [
         {
             "class": "File",
@@ -539,11 +555,11 @@
             "secondaryFiles": [
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
                 },
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
                 }
             ]
         },
@@ -553,11 +569,11 @@
             "secondaryFiles": [
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
                 },
                 {
                     "class": "File",
-                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.dict"
+                    "path": "gs://bcbiodata/collections/GRCh37/seq/GRCh37.fa.fai"
                 }
             ]
         }
@@ -928,16 +944,6 @@
             "path": "gs://bcbiodata/collections/GRCh37/snpeff--GRCh37.75-wf.tar.gz"
         }
     ],
-    "reference__twobit": [
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/collections/GRCh37/ucsc/GRCh37.2bit"
-        },
-        {
-            "class": "File",
-            "path": "gs://bcbiodata/collections/GRCh37/ucsc/GRCh37.2bit"
-        }
-    ],
     "reference__versions": [
         {
             "class": "File",
@@ -946,6 +952,76 @@
         {
             "class": "File",
             "path": "gs://bcbiodata/collections/GRCh37/versions.csv"
+        }
+    ],
+    "reference__viral": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.dict"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.amb"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.bwt"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.fai"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.sa"
+                }
+            ]
+        },
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.dict"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.amb"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.ann"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.bwt"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.fai"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.pac"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/collections/GRCh37/viral/gdc-viral.fa.sa"
+                }
+            ]
         }
     ],
     "resources": [

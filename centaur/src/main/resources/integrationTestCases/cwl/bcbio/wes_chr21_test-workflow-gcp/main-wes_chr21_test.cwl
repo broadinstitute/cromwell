@@ -22,8 +22,8 @@ inputs:
     type: array
 - id: reference__fasta__base
   secondaryFiles:
-  - .fai
   - ^.dict
+  - .fai
   type:
     items: File
     type: array
@@ -72,11 +72,11 @@ inputs:
   type:
     items: File
     type: array
-- id: genome_resources__variation__train_hapmap
-  secondaryFiles:
-  - .tbi
+- id: genome_resources__variation__gc_profile
   type:
-    items: File
+    items:
+    - 'null'
+    - string
     type: array
 - id: rgnames__lb
   type:
@@ -141,7 +141,9 @@ inputs:
     - 'null'
     - string
     type: array
-- id: reference__twobit
+- id: genome_resources__variation__train_hapmap
+  secondaryFiles:
+  - .tbi
   type:
     items: File
     type: array
@@ -204,11 +206,23 @@ inputs:
   type:
     items: string
     type: array
+- id: genome_resources__variation__germline_het_pon
+  type:
+    items:
+    - 'null'
+    - string
+    type: array
 - id: genome_resources__variation__exac
   secondaryFiles:
   - .tbi
   type:
     items: File
+    type: array
+- id: genome_resources__variation__gnomad_exome
+  type:
+    items:
+    - 'null'
+    - string
     type: array
 - id: config__algorithm__recalibrate
   type:
@@ -260,6 +274,18 @@ inputs:
 - id: genome_resources__variation__encode_blacklist
   secondaryFiles:
   - .tbi
+  type:
+    items: File
+    type: array
+- id: reference__viral
+  secondaryFiles:
+  - .fai
+  - .ann
+  - .sa
+  - .pac
+  - .amb
+  - ^.dict
+  - .bwt
   type:
     items: File
     type: array
@@ -331,6 +357,12 @@ inputs:
 - id: rgnames__pu
   type:
     items: string
+    type: array
+- id: config__algorithm__archive
+  type:
+    items:
+    - 'null'
+    - string
     type: array
 outputs:
 - id: rgnames__sample_out
@@ -509,6 +541,8 @@ steps:
   in:
   - id: rgnames__sample
     source: rgnames__sample
+  - id: config__algorithm__svcaller
+    source: config__algorithm__svcaller
   - id: config__algorithm__variant_regions
     source: config__algorithm__variant_regions
   - id: reference__fasta__base
@@ -541,6 +575,8 @@ steps:
   in:
   - id: align_bam
     source: alignment/align_bam
+  - id: config__algorithm__archive
+    source: config__algorithm__archive
   - id: config__algorithm__coverage_interval
     source: config__algorithm__coverage_interval
   - id: config__algorithm__exclude_regions
@@ -573,8 +609,6 @@ steps:
     source: genome_resources__variation__polyx
   - id: genome_resources__variation__encode_blacklist
     source: genome_resources__variation__encode_blacklist
-  - id: reference__twobit
-    source: reference__twobit
   - id: reference__fasta__base
     source: reference__fasta__base
   - id: resources
@@ -683,8 +717,6 @@ steps:
     source: config__algorithm__tools_off
   - id: reference__fasta__base
     source: reference__fasta__base
-  - id: reference__twobit
-    source: reference__twobit
   - id: reference__rtg
     source: reference__rtg
   - id: reference__genome_context
@@ -699,6 +731,8 @@ steps:
     source: genome_resources__variation__esp
   - id: genome_resources__variation__exac
     source: genome_resources__variation__exac
+  - id: genome_resources__variation__gnomad_exome
+    source: genome_resources__variation__gnomad_exome
   - id: genome_resources__variation__1000g
     source: genome_resources__variation__1000g
   - id: genome_resources__variation__lcr
@@ -786,6 +820,8 @@ steps:
     source: postprocess_alignment/config__algorithm__variant_regions
   - id: config__algorithm__variant_regions_merged
     source: postprocess_alignment/config__algorithm__variant_regions_merged
+  - id: config__algorithm__seq2c_bed_ready
+    source: postprocess_alignment/config__algorithm__seq2c_bed_ready
   - id: config__algorithm__svcaller
     source: config__algorithm__svcaller
   - id: depth__variant_regions__regions
@@ -842,6 +878,10 @@ steps:
     source: config__algorithm__svvalidate
   - id: regions__sample_callable
     source: postprocess_alignment/regions__sample_callable
+  - id: genome_resources__variation__gc_profile
+    source: genome_resources__variation__gc_profile
+  - id: genome_resources__variation__germline_het_pon
+    source: genome_resources__variation__germline_het_pon
   - id: genome_resources__aliases__snpeff
     source: genome_resources__aliases__snpeff
   - id: reference__snpeff__GRCh37_75
@@ -895,6 +935,8 @@ steps:
     source: config__algorithm__qc
   - id: metadata__batch
     source: metadata__batch
+  - id: metadata__phenotype
+    source: metadata__phenotype
   - id: config__algorithm__coverage_interval
     source: postprocess_alignment/config__algorithm__coverage_interval
   - id: depth__variant_regions__regions
@@ -925,6 +967,8 @@ steps:
     source: postprocess_alignment/config__algorithm__coverage_merged
   - id: variants__samples
     source: summarize_vc/variants__samples
+  - id: reference__viral
+    source: reference__viral
   - id: resources
     source: resources
   - id: description

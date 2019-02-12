@@ -356,6 +356,9 @@ With a job queue like SLURM, you just need to wrap this script in an `sbatch` su
 
 ```
 submit-docker = """
+    # Pull the image using the head node, in case our workers don't have network access
+    udocker pull ${docker}
+    
     sbatch \
       -J ${job_name} \
       -D ${cwd} \

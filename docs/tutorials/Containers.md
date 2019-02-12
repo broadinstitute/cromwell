@@ -266,9 +266,11 @@ backend {
 
 ```
 
+### udocker
 
-#### udocker
+[udocker](https://github.com/indigo-dc/udocker) is a tool designed to "execute simple docker containers in user space without requiring root privileges".
 
+<<<<<<< HEAD
 udocker is a user-installable tool that allows the execution of docker containers in non-privileged environments. Similar to Singuarlity, it will need to be available on the worker node.
 
 As of writing this tutorial ([udocker 1.1.3](https://github.com/indigo-dc/udocker/releases/tag/v1.1.3)), there was no support for [docker digests](https://github.com/indigo-dc/udocker/issues/112). For this reason, docker hash-lookup will need to be disabled, this will disable call caching for [floating tags](https://github.com/broadinstitute/cromwell/pull/4039#issuecomment-454829890).
@@ -326,24 +328,132 @@ sbatch -J ${job_name} -D ${cwd} -o ${cwd}/execution/stdout -e ${cwd}/execution/s
 udocker will not be able to perform tasks that require elevated privileges, some of these operations are provided in their [documentation](https://github.com/indigo-dc/udocker#Limitations).
 
 ### Enforcing container requirements
+=======
+In essence, udocker provides a command line interface that mimics `docker`, and implements the commands using one of four different container backends:
+* PRoot
+* Fakechroot
+* runC
+* Singularity
+>>>>>>> 0f38ef79a... Elaborate on uDocker, advanced config, best practices
 
-You can enforce container requirements by not including the standard `submit` attribute on the provider attributes. You should only use the `submit-docker` strings, however note that some environment variables (`stdout`, `stderr`) are different between these two.
+#### Installation
+udocker can be installed without any kind of root permissions. Refer to the installation documentation [here](https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md).
 
-### Notes
+#### Configuration
 
-#### Job signalling
+`udocker` mimics the `docker` command-line interface, so all you need to do to configure it is set the `submit-docker` configuration to something like this:
+```
+submit-docker = """
+    udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${script}
+"""
+```
 
+<<<<<<< HEAD
 Cromwell uses the presence of an `rc` file in the execution directory or the contents of the `stderr` to determine a task's status. If you're job fails before starting, or during the startup of a container, it's likely that Cromwell will hang and fail to correctly report this error.
+=======
+With a job queue like SLURM, you just need to wrap this script in an `sbatch` submission like we did with Singularity:
+>>>>>>> 0f38ef79a... Elaborate on uDocker, advanced config, best practices
 
-#### Recommendations
+```
+submit-docker = """
+    sbatch \
+      -J ${job_name} \
+      -D ${cwd} \
+      -o ${cwd}/execution/stdout \
+      -e ${cwd}/execution/stderr \
+      ${"-p " + queue} \
+      -t ${runtime_minutes} \
+      ${"-c " + cpus} \
+      --mem-per-cpu=${requested_memory_mb_per_core} \
+      --wrap "udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${script}"
+"""
+```
 
-It's recommended against using `:latest` in favour of versioned tags or the more unique digests, as the latest tag can change through time, reducing the chance that your workflow will work or is exactly reproducible.
+In addition, to run `udocker`, you'll have to make sure `hash-lookup` is disabled.
+Refer to [this section](#docker_digests) for more detail.
+
+### Configuration in Detail
+The behaviour of Cromwell with containers can be modified using a few other options.
+
+#### Enforcing container requirements
+You can enforce container requirements by not including the standard `submit` attribute on the provider attributes.
+You should only use the `submit-docker` strings, however note that some environment variables (`stdout`, `stderr`) are different between these two.
 
 #### Docker Digests
 
-[Docker digests](https://docs.docker.com/engine/reference/commandline/pull/#pull-an-image-by-digest-immutable-identifier) are SHA256 strings that uniqely identify an image. It cannot be updated later by a developer so you ensure reproducibility in your containers. Within Cromwell, the docker tag is parsed and the through a web request, the digest is found, and is used to optimise call caching.
+Each Docker repository has a number of tags that can be used to refer to the latest image of a particular type. 
+For instance, when you run a normal Docker image with `docker run image`, it will actually run `image:latest`, the `latest` tag of that image.
+However, by default Cromwell requests and runs images using their `sha` hash, rather than using tags.
+This strategy is actually preferable, because it ensures every execution of the task or workflow will use the exact same version of the image, but some engines such as `udocker` don't support this feature.
 
-Some container technologies that use docker or dockerhub may not be able to parse this digest (eg: udocker); the digest-lookup functionality can be disabled by including the following in your configuration file at the root level:
+If you are using `udocker` or want to enable the use of hash-based image references, you can set the following config option:
+```
+docker.hash-lookup.enabled = false
+```
 
-```docker.hash-lookup.enabled = false```
+#### Docker Root
+If you want to change the root directory inside your containers, where the task places input and output files, you can edit the following option:
+
+```
+backend {
+  providers {
+    LocalExample {
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+      config {
+      
+        # Root directory where Cromwell writes job results in the container. This value
+        # can be used to specify where the execution folder is mounted in the container.
+        # it is used for the construction of the docker_cwd string in the submit-docker
+        # value above.
+        dockerRoot = "/cromwell-executions"
+      }
+    }
+  }
+}
+```
+
+#### Docker Config Block
+Further docker configuration options available to be put into your config file are as follows. 
+For the latest list of parameters, refer to [this example configuration](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf)
+```
+docker {
+  hash-lookup {
+    # Set this to match your available quota against the Google Container Engine API
+    #gcr-api-queries-per-100-seconds = 1000
+
+    # Time in minutes before an entry expires from the docker hashes cache and needs to be fetched again
+    #cache-entry-ttl = "20 minutes"
+
+    # Maximum number of elements to be kept in the cache. If the limit is reached, old elements will be removed from the cache
+    #cache-size = 200
+
+    # How should docker hashes be looked up. Possible values are "local" and "remote"
+    # "local": Lookup hashes on the local docker daemon using the cli
+    # "remote": Lookup hashes on docker hub and gcr
+    #method = "remote"
+  }
+}
+```
+
+
+### Best Practices
+
+#### Image Versions
+
+When choosing the image version for your pipeline stages, it is highly recommended that you use a hash rather than a tag, for the sake of reproducibility
+For example, in WDL, you could do this:
+```wdl
+    runtime {
+        docker: 'ubuntu:latest'
+    }
+```
+
+But what you should do is this:
+```wdl
+    runtime {
+        docker: 'ubuntu@sha256:7a47ccc3bbe8a451b500d2b53104868b46d60ee8f5b35a24b41a86077c650210'
+    }
+```
+
+You can find the `sha256` of an image using `docker images --digests`
  

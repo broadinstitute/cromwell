@@ -1,15 +1,10 @@
 ## Containers
 
-Containers are technologies that describe an environment's software requirements. Broadly, there are two primary types of containers:
+Containers are self-contained software archives, that hold everything from the tool you want to run, to libraries and runtimes it requires, and the operating system it runs on.
+ 
+Best Practise WDL and CWL define containers for their tasks to run in, to ensure reproducibility and portability - that running the same task on a different system will run the exact same software. 
 
-* Images - Software requirements that describe a sandbox environment that you.
-* Runtime - Specifies a series of processes that run inside a container image.
-
-Containers aim to be content-agnostic, infrastructure-agnostic, designed for automation and promote reproducibility.
-
-There are organisations such as the [Open Container Initiative](https://www.opencontainers.org) that are aiming to standardise the interface that container technologies can implement.
-
-The motivation for this tutorial was driven by: "I want to use containers, but can't use Docker".
+Docker images are the most common container format, but is is not advisable for certain systems to run Docker itself, and for this reason Cromwell supports a number of alternatives
 
 ### Prerequisites
 This tutorial page relies on completing the previous tutorials:
@@ -27,7 +22,7 @@ We'll discuss:
 * [Singularity](https://www.sylabs.io/docs/)
 * [udocker](https://github.com/indigo-dc/udocker)
 
-### Let's get started
+### Specifying Containers in your Workflow
 
 Containers are specified on a per-task level, this can be achieved in WDL by specifying a [`docker`](https://software.broadinstitute.org/wdl/documentation/spec#docker) tag in the `runtime` section. For example, specifying that the following WDL script should use the container `ubuntu:latest` can be achieved by:
 
@@ -50,7 +45,7 @@ workflow hello {
 }
 ```
 
-<!-- Similarly in CWL, you can specifiy a [`DockerRequirement`](https://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement) inside the requirements section:
+Similarly in CWL, you can specifiy a [`DockerRequirement`](https://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement) inside the requirements section:
 
 ```cwl
 cwlVersion: v1.0

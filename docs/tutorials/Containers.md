@@ -45,7 +45,7 @@ workflow hello {
 }
 ```
 
-Similarly in CWL, you can specifiy a [`DockerRequirement`](https://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement) inside the requirements section:
+Similarly in CWL, you can specify a [`DockerRequirement`](https://www.commonwl.org/v1.0/CommandLineTool.html#DockerRequirement) inside the requirements section:
 
 ```cwl
 cwlVersion: v1.0
@@ -159,7 +159,7 @@ backend {
 
 ### Enforcing container requirements
 
-You can enforce container requirements by not including the standard `submit` attribute on the provider attributes. You shold only use the `submit-docker` strings, however note that some environment variables (`stdout`, `stderr`) are different beween these two.
+You can enforce container requirements by not including the standard `submit` attribute on the provider attributes. You should only use the `submit-docker` strings, however note that some environment variables (`stdout`, `stderr`) are different between these two.
 
 ### Notes
 

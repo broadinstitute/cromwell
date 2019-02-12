@@ -4,7 +4,7 @@ Containers are self-contained software archives, that hold everything from the t
  
 Best Practise WDL and CWL define containers for their tasks to run in, to ensure reproducibility and portability - that running the same task on a different system will run the exact same software. 
 
-Docker images are the most common container format, but is is not advisable for certain systems to run Docker itself, and for this reason Cromwell supports a number of alternatives
+Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell supports a number of alternatives
 
 ### Prerequisites
 This tutorial page relies on completing the previous tutorials:
@@ -64,29 +64,57 @@ outputs:
 requirements:
     DockerRequirement:
         dockerPull: "ubuntu:latest"
-``` -->
+``` 
 
-#### Docker
+### Docker
 
-Docker is a popular container technology that is natively supported by Cromwell and WDL. No extra configuration must be provided to allow docker to run (provided Docker is installed).
+[Docker](https://www.docker.com) is a popular container technology that is natively supported by Cromwell and WDL.
 
-##### Shortfalls of Docker
 
-Docker can allow running users to gain superuser privileges, called the [Docker daemon attack surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). In HPC and multi-user environments, Docker recommends that "only trusted users should be allowed to control your Docker Daemon" [source](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that's tagged with docker containers.
+#### Docker on a Local Backend
 
-#### Docker on GCP and AWS
+On a single machine (laptop or server), no extra configuration is needed to allow docker to run, provided Docker is installed.
 
-Docker is a required tag on some cloud providers as it is used to request or provision resources. It's currently unknown whether you could run other container technologies on these cloud providers however given the same docker image, they should give exactly the same results.
+You can install Docker for Linux, Mac or Windows from [Docker Hub](https://hub.docker.com/search/?type=edition&offering=community)
 
-#### Singularity
+#### Docker on Cloud
 
-<!-- Singularity introduction here -->
+It is strongly advised that you use Docker images on Cloud backends, because most cloud backends require Docker images to run.
+
+It might be possible to use an alternative container engine, but this is not recommended if Docker is available.
+
+#### Docker on HPC
+
+Docker can allow running users to gain superuser privileges, called the [Docker daemon attack surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). In HPC and multi-user environments, Docker recommends that "only trusted users should be allowed to control your Docker Daemon".
+
+For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that uses docker containers; Singularity or uDocker.
+
+### Singularity
+
+Singularity is a container engine designed for use on HPC systems in particular, while ensuring an appropriate level of security that Docker cannot provide.
+
+#### Installation
+Before you can configure Cromwell on your HPC system, you (or your sysadmin) will have to install Singularity, which is documented [here](https://www.sylabs.io/guides/3.0/admin-guide/admin_quickstart.html#installation).
+
+When installing Singularity, your admins have to make a decision: do they grant `setuid` to the Singularity binary or not?
+[As is documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it), Singularity can run either using "sandbox" containers, or using proper image files.
+However, unless `setuid` is set, you are restricted to using sandbox images, which come with a number of downsides.
+If you can't convince Singularity can be trusted with `setuid`, don't fear, Cromwell will still work.
+However, this is not ideal, so you might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
+
+#### Configuring Cromwell for Singularity
+
+Once Singularity is installed, the main configuration block you'll need to modify is the `config` block inside `backend.providers` in your Cromwell configuration.
+In particular, this block contains a key called `submit-docker`, which will contain a script that is run whenever a job needs to run that uses a Docker image.
+If the job does not specify a Docker image, then the regular `submit` block will be used instead.
 
 ##### Local environments
 
-In local environments, you must configure Cromwell to use a different `submit-docker` script that would start Singularity instead of docker. Singularity requires docker images to be prefixed with the prefix `docker://`. The submit string for Singularity is:
+On local backends, you have to configure Cromwell to use a different `submit-docker` script that would start Singularity instead of docker.
+Singularity requires docker images to be prefixed with the prefix `docker://`.
+An example submit script for Singularity is:
 ```bash
-  singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
+singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
 ```
 
 As the Singularity container does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
@@ -118,35 +146,116 @@ backend {
 
 ##### Job schedulers
 
-The premise when running Singularity on job schedulers it include the singularity submit script as part of the wrapped command. On some HPCs, worker nodes do not have stable access to the internet or build access, for this reason within the submit-docker configuration we'll include a `singularity build` command that is run on the worker node. In the following example configuration for SLURM, we set a cache directory for Singularity so that once we've built the image, the worker nodes are able to access the image without any work.
+At its most basic level, if we want to run Singularity on a job scheduler, we need to pass the singularity command to the scheduler as a wrapped command.
+If we were using SLURM, this means we can use all the normal SLURM configuration as explained in the [SLURM documentation](../backends/SLURM). 
+However, our submit script will be a wrapped version of the script above:
+```
+submit-docker = """
+  # Ensure singularity is loaded if it's installed as a module
+  module load Singularity/3.0.1
+  
+  # Submit the script to SLURM
+  sbatch \
+    -J ${job_name} \
+    -D ${cwd} \
+    -o ${cwd}/execution/stdout \
+    -e ${cwd}/execution/stderr \
+    ${"-p " + queue} \
+    -t ${runtime_minutes} \
+    ${"-c " + cpus} \
+    --mem-per-cpu=${requested_memory_mb_per_core} \
+    --wrap "singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}"
+  """
+```
 
-The following configuration also includes the `--userns` argument, which will "run \[the\] container in a new user namespace, allowing Singularity to run completely unprivileged on recent kernels" (source: Singuarlity 3.0.3 CLI).
+On some HPC systems, worker nodes do not have stable access to the internet or build access.
+If this is the case, you'll need to pull the Docker image before you actually submit the SLURM job:
+```
+submit-docker = """
+    [...]
+  
+    # Build the Docker image into a singularity image, using the head node
+    IMAGE=/path/to/image/${docker}.sinf
+    singularity build $IMAGE docker://${docker}
+  
+    # Submit the script to SLURM
+    sbatch \
+      [...]
+      --wrap "singularity exec --bind ${cwd}:${docker_cwd} ${IMAGE} ${job_shell} ${script}"
+  """
+```
 
-```hocon
-include required(classpath("application"))
+In addition, if you or your sysadmins were not able to give `setuid` permissions to `singularity`, you'll have to modify the config further to ensure the use of sandbox images:
 
+```
+submit-docker = """
+    [...]
+    
+    # Build the Docker image into a singularity image
+    # We don't add the .sinf file extension because sandbox images are directories, not files
+    IMAGE=/path/to/image/${docker}
+    singularity build --sandbox $IMAGE docker://${docker}
+    
+    # Now submit the job
+    # Note the use of --userns here
+    sbatch \
+      [...]
+      --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} ${IMAGE} ${job_shell} ${script}"
+"""
+```
+
+You might also want to cache the downloaded Docker images, by setting the `SINGULARITY_CACHEDIR` variable.
+This will save unnecessary network access from downloading the same image multiple times.
+
+Putting this all together, a complete SLURM + Singularity config might look like this:
+
+```
 backend {
-  default: SLURM
-  providers: {
-    SLURM {
-      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+  default = slurm
+
+  providers {
+    slurm {
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"                                                                                     
       config {
         runtime-attributes = """
-          Int runtime_minutes = 60
-          Int cpus = 2
-          Int requested_memory_mb_per_core = 8000
-          String? queue
-          String? docker
+        Int runtime_minutes = 600
+        Int cpus = 2
+        Int requested_memory_mb_per_core = 8000
+        String? docker
         """
+
+        submit = """
+            sbatch -J ${job_name} -D ${cwd} -o ${out} -e ${err} -t ${runtime_minutes} \
+            ${"-c " + cpus} \
+            --mem-per-cpu=${requested_memory_mb_per_core} \
+            --wrap "/bin/bash ${script}"
+        """
+
         submit-docker = """
-          export SINGULARITY_CACHEDIR=/path/to/singularity_cache
-          # ensure singularity is loaded, potentially by: module load Singularity/3.0.1
-          IMAGE=/path/to/docker_location/${docker}
-          singularity build --sandbox $IMAGE docker://${docker} > /dev/null
-          sbatch -J ${job_name} -D ${cwd} -o ${cwd}/execution/stdout -e ${cwd}/execution/stderr ${"-p " + queue} \
-            -t ${runtime_minutes} ${"-c " + cpus} --mem-per-cpu=${requested_memory_mb_per_core} \
-            --wrap "singularity exec --userns -B ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
-          """
+            # Cache the docker images we're downloading
+            export SINGULARITY_CACHEDIR=/path/to/singularity/cache
+            
+            # Ensure singularity is loaded if it's installed as a module
+            module load Singularity/version
+            
+            # Build the Docker image into a singularity image
+            # We don't add the .sinf file extension because sandbox images are directories, not files
+            IMAGE=/path/to/image/${docker}
+            singularity build --sandbox $IMAGE docker://${docker}
+
+            # Submit the script to SLURM
+            sbatch \
+              -J ${job_name} \
+              -D ${cwd} \
+              -o ${cwd}/execution/stdout \
+              -e ${cwd}/execution/stderr \
+              ${"-p " + queue} \
+              -t ${runtime_minutes} \
+              ${"-c " + cpus} \
+              --mem-per-cpu=${requested_memory_mb_per_core} \
+              --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}"
+        """
+
         kill = "scancel ${job_id}"
         check-alive = "squeue -j ${job_id}"
         job-id-regex = "Submitted batch job (\\d+).*"
@@ -154,7 +263,9 @@ backend {
     }
   }
 }
+
 ```
+
 
 #### udocker
 

@@ -22,43 +22,50 @@ object MetadataSummaryRefreshActor {
   case object MetadataSummarySuccess extends MetadataSummaryActorMessage
   final case class MetadataSummaryFailure(t: Throwable) extends MetadataSummaryActorMessage
 
+  final case class MetadataSummaryCompleteMessage(newData: SummaryRefreshData) extends MetadataSummaryActorMessage
+
   def props() = Props(new MetadataSummaryRefreshActor()).withDispatcher(ServiceDispatcher)
 
   sealed trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState
   case object SummarizingMetadata extends SummaryRefreshState
-  case object MetadataSummaryComplete extends SummaryRefreshState
 
-  case object SummaryRefreshData
+  case class SummaryRefreshData(mostRecentlyLoggedTotal: Option[Long])
 }
 
 class MetadataSummaryRefreshActor()
-  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type]
+  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData]
     with MetadataDatabaseAccess with MetadataServicesStore {
 
   val config = ConfigFactory.load
   implicit val ec = context.dispatcher
 
-  startWith(WaitingForRequest, SummaryRefreshData)
+  startWith(WaitingForRequest, SummaryRefreshData(None))
 
   when (WaitingForRequest) {
-    case (Event(SummarizeMetadata(respondTo), _)) =>
+    case Event(SummarizeMetadata(respondTo), oldData @ SummaryRefreshData(mostRecentlyLoggedTotal)) =>
       refreshWorkflowMetadataSummaries() onComplete {
-        case Success(maximumSummaryId) =>
-          log.info(s"Metadata summarizer has now reached: $maximumSummaryId")
+        case Success(newMaximumSummaryId) =>
+          val newData = if(mostRecentlyLoggedTotal.contains(newMaximumSummaryId)) {
+            oldData
+          } else {
+            log.info(s"Metadata summarizer has now reached: $newMaximumSummaryId")
+            SummaryRefreshData(Some(newMaximumSummaryId))
+          }
+
           respondTo ! MetadataSummarySuccess
-          self ! MetadataSummaryComplete
+          self ! MetadataSummaryCompleteMessage(newData)
         case Failure(t) =>
           log.error(t, "Failed to summarize metadata")
           respondTo ! MetadataSummaryFailure(t)
-          self ! MetadataSummaryComplete
+          self ! MetadataSummaryCompleteMessage(oldData)
       }
       goto(SummarizingMetadata)
   }
 
   when (SummarizingMetadata) {
-    case Event(MetadataSummaryComplete, _) =>
-      goto(WaitingForRequest) using SummaryRefreshData
+    case Event(MetadataSummaryCompleteMessage(newData), _) =>
+      goto(WaitingForRequest) using newData
   }
 
   whenUnhandled {

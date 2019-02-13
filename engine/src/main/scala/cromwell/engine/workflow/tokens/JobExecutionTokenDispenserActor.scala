@@ -55,7 +55,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         }(context.dispatcher)
         ()
       case None =>
-        log.info(s"Not triggering log of token queue status. Effective log interval = $effectiveLogInterval")
+        log.info(s"Not triggering log of token queue status. Effective log interval = None")
         ()
     }
   }(context.dispatcher)

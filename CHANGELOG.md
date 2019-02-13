@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 38 Release Notes
+
+### Bug fixes
+- Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
+
 ## 37 Release Notes
 
 ### Docker

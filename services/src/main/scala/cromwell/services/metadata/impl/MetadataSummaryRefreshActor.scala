@@ -44,7 +44,8 @@ class MetadataSummaryRefreshActor()
   when (WaitingForRequest) {
     case (Event(SummarizeMetadata(respondTo), _)) =>
       refreshWorkflowMetadataSummaries() onComplete {
-        case Success(_) =>
+        case Success(maximumSummaryId) =>
+          log.info(s"Metadata summarizer has now reached: $maximumSummaryId")
           respondTo ! MetadataSummarySuccess
           self ! MetadataSummaryComplete
         case Failure(t) =>

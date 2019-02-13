@@ -2,7 +2,7 @@ package cromwell.services.womtool.models
 
 import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.generic.semiauto.deriveEncoder
-import wom.callable.Callable.{HasDefault, InputDefinition}
+import wom.callable.Callable.{InputDefinitionWithDefault, InputDefinition}
 import wom.executable.WomBundle
 
 // Very provisional types for some of these, and perhaps the defaults will go away later in development
@@ -38,11 +38,11 @@ case object WorkflowDescription {
       case Some(callable) =>
         val inputs = callable.inputs.sortBy(_.name) map { input: InputDefinition =>
           input match {
-            case i: HasDefault =>
+            case i: InputDefinitionWithDefault =>
               InputDescription(
                 input.name,
                 input.womType,
-                input.womType.displayName,
+                input.womType.friendlyName,
                 input.optional,
                 Option(i.default)
               )
@@ -50,7 +50,7 @@ case object WorkflowDescription {
               InputDescription(
                 input.name,
                 input.womType,
-                input.womType.displayName,
+                input.womType.friendlyName,
                 input.optional,
                 None
               )
@@ -62,7 +62,7 @@ case object WorkflowDescription {
           OutputDescription(
             output.name,
             output.womType,
-            output.womType.displayName
+            output.womType.friendlyName
           )
         }
 

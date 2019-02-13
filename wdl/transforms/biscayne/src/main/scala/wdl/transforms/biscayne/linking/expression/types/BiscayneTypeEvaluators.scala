@@ -15,7 +15,7 @@ object BiscayneTypeEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
         case WomMapType(keyType, _) => WomArrayType(keyType).validNel
-        case other => s"Cannot invoke 'keys' on type '${other.callCachingName}'. Expected a map".invalidNel
+        case other => s"Cannot invoke 'keys' on type '${other.stableName}'. Expected a map".invalidNel
       }
     }
   }
@@ -25,8 +25,8 @@ object BiscayneTypeEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
         case WomArrayType(WomPairType(x: WomPrimitiveType, y)) => WomMapType(x, y).validNel
-        case other @ WomArrayType(WomPairType(x, _)) => s"Cannot invoke 'as_map' on type ${other.callCachingName}. Map keys must be primitive but got '${x.callCachingName}'".invalidNel
-        case other => s"Cannot invoke 'as_map' on type '${other.callCachingName}'. Expected an array of pairs".invalidNel
+        case other @ WomArrayType(WomPairType(x, _)) => s"Cannot invoke 'as_map' on type ${other.stableName}. Map keys must be primitive but got '${x.stableName}'".invalidNel
+        case other => s"Cannot invoke 'as_map' on type '${other.stableName}'. Expected an array of pairs".invalidNel
       }
     }
   }
@@ -36,7 +36,7 @@ object BiscayneTypeEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
         case WomMapType(x, y) => WomArrayType(WomPairType(x, y)).validNel
-        case other => s"Cannot invoke 'as_pairs' on type '${other.callCachingName}'. Expected a map".invalidNel
+        case other => s"Cannot invoke 'as_pairs' on type '${other.stableName}'. Expected a map".invalidNel
       }
     }
   }
@@ -46,8 +46,8 @@ object BiscayneTypeEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
         case WomArrayType(WomPairType(x: WomPrimitiveType, y)) => WomMapType(x, WomArrayType(y)).validNel
-        case other@WomArrayType(WomPairType(x, _)) => s"Cannot invoke 'collect_by_key' on type ${other.callCachingName}. Map keys must be primitive but got '${x.callCachingName}'".invalidNel
-        case other => s"Cannot invoke 'collect_by_key' on type '${other.callCachingName}'. Expected an array of pairs".invalidNel
+        case other@WomArrayType(WomPairType(x, _)) => s"Cannot invoke 'collect_by_key' on type ${other.stableName}. Map keys must be primitive but got '${x.stableName}'".invalidNel
+        case other => s"Cannot invoke 'collect_by_key' on type '${other.stableName}'. Expected an array of pairs".invalidNel
       }
     }
   }

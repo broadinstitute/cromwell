@@ -6,7 +6,7 @@ import wom.values.{WomFloat, WomInteger, WomLong, WomString}
 import scala.util.{Success, Try}
 
 case object WomFloatType extends WomPrimitiveType {
-  val callCachingName: String = "Float"
+  val stableName: String = "Float"
 
   override protected def coercion = {
     case f: Float => WomFloat(f.toDouble)

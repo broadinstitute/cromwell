@@ -62,7 +62,7 @@ object LookupEvaluators {
         }
         case (WomObjectType, WomStringType, _) => WomAnyType.validNel
         case (WomAnyType, _, _) => WomAnyType.validNel
-        case (otherObject, otherKey, _) => s"Type evaluation failed for $a. Cannot dereference a ${otherObject.callCachingName} value using a ${otherKey.callCachingName} key".invalidNel
+        case (otherObject, otherKey, _) => s"Type evaluation failed for $a. Cannot dereference a ${otherObject.stableName} value using a ${otherKey.stableName} key".invalidNel
       }
     }
   }
@@ -81,13 +81,13 @@ object LookupEvaluators {
     val tail = NonEmptyList.fromList(lookupChain.tail)
 
     val thisValue: ErrorOr[WomType] = womType match {
-      case WomCompositeType(typeMap, _) => typeMap.get(key).toErrorOr(s"No such field '$key' on type ${womType.callCachingName}.")
+      case WomCompositeType(typeMap, _) => typeMap.get(key).toErrorOr(s"No such field '$key' on type ${womType.stableName}.")
       case WomObjectType => WomAnyType.validNel
       case WomPairType(left, _) if key == "left" => left.validNel
       case WomPairType(_, right) if key == "right" => right.validNel
       case WomMapType(_, right) => right.validNel
       case WomAnyType => WomAnyType.validNel
-      case _ => s"No such field '$key' on type ${womType.callCachingName}".invalidNel
+      case _ => s"No such field '$key' on type ${womType.stableName}".invalidNel
     }
 
     tail match {

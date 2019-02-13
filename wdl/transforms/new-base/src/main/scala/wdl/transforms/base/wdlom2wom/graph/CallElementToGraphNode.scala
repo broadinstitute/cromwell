@@ -63,7 +63,7 @@ object CallElementToGraphNode {
       */
     def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
       def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
-        definition.name == name && !definition.isInstanceOf[FixedInputDefinition]
+        definition.name == name && !definition.isInstanceOf[FixedInputDefinitionWithDefault]
       }
 
       def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
@@ -85,7 +85,7 @@ object CallElementToGraphNode {
                 }
                 WdlomWomExpression.make(expression, a.linkableValues) flatMap { wdlomWomExpression =>
                   val requiredInputType = i match {
-                    case _: InputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
+                    case _: OverridableInputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
                     case _ => i.womType
                   }
 
@@ -138,12 +138,12 @@ object CallElementToGraphNode {
           )
 
         // No input mapping, add an optional input using the default expression
-        case withDefault@InputDefinitionWithDefault(n, womType, expression, _, _) =>
+        case withDefault@OverridableInputDefinitionWithDefault(n, womType, expression, _, _) =>
           val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
           withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
 
         // Not an input, use the default expression:
-        case fixedExpression @ FixedInputDefinition(_,_,expression,_, _) => InputDefinitionFold(
+        case fixedExpression @ FixedInputDefinitionWithDefault(_,_,expression,_, _) => InputDefinitionFold(
           mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
         )
 

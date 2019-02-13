@@ -18,11 +18,11 @@ class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoerci
   )
 
   forAll(baseTypes) { (optType, flatOptType, baseType) =>
-    it should s"get ${baseType.callCachingName} as the base type for ${optType.callCachingName}" in {
+    it should s"get ${baseType.stableName} as the base type for ${optType.stableName}" in {
       optType.baseMemberType should be(baseType)
     }
 
-    it should s"get ${flatOptType.callCachingName} as the flat optional type for ${optType.callCachingName}" in {
+    it should s"get ${flatOptType.stableName} as the flat optional type for ${optType.stableName}" in {
       optType.flatOptionalType should be(flatOptType)
     }
   }

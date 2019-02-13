@@ -115,13 +115,13 @@ object AstTools {
       astNode match {
         case t: Terminal =>
           t.getSourceString match {
-            case WomUnlistedDirectoryType.`callCachingName` => WomUnlistedDirectoryType
-            case WomSingleFileType.`callCachingName` => WomSingleFileType
-            case WomStringType.`callCachingName` => WomStringType
-            case WomIntegerType.`callCachingName` => WomIntegerType
-            case WomFloatType.`callCachingName` => WomFloatType
-            case WomBooleanType.`callCachingName` => WomBooleanType
-            case WomObjectType.`callCachingName` => WomObjectType
+            case WomUnlistedDirectoryType.`stableName` => WomUnlistedDirectoryType
+            case WomSingleFileType.`stableName` => WomSingleFileType
+            case WomStringType.`stableName` => WomStringType
+            case WomIntegerType.`stableName` => WomIntegerType
+            case WomFloatType.`stableName` => WomFloatType
+            case WomBooleanType.`stableName` => WomBooleanType
+            case WomObjectType.`stableName` => WomObjectType
             case "Array" => throw new SyntaxError(wdlSyntaxErrorFormatter.arrayMustHaveATypeParameter(t))
           }
         case a: Ast if isOptionalType(a) => optionalType(a, wdlSyntaxErrorFormatter)

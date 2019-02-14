@@ -1,8 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.FileAlreadyExistsException
-import java.time.{LocalDateTime, ZoneId}
-import java.util.Calendar
+import java.time.LocalDateTime
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
@@ -16,19 +15,32 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-case class SharedFileSystemRunState(status: String, date: Calendar) {
-  override def toString: String = status
-
-  def expired(timeoutInSeconds: Long): Boolean = {
-    LocalDateTime
-      .ofInstant(date.toInstant, ZoneId.systemDefault())
-      .plusSeconds(timeoutInSeconds)
-      .isBefore(LocalDateTime.now())
-  }
+sealed trait SharedFileSystemRunState {
+  def status: String
+  def terminal: Boolean = false
 }
 
-object SharedFileSystemRunState {
-  def apply(status: String): SharedFileSystemRunState = SharedFileSystemRunState(status, Calendar.getInstance())
+case class SharedFileSystemJobRunning(validUntil: Option[LocalDateTime]) extends SharedFileSystemRunState {
+  override def status = "Running"
+
+  // Whether this running state is stale (ie has the 'validUntil' time passed?)
+  def stale: Boolean = validUntil.exists(t => t.isBefore(LocalDateTime.now))
+}
+
+case class SharedFileSystemJobWaitingForReturnCode(waitUntil: Option[LocalDateTime]) extends SharedFileSystemRunState {
+  override def status = "WaitingForReturnCode"
+
+  // Whether or not to give up waiting for the RC to appear (ie has the 'waitUntil' time passed?)
+  def giveUpWaiting: Boolean = waitUntil.exists(_.isBefore(LocalDateTime.now))
+}
+
+case object SharedFileSystemJobDone extends SharedFileSystemRunState {
+  override def terminal: Boolean = true
+  override def status = "Done"
+}
+case object SharedFileSystemJobFailed extends SharedFileSystemRunState {
+  override def terminal: Boolean = true
+  override def status = "Failed"
 }
 
 object SharedFileSystemAsyncJobExecutionActor {
@@ -244,12 +256,12 @@ trait SharedFileSystemAsyncJobExecutionActor
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
-    if (jobPaths.returnCode.exists) SharedFileSystemRunState("Done")
-    else SharedFileSystemRunState("WaitingForReturnCode")
+    if (jobPaths.returnCode.exists) SharedFileSystemJobDone
+    else SharedFileSystemJobWaitingForReturnCode(waitUntil = None)
   }
 
   override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
-    runStatus.status == "Done"
+    runStatus.terminal
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {

@@ -1,6 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
 import java.io.PrintWriter
+import java.time.LocalDateTime
 
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
@@ -17,6 +18,8 @@ import wom.callable.Callable.{InputDefinition, OptionalInputDefinition}
 import wom.expression.NoIoFunctionSet
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
+
+import scala.util.{Failure, Success}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -248,44 +251,73 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
 
   protected lazy val exitCodeTimeout: Option[Long] = {
     val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
-    timeout.foreach { x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher") }
+    timeout match {
+      case Some(x) =>
+      jobLogger.info("Cromwell will watch for an rc file *and* double-check every {} seconds to make sure this job is still alive", x)
+      if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")
+      case None =>
+        jobLogger.info("Cromwell will watch for an rc file but will *not* double-check whether this job is actually alive (unless Cromwell restarts)")
+    }
     timeout
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
-    (handle.previousState, exitCodeTimeout.flatMap(t => handle.previousState.map(_.expired(t)))) match {
-      case (None, _) =>
-        // Is not set yet the status will be set default to running
-        SharedFileSystemRunState("Running")
-      case (Some(s), _) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
-        // If exitcode file does exists status will be set to Done always
-        SharedFileSystemRunState("Done")
-      case (Some(s), Some(false)) => s // No action required if state is not yet expired
-      case (Some(s), Some(true)) if s.status == "Running" =>
-        // Exitcode file does not exist at this point, checking is jobs is still alive
-        if (isAlive(handle.pendingJob).fold({ e =>
-          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
-          true
-        }, x => x)) SharedFileSystemRunState("Running")
-        else SharedFileSystemRunState("WaitingForReturnCode")
-      case (Some(s), Some(true)) if s.status == "WaitingForReturnCode" =>
-        // Can only enter this state when the exit code does not exist and the job is not alive anymore
-        // `isAlive` is not called anymore from this point
 
-        // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
-        jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse("-")} seconds, assuming external kill")
-        val writer = new PrintWriter(jobPaths.returnCode.toFile)
-        // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-        writer.println(9)
-        writer.close()
-        SharedFileSystemRunState("Failed")
-      case (Some(s), _) => s
+    lazy val nextTimeout = exitCodeTimeout.map(t => LocalDateTime.now.plusSeconds(t))
+
+    handle.previousState match {
+      case None =>
+        // Is not set yet the status will be set default to running
+        SharedFileSystemJobRunning(nextTimeout)
+
+      case Some(_) if jobPaths.returnCode.exists =>
+        // If exitcode file does exists status will be set to Done always
+        SharedFileSystemJobDone
+
+      case Some(running: SharedFileSystemJobRunning) =>
+        if (running.stale){
+            // Since the exit code timeout has expired for a running job, check whether the job is still alive.
+
+            isAlive(handle.pendingJob) match {
+              case Success(true) =>
+                // The job is still running. Don't check again for another timeout.
+                SharedFileSystemJobRunning(nextTimeout)
+              case Success(false) =>
+                // The job has stopped but we don't have an RC yet. We'll wait one more 'timeout' for the RC to arrive:
+                SharedFileSystemJobWaitingForReturnCode(nextTimeout)
+              case Failure(e) =>
+                log.error(e, s"Failed to check status for ${handle.jobDescriptor.key.tag} using command: ${checkAliveArgs(handle.pendingJob)}")
+                SharedFileSystemJobRunning(nextTimeout)
+            }
+        } else {
+          // Not stale yet so keep on running!
+          running
+        }
+
+      case Some(waiting: SharedFileSystemJobWaitingForReturnCode) =>
+        if (waiting.giveUpWaiting) {
+          // Can only enter this state when the exit code does not exist and the job is not alive anymore
+          // `isAlive` is not called anymore from this point
+
+          // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
+          jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse("-")} seconds, assuming external kill")
+          val writer = new PrintWriter(jobPaths.returnCode.toFile)
+          // 137 does mean a external kill -9, this is a assumption but easy workaround for now
+          writer.println(9)
+          writer.close()
+          SharedFileSystemJobFailed
+        } else {
+          // Not giving up yet so keep on waiting... for now...
+          waiting
+        }
+
+      case Some(otherStatus) =>
+        jobLogger.warn(s"Unexpected status poll received when already in status $otherStatus")
+        otherStatus
     }
   }
 
-  override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = {
-    runStatus.status == "Done" || runStatus.status == "Failed"
-  }
+  override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = runStatus.terminal
 }
 
 

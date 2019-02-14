@@ -164,14 +164,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
 
   protected[this] def runTransaction[R](action: DBIO[R], isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead): Future[R] = {
-    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel))
+    runAction(action.transactionally.withTransactionIsolation(isolationLevel))
   }
 
   protected[this] def runAction[R](action: DBIO[R]): Future[R] = {
-    runActionInternal(action.withPinnedSession)
-  }
-
-  private def runActionInternal[R](action: DBIO[R]): Future[R] = {
     //database.run(action) <-- See comment above private val actionThreadPool
     Future {
       try {

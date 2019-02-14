@@ -2,6 +2,7 @@ package cromwell.services.womtool
 
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.services.womtool.models.WorkflowDescription
 
 object WomtoolServiceMessages {
 
@@ -17,5 +18,4 @@ object WomtoolServiceMessages {
   case class DescribeSuccess(description: WorkflowDescription) extends DescribeResult
   case class DescribeFailure(reason: String) extends DescribeResult
 
-  case class WorkflowDescription(valid: Boolean, errors: List[String])
 }

@@ -19,7 +19,7 @@ object TernaryIfEvaluator {
         case WomBooleanType =>
           (a.ifTrue.evaluateType(linkedValues): ErrorOr[WomType],
             a.ifFalse.evaluateType(linkedValues): ErrorOr[WomType]) mapN { (tType, fType) => WomType.homogeneousTypeFromTypes(Seq(tType, fType)) }
-        case other => s"Condition should have evaluated to a Boolean but instead got ${other.toDisplayString}".invalidNel
+        case other => s"Condition should have evaluated to a Boolean but instead got ${other.stableName}".invalidNel
       }
     }
   }

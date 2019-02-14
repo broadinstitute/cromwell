@@ -339,7 +339,7 @@ case class WorkflowStep(
             ).validNel
 
           // No expression node mapping, use the default
-          case withDefault @ InputDefinitionWithDefault(_, _, expression, _, _) =>
+          case withDefault @ OverridableInputDefinitionWithDefault(_, _, expression, _, _) =>
             InputDefinitionFold(
               mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
             ).validNel

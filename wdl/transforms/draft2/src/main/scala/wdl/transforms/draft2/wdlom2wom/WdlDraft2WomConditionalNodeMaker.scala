@@ -47,7 +47,7 @@ object WdlDraft2WomConditionalNodeMaker extends WomConditionalNodeMaker[If] {
       WomIdentifier("conditional"), ifConditionExpression, localLookup ++ possiblyNeededNestedOginPorts, Map.empty, preserveIndexForOuterLookups, ifBlock, PlainAnonymousExpressionNode.apply)
     val ifConditionTypeValidation = ifConditionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case coerceable if WomBooleanType.isCoerceableFrom(coerceable) => Valid(())
-      case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.toDisplayString})".invalidNel
+      case other => s"An if block must be given a boolean expression but instead got '${ifBlock.condition.toWomString}' (a ${other.stableName})".invalidNel
     }
 
     val innerGraphValidation: ErrorOr[Graph] = (ifBlock: Scope).toWomGraph(

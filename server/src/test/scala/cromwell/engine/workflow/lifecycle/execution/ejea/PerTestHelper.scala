@@ -16,7 +16,7 @@ import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressi
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
-import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OutputDefinition}
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
@@ -35,7 +35,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val jobAttempt = 1
 
   val task = WomMocks.mockTaskDefinition(taskName).copy(
-    inputs = List(InputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
+    inputs = List(OverridableInputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
     outputs = List(OutputDefinition("outString", WomStringType, mockStringExpression("hello")))
   )
 

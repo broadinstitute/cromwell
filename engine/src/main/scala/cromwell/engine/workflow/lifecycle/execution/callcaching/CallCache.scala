@@ -59,7 +59,7 @@ class CallCache(database: CallCachingSqlDatabase) {
     val resultToInsert: Iterable[CallCachingSimpletonEntry] = {
       result map {
         case WomValueSimpleton(simpletonKey, wdlPrimitive) =>
-          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.womType.toDisplayString)
+          CallCachingSimpletonEntry(simpletonKey, wdlPrimitive.valueString.toClobOption, wdlPrimitive.womType.stableName)
       }
     }
 

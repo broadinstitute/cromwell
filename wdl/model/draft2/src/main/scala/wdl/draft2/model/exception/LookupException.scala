@@ -13,7 +13,7 @@ sealed abstract case class VariableNotFoundException(variable: String, quoteName
 
 object VariableNotFoundException {
   def apply(variable: String): VariableNotFoundException = new VariableNotFoundException(s"'$variable'") {}
-  def apply(variable: String, variableType: WomType): VariableNotFoundException= new VariableNotFoundException(s"'$variable': ${variableType.toDisplayString}") {}
+  def apply(variable: String, variableType: WomType): VariableNotFoundException= new VariableNotFoundException(s"'$variable': ${variableType.stableName}") {}
   def apply(declaration: Declaration): VariableNotFoundException = VariableNotFoundException.apply(declaration.fullyQualifiedName, declaration.womType)
 }
 

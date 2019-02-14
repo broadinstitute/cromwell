@@ -5,7 +5,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked.{IOChecked, _}
 import shapeless.Poly1
 import wom.callable.Callable.InputDefinition.InputValueMapper
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition}
+import wom.callable.Callable.{InputDefinition, OverridableInputDefinitionWithDefault, OptionalInputDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.values.{WomOptionalValue, WomValue}
 
@@ -37,7 +37,7 @@ object InputPointerToWomValue extends Poly1 {
           withInitializedValue(ioFunctions, womValue) {
             inputDefinition.valueMapper(ioFunctions)
           }
-        case (_, InputDefinitionWithDefault(_, _, defaultExpression, valueMapper, _)) =>
+        case (_, OverridableInputDefinitionWithDefault(_, _, defaultExpression, valueMapper, _)) =>
           evaluateAndMap(defaultExpression, knownValues, valueMapper, ioFunctions)
         case (_, OptionalInputDefinition(_, optionalType, valueMapper, _)) => valueMapper(ioFunctions)(optionalType.none)
         case _ => s"Failed to lookup input value for required input ${port.internalName}".invalidIOChecked

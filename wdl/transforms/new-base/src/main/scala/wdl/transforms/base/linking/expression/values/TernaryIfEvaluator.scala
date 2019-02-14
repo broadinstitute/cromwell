@@ -22,7 +22,7 @@ object TernaryIfEvaluator {
           a.ifTrue.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions).map(result => result.copy(sideEffectFiles = result.sideEffectFiles ++ conditionSideEffectFiles))
         case EvaluatedValue(WomBoolean(false), conditionSideEffectFiles) =>
           a.ifFalse.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions).map(result => result.copy(sideEffectFiles = result.sideEffectFiles ++ conditionSideEffectFiles))
-        case other => s"Condition should have evaluated to a Boolean but instead got ${other.value.womType.toDisplayString}".invalidNel
+        case other => s"Condition should have evaluated to a Boolean but instead got ${other.value.womType.stableName}".invalidNel
       }
     }
   }

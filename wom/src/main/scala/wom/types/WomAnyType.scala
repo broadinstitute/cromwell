@@ -5,7 +5,7 @@ import wom.values.WomValue
 import scala.util.{Success, Try}
 
 case object WomAnyType extends WomType {
-  val toDisplayString: String = s"Any"
+  val stableName: String = s"Any"
 
   /**
    * WomAnyType does behave slightly differently than the other WomTypes.

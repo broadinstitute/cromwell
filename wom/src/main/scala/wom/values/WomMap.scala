@@ -21,7 +21,7 @@ object WomMap {
     val failures = coerced flatMap { case(k,v) => Seq(k,v) } collect { case f:Failure[_] => f }
     failures match {
       case f: Iterable[Failure[_]] if f.nonEmpty =>
-        throw new UnsupportedOperationException(s"Failed to coerce one or more keys or values for creating a ${womMapType.toDisplayString}:\n${TryUtil.stringifyFailures(f)}}")
+        throw new UnsupportedOperationException(s"Failed to coerce one or more keys or values for creating a ${womMapType.stableName}:\n${TryUtil.stringifyFailures(f)}}")
       case _ =>
         val mapCoerced = coerced map { case (k, v) => k.get -> v.get }
 

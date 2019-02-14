@@ -113,7 +113,7 @@ case class TypeEvaluator(override val lookup: String => WomType, override val fu
       (evaluate(a.getAttribute("lhs")), evaluate(a.getAttribute("rhs"))) match {
         case (Success(a: WomArrayType), Success(WomIntegerType)) => Success(a.memberType)
         case (Success(m: WomMapType), Success(_: WomType)) => Success(m.valueType)
-        case (Success(otherLhs), Success(_)) => Failure(new WomExpressionException(s"Invalid indexing target. You cannot index a value of type '${otherLhs.toDisplayString}'"))
+        case (Success(otherLhs), Success(_)) => Failure(new WomExpressionException(s"Invalid indexing target. You cannot index a value of type '${otherLhs.stableName}'"))
         case (f: Failure[_], _) => f
         case (_, f: Failure[_]) => f
       }

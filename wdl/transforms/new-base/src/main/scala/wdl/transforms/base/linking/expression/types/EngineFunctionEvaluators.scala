@@ -155,7 +155,7 @@ object EngineFunctionEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
         case a @ WomArrayType(WomArrayType(_)) => a.validNel
-        case foundType => s"Invalid parameter '${a.param}'. Expected 'Array[Array[_]]' but got '${foundType.toDisplayString}'".invalidNel
+        case foundType => s"Invalid parameter '${a.param}'. Expected 'Array[Array[_]]' but got '${foundType.stableName}'".invalidNel
       }
     }
   }
@@ -172,7 +172,7 @@ object EngineFunctionEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
         case WomArrayType(inner @ WomArrayType(_)) => inner.validNel
-        case foundType => s"Invalid parameter '${a.param}'. Expected 'Array[Array[_]]' but got '${foundType.toDisplayString}'".invalidNel
+        case foundType => s"Invalid parameter '${a.param}'. Expected 'Array[Array[_]]' but got '${foundType.stableName}'".invalidNel
       }
     }
   }
@@ -182,7 +182,7 @@ object EngineFunctionEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
         case WomArrayType(WomOptionalType(inner)) => inner.validNel
-        case foundType => s"Invalid parameter '${a.param}'. Expected an array of optional values (eg 'Array[X?]') but got '${foundType.toDisplayString}'".invalidNel
+        case foundType => s"Invalid parameter '${a.param}'. Expected an array of optional values (eg 'Array[X?]') but got '${foundType.stableName}'".invalidNel
       }
     }
   }
@@ -192,7 +192,7 @@ object EngineFunctionEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
         case WomArrayType(WomOptionalType(inner)) => WomArrayType(inner).validNel
-        case foundType => s"Invalid parameter '${a.param}'. Expected an array of optional values (eg 'Array[X?]') but got '${foundType.toDisplayString}'".invalidNel
+        case foundType => s"Invalid parameter '${a.param}'. Expected an array of optional values (eg 'Array[X?]') but got '${foundType.stableName}'".invalidNel
       }
     }
   }
@@ -248,7 +248,7 @@ object EngineFunctionEvaluators {
       }
       val validatedFirstArg: ErrorOr[Unit] = a.firstParam.evaluateType(linkedValues).flatMap {
         case t if suitableSizeType(t) => ().validNel
-        case other => s"Invalid first 'size' parameter. Expected File, File? Array[File] or Array[File?] but got ${other.toDisplayString}".invalidNel
+        case other => s"Invalid first 'size' parameter. Expected File, File? Array[File] or Array[File?] but got ${other.stableName}".invalidNel
       }
       (validatedFirstArg, validatedSecondArg) mapN { (_, _) => WomFloatType }
     }
@@ -272,9 +272,9 @@ object EngineFunctionEvaluators {
     (arg1.evaluateType(linkedValues), arg2.evaluateType(linkedValues)) match {
       case (Valid(WomArrayType(left)), Valid(WomArrayType(right))) =>
         WomArrayType(WomPairType(left, right)).validNel
-      case (Valid(otherLeft), Valid(WomArrayType(_))) => s"Invalid left parameter '${arg1.toWdlV1}'. Expected Array type but got '${otherLeft.toDisplayString}'".invalidNel
-      case (Valid(WomArrayType(_)), Valid(otherRight)) => s"Invalid right parameter '${arg2.toWdlV1}'. Expected Array type but got '${otherRight.toDisplayString}'".invalidNel
-      case (Valid(otherLeft), Valid(otherRight)) => s"Invalid left and right parameters '(${arg1.toWdlV1}, ${arg2.toWdlV1})'. Expected two Array types but got '(${otherLeft.toDisplayString}, ${otherRight.toDisplayString})'".invalidNel
+      case (Valid(otherLeft), Valid(WomArrayType(_))) => s"Invalid left parameter '${arg1.toWdlV1}'. Expected Array type but got '${otherLeft.stableName}'".invalidNel
+      case (Valid(WomArrayType(_)), Valid(otherRight)) => s"Invalid right parameter '${arg2.toWdlV1}'. Expected Array type but got '${otherRight.stableName}'".invalidNel
+      case (Valid(otherLeft), Valid(otherRight)) => s"Invalid left and right parameters '(${arg1.toWdlV1}, ${arg2.toWdlV1})'. Expected two Array types but got '(${otherLeft.stableName}, ${otherRight.stableName})'".invalidNel
       // One or more are invalid, so mapN function won't actually ever run:
       case (otherLeft, otherRight) => (otherLeft, otherRight) mapN { (_, _) => WomNothingType }
     }
@@ -314,7 +314,7 @@ object EngineFunctionEvaluators {
   def validateParamType(param: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle], expectedType: WomType)
                                (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
     param.evaluateType(linkedValues).flatMap { foundType =>
-      if (expectedType.isCoerceableFrom(foundType)) { foundType.validNel } else { s"Invalid parameter '$param'. Expected '${expectedType.toDisplayString}' but got '${foundType.toDisplayString}'".invalidNel }
+      if (expectedType.isCoerceableFrom(foundType)) { foundType.validNel } else { s"Invalid parameter '$param'. Expected '${expectedType.stableName}' but got '${foundType.stableName}'".invalidNel }
     }
   }
 }

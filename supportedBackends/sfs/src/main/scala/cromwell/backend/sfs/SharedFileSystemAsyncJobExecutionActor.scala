@@ -18,6 +18,8 @@ import scala.util.{Failure, Success, Try}
 sealed trait SharedFileSystemRunState {
   def status: String
   def terminal: Boolean = false
+
+  override def toString: String = status
 }
 
 case class SharedFileSystemJobRunning(validUntil: Option[LocalDateTime]) extends SharedFileSystemRunState {

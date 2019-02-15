@@ -218,7 +218,7 @@ backend {
 
         submit-docker = """
             # Ensure singularity is loaded if it's installed as a module
-            module load Singularity/version
+            module load Singularity/3.0.1
             
             # Build the Docker image into a singularity image
             # We don't add the .sif file extension because sandbox images are directories, not files

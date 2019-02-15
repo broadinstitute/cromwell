@@ -221,7 +221,6 @@ backend {
             module load Singularity/3.0.1
             
             # Build the Docker image into a singularity image
-            # We don't add the .sif file extension because sandbox images are directories, not files
             IMAGE=${cwd}/${docker}.sif
             singularity build $IMAGE docker://${docker}
 

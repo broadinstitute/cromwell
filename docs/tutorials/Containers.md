@@ -25,7 +25,7 @@ We'll discuss:
 
 ### Specifying Containers in your Workflow
 
-Containers are specified on a per-task level, this can be achieved in WDL by specifying a [`docker`](https://software.broadinstitute.org/wdl/documentation/spec#docker) tag in the `runtime` section. For example, specifying that the following WDL script should use the container `ubuntu:latest` can be achieved by:
+Containers are specified on a per-task level, this can be achieved in WDL by specifying a [`docker`](https://github.com/openwdl/wdl/blob/master/versions/1.0/SPEC.md#docker) tag in the `runtime` section. For example, specifying that the following WDL script should use the container `ubuntu:latest` can be achieved by:
 
 ```wdl
 task hello_world {
@@ -87,7 +87,7 @@ It might be possible to use an alternative container engine, but this is not rec
 
 Docker can allow running users to gain superuser privileges, called the [Docker daemon attack surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). In HPC and multi-user environments, Docker recommends that "only trusted users should be allowed to control your Docker Daemon".
 
-For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that uses docker containers; Singularity or uDocker.
+For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that uses docker containers; Singularity or udocker.
 
 ### Singularity
 
@@ -156,11 +156,11 @@ submit-docker = """
   
   # Submit the script to SLURM
   sbatch \
+    --wait \
     -J ${job_name} \
     -D ${cwd} \
     -o ${cwd}/execution/stdout \
     -e ${cwd}/execution/stderr \
-    ${"-p " + queue} \
     -t ${runtime_minutes} \
     ${"-c " + cpus} \
     --mem-per-cpu=${requested_memory_mb_per_core} \
@@ -169,45 +169,24 @@ submit-docker = """
 ```
 
 On some HPC systems, worker nodes do not have stable access to the internet or build access.
-If this is the case, you'll need to pull the Docker image before you actually submit the SLURM job:
+If this is the case, you'll need to pull the Docker image before you actually submit the SLURM job.
+
 ```
 submit-docker = """
     [...]
   
     # Build the Docker image into a singularity image, using the head node
-    IMAGE=/path/to/image/${docker}.sinf
+    IMAGE=${cwd}/${docker}.sif
     singularity build $IMAGE docker://${docker}
   
     # Submit the script to SLURM
     sbatch \
       [...]
-      --wrap "singularity exec --bind ${cwd}:${docker_cwd} ${IMAGE} ${job_shell} ${script}"
+      --wrap "singularity exec --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
   """
 ```
 
-In addition, if you or your sysadmins were not able to give `setuid` permissions to `singularity`, you'll have to modify the config further to ensure the use of sandbox images:
-
-```
-submit-docker = """
-    [...]
-    
-    # Build the Docker image into a singularity image
-    # We don't add the .sinf file extension because sandbox images are directories, not files
-    IMAGE=/path/to/image/${docker}
-    singularity build --sandbox $IMAGE docker://${docker}
-    
-    # Now submit the job
-    # Note the use of --userns here
-    sbatch \
-      [...]
-      --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} ${IMAGE} ${job_shell} ${script}"
-"""
-```
-
-You might also want to cache the downloaded Docker images, by setting the `SINGULARITY_CACHEDIR` variable.
-This will save unnecessary network access from downloading the same image multiple times.
-
-Putting this all together, a complete SLURM + Singularity config might look like this:
+Putting this all together, a complete SLURM + Singularity config might look like this: 
 
 ```
 backend {
@@ -225,35 +204,38 @@ backend {
         """
 
         submit = """
-            sbatch -J ${job_name} -D ${cwd} -o ${out} -e ${err} -t ${runtime_minutes} \
-            ${"-c " + cpus} \
-            --mem-per-cpu=${requested_memory_mb_per_core} \
-            --wrap "/bin/bash ${script}"
+            sbatch \
+              --wait \
+              -J ${job_name} \
+              -D ${cwd} \
+              -o ${out} \
+              -e ${err} \
+              -t ${runtime_minutes} \
+              ${"-c " + cpus} \
+              --mem-per-cpu=${requested_memory_mb_per_core} \
+              --wrap "/bin/bash ${script}"
         """
 
         submit-docker = """
-            # Cache the docker images we're downloading
-            export SINGULARITY_CACHEDIR=/path/to/singularity/cache
-            
             # Ensure singularity is loaded if it's installed as a module
             module load Singularity/version
             
             # Build the Docker image into a singularity image
-            # We don't add the .sinf file extension because sandbox images are directories, not files
-            IMAGE=/path/to/image/${docker}
-            singularity build --sandbox $IMAGE docker://${docker}
+            # We don't add the .sif file extension because sandbox images are directories, not files
+            IMAGE=${cwd}/${docker}.sif
+            singularity build $IMAGE docker://${docker}
 
             # Submit the script to SLURM
             sbatch \
+              --wait \
               -J ${job_name} \
               -D ${cwd} \
               -o ${cwd}/execution/stdout \
               -e ${cwd}/execution/stderr \
-              ${"-p " + queue} \
               -t ${runtime_minutes} \
               ${"-c " + cpus} \
               --mem-per-cpu=${requested_memory_mb_per_core} \
-              --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}"
+              --wrap "singularity exec --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
         """
 
         kill = "scancel ${job_id}"
@@ -265,6 +247,40 @@ backend {
 }
 
 ```
+
+#### Without Setuid
+In addition, if you or your sysadmins were not able to give `setuid` permissions to `singularity`, you'll have to modify the config further to ensure the use of sandbox images:
+
+```
+submit-docker = """
+    [...]
+
+    # Build the Docker image into a singularity image
+    # We don't add the .sif file extension because sandbox images are directories, not files
+    IMAGE=${cwd}/${docker}
+    singularity build --sandbox $IMAGE docker://${docker}
+
+    # Now submit the job
+    # Note the use of --userns here
+    sbatch \
+      [...]
+      --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
+"""
+```
+
+
+#### Singularity Cache
+By default, Singularity will cache the Docker images you pull in `~/.singularity`, in your home directory.
+
+However, if you are sharing your Docker images with other users, you probably want this cache to exist somewhere that is accessible to everyone.
+
+If you do, you can set the `SINGULARITY_CACHEDIR` variable at the start of your `submit-docker` script, for example:
+
+```
+export SINGULARITY_CACHEDIR=/path/to/shared/cache
+```
+
+For further information on the Singularity Cache, refer to the [Singularity 2 caching documentation](https://www.sylabs.io/guides/2.6/user-guide/build_environment.html#cache-folders) (this hasn't yet been updated for Singularity 3)
 
 ### udocker
 
@@ -330,6 +346,7 @@ udocker will not be able to perform tasks that require elevated privileges, some
 ### Enforcing container requirements
 =======
 In essence, udocker provides a command line interface that mimics `docker`, and implements the commands using one of four different container backends:
+
 * PRoot
 * Fakechroot
 * runC
@@ -364,7 +381,6 @@ submit-docker = """
       -D ${cwd} \
       -o ${cwd}/execution/stdout \
       -e ${cwd}/execution/stderr \
-      ${"-p " + queue} \
       -t ${runtime_minutes} \
       ${"-c " + cpus} \
       --mem-per-cpu=${requested_memory_mb_per_core} \
@@ -379,8 +395,9 @@ Refer to [this section](#docker-digests) for more detail.
 The behaviour of Cromwell with containers can be modified using a few other options.
 
 #### Enforcing container requirements
-You can enforce container requirements by not including the standard `submit` attribute on the provider attributes.
-You should only use the `submit-docker` strings, however note that some environment variables (`stdout`, `stderr`) are different between these two.
+You can enforce the use of a container by not including the `submit` block in the provider section.
+
+However note that some interpolated variables (`${stdout}`, `${stderr}`) are different between these two blocks.
 
 #### Docker Digests
 
@@ -414,6 +431,7 @@ backend {
   }
 }
 ```
+
 
 #### Docker Config Block
 Further docker configuration options available to be put into your config file are as follows. 

@@ -463,16 +463,16 @@ docker {
 When choosing the image version for your pipeline stages, it is highly recommended that you use a hash rather than a tag, for the sake of reproducibility
 For example, in WDL, you could do this:
 ```wdl
-    runtime {
-        docker: 'ubuntu:latest'
-    }
+runtime {
+    docker: 'ubuntu:latest'
+}
 ```
 
 But what you should do is this:
 ```wdl
-    runtime {
-        docker: 'ubuntu@sha256:7a47ccc3bbe8a451b500d2b53104868b46d60ee8f5b35a24b41a86077c650210'
-    }
+runtime {
+    docker: 'ubuntu@sha256:7a47ccc3bbe8a451b500d2b53104868b46d60ee8f5b35a24b41a86077c650210'
+}
 ```
 
 You can find the `sha256` of an image using `docker images --digests`

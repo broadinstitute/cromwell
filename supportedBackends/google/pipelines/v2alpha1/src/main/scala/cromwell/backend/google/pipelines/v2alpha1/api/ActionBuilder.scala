@@ -58,7 +58,7 @@ object ActionBuilder {
     val ContentTypeTextHeader = s"Content-Type: $contentTypeText"
   }
 
-  val cloudSdkImage = "google/cloud-sdk:slim"
+  val cloudSdkImage = "gcr.io/cloud-genomics-pipelines/io:latest"
   def cloudSdkAction: Action = new Action().setImageUri(cloudSdkImage)
 
   def withImage(image: String) = new Action()

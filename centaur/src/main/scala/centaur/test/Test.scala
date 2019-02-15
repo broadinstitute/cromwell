@@ -22,7 +22,7 @@ import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, Running, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import spray.json.JsString
@@ -234,15 +234,7 @@ object Operations {
         } yield mappedStatus
       }
 
-
-      override def run: IO[SubmittedWorkflow] = {
-        val doTheThing: IO[SubmittedWorkflow] = for {
-          _ <- expectSomeProgress(workflow, testDefinition, Set(Running, expectedStatus), 1.minute).run
-          submittedWorkflow <- status
-        } yield submittedWorkflow
-
-        doTheThing.timeout(CentaurConfig.maxWorkflowLength)
-      }
+      override def run: IO[SubmittedWorkflow] = status.timeout(CentaurConfig.maxWorkflowLength)
     }
   }
 

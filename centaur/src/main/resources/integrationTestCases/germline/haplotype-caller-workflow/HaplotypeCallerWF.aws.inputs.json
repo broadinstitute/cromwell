@@ -1,15 +1,15 @@
 {
   "##_COMMENT1": "INPUT BAM",
-  "HaplotypeCallerGvcf_GATK4.input_bam": "s3://aws-gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bam",
-  "HaplotypeCallerGvcf_GATK4.input_bam_index": "s3://aws-gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bai",
+  "HaplotypeCallerGvcf_GATK4.input_bam": "s3://gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bam",
+  "HaplotypeCallerGvcf_GATK4.input_bam_index": "s3://gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bai",
 
   "##_COMMENT2": "REFERENCE FILES",
-  "HaplotypeCallerGvcf_GATK4.ref_dict": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
-  "HaplotypeCallerGvcf_GATK4.ref_fasta": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
-  "HaplotypeCallerGvcf_GATK4.ref_fasta_index": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+  "HaplotypeCallerGvcf_GATK4.ref_dict": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta_index": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
 
   "##_COMMENT3": "INTERVALS",
-  "HaplotypeCallerGvcf_GATK4.scattered_calling_intervals_list": "s3://aws-gatk-test-data/intervals/hg38_wgs_scattered_calling_intervals.txt",
+  "HaplotypeCallerGvcf_GATK4.scattered_calling_intervals_list": "s3://gatk-test-data/intervals/hg38_wgs_scattered_calling_intervals.txt",
   "HaplotypeCallerGvcf_GATK4.HaplotypeCaller.interval_padding": 100,
 
   "##_COMMENT4": "DOCKERS",

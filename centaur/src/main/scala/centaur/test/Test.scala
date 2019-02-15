@@ -187,7 +187,7 @@ object Operations {
             case s if expectedStatuses.contains(s) => IO.pure(workflow)
             case s: TerminalStatus =>
               CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-                val message = s"Unexpected terminal status $s while waiting for one of ${expectedStatuses.mkString(", ")}"
+                val message = s"Unexpected terminal status $s while waiting for one of [${expectedStatuses.mkString(", ")}] (workflow ID: ${workflow.id})"
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ if remainingTimeout > 0.seconds =>
@@ -196,7 +196,7 @@ object Operations {
                 s <- status(remainingTimeout - 10.seconds)
               } yield s
             case other =>
-              val message = s"Cromwell failed to progress ${workflow.id} into any of the statuses ${expectedStatuses.mkString(", ")}. Was still $other after $timeout"
+              val message = s"Cromwell failed to progress into any of the statuses [${expectedStatuses.mkString(", ")}]. Was still '$other' after $timeout (workflow ID: ${workflow.id})"
               IO.raiseError(CentaurTestException(message, testDefinition, workflow))
           }
         } yield mappedStatus
@@ -223,7 +223,7 @@ object Operations {
             case s if s == expectedStatus => IO.pure(workflow)
             case s: TerminalStatus =>
               CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus"
+                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id})"
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ => for {
@@ -272,7 +272,7 @@ object Operations {
           result <- if (!(done && aborted)) {
             CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
               val message = s"Underlying JES job was not aborted properly. " +
-                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}"
+                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")} (workflow ID: ${workflow.id})"
               IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
             }
           } else IO.unit

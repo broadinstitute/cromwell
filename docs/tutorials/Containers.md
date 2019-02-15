@@ -285,72 +285,12 @@ For further information on the Singularity Cache, refer to the [Singularity 2 ca
 
 [udocker](https://github.com/indigo-dc/udocker) is a tool designed to "execute simple docker containers in user space without requiring root privileges".
 
-<<<<<<< HEAD
-udocker is a user-installable tool that allows the execution of docker containers in non-privileged environments. Similar to Singuarlity, it will need to be available on the worker node.
-
-As of writing this tutorial ([udocker 1.1.3](https://github.com/indigo-dc/udocker/releases/tag/v1.1.3)), there was no support for [docker digests](https://github.com/indigo-dc/udocker/issues/112). For this reason, docker hash-lookup will need to be disabled, this will disable call caching for [floating tags](https://github.com/broadinstitute/cromwell/pull/4039#issuecomment-454829890).
-
-##### Local
-
-For a local configuration, it is enough to use a docker-submit string to start singularity, ie:
-
-```HOCON
-include required(classpath("application"))
-
-docker.hash-lookup.enabled = false
-
-backend {
-  default: singularity
-  providers: {
-    singularity {
-      # The backend custom configuration.
-      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
-
-      config {
-        run-in-background = true
-        runtime-attributes = """
-          String? docker
-          String? docker_user
-        """
-        submit-docker = """
-          udocker run ${"--user " + docker_user} --rm -v ${cwd}:${docker_cwd} ${docker} ${script}
-        """
-      }
-    }
-  }
-}
-```
-
-##### Job Scheduler
-
-Similar to Singularity, the premise when running udocker on job schedulers is to include a udocker run command as part of the wrapped command. As HPCs often don't have internet access on worker nodes, some work is required to allow the head node to pull a container so that the worker nodes don't have to.
-
-If you're familiar with `udocker`, please contribute (or complete the following) configuration:
-
-```bash
-export UDOCKER_CACHEDIR=/path/to/udocker_cache
-# ensure udocker is loaded or in path
-IMAGE=/path/to/docker_location/${docker}
-# ask udocker to pull ${docker}, and store in UDOCKER_CACHEDIR
-udocker pull ${docker}
-sbatch -J ${job_name} -D ${cwd} -o ${cwd}/execution/stdout -e ${cwd}/execution/stderr ${"-p " + queue} \
-  -t ${runtime_minutes} ${"-c " + cpus} --mem-per-cpu=${requested_memory_mb_per_core} \
-  --wrap "udocker run ${"--user " + docker_user} --rm -v ${cwd}:${docker_cwd} ${docker} ${script}"
-```
-
-##### Limitations
-
-udocker will not be able to perform tasks that require elevated privileges, some of these operations are provided in their [documentation](https://github.com/indigo-dc/udocker#Limitations).
-
-### Enforcing container requirements
-=======
 In essence, udocker provides a command line interface that mimics `docker`, and implements the commands using one of four different container backends:
 
 * PRoot
 * Fakechroot
 * runC
 * Singularity
->>>>>>> 0f38ef79a... Elaborate on uDocker, advanced config, best practices
 
 #### Installation
 udocker can be installed without any kind of root permissions. Refer to the installation documentation [here](https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md).
@@ -364,11 +304,7 @@ submit-docker = """
 """
 ```
 
-<<<<<<< HEAD
-Cromwell uses the presence of an `rc` file in the execution directory or the contents of the `stderr` to determine a task's status. If you're job fails before starting, or during the startup of a container, it's likely that Cromwell will hang and fail to correctly report this error.
-=======
 With a job queue like SLURM, you just need to wrap this script in an `sbatch` submission like we did with Singularity:
->>>>>>> 0f38ef79a... Elaborate on uDocker, advanced config, best practices
 
 ```
 submit-docker = """

@@ -22,7 +22,7 @@ import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, Running, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import spray.json.JsString
@@ -171,10 +171,50 @@ object Operations {
   }
 
   /**
-    * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
-    * stops with a failure.
+    * Polls until a valid status is reached.
+    * If an unexpected status returned, the polling stops with a failure.
+    * If none of the expected statuses are returned in time, the polling stops with a failure.
     */
-  def pollUntilStatus(workflow: SubmittedWorkflow, testDefinition: Workflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+  def expectSomeProgress(workflow: SubmittedWorkflow,
+                         testDefinition: Workflow,
+                         expectedStatuses: Set[WorkflowStatus],
+                         timeout: FiniteDuration): Test[SubmittedWorkflow] = {
+    new Test[SubmittedWorkflow] {
+      def status(remainingTimeout: FiniteDuration): IO[SubmittedWorkflow] = {
+        for {
+          workflowStatus <- CentaurCromwellClient.status(workflow)
+          mappedStatus <- workflowStatus match {
+            case s if expectedStatuses.contains(s) => IO.pure(workflow)
+            case s: TerminalStatus =>
+              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+                val message = s"Unexpected terminal status $s while waiting for one of ${expectedStatuses.mkString(", ")}"
+                IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
+              }
+            case _ if remainingTimeout > 0.seconds =>
+              for {
+                _ <- IO.sleep(10.seconds)
+                s <- status(remainingTimeout - 10.seconds)
+              } yield s
+            case other =>
+              val message = s"Cromwell failed to progress ${workflow.id} into any of the statuses ${expectedStatuses.mkString(", ")}. Was still $other after $timeout"
+              IO.raiseError(CentaurTestException(message, testDefinition, workflow))
+          }
+        } yield mappedStatus
+      }
+
+
+      override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
+    }
+  }
+
+  /**
+    * Polls until a specific status is reached.
+    * If a terminal status which wasn't expected is returned, the polling stops with a failure.
+    * If the workflow does not become either (a) Running or (b) terminal within 1 minute, the polling stops with a failure.
+    */
+  def pollUntilStatus(workflow: SubmittedWorkflow,
+                      testDefinition: Workflow,
+                      expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       def status: IO[SubmittedWorkflow] = {
         for {
@@ -195,7 +235,14 @@ object Operations {
       }
 
 
-      override def run: IO[SubmittedWorkflow] = status.timeout(CentaurConfig.maxWorkflowLength)
+      override def run: IO[SubmittedWorkflow] = {
+        val doTheThing: IO[SubmittedWorkflow] = for {
+          _ <- expectSomeProgress(workflow, testDefinition, Set(Running, expectedStatus), 1.minute).run
+          submittedWorkflow <- status
+        } yield submittedWorkflow
+
+        doTheThing.timeout(CentaurConfig.maxWorkflowLength)
+      }
     }
   }
 

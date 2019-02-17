@@ -4,7 +4,7 @@ Containers are self-contained software archives, that hold everything from the t
  
 Best Practise WDL and CWL define containers for their tasks to run in, to ensure reproducibility and portability - that running the same task on a different system will run the exact same software. 
 
-Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell supports a number of alternatives
+Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell can be configured to support a number of alternatives.
 
 ### Prerequisites
 This tutorial page relies on completing the previous tutorials:
@@ -18,6 +18,8 @@ This tutorial page relies on completing the previous tutorials:
 At the end of this tutorial, you'll become familiar with container technologies and how to configure Cromwell to use these independently, or with job schedulers.
 
 We'll discuss:
+
+[//]: # (These are external links, but I think they may look like TOC references.)
 
 * [Docker](https://www.docker.com)
 * [Singularity](https://www.sylabs.io/docs/)
@@ -65,7 +67,7 @@ requirements:
     DockerRequirement:
         dockerPull: "ubuntu:latest"
 ``` 
-
+___
 ### Docker
 
 [Docker](https://www.docker.com) is a popular container technology that is natively supported by Cromwell and WDL.
@@ -73,21 +75,23 @@ requirements:
 
 #### Docker on a Local Backend
 
-On a single machine (laptop or server), no extra configuration is needed to allow docker to run, provided Docker is installed.
+On a single machine (laptop or server), no extra configuration is needed to allow docker to run provided Docker is installed.
 
 You can install Docker for Linux, Mac or Windows from [Docker Hub](https://hub.docker.com/search/?type=edition&offering=community)
 
 #### Docker on Cloud
 
-It is strongly advised that you use Docker images on Cloud backends, because most cloud backends require Docker images to run.
+It is strongly advised that you provider Docker tags to tasks that will run on Cloud backends, and in fact most Cloud providers require it.
 
-It might be possible to use an alternative container engine, but this is not recommended if Docker is available.
+It might be possible to use an alternative container engine, but this is not recommended if Docker is supported.
 
 #### Docker on HPC
 
 Docker can allow running users to gain superuser privileges, called the [Docker daemon attack surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). In HPC and multi-user environments, Docker recommends that "only trusted users should be allowed to control your Docker Daemon".
 
 For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that uses docker containers; Singularity or udocker.
+
+___
 
 ### Singularity
 
@@ -280,7 +284,7 @@ export SINGULARITY_CACHEDIR=/path/to/shared/cache
 ```
 
 For further information on the Singularity Cache, refer to the [Singularity 2 caching documentation](https://www.sylabs.io/guides/2.6/user-guide/build_environment.html#cache-folders) (this hasn't yet been updated for Singularity 3)
-
+___
 ### udocker
 
 [udocker](https://github.com/indigo-dc/udocker) is a tool designed to "execute simple docker containers in user space without requiring root privileges".
@@ -293,12 +297,15 @@ In essence, udocker provides a command line interface that mimics `docker`, and 
 * Singularity
 
 #### Installation
-udocker can be installed without any kind of root permissions. Refer to the installation documentation [here](https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md).
+udocker can be installed without any kind of root permissions. Refer to udocker's installation documentation [here](https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md) for more information.
 
 #### Configuration
 
-`udocker` mimics the `docker` command-line interface, so all you need to do to configure it is set the `submit-docker` configuration to something like this:
+(As of [2019-02-18](https://github.com/indigo-dc/udocker/issues/112)) udocker does not support looking up docker container by digests, hence you'll have to make ensure `hash-lookup` is disabled. Refer to [this section](#docker-digests) for more detail.
+
+To configure `udocker` to work in a local environment, you must tag the provider's configuration to `run-in-background` and update the `submit-docker` to use udocker:
 ```
+run-in-background = true
 submit-docker = """
     udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${script}
 """
@@ -323,9 +330,6 @@ submit-docker = """
 """
 ```
 
-In addition, to run `udocker`, you'll have to make sure `hash-lookup` is disabled.
-Refer to [this section](#docker-digests) for more detail.
-
 ### Configuration in Detail
 The behaviour of Cromwell with containers can be modified using a few other options.
 
@@ -338,6 +342,7 @@ However note that some interpolated variables (`${stdout}`, `${stderr}`) are dif
 
 Each Docker repository has a number of tags that can be used to refer to the latest image of a particular type. 
 For instance, when you run a normal Docker image with `docker run image`, it will actually run `image:latest`, the `latest` tag of that image.
+
 However, by default Cromwell requests and runs images using their `sha` hash, rather than using tags.
 This strategy is actually preferable, because it ensures every execution of the task or workflow will use the exact same version of the image, but some engines such as `udocker` don't support this feature.
 
@@ -345,6 +350,8 @@ If you are using `udocker` or want to enable the use of hash-based image referen
 ```
 docker.hash-lookup.enabled = false
 ```
+
+Nb: By disabling hash-lookup, call caching will not work for any container using a floating tag.
 
 #### Docker Root
 If you want to change the root directory inside your containers, where the task places input and output files, you can edit the following option:
@@ -370,7 +377,7 @@ backend {
 
 #### Docker Config Block
 Further docker configuration options available to be put into your config file are as follows. 
-For the latest list of parameters, refer to [this example configuration](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf)
+For the latest list of parameters, refer to the [example configurations](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) file.
 ```
 docker {
   hash-lookup {
@@ -413,3 +420,30 @@ runtime {
 
 You can find the `sha256` of an image using `docker images --digests`
  
+ 
+### Notes
+
+#### How does Cromwell know when a job or container has completed?
+Cromwell uses the presence of the `rc` (returncode) file to determine whether a task has succeeded or failed. This `rc` file is generated as part of the `script` within the execution directory, where the script is assembled at runtime. This is important as if the script executes successfully but the container doesn't terminate, Cromwell will continue the execution of the workflow and the container will persist hogging system resources.
+
+Within the two configurations above:
+- `singularity`: The exec mode does not run a container on the background
+- `udocker`: the `--rm` flag is included so that the container is terminated after execution script.
+
+#### Cromwell: Run-in-background
+
+By enabling Cromwell's run-in-background mode, you remove the necessity for the `kill`, `check-alive` and `job-id-regex` blocks, which disables some safety checks when running workflows:
+
+- If there is an error starting the container or executing the script, Cromwell may not recognise this error and hang.
+- If you abort the workflow (by attempting to close Cromwell or issuing an abort command), Cromwell does not have a reference to the job and will not be able to execute the container.
+
+This is only necessary in local environments where there is no job manager to control this, however if your container technology can emit an identifier to stdout, then you are able to remove the run-in-background flag. Note that the check-alive block is not called to check a job-status, rather Cromwell looks for the presence of an `rc` file (see the previous section for more information).
+
+
+### Next Steps
+
+Congratulations for improving the reproducibility of you workflows! You might find the following cloud-based tutorials interesting to test your workflows (and ensure the same results) in a completely different environment:
+
+- [Getting started with AWS Batch](AwsBatch101.md)
+- [Getting started on Google Pipelines API](PipelinesApi101.md)
+- [Getting started on Alibaba Cloud](BCSIntro/)

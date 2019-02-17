@@ -75,13 +75,13 @@ ___
 
 #### Docker on a Local Backend
 
-On a single machine (laptop or server), no extra configuration is needed to allow docker to run provided Docker is installed.
+On a single machine (laptop or server), no extra configuration is needed to allow docker to run, provided Docker is installed.
 
 You can install Docker for Linux, Mac or Windows from [Docker Hub](https://hub.docker.com/search/?type=edition&offering=community)
 
 #### Docker on Cloud
 
-It is strongly advised that you provider Docker tags to tasks that will run on Cloud backends, and in fact most Cloud providers require it.
+It is strongly advised that you provide Docker tags to tasks that will run on Cloud backends, and in fact most Cloud providers require it.
 
 It might be possible to use an alternative container engine, but this is not recommended if Docker is supported.
 
@@ -434,7 +434,7 @@ Within the two configurations above:
 
 By enabling Cromwell's run-in-background mode, you remove the necessity for the `kill`, `check-alive` and `job-id-regex` blocks, which disables some safety checks when running workflows:
 
-- If there is an error starting the container or executing the script, Cromwell may not recognise this error and hang.
+- If there is an error starting the container or executing the script, Cromwell may not recognise this error and hang. For example, this may occur if the container attempts to exceed its allocated resources (runs out of memory); the container daemon may terminate the container without completing the script.
 - If you abort the workflow (by attempting to close Cromwell or issuing an abort command), Cromwell does not have a reference to the job and will not be able to execute the container.
 
 This is only necessary in local environments where there is no job manager to control this, however if your container technology can emit an identifier to stdout, then you are able to remove the run-in-background flag. Note that the check-alive block is not called to check a job-status, rather Cromwell looks for the presence of an `rc` file (see the previous section for more information).

@@ -6,6 +6,35 @@ Best Practise WDL and CWL define containers for their tasks to run in, to ensure
 
 Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell can be configured to support a number of alternatives.
 
+* [Prerequisites](#prerequisites)
+* [Goals](#goals)
+* [Specifying Containers in your Workflow](#specifying-containers-in-your-workflow)
+* [Docker](#docker)
+    * [Docker on a Local Backend](#docker-on-a-local-backend)
+    * [Docker on Cloud](#docker-on-cloud)
+    * [Docker on HPC](#docker-on-hpc)
+* [Singularity](#singularity)
+    * [Installation](#installation)
+    * [Configuring Cromwell for Singularity](#configuring-cromwell-for-singularity)
+        * [Local environments](#local-environments)
+        * [Job schedulers](#job-schedulers)
+    * [Without Setuid](#without-setuid)
+    * [Singularity Cache](#singularity-cache)
+* [udocker](#udocker)
+    * [Installation](#installation-1)
+    * [Configuration](#configuration)
+* [Configuration in Detail](#configuration-in-detail)
+    * [Enforcing container requirements](#enforcing-container-requirements)
+    * [Docker Digests](#docker-digests)
+    * [Docker Root](#docker-root)
+    * [Docker Config Block](#docker-config-block)
+* [Best Practices](#best-practices)
+    * [Image Versions](#image-versions)
+* [Notes](#notes)
+    * [How does Cromwell know when a job or container has completed?](#how-does-cromwell-know-when-a-job-or-container-has-completed)
+    * [Cromwell: Run-in-background](#cromwell-run-in-background)
+* [Next Steps](#next-steps)
+
 ### Prerequisites
 This tutorial page relies on completing the previous tutorials:
 
@@ -17,13 +46,6 @@ This tutorial page relies on completing the previous tutorials:
 
 At the end of this tutorial, you'll become familiar with container technologies and how to configure Cromwell to use these independently, or with job schedulers.
 
-We'll discuss:
-
-[//]: # (These are external links, but I think they may look like TOC references.)
-
-* [Docker](https://www.docker.com)
-* [Singularity](https://www.sylabs.io/docs/)
-* [udocker](https://github.com/indigo-dc/udocker)
 
 ### Specifying Containers in your Workflow
 

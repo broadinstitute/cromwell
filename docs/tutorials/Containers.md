@@ -121,12 +121,10 @@ Singularity is a container engine designed for use on HPC systems in particular,
 
 #### Installation
 Before you can configure Cromwell on your HPC system, you (or your sysadmin) will have to install Singularity, which is documented [here](https://www.sylabs.io/guides/3.0/admin-guide/admin_quickstart.html#installation).
-
-When installing Singularity, your admins have to make a decision: do they grant `setuid` to the Singularity binary or not?
-[As is documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it), Singularity can run either using "sandbox" containers, or using proper image files.
-However, unless `setuid` is set, you are restricted to using sandbox images, which come with a number of downsides.
-If you can't convince Singularity can be trusted with `setuid`, don't fear, Cromwell will still work.
-However, this is not ideal, so you might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
+Installation of Singularity doesn't require root, but to access the full features of Singularity, such as the use of its preferred image format, the Singularity binary must be owned by root, with the `setuid` bit enabled.
+This is [documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it).
+If you do not give Singularity these privileges, you are restricted to using sandbox images, which come with a number of downsides.
+Because this is not an ideal way to run Singularity, you might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
 
 #### Configuring Cromwell for Singularity
 
@@ -351,6 +349,12 @@ submit-docker = """
       --wrap "udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${script}"
 """
 ```
+
+#### Caching
+udocker caches images in a single directory, which defaults to [`~/.udocker`](https://github.com/indigo-dc/udocker/blob/master/udocker.py#L137), meaning that caching is done on a per-user basis. 
+However, like Singularity, if you want to share a cache with other users in your project,you you can override the location of the udocker cache directory either using:
+* A config file [described here](https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#9-configuration), containing a line such as `topdir = "/path/to/cache"`.
+* Using the environment variable `$UDOCKER_DIR`
 
 ### Configuration in Detail
 The behaviour of Cromwell with containers can be modified using a few other options.

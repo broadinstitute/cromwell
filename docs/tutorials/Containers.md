@@ -103,7 +103,7 @@ You can install Docker for Linux, Mac or Windows from [Docker Hub](https://hub.d
 
 #### Docker on Cloud
 
-It is strongly advised that you provide Docker tags to tasks that will run on Cloud backends, and in fact most Cloud providers require it.
+It is strongly advised that you provide a Docker image to tasks that will run on Cloud backends, and in fact most Cloud providers require it.
 
 It might be possible to use an alternative container engine, but this is not recommended if Docker is supported.
 
@@ -464,7 +464,6 @@ By enabling Cromwell's run-in-background mode, you remove the necessity for the 
 - If you abort the workflow (by attempting to close Cromwell or issuing an abort command), Cromwell does not have a reference to the job and will not be able to execute the container.
 
 This is only necessary in local environments where there is no job manager to control this, however if your container technology can emit an identifier to stdout, then you are able to remove the run-in-background flag. Note that the check-alive block is not called to check a job-status, rather Cromwell looks for the presence of an `rc` file (see the previous section for more information).
-
 
 ### Next Steps
 

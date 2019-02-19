@@ -1,7 +1,7 @@
 ## Containers
 
 Containers are self-contained software archives, that hold everything from the tool you want to run, to libraries and runtimes it requires, and the operating system it runs on.
- 
+
 Best Practise WDL and CWL define containers for their tasks to run in, to ensure reproducibility and portability - that running the same task on a different system will run the exact same software. 
 
 Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell can be configured to support a number of alternatives.
@@ -23,6 +23,7 @@ Docker images are the most common container format, but it is not advisable for 
 * [udocker](#udocker)
     * [Installation](#installation-1)
     * [Configuration](#configuration)
+    * [Caching](#caching)
 * [Configuration in Detail](#configuration-in-detail)
     * [Enforcing container requirements](#enforcing-container-requirements)
     * [Docker Digests](#docker-digests)
@@ -64,7 +65,6 @@ task hello_world {
         docker: 'ubuntu:latest'
     }
 }
-
 workflow hello {
     call hello_world
 }
@@ -84,7 +84,6 @@ inputs:
           prefix: "Hello, "
 outputs:
     out: stdout
-
 requirements:
     DockerRequirement:
         dockerPull: "ubuntu:latest"
@@ -146,14 +145,12 @@ As the Singularity container does not emit a job-id, we must include the `run-in
 Putting this together, we have an example base configuration for a local environment:
 ```hocon
 include required(classpath("application"))
-
 backend {
     default: singularity
     providers: {
         singularity {
             # The backend custom configuration.
             actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
-
             config {
                 run-in-background = true
                 runtime-attributes = """
@@ -215,7 +212,6 @@ Putting this all together, a complete SLURM + Singularity config might look like
 ```
 backend {
   default = slurm
-
   providers {
     slurm {
       actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"                                                                                     
@@ -226,7 +222,6 @@ backend {
         Int requested_memory_mb_per_core = 8000
         String? docker
         """
-
         submit = """
             sbatch \
               --wait \
@@ -239,7 +234,6 @@ backend {
               --mem-per-cpu=${requested_memory_mb_per_core} \
               --wrap "/bin/bash ${script}"
         """
-
         submit-docker = """
             # Ensure singularity is loaded if it's installed as a module
             module load Singularity/3.0.1
@@ -247,7 +241,6 @@ backend {
             # Build the Docker image into a singularity image
             IMAGE=${cwd}/${docker}.sif
             singularity build $IMAGE docker://${docker}
-
             # Submit the script to SLURM
             sbatch \
               --wait \
@@ -260,7 +253,6 @@ backend {
               --mem-per-cpu=${requested_memory_mb_per_core} \
               --wrap "singularity exec --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
         """
-
         kill = "scancel ${job_id}"
         check-alive = "squeue -j ${job_id}"
         job-id-regex = "Submitted batch job (\\d+).*"
@@ -277,12 +269,10 @@ In addition, if you or your sysadmins were not able to give `setuid` permissions
 ```
 submit-docker = """
     [...]
-
     # Build the Docker image into a singularity image
     # We don't add the .sif file extension because sandbox images are directories, not files
     IMAGE=${cwd}/${docker}
     singularity build --sandbox $IMAGE docker://${docker}
-
     # Now submit the job
     # Note the use of --userns here
     sbatch \
@@ -409,13 +399,10 @@ docker {
   hash-lookup {
     # Set this to match your available quota against the Google Container Engine API
     #gcr-api-queries-per-100-seconds = 1000
-
     # Time in minutes before an entry expires from the docker hashes cache and needs to be fetched again
     #cache-entry-ttl = "20 minutes"
-
     # Maximum number of elements to be kept in the cache. If the limit is reached, old elements will be removed from the cache
     #cache-size = 200
-
     # How should docker hashes be looked up. Possible values are "local" and "remote"
     # "local": Lookup hashes on the local docker daemon using the cli
     # "remote": Lookup hashes on docker hub and gcr
@@ -445,7 +432,6 @@ runtime {
 ```
 
 You can find the `sha256` of an image using `docker images --digests`
- 
  
 ### Notes
 

@@ -167,8 +167,12 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.getWorkflowLabels(id.toString)
   }
 
-  def workflowExistsWithId(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+  def workflowWithIdExistsInMetadata(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     metadataDatabaseInterface.metadataEntryExists(possibleWorkflowId)
+  }
+
+  def workflowWithIdExistsInMetadataSummaries(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
+    metadataDatabaseInterface.metadataSummaryEntryExists(possibleWorkflowId)
   }
 
   def queryWorkflowSummaries(queryParameters: WorkflowQueryParameters)

@@ -57,6 +57,9 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def metadataEntryExists(workflowExecutionUuid: String)
                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    override def metadataSummaryEntryExists(workflowExecutionUuid: String)
+                                           (implicit ec: ExecutionContext): Nothing = notImplemented()
+
     override def queryMetadataEntries(workflowExecutionUuid: String)
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 

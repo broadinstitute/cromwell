@@ -152,7 +152,7 @@ trait CromwellApiService extends HttpInstrumentation {
     } ~
     path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
       instrumentRequest {
-        onComplete(validateWorkflowId(possibleWorkflowId)) {
+        onComplete(validateWorkflowIdInMetadata(possibleWorkflowId)) {
           case Success(_) => getFromResource("workflowTimings/workflowTimings.html")
           case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
         }
@@ -198,7 +198,7 @@ trait CromwellApiService extends HttpInstrumentation {
           instrumentRequest {
             Labels.validateMapOfLabels(parameterMap) match {
               case Valid(labels) =>
-                val response = validateWorkflowId(possibleWorkflowId) flatMap { id =>
+                val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId) flatMap { id =>
                   val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
                   lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
                 }
@@ -238,7 +238,7 @@ trait CromwellApiService extends HttpInstrumentation {
   path("workflows" / Segment / Segment / "releaseHold") { (_, possibleWorkflowId) =>
     post {
       instrumentRequest {
-        val response = validateWorkflowId(possibleWorkflowId) flatMap { workflowId =>
+        val response = validateWorkflowIdInMetadata(possibleWorkflowId) flatMap { workflowId =>
           workflowStoreActor.ask(WorkflowStoreActor.WorkflowOnHoldToSubmittedCommand(workflowId)).mapTo[WorkflowStoreEngineActor.WorkflowOnHoldToSubmittedResponse]
         }
         onComplete(response){
@@ -311,10 +311,22 @@ trait CromwellApiService extends HttpInstrumentation {
     }
   }
 
-  private def validateWorkflowId(possibleWorkflowId: String): Future[WorkflowId] = {
+  private def validateWorkflowIdInMetadata(possibleWorkflowId: String): Future[WorkflowId] = {
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowId(w)).mapTo[WorkflowValidationResponse] map {
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] map {
+          case RecognizedWorkflowId => w
+          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
+          case FailedToCheckWorkflowId(t) => throw t
+        }
+      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
+    }
+  }
+
+  def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: String): Future[WorkflowId] = {
+    Try(WorkflowId.fromString(possibleWorkflowId)) match {
+      case Success(w) =>
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadataSummaries(w)).mapTo[WorkflowValidationResponse] map {
           case RecognizedWorkflowId => w
           case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
           case FailedToCheckWorkflowId(t) => throw t
@@ -326,7 +338,7 @@ trait CromwellApiService extends HttpInstrumentation {
   private lazy val metadataBuilderRegulatorActor = actorRefFactory.actorOf(MetadataBuilderRegulatorActor.props(serviceRegistryActor))
 
   private def metadataBuilderRequest(possibleWorkflowId: String, request: WorkflowId => ReadAction): Route = {
-    val response = validateWorkflowId(possibleWorkflowId) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+    val response = validateWorkflowIdInMetadata(possibleWorkflowId) flatMap { w => metadataBuilderRegulatorActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
 
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.response)

@@ -49,6 +49,13 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry)
 
+  val workflowMetadataSummaryEntryExistsForWorkflowExecutionUuid = Compiled(
+    (workflowExecutionUuid: Rep[String]) => (for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if summaryEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield summaryEntry).exists
+  )
+
   val workflowStatusesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries

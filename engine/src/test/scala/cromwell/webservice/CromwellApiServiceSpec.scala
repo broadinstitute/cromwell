@@ -734,13 +734,35 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           actualResult shouldBe expectedResults
         }
     }
+
+    it should "fail when assigning valid labels to an unsummarized workflow ID" in {
+      val validLabelsJson =
+        """
+          |{
+          |  "label-key-1":"label-value-1",
+          |  "label-key-2":"label-value-2"
+          |}
+        """.stripMargin
+
+      val unsummarizedId = CromwellApiServiceSpec.ExistingWorkflowId
+      Patch(s"/workflows/$version/$unsummarizedId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+        akkaHttpService.workflowRoutes ~>
+        check {
+          status shouldBe StatusCodes.NotFound
+        }
+
+    }
 }
 
 object CromwellApiServiceSpec {
   val ExistingWorkflowId = WorkflowId.fromString("c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5")
   val AbortedWorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
   val UnrecognizedWorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId)
+
+  val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
+  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, SummarizedWorkflowId)
+  val SummarizedWorkflowIds = Set(SummarizedWorkflowId)
+
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -788,8 +810,11 @@ object CromwellApiServiceSpec {
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
           None, Some(WorkflowSucceeded.toString), None, None, None, labels, parentWorkflowId)), 1), None)
         sender ! response
-      case ValidateWorkflowId(id) =>
+      case ValidateWorkflowIdInMetadata(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
+        else sender ! MetadataService.UnrecognizedWorkflowId
+      case ValidateWorkflowIdInMetadataSummaries(id) =>
+        if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
       case GetCurrentStatus =>
         sender ! StatusCheckResponse(
@@ -808,6 +833,7 @@ object CromwellApiServiceSpec {
       case PutMetadataActionAndRespond(events, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
+          case CromwellApiServiceSpec.SummarizedWorkflowId => sender ! MetadataWriteSuccess(events)
           case CromwellApiServiceSpec.AbortedWorkflowId => sender ! MetadataWriteFailure(new Exception("mock exception of db failure"), events)
           case WorkflowId(_) => throw new Exception("Something untoward happened, this situation is not believed to be possible at this time")
         }

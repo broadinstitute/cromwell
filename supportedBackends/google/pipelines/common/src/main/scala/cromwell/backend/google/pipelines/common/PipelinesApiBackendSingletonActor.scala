@@ -17,7 +17,7 @@ final case class PipelinesApiBackendSingletonActor(qps: Int Refined Positive, re
   override def receive = {
     case abort: BackendSingletonActorAbortWorkflow => jesApiQueryManager.forward(abort)
     case apiQuery: PAPIApiRequest =>
-      log.debug("Forwarding API query to JES API query manager actor")
+      log.debug("Forwarding API query to PAPI request manager actor")
       jesApiQueryManager.forward(apiQuery)
   }
 }

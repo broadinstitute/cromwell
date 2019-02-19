@@ -328,7 +328,7 @@ To configure `udocker` to work in a local environment, you must tag the provider
 ```
 run-in-background = true
 submit-docker = """
-    udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${script}
+    udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}
 """
 ```
 
@@ -347,7 +347,7 @@ submit-docker = """
       -t ${runtime_minutes} \
       ${"-c " + cpus} \
       --mem-per-cpu=${requested_memory_mb_per_core} \
-      --wrap "udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${script}"
+      --wrap "udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}"
 """
 ```
 

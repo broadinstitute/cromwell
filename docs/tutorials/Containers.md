@@ -335,6 +335,8 @@ However, like Singularity, if you want to share a cache with other users in your
 * A config file [described here](https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#9-configuration), containing a line such as `topdir = "/path/to/cache"`.
 * Using the environment variable `$UDOCKER_DIR`
 
+___
+
 ### Configuration in Detail
 The behaviour of Cromwell with containers can be modified using a few other options.
 
@@ -446,7 +448,7 @@ This is only necessary in local environments where there is no job manager to co
 
 ### Next Steps
 
-Congratulations for improving the reproducibility of you workflows! You might find the following cloud-based tutorials interesting to test your workflows (and ensure the same results) in a completely different environment:
+Congratulations for improving the reproducibility of your workflows! You might find the following cloud-based tutorials interesting to test your workflows (and ensure the same results) in a completely different environment:
 
 - [Getting started with AWS Batch](AwsBatch101.md)
 - [Getting started on Google Pipelines API](PipelinesApi101.md)

@@ -15,7 +15,7 @@ The default, `0`, means that no logging will occur.
 
 Previous versions of Cromwell incorporated the name of the backend on which a call was run into the call cache hashes generated for that call.
 Unfortunately this made it impossible to change the name of a backend without losing all previously run calls as potential cache hits.
-Cromwell 37 introduces the `name-for-call-caching-purposes` backend configuration option as a means of decoupling the backend name from the
+Cromwell 36.1 introduces the `name-for-call-caching-purposes` backend configuration option as a means of decoupling the backend name from the
 value used for the backend name for call caching purposes.
 
 ### Docker

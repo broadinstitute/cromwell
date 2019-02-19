@@ -1,8 +1,8 @@
 ## Containers
 
-Containers are self-contained software archives, that hold everything from the tool you want to run, to libraries and runtimes it requires, and the operating system it runs on.
+Containers are encapsulated environments that include an operating system, libraries, and software. For example, if you have a host machine running Centos, you can run an isolated container with Ubuntu 18.04. At a high level, it's useful to think of a container as a program or binary.
  
-Best Practise WDL and CWL define containers for their tasks to run in, to ensure reproducibility and portability - that running the same task on a different system will run the exact same software. 
+To promote reproducibility and portability, it's considered best practice to define containers for a WDL and CWL task to run in - this ensures that running the same task on a different system will run the exact same software. 
 
 Docker images are the most common container format, but it is not advisable for certain systems to run Docker itself, and for this reason Cromwell can be configured to support a number of alternatives.
 
@@ -15,11 +15,11 @@ Docker images are the most common container format, but it is not advisable for 
     * [Docker on HPC](#docker-on-hpc)
 * [Singularity](#singularity)
     * [Installation](#installation)
+    * [Singularity Cache](#singularity-cache)
     * [Configuring Cromwell for Singularity](#configuring-cromwell-for-singularity)
         * [Local environments](#local-environments)
         * [Job schedulers](#job-schedulers)
     * [Without Setuid](#without-setuid)
-    * [Singularity Cache](#singularity-cache)
 * [udocker](#udocker)
     * [Installation](#installation-1)
     * [Configuration](#configuration)
@@ -50,7 +50,7 @@ At the end of this tutorial, you'll become familiar with container technologies 
 
 ### Specifying Containers in your Workflow
 
-Containers are specified on a per-task level, this can be achieved in WDL by specifying a [`docker`](https://github.com/openwdl/wdl/blob/master/versions/1.0/SPEC.md#docker) tag in the `runtime` section. For example, specifying that the following WDL script should use the container `ubuntu:latest` can be achieved by:
+Containers are specified on a per-task level, this can be achieved in WDL by specifying a [`docker`](https://github.com/openwdl/wdl/blob/master/versions/1.0/SPEC.md#docker) tag in the `runtime` section. For example, the following script should run in the `ubuntu:latest` container:
 
 ```wdl
 task hello_world {
@@ -112,37 +112,44 @@ It might be possible to use an alternative container engine, but this is not rec
 
 Docker can allow running users to gain superuser privileges, called the [Docker daemon attack surface](https://docs.docker.com/engine/security/security/#docker-daemon-attack-surface). In HPC and multi-user environments, Docker recommends that "only trusted users should be allowed to control your Docker Daemon".
 
-For this reason it's worth exploring other technologies that will support the reproducibility and simplicity of running a workflow that uses docker containers; Singularity or udocker.
+For this reason, this tutorial will also explore other technologies that support the reproducibility and simplicity of running a workflow that use docker containers; Singularity and udocker.
 
 ___
 
 ### Singularity
 
-Singularity is a container engine designed for use on HPC systems in particular, while ensuring an appropriate level of security that Docker cannot provide.
+Singularity is a container technology designed for use on HPC systems in particular, while ensuring an appropriate level of security that Docker cannot provide.
 
 #### Installation
-Before you can configure Cromwell on your HPC system, you (or your sysadmin) will have to install Singularity, which is documented [here](https://www.sylabs.io/guides/3.0/admin-guide/admin_quickstart.html#installation).
-Installation of Singularity doesn't require root, but to access the full features of Singularity, such as the use of its preferred image format, the Singularity binary must be owned by root, with the `setuid` bit enabled.
-This is [documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it).
-If you do not give Singularity these privileges, you are restricted to using sandbox images, which come with a number of downsides.
-Because this is not an ideal way to run Singularity, you might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
+Before you can configure Cromwell on your HPC system, you (or your sysadmin) will have to install Singularity, which is documented [here](https://www.sylabs.io/guides/3.0/admin-guide/admin_quickstart.html#installation). It's recommended to perform an installation with root access to gain access to the full set of features in Singularity. You might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
+
+Although the installation of Singularity doesn't strictly require root, to access the full features of Singularity, such as the use of its preferred image format, the Singularity binary must be owned by root with the `setuid` bit enabled ([documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it)).
+
+#### Singularity Cache
+By default, Singularity will cache the Docker images you pull in `~/.singularity`, your home directory.
+
+However, if you are sharing your Docker images with other users or have limited space in your user directory, you can redirect this caching location by exporting the `SINGULARITY_CACHEDIR` variable in your `.bashrc` or at the start of the `submit-docker` block.
+```
+export SINGULARITY_CACHEDIR=/path/to/shared/cache
+```
+
+For further information on the Singularity Cache, refer to the [Singularity 2 caching documentation](https://www.sylabs.io/guides/2.6/user-guide/build_environment.html#cache-folders) (this hasn't yet been updated for Singularity 3).
 
 #### Configuring Cromwell for Singularity
 
-Once Singularity is installed, the main configuration block you'll need to modify is the `config` block inside `backend.providers` in your Cromwell configuration.
-In particular, this block contains a key called `submit-docker`, which will contain a script that is run whenever a job needs to run that uses a Docker image.
-If the job does not specify a Docker image, then the regular `submit` block will be used instead.
+Once Singularity is installed, you'll need to modify the `config` block inside `backend.providers` in your Cromwell configuration. In particular, this block contains a key called `submit-docker`, which will contain a script that is run whenever a job needs to run that uses a Docker image. If the job does not specify a Docker image, the regular `submit` block will be used.
+
+As the configuration will require more knowledge about your execution environment, see the local and job scheduler sections below for example configurations.
 
 ##### Local environments
 
-On local backends, you have to configure Cromwell to use a different `submit-docker` script that would start Singularity instead of docker.
-Singularity requires docker images to be prefixed with the prefix `docker://`.
+On local backends, you have to configure Cromwell to use a different `submit-docker` script that would start Singularity instead of docker. Singularity requires docker images to be prefixed with the prefix `docker://`.
 An example submit script for Singularity is:
 ```bash
 singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
 ```
 
-As the Singularity container does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
+As the `Singularity exec` command does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
 
 Putting this together, we have an example base configuration for a local environment:
 ```hocon
@@ -171,34 +178,18 @@ backend {
 
 ##### Job schedulers
 
-At its most basic level, if we want to run Singularity on a job scheduler, we need to pass the singularity command to the scheduler as a wrapped command.
-If we were using SLURM, this means we can use all the normal SLURM configuration as explained in the [SLURM documentation](../backends/SLURM). 
-However, our submit script will be a wrapped version of the script above:
-```
-submit-docker = """
-  # Ensure singularity is loaded if it's installed as a module
-  module load Singularity/3.0.1
-  
-  # Submit the script to SLURM
-  sbatch \
-    --wait \
-    -J ${job_name} \
-    -D ${cwd} \
-    -o ${cwd}/execution/stdout \
-    -e ${cwd}/execution/stderr \
-    -t ${runtime_minutes} \
-    ${"-c " + cpus} \
-    --mem-per-cpu=${requested_memory_mb_per_core} \
-    --wrap "singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}"
-  """
-```
+To run Singularity on a job scheduler, the singularity command needs to be passed to the scheduler as a wrapped command.
 
-On some HPC systems, worker nodes do not have stable access to the internet or build access.
-If this is the case, you'll need to pull the Docker image before you actually submit the SLURM job.
+For example, in SLURM, we can use the normal SLURM configuration as explained in the [SLURM documentation](../backends/SLURM), however we'll add a `submit-docker` block to execute when a task is tagged with a docker container. 
+
+When constructing this block, there are a few things to keep in mind:
+- Make sure Singularity is loaded (and in our path), for example you can call `module load Singularity/3.0.1`.
+- We should treat worker nodes as if they do not have stable access to the internet or build access, so we will pull the container before execution of the task.
+- It's a good idea to ask Singularity to build the image into the execution directory of the task as an artifact, and to save rendering time on the worker node.
 
 ```
 submit-docker = """
-    [...]
+    module load Singularity/3.0.1
   
     # Build the Docker image into a singularity image, using the head node
     IMAGE=${cwd}/${docker}.sif
@@ -292,19 +283,6 @@ submit-docker = """
 """
 ```
 
-
-#### Singularity Cache
-By default, Singularity will cache the Docker images you pull in `~/.singularity`, in your home directory.
-
-However, if you are sharing your Docker images with other users, you probably want this cache to exist somewhere that is accessible to everyone.
-
-If you do, you can set the `SINGULARITY_CACHEDIR` variable at the start of your `submit-docker` script, for example:
-
-```
-export SINGULARITY_CACHEDIR=/path/to/shared/cache
-```
-
-For further information on the Singularity Cache, refer to the [Singularity 2 caching documentation](https://www.sylabs.io/guides/2.6/user-guide/build_environment.html#cache-folders) (this hasn't yet been updated for Singularity 3)
 ___
 ### udocker
 
@@ -462,9 +440,9 @@ Within the two configurations above:
 By enabling Cromwell's run-in-background mode, you remove the necessity for the `kill`, `check-alive` and `job-id-regex` blocks, which disables some safety checks when running workflows:
 
 - If there is an error starting the container or executing the script, Cromwell may not recognise this error and hang. For example, this may occur if the container attempts to exceed its allocated resources (runs out of memory); the container daemon may terminate the container without completing the script.
-- If you abort the workflow (by attempting to close Cromwell or issuing an abort command), Cromwell does not have a reference to the job and will not be able to execute the container.
+- If you abort the workflow (by attempting to close Cromwell or issuing an abort command), Cromwell does not have a reference to the container execution and will not be able to terminate the container.
 
-This is only necessary in local environments where there is no job manager to control this, however if your container technology can emit an identifier to stdout, then you are able to remove the run-in-background flag. Note that the check-alive block is not called to check a job-status, rather Cromwell looks for the presence of an `rc` file (see the previous section for more information).
+This is only necessary in local environments where there is no job manager to control this, however if your container technology can emit an identifier to stdout, then you are able to remove the run-in-background flag. 
 
 ### Next Steps
 

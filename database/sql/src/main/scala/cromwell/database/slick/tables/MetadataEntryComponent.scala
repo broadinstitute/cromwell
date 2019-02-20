@@ -135,6 +135,23 @@ trait MetadataEntryComponent {
     } yield metadataEntry
   )
 
+  // This is only used for metadata summary which should not require metadata sorting if rows are committed
+  // with monotonically increasing IDs. The metadata summary logic records the maximum ID it last saw and uses
+  // that last ID + 1 as the minimum ID for the next query iteration.
+  val metadataEntriesForIdInRange = Compiled(
+    (minimumMetadataEntryId: Rep[Long], maximumMetadataEntryId: Rep[Long], startMetadataKey: Rep[String], endMetadataKey: Rep[String], nameMetadataKey: Rep[String],
+     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String], submissionMetadataKey: Rep[String]) => for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.metadataEntryId >= minimumMetadataEntryId
+      if metadataEntry.metadataEntryId < maximumMetadataEntryId
+      if (metadataEntry.metadataKey === startMetadataKey || metadataEntry.metadataKey === endMetadataKey ||
+        metadataEntry.metadataKey === nameMetadataKey || metadataEntry.metadataKey === statusMetadataKey ||
+        metadataEntry.metadataKey.like(likeLabelMetadataKey) || metadataEntry.metadataKey === submissionMetadataKey) &&
+        (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
+          metadataEntry.jobAttempt.isEmpty)
+    } yield metadataEntry
+  )
+
   /**
     * Returns metadata entries that are "like" metadataKeys for the specified workflow.
     * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level

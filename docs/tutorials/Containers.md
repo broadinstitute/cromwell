@@ -121,9 +121,14 @@ ___
 Singularity is a container technology designed for use on HPC systems in particular, while ensuring an appropriate level of security that Docker cannot provide.
 
 #### Installation
-Before you can configure Cromwell on your HPC system, you (or your sysadmin) will have to install Singularity, which is documented [here](https://www.sylabs.io/guides/3.0/admin-guide/admin_quickstart.html#installation). It's recommended to perform an installation with root access to gain access to the full set of features in Singularity. You might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
+Before you can configure Cromwell on your HPC system, you will have to install Singularity, which is documented [here](https://www.sylabs.io/guides/3.0/admin-guide/admin_quickstart.html#installation).
+In order to gain access to the full set of features in Singularity, it is strongly recommended that Singularity is installed by root, with the `setuid` bit enabled, as is ([documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it)).
+This likely means that you will have to ask your sysadmin to install it for you.
+Because `singularity` ideally needs `setuid`, your admins may have some qualms about giving Singularity this privilege.
+If that is the case, you might consider forwarding [this letter](https://www.sylabs.io/guides/3.0/user-guide/installation.html#singularity-on-a-shared-resource) to your admins.
 
-Although the installation of Singularity doesn't strictly require root, to access the full features of Singularity, such as the use of its preferred image format, the Singularity binary must be owned by root with the `setuid` bit enabled ([documented here](https://www.sylabs.io/guides/2.6/admin-guide/security.html#how-does-singularity-do-it)).
+If you are not able to get Singularity installed with these privileges, you can attempt a user install.
+If this is the case, you will have to alter your Cromwell configuration to work in "sandbox" mode, which is explained in [this part](#without-setuid) of the documentation. 
 
 #### Singularity Cache
 By default, Singularity will cache the Docker images you pull in `~/.singularity`, your home directory.

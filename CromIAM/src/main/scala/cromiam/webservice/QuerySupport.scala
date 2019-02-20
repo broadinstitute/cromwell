@@ -11,6 +11,7 @@ import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
 import cromiam.webservice.QuerySupport._
+import cromwell.api.model._
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success, Try}
@@ -30,7 +31,7 @@ trait QuerySupport extends RequestSupport {
         processLabelsForGetQuery(user, collections) { uri =>
           val requestToForward = HttpRequest(HttpMethods.GET, uri, request.headers)
           complete {
-            cromwellClient.forwardToCromwell(requestToForward)
+            cromwellClient.forwardToCromwell(requestToForward).asHttpResponse
           }
         }
       }
@@ -41,7 +42,7 @@ trait QuerySupport extends RequestSupport {
     post {
       preprocessQuery { (user, collections, request) =>
         processLabelsForPostQuery(user, collections) { entity =>
-          complete { cromwellClient.forwardToCromwell(request.withEntity(entity)) }
+          complete { cromwellClient.forwardToCromwell(request.withEntity(entity)).asHttpResponse }
         }
       }
     }
@@ -56,8 +57,10 @@ trait QuerySupport extends RequestSupport {
     extractUserAndRequest tflatMap { case (user, cromIamRequest) =>
       log.info("Received query " + cromIamRequest.method.value + " request for user " + user.userId)
 
-      onComplete(samClient.collectionsForUser(user, cromIamRequest)) flatMap {
-        case Success(collections) =>
+      onComplete(samClient.collectionsForUser(user, cromIamRequest).value.unsafeToFuture()) flatMap {
+        case Success(Left(httpResponse)) =>
+          complete(httpResponse)
+        case Success(Right(collections)) =>
           toStrictEntity(Timeout) tflatMap { _ =>
             extractStrictRequest flatMap { request =>
               tprovide((user, collections, request))

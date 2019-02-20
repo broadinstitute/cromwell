@@ -11,7 +11,7 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Random, Success, Try}
 
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager
@@ -19,8 +19,9 @@ import scala.util.{Failure, Success, Try}
 class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval: FiniteDuration, override val serviceRegistryActor: ActorRef)
                                (implicit val batchHandler: PipelinesApiRequestHandler)
   extends Actor with ActorLogging with CromwellInstrumentationActor {
+
   // The interval to delay between submitting each batch
-  log.info("JES batch polling interval is {}", batchInterval)
+  log.info("PAPI request worker batch interval is {}", batchInterval)
 
   self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
 
@@ -31,7 +32,7 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
 
   override def receive = {
     case PipelinesApiWorkBatch(workBatch) =>
-      log.debug(s"Got a polling batch with ${workBatch.tail.size + 1} requests.")
+      log.debug(s"Got a PAPI request batch with ${workBatch.tail.size + 1} requests.")
       handleBatch(workBatch).andThen(interstitialRecombobulation)
       ()
     case NoWorkToDo =>
@@ -43,17 +44,19 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
     val batch: BatchRequest = createBatch()
 
     // Create the batch:
-    // WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
+    // TODO: WARNING: These call change 'batch' as a side effect. Things might go awry if map runs items in parallel?
     val batchFutures = workBatch map { batchHandler.enqueue(_, batch, pollingManager) }
 
-    // Execute the batch and return the map:
+    // Execute the batch and return the list of successes and failures:
+    // NB: Blocking and error prone. If this fails, let the supervisor in the PipelinesApiRequestManager catch and resubmit
+    // the work.
     runBatch(batch)
     Future.sequence(batchFutures.toList)
   }
   
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
   private[api] def createBatch(): BatchRequest = batch
-  private[api] def runBatch(batch: BatchRequest) = if (batch.size() > 0) batch.execute()
+  private[api] def runBatch(batch: BatchRequest): Unit = if (batch.size() > 0) batch.execute()
 
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {
@@ -63,9 +66,9 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
     case Success(someFailures) =>
       val errors = someFailures collect { case Failure(t) => t.getMessage }
       if (log.isDebugEnabled) {
-        log.warning("{} failures (from {} requests) fetching JES statuses", errors.size, someFailures.size)
+        log.warning("PAPI request worker had {} failures making {} requests: {}", errors.size, someFailures.size, errors.mkString(", "))
       } else {
-        log.warning("{} failures (from {} requests) fetching JES statuses: {}", errors.size, someFailures.size, errors.mkString(", "))
+        log.warning("PAPI request worker had {} failures making {} requests", errors.size, someFailures.size)
       }
       scheduleCheckForWork()
     case Failure(t) =>

@@ -205,6 +205,7 @@ trait CromwellApiService extends HttpInstrumentation {
                 onComplete(response) {
                   case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
                   case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+                  case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
                   case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
                   case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
 

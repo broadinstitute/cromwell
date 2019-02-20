@@ -711,7 +711,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           |}
         """.stripMargin
 
-      val workflowId = CromwellApiServiceSpec.ExistingWorkflowId
+      val workflowId = CromwellApiServiceSpec.SummarizedWorkflowId
 
       Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
         akkaHttpService.workflowRoutes ~>

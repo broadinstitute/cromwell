@@ -15,11 +15,11 @@ Docker images are the most common container format, but it is not advisable for 
     * [Docker on HPC](#docker-on-hpc)
 * [Singularity](#singularity)
     * [Installation](#installation)
-    * [Singularity Cache](#singularity-cache)
     * [Configuring Cromwell for Singularity](#configuring-cromwell-for-singularity)
         * [Local environments](#local-environments)
         * [Job schedulers](#job-schedulers)
     * [Without Setuid](#without-setuid)
+    * [Singularity Cache](#singularity-cache)
 * [udocker](#udocker)
     * [Installation](#installation-1)
     * [Configuration](#configuration)
@@ -129,16 +129,6 @@ If that is the case, you might consider forwarding [this letter](https://www.syl
 
 If you are not able to get Singularity installed with these privileges, you can attempt a user install.
 If this is the case, you will have to alter your Cromwell configuration to work in "sandbox" mode, which is explained in [this part](#without-setuid) of the documentation. 
-
-#### Singularity Cache
-By default, Singularity will cache the Docker images you pull in `~/.singularity`, your home directory.
-
-However, if you are sharing your Docker images with other users or have limited space in your user directory, you can redirect this caching location by exporting the `SINGULARITY_CACHEDIR` variable in your `.bashrc` or at the start of the `submit-docker` block.
-```
-export SINGULARITY_CACHEDIR=/path/to/shared/cache
-```
-
-For further information on the Singularity Cache, refer to the [Singularity 2 caching documentation](https://www.sylabs.io/guides/2.6/user-guide/build_environment.html#cache-folders) (this hasn't yet been updated for Singularity 3).
 
 #### Configuring Cromwell for Singularity
 
@@ -288,7 +278,18 @@ submit-docker = """
 """
 ```
 
+#### Singularity Cache
+By default, Singularity will cache the Docker images you pull in `~/.singularity`, your home directory.
+
+However, if you are sharing your Docker images with other users or have limited space in your user directory, you can redirect this caching location by exporting the `SINGULARITY_CACHEDIR` variable in your `.bashrc` or at the start of the `submit-docker` block.
+```
+export SINGULARITY_CACHEDIR=/path/to/shared/cache
+```
+
+For further information on the Singularity Cache, refer to the [Singularity 2 caching documentation](https://www.sylabs.io/guides/2.6/user-guide/build_environment.html#cache-folders) (this hasn't yet been updated for Singularity 3).
+
 ___
+
 ### udocker
 
 [udocker](https://github.com/indigo-dc/udocker) is a tool designed to "execute simple docker containers in user space without requiring root privileges".

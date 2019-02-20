@@ -532,7 +532,19 @@ cromwell::private::setup_prior_version_resources() {
         grep 'val cromwellVersion' "${CROMWELL_BUILD_ROOT_DIRECTORY}/project/Version.scala" \
         | awk -F \" '{print $2}' \
         )"
-    prior_version=$((current_version - 1))
+
+    # This function should only ever run on Travis PR builds where TRAVIS_PULL_REQUEST_BRANCH is set.
+    if [ -z "${TRAVIS_PULL_REQUEST_BRANCH}" ]; then
+       echo "Error: the TRAVIS_PULL_REQUEST_BRANCH variable is not set. setup_prior_version_resources expects to only run on Travis Pull Request builds in which this variable is set." >&2
+       exit 1
+    fi
+    # If this PR targets a hotfix branch, the previous version should be the same major version as this version.
+    # Otherwise this PR targets a non-hotfix branch so the previous version should be one less than this version.
+    if $( echo "${TRAVIS_PULL_REQUEST_BRANCH}" | grep -q -E '^[0-9]+_hotfix$' ); then
+      prior_version="$current_version"
+    else
+      prior_version=$((current_version - 1))
+    fi
 
     CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${prior_version}.jar"
     export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR

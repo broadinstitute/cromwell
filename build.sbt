@@ -349,6 +349,7 @@ lazy val perf = project
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
+  .enablePlugins(JibPlugin)
   .dependsOn(engine)
   .dependsOn(googlePipelinesV1Alpha2)
   .dependsOn(googlePipelinesV2Alpha1)

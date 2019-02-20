@@ -509,7 +509,18 @@ cromwell::private::setup_prior_version_resources() {
         grep 'val cromwellVersion' "${CROMWELL_BUILD_ROOT_DIRECTORY}/project/Version.scala" \
         | awk -F \" '{print $2}' \
         )"
-    prior_version=$((current_version - 1))
+
+    # The following would get the parent branch name which is preferable to the current branch name, but it requires
+    # a git repo and I haven't located one in Travis yet.
+    # https://stackoverflow.com/questions/3161204/find-the-parent-branch-of-a-git-branch/42562318#42562318
+    #parent_branch_name=$(git show-branch | grep '*' | grep -v "$(git rev-parse --abbrev-ref HEAD)" | head -n 1 | sed 's/.*\[\(.*\)\].*/\1/' | sed 's/[\^~].*//')
+
+    # https://stackoverflow.com/questions/229551/how-to-check-if-a-string-contains-a-substring-in-bash
+    if [ -z "${CROMWELL_BUILD_BRANCH##*_hotfix*}" ]; then
+      prior_version="$current_version"
+    else
+      prior_version=$((current_version - 1))
+    fi
 
     CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${prior_version}.jar"
     export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR

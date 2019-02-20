@@ -11,7 +11,7 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.{Failure, Success, Try}
 
 /**
   * Sends batched requests to JES as a worker to the JesApiQueryManager

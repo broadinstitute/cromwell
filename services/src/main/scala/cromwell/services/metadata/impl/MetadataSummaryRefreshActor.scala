@@ -45,12 +45,18 @@ class MetadataSummaryRefreshActor()
   when (WaitingForRequest) {
     case Event(SummarizeMetadata(respondTo), oldData @ SummaryRefreshData(mostRecentlyLoggedTotal)) =>
       refreshWorkflowMetadataSummaries() onComplete {
-        case Success((newMaximumSummaryId, newBackupSummaryId)) =>
+        case Success((newMaximumSummaryId, newRefreshedSummaryId, allSummarized, allRefreshed)) =>
           val newData = if(mostRecentlyLoggedTotal.contains(newMaximumSummaryId)) {
             oldData
           } else {
-            log.info(s"Main summarizer has now reached '$newMaximumSummaryId'; backup summarizer has now reached '$newBackupSummaryId'")
             SummaryRefreshData(Some(newMaximumSummaryId))
+          }
+
+          if (allSummarized.nonEmpty) {
+            log.info(s"""Main summarizer has now reached '$newMaximumSummaryId' via [${allSummarized.mkString(", ")}]""")
+          }
+          if (allRefreshed.nonEmpty) {
+            log.info(s"""Backup summarizer has now reached '$newRefreshedSummaryId' via [${allRefreshed.mkString(", ")}]""")
           }
 
           respondTo ! MetadataSummarySuccess

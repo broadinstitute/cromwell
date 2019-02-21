@@ -90,6 +90,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
   private def convertDatabaseStateToApiState(workflowStoreState: WorkflowStoreState): WorkflowState ={
     workflowStoreState match {
       case WorkflowStoreState.Submitted => WorkflowSubmitted
+      case WorkflowStoreState.Starting => WorkflowStarting
       case WorkflowStoreState.OnHold => WorkflowOnHold
       case WorkflowStoreState.Aborting => WorkflowAborting
       case WorkflowStoreState.Running => WorkflowRunning

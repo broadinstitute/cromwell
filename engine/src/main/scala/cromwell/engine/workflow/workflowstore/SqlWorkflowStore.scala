@@ -29,6 +29,7 @@ object SqlWorkflowStore {
   object WorkflowStoreState extends Enumeration {
     type WorkflowStoreState = Value
     val Submitted = Value("Submitted")
+    val Starting = Value("Starting")
     val Running = Value("Running")
     val Aborting = Value("Aborting")
     val OnHold = Value("On Hold")

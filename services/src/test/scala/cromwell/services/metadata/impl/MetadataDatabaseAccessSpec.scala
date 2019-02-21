@@ -166,7 +166,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name, Set(testLabel2, testLabel3))
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { case (max, _) =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { case (max, _, _, _) =>
           withClue("max") { max should be > 0L }
         }
 
@@ -345,7 +345,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { case (max, _) =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { case (max, _, _, _) =>
           max should be > 0L
         }
         //get totalResultsCount when page and pagesize are specified

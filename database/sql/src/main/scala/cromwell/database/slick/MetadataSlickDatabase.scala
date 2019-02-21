@@ -177,15 +177,31 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                              statusMetadataKey: String, labelMetadataKey: String, submissionMetadataKey: String,
                                              buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
                                                WorkflowMetadataSummaryEntry)
-                                            (implicit ec: ExecutionContext): Future[(Long, Long)] = {
+                                            (implicit ec: ExecutionContext): Future[(Long, Long, Vector[Long], Vector[Long])] = {
 
     val likeMetadataLabelKey = labelMetadataKey + "%"
     val action = for {
 
-      // Primary summarizer:
       previousMetadataEntryIdOption <- getSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY")
       previousMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
+
+      // Run the backup summarizer first:
+      previousMetadataEntryIdOption_2 <- getSummaryStatusEntryMaximumId(
+        "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY_2")
+      previousMetadataEntryId_2 = previousMetadataEntryIdOption_2.getOrElse(previousMetadataEntryId - 1000)
+      maximumMetadataEntryId_2 = Math.min(previousMetadataEntryId, Math.max(Math.max(previousMetadataEntryId - 1000, 0), previousMetadataEntryId_2 + 100))
+      metadataEntries_2 <- dataAccess.metadataEntriesForIdInRange((
+        previousMetadataEntryId_2 + 1L, maximumMetadataEntryId_2, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey, submissionMetadataKey)).result
+      metadataWithoutLabels_2 = metadataEntries_2.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
+      customLabelEntries = metadataEntries_2.filter(_.metadataKey.contains(labelMetadataKey))
+      _ <- DBIO.sequence(metadataWithoutLabels_2 map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
+      newMetadataEntryId_2 = Math.max(0L, maximumMetadataEntryId_2)
+      _ <- upsertSummaryStatusEntryMaximumId(
+        "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY_2", newMetadataEntryId_2)
+
+      // Then the primary summarizer:
       metadataEntries <- dataAccess.metadataEntriesForIdGreaterThanOrEqual((
         previousMetadataEntryId + 1L, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey, submissionMetadataKey)).result
       metadataWithoutLabels = metadataEntries.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
@@ -196,23 +212,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       _ <- upsertSummaryStatusEntryMaximumId(
         "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY", newMetadataEntryId)
 
-      // Secondary, backup summarizer:
-      previousMetadataEntryIdOption_2 <- getSummaryStatusEntryMaximumId(
-        "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY_2")
-      previousMetadataEntryId_2 = previousMetadataEntryIdOption_2.getOrElse(previousMetadataEntryId - 1000)
-      maximumMetadataEntryId_2 = previousMetadataEntryId - 1000
-      metadataEntries_2 <- dataAccess.metadataEntriesForIdInRange((
-        previousMetadataEntryId_2 + 1L, maximumMetadataEntryId_2, startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, likeMetadataLabelKey, submissionMetadataKey)).result
-      metadataWithoutLabels_2 = metadataEntries_2.filterNot(_.metadataKey.contains(labelMetadataKey)).groupBy(_.workflowExecutionUuid)
-      customLabelEntries = metadataEntries_2.filter(_.metadataKey.contains(labelMetadataKey))
-      _ <- DBIO.sequence(metadataWithoutLabels_2 map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
-      newMetadataEntryId_2 = Math.max(0L, maximumMetadataEntryId_2 - 1L)
-      _ <- upsertSummaryStatusEntryMaximumId(
-        "WORKFLOW_METADATA_SUMMARY_ENTRY", "METADATA_ENTRY_2", newMetadataEntryId_2)
+      summarizedRows = metadataEntries.toVector.map(_.metadataEntryId.getOrElse(-1L))
+      resummarizedRows = metadataEntries_2.toVector.map(_.metadataEntryId.getOrElse(-1L))
 
 
-    } yield (newMetadataEntryId, newMetadataEntryId_2)
+    } yield (newMetadataEntryId, newMetadataEntryId_2, summarizedRows, resummarizedRows)
 
     runTransaction(action)
   }

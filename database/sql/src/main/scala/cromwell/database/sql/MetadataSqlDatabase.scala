@@ -72,7 +72,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                     buildUpdatedSummary:
                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                       => WorkflowMetadataSummaryEntry)
-                                   (implicit ec: ExecutionContext): Future[(Long, Long)]
+                                   (implicit ec: ExecutionContext): Future[(Long, Long, Vector[Long], Vector[Long])]
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 

@@ -21,6 +21,7 @@ object WesState {
     cromwellStatus match {
       case WorkflowOnHold => Paused
       case WorkflowSubmitted => Queued
+      case WorkflowStarting => Initializing
       case WorkflowRunning => Running
       case WorkflowAborting => Canceling
       case WorkflowAborted => Canceled

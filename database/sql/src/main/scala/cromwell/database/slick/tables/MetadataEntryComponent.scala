@@ -143,7 +143,7 @@ trait MetadataEntryComponent {
      statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String], submissionMetadataKey: Rep[String]) => for {
       metadataEntry <- metadataEntries
       if metadataEntry.metadataEntryId >= minimumMetadataEntryId
-      if metadataEntry.metadataEntryId < maximumMetadataEntryId
+      if metadataEntry.metadataEntryId <= maximumMetadataEntryId
       if (metadataEntry.metadataKey === startMetadataKey || metadataEntry.metadataKey === endMetadataKey ||
         metadataEntry.metadataKey === nameMetadataKey || metadataEntry.metadataKey === statusMetadataKey ||
         metadataEntry.metadataKey.like(likeLabelMetadataKey) || metadataEntry.metadataKey === submissionMetadataKey) &&

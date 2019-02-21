@@ -60,9 +60,7 @@ object WorkflowActor {
   /**
     * Waiting for a Start or Restart command.
     */
-  case object WorkflowUnstartedState extends WorkflowActorState {
-    override val workflowState = WorkflowSubmitted
-  }
+  case object WorkflowUnstartedState extends WorkflowActorState { override val workflowState = WorkflowStarting }
 
   /**
     * The WorkflowActor is created. It now needs to validate and create its WorkflowDescriptor

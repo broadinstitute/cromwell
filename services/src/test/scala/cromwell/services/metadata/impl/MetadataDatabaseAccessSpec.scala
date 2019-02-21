@@ -166,7 +166,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name, Set(testLabel2, testLabel3))
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { case (max, _, _, _) =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(_ => ()) map { case (max, _, _, _) =>
           withClue("max") { max should be > 0L }
         }
 
@@ -345,7 +345,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { case (max, _, _, _) =>
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(_ => ()) map { case (max, _, _, _) =>
           max should be > 0L
         }
         //get totalResultsCount when page and pagesize are specified
@@ -369,7 +369,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           MetadataEvent.labelsToMetadataEvents(Labels(customLabelKey -> customLabelValue), workflowId)
         for {
           _ <- dataAccess.addMetadataEvents(metadataEvents)
-          _ <- dataAccess.refreshWorkflowMetadataSummaries().map(_._1 should be > 0L)
+          _ <- dataAccess.refreshWorkflowMetadataSummaries(_ => ()).map(_._1 should be > 0L)
           _ <- dataAccess.getWorkflowLabels(workflowId).map(_.toList should contain(customLabelKey -> customLabelValue))
         } yield ()
       }
@@ -404,7 +404,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         // associate subworkflow 2 to parent
         _ <- subworkflowMetadata(parentWorkflow2, Subworkflow2Name)
         // refresh metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries()
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(_ => ())
         // include subworkflows
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.IncludeSubworkflows.name -> true.toString))) map { case (resp, _) =>
           val resultByName = resp.results groupBy (_.name)

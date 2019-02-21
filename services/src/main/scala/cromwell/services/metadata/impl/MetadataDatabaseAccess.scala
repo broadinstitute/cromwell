@@ -59,7 +59,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  private def buildUpdatedSummary(existingSummary: Option[WorkflowMetadataSummaryEntry],
+  def buildUpdatedSummary(existingSummary: Option[WorkflowMetadataSummaryEntry],
                                   metadataForUuid: Seq[MetadataEntry]): WorkflowMetadataSummaryEntry = {
     implicit val wmss = WorkflowMetadataSummarySemigroup
 
@@ -152,9 +152,31 @@ trait MetadataDatabaseAccess {
       metadataToMetadataEvents(id)
   }
 
-  def refreshWorkflowMetadataSummaries()(implicit ec: ExecutionContext): Future[(Long, Long, Vector[Long], Vector[Long])] = {
+  type BuildUpdatedSummaryFunction = (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+
+  def loggingUpdatedSummaryFunction(logFunction: String => Unit, busf: BuildUpdatedSummaryFunction): BuildUpdatedSummaryFunction = (previousSummary, entries) => {
+    val result = busf(previousSummary, entries)
+
+    val statusEntries = entries.collect {
+      // metadataEntry.metadataValue.get.getSubString(1, metadataEntry.metadataValue.get.length.toInt
+      case me if me.metadataKey == "status" => me.metadataValue.map(mv => mv.getSubString(1, mv.length.toInt)).getOrElse("None")
+    }
+
+    def statusString(workflowMetadataSummaryEntry: Option[WorkflowMetadataSummaryEntry]) = workflowMetadataSummaryEntry.flatMap(_.workflowStatus).getOrElse("None")
+
+    if (entries.exists(_.metadataKey == "status")) {
+      if (!previousSummary.exists(_.workflowStatus == result.workflowStatus)) {
+        logFunction.apply(s"Updating workflow summary status of ${entries.head.workflowExecutionUuid} from ${statusString(previousSummary)} to ${statusString(Option(result))} based on metadata status update(s): ${statusEntries.mkString(", ")}")
+      } else {
+        logFunction.apply(s"Keeping workflow summary status of ${entries.head.workflowExecutionUuid} as ${statusString(Option(result))}, ignoring metadata status update(s): ${statusEntries.mkString(", ")}")
+      }
+    }
+    result
+  }
+
+  def refreshWorkflowMetadataSummaries(logFunction: String => Unit)(implicit ec: ExecutionContext): Future[(Long, Long, Vector[Long], Vector[Long])] = {
     metadataDatabaseInterface.refreshMetadataSummaryEntries(WorkflowMetadataKeys.StartTime, WorkflowMetadataKeys.EndTime, WorkflowMetadataKeys.Name,
-      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.SubmissionTime, MetadataDatabaseAccess.buildUpdatedSummary)
+      WorkflowMetadataKeys.Status, WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.SubmissionTime, loggingUpdatedSummaryFunction(logFunction, MetadataDatabaseAccess.buildUpdatedSummary))
   }
 
   def getWorkflowStatus(id: WorkflowId)

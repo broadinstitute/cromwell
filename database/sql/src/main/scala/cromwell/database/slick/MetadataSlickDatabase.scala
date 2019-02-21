@@ -113,9 +113,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:
                                                  (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
                                                    WorkflowMetadataSummaryEntry)
-                                                (workflowExecutionUuuidAndMetadataEntries: (String, Seq[MetadataEntry]))
+                                                (workflowExecutionUuidAndMetadataEntries: (String, Seq[MetadataEntry]))
                                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
-    val (workflowExecutionUuid, metadataEntries) = workflowExecutionUuuidAndMetadataEntries
+    val (workflowExecutionUuid, metadataEntries) = workflowExecutionUuidAndMetadataEntries
     for {
     // There might not be a preexisting summary for a given UUID, so `headOption` the result
       existingWorkflowMetadataSummaryEntry <- dataAccess.

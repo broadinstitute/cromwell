@@ -44,7 +44,7 @@ class MetadataSummaryRefreshActor()
 
   when (WaitingForRequest) {
     case Event(SummarizeMetadata(respondTo), oldData @ SummaryRefreshData(mostRecentlyLoggedTotal)) =>
-      refreshWorkflowMetadataSummaries() onComplete {
+      refreshWorkflowMetadataSummaries(log.info) onComplete {
         case Success((newMaximumSummaryId, newRefreshedSummaryId, allSummarized, allRefreshed)) =>
           val newData = if(mostRecentlyLoggedTotal.contains(newMaximumSummaryId)) {
             oldData

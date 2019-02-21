@@ -27,6 +27,6 @@ case class SraPath(accession: String, path: String) extends Path {
   override def pathAsString: String = SraPath.Scheme + pathWithoutScheme
   override def pathWithoutScheme: String = accession + "/" + path
 
-  protected def newPath(nioPath: NioPath): Path = throw new NotImplementedError("'newPath' not implemented for SraPath")
-  protected def nioPath: NioPath = throw new NotImplementedError("'nioPath' not implemented for SraPath")
+  protected def newPath(nioPath: NioPath): Path = throw new UnsupportedOperationException("'newPath' not implemented for SraPath")
+  protected def nioPath: NioPath = throw new UnsupportedOperationException("'nioPath' not implemented for SraPath")
 }

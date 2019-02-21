@@ -173,7 +173,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
 
   override def abort(): Unit = {
-    throw new NotImplementedError("Abort is implemented via a custom receive of the message AbortJobCommand.")
+    throw new UnsupportedOperationException("Abort is implemented via a custom receive of the message AbortJobCommand.")
   }
 
   // Supervision strategy: if the async actor throws an exception, stop the actor and fail the job.

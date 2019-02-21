@@ -7,7 +7,7 @@ import wom.core.FullyQualifiedName
 object WomTypeJsonFormatter extends DefaultJsonProtocol {
   implicit object WomTypeJsonFormat extends RootJsonFormat[WomType] {
     def write(womType: WomType) = JsString(womType.stableName)
-    def read(value: JsValue) = ???
+    def read(value: JsValue) = throw new UnsupportedOperationException
   }
 
   implicit object WorkflowInputJsonFormat extends RootJsonFormat[Map[FullyQualifiedName, InputDefinition]] {
@@ -17,7 +17,7 @@ object WomTypeJsonFormatter extends DefaultJsonProtocol {
         fqn -> JsString(s"$optional${input.womType.stableName}")
       })
     }
-    def read(value: JsValue) = ???
+    def read(value: JsValue) = throw new UnsupportedOperationException
   }
 }
 

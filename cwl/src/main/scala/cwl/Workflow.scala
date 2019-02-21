@@ -175,7 +175,7 @@ case class Workflow private(
             val outputIdentifier = WomIdentifier(localName, fullyQualifiedName)
             PortBasedGraphOutputNode(outputIdentifier, womType, port)
           }).toValidated
-        case wop => throw new NotImplementedError(s"Workflow output parameters such as $wop are not supported.")
+        case wop => throw new UnsupportedOperationException(s"Workflow output parameters such as $wop are not supported.")
       }.map(_.toSet).toEither
 
     for {

@@ -17,7 +17,7 @@ object ex3 {
     def resolver(importString: String): WorkflowSource = {
       importString match {
         case "some_string" => "task imported { command {ps} }"
-        case _ => throw new NotImplementedError()
+        case _ => throw new UnsupportedOperationException()
       }
     }
 

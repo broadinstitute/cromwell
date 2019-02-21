@@ -16,9 +16,9 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
 
   val log = NoLogging
 
-  override def rootConfig: Config = throw new NotImplementedError("This spec shouldn't need to access the real config")
+  override def rootConfig: Config = throw new UnsupportedOperationException("This spec shouldn't need to access the real config")
 
-  override def configuration = throw new NotImplementedError("This spec shouldn't need to access the real interface/port")
+  override def configuration = throw new UnsupportedOperationException("This spec shouldn't need to access the real interface/port")
 
   override lazy val cromwellClient = new MockCromwellClient()
   override lazy val cromwellAbortClient = new MockCromwellClient()

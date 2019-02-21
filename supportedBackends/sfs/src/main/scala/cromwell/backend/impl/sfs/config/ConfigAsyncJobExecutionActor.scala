@@ -278,7 +278,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         writer.close()
         SharedFileSystemRunState("Failed")
       case (Some(s), _) if s.status == "Done" => s // Nothing to be done here
-      case _ => throw new NotImplementedError("This should not happen, please report this")
+      case _ => throw new UnsupportedOperationException("This should not happen, please report this")
     }
   }
 

@@ -2,6 +2,12 @@
 
 ## 38 Release Notes
 
+### HPC paths with Docker
+
+The `ConfigBackendLifecycleActorFactory` path variables `script`, `out` and `err` are now consistent when running with
+and without docker. Similarly, when killing a docker task the `kill-docker` configuration key is now used instead of
+`kill`. For more information see the [online documentation](https://cromwell.readthedocs.io/en/stable/backends/SGE/).
+
 ### Bug fixes
 - Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
 

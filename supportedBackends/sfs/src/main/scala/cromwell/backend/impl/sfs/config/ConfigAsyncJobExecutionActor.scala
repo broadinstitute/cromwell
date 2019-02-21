@@ -9,10 +9,11 @@ import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
+import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import wdl.draft2.model._
 import wdl.transforms.draft2.wdlom2wom._
-import wom.callable.Callable.OptionalInputDefinition
+import wom.callable.Callable.{InputDefinition, OptionalInputDefinition}
 import wom.expression.NoIoFunctionSet
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
@@ -64,7 +65,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       (localName, womValue) = input
       womInputDefinition <- taskDefinition.inputs
       if localName == womInputDefinition.localName.value
-    } yield womInputDefinition -> womValue).toMap
+    } yield womInputDefinition.asInstanceOf[InputDefinition] -> womValue).toMap
 
     /*
      * TODO WOM FIXME #2946
@@ -83,7 +84,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
      *   ${"--user " + docker_user} \
      *   --entrypoint ${job_shell} \
      *   -v ${cwd}:${docker_cwd} \
-     *   ${docker} ${script}
+     *   ${docker} ${docker_script}
      *  """
      *
      * The `docker_user` variable is an uninitialized optional. But the expression `${"--user " + docker_user}` will
@@ -132,23 +133,23 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * submit-docker.
     */
   private lazy val dockerizedInputs: WorkflowCoercedInputs = {
-    if (isDockerRun) {
+    val dockerPaths = isDockerRun.fold(
       Map(
         DockerCwdInput -> WomString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        DockerStdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
+        DockerStderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
+        DockerScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString),
         DockerCidInput -> dockerCidInputValue,
-        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
-        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
-        ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString),
-        JobShellInput -> WomString(jobShell)
-      )
-    } else {
-      Map(
-        StdoutInput -> WomString(standardPaths.output.pathAsString),
-        StderrInput -> WomString(standardPaths.error.pathAsString),
-        ScriptInput -> WomString(jobPaths.script.pathAsString),
-        JobShellInput -> WomString(jobShell)
-      )
-    }
+      ),
+      Map.empty
+    )
+
+    dockerPaths ++ Map(
+      StdoutInput -> WomString(standardPaths.output.pathAsString),
+      StderrInput -> WomString(standardPaths.error.pathAsString),
+      ScriptInput -> WomString(jobPaths.script.pathAsString),
+      JobShellInput -> WomString(jobShell),
+    )
   }
 
   /**
@@ -241,7 +242,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @return A command that may be used to kill the job.
     */
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
-    jobScriptArgs(job, "kill", KillTask)
+    if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
+    else jobScriptArgs(job, "kill", KillTask)
   }
 
   protected lazy val exitCodeTimeout: Option[Long] = {
@@ -277,8 +279,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         writer.println(9)
         writer.close()
         SharedFileSystemRunState("Failed")
-      case (Some(s), _) if s.status == "Done" => s // Nothing to be done here
-      case _ => throw new UnsupportedOperationException("This should not happen, please report this")
+      case (Some(s), _) => s
     }
   }
 

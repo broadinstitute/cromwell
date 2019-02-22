@@ -11,8 +11,9 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
-import cromwell.engine.io.{IoCommandContext, IoAttempts}
-import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
+import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, _}
+import cromwell.engine.io.{IoAttempts, IoCommandContext}
+import mouse.boolean._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -26,6 +27,14 @@ object GcsBatchFlow {
     * Is considered retryable.
     */
   case class BatchFailedException(failure: Throwable) extends IOException(failure)
+
+  private val ReadForbiddenPattern = ".*does not have storage\\.objects\\.(?:get|list|copy) access to ([^/]+).*".r.pattern
+
+  /* Returns `Some(bucket)` if the specified argument represents a forbidden attempt to read from `bucket`. */
+  private[gcs] def getReadForbiddenBucket(failure: Throwable): Option[String] = {
+    val matcher = ReadForbiddenPattern.matcher(failure.getMessage)
+    matcher.matches().option(matcher.group(1))
+  }
 }
 
 class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit)(implicit ec: ExecutionContext) {
@@ -38,18 +47,18 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
       ()
     }
   }
-  
+
   private val batch: BatchRequest = new BatchRequest(GcsStorage.HttpTransport, httpRequestInitializer)
-  
+
   val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
     // Source where batch commands are coming from. This is the input port of this flow
     val source = builder.add(Flow[GcsBatchCommandContext[_, _]])
-    
+
     // Merge commands from source (above), and commands that need to be retried (see retries below)
     val sourceMerger = builder.add(MergePreferred[GcsBatchCommandContext[_, _]](1))
-    
+
     // Process a batch and spit atomic GcsBatchResponses out for each internal request
     val batchProcessor = builder.add(
       Flow[GcsBatchCommandContext[_, _]]
@@ -60,19 +69,19 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
         // Wait for each Future to complete
       .mapAsyncUnordered[GcsBatchResponse[_]](batchSize) { identity }
     )
-    
+
     // Partitions the responses: Terminal responses exit the flow, others go back to the sourceMerger
     val responseHandler = builder.add(responseHandlerFlow)
-      
+
     // Buffer commands to be retried to avoid backpressuring too rapidly
     val nextRequestBuffer = builder.add(Flow[GcsBatchCommandContext[_, _]].buffer(batchSize, OverflowStrategy.backpressure))
-    
+
     source ~> sourceMerger ~> batchProcessor ~> responseHandler.in
               sourceMerger.preferred <~ nextRequestBuffer <~ responseHandler.out1
 
     FlowShape[GcsBatchCommandContext[_, _], IoResult](source.in, responseHandler.out0)
   }
-  
+
   /**
     * Fan out shape splitting GcsBatchResponse into 2:
     *   First port emits terminal result that can exit the GcsBatch flow
@@ -97,7 +106,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
 
     new FanOutShape2[GcsBatchResponse[_], IoResult, GcsBatchCommandContext[_, _]](source.in, terminals.outlet, nextRequest.outlet)
   }
-  
+
   private def executeBatch(contexts: Seq[GcsBatchCommandContext[_, _]]): List[Future[GcsBatchResponse[_]]] = {
     def failAllPromisesWith(failure: Throwable) = contexts foreach { context =>
       context.promise.tryFailure(failure)
@@ -106,8 +115,8 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
 
     // Add all requests to the batch
     contexts foreach { _.queue(batch) }
-    
-    // Try to execute the batch request. 
+
+    // Try to execute the batch request.
     // If it fails with an IO Exception, fail all the underlying promises with a retyrable BatchFailedException
     // Otherwise fail with the original exception
     Try(batch.execute()) match {
@@ -144,9 +153,12 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
           akka.pattern.after(waitTime, scheduler)(Future.successful(GcsBatchRetry(context.next, failure)))
         case None => fail(context, failure)
       }
-      
-    // Otherwise just fail the command
-    case failure => fail(context, failure)
+    // Otherwise just fail the command, either with a specific "read forbidden" failure or just generic failure.
+    case failure =>
+      getReadForbiddenBucket(failure) match {
+        case Some(bucket) => failReadForbidden(context, failure, bucket)
+        case None => fail(context, failure)
+      }
   }
 
   /**
@@ -156,6 +168,17 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     Future.successful(
       GcsBatchTerminal(
         context.fail(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure))
+      )
+    )
+  }
+
+  /**
+    * Fail a command context with a forbidden failure.
+    */
+  private def failReadForbidden(context: GcsBatchCommandContext[_, _], failure: Throwable, forbiddenPath: String) = {
+    Future.successful(
+      GcsBatchTerminal(
+        context.failReadForbidden(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure), forbiddenPath)
       )
     )
   }

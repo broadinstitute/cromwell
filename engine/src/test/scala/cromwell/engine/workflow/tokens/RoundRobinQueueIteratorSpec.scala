@@ -12,7 +12,9 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
   val InfiniteTokenType = JobExecutionTokenType("infinite", None, 1)
   val Pool1 = JobExecutionTokenType("pool1", Option(1), 1)
   val Pool2 = JobExecutionTokenType("pool2", Option(2), 1)
-  
+
+  val tokenEventLogger = NullTokenEventLogger
+
   it should "be empty if there's no queue" in {
     new RoundRobinQueueIterator(List.empty, 0).hasNext shouldBe false
   }
@@ -20,7 +22,7 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
   it should "return an element if a queue can dequeue" in {
     val probe1 = TestProbe().ref
     val queues = List(
-      TokenQueue(InfiniteTokenType).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
+      TokenQueue(InfiniteTokenType, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
     )
     val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
@@ -37,8 +39,8 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     val probe2 = TestProbe("probe-2").ref
     val probe3 = TestProbe("probe-3").ref
     val queues = List(
-      TokenQueue(InfiniteTokenType).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA")).enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
-      TokenQueue(Pool2).enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
+      TokenQueue(InfiniteTokenType, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe1, "hogGroupA")).enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
+      TokenQueue(Pool2, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
     )
     val iterator = new RoundRobinQueueIterator(queues, 0)
     iterator.hasNext shouldBe true
@@ -68,10 +70,10 @@ class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Ma
     val probe4 = TestProbe("probe-4").ref
     val probe5 = TestProbe("probe-5").ref
     val queues = List(
-      TokenQueue(Pool1)
+      TokenQueue(Pool1, tokenEventLogger)
         .enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
         .enqueue(TokenQueuePlaceholder(probe3, "hogGroupA")),
-      TokenQueue(Pool2)
+      TokenQueue(Pool2, tokenEventLogger)
         .enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
         .enqueue(TokenQueuePlaceholder(probe4, "hogGroupA"))
         .enqueue(TokenQueuePlaceholder(probe5, "hogGroupA"))

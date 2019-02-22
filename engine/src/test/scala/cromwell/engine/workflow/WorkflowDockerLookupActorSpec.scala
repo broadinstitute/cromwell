@@ -9,8 +9,8 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
-import cromwell.docker.DockerHashActor.{DockerHashFailedResponse, DockerHashSuccessResponse}
-import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
+import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
 import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
@@ -105,7 +105,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     dockerHashingActor.reply(LatestSuccessResponse)
 
     val responses = receiveN(2, 2 seconds).toSet
-    val hashResponses = responses collect { case msg: DockerHashSuccessResponse => msg }
+    val hashResponses = responses collect { case msg: DockerInfoSuccessResponse => msg }
     // Success after transient timeout failures:
     hashResponses should equal(Set(LatestSuccessResponse, OlderSuccessResponse))
   }
@@ -118,14 +118,14 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     // The WorkflowDockerLookupActor should not have the hash for this tag yet and will need to query the dockerHashingActor.
     dockerHashingActor.expectMsg(LatestRequest)
     dockerHashingActor.expectMsg(OlderRequest)
-    val olderFailedResponse = DockerHashFailedResponse(new RuntimeException("Lookup failed"), OlderRequest)
+    val olderFailedResponse = DockerInfoFailedResponse(new RuntimeException("Lookup failed"), OlderRequest)
 
     dockerHashingActor.reply(LatestSuccessResponse)
     dockerHashingActor.reply(olderFailedResponse)
 
     val results = receiveN(2, 2 seconds).toSet
     val mixedResponses = results collect {
-      case msg: DockerHashSuccessResponse => msg
+      case msg: DockerInfoSuccessResponse => msg
       // Scoop out the request here since we can't match the exception on the whole message.
       case msg: WorkflowDockerLookupFailure if msg.reason.getMessage == "Failed to get docker hash for ubuntu:older Lookup failed" => msg.request
     }
@@ -153,7 +153,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     dockerHashingActor.expectNoMessage()
 
     val results = receiveN(2, 2 seconds).toSet
-    val successes = results collect { case result: DockerHashSuccessResponse => result }
+    val successes = results collect { case result: DockerInfoSuccessResponse => result }
 
     successes should equal(Set(LatestSuccessResponse, OlderSuccessResponse))
   }
@@ -171,7 +171,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     dockerHashingActor.reply(OlderSuccessResponse)
 
     val results = receiveN(2, 2 seconds).toSet
-    val successes = results collect { case result: DockerHashSuccessResponse => result }
+    val successes = results collect { case result: DockerInfoSuccessResponse => result }
 
     successes should equal(Set(LatestSuccessResponse, OlderSuccessResponse))
   }
@@ -219,9 +219,9 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     val db = dbWithQuery {
       numReads = numReads + 1
       Future.successful(Seq(
-        DockerHashStoreEntry(workflowId.toString, Latest, "md5:AAAAA"),
+        DockerHashStoreEntry(workflowId.toString, Latest, "md5:AAAAA", None),
         // missing the "algorithm:" preceding the hash value so this should fail parsing.
-        DockerHashStoreEntry(workflowId.toString, Older, "BBBBB")
+        DockerHashStoreEntry(workflowId.toString, Older, "BBBBB", None)
       ))
     }
 
@@ -259,14 +259,14 @@ object WorkflowDockerLookupActorSpec {
   val LatestImageId = DockerImageIdentifier.fromString(Latest).get.asInstanceOf[DockerImageIdentifierWithoutHash]
   val OlderImageId = DockerImageIdentifier.fromString(Older).get.asInstanceOf[DockerImageIdentifierWithoutHash]
 
-  val LatestRequest = DockerHashRequest(LatestImageId)
-  val OlderRequest = DockerHashRequest(OlderImageId)
+  val LatestRequest = DockerInfoRequest(LatestImageId)
+  val OlderRequest = DockerInfoRequest(OlderImageId)
 
-  def LatestStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Latest, "md5:AAAAAAAA")
-  def OlderStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Older, "md5:BBBBBBBB")
+  def LatestStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Latest, "md5:AAAAAAAA", None)
+  def OlderStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Older, "md5:BBBBBBBB", None)
 
-  val LatestSuccessResponse = DockerHashSuccessResponse(DockerHashResult("md5", "AAAAAAAA"), LatestRequest)
-  val OlderSuccessResponse = DockerHashSuccessResponse(DockerHashResult("md5", "BBBBBBBB"), OlderRequest)
+  val LatestSuccessResponse = DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "AAAAAAAA"), None), LatestRequest)
+  val OlderSuccessResponse = DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "BBBBBBBB"), None), OlderRequest)
 
   val DatabaseConfig = ConfigFactory.load.getConfig("database")
 

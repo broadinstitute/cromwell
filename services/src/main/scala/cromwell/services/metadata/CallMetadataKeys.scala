@@ -1,6 +1,8 @@
 package cromwell.services.metadata
 
 object CallMetadataKeys {
+
+  val CompressedDockerSize = "compressedDockerSize"
   val ExecutionEvents = "executionEvents"
   val ExecutionStatus = "executionStatus"
   val RuntimeAttributes = "runtimeAttributes"

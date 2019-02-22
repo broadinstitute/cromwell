@@ -216,7 +216,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
   serverMode = true,
   workflowHeartbeatConfig = workflowHeartbeatConfig,
   totalJobsByRootWf = totalJobsByRootWf,
-  fileHashCacheActor = None) {
+  fileHashCacheActor = None,
+  blacklistCache = None) {
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

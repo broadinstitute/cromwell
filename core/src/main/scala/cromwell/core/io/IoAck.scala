@@ -18,6 +18,23 @@ sealed trait IoAck[T] {
 case class IoSuccess[T](command: IoCommand[T], result: T) extends IoAck[T] {
   override def toTry = Success(result)
 }
-case class IoFailure[T](command: IoCommand[T], failure: Throwable) extends IoAck[T] {
+
+object IoFailAck {
+  def unapply(any: Any): Option[(IoCommand[_], Throwable)] = {
+    any match {
+      case f: IoFailAck[_] =>
+        Option((f.command, f.failure))
+      case _ => None
+    }
+  }
+}
+
+trait IoFailAck[T] extends IoAck[T] {
+  val failure: Throwable
   override def toTry = Failure(failure)
 }
+
+/** Failure of an unspecified variety. */
+case class IoFailure[T](command: IoCommand[T], override val failure: Throwable) extends IoFailAck[T]
+/** Specifically read forbidden failure. */
+case class IoReadForbiddenFailure[T](command: IoCommand[T], override val failure: Throwable, forbiddenPath: String) extends IoFailAck[T]

@@ -1,5 +1,36 @@
 # Cromwell Change Log
 
+## 36.1 Release Notes
+
+### Changing configuration options
+
+#### Logging Token Distribution
+
+In cases where its not obvious why jobs are queued in Cromwell, you can enable logging for the Job Execution Token Dispenser, using
+the `system.hog-safety.token-log-interval-seconds` configuration value.
+
+The default, `0`, means that no logging will occur. 
+
+### Backend name for call caching purposes
+
+Previous versions of Cromwell incorporated the name of the backend on which a call was run into the call cache hashes generated for that call.
+Unfortunately this made it impossible to change the name of a backend without losing all previously run calls as potential cache hits.
+Cromwell 36.1 introduces the `name-for-call-caching-purposes` backend configuration option as a means of decoupling the backend name from the
+value used for the backend name for call caching purposes.
+
+### Docker
+
+- Adds support for retrieving docker digests of asia.gcr.io images
+- Adds configuration settings for docker digest lookups. See the `docker` section of the `reference.conf` for more information 
+- Attempt to automatically adjust the boot disk size on the Google Cloud Backend (version 2) if the size of the image is greater than the default disk size or the required disk size in the runtime attributes.
+Only works for registries that support the version 2 of the manifest schema (https://docs.docker.com/registry/spec/manifest-v2-2/)
+At this date (12/09/18) this includes GCR and Dockerhub.
+
+### Call cache blacklisting
+
+The Google Pipelines API (PAPI) version 1 and 2 backends now offer the option of call cache blacklisting on a per-bucket basis.
+More info [here](http://cromwell.readthedocs.io/en/develop/CallCaching/#call-cache-copy-authorization-failure-prefix-blacklisting).
+
 ## 36 Release Notes
 
 ### Extra configuration options

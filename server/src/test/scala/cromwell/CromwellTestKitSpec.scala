@@ -12,8 +12,8 @@ import cromwell.CromwellTestKitSpec._
 import cromwell.core._
 import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
-import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
-import cromwell.docker.{DockerHashRequest, DockerHashResult}
+import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.{DockerHashResult, DockerInfoRequest}
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupNoHit, CacheLookupRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
@@ -449,7 +449,7 @@ object EmptyCallCacheWriteActor {
 
 class EmptyDockerHashActor extends Actor {
   override def receive: Receive = {
-    case request: DockerHashRequest => sender ! DockerHashSuccessResponse(DockerHashResult("alg", "hash"), request)
+    case request: DockerInfoRequest => sender ! DockerInfoSuccessResponse(DockerInformation(DockerHashResult("alg", "hash"), None), request)
   }
 }
 

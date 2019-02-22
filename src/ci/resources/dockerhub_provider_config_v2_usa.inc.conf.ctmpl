@@ -1,0 +1,7 @@
+{{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
+dockerhub {
+  token = "{{$cromwellDockerhub.Data.token}}"
+  key-name = "{{$cromwellDockerhub.Data.key_name}}"
+  auth = "user_service_account"
+}
+{{end}}

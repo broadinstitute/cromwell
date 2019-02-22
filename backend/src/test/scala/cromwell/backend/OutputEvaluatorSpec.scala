@@ -105,7 +105,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
+    val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, None, null)
     
     Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case ValidJobOutputs(outputs) => outputs shouldBe CallOutputs(Map(
@@ -125,7 +125,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
 
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
+    val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, None, null)
 
     Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case InvalidJobOutputs(errors) => errors shouldBe NonEmptyList.of(
@@ -143,7 +143,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
 
     val call = WomMocks.mockTaskCall(WomIdentifier("call"), WomMocks.EmptyTaskDefinition.copy(outputs = mockOutputs))
     val key = BackendJobDescriptorKey(call, None, 1)
-    val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, null)
+    val jobDescriptor = BackendJobDescriptor(null, key, null, mockInputs, null, None, null)
 
     Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, NoIoFunctionSet), FutureTimeout) match {
       case JobOutputsEvaluationException(e) => e shouldBe exception

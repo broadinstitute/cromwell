@@ -4,8 +4,8 @@ import akka.testkit.{ImplicitSender, TestActorRef}
 import cats.syntax.validated._
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
-import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
-import cromwell.docker.{DockerHashRequest, DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash}
+import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
@@ -55,7 +55,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     helper.workflowDockerLookupActor.expectNoMessage(1 second)
   }
 
-  it should "not ask for the docker hash if the attribute already contains a hash" in {
+  it should "ask for the docker info even if the attribute already contains a hash" in {
     val dockerValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val attributes = Map(
       "docker" -> WomString(dockerValue)
@@ -63,12 +63,20 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
     actor ! Start(ValueStore.empty)
+    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
+    actor ! DockerInfoSuccessResponse(
+      DockerInformation(
+        DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"),
+        Option(DockerSize(100))
+      ),
+      null
+    )
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
         success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash("ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
+        success.jobDescriptor.dockerSize shouldBe Option(DockerSize(100))
     }
-    helper.workflowDockerLookupActor.expectNoMessage(1 second)
   }
 
   it should "lookup any requested key/value prefetches after (not) performing a docker hash lookup" in {
@@ -87,8 +95,8 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey1, prefetchedKey2)), self)
     actor ! Start(ValueStore.empty)
 
-    val req = helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
-    helper.workflowDockerLookupActor.reply(DockerHashSuccessResponse(hashResult, req))
+    val req = helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
+    helper.workflowDockerLookupActor.reply(DockerInfoSuccessResponse(DockerInformation(hashResult, None), req))
 
     def respondFromKv() = {
       helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
@@ -117,8 +125,8 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val finalValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start(ValueStore.empty)
-    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
-    helper.workflowDockerLookupActor.reply(DockerHashSuccessResponse(hashResult, mock[DockerHashRequest]))
+    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
+    helper.workflowDockerLookupActor.reply(DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest]))
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
@@ -128,14 +136,14 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
 
   it should "not provide a DockerWithHash value if it can't get the docker hash" in {
     val dockerValue = "ubuntu:latest"
-    val request = DockerHashRequest(DockerImageIdentifier.fromString(dockerValue).get.asInstanceOf[DockerImageIdentifierWithoutHash])
+    val request = DockerInfoRequest(DockerImageIdentifier.fromString(dockerValue).get.asInstanceOf[DockerImageIdentifierWithoutHash])
     val attributes = Map (
       "docker" -> WomString(dockerValue)
     )
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start(ValueStore.empty)
-    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerHashRequest])
+    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
     helper.workflowDockerLookupActor.reply(WorkflowDockerLookupFailure(
       new Exception("Failed to get docker hash - part of test flow") with NoStackTrace,
       request

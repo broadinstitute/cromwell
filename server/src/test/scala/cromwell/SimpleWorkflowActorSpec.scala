@@ -63,13 +63,14 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
         callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
-        jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second))),
+        jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None)),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true,
         workflowStoreActor = system.actorOf(Props.empty),
         workflowHeartbeatConfig = WorkflowHeartbeatConfig(config),
         totalJobsByRootWf = new AtomicInteger(),
-        fileHashCacheActor = None),
+        fileHashCacheActor = None,
+        blacklistCache = None),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"
     )

@@ -6,6 +6,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core._
@@ -162,7 +163,8 @@ object WorkflowActor {
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
             totalJobsByRootWf: AtomicInteger,
-            fileHashCacheActor: Option[ActorRef]): Props = {
+            fileHashCacheActor: Option[ActorRef],
+            blacklistCache: Option[BlacklistCache]): Props = {
     Props(
       new WorkflowActor(
         workflowId = workflowId,
@@ -183,7 +185,8 @@ object WorkflowActor {
         serverMode = serverMode,
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor)).withDispatcher(EngineDispatcher)
+        fileHashCacheActor = fileHashCacheActor,
+        blacklistCache = blacklistCache)).withDispatcher(EngineDispatcher)
   }
 }
 
@@ -208,7 +211,8 @@ class WorkflowActor(val workflowId: WorkflowId,
                     serverMode: Boolean,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                     totalJobsByRootWf: AtomicInteger,
-                    fileHashCacheActor: Option[ActorRef])
+                    fileHashCacheActor: Option[ActorRef],
+                    blacklistCache: Option[BlacklistCache])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
 
@@ -306,7 +310,8 @@ class WorkflowActor(val workflowId: WorkflowId,
         startState = data.effectiveStartableState,
         rootConfig = conf,
         totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor), name = s"WorkflowExecutionActor-$workflowId")
+        fileHashCacheActor = fileHashCacheActor,
+        blacklistCache = blacklistCache), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand
       

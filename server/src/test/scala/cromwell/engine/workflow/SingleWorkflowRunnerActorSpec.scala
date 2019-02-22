@@ -70,7 +70,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec wit
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
   private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
-  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second)))
+  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None))
 
 
   def workflowManagerActor(): ActorRef = {

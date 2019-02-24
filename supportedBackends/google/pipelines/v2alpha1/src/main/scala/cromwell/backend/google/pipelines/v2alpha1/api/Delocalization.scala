@@ -74,7 +74,7 @@ trait Delocalization {
   
   private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     val gsutilCommand: String => String = { flag =>
-      s"""gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
+      s"""retry /usr/lib/google-cloud-sdk/bin/gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
     }
     
     def sedStripPrefix(prefix: String) = s"""sed -e "s/^${prefix.ensureSedEscaped}//""""

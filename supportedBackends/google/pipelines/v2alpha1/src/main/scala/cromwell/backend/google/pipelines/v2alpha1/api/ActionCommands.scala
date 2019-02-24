@@ -38,7 +38,7 @@ object ActionCommands {
 
   def delocalizeDirectory(containerPath: Path, cloudPath: Path, contentType: Option[ContentType])(implicit localizationConfiguration: LocalizationConfiguration) = retry {
     recoverRequesterPaysError(cloudPath) { flag =>
-      s"gsutil $flag ${contentType |> makeContentTypeFlag} -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
+      s"retry /usr/lib/google-cloud-sdk/bin/gsutil $flag ${contentType |> makeContentTypeFlag} -m rsync -r ${containerPath.escape} ${cloudPath.escape}"
     }
   }
 
@@ -56,7 +56,7 @@ object ActionCommands {
     */
   def delocalizeFile(containerPath: Path, cloudPath: Path, contentType: Option[ContentType])(implicit localizationConfiguration: LocalizationConfiguration) = retry {
     recoverRequesterPaysError(cloudPath) { flag =>
-      s"gsutil $flag ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
+      s"retry /usr/lib/google-cloud-sdk/bin/gsutil $flag ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.parent.escape.ensureSlashed}"
     }
   }
 
@@ -66,7 +66,7 @@ object ActionCommands {
     */
   def delocalizeFileTo(containerPath: Path, cloudPath: Path, contentType: Option[ContentType])(implicit localizationConfiguration: LocalizationConfiguration) = retry {
     recoverRequesterPaysError(cloudPath) { flag =>
-      s"gsutil $flag ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.escape}"
+      s"retry /usr/lib/google-cloud-sdk/bin/gsutil $flag ${contentType |> makeContentTypeFlag} cp ${containerPath.escape} ${cloudPath.escape}"
     }
   }
 
@@ -107,13 +107,13 @@ object ActionCommands {
 
   def localizeDirectory(cloudPath: Path, containerPath: Path)(implicit localizationConfiguration: LocalizationConfiguration) = retry {
     recoverRequesterPaysError(cloudPath) { flag =>
-      s"${containerPath |> makeContainerDirectory} && gsutil $flag -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
+      s"${containerPath |> makeContainerDirectory} && retry /usr/lib/google-cloud-sdk/bin/gsutil $flag -m rsync -r ${cloudPath.escape} ${containerPath.escape}"
     }
   }
 
   def localizeFile(cloudPath: Path, containerPath: Path)(implicit localizationConfiguration: LocalizationConfiguration) = retry {
     recoverRequesterPaysError(cloudPath) { flag =>
-      s"gsutil $flag cp ${cloudPath.escape} ${containerPath.escape}"
+      s"retry /usr/lib/google-cloud-sdk/bin/gsutil $flag cp ${cloudPath.escape} ${containerPath.escape}"
     }
   }
   

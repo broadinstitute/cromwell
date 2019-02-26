@@ -321,6 +321,7 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
   }
 
   def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
+    log.info(s"Responding to status query for ${workflowId.id.toString} with $status")
     JsObject(Map(
       WorkflowMetadataKeys.Status -> JsString(status.toString),
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString)

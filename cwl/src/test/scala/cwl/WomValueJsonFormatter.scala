@@ -22,6 +22,6 @@ object WomValueJsonFormatter {
       case v: WomValue => JsString(v.toWomString)
 
     }
-    def read(value: JsValue): WomValue = ???
+    def read(value: JsValue): WomValue = throw new UnsupportedOperationException
   }
 }

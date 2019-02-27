@@ -56,31 +56,31 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
   def identifierTypeLookup(name: String): WomType = identifierLookup(name).womType
 
   class TestValueFunctions extends WdlStandardLibraryFunctions {
-    override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
+    override def globHelper(pattern: String): Seq[String] = throw new UnsupportedOperationException()
 
-    override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError()
+    override def readFile(path: String, sizeLimit: Int): String = throw new UnsupportedOperationException()
 
-    override def writeFile(path: String, content: String): Try[WomSingleFile] = Failure(new NotImplementedError())
+    override def writeFile(path: String, content: String): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
 
-    override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new NotImplementedError())
+    override def stdout(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
 
-    override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new NotImplementedError())
+    override def stderr(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
 
-    override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
+    override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new UnsupportedOperationException())
 
-    override def write_tsv(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new NotImplementedError())
+    override def write_tsv(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
 
-    override def write_json(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new NotImplementedError())
+    override def write_json(params: Seq[Try[WomValue]]): Try[WomSingleFile] = Failure(new UnsupportedOperationException())
 
-    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
+    override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new UnsupportedOperationException())
 
-    override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
+    override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new UnsupportedOperationException())
 
-    override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())
+    override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new UnsupportedOperationException())
 
-    override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
+    override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
 
-    override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
+    override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
 
     def b(params: Seq[Try[WomValue]]): Try[WomValue] =
       Success(WomInteger(params.head.asInstanceOf[Try[WomInteger]].get.value + 1))
@@ -88,7 +88,7 @@ class ValueEvaluatorSpec extends FlatSpec with Matchers {
     def append(params: Seq[Try[WomValue]]): Try[WomValue] =
       Success(WomString(params.map(_.asInstanceOf[Try[WomString]].get.value).mkString))
 
-    override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = ???
+    override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new UnsupportedOperationException
   }
 
   class TestTypeFunctions extends WdlStandardLibraryFunctionsType {

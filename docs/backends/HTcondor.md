@@ -65,12 +65,15 @@ This backend also supports docker as optional feature. Configuration key `backen
 
 * `docker` - The docker image name.
 * `docker_cwd` - The path where `cwd` should be mounted within the docker container.
+* `docker_script` - The path of the `script` within the docker container.
+* `docker_out` - The path of the `out` within the docker container.
+* `docker_err` - The path of the `err` within the docker container.
 
 ```
 chmod 755 ${script}
 cat > ${cwd}/execution/dockerScript <<EOF
 #!/bin/bash
-docker run --rm -i -v ${cwd}:${docker_cwd} ${docker} /bin/bash ${script}
+docker run --rm -i -v ${cwd}:${docker_cwd} ${docker} /bin/bash ${docker_script}
 EOF
 chmod 755 ${cwd}/execution/dockerScript
 cat > ${cwd}/execution/submitFile <<EOF

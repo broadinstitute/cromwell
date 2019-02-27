@@ -28,12 +28,12 @@ trait SampleWdl {
       case f: WomFloat => JsNumber(f.value)
       case f: WomFile => JsString(f.value)
     }
-    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
+    def read(value: JsValue) = throw new UnsupportedOperationException(s"Reading JSON not implemented: $value")
   }
 
   implicit object RawInputsJsonFormat extends JsonFormat[WorkflowRawInputs] {
     def write(inputs: WorkflowRawInputs) = JsObject(inputs map { case (k, v) => k -> v.toJson })
-    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
+    def read(value: JsValue) = throw new UnsupportedOperationException(s"Reading JSON not implemented: $value")
   }
 
   def wdlJson: WorkflowJson = rawInputs.toJson.prettyPrint

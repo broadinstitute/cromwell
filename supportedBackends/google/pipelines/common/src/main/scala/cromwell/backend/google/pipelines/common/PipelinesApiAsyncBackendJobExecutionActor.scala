@@ -603,8 +603,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           val message = unable + details + runStatus.prettyPrintedError
           Future.successful(FailedNonRetryableExecutionHandle(StandardException(
             runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
-        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+        case _ => Future.successful({
+          println("-------------------------------------")
+          println("FIND ME")
+          println(s"Actor: ${self.path.name}\t Method: handleFailedRunStatus in handleExecutionFailure")
+          println("-------------------------------------")
+          FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode)
+        })
       }
     }
 

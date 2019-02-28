@@ -253,8 +253,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
     timeout match {
       case Some(x) =>
-      jobLogger.info("Cromwell will watch for an rc file *and* double-check every {} seconds to make sure this job is still alive", x)
-      if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")
+        jobLogger.info("Cromwell will watch for an rc file *and* double-check every {} seconds to make sure this job is still alive", x)
+        if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")
       case None =>
         jobLogger.info("Cromwell will watch for an rc file but will *not* double-check whether this job is actually alive (unless Cromwell restarts)")
     }

@@ -312,7 +312,7 @@ To configure `udocker` to work in a local environment, you must tag the provider
 ```
 run-in-background = true
 submit-docker = """
-    udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}
+    udocker run -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}
 """
 ```
 
@@ -331,7 +331,7 @@ submit-docker = """
       -t ${runtime_minutes} \
       ${"-c " + cpus} \
       --mem-per-cpu=${requested_memory_mb_per_core} \
-      --wrap "udocker run --rm -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}"
+      --wrap "udocker run -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}"
 """
 ```
 
@@ -439,9 +439,8 @@ You can find the `sha256` of an image using `docker images --digests`
 #### How does Cromwell know when a job or container has completed?
 Cromwell uses the presence of the `rc` (returncode) file to determine whether a task has succeeded or failed. This `rc` file is generated as part of the `script` within the execution directory, where the script is assembled at runtime. This is important as if the script executes successfully but the container doesn't terminate, Cromwell will continue the execution of the workflow and the container will persist hogging system resources.
 
-Within the two configurations above:
+Within the configurations above:
 - `singularity`: The exec mode does not run a container on the background
-- `udocker`: the `--rm` flag is included so that the container is terminated after execution script.
 
 #### Cromwell: Run-in-background
 

@@ -1,8 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
-import java.io.PrintWriter
 import java.nio.file.FileAlreadyExistsException
-import java.time.{Instant, LocalDateTime}
+import java.time.Instant
 
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder

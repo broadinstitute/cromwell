@@ -1,7 +1,7 @@
 package cromwell.backend.sfs
 
 import java.nio.file.FileAlreadyExistsException
-import java.time.LocalDateTime
+import java.time.Instant
 
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
@@ -22,18 +22,18 @@ sealed trait SharedFileSystemRunState {
   override def toString: String = status
 }
 
-case class SharedFileSystemJobRunning(validUntil: Option[LocalDateTime]) extends SharedFileSystemRunState {
+case class SharedFileSystemJobRunning(validUntil: Option[Instant]) extends SharedFileSystemRunState {
   override def status = "Running"
 
   // Whether this running state is stale (ie has the 'validUntil' time passed?)
-  def stale: Boolean = validUntil.exists(t => t.isBefore(LocalDateTime.now))
+  def stale: Boolean = validUntil.exists(t => t.isBefore(Instant.now))
 }
 
-case class SharedFileSystemJobWaitingForReturnCode(waitUntil: Option[LocalDateTime]) extends SharedFileSystemRunState {
+case class SharedFileSystemJobWaitingForReturnCode(waitUntil: Option[Instant]) extends SharedFileSystemRunState {
   override def status = "WaitingForReturnCode"
 
   // Whether or not to give up waiting for the RC to appear (ie has the 'waitUntil' time passed?)
-  def giveUpWaiting: Boolean = waitUntil.exists(_.isBefore(LocalDateTime.now))
+  def giveUpWaiting: Boolean = waitUntil.exists(_.isBefore(Instant.now))
 }
 
 case object SharedFileSystemJobDone extends SharedFileSystemRunState {

@@ -1,7 +1,8 @@
 package cromwell.backend.impl.sfs.config
 
 import java.io.PrintWriter
-import java.time.LocalDateTime
+import java.nio.file.FileAlreadyExistsException
+import java.time.{Instant, LocalDateTime}
 
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
@@ -263,7 +264,7 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
 
-    lazy val nextTimeout = exitCodeTimeout.map(t => LocalDateTime.now.plusSeconds(t))
+    lazy val nextTimeout = exitCodeTimeout.map(t => Instant.now.plusSeconds(t))
 
     handle.previousState match {
       case None =>
@@ -299,13 +300,23 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           // Can only enter this state when the exit code does not exist and the job is not alive anymore
           // `isAlive` is not called anymore from this point
 
-          // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
+          // If exit-code-timeout is set in the config cromwell will create a fake exitcode file
           jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse("-")} seconds, assuming external kill")
-          val writer = new PrintWriter(jobPaths.returnCode.toFile)
-          // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-          writer.println(9)
-          writer.close()
-          SharedFileSystemJobFailed
+
+          val returnCodeTemp = jobPaths.returnCode.plusExt("kill")
+          returnCodeTemp.write(s"$SIGTERM${System.lineSeparator}")
+          try {
+            returnCodeTemp.moveTo(jobPaths.returnCode)
+            SharedFileSystemJobFailed
+          } catch {
+            case _: FileAlreadyExistsException =>
+              // If the process has already completed, there will be an existing RC:
+              // Essentially, this covers the rare race condition whereby the task completes between starting to write the
+              // fake RC, and trying to copy it:
+              returnCodeTemp.delete(true)
+              // Looks like a new RC file has appeared - let's go back out of this loop and wait for it:
+              waiting
+          }
         } else {
           // Not giving up yet so keep on waiting... for now...
           waiting

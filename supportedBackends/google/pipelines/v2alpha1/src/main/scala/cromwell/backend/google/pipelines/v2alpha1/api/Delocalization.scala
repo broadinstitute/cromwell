@@ -71,14 +71,14 @@ trait Delocalization {
       .withFlags(List(ActionFlag.DisableImagePrefetch))
       .withLabels(Map(Key.Tag -> Value.Delocalization))
   }
-  
+
   private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     val gsutilCommand: String => String = { flag =>
-      s"""   rm -f $$HOME/.config/gcloud/gce && gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
+      s"""rm -f $$HOME/.config/gcloud/gce && gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
     }
-    
+
     def sedStripPrefix(prefix: String) = s"""sed -e "s/^${prefix.ensureSedEscaped}//""""
-    
+
     // See RuntimeOutputMapping.prefixFilters for more info on why this is needed
     val prefixFilters = RuntimeOutputMapping
       .prefixFilters(workflowRoot)

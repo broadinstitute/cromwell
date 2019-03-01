@@ -9,8 +9,11 @@ import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.jdbc.{PositionedParameters, SQLActionBuilder, SetParameter}
 
 import scala.concurrent.{ExecutionContext, Future}
+
+//import slick.driver.H2Driver.api._
 
 object MetadataSlickDatabase {
   def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase = {
@@ -210,6 +213,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.toMap)
   }
 
+  def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
+    SQLActionBuilder(a.queryParts ++ b.queryParts, new SetParameter[Unit] {
+      def apply(p: Unit, pp: PositionedParameters): Unit = {
+        a.unitPConv.apply(p, pp)
+        b.unitPConv.apply(p, pp)
+      }
+    })
+  }
+
   override def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                                       workflowStatuses: Set[String],
                                       workflowNames: Set[String],
@@ -225,10 +237,19 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
-    val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize)
-      .result
-    runTransaction(action)
+
+    val basis =
+      sql"""select se.WORKFLOW_EXECUTION_UUID, se.WORKFLOW_NAME, se.WORKFLOW_STATUS, se.START_TIMESTAMP, se.END_TIMESTAMP, se.SUBMISSION_TIMESTAMP, se.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
+            | FROM WORKFLOW_METADATA_SUMMARY_ENTRY se, CUSTOM_LABEL_ENTRY le
+            | WHERE se.workflow_execution_uuid = le.workflow_execution_uuid""".stripMargin
+
+    val withStatus = workflowStatuses.foldLeft(basis) { (acc, next) => concat(acc, sql""" AND se.WORKFLOW_STATUS=$next""") }
+
+    val result = withStatus.as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+
+    println(result.statements.head)
+
+    runTransaction(result).map(results => results map { case (a,b,c,d,e,f,g) => WorkflowMetadataSummaryEntry(a,b,c,d,e,f,g) })
   }
 
   override def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,

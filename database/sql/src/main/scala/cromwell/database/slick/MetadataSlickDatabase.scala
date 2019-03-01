@@ -2,6 +2,7 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cats.data
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
@@ -222,6 +223,18 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     })
   }
 
+  def concatNel(nel: NonEmptyList[SQLActionBuilder]): SQLActionBuilder = nel.tail.foldLeft(nel.head) { (acc, next) => concat(acc, next) }
+
+  def AND(list: NonEmptyList[SQLActionBuilder]): SQLActionBuilder = if (list.size == 1) list.head else {
+    val fullList = data.NonEmptyList.of(sql"(") ++ list.init.flatMap(x => List(x, sql" AND ")) :+ list.last :+ sql")"
+    concatNel(fullList)
+  }
+
+  def OR(list: NonEmptyList[SQLActionBuilder]): SQLActionBuilder = if (list.size == 1) list.head else {
+    val fullList = data.NonEmptyList.of(sql"(") ++ list.init.flatMap(x => List(x, sql" OR ")) :+ list.last :+ sql")"
+    concatNel(fullList)
+  }
+
   override def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                                       workflowStatuses: Set[String],
                                       workflowNames: Set[String],
@@ -243,9 +256,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
             | FROM WORKFLOW_METADATA_SUMMARY_ENTRY se, CUSTOM_LABEL_ENTRY le
             | WHERE se.workflow_execution_uuid = le.workflow_execution_uuid""".stripMargin
 
-    val withStatus = workflowStatuses.foldLeft(basis) { (acc, next) => concat(acc, sql""" AND se.WORKFLOW_STATUS=$next""") }
+    val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""se.WORKFLOW_STATUS=$status""")).map(OR).toList
+    val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""se.WORKFLOW_NAME=$name""")).map(OR).toList
+    val submissionTimeConstraint = submissionTimestampOption.map(ts => sql"""se.SUBMISSION_TIMESTAMP>=$ts""").toList
+    val startTimeConstraint = startTimestampOption.map(ts => sql"""se.START_TIMESTAMP>=$ts""").toList
+    val endTimeConstraint = endTimestampOption.map(ts => sql"""se.END_TIMESTAMP<=$ts""").toList
 
-    val result = withStatus.as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+    val sqlNel = NonEmptyList.of(basis) ++ statusConstraint ++ nameConstraint ++ submissionTimeConstraint ++ startTimeConstraint ++ endTimeConstraint
+
+    val result = AND(sqlNel).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
 
     println(result.statements.head)
 

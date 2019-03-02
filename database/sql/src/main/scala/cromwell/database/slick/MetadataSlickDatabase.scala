@@ -258,11 +258,20 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
     val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""se.WORKFLOW_STATUS=$status""")).map(OR).toList
     val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""se.WORKFLOW_NAME=$name""")).map(OR).toList
+    val idConstraint = NonEmptyList.fromList(workflowExecutionUuids.toList.map(uuid => sql"""se.WORKFLOW_EXECUTION_UUID=$uuid""")).map(OR).toList
     val submissionTimeConstraint = submissionTimestampOption.map(ts => sql"""se.SUBMISSION_TIMESTAMP>=$ts""").toList
     val startTimeConstraint = startTimestampOption.map(ts => sql"""se.START_TIMESTAMP>=$ts""").toList
     val endTimeConstraint = endTimestampOption.map(ts => sql"""se.END_TIMESTAMP<=$ts""").toList
 
-    val sqlNel = NonEmptyList.of(basis) ++ statusConstraint ++ nameConstraint ++ submissionTimeConstraint ++ startTimeConstraint ++ endTimeConstraint
+    val labelOrConstraint = NonEmptyList.fromList(labelAndKeyLabelValues.toList.map { case (k, v) =>
+      AND(NonEmptyList.of(sql"el.custom_label_key=$k") :+ sql"el.custom_label_value=$v")
+    }).map(OR).toList
+
+    val includeSubworkflowsConstraint = if (includeSubworkflows) List.empty else List(
+      sql"""NOT EXISTS(SELECT * from METADATA_ENTRY WHERE ((WORKFLOW_EXECUTION_UUID = se.WORKFLOW_EXECUTION_UUID) AND (METADATA_KEY = 'parentWorkflowId') AND (METADATA_VALUE IS NOT NULL)))"""
+    )
+
+    val sqlNel = NonEmptyList.of(basis) ++ statusConstraint ++ nameConstraint ++ idConstraint ++ submissionTimeConstraint ++ startTimeConstraint ++ endTimeConstraint ++ labelOrConstraint ++ includeSubworkflowsConstraint
 
     val result = AND(sqlNel).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
 

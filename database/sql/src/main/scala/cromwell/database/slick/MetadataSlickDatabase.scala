@@ -251,7 +251,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
-    val basis =
+    val openingStatement =
       sql"""select se.WORKFLOW_EXECUTION_UUID, se.WORKFLOW_NAME, se.WORKFLOW_STATUS, se.START_TIMESTAMP, se.END_TIMESTAMP, se.SUBMISSION_TIMESTAMP, se.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
             | FROM WORKFLOW_METADATA_SUMMARY_ENTRY se, CUSTOM_LABEL_ENTRY le
             | WHERE se.workflow_execution_uuid = le.workflow_execution_uuid""".stripMargin
@@ -271,7 +271,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       sql"""NOT EXISTS(SELECT * from METADATA_ENTRY WHERE ((WORKFLOW_EXECUTION_UUID = se.WORKFLOW_EXECUTION_UUID) AND (METADATA_KEY = 'parentWorkflowId') AND (METADATA_VALUE IS NOT NULL)))"""
     )
 
-    val sqlNel = NonEmptyList.of(basis) ++ statusConstraint ++ nameConstraint ++ idConstraint ++ submissionTimeConstraint ++ startTimeConstraint ++ endTimeConstraint ++ labelOrConstraint ++ includeSubworkflowsConstraint
+    val sqlNel = NonEmptyList.of(openingStatement) ++ statusConstraint ++ nameConstraint ++ idConstraint ++ submissionTimeConstraint ++ startTimeConstraint ++ endTimeConstraint ++ labelOrConstraint ++ includeSubworkflowsConstraint
 
     val result = AND(sqlNel).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
 

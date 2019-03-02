@@ -1,14 +1,15 @@
 package cromiam.webservice
 
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import cromiam.cromwell.CromwellClient
 import cromiam.server.status.StatusService
-import EngineRouteSupport._
+import cromiam.webservice.EngineRouteSupport._
+import cromwell.api.model._
 import org.broadinstitute.dsde.workbench.util.health.StatusJsonSupport._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 
 import scala.concurrent.ExecutionContextExecutor
 
@@ -24,7 +25,7 @@ trait EngineRouteSupport extends RequestSupport with SprayJsonSupport {
   def versionRoute: Route = path("engine" / Segment / "version") { _ =>
     get {
       extractStrictRequest { req =>
-        complete { cromwellClient.forwardToCromwell(req) }
+        complete { cromwellClient.forwardToCromwell(req).asHttpResponse }
       }
     }
   }

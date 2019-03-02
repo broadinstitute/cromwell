@@ -11,6 +11,10 @@ and without docker. Similarly, when killing a docker task the `kill-docker` conf
 ### Bug fixes
 - Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
 
+#### HTTP responses
+
+- When returning errors as json the `Content-Type` header is set to `application/json`.
+
 ## 37 Release Notes
 
 ### Docker

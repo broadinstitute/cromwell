@@ -14,7 +14,7 @@ import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, CromwellBackends, ShardIndex, SubmittedWorkflow, WorkflowId, WorkflowMetadata, WorkflowOutputs, WorkflowStatus}
+import cromwell.api.model._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent._
@@ -75,23 +75,30 @@ object CentaurCromwellClient {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))
   }
   
-  lazy val backends: Try[CromwellBackends] = Try(Await.result(cromwellClient.backends, CromwellManager.timeout * 2))
-
   implicit private val timer = IO.timer(blockingEc)
   implicit private val contextShift = IO.contextShift(blockingEc)
 
-  def retryRequest[T](x: () => Future[T], timeout: FiniteDuration): IO[T] = {
-    // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail 
+  lazy val backends: IO[CromwellBackends] = cromwellClient.backends.timeout(CromwellManager.timeout * 2).asIo
+
+  def retryRequest[T](func: () => FailureResponseOrT[T], timeout: FiniteDuration): IO[T] = {
+    // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail
     val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit
 
     ioDelay.flatMap( _ =>
       // Could probably use IO to do the retrying too. For now use a copyport of Retry from cromwell core. Retry 5 times,
       // wait 5 seconds between retries. Timeout the whole thing using the IO timeout.
-      IO.fromFuture(IO(Retry.withRetry(x, Option(5), 5.seconds, isTransient = isTransient)).timeout(timeout))
+      // https://github.com/cb372/cats-retry
+      // https://typelevel.org/cats-effect/datatypes/io.html#example-retrying-with-exponential-backoff
+      IO.fromFuture(IO(Retry.withRetry(
+        () => func().asIo.unsafeToFuture(),
+        Option(5),
+        5.seconds,
+        isTransient = isTransient)
+      ).timeout(timeout))
     )
   }
 
-  def sendReceiveFutureCompletion[T](x: () => Future[T]) = {
+  def sendReceiveFutureCompletion[T](x: () => FailureResponseOrT[T]): IO[T] = {
     retryRequest(x, CentaurConfig.sendReceiveTimeout)
   }
 

@@ -22,7 +22,7 @@ object CentaurTestSuite {
     }
   }
 
-  val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
+  val cromwellBackends = CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
   
   def runSequential(testCase: CentaurTestCase): Boolean = testCase.testFormat match {
     case _: RestartFormat| _: ScheduledAbort | InstantAbort => true

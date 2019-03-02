@@ -134,7 +134,6 @@ object Dependencies {
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "org.scalatest" %% "scalatest" % scalatestV % Test
   )
 
   val implFtpDependencies = List(
@@ -173,8 +172,9 @@ object Dependencies {
    */
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-core" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "io.sentry" % "sentry-logback" % sentryLogbackV,
     "org.codehaus.janino" % "janino" % janinoV,
@@ -335,9 +335,6 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-    "ch.qos.logback" % "logback-access" % logbackV,
-    "ch.qos.logback" % "logback-classic" % logbackV,
-    "ch.qos.logback" % "logback-core" % logbackV,
   ) ++ catsDependencies ++ configDependencies
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
@@ -447,8 +444,9 @@ object Dependencies {
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
-  ) ++ akkaHttpDependencies ++ betterFilesDependencies
+  ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV,
@@ -474,7 +472,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
-  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
+  ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies = coreDependencies ++ akkaHttpDependencies
 

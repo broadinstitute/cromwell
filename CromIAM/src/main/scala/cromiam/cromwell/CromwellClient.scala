@@ -8,14 +8,16 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
 import akka.stream.ActorMaterializer
+import cats.effect.IO
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient._
 import cromiam.instrumentation.CromIamInstrumentation
-import cromwell.api.{CromwellClient => CromwellApiClient}
 import cromiam.server.status.StatusCheckedSubsystem
-import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata}
+import cromwell.api.model._
+import cromwell.api.{CromwellClient => CromwellApiClient}
 import spray.json._
+
 import scala.concurrent.{ExecutionContextExecutor, Future}
 
 /**
@@ -37,7 +39,9 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
 
   val cromwellApiClient: CromwellApiClient = new CromwellApiClient(cromwellUrl, cromwellApiVersion)
 
-  def collectionForWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[Collection] = {
+  def collectionForWorkflow(workflowId: String,
+                            user: User,
+                            cromIamRequest: HttpRequest): FailureResponseOrT[Collection] = {
     import CromwellClient.EnhancedWorkflowLabels
 
     log.info("Requesting collection for " + workflowId + " for user " + user.userId + " from metadata")
@@ -45,28 +49,34 @@ class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingA
     // Look up in Cromwell what the collection is for this workflow. If it doesn't exist, fail the Future
     val cromwellApiLabelFunc = () => cromwellApiClient.labels(WorkflowId.fromString(workflowId), headers = List(user.authorization)) flatMap {
       _.caasCollection match {
-        case Some(c) => Future.successful(c)
-        case None => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
+        case Some(c) => FailureResponseOrT.pure[IO, HttpResponse](c)
+        case None =>
+          val exception = new IllegalArgumentException(s"Workflow $workflowId has no associated collection")
+          val failure = IO.raiseError[Collection](exception)
+          FailureResponseOrT.right[HttpResponse](failure)
       }
     }
 
     instrumentRequest(cromwellApiLabelFunc, cromIamRequest, wfCollectionPrefix)
   }
 
-  def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
-    val headers = httpRequest.headers.filterNot(header => header.name == TimeoutAccessHeader)
-    val cromwellRequest = httpRequest
-      .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
-      .withHeaders(headers)
-    Http().singleRequest(cromwellRequest)
-  } recoverWith {
-    case e => Future.failed(CromwellConnectionFailure(e))
+  def forwardToCromwell(httpRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
+    val future = {
+      val headers = httpRequest.headers.filterNot(_.name == TimeoutAccessHeader)
+      val cromwellRequest = httpRequest
+        .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
+        .withHeaders(headers)
+      Http().singleRequest(cromwellRequest)
+    } recoverWith {
+      case e => Future.failed(CromwellConnectionFailure(e))
+    }
+    future.asFailureResponseOrT
   }
 
   /**
     * Retrieve the root workflow ID for a workflow ID. This is used in case the user is inquiring about a subworkflow.
     */
-  def getRootWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[String] = {
+  def getRootWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): FailureResponseOrT[String] = {
     def metadataToRootWorkflowId(metadata: WorkflowMetadata): String = {
       import spray.json._
       /*
@@ -106,8 +116,7 @@ object CromwellClient {
 
   implicit class EnhancedWorkflowLabels(val wl: WorkflowLabels) extends AnyVal {
 
-    import Collection.CollectionLabelName
-    import Collection.collectionJsonReader
+    import Collection.{CollectionLabelName, collectionJsonReader}
 
     def caasCollection: Option[Collection] = {
       wl.labels.fields.get(CollectionLabelName).map(_.convertTo[Collection])

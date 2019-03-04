@@ -432,7 +432,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         // exclude subworkflows (page size 2 to make sure pagination works as expected
         excludeSubworkflowQueryParams2 = Seq(
           WorkflowQueryKey.IncludeSubworkflows.name -> false.toString,
-          WorkflowQueryKey.PageSize.name -> 2.toString,
+          WorkflowQueryKey.PageSize.name -> 100.toString,
           WorkflowQueryKey.Page.name -> 1.toString
         )
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(excludeSubworkflowQueryParams2)) map {

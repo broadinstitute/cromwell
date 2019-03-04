@@ -314,13 +314,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       includeSubworkflowsConstraint
     )
 
-    val withPaginationCodicil: SQLActionBuilder = (page, pageSize) match {
-      case (Some(p), Some(ps)) => concat(constraintSet, sql""" LIMIT ${Integer.max(p-1, 0) * ps},$ps """)
-      case (None, Some(ps)) => concat(constraintSet, sql""" LIMIT 0,$ps """)
+    val withPaginationAddendum: SQLActionBuilder = (page, pageSize) match {
+      case (Some(p), Some(ps)) => concat(constraintSet, sql""" LIMIT #${Integer.max(p-1, 0) * ps},#$ps """)
+      case (None, Some(ps)) => concat(constraintSet, sql""" LIMIT 0,#$ps """)
       case _ => constraintSet
     }
 
-    val result = withPaginationCodicil.as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+    val result = withPaginationAddendum.as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
 
     println(result.statements.head)
 

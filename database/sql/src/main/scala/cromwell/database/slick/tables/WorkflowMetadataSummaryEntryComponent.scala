@@ -1,8 +1,12 @@
 package cromwell.database.slick.tables
 
 import java.sql.Timestamp
+import java.util.concurrent.atomic.AtomicInteger
 
-import cromwell.database.sql.tables.{CustomLabelEntry, WorkflowMetadataSummaryEntry}
+import cats.data
+import cats.data.NonEmptyList
+import cromwell.database.sql.tables.WorkflowMetadataSummaryEntry
+import slick.jdbc.{PositionedParameters, SQLActionBuilder, SetParameter}
 
 trait WorkflowMetadataSummaryEntryComponent {
 
@@ -63,135 +67,120 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
-  def filterWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
-                                           workflowStatuses: Set[String],
-                                           workflowNames: Set[String],
-                                           workflowExecutionUuids: Set[String],
-                                           submissionTimestampOption: Option[Timestamp],
-                                           startTimestampOption: Option[Timestamp],
-                                           endTimestampOption: Option[Timestamp],
-                                           includeSubworkflows: Boolean): WorkflowMetadataSummaryEntries => Rep[Boolean] = {
-    val include: Rep[Boolean] = true
-    val exclude: Rep[Boolean] = false
-
-    { workflowMetadataSummaryEntry =>
-      // All query parameters are either Options or Sets, so they might have no values specified at all.  The general
-      // pattern for these criteria is to map Options and map/reduceLeftOption Sets, resulting in optional filters.
-
-      // All fields but UUID are nullable, necessitating the folds.  If these fields are null in the database we want to
-      // filter the row if the relevant filter has been specified.
-      val startTimestampFilter = startTimestampOption.
-        map(startTimestamp => workflowMetadataSummaryEntry.startTimestamp.fold(ifEmpty = exclude)(_ >= startTimestamp))
-      val endTimestampFilter = endTimestampOption.
-        map(endTimestamp => workflowMetadataSummaryEntry.endTimestamp.fold(ifEmpty = exclude)(_ <= endTimestamp))
-      val submissionTimestampFilter = submissionTimestampOption.
-        map(submissionTimestamp => workflowMetadataSummaryEntry.submissionTimestamp.fold(ifEmpty = exclude)(_ >= submissionTimestamp))
-      // Names, UUIDs, and statuses are potentially multi-valued, the reduceLeftOption ORs together any name, UUID, or
-      // status criteria to include all matching names, UUIDs, and statuses.
-      val workflowNameFilter = workflowNames.
-        map(workflowName => workflowMetadataSummaryEntry.workflowName.fold(ifEmpty = exclude)(_ === workflowName)).
-        reduceLeftOption(_ || _)
-      val workflowExecutionUuidFilter = workflowExecutionUuids.
-        map(workflowExecutionUuid => workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid).
-        reduceLeftOption(_ || _)
-      val workflowStatusFilter = workflowStatuses.
-        map(workflowStatus => workflowMetadataSummaryEntry.workflowStatus.fold(ifEmpty = exclude)(_ === workflowStatus)).
-        reduceLeftOption(_ || _)
-      val notASubworkflowFilter: Option[Rep[Boolean]] =
-        if (includeSubworkflows) None else Option(!metadataEntryExistsForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid, parentIdWorkflowMetadataKey))
-
-      // Put all the optional filters above together in one place.
-      val optionalFilters: List[Option[Rep[Boolean]]] = List(
-        workflowNameFilter,
-        workflowExecutionUuidFilter,
-        workflowStatusFilter,
-        startTimestampFilter,
-        endTimestampFilter,
-        submissionTimestampFilter,
-        notASubworkflowFilter
-      )
-      // Unwrap the optional filters.  If any of these filters are not defined, replace with `include` to include all
-      // rows which might otherwise have been filtered.
-      val filters = optionalFilters.map(_.getOrElse(include))
-      // AND together the filters.  If there are no filters at all return `include`.
-      filters.reduceLeftOption(_ && _).getOrElse(include)
-    }
+  def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
+    SQLActionBuilder(a.queryParts ++ b.queryParts, new SetParameter[Unit] {
+      def apply(p: Unit, pp: PositionedParameters): Unit = {
+        a.unitPConv.apply(p, pp)
+        b.unitPConv.apply(p, pp)
+      }
+    })
   }
 
-  private def doFiltering(parentIdWorkflowMetadataKey: String,
-                          workflowStatuses: Set[String], workflowNames: Set[String],
-                          workflowExecutionUuids: Set[String],
-                          labelAndKeyLabelValues: Set[(String,String)],
-                          labelOrKeyLabelValues: Set[(String,String)],
-                          excludeLabelAndValues: Set[(String,String)],
-                          excludeLabelOrValues: Set[(String,String)],
-                          submissionTimestampOption: Option[Timestamp],
-                          startTimestampOption: Option[Timestamp],
-                          endTimestampOption: Option[Timestamp],
-                          includeSubworkflows: Boolean) = {
+  def concatNel(nel: NonEmptyList[SQLActionBuilder]): SQLActionBuilder = nel.tail.foldLeft(nel.head) { (acc, next) => concat(acc, next) }
 
-    val filter = filterWorkflowMetadataSummaryEntries(
-      parentIdWorkflowMetadataKey,
-      workflowStatuses,
-      workflowNames,
-      workflowExecutionUuids,
-      submissionTimestampOption,
-      startTimestampOption,
-      endTimestampOption,
-      includeSubworkflows
-    )
+  def AND(list: NonEmptyList[SQLActionBuilder]): SQLActionBuilder = if (list.size == 1) list.head else {
+    val fullList = data.NonEmptyList.of(sql"(") ++ list.init.flatMap(x => List(x, sql" AND ")) :+ list.last :+ sql")"
+    concatNel(fullList)
+  }
 
-    // First do the summary table filtering, then some performance optimizations below for labels.
-    val baseQuery = workflowMetadataSummaryEntries.filter(filter)
+  def OR(list: NonEmptyList[SQLActionBuilder]): SQLActionBuilder = if (list.size == 1) list.head else {
+    val fullList = data.NonEmptyList.of(sql"(") ++ list.init.flatMap(x => List(x, sql" OR ")) :+ list.last :+ sql")"
+    concatNel(fullList)
+  }
 
-    // Label ANDs and ORs can be expressed as `join`s which at least on MySQL appear to execute more efficiently than
-    // equivalent `exists` formulations.
-    type LabelsQuery = Query[CustomLabelEntries, CustomLabelEntry, Seq]
-    type WorkflowsQuery = Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq]
+  def NOT(action: SQLActionBuilder): SQLActionBuilder = concat(sql"NOT ", action)
 
-    // For AND, create a `Set` of custom label queries for each key/value pair.
-    def andLabelQueries(kvs: Set[(String, String)]): Set[LabelsQuery] = {
-      kvs.map { case (k, v) =>
-        customLabelEntries.filter(label => label.customLabelKey === k && label.customLabelValue === v)
-      }
-    }
+  def buildQueryAction(selectOrCount: Boolean, // true = select, false = count
+                        parentIdWorkflowMetadataKey: String,
+                       workflowStatuses: Set[String],
+                       workflowNames: Set[String],
+                       workflowExecutionUuids: Set[String],
+                       labelAndKeyLabelValues: Set[(String,String)],
+                       labelOrKeyLabelValues: Set[(String,String)],
+                       excludeLabelAndValues: Set[(String,String)],
+                       excludeLabelOrValues: Set[(String,String)],
+                       submissionTimestampOption: Option[Timestamp],
+                       startTimestampOption: Option[Timestamp],
+                       endTimestampOption: Option[Timestamp],
+                       includeSubworkflows: Boolean): SQLActionBuilder = {
+    val summaryTableAlias = "summaryTable"
+    val labelsTableCustomName = "labelTable"
 
-    // For OR, create a single custom label query that ORs together the key/value pairs. Wrap in a `Set` to account for
-    // a possibly empty collection of input key/value pairs in which case no query should be returned.
-    def orLabelQueries(kvs: Set[(String, String)]): Set[LabelsQuery] = {
-      if (kvs.isEmpty) {
-        Set.empty
-      } else {
-        val exclude: Rep[Boolean] = false
-        Set(
-          customLabelEntries.filter { label =>
-            kvs.foldLeft(exclude) { case (acc, (k, v)) => acc || (label.customLabelKey === k && label.customLabelValue === v) }
-          })
-      }
-    }
-
-    def addLabelsQueries(ands: Set[(String, String)], ors: Set[(String, String)], baseWorkflowsQuery: WorkflowsQuery): WorkflowsQuery = {
-      (andLabelQueries(ands) ++ orLabelQueries(ors)).foldLeft(baseWorkflowsQuery) { case (summaries, labels) =>
-        // Join workflow summaries to labels, only taking the workflow summaries in the result. Fold each labels query into the
-        // composite query.
-        summaries join labels on (_.workflowExecutionUuid === _.workflowExecutionUuid) map { case (s, _) => s }
-      }
-    }
-
-    val baseQueryWithIncludeLabels = addLabelsQueries(ands = labelAndKeyLabelValues, ors = labelOrKeyLabelValues, baseWorkflowsQuery = baseQuery)
-
-    if (excludeLabelAndValues.nonEmpty || excludeLabelOrValues.nonEmpty) {
-      // If there are labels to be excluded, run the includes query first then filter anything found in an excludes query.
-      val baseQueryWithExcludeLabels = addLabelsQueries(
-        ands = excludeLabelAndValues,
-        ors = excludeLabelOrValues,
-        baseWorkflowsQuery = baseQuery
-      )
-      baseQueryWithIncludeLabels.filterNot(_.workflowExecutionUuid in baseQueryWithExcludeLabels.map(_.workflowExecutionUuid))
+    val select = if (selectOrCount) {
+      sql"""SELECT #$summaryTableAlias.WORKFLOW_EXECUTION_UUID, #$summaryTableAlias.WORKFLOW_NAME, #$summaryTableAlias.WORKFLOW_STATUS, #$summaryTableAlias.START_TIMESTAMP, #$summaryTableAlias.END_TIMESTAMP, #$summaryTableAlias.SUBMISSION_TIMESTAMP, #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
+           | """.stripMargin
     } else {
-      baseQueryWithIncludeLabels
+      sql"""SELECT count(*)
+           | """.stripMargin
     }
+
+    val from = if (labelOrKeyLabelValues.nonEmpty) {
+      sql"""FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias, CUSTOM_LABEL_ENTRY #$labelsTableCustomName
+           | """.stripMargin
+    } else {
+      sql"""FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias
+           | """.stripMargin
+    }
+
+    val excludeLabelsOrLinkingConstraint = if (labelOrKeyLabelValues.nonEmpty) {
+      List(sql"""#$summaryTableAlias.workflow_execution_uuid = #$labelsTableCustomName.workflow_execution_uuid""")
+    } else List.empty
+
+    val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""#$summaryTableAlias.WORKFLOW_STATUS=$status""")).map(OR).toList
+    val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""#$summaryTableAlias.WORKFLOW_NAME=$name""")).map(OR).toList
+    val idConstraint = NonEmptyList.fromList(workflowExecutionUuids.toList.map(uuid => sql"""#$summaryTableAlias.WORKFLOW_EXECUTION_UUID=$uuid""")).map(OR).toList
+    val submissionTimeConstraint = submissionTimestampOption.map(ts => sql"""#$summaryTableAlias.SUBMISSION_TIMESTAMP>=$ts""").toList
+    val startTimeConstraint = startTimestampOption.map(ts => sql"""#$summaryTableAlias.START_TIMESTAMP>=$ts""").toList
+    val endTimeConstraint = endTimestampOption.map(ts => sql"""#$summaryTableAlias.END_TIMESTAMP<=$ts""").toList
+
+    val mixinTableCounter = new AtomicInteger(0)
+
+    // *ALL* of the labelAnd list of KV pairs must exist:
+    def labelExists(labelKey: String, labelValue: String) = {
+      val tableName = s"labelsMixin" + mixinTableCounter.getAndIncrement()
+      sql"""EXISTS(SELECT * from CUSTOM_LABEL_ENTRY #$tableName WHERE ((#$tableName.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$tableName.CUSTOM_LABEL_KEY = $labelKey) AND (#$tableName.CUSTOM_LABEL_VALUE = $labelValue)))"""
+    }
+    val labelsAndConstraint = NonEmptyList.fromList(labelAndKeyLabelValues.toList.map { case (labelKey, labelValue) => labelExists(labelKey, labelValue) } ).map(AND).toList
+
+    // At least one of the labelOr list of KV pairs must exist:
+    val labelOrConstraint = NonEmptyList.fromList(labelOrKeyLabelValues.toList.map { case (k, v) =>
+      AND(NonEmptyList.of(sql"#$labelsTableCustomName.custom_label_key=$k") :+ sql"#$labelsTableCustomName.custom_label_value=$v")
+    }).map(OR).toList
+
+    // *ALL* of the excludeLabelOr list of KV pairs must *NOT* exist:
+    val excludeLabelsOrConstraint = NonEmptyList.fromList(excludeLabelOrValues.toList.map { case (labelKey, labelValue) => NOT(labelExists(labelKey, labelValue)) } ).map(AND).toList
+
+    // At least one of the excludeLabelAnd list of KV pairs must *NOT* exist:
+    val excludeLabelsAndConstraint = NonEmptyList.fromList(excludeLabelAndValues.toList.map { case (labelKey, labelValue) => NOT(labelExists(labelKey, labelValue)) } ).map(OR).toList
+
+    val includeSubworkflowsConstraint = if (includeSubworkflows) List.empty else {
+      val tableName = s"subworkflowMixin" + mixinTableCounter.getAndIncrement()
+      List(sql"""NOT EXISTS(SELECT * from METADATA_ENTRY #$tableName WHERE ((#$tableName.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$tableName.METADATA_KEY = 'parentWorkflowId') AND (#$tableName.METADATA_VALUE IS NOT NULL)))""")
+    }
+
+    val constraintList =
+      excludeLabelsOrLinkingConstraint ++
+        statusConstraint ++
+        nameConstraint ++
+        idConstraint ++
+        submissionTimeConstraint ++
+        startTimeConstraint ++
+        endTimeConstraint ++
+        labelOrConstraint ++
+        labelsAndConstraint ++
+        excludeLabelsOrConstraint ++
+        excludeLabelsAndConstraint ++
+        includeSubworkflowsConstraint
+
+    val where = NonEmptyList.fromList(constraintList) match {
+      case Some(constraints) => List(sql"WHERE ", AND(constraints))
+      case None => List.empty
+    }
+
+    concatNel((NonEmptyList.of(select) :+ from) ++ where)
+
   }
+
 
   def countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey: String,
                                           workflowStatuses: Set[String], workflowNames: Set[String],
@@ -205,7 +194,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           endTimestampOption: Option[Timestamp],
                                           includeSubworkflows: Boolean) = {
 
-    doFiltering(
+    val result = buildQueryAction(
+      selectOrCount = false,
       parentIdWorkflowMetadataKey,
       workflowStatuses,
       workflowNames,
@@ -217,7 +207,12 @@ trait WorkflowMetadataSummaryEntryComponent {
       submissionTimestampOption,
       startTimestampOption,
       endTimestampOption,
-      includeSubworkflows).length
+      includeSubworkflows = includeSubworkflows
+    ).as[Int]
+
+    println(result.statements.head)
+
+    result
   }
 
   /**
@@ -236,7 +231,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           includeSubworkflows: Boolean,
                                           page: Option[Int],
                                           pageSize: Option[Int]) = {
-    val query = doFiltering(
+    val mainQuery = buildQueryAction(
+      selectOrCount = true,
       parentIdWorkflowMetadataKey,
       workflowStatuses,
       workflowNames,
@@ -248,12 +244,23 @@ trait WorkflowMetadataSummaryEntryComponent {
       submissionTimestampOption,
       startTimestampOption,
       endTimestampOption,
-      includeSubworkflows)
+      includeSubworkflows = includeSubworkflows
+    )
 
-    (page, pageSize) match {
-      case (Some(p), Some(ps)) => query.sortBy(_.workflowMetadataSummaryEntryId.desc).drop((p - 1) * ps).take(ps)
-      case (None, Some(ps)) => query.take(ps)
-      case _ => query
+
+    val paginationAddendum: List[SQLActionBuilder] = (page, pageSize) match {
+      case (Some(p), Some(ps)) => List(sql""" LIMIT #${Integer.max(p-1, 0) * ps},#$ps """)
+      case (None, Some(ps)) => List(sql""" LIMIT 0,#$ps """)
+      case _ => List.empty
     }
+
+    val orderByAddendum = sql"""ORDER BY WORKFLOW_METADATA_SUMMARY_ENTRY_ID DESC
+                               | """.stripMargin
+
+    val result = concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+
+    println(result.statements.head)
+
+    result
   }
 }

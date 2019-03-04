@@ -260,12 +260,16 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val openingStatement = if (labelOrKeyLabelValues.nonEmpty) {
       sql"""select #$summaryTableAlias.WORKFLOW_EXECUTION_UUID, #$summaryTableAlias.WORKFLOW_NAME, #$summaryTableAlias.WORKFLOW_STATUS, #$summaryTableAlias.START_TIMESTAMP, #$summaryTableAlias.END_TIMESTAMP, #$summaryTableAlias.SUBMISSION_TIMESTAMP, #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
            | FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias, CUSTOM_LABEL_ENTRY #$labelsTableCustomName
-           | WHERE #$summaryTableAlias.workflow_execution_uuid = #$labelsTableCustomName.workflow_execution_uuid""".stripMargin
+           | """.stripMargin
       } else {
       sql"""select #$summaryTableAlias.WORKFLOW_EXECUTION_UUID, #$summaryTableAlias.WORKFLOW_NAME, #$summaryTableAlias.WORKFLOW_STATUS, #$summaryTableAlias.START_TIMESTAMP, #$summaryTableAlias.END_TIMESTAMP, #$summaryTableAlias.SUBMISSION_TIMESTAMP, #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
            | FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias
-           | WHERE true""".stripMargin
+           | """.stripMargin
     }
+
+    val excludeLabelsOrLinkingConstraint = if (labelOrKeyLabelValues.nonEmpty) {
+      List(sql"""#$summaryTableAlias.workflow_execution_uuid = #$labelsTableCustomName.workflow_execution_uuid""")
+    } else List.empty
 
     val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""#$summaryTableAlias.WORKFLOW_STATUS=$status""")).map(OR).toList
     val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""#$summaryTableAlias.WORKFLOW_NAME=$name""")).map(OR).toList
@@ -299,8 +303,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       List(sql"""NOT EXISTS(SELECT * from METADATA_ENTRY #$tableName WHERE ((#$tableName.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$tableName.METADATA_KEY = 'parentWorkflowId') AND (#$tableName.METADATA_VALUE IS NOT NULL)))""")
     }
 
-    val constraintSet = AND(
-      NonEmptyList.of(openingStatement) ++
+    val constraintList =
+      excludeLabelsOrLinkingConstraint ++
       statusConstraint ++
       nameConstraint ++
       idConstraint ++
@@ -312,15 +316,23 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       excludeLabelsOrConstraint ++
       excludeLabelsAndConstraint ++
       includeSubworkflowsConstraint
-    )
 
-    val withPaginationAddendum: SQLActionBuilder = (page, pageSize) match {
-      case (Some(p), Some(ps)) => concat(constraintSet, sql""" LIMIT #${Integer.max(p-1, 0) * ps},#$ps """)
-      case (None, Some(ps)) => concat(constraintSet, sql""" LIMIT 0,#$ps """)
-      case _ => constraintSet
+    val constraintClause = NonEmptyList.fromList(constraintList) match {
+      case Some(constraints) => List(sql"WHERE ", AND(constraints))
+      case None => List.empty
     }
 
-    val result = withPaginationAddendum.as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+    val paginationAddendum: List[SQLActionBuilder] = (page, pageSize) match {
+      case (Some(p), Some(ps)) => List(sql""" LIMIT #${Integer.max(p-1, 0) * ps},#$ps """)
+      case (None, Some(ps)) => List(sql""" LIMIT 0,#$ps """)
+      case _ => List.empty
+    }
+
+    val orderByAddendum = sql"""
+    | ORDER BY #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID DESC""".stripMargin
+
+
+    val result = concatNel((NonEmptyList.of(openingStatement) ++ constraintClause :+ orderByAddendum) ++ paginationAddendum ).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
 
     println(result.statements.head)
 

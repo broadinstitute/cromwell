@@ -257,10 +257,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val summaryTableAlias = "summaryTable"
     val labelsTableCustomName = "labelTable"
 
-    val openingStatement =
+    val openingStatement = if (labelOrKeyLabelValues.nonEmpty) {
       sql"""select #$summaryTableAlias.WORKFLOW_EXECUTION_UUID, #$summaryTableAlias.WORKFLOW_NAME, #$summaryTableAlias.WORKFLOW_STATUS, #$summaryTableAlias.START_TIMESTAMP, #$summaryTableAlias.END_TIMESTAMP, #$summaryTableAlias.SUBMISSION_TIMESTAMP, #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
-            | FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias, CUSTOM_LABEL_ENTRY #$labelsTableCustomName
-            | WHERE #$summaryTableAlias.workflow_execution_uuid = #$labelsTableCustomName.workflow_execution_uuid""".stripMargin
+           | FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias, CUSTOM_LABEL_ENTRY #$labelsTableCustomName
+           | WHERE #$summaryTableAlias.workflow_execution_uuid = #$labelsTableCustomName.workflow_execution_uuid""".stripMargin
+      } else {
+      sql"""select #$summaryTableAlias.WORKFLOW_EXECUTION_UUID, #$summaryTableAlias.WORKFLOW_NAME, #$summaryTableAlias.WORKFLOW_STATUS, #$summaryTableAlias.START_TIMESTAMP, #$summaryTableAlias.END_TIMESTAMP, #$summaryTableAlias.SUBMISSION_TIMESTAMP, #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
+           | FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias
+           | WHERE true""".stripMargin
+    }
 
     val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""#$summaryTableAlias.WORKFLOW_STATUS=$status""")).map(OR).toList
     val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""#$summaryTableAlias.WORKFLOW_NAME=$name""")).map(OR).toList

@@ -315,7 +315,6 @@ object Dependencies {
     /*
     The url may also need the parameters:
     - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
-    - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
      */
     "mysql" % "mysql-connector-java" % mysqlV
   )

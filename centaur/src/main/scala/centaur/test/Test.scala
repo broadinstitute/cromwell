@@ -172,8 +172,8 @@ object Operations {
 
   /**
     * Polls until a valid status is reached.
-    * If an unexpected status returned, the polling stops with a failure.
-    * If none of the expected statuses are returned in time, the polling stops with a failure.
+    * If an unexpected terminal status is returned, the polling stops with a failure.
+    * If none of the expected statuses are returned in time, the polling also stops with a failure.
     */
   def expectSomeProgress(workflow: SubmittedWorkflow,
                          testDefinition: Workflow,

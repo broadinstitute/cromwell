@@ -27,7 +27,7 @@ cromwell:
       -Dbackend.jes.endpointUrl=https://genomics.googleapis.com/
       -Ddatabase.config=main.default
       -Ddatabase.main.default.db.url=jdbc:mysql://mysql:3306/cromwell
-      -Ddatabase.main.default.db.driver=com.mysql.cj.jdbc.Driver
+      -Ddatabase.main.default.db.driver=com.mysql.jdbc.Driver # Change to `com.mysql.cj.jdbc.Driver` when `broadinstitute/cloud-cromwell:dev` updates
       -Ddatabase.main.default.driver=slick.driver.MySQLDriver$$
       -Ddatabase.main.default.db.user=cromwell
       -Ddatabase.main.default.db.password=cromwell

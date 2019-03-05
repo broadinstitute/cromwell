@@ -625,7 +625,7 @@ database {
   #driver = "slick.driver.MySQLDriver$" #old
   profile = "slick.jdbc.MySQLProfile$"  #new
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
@@ -1066,7 +1066,7 @@ For example:
 database {
   driver = "slick.driver.MySQLDriver$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell"
     user = "user"
     password = "pass"

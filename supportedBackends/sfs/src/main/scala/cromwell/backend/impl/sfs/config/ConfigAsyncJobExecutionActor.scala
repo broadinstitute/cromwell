@@ -275,20 +275,20 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
         SharedFileSystemJobDone
 
       case Some(running: SharedFileSystemJobRunning) =>
-        if (running.stale){
-            // Since the exit code timeout has expired for a running job, check whether the job is still alive.
+        if (running.stale) {
+          // Since the exit code timeout has expired for a running job, check whether the job is still alive.
 
-            isAlive(handle.pendingJob) match {
-              case Success(true) =>
-                // The job is still running. Don't check again for another timeout.
-                SharedFileSystemJobRunning(nextTimeout)
-              case Success(false) =>
-                // The job has stopped but we don't have an RC yet. We'll wait one more 'timeout' for the RC to arrive:
-                SharedFileSystemJobWaitingForReturnCode(nextTimeout)
-              case Failure(e) =>
-                log.error(e, s"Failed to check status for ${handle.jobDescriptor.key.tag} using command: ${checkAliveArgs(handle.pendingJob)}")
-                SharedFileSystemJobRunning(nextTimeout)
-            }
+          isAlive(handle.pendingJob) match {
+            case Success(true) =>
+              // The job is still running. Don't check again for another timeout.
+              SharedFileSystemJobRunning(nextTimeout)
+            case Success(false) =>
+              // The job has stopped but we don't have an RC yet. We'll wait one more 'timeout' for the RC to arrive:
+              SharedFileSystemJobWaitingForReturnCode(nextTimeout)
+            case Failure(e) =>
+              log.error(e, s"Failed to check status for ${handle.jobDescriptor.key.tag} using command: ${checkAliveArgs(handle.pendingJob)}")
+              SharedFileSystemJobRunning(nextTimeout)
+          }
         } else {
           // Not stale yet so keep on running!
           running
@@ -300,7 +300,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           // `isAlive` is not called anymore from this point
 
           // If exit-code-timeout is set in the config cromwell will create a fake exitcode file
-          jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse("-")} seconds, assuming external kill")
+          val backupError = "??? (!! Programmer Error: It should be impossible to give up on 'waiting' without having set a maximum wait timeout. Please report this as a bug in the Cromwell Github repository !!)"
+          jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse(backupError)} seconds, assuming external kill")
 
           val returnCodeTemp = jobPaths.returnCode.plusExt("kill")
           returnCodeTemp.write(s"$SIGTERM${System.lineSeparator}")

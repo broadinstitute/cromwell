@@ -203,8 +203,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           endTimestampOption: Option[Timestamp],
                                           includeSubworkflows: Boolean) = {
 
-    val result = buildQueryAction(
-      selectOrCount = SELECT,
+    buildQueryAction(
+      selectOrCount = COUNT,
       parentIdWorkflowMetadataKey,
       workflowStatuses,
       workflowNames,
@@ -218,10 +218,6 @@ trait WorkflowMetadataSummaryEntryComponent {
       endTimestampOption,
       includeSubworkflows = includeSubworkflows
     ).as[Int]
-
-    println(result.statements.head)
-
-    result
   }
 
   /**
@@ -240,8 +236,11 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           includeSubworkflows: Boolean,
                                           page: Option[Int],
                                           pageSize: Option[Int]) = {
+
+    // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
+
     val mainQuery = buildQueryAction(
-      selectOrCount = COUNT,
+      selectOrCount = SELECT,
       parentIdWorkflowMetadataKey,
       workflowStatuses,
       workflowNames,
@@ -266,10 +265,6 @@ trait WorkflowMetadataSummaryEntryComponent {
     val orderByAddendum = sql""" ORDER BY WORKFLOW_METADATA_SUMMARY_ENTRY_ID DESC
                                | """.stripMargin
 
-    val result = concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
-
-    println(result.statements.head)
-
-    result
+    concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
   }
 }

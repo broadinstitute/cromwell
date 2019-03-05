@@ -109,7 +109,9 @@ trait WorkflowMetadataSummaryEntryComponent {
                        includeSubworkflows: Boolean): SQLActionBuilder = {
 
     val summaryTableAlias = "summaryTable"
-    val labelsTableCustomName = "labelsOrMixin"
+    val labelsOrTableAlias = "labelsOrMixin"
+    val labelsAndTableAliases = labelAndKeyLabelValues.zipWithIndex.map { case (labelPair, i) => s"labelAndTable$i" -> labelPair }.toMap
+    val metadataTableAlias = "metadataEntryTable"
 
     val select = selectOrCount match {
       case SELECT =>
@@ -120,17 +122,20 @@ trait WorkflowMetadataSummaryEntryComponent {
              | """.stripMargin
     }
 
-    val from = if (labelOrKeyLabelValues.nonEmpty) {
-      sql"""FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias, CUSTOM_LABEL_ENTRY #$labelsTableCustomName
-           | """.stripMargin
-    } else {
-      sql"""FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias
-           | """.stripMargin
+    val labelOrJoin = if (labelOrKeyLabelValues.nonEmpty) {
+      Option(
+        sql""" JOIN CUSTOM_LABEL_ENTRY #$labelsOrTableAlias on #$summaryTableAlias.WORKFLOW_EXECUTION_UUID = #$labelsOrTableAlias.WORKFLOW_EXECUTION_UUID
+              | """.stripMargin)
+    } else None
+
+    val labelAndJoins = labelsAndTableAliases.toList.map { case (labelAndTableAlias, _) =>
+        sql""" JOIN CUSTOM_LABEL_ENTRY #$labelAndTableAlias on #$summaryTableAlias.WORKFLOW_EXECUTION_UUID = #$labelAndTableAlias.WORKFLOW_EXECUTION_UUID
+             | """.stripMargin
     }
 
-    val summaryToLabelsJoin = if (labelOrKeyLabelValues.nonEmpty) {
-      List(sql"""#$summaryTableAlias.WORKFLOW_EXECUTION_UUID = #$labelsTableCustomName.WORKFLOW_EXECUTION_UUID""")
-    } else List.empty
+    val from = concatNel(NonEmptyList.of(
+      sql"""FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias
+           | """.stripMargin) ++ labelOrJoin.toList ++ labelAndJoins )
 
     val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""#$summaryTableAlias.WORKFLOW_STATUS=$status""")).map(OR).toList
     val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""#$summaryTableAlias.WORKFLOW_NAME=$name""")).map(OR).toList
@@ -139,20 +144,23 @@ trait WorkflowMetadataSummaryEntryComponent {
     val startTimeConstraint = startTimestampOption.map(ts => sql"""#$summaryTableAlias.START_TIMESTAMP>=$ts""").toList
     val endTimeConstraint = endTimestampOption.map(ts => sql"""#$summaryTableAlias.END_TIMESTAMP<=$ts""").toList
 
+    // *ALL* of the labelAnd list of KV pairs must exist:
+    val labelsAndConstraint = NonEmptyList.fromList(labelsAndTableAliases.toList.map { case (labelsAndTableAlias, (labelKey, labelValue)) =>
+      AND(NonEmptyList.of(sql"#$labelsAndTableAlias.custom_label_key=$labelKey") :+ sql"#$labelsAndTableAlias.custom_label_value=$labelValue")
+    }).map(AND).toList
+
+    // At least one of the labelOr list of KV pairs must exist:
+    val labelOrConstraint = NonEmptyList.fromList(labelOrKeyLabelValues.toList.map { case (k, v) =>
+      AND(NonEmptyList.of(sql"#$labelsOrTableAlias.custom_label_key=$k") :+ sql"#$labelsOrTableAlias.custom_label_value=$v")
+    }).map(OR).toList
+
+
     val mixinTableCounter = new AtomicInteger(0)
 
     def labelExists(labelKey: String, labelValue: String) = {
       val tableName = s"labelsMixin" + mixinTableCounter.getAndIncrement()
       sql"""EXISTS(SELECT 1 from CUSTOM_LABEL_ENTRY #$tableName WHERE ((#$tableName.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$tableName.CUSTOM_LABEL_KEY = $labelKey) AND (#$tableName.CUSTOM_LABEL_VALUE = $labelValue)))"""
     }
-
-    // *ALL* of the labelAnd list of KV pairs must exist:
-    val labelsAndConstraint = NonEmptyList.fromList(labelAndKeyLabelValues.toList.map { case (labelKey, labelValue) => labelExists(labelKey, labelValue) } ).map(AND).toList
-
-    // At least one of the labelOr list of KV pairs must exist:
-    val labelOrConstraint = NonEmptyList.fromList(labelOrKeyLabelValues.toList.map { case (k, v) =>
-      AND(NonEmptyList.of(sql"#$labelsTableCustomName.custom_label_key=$k") :+ sql"#$labelsTableCustomName.custom_label_value=$v")
-    }).map(OR).toList
 
     // *ALL* of the excludeLabelOr list of KV pairs must *NOT* exist:
     val excludeLabelsOrConstraint = NonEmptyList.fromList(excludeLabelOrValues.toList.map { case (labelKey, labelValue) => NOT(labelExists(labelKey, labelValue)) } ).map(AND).toList
@@ -161,12 +169,10 @@ trait WorkflowMetadataSummaryEntryComponent {
     val excludeLabelsAndConstraint = NonEmptyList.fromList(excludeLabelAndValues.toList.map { case (labelKey, labelValue) => NOT(labelExists(labelKey, labelValue)) } ).map(OR).toList
 
     val includeSubworkflowsConstraint = if (includeSubworkflows) List.empty else {
-      val tableName = s"subworkflowMixin" + mixinTableCounter.getAndIncrement()
-      List(sql"""NOT EXISTS(SELECT 1 from METADATA_ENTRY #$tableName WHERE ((#$tableName.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$tableName.METADATA_KEY = 'parentWorkflowId') AND (#$tableName.METADATA_VALUE IS NOT NULL)))""")
+      List(sql"""NOT EXISTS(SELECT 1 from METADATA_ENTRY #$metadataTableAlias WHERE ((#$metadataTableAlias.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$metadataTableAlias.METADATA_KEY = 'parentWorkflowId') AND (#$metadataTableAlias.METADATA_VALUE IS NOT NULL)))""")
     }
 
     val constraintList =
-      summaryToLabelsJoin ++
         statusConstraint ++
         nameConstraint ++
         idConstraint ++
@@ -236,9 +242,6 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           includeSubworkflows: Boolean,
                                           page: Option[Int],
                                           pageSize: Option[Int]) = {
-
-    // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
-
     val mainQuery = buildQueryAction(
       selectOrCount = SELECT,
       parentIdWorkflowMetadataKey,
@@ -265,6 +268,11 @@ trait WorkflowMetadataSummaryEntryComponent {
     val orderByAddendum = sql""" ORDER BY WORKFLOW_METADATA_SUMMARY_ENTRY_ID DESC
                                | """.stripMargin
 
-    concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+
+    // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
+    val result = concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
+
+    println(result.statements.head)
+    result
   }
 }

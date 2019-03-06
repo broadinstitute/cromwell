@@ -270,9 +270,6 @@ trait WorkflowMetadataSummaryEntryComponent {
 
 
     // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
-    val result = concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
-
-    println(result.statements.head)
-    result
+    concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum).as[(String, Option[String], Option[String], Option[Timestamp], Option[Timestamp], Option[Timestamp], Option[Long])]
   }
 }

@@ -40,6 +40,7 @@ trait WomType {
 
   final def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
     case WomAnyType => true
+    case WomNothingType => true
     case _ => typeSpecificIsCoerceableFrom(otherType)
   }
   protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType == this

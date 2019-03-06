@@ -17,12 +17,13 @@ import scala.util.{Failure, Success, Try}
 
 sealed trait SharedFileSystemRunState {
   def status: String
-  def terminal: Boolean = false
+  def terminal: Boolean
 
   override def toString: String = status
 }
 
 case class SharedFileSystemJobRunning(validUntil: Option[Instant]) extends SharedFileSystemRunState {
+  override def terminal: Boolean = true
   override def status = "Running"
 
   // Whether this running state is stale (ie has the 'validUntil' time passed?)
@@ -30,6 +31,7 @@ case class SharedFileSystemJobRunning(validUntil: Option[Instant]) extends Share
 }
 
 case class SharedFileSystemJobWaitingForReturnCode(waitUntil: Option[Instant]) extends SharedFileSystemRunState {
+  override def terminal: Boolean = true
   override def status = "WaitingForReturnCode"
 
   // Whether or not to give up waiting for the RC to appear (ie has the 'waitUntil' time passed?)

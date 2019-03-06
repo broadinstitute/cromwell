@@ -313,8 +313,15 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
               // If the process has already completed, there will be an existing RC:
               // Essentially, this covers the rare race condition whereby the task completes between starting to write the
               // fake RC, and trying to copy it:
+
+              log.error(s"An RC file appeared at ${jobPaths.returnCode} whilst trying to copy a fake exitcode file from ${returnCodeTemp}. Not to worry: the real file should now be picked up on the next poll.")
+
+              // Delete the fake file since it's not needed:
               returnCodeTemp.delete(true)
-              // Looks like a new RC file has appeared - let's go back out of this loop and wait for it:
+
+              // We shouldn't be here anymore...
+              // Return a "no-op" for now and allow the now-existing rc file to be picked up as normal on the next
+              // iteration through the polling logic:
               waiting
           }
         } else {

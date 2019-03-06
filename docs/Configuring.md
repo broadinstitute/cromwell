@@ -190,7 +190,7 @@ Then, edit your configuration file `database` stanza, as follows:
 database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"

@@ -312,14 +312,6 @@ object Dependencies {
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
-    /*
-    When going to 6.0.x, will need to change the jdbc driver to com.mysql.cj.jdbc.Driver
-    - https://dev.mysql.com/doc/connector-j/6.0/en/connector-j-api-changes.html
-
-    The url may also need the parameters:
-    - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
-    - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
-     */
     "mysql" % "mysql-connector-java" % mysqlV
   )
 

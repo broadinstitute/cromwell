@@ -230,7 +230,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize)
-    runTransaction(action).map(results => results map { case (a,b,c,d,e,f,g) => WorkflowMetadataSummaryEntry(a,b,c,d,e,f,g) })
+    runTransaction(action)
   }
 
   override def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,
@@ -248,6 +248,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows)
-    runTransaction(action).map(_.headOption.getOrElse(0))
+    runTransaction(action)
   }
 }

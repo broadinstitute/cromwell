@@ -11,22 +11,22 @@ import scala.util.Random
 
 class WomTypeSpec extends FlatSpec with Matchers {
   "WomType class" should "stringify WomBoolean to 'Boolean'" in {
-    WomBooleanType.toDisplayString shouldEqual "Boolean"
+    WomBooleanType.stableName shouldEqual "Boolean"
   }
   it should "stringify WomInteger to 'Integer'" in {
-    WomIntegerType.toDisplayString shouldEqual "Int"
+    WomIntegerType.stableName shouldEqual "Int"
   }
   it should "stringify WomFloat to 'Float'" in {
-    WomFloatType.toDisplayString shouldEqual "Float"
+    WomFloatType.stableName shouldEqual "Float"
   }
   it should "stringify WomObject to 'Object'" in {
-    WomObjectType.toDisplayString shouldEqual "Object"
+    WomObjectType.stableName shouldEqual "Object"
   }
   it should "stringify WomString to 'String'" in {
-    WomStringType.toDisplayString shouldEqual "String"
+    WomStringType.stableName shouldEqual "String"
   }
   it should "stringify WomFile to 'File'" in {
-    WomSingleFileType.toDisplayString shouldEqual "File"
+    WomSingleFileType.stableName shouldEqual "File"
   }
 
   val rawValuesCoercedToType = Table(
@@ -96,13 +96,13 @@ class WomTypeSpec extends FlatSpec with Matchers {
 
   private def describe(any: Any): String = {
     any match {
-      case womValue: WomValue => s"wom value ${womValue.toWomString} of type ${womValue.womType.toDisplayString}"
+      case womValue: WomValue => s"wom value ${womValue.toWomString} of type ${womValue.womType.stableName}"
       case _ => s"scala value ${ScalaRunTime.stringOf(any)}"
     }
   }
 
   forAll(rawValuesCoercedToType) { (rawValue, womType, exceptionClass, exceptionMessage) =>
-    it should s"fail coercing ${womType.toDisplayString} from ${describe(rawValue)}" in {
+    it should s"fail coercing ${womType.stableName} from ${describe(rawValue)}" in {
       val exception = womType.coerceRawValue(rawValue).failed.get
       exception.getClass should be(exceptionClass)
       exception.getMessage should fullyMatch regex exceptionMessage
@@ -186,7 +186,7 @@ class WomTypeSpec extends FlatSpec with Matchers {
   )
 
   lcsTestCases foreach { case (types, expectedLcs) =>
-    it should s"choose ${expectedLcs.toDisplayString} as the lowest common subtype of [${types.map(_.toDisplayString).mkString(", ")}]" in {
+    it should s"choose ${expectedLcs.stableName} as the lowest common subtype of [${types.map(_.stableName).mkString(", ")}]" in {
       WomType.lowestCommonSubtype(types) should be(expectedLcs)
       WomType.lowestCommonSubtype(types.reverse) should be(expectedLcs)
       WomType.lowestCommonSubtype(Random.shuffle(types)) should be(expectedLcs)

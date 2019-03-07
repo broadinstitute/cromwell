@@ -19,7 +19,7 @@ object ex2 {
         case "some_string" => "task imported { command {ps} }"
         case s if s.startsWith("http://") =>
           // issue HTTP request
-          throw new NotImplementedError("not implemented")
+          throw new UnsupportedOperationException("not implemented")
       }
     }
 

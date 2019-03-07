@@ -38,20 +38,25 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     sendGaugeJob(ExecutionStatus.QueuedInCromwell.toString, tokenQueues.values.map(_.size).sum.toLong)
   }
 
-  val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
+  lazy val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
 
-  val tokenEventLogger = effectiveLogInterval match {
+  lazy val tokenEventLogger = effectiveLogInterval match {
     case Some(someInterval) => new CachingTokenEventLogger(log, someInterval)
     case None => NullTokenEventLogger
   }
 
   // Give the actor time to warm up, then start scheduling token allocation logging:
-  context.system.scheduler.scheduleOnce(10.seconds) {
-    effectiveLogInterval.foreach { someInterval =>
-      log.info(s"Triggering log of token queue status every $someInterval")
-      context.system.scheduler.scheduleOnce(someInterval) {
-        self ! LogJobExecutionTokenAllocation(someInterval)
-      }(context.dispatcher)
+  context.system.scheduler.scheduleOnce(5.seconds) {
+    effectiveLogInterval match {
+      case Some(someInterval) =>
+        log.info(s"Triggering log of token queue status. Effective log interval = $someInterval")
+        context.system.scheduler.scheduleOnce(someInterval) {
+          self ! LogJobExecutionTokenAllocation(someInterval)
+        }(context.dispatcher)
+        ()
+      case None =>
+        log.info(s"Not triggering log of token queue status. Effective log interval = None")
+        ()
     }
   }(context.dispatcher)
 

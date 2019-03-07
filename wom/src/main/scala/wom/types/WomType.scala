@@ -30,21 +30,32 @@ trait WomType {
       case WomOptionalValue(_, Some(v)) => coerceRawValue(v)
       case womValue: WomValue if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from wom value(s) '${WomValue.takeMaxElements(womValue, 3).toWomString}' of type" +
-          s" '${womValue.womType.toDisplayString}' to '$toDisplayString'."))
+          s" '${womValue.womType.stableName}' to '$stableName'."))
       case _ if !coercion.isDefinedAt(any) => Failure(new IllegalArgumentException(
         s"No coercion defined from '${ScalaRunTime.stringOf(any, 3)}' of type" +
-          s" '${Option(any.getClass.getCanonicalName).getOrElse(any.getClass.getName)}' to '$toDisplayString'."))
+          s" '${Option(any.getClass.getCanonicalName).getOrElse(any.getClass.getName)}' to '$stableName'."))
       case _ => Try(coercion(any))
     }
   }
 
   final def isCoerceableFrom(otherType: WomType): Boolean = otherType match {
     case WomAnyType => true
+    case WomNothingType => true
     case _ => typeSpecificIsCoerceableFrom(otherType)
   }
   protected def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType == this
 
-  def toDisplayString: String
+  /**
+    * Friendly name, suitable for UIs, may change over time (if you are confident all clients will support the change)
+    * @return String
+    */
+  def friendlyName: String = stableName
+
+  /**
+    * Stable name for call cache hashing, may expose extra information to help compute equality more granularly, must never change
+    * @return String
+    */
+  def stableName: String
 
   def invalid(operation: String) = Failure(new WomExpressionException(s"Type evaluation cannot determine type from expression: $operation"))
   def add(rhs: WomType): Try[WomType] = invalid(s"$this + $rhs")

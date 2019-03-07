@@ -1,20 +1,23 @@
 package cromiam.webservice
 
-import akka.http.scaladsl.model.{HttpEntity, _}
+import akka.event.LoggingAdapter
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
+import akka.stream.ActorMaterializer
+import akka.util.ByteString
+import cats.effect.IO
+import cromiam.auth.Collection.{CollectionLabelName, LabelsKey, validateLabels}
+import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
 import cromiam.sam.SamClient._
-import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
-import akka.util.ByteString
-import SubmissionSupport._
-import cromiam.auth.{Collection, User}
-import akka.event.LoggingAdapter
+import cromiam.webservice.SubmissionSupport._
+import cromwell.api.model._
 import spray.json.{JsObject, JsString, JsValue}
-import Collection.{CollectionLabelName, LabelsKey, validateLabels}
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.ExecutionContextExecutor
+import scala.util.{Failure, Success}
 
 trait SubmissionSupport extends RequestSupport {
   val cromwellClient: CromwellClient
@@ -30,12 +33,23 @@ trait SubmissionSupport extends RequestSupport {
     post {
       extractUserAndRequest { (user, request) =>
         log.info("Received submission request from user " + user.userId)
-        authorizeAsync(samClient.isSubmitWhitelisted(user, request)) {
-          extractSubmission(user) { submission =>
-            complete {
-              forwardSubmissionToCromwell(user, submission.collection, request.withEntity(submission.entity))
+        onComplete(samClient.isSubmitWhitelisted(user, request).value.unsafeToFuture()) {
+          case Success(Left(httpResponse)) => complete(httpResponse)
+          case Success(Right(submitWhitelisted)) =>
+            authorize(submitWhitelisted) {
+              extractSubmission(user) { submission =>
+                complete {
+                  forwardSubmissionToCromwell(
+                    user,
+                    submission.collection,
+                    request.withEntity(submission.entity)
+                  ).asHttpResponse
+                }
+              }
             }
-          }
+          case Failure(e) =>
+            val message = s"Unable to look up submit whitelist for user ${user.userId}: ${e.getMessage}"
+            throw new RuntimeException(message, e)
         }
       }
     }
@@ -43,24 +57,26 @@ trait SubmissionSupport extends RequestSupport {
 
   private def forwardSubmissionToCromwell(user: User,
                                           collection: Collection,
-                                          submissionRequest: HttpRequest): Future[HttpResponse] = {
+                                          submissionRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     log.info("Forwarding submission request for " + user.userId + " with collection " + collection.name + " to Cromwell")
 
-    def registerWithSam(collection: Collection, httpRequest: HttpRequest): Future[Unit] = {
-      samClient.requestSubmission(user, collection, httpRequest) recoverWith {
-        case e: SamDenialException => Future.failed(e)
-        case SamRegisterCollectionException(statusCode) => Future.failed(SamRegisterCollectionException(statusCode))
-        case e => Future.failed(SamConnectionFailure("new workflow registration", e))
+    def registerWithSam(collection: Collection, httpRequest: HttpRequest): FailureResponseOrT[Unit] = {
+      samClient.requestSubmission(user, collection, httpRequest) mapErrorWith {
+        case e: SamDenialException => IO.raiseError(e)
+        case SamRegisterCollectionException(statusCode) => IO.raiseError(SamRegisterCollectionException(statusCode))
+        case e => IO.raiseError(SamConnectionFailure("new workflow registration", e))
       }
     }
 
-    (for {
-      _ <- registerWithSam(collection, submissionRequest)
-      resp <- cromwellClient.forwardToCromwell(submissionRequest)
-    } yield resp) recover {
-      case _: SamDenialException => SamDenialResponse
-      case SamRegisterCollectionException(statusCode) => SamRegisterCollectionExceptionResp(statusCode)
-    }
+    FailureResponseOrT(
+      (for {
+        _ <- registerWithSam(collection, submissionRequest)
+        resp <- cromwellClient.forwardToCromwell(submissionRequest)
+      } yield resp).value handleErrorWith {
+        case _: SamDenialException => IO.pure(Left(SamDenialResponse))
+        case SamRegisterCollectionException(statusCode) => IO.pure(Left(SamRegisterCollectionExceptionResp(statusCode)))
+      }
+    )
   }
 }
 

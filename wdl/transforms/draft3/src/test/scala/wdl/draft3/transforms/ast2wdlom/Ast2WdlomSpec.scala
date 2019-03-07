@@ -10,6 +10,7 @@ import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.{ParseTree, SyntaxErrorFormatter}
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
+import wdl.model.draft3.elements.ExpressionElement.IdentifierLookup
 import wdl.model.draft3.elements._
 import wdl.transforms.base.ast2wdlom.GenericAstNode
 
@@ -47,5 +48,11 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
     val str = "collect_by_key(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'collect_by_key'"
+  }
+
+  it should "parse the (biscayne) None keyword as a plain old identifier" in {
+    val str = "None"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid(IdentifierLookup("None"))
   }
 }

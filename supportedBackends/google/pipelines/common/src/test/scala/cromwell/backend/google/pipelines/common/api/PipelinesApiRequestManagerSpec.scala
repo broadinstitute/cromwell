@@ -226,9 +226,9 @@ class TestPipelinesApiRequestManager(qps: Int Refined Positive, requestWorkers: 
 }
 
 class MockPipelinesRequestHandler extends PipelinesApiRequestHandler {
-  override def makeBatchRequest = ???
+  override def makeBatchRequest = throw new UnsupportedOperationException
   override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)
-                                                                      (implicit ec: ExecutionContext)= ???
+                                                                      (implicit ec: ExecutionContext)= throw new UnsupportedOperationException
 }
 
 object TestPipelinesApiRequestManager {

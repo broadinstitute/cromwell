@@ -2,15 +2,17 @@ package cromiam.webservice
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
-import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.stream.ActorMaterializer
+import cats.effect.IO
 import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
 import cromiam.sam.SamClient.{CollectionAuthorizationRequest, SamDenialException, SamRegisterCollectionException}
+import cromwell.api.model._
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.ExecutionContextExecutor
 
 class MockCromwellClient()(implicit system: ActorSystem,
                                  ece: ExecutionContextExecutor,
@@ -28,46 +30,62 @@ class MockCromwellClient()(implicit system: ActorSystem,
 
   val userCollection = Collection("foo")
 
-  def checkHeaderAuthorization(httpRequest: HttpRequest): Future[HttpResponse] = {
+  def checkHeaderAuthorization(httpRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val userIdHeader = httpRequest.headers.find(header => header.name.equalsIgnoreCase("OIDC_CLAIM_user_id"))
 
     userIdHeader match {
       case Some(header) =>
         header.value match {
-          case s if s.equalsIgnoreCase(authorizedUserCollectionStr) => Future.successful(HttpResponse(status = OK, entity = "Response from Cromwell"))
-          case s => Future.failed(new Exception(s"This is unexpected! Cromwell should not receive request from unauthorized user! OIDC_CLAIM_user_id: $s is not authorized."))
+          case headerValue if headerValue.equalsIgnoreCase(authorizedUserCollectionStr) =>
+            FailureResponseOrT.pure(HttpResponse(status = OK, entity = "Response from Cromwell"))
+          case headerValue =>
+            val message = s"This is unexpected! Cromwell should not receive request from unauthorized user! " +
+              s"OIDC_CLAIM_user_id: $headerValue is not authorized."
+            FailureResponseOrT[IO, HttpResponse, HttpResponse](IO.raiseError(new RuntimeException(message)))
         }
-      case None => Future.failed(new Exception("This is unexpected! No OIDC_CLAIM_user_id provided for authorization!"))
+      case None =>
+        val message = "This is unexpected! No OIDC_CLAIM_user_id provided for authorization!"
+        FailureResponseOrT[IO, HttpResponse, HttpResponse](IO.raiseError(new RuntimeException(message)))
     }
   }
 
-  override def forwardToCromwell(httpRequest: HttpRequest): Future[HttpResponse] = {
+  override def forwardToCromwell(httpRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val versionRoutePath = s"/engine/$version/version"
 
     httpRequest.uri.path.toString match {
       //version endpoint doesn't require authentication
-      case `versionRoutePath` => Future.successful(HttpResponse(status = OK, entity = "Response from Cromwell"))
+      case `versionRoutePath` =>
+        FailureResponseOrT.pure(HttpResponse(status = OK, entity = "Response from Cromwell"))
       case _ => checkHeaderAuthorization(httpRequest)
     }
   }
 
-  override def getRootWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[String] = {
+  override def getRootWorkflow(workflowId: String,
+                               user: User,
+                               cromIamRequest: HttpRequest): FailureResponseOrT[String] = {
     workflowId match {
-      case `subworkflowId` | `rootWorkflowIdWithCollection` => Future.successful(rootWorkflowIdWithCollection)
-      case  `anotherRootWorkflowIdWithCollection` => Future.successful(anotherRootWorkflowIdWithCollection)
-      case _ => Future.successful(workflowIdWithoutCollection)
+      case `subworkflowId` | `rootWorkflowIdWithCollection` =>
+        FailureResponseOrT.pure(rootWorkflowIdWithCollection)
+      case `anotherRootWorkflowIdWithCollection` => FailureResponseOrT.pure(anotherRootWorkflowIdWithCollection)
+      case _ => FailureResponseOrT.pure(workflowIdWithoutCollection)
     }
   }
 
-  override def collectionForWorkflow(workflowId: String, user: User, cromIamRequest: HttpRequest): Future[Collection] = {
+  override def collectionForWorkflow(workflowId: String,
+                                     user: User,
+                                     cromIamRequest: HttpRequest): FailureResponseOrT[Collection] = {
     workflowId match {
-      case `rootWorkflowIdWithCollection` | `anotherRootWorkflowIdWithCollection` => Future.successful(userCollection)
-      case _ => Future.failed(new IllegalArgumentException(s"Workflow $workflowId has no associated collection"))
+      case `rootWorkflowIdWithCollection` | `anotherRootWorkflowIdWithCollection` =>
+        FailureResponseOrT.pure(userCollection)
+      case _ =>
+        val exception = new IllegalArgumentException(s"Workflow $workflowId has no associated collection")
+        FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
     }
   }
 }
 
-class MockSamClient(checkSubmitWhitelist: Boolean = true)
+class MockSamClient(checkSubmitWhitelist: Boolean = true,
+                    samResponseOption: Option[HttpResponse] = None)
                    (implicit system: ActorSystem,
                       ece: ExecutionContextExecutor,
                       materializer: ActorMaterializer)
@@ -87,29 +105,52 @@ class MockSamClient(checkSubmitWhitelist: Boolean = true)
 
   val userCollectionList: List[Collection] = List(Collection("col1"), Collection("col2"))
 
-  override def collectionsForUser(user: User, httpRequest: HttpRequest): Future[List[Collection]] = {
-    val userId = user.userId.value
-    if (userId.equalsIgnoreCase(unauthorizedUserCollectionStr)) Future.failed(new Exception(s"Unable to look up collections for user $userId!"))
-    else Future.successful(userCollectionList)
-  }
-
-  override def requestSubmission(user: User, collection: Collection, cromIamRequest: HttpRequest): Future[Unit] = {
-    collection match {
-      case c if c.name.equalsIgnoreCase(unauthorizedUserCollectionStr) => Future.failed(SamRegisterCollectionException(StatusCodes.BadRequest))
-      case c if c.name.equalsIgnoreCase(authorizedUserCollectionStr) => Future.successful(())
-      case _ => Future.successful(())
+  override def collectionsForUser(user: User, httpRequest: HttpRequest): FailureResponseOrT[List[Collection]] = {
+    samResponseOption match {
+      case Some(samResponse) => FailureResponseOrT.left(IO.pure(samResponse))
+      case None =>
+        val userId = user.userId.value
+        if (userId.equalsIgnoreCase(unauthorizedUserCollectionStr)) {
+          val exception = new Exception(s"Unable to look up collections for user $userId!")
+          FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
+        } else {
+          FailureResponseOrT.pure(userCollectionList)
+        }
     }
   }
 
-  override def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
-    if (user.userId.value.equalsIgnoreCase(notWhitelistedUser)) Future.successful(false)
-    else Future.successful(true)
+  override def requestSubmission(user: User,
+                                 collection: Collection,
+                                 cromIamRequest: HttpRequest): FailureResponseOrT[Unit] = {
+    samResponseOption match {
+      case Some(samResponse) => FailureResponseOrT.left(IO.pure(samResponse))
+      case None =>
+        collection match {
+          case c if c.name.equalsIgnoreCase(unauthorizedUserCollectionStr) =>
+            val exception = SamRegisterCollectionException(StatusCodes.BadRequest)
+            FailureResponseOrT.left(IO.raiseError[HttpResponse](exception))
+          case c if c.name.equalsIgnoreCase(authorizedUserCollectionStr) => FailureResponseOrT.pure(())
+          case _ => FailureResponseOrT.pure(())
+        }
+    }
   }
 
-  override def requestAuth(authorizationRequest: CollectionAuthorizationRequest, cromIamRequest: HttpRequest): Future[Unit] = {
-    authorizationRequest.user.userId.value match {
-      case `authorizedUserCollectionStr` => Future.successful(())
-      case _ => Future.failed(new SamDenialException)
+  override def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
+    samResponseOption match {
+      case Some(samResponse) => FailureResponseOrT.left(IO.pure(samResponse))
+      case None => FailureResponseOrT.pure(!user.userId.value.equalsIgnoreCase(notWhitelistedUser))
+    }
+  }
+
+  override def requestAuth(authorizationRequest: CollectionAuthorizationRequest,
+                           cromIamRequest: HttpRequest): FailureResponseOrT[Unit] = {
+    samResponseOption match {
+      case Some(samResponse) => FailureResponseOrT.left(IO(samResponse))
+      case None =>
+        authorizationRequest.user.userId.value match {
+          case `authorizedUserCollectionStr` => FailureResponseOrT.pure(())
+          case _ => FailureResponseOrT.left(IO.raiseError[HttpResponse](new SamDenialException))
+        }
     }
   }
 }

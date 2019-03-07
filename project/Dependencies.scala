@@ -51,7 +51,7 @@ object Dependencies {
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.1"
   private val mouseV = "0.20"
-  private val mysqlV = "5.1.47"
+  private val mysqlV = "8.0.15"
   private val nettyV = "4.1.33.Final"
   private val owlApiV = "5.1.9"
   private val paradiseV = "2.1.1"
@@ -134,7 +134,6 @@ object Dependencies {
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "org.scalatest" %% "scalatest" % scalatestV % Test
   )
 
   val implFtpDependencies = List(
@@ -173,8 +172,9 @@ object Dependencies {
    */
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-core" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "io.sentry" % "sentry-logback" % sentryLogbackV,
     "org.codehaus.janino" % "janino" % janinoV,
@@ -312,14 +312,6 @@ object Dependencies {
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
-    /*
-    When going to 6.0.x, will need to change the jdbc driver to com.mysql.cj.jdbc.Driver
-    - https://dev.mysql.com/doc/connector-j/6.0/en/connector-j-api-changes.html
-
-    The url may also need the parameters:
-    - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
-    - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
-     */
     "mysql" % "mysql-connector-java" % mysqlV
   )
 
@@ -335,9 +327,6 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-    "ch.qos.logback" % "logback-access" % logbackV,
-    "ch.qos.logback" % "logback-classic" % logbackV,
-    "ch.qos.logback" % "logback-core" % logbackV,
   ) ++ catsDependencies ++ configDependencies
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
@@ -447,8 +436,9 @@ object Dependencies {
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
-  ) ++ akkaHttpDependencies ++ betterFilesDependencies
+  ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies = List(
     "com.github.kxbmap" %% "configs" % configsV,
@@ -474,7 +464,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
-  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
+  ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies = coreDependencies ++ akkaHttpDependencies
 

@@ -44,7 +44,7 @@ object WdlDraft2WomScatterNodeMaker extends WomScatterNodeMaker[Scatter] {
     // Validate the collection evaluates to a traversable type
     val scatterItemTypeValidation = scatterCollectionExpression.evaluateType((localLookup ++ outerLookup).map { case (k, v) => k -> v.womType }) flatMap {
       case WomArrayType(itemType) => Valid(itemType) // Covers maps because this is a custom unapply (see WdlArrayType)
-      case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNel
+      case other => s"Cannot scatter over a non-traversable type ${other.stableName}".invalidNel
     }
 
     for {

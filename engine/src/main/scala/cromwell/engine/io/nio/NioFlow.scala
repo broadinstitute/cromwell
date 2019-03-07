@@ -72,7 +72,7 @@ class NioFlow(parallelism: Int,
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
       case readLinesCommand: IoReadLinesCommand => readLines(readLinesCommand) map readLinesCommand.success
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
-      case _ => IO.raiseError(new NotImplementedError("Method not implemented"))
+      case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
   }
 

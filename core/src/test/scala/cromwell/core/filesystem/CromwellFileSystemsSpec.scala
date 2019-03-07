@@ -123,5 +123,5 @@ class MockNotPathBuilderFactory(globalConfig: Config, val instanceConfig: Config
 
 class MockSingletonConfig(config: Config)
 class MockPathBuilderFactoryCustomSingletonConfig(globalConfig: Config, val instanceConfig: Config, val singletonConfig: MockSingletonConfig) extends cromwell.core.path.PathBuilderFactory {
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = ???
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = throw new UnsupportedOperationException
 }

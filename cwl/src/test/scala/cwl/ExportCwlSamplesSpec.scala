@@ -16,7 +16,7 @@ import shapeless.Coproduct
    */
 class ExportCwlSamplesSpec extends FlatSpec with Matchers {
 
-  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = ??? // shouldBe expectedYaml
+  def assertCorrectJson(cwl: Cwl, expectedYaml: String) = throw new UnsupportedOperationException // shouldBe expectedYaml
 
   it should "encode sample CWL command line tool" ignore {
     val tool =

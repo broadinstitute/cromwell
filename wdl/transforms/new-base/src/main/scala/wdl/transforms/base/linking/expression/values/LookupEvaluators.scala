@@ -88,9 +88,9 @@ object LookupEvaluators {
             if(values.contains(index))
               values(index).validNel
             else
-              s"Bad Map access ${a.toWdlV1}: This ${mapType.toDisplayString} does not have a ${index.womType.toDisplayString} index value [${index.toWomString}]".invalidNel
+              s"Bad Map access ${a.toWdlV1}: This ${mapType.stableName} does not have a ${index.womType.stableName} index value [${index.toWomString}]".invalidNel
           case (otherCollection, otherKey) =>
-            s"Bad index access ${a.toWdlV1}: Cannot use '${otherKey.womType.toDisplayString}' to index '${otherCollection.womType.toDisplayString}'".invalidNel
+            s"Bad index access ${a.toWdlV1}: Cannot use '${otherKey.womType.stableName}' to index '${otherCollection.womType.stableName}'".invalidNel
         }
 
         value map { EvaluatedValue(_, lhs.sideEffectFiles ++ rhs.sideEffectFiles) }
@@ -113,11 +113,11 @@ object LookupEvaluators {
 
     val thisValue: ErrorOr[WomValue] = womValue match {
       case WomObject(values, _) if values.contains(key) => values(key).validNel
-      case WomObject(_, WomCompositeType(typeMap)) if typeMap.contains(key) => typeMap(key) match {
+      case WomObject(_, WomCompositeType(typeMap, _)) if typeMap.contains(key) => typeMap(key) match {
         case WomOptionalType(innerType) => WomOptionalValue(innerType, None).validNel
-        case other => s"Composite value was unexpectedly missing a field: '$key' (expected type ${other.toDisplayString}). Report this bug! Static validation failed.".invalidNel
+        case other => s"Composite value was unexpectedly missing a field: '$key' (expected type ${other.stableName}). Report this bug! Static validation failed.".invalidNel
       }
-      case WomObject(_, _: WomCompositeType) => s"No such field '$key' on type ${womValue.womType.toDisplayString}. Report this bug! Static validation failed.".invalidNel
+      case WomObject(_, _: WomCompositeType) => s"No such field '$key' on type ${womValue.womType.stableName}. Report this bug! Static validation failed.".invalidNel
       case WomObject(_, _) => s"'Object'-type value did not contain the field '$key' at runtime".invalidNel
       case p: WomPair if key == "left" => p.left.validNel
       case p: WomPair if key == "right" => p.right.validNel
@@ -126,7 +126,7 @@ object LookupEvaluators {
           case (k, v) if k.valueString == key => v
         },
         ifNone = NonEmptyList(s"Requested key '$key' not found in the Map. Available keys were: ${value.keySet.mkString("[ ", ",", "]")}", Nil))
-      case _ => s"No such field '$key' on type ${womValue.womType.toDisplayString}. Report this bug! Static validation failed.".invalidNel
+      case _ => s"No such field '$key' on type ${womValue.womType.stableName}. Report this bug! Static validation failed.".invalidNel
     }
 
     tail match {

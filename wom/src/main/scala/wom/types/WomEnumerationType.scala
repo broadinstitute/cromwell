@@ -16,6 +16,6 @@ case class WomEnumerationType(values: NonEmptyList[String]) extends WomPrimitive
     case JsString(name)  if (values.toList.contains(name)) => WomEnumerationValue(this, name)
   }
 
-  override def toDisplayString: String =
+  override def stableName: String =
     values.toList.mkString("Enumeration[",", ", "]")
 }

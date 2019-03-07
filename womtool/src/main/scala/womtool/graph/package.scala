@@ -28,12 +28,12 @@ package object graph {
       case c: CallNode => s"call ${c.fullyQualifiedName} (${c.localName})"
       case s: ScatterNode => s"scatter ${s.scatterCollectionExpressionNodes.head.identifier.localName.value} in"
       case _: ConditionalNode => "conditional"
-      case gin: OptionalGraphInputNodeWithDefault => s"${gin.womType.toDisplayString} ${gin.localName} = ..."
-      case gin: GraphInputNode => s"${gin.womType.toDisplayString} ${gin.localName}"
-      case gon: GraphOutputNode => s"${gon.womType.toDisplayString} ${gon.localName}"
+      case gin: OptionalGraphInputNodeWithDefault => s"${gin.womType.stableName} ${gin.localName} = ..."
+      case gin: GraphInputNode => s"${gin.womType.stableName} ${gin.localName}"
+      case gon: GraphOutputNode => s"${gon.womType.stableName} ${gon.localName}"
       case expr: ExpressionNode =>
         val inputNames = expr.womExpression.inputs.mkString(", ")
-        s"${expr.womType.toDisplayString} ${expr.localName} = f($inputNames)"
+        s"${expr.womType.stableName} ${expr.localName} = f($inputNames)"
       case other =>
         throw new Exception(s"womgraph can't find a graphName for GraphNodes of type: ${other.getClass.getSimpleName}")
     })
@@ -47,7 +47,7 @@ package object graph {
       case _: OutputPort => "hexagon"
     }
 
-    def graphName: String = dotSafe(graphNodePort.womType.toDisplayString + " " + graphNodePort.name)
+    def graphName: String = dotSafe(graphNodePort.womType.stableName + " " + graphNodePort.name)
     def graphId: String = dotSafe("PORT" + graphObjectUniqueId(graphNodePort))
   }
 

@@ -24,6 +24,8 @@ package object types {
       a match {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: NoneLiteralElement.type => a.evaluateType(linkedValues)(typeEvaluator)
+
         case a: StringLiteral => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StringExpression => a.evaluateType(linkedValues)(typeEvaluator)
         case a: ObjectLiteral => a.evaluateType(linkedValues)(typeEvaluator)

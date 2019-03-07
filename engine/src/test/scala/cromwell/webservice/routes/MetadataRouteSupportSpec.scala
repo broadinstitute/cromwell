@@ -2,17 +2,17 @@ package cromwell.webservice.routes
 
 import akka.actor.{ActorSystem, Props}
 import akka.http.scaladsl.coding.{Decoder, Gzip}
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import cromwell.core.WorkflowMetadataKeys
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
+import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
 import org.scalatest.{AsyncFlatSpec, Matchers}
 import spray.json.DefaultJsonProtocol._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
 import spray.json._
 
 import scala.concurrent.duration._
@@ -34,6 +34,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         status should be(StatusCodes.OK)
         // Along w/ checking value, ensure it is valid JSON despite the requested content type
         responseAs[JsObject].fields(WorkflowMetadataKeys.Status) should be(JsString("Submitted"))
+        contentType should be(ContentTypes.`application/json`)
       }
   }
 
@@ -45,6 +46,16 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         assertResult(StatusCodes.NotFound) {
           status
         }
+        assertResult(
+          s"""|{
+              |  "status": "fail",
+              |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId}"
+              |}
+              |""".stripMargin.trim
+        ) {
+          responseAs[String]
+        }
+        assertResult(ContentTypes.`application/json`)(contentType)
       }
   }
 
@@ -63,6 +74,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         ) {
           responseAs[String]
         }
+        assertResult(ContentTypes.`application/json`)(contentType)
       }
   }
 
@@ -73,6 +85,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
         responseAs[JsObject].fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
+        contentType should be(ContentTypes.`application/json`)
       }
   }
 
@@ -83,6 +96,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         assertResult(StatusCodes.NotFound) {
           status
         }
+        assertResult(ContentTypes.`application/json`)(contentType)
       }
   }
 
@@ -93,6 +107,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         assertResult(StatusCodes.MethodNotAllowed) {
           status
         }
+        assertResult("HTTP method not allowed, supported methods: GET")(responseAs[String])
+        assertResult(ContentTypes.`text/plain(UTF-8)`)(contentType)
       }
   }
 

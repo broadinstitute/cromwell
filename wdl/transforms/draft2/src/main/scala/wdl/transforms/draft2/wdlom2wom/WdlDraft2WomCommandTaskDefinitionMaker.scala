@@ -4,7 +4,7 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.WdlTask
 import wdl.draft2.model.{WdlTask, WdlWomExpression}
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition}
 import wom.graph.LocalName
 import wom.transforms.WomCommandTaskDefinitionMaker
@@ -20,7 +20,7 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
       case d if d.expression.isEmpty && d.womType.isInstanceOf[WomOptionalType] =>
         OptionalInputDefinition(LocalName(d.unqualifiedName), d.womType.asInstanceOf[WomOptionalType])
       case d if d.expression.nonEmpty =>
-        InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, wdlTask))
+        OverridableInputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, wdlTask))
     }).toList
 
     CallableTaskDefinition(

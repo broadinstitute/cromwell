@@ -87,4 +87,10 @@ class Ast2WdlomSpec extends FlatSpec with Matchers {
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeValid(CollectByKey(IdentifierLookup("some_map")))
   }
+
+  it should "parse the new None keyword" in {
+    val str = "None"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid(NoneLiteralElement)
+  }
 }

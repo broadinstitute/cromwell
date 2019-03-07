@@ -625,7 +625,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return the execution handle for the job.
     */
   def execute(): ExecutionHandle = {
-    throw new NotImplementedError(s"Neither execute() nor executeAsync() implemented by $getClass")
+    throw new UnsupportedOperationException(s"Neither execute() nor executeAsync() implemented by $getClass")
   }
 
   /**
@@ -685,7 +685,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The status of the job.
     */
   def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunState = {
-    throw new NotImplementedError(s"Neither pollStatus nor pollStatusAsync implemented by $getClass")
+    throw new UnsupportedOperationException(s"Neither pollStatus nor pollStatusAsync implemented by $getClass")
   }
 
   /**

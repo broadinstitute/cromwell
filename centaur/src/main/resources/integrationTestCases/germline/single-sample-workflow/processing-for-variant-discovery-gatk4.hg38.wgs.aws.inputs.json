@@ -2,30 +2,30 @@
   "##_COMMENT1": "SAMPLE NAME AND UNMAPPED BAMS",
   "PreProcessingForVariantDiscovery_GATK4.sample_name": "NA12878",
   "PreProcessingForVariantDiscovery_GATK4.ref_name": "hg38",
-  "PreProcessingForVariantDiscovery_GATK4.flowcell_unmapped_bams_list": "s3://aws-gatk-test-data/wgs_ubam/NA12878_20k/readgroup_ubams.txt",
+  "PreProcessingForVariantDiscovery_GATK4.flowcell_unmapped_bams_list": "s3://gatk-test-data/wgs_ubam/NA12878_20k/readgroup_ubams.txt",
   "PreProcessingForVariantDiscovery_GATK4.unmapped_bam_suffix": ".bam",
 
   "##_COMMENT2": "REFERENCE FILES",
-  "PreProcessingForVariantDiscovery_GATK4.ref_dict": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
-  "PreProcessingForVariantDiscovery_GATK4.ref_fasta": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
-  "PreProcessingForVariantDiscovery_GATK4.ref_fasta_index": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_alt": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.alt",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_sa": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.sa",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_amb": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.amb",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_bwt": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.bwt",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_ann": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.ann",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_pac": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.pac",
+  "PreProcessingForVariantDiscovery_GATK4.ref_dict": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "PreProcessingForVariantDiscovery_GATK4.ref_fasta": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "PreProcessingForVariantDiscovery_GATK4.ref_fasta_index": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_alt": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.alt",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_sa": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.sa",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_amb": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.amb",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_bwt": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.bwt",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_ann": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.ann",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_pac": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.pac",
 
   "##_COMMENT3": "KNOWN SITES RESOURCES",
-  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf",
-  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf_index": "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
+  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf",
+  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf_index": "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
   "PreProcessingForVariantDiscovery_GATK4.known_indels_sites_VCFs": [
-    "s3://aws-broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
-    "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz"
+    "s3://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+    "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz"
   ],
   "PreProcessingForVariantDiscovery_GATK4.known_indels_sites_indices": [
-    "s3://aws-broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
-    "s3://aws-broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
+    "s3://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
+    "s3://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
   ],
 
   "##_COMMENT4": "MISC PARAMETERS",

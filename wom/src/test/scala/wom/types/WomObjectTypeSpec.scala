@@ -42,7 +42,7 @@ class WomObjectTypeSpec extends FlatSpec with Matchers {
   }
 
   it should "stringify its type" in {
-    abcObject.womType.toDisplayString shouldEqual "Object"
+    abcObject.womType.stableName shouldEqual "Object"
   }
 
   it should "coerce a coerceable map into a WomObject" in {

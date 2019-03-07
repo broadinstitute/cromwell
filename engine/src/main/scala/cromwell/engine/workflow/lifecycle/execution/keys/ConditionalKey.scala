@@ -68,7 +68,7 @@ private [execution] case class ConditionalKey(node: ConditionalNode, index: Exec
           executionStoreChanges = populate(b.value) + (this -> conditionalStatus),
           valueStoreAdditions = valueStoreAdditions).validNel
       case Some(v: WomValue) =>
-        s"'if' condition ${node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.toDisplayString}".invalidNel
+        s"'if' condition ${node.conditionExpression.womExpression.sourceString} must evaluate to a boolean but instead got ${v.womType.stableName}".invalidNel
       case None =>
         s"Could not find the boolean value for conditional $tag. Missing boolean should have come from expression ${node.conditionExpression.womExpression.sourceString}".invalidNel
     }

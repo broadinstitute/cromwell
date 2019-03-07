@@ -21,7 +21,7 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1083
+  outdirMin: 10299
   ramMin: 3072
   tmpdirMin: 30
 - class: dx:InputResourceRequirement
@@ -65,8 +65,8 @@ inputs:
     type: array
 - id: reference__fasta__base
   secondaryFiles:
-  - .fai
   - ^.dict
+  - .fai
   type:
     items: File
     type: array

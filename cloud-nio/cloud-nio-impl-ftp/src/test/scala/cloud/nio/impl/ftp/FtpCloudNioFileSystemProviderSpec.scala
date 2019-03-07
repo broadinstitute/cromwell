@@ -47,10 +47,10 @@ class FtpCloudNioFileSystemProviderSpec extends FlatSpec with Matchers with Mock
         override def fileAttributes(cloudHost: String, cloudPath: String) =
           Option(
             new CloudNioRegularFileAttributes {
-              override def fileHash = throw new NotImplementedError()
-              override def lastModifiedTime() = throw new NotImplementedError()
+              override def fileHash = throw new UnsupportedOperationException()
+              override def lastModifiedTime() = throw new UnsupportedOperationException()
               override def size() = mockSizeFunction()
-              override def fileKey() = throw new NotImplementedError()
+              override def fileKey() = throw new UnsupportedOperationException()
             }
           )
 

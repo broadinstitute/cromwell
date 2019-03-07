@@ -21,11 +21,11 @@ hints:
   dockerPull: quay.io/bcbio/bcbio-vc
 - class: ResourceRequirement
   coresMin: 16
-  outdirMin: 1261
+  outdirMin: 10477
   ramMin: 49152
   tmpdirMin: 119
 - class: dx:InputResourceRequirement
-  indirMin: 25622
+  indirMin: 24883
 - class: SoftwareRequirement
   packages:
   - package: bcftools
@@ -134,8 +134,6 @@ inputs:
         type:
         - string
         - 'null'
-      - name: genome_resources__variation__train_hapmap
-        type: File
       - name: genome_resources__variation__clinvar
         type: File
       - name: genome_resources__variation__esp
@@ -152,7 +150,7 @@ inputs:
         type:
         - 'null'
         - string
-      - name: reference__twobit
+      - name: genome_resources__variation__train_hapmap
         type: File
       - name: reference__genome_context
         type:
@@ -174,6 +172,10 @@ inputs:
         type: string
       - name: genome_resources__variation__exac
         type: File
+      - name: genome_resources__variation__gnomad_exome
+        type:
+        - 'null'
+        - string
       - name: metadata__phenotype
         type: string
       - name: genome_resources__aliases__human

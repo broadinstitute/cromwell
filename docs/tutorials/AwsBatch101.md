@@ -1,4 +1,4 @@
-## Getting started with AWS Batch
+## Getting started with AWS Batch (beta)
 
 ### Prerequisites
 

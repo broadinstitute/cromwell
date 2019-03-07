@@ -210,6 +210,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.toMap)
   }
 
+
+
   override def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                                       workflowStatuses: Set[String],
                                       workflowNames: Set[String],
@@ -225,9 +227,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize)
-      .result
     runTransaction(action)
   }
 
@@ -245,7 +247,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       includeSubworkflows: Boolean)
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows).result
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows)
     runTransaction(action)
   }
 }

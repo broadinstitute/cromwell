@@ -17,7 +17,7 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
     val recovered = recoverRequesterPaysError(path) { flag =>
       s"flag is $flag"
     }
-    
+
     recovered shouldBe """flag is  > gsutil_output.txt 2>&1
                          |# Record the exit code of the gsutil command without project flag
                          |RC_GSUTIL=$?
@@ -25,7 +25,7 @@ class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
                          |  printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" flag\ is\ \ failed
                          |  # Print the reason of the failure
                          |  cat gsutil_output.txt
-                         |  
+                         |
                          |  # Check if it matches the BucketIsRequesterPaysErrorMessage
                          |  if grep -q "Bucket is requester pays bucket but no user project provided." gsutil_output.txt; then
                          |    printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" Retrying\ with\ user\ project

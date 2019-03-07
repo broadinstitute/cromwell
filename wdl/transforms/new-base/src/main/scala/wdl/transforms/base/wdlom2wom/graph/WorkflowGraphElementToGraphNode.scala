@@ -67,7 +67,7 @@ object WorkflowGraphElementToGraphNode {
     val exprType: ErrorOr[WomType] = womExpr.evaluateType(inputTypes = Map.empty)
     val correctType: ErrorOr[Unit] = exprType.flatMap {
       case goodType if womType.isCoerceableFrom(goodType) => ().validNel
-      case badType => s"Cannot coerce expression of type '${badType.toDisplayString}' to '${womType.toDisplayString}'".invalidNel
+      case badType => s"Cannot coerce expression of type '${badType.stableName}' to '${womType.stableName}'".invalidNel
     }
     correctType
   }

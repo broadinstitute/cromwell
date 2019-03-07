@@ -3,7 +3,7 @@ package cromwell.database.slick
 import java.sql.{Connection, PreparedStatement, Statement}
 import java.util.concurrent.{ExecutorService, Executors}
 
-import com.mysql.jdbc.exceptions.jdbc4.MySQLTransactionRollbackException
+import com.mysql.cj.jdbc.exceptions.MySQLTransactionRollbackException
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.DataAccessComponent
 import cromwell.database.sql.SqlDatabase

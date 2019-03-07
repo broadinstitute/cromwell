@@ -1,0 +1,2 @@
+Failed to evaluate input 'foo' (reason 1 of 1): Error(s):
+No value for field 'field' with non optional type 'String' has been provided

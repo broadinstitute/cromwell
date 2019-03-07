@@ -81,7 +81,7 @@ case class WomOptionalType(memberType: WomType) extends WomType {
   override def unaryPlus: Try[WomType] = memberType.unaryPlus
   override def unaryMinus: Try[WomType] = memberType.unaryMinus
 
-  override def toDisplayString: String = memberType.toDisplayString + "?"
+  override def stableName: String = memberType.stableName + "?"
 
   def none = WomOptionalValue.none(memberType)
 }

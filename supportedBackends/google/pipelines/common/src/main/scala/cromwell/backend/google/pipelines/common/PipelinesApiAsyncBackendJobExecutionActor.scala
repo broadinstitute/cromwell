@@ -586,7 +586,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def handleExecutionFailure(runStatus: RunStatus,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
 
-    def generateFinalPrettyPrintedError(runStatus: RunStatus.UnsuccessfulRunStatus, errorMsg: String): String = {
+    def generateBetterErrorMsg(runStatus: RunStatus.UnsuccessfulRunStatus, errorMsg: String): String = {
       if (runStatus.errorCode.getCode.value == PapiFailedPreConditionErrorCode
           && errorMsg.contains("Execution failed")
           && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))) {
@@ -613,13 +613,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           val message = unable + details + prettyError
           Future.successful(FailedNonRetryableExecutionHandle(StandardException(
             runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
-        case _ => Future.successful({
-
-          val finalPrettyPrintedError = generateFinalPrettyPrintedError(runStatus, prettyError)
-
-          FailedNonRetryableExecutionHandle(StandardException(
-            runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode)
-        })
+        case _ => {
+          val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+        }
       }
     }
 

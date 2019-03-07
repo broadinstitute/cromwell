@@ -52,18 +52,18 @@ final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomVal
   val typesUsedInKey = value.map { case (k, _) => k.womType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != womType.keyType)
-    throw new UnsupportedOperationException(s"Could not construct a $womType with this value: $value")
+    throw new UnsupportedOperationException(s"Could not construct a $womType with map keys of unexpected type: [${value.keys.mkString(", ")}]")
 
   if (typesUsedInKey.size > 1)
-    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
+    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types in map keys: [${value.keys.mkString(", ")}]")
 
   val typesUsedInValue = value.map { case (_, v) => v.womType }.toSet
 
   if (typesUsedInValue.size == 1 && typesUsedInValue.head != womType.valueType)
-    throw new UnsupportedOperationException(s"Could not construct a $womType as this value: $value")
+    throw new UnsupportedOperationException(s"Could not construct a $womType with map values of unexpected type: [${value.values.mkString(", ")}]")
 
   if (typesUsedInValue.size > 1)
-    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
+    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types in map values: [${value.values.mkString(", ")}]")
 
   override def toWomString: String =
     "{" + value.map {case (k,v) => s"${k.toWomString}: ${v.toWomString}"}.mkString(", ") + "}"

@@ -390,7 +390,9 @@ backend {
 
 #### Docker Config Block
 Further docker configuration options available to be put into your config file are as follows. 
-For the latest list of parameters, refer to the [example configurations](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) file.
+For the latest list of parameters, refer to the [example configuration file][cromwell-examples-conf],
+and [specific backend provider examples][cromwell-examples-folder].
+
 ```
 docker {
   hash-lookup {
@@ -458,3 +460,7 @@ Congratulations for improving the reproducibility of your workflows! You might f
 - [Getting started with AWS Batch](AwsBatch101.md)
 - [Getting started on Google Pipelines API](PipelinesApi101.md)
 - [Getting started on Alibaba Cloud](BCSIntro/)
+
+
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

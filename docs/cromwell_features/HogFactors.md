@@ -192,6 +192,6 @@ Yes, to various degrees:
 - To opt out of round-robin allocation between workflows, and preserve a strict first-in-first-out allocation of jobs,
 assign all workflows to the same hog-group in their workflow options.
     + To set this as the default, you can add a value to the default workflow options. 
-    + For an example see the `workflow-options` / `default` stanza of [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/master/cromwell.examples.conf).
+    + For an example see the `workflow-options` / `default` stanza of [cromwell.examples.conf][cromwell-examples-conf].
 
-
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf

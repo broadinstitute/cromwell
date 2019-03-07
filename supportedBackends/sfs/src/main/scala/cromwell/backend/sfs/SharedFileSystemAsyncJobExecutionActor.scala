@@ -23,7 +23,7 @@ sealed trait SharedFileSystemRunState {
 }
 
 case class SharedFileSystemJobRunning(validUntil: Option[Instant]) extends SharedFileSystemRunState {
-  override def terminal: Boolean = true
+  override def terminal: Boolean = false
   override def status = "Running"
 
   // Whether this running state is stale (ie has the 'validUntil' time passed?)
@@ -31,7 +31,7 @@ case class SharedFileSystemJobRunning(validUntil: Option[Instant]) extends Share
 }
 
 case class SharedFileSystemJobWaitingForReturnCode(waitUntil: Option[Instant]) extends SharedFileSystemRunState {
-  override def terminal: Boolean = true
+  override def terminal: Boolean = false
   override def status = "WaitingForReturnCode"
 
   // Whether or not to give up waiting for the RC to appear (ie has the 'waitUntil' time passed?)

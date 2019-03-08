@@ -64,6 +64,8 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
 
+  val PapiFailedPreConditionErrorCode = 9
+
   // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
 
@@ -584,6 +586,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def handleExecutionFailure(runStatus: RunStatus,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
 
+    def generateBetterErrorMsg(runStatus: RunStatus.UnsuccessfulRunStatus, errorMsg: String): String = {
+      if (runStatus.errorCode.getCode.value == PapiFailedPreConditionErrorCode
+          && errorMsg.contains("Execution failed")
+          && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))) {
+        s"Please check the log file for more details: $jesLogPath."
+      } else errorMsg
+    }
+
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
@@ -592,19 +602,22 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
 
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
-        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error))))
+        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
         case _ if isDockerPullFailure =>
           val unable = s"Unable to pull Docker image '$jobDockerImage' "
           val details = if (hasDockerCredentials)
             "but Docker credentials are present; is this Docker account authorized to pull the image? " else
             "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
             "Please check your private Docker configuration and/or the pull access for this image. "
-          val message = unable + details + runStatus.prettyPrintedError
+          val message = unable + details + prettyError
           Future.successful(FailedNonRetryableExecutionHandle(StandardException(
             runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
-        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+        case _ => {
+          val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+        }
       }
     }
 

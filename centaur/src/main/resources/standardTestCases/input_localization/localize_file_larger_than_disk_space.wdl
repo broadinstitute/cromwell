@@ -22,6 +22,6 @@ workflow localize_file_larger_than_disk_space {
     call localize_file { input: input_file = wf_input }
 
     output {
-        String content = localize_file.o
+        String content = localize_file.out
     }
 }

@@ -17,8 +17,8 @@ class: CommandLineTool
 cwlVersion: v1.0
 hints:
 - class: DockerRequirement
-  dockerImageId: quay.io/bcbio/bcbio-vc@1.1.4a-741877e
-  dockerPull: quay.io/bcbio/bcbio-vc@1.1.4a-741877e
+  dockerImageId: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
+  dockerPull: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
 - class: ResourceRequirement
   coresMin: 16
   outdirMin: 10477

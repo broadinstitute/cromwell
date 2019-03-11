@@ -57,8 +57,20 @@ object TaskDefinitionElementToWomTaskDefinition {
         }.map(_.toSeq)
       }
 
-      (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
-        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, Map.empty, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
+      val metaSection : ErrorOr[Map[String, String]] = a.taskDefinitionElement.metaSection match {
+        case None => Map.empty.validNel
+        case Some(MetaSectionElement(meta)) =>
+          val m : Map[String, String] = meta.map{
+            case (key, MetaValueElement.MetaValueElementString(value)) =>
+              key -> value
+            case (key, other) =>
+              throw new Exception(s"non string meta values are not handled currently <${key} -> ${other}>")
+          }.toMap
+          m.validNel
+      }
+
+      (validRuntimeAttributes, validCommand, metaSection) mapN { (runtime, command, metaSection) =>
+        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, metaSection, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
       }
     }
 

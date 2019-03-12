@@ -1,6 +1,6 @@
 version 1.0
 
-task task_with_metas {
+task task_with_metas2 {
   input {
   }
 
@@ -8,7 +8,6 @@ task task_with_metas {
   }
 
   command {
-    echo "Hello World"
   }
 
   meta {

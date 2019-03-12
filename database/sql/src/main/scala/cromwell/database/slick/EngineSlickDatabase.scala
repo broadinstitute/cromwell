@@ -4,15 +4,17 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.EngineDataAccessComponent
 import cromwell.database.sql.EngineSqlDatabase
 
+import scala.concurrent.duration.Duration
+
 object EngineSlickDatabase {
   def fromParentConfig(parentConfig: Config = ConfigFactory.load): EngineSlickDatabase = {
-    val databaseConfig = SlickDatabase.getDatabaseConfig("engine", parentConfig)
-    new EngineSlickDatabase(databaseConfig)
+    val (databaseConfig, queryTimeout) = SlickDatabase.getDatabaseConfig("engine", parentConfig)
+    new EngineSlickDatabase(databaseConfig, queryTimeout)
   }
 }
 
-class EngineSlickDatabase(originalDatabaseConfig: Config)
-  extends SlickDatabase(originalDatabaseConfig)
+class EngineSlickDatabase(originalDatabaseConfig: Config, queryTimeout: Duration)
+  extends SlickDatabase(originalDatabaseConfig, queryTimeout)
     with EngineSqlDatabase
     with WorkflowStoreSlickDatabase
     with JobKeyValueSlickDatabase

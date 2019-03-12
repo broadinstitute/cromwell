@@ -4,6 +4,7 @@ import java.io.{ByteArrayOutputStream, PrintStream}
 import java.sql.Connection
 import java.time.OffsetDateTime
 
+import scala.language.postfixOps
 import better.files._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
@@ -55,7 +56,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     import ServicesStore.EnhancedSqlDatabase
     logger.info("Initializing deadlock-test database")
     for {
-      database <- new EngineSlickDatabase(databaseConfig)
+      database <- new EngineSlickDatabase(databaseConfig, 10 minutes)
         .initialized(EngineServicesStore.EngineLiquibaseSettings).autoClosed
     } {
       logger.info(s"Initialized deadlock-test database: ${database.connectionDescription}")
@@ -255,7 +256,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     import ServicesStore.EnhancedSqlDatabase
 
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, 10 minutes)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
     lazy val getProduct = {
@@ -505,8 +506,8 @@ object ServicesStoreSpec {
          |""".stripMargin)
     val (database, settings) = databaseType match {
       case "singleton" =>
-        (new EngineSlickDatabase(databaseConfig), EngineServicesStore.EngineLiquibaseSettings)
-      case "metadata" => (new MetadataSlickDatabase(databaseConfig), MetadataServicesStore.MetadataLiquibaseSettings)
+        (new EngineSlickDatabase(databaseConfig, 10 minutes), EngineServicesStore.EngineLiquibaseSettings)
+      case "metadata" => (new MetadataSlickDatabase(databaseConfig, 10 minutes), MetadataServicesStore.MetadataLiquibaseSettings)
     }
     schemaManager match {
       case "liquibase" =>

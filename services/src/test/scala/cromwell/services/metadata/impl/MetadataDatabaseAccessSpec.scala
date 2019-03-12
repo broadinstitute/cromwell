@@ -17,6 +17,9 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
   val AllowTrue = Seq(QueryParameter("allow", "true"))
@@ -48,10 +51,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         val databaseConfig = ConfigFactory.load.getConfig(configPath)
 
         // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        new EngineSlickDatabase(databaseConfig)
+        new EngineSlickDatabase(databaseConfig, 10 minutes)
           .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
-        new MetadataSlickDatabase(databaseConfig)
+        new MetadataSlickDatabase(databaseConfig, 10 minutes)
           .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
       }
     }

@@ -10,17 +10,18 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 object MetadataSlickDatabase {
   def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase = {
-    val databaseConfig = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
-    new MetadataSlickDatabase(databaseConfig)
+    val (databaseConfig, queryTimeout) = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
+    new MetadataSlickDatabase(databaseConfig, queryTimeout)
   }
 }
 
-class MetadataSlickDatabase(originalDatabaseConfig: Config)
-  extends SlickDatabase(originalDatabaseConfig)
+class MetadataSlickDatabase(originalDatabaseConfig: Config, queryTimeout: Duration)
+  extends SlickDatabase(originalDatabaseConfig, queryTimeout)
     with MetadataSqlDatabase
     with SummaryStatusSlickDatabase {
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)

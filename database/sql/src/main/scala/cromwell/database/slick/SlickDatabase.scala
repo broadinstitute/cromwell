@@ -45,16 +45,18 @@ object SlickDatabase {
     }
   }
 
-  def getDatabaseConfig(name: String, parentConfig: Config): Config = {
+  def getDatabaseConfig(name: String, parentConfig: Config): (Config, Duration) = {
     val rootDatabaseConfig = parentConfig.getConfig("database")
-    rootDatabaseConfig.getOrElse(name, rootDatabaseConfig)
+    val databaseConfig = rootDatabaseConfig.getOrElse(name, rootDatabaseConfig)
+    val duration: Duration = databaseConfig.as[Duration]("queryTimeout")
+    (databaseConfig, duration)
   }
 }
 
 /**
   * Data Access implementation using Slick.
   */
-abstract class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlDatabase {
+abstract class SlickDatabase(override val originalDatabaseConfig: Config, queryTimeout: Duration) extends SqlDatabase {
 
   override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
   protected val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
@@ -152,7 +154,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
      If we run completely asynchronously, nest calls to withConnection, and then call flatMap, the outer connection may
      already be closed before an inner block finishes running.
      */
-    Await.result(database.run(SimpleDBIO(context => block(context.connection))), Duration.Inf)
+    Await.result(database.run(SimpleDBIO(context => block(context.connection))), queryTimeout)
   }
 
   override def close(): Unit = {
@@ -175,7 +177,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     //database.run(action) <-- See comment above private val actionThreadPool
     Future {
       try {
-        Await.result(database.run(action), Duration.Inf)
+        Await.result(database.run(action), queryTimeout)
       } catch {
         case rollbackException: MySQLTransactionRollbackException =>
           debugExitStatusCodeOption match {

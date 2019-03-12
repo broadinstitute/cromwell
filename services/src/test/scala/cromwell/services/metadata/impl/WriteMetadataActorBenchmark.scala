@@ -13,6 +13,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Eventually with Matchers {
   override implicit val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
 
@@ -39,10 +40,10 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
         val databaseConfig = ConfigFactory.load.getConfig("database-test-mysql")
 
         // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        new EngineSlickDatabase(databaseConfig)
+        new EngineSlickDatabase(databaseConfig, 10 minutes)
           .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
-        new MetadataSlickDatabase(databaseConfig)
+        new MetadataSlickDatabase(databaseConfig, 10 minutes)
           .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
       }
     })

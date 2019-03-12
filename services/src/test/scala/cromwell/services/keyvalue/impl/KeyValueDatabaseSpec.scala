@@ -16,6 +16,8 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.reflect.ClassTag
+import scala.language.postfixOps
+import scala.concurrent.duration._
 
 class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with RecoverMethods {
 
@@ -34,7 +36,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
 
   def testWith[E <: Throwable](configPath: String, failureMessage: String)(implicit classTag: ClassTag[E]): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, 10 minutes)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"

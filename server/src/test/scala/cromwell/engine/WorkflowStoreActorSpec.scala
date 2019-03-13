@@ -352,7 +352,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
 object WorkflowStoreActorSpec {
   def runWithDatabase[T](databaseConfig: Config)(block: SqlWorkflowStore => T): T = {
-    val database = new EngineSlickDatabase(databaseConfig).initialized(EngineServicesStore.EngineLiquibaseSettings)
+    val database = new EngineSlickDatabase(databaseConfig, 10 minutes).initialized(EngineServicesStore.EngineLiquibaseSettings)
     try {
       block(SqlWorkflowStore(database))
     } finally {

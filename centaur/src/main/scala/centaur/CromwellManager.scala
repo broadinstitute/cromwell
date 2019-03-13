@@ -1,7 +1,5 @@
 package centaur
 
-import java.lang.ProcessBuilder.Redirect
-
 import better.files.File
 import centaur.api.CentaurCromwellClient
 import com.typesafe.scalalogging.StrictLogging
@@ -17,7 +15,7 @@ object CromwellManager extends StrictLogging {
   val timeout = 120 seconds
   private val interval = 5 second
   private val timeoutExitStatus = 66
-  private var cromwellProcess: Option[Process] = None
+  private var cromwellProcess: Option[CromwellProcess] = None
   private var _ready: Boolean = false
   private var _isManaged: Boolean = false
   
@@ -30,7 +28,7 @@ object CromwellManager extends StrictLogging {
   
   // Check that we have a cromwellProcess, that this process is alive, and that cromwell is ready to accept requests 
   private def isAlive(checkType: String): Boolean = {
-    val processAlive = cromwellProcess.exists(_.isAlive())
+    val processAlive = cromwellProcess.exists(_.isAlive)
     logger.info(s"Cromwell process alive $checkType = $processAlive")
     if (processAlive) {
       val serverAlive = CentaurCromwellClient.isAlive
@@ -41,28 +39,12 @@ object CromwellManager extends StrictLogging {
     }
   }
 
-  def startCromwell(cromwell: CromwellConfiguration): Unit = {
+  def startCromwell(cromwellConfiguration: CromwellConfiguration): Unit = {
     _isManaged = true
 
     if (!isAlive("at start")) {
-      val logFile: File = File(cromwell.logFile)
-
-      val command = List(
-        "java",
-        s"-Dconfig.file=${cromwell.conf}",
-        s"-Dwebservice.port=$ManagedCromwellPort",
-        "-jar",
-        cromwell.jar,
-        "server")
-      val processBuilder = new java.lang.ProcessBuilder()
-        .command(command: _*)
-        .redirectOutput(Redirect.appendTo(logFile.toJava))
-        .redirectErrorStream(true)
-
-      // Start the cromwell process
-      logger.info(s"Starting Cromwell via: ${command.mkString(" ")}")
-      val process = processBuilder.start()
-      cromwellProcess = Option(process)
+      cromwellProcess = Option(cromwellConfiguration.createProcess)
+      cromwellProcess foreach { _.start() }
 
       var waitedFor = Duration.Zero
       var seenAlive = false
@@ -84,7 +66,7 @@ object CromwellManager extends StrictLogging {
       if (wasOrIsAlive()) logger.info("Cromwell is running")
       else {
         logger.error("Timeout waiting for cromwell server - failing test run")
-        logger.error(logFile.contentAsString)
+        logger.error(File(cromwellConfiguration.logFile).contentAsString)
         stopCromwell("Timed out waiting for server")
         System.exit(timeoutExitStatus)
       }
@@ -95,11 +77,7 @@ object CromwellManager extends StrictLogging {
     _ready = false
     logger.info(s"Stopping Cromwell... ($reason)")
     try {
-      cromwellProcess foreach { process =>
-        process.getOutputStream.flush()
-        process.destroy()
-        process.waitFor()
-      }
+      cromwellProcess foreach { _.stop() }
     } catch {
       case e: Exception => 
         logger.error("Caught exception while stopping Cromwell")

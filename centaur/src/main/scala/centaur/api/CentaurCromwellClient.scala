@@ -65,8 +65,11 @@ object CentaurCromwellClient {
     currently does not support query.
    */
   def isAlive: Boolean = {
-    val request = Http().singleRequest(HttpRequest(uri=s"${CentaurConfig.cromwellUrl}/api/workflows/$apiVersion/query?status=Succeeded"))
-    Try(Await.result(request, CentaurConfig.sendReceiveTimeout)).isSuccess
+    val response = Http().singleRequest(HttpRequest(uri=s"${CentaurConfig.cromwellUrl}/api/workflows/$apiVersion/query?status=Succeeded"))
+    // Silence the following warning by discarding the result of a successful query:
+    // Response entity was not subscribed after 1 second. Make sure to read the response entity body or call `discardBytes()` on it.
+    val successOrFailure = response map { _.entity.discardBytes() }
+    Try(Await.result(successOrFailure, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
   def metadata(workflow: SubmittedWorkflow, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = metadataWithId(workflow.id, args)

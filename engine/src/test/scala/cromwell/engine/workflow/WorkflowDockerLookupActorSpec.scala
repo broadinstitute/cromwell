@@ -243,7 +243,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
 
   def databaseInterface(query: String => Future[Seq[DockerHashStoreEntry]] = abjectFailure,
                         write: DockerHashStoreEntry => Future[Unit] = abjectFailure): EngineSlickDatabase = {
-    new EngineSlickDatabase(DatabaseConfig) {
+    new EngineSlickDatabase(DatabaseConfig, 10 minutes) {
       override def queryDockerHashStoreEntries(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[DockerHashStoreEntry]] = query(workflowExecutionUuid)
 
       override def addDockerHashStoreEntry(dockerHashStoreEntry: DockerHashStoreEntry)(implicit ec: ExecutionContext): Future[Unit] = write(dockerHashStoreEntry)

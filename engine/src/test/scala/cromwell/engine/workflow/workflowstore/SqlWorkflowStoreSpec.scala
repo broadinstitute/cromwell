@@ -18,6 +18,7 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Try
 
 class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
@@ -143,7 +144,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
 
 object SqlWorkflowStoreSpec {
   def runWithDatabase[T](databaseConfig: Config)(block: SqlWorkflowStore => T): T = {
-    val database = new EngineSlickDatabase(databaseConfig).initialized(EngineServicesStore.EngineLiquibaseSettings)
+    val database = new EngineSlickDatabase(databaseConfig, 10 minutes).initialized(EngineServicesStore.EngineLiquibaseSettings)
     try {
       block(SqlWorkflowStore(database))
     } finally {

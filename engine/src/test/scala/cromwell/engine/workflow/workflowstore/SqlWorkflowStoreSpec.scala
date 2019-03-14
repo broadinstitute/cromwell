@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.TestSettings._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.database.slick.EngineSlickDatabase
@@ -18,7 +19,6 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Try
 
 class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
@@ -144,7 +144,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
 
 object SqlWorkflowStoreSpec {
   def runWithDatabase[T](databaseConfig: Config)(block: SqlWorkflowStore => T): T = {
-    val database = new EngineSlickDatabase(databaseConfig, 10 minutes).initialized(EngineServicesStore.EngineLiquibaseSettings)
+    val database = new EngineSlickDatabase(databaseConfig, queryTimeout).initialized(EngineServicesStore.EngineLiquibaseSettings)
     try {
       block(SqlWorkflowStore(database))
     } finally {

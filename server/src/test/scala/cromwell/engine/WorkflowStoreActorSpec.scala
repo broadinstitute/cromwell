@@ -1,6 +1,7 @@
 package cromwell.engine
 
 import java.time.OffsetDateTime
+import cromwell.TestSettings._
 
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
@@ -352,7 +353,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
 object WorkflowStoreActorSpec {
   def runWithDatabase[T](databaseConfig: Config)(block: SqlWorkflowStore => T): T = {
-    val database = new EngineSlickDatabase(databaseConfig, 10 minutes).initialized(EngineServicesStore.EngineLiquibaseSettings)
+    val database = new EngineSlickDatabase(databaseConfig, queryTimeout).initialized(EngineServicesStore.EngineLiquibaseSettings)
     try {
       block(SqlWorkflowStore(database))
     } finally {

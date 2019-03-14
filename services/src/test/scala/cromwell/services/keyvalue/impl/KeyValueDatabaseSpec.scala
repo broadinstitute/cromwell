@@ -1,6 +1,7 @@
 package cromwell.services.keyvalue.impl
 
 import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
+import cromwell.services._
 
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
@@ -36,7 +37,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
 
   def testWith[E <: Throwable](configPath: String, failureMessage: String)(implicit classTag: ClassTag[E]): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, 10 minutes)
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, queryTimeout)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"

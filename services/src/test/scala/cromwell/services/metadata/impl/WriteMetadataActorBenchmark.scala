@@ -1,5 +1,7 @@
 package cromwell.services.metadata.impl
 
+import cromwell.services._
+
 import akka.testkit.{TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
@@ -40,10 +42,10 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
         val databaseConfig = ConfigFactory.load.getConfig("database-test-mysql")
 
         // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        new EngineSlickDatabase(databaseConfig, 10 minutes)
+        new EngineSlickDatabase(databaseConfig, queryTimeout)
           .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
-        new MetadataSlickDatabase(databaseConfig, 10 minutes)
+        new MetadataSlickDatabase(databaseConfig, queryTimeout)
           .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
       }
     })

@@ -56,7 +56,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     import ServicesStore.EnhancedSqlDatabase
     logger.info("Initializing deadlock-test database")
     for {
-      database <- new EngineSlickDatabase(databaseConfig, 10 minutes)
+      database <- new EngineSlickDatabase(databaseConfig, queryTimeout)
         .initialized(EngineServicesStore.EngineLiquibaseSettings).autoClosed
     } {
       logger.info(s"Initialized deadlock-test database: ${database.connectionDescription}")
@@ -256,7 +256,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
     import ServicesStore.EnhancedSqlDatabase
 
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, 10 minutes)
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, queryTimeout)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
     lazy val getProduct = {
@@ -506,8 +506,8 @@ object ServicesStoreSpec {
          |""".stripMargin)
     val (database, settings) = databaseType match {
       case "singleton" =>
-        (new EngineSlickDatabase(databaseConfig, 10 minutes), EngineServicesStore.EngineLiquibaseSettings)
-      case "metadata" => (new MetadataSlickDatabase(databaseConfig, 10 minutes), MetadataServicesStore.MetadataLiquibaseSettings)
+        (new EngineSlickDatabase(databaseConfig, queryTimeout), EngineServicesStore.EngineLiquibaseSettings)
+      case "metadata" => (new MetadataSlickDatabase(databaseConfig, queryTimeout), MetadataServicesStore.MetadataLiquibaseSettings)
     }
     schemaManager match {
       case "liquibase" =>

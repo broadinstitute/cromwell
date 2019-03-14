@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import com.typesafe.config.ConfigFactory
+import cromwell.TestSettings._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.slick.EngineSlickDatabase
@@ -13,9 +14,6 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
-
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 import scala.concurrent.ExecutionContext
 
@@ -30,7 +28,7 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
 
   def testWith(configPath: String): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, 10 minutes)
+    lazy val dataAccess = new EngineSlickDatabase(databaseConfig, queryTimeout)
       .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
     val idA = WorkflowId.randomId().toString

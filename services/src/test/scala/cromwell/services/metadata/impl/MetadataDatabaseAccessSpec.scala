@@ -1,6 +1,7 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
+import cromwell.services._
 
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
@@ -51,10 +52,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         val databaseConfig = ConfigFactory.load.getConfig(configPath)
 
         // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        new EngineSlickDatabase(databaseConfig, 10 minutes)
+        new EngineSlickDatabase(databaseConfig, queryTimeout)
           .initialized(EngineServicesStore.EngineLiquibaseSettings)
 
-        new MetadataSlickDatabase(databaseConfig, 10 minutes)
+        new MetadataSlickDatabase(databaseConfig, queryTimeout)
           .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
       }
     }

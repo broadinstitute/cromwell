@@ -55,8 +55,8 @@ object BackendWorkflowInitializationActor {
     *   available, but tasks are available in the `WdlNamespace`.  A task-aware type evaluation might look like:
     *
     *   {{{
-    *     val task: Task = ???
-    *     val expression: WdlExpression = ???
+    *     val task: Task = ...
+    *     val expression: WdlExpression = ...
     *     def lookup(name: String): WomType = task.declarations.find(_.name == name).get.womType
     *     val expressionType = expression.evaluateType(lookup, OnlyPureFunctions)
     *   }}}

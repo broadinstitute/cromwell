@@ -26,7 +26,7 @@ object WdlFlavoredWomType {
         case WomIntegerType => WomInteger(workflowSource.toInt)
         case WdlExpressionType => WdlExpression.fromString(workflowSource)
         case WomBooleanType => WomBoolean(workflowSource.toBoolean)
-        case WdlNamespaceType => ??? // This is what the original code was doing and clearly this is right.
+        case WdlNamespaceType => throw new UnsupportedOperationException // This is what the original code was doing and clearly this is right.
         case _ =>
           val tokens = parser.lex(workflowSource, "string")
           val terminalMap = tokens.asScala.toVector.map {(_, workflowSource)}.toMap

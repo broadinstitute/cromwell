@@ -164,14 +164,14 @@ trait Tool {
                   localizationOptional
                 )
             }
-          case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
+          case other => throw new UnsupportedOperationException(s"command input parameters such as $other are not yet supported")
         }.toList
 
       val outputDefinitions: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ OutputParameter.IdAndType(cop_id, tpe) =>
           val womType = tpe.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
           OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib, schemaDefRequirement))
-        case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
+        case other => throw new UnsupportedOperationException(s"Command output parameters such as $other are not yet supported")
       }.toList
 
       // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,

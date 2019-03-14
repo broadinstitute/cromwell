@@ -9,6 +9,7 @@ object RuntimeAttributesKeys {
     * Equivalent to CPUMinKey
     */
   val CpuKey = "cpu"
+  val CpuPlatformKey = "cpuPlatform"
   val CpuMinKey = "cpuMin"
   val CpuMaxKey = "cpuMax"
   /**

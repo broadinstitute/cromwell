@@ -125,6 +125,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)
       }
 
+      createPipelineParameters.runtimeAttributes.cpuPlatform.map(virtualMachine.setCpuPlatform)
+
       val resources = new Resources()
         .setProjectId(createPipelineParameters.projectId)
         .setZones(createPipelineParameters.runtimeAttributes.zones.asJava)

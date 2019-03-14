@@ -34,8 +34,8 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       Validated.fromOption(inputValues.get("input"), NonEmptyList.one("Can't find a value for 'input'"))
     }
-    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = ???
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = throw new UnsupportedOperationException
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = throw new UnsupportedOperationException
   }
 
   // Depends on a previous output
@@ -45,8 +45,8 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
     override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
       Validated.fromOption(inputValues.get("o1"), NonEmptyList.one("Can't find a value for 'o1'"))
     }
-    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = ???
-    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = ???
+    override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = throw new UnsupportedOperationException
+    override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = throw new UnsupportedOperationException
   }
 
   def invalidWomExpression1 = new WomExpression {

@@ -27,5 +27,5 @@ trait WdlFunctions[T] {
   /**
     * Path where to write files created by standard functions (write_*).
    */
-  def tempFilePath: String = throw new NotImplementedError("write_* functions are not supported by this implementation")
+  def tempFilePath: String = throw new UnsupportedOperationException("write_* functions are not supported by this implementation")
 }

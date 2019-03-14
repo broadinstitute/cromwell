@@ -28,7 +28,7 @@ class MockPathBuilderFactory(globalConfig: Config, val instanceConfig: Config) e
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext) = Future.successful(
     new PathBuilder {
       override def name = instanceConfig.getString("name")
-      override def build(pathAsString: String) = ???
+      override def build(pathAsString: String) = throw new UnsupportedOperationException
     }
   )
 }

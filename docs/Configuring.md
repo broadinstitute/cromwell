@@ -6,8 +6,8 @@ Check out the tutorial on [How to Configure Cromwell](tutorials/ConfigurationFil
 
 ### Configuration examples
 
-You can find a description of options and example stanzas in the [file
-`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+You can find a description of options and example stanzas in the [Cromwell Example Configuration][cromwell-examples-conf],
+along with backend provider examples in the [Example Providers Folder][cromwell-examples-folder].
 
 ### Custom configuration files
 
@@ -190,7 +190,7 @@ Then, edit your configuration file `database` stanza, as follows:
 database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
@@ -395,3 +395,6 @@ per-backend basis with `<config-key-for-backend>.job-shell`. For example:
 
 For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
 of how this is used for the default configuration of the `Local` backend.
+
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

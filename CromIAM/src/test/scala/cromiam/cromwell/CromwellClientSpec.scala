@@ -4,22 +4,24 @@ import java.net.URL
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
-import akka.http.scaladsl.model.{HttpHeader, HttpRequest}
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
+import akka.http.scaladsl.model.{HttpHeader, HttpRequest, HttpResponse}
 import akka.stream.ActorMaterializer
+import cats.data.NonEmptyList
+import cats.effect.IO
 import cromiam.auth.User
-import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata}
-import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
+import cromwell.api.model._
 import cromwell.api.{CromwellClient => CromwellApiClient}
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
+import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
 import spray.json.{JsObject, JsString}
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll {
   import CromwellClientSpec._
-
-  import ExecutionContext.Implicits.global
 
   implicit val actorSystem: ActorSystem = ActorSystem("CromwellClientSpec")
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher
@@ -36,21 +38,24 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
 
   "CromwellClient" should "eventually return a subworkflow's root workflow id" in {
     cromwellClient.getRootWorkflow(SubworkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
+      .asIo.unsafeToFuture()
   }
 
   it should "eventually return a top level workflow's ID when requesting root workflow id" in {
     cromwellClient.getRootWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(w => assert(w == RootWorkflowId.id.toString))
+      .asIo.unsafeToFuture()
   }
 
   it should "properly fetch the collection for a workflow with a collection name" in {
     cromwellClient.collectionForWorkflow(RootWorkflowId.id.toString, FictitiousUser, fakeHttpRequest).map(c =>
       assert(c.name == CollectionName)
-    )
+    ).asIo.unsafeToFuture()
   }
 
   it should "throw an exception if the workflow doesn't have a collection" in {
     recoverToExceptionIf[IllegalArgumentException] {
       cromwellClient.collectionForWorkflow(WorkflowIdWithoutCollection.id.toString, FictitiousUser, fakeHttpRequest)
+        .asIo.unsafeToFuture()
     } map { exception =>
       assert(exception.getMessage == s"Workflow $WorkflowIdWithoutCollection has no associated collection")
     }
@@ -63,24 +68,39 @@ object CromwellClientSpec {
                                    materializer: ActorMaterializer)
   extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender) {
     override val cromwellApiClient: CromwellApiClient = new MockCromwellApiClient()
+
+    override def sendTimingApi(statsDPath: InstrumentationPath,
+                               timing: FiniteDuration,
+                               prefixToStatsd: NonEmptyList[String]
+                              ): Unit = ()
   }
 
   final class MockCromwellApiClient()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer)
     extends CromwellApiClient(new URL("http://foo.com"), "bar") {
 
-    override def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)(implicit ec: ExecutionContext): Future[WorkflowLabels] = {
-      if (workflowId == RootWorkflowId) Future.successful(FictitiousWorkflowLabelsWithCollection)
-      else if (workflowId == WorkflowIdWithoutCollection) Future.successful(FictitiousWorkflowLabelsWithoutCollection)
-      else Future.failed(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
+
+    override def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)
+                       (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
+      if (workflowId == RootWorkflowId) {
+        FailureResponseOrT.pure(FictitiousWorkflowLabelsWithCollection)
+      } else if (workflowId == WorkflowIdWithoutCollection) {
+        FailureResponseOrT.pure(FictitiousWorkflowLabelsWithoutCollection)
+      } else {
+        FailureResponseOrT[IO, HttpResponse, WorkflowLabels] {
+          IO.raiseError(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
+        }
+      }
     }
 
     override def metadata(workflowId: WorkflowId,
                  args: Option[Map[String, List[String]]] = None,
                  headers: List[HttpHeader] = defaultHeaders
-                )(implicit ec: ExecutionContext): Future[WorkflowMetadata] = {
-      if (workflowId == RootWorkflowId) Future.successful(RootWorkflowMetadata)
-      else if (workflowId == SubworkflowId) Future.successful(SubWorkflowMetadata)
-      else Future.failed(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
+                )(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] = {
+      if (workflowId == RootWorkflowId) FailureResponseOrT.pure(RootWorkflowMetadata)
+      else if (workflowId == SubworkflowId) FailureResponseOrT.pure(SubWorkflowMetadata)
+      else FailureResponseOrT[IO, HttpResponse, WorkflowMetadata] {
+        IO.raiseError(new RuntimeException("Unexpected workflow ID sent to MockCromwellApiClient"))
+      }
     }
   }
 

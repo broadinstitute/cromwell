@@ -7,15 +7,25 @@ import cats.instances.list._
 import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys}
+import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomMap, WomPair, WomValue}
+import wom.values.{WomArray, WomMap, WomOptionalValue, WomPair, WomValue}
 import wom.types.coercion.defaults._
 
 object BiscayneValueEvaluators {
+
+  implicit val noneLiteralEvaluator: ValueEvaluator[NoneLiteralElement.type] = new ValueEvaluator[ExpressionElement.NoneLiteralElement.type] {
+    override def evaluateValue(a: ExpressionElement.NoneLiteralElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+      EvaluatedValue(
+        value = WomOptionalValue(WomNothingType, None),
+        sideEffectFiles = Seq.empty).validNel
+    }
+  }
+
+
   implicit val asMapFunctionEvaluator: ValueEvaluator[AsMap] = new ValueEvaluator[AsMap] {
     override def evaluateValue(a: AsMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {

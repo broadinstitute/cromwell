@@ -8,7 +8,7 @@ import wom.expression.{IoFunctionSet, PathFunctionSet}
 import scala.util.Try
 
 class WorkflowCorePathFunctionSet(override val pathBuilders: PathBuilders) extends PathFunctionSet with PathFactory {
-  private def fail(name: String) = throw new NotImplementedError(s"$name is not implemented at the workflow level")
+  private def fail(name: String) = throw new UnsupportedOperationException(s"$name is not implemented at the workflow level")
   override def sibling(of: String, path: String): String = buildPath(of).sibling(path).pathAsString
   override def isAbsolute(path: String): Boolean = Try(buildPath(path)).map(_.isAbsolute).toOption.contains(true)
   override def name(path: String) = buildPath(path).name

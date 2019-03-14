@@ -40,7 +40,7 @@ trait WomValue {
   def unaryMinus: Try[WomValue] = invalid(s"-$this")
   def typeName: String = womType.getClass.getSimpleName
 
-  def toWomString: String = throw new NotImplementedError(s"$getClass does not implement toWomString")
+  def toWomString: String = throw new UnsupportedOperationException(s"$getClass does not implement toWomString")
 
   /* This emits the value as a string.  In other words, the String value that
    * would be inserted into the command line.

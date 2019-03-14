@@ -27,6 +27,8 @@ trait CustomLabelEntryComponent {
 
     def ucCustomLabelEntryClkWeu = index("UC_CUSTOM_LABEL_ENTRY_CLK_WEU",
       (customLabelKey, workflowExecutionUuid), unique = true)
+
+    def ixCustomLabelEntryClkClv = index("IX_CUSTOM_LABEL_ENTRY_CLK_CLV", (customLabelKey, customLabelValue), unique = false)
 }
 
   val customLabelEntries = TableQuery[CustomLabelEntries]

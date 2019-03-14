@@ -4,9 +4,10 @@ import java.net.URL
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import akka.testkit._
-import cromwell.api.model.CromwellFailedResponseException
+import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import org.scalatest.{AsyncFlatSpecLike, BeforeAndAfterAll, Matchers}
 
 import scala.concurrent.duration._
@@ -20,21 +21,32 @@ class CromwellResponseFailedSpec extends TestKit(ActorSystem()) with AsyncFlatSp
   
   implicit val materializer = ActorMaterializer()
   
-  "CromwellAPIClient" should "try to fail the Future with a CromwellFailedResponseException if the HttpResponse is unsuccessful" in {
+  "CromwellAPIClient" should "fail the Future if the HttpResponse is unsuccessful" in {
+    val errorMessage =
+      """|{
+         |  "status": "fail",
+         |  "message": "Cromwell service shutting down"
+         |}
+         |""".stripMargin.trim
     val client = new CromwellClient(new URL("http://fakeurl"), "v1") {
       override def executeRequest(request: HttpRequest, headers: List[HttpHeader]): Future[HttpResponse] = Future.successful(
-        new HttpResponse(StatusCodes.ServiceUnavailable, List.empty[HttpHeader], HttpEntity(ContentTypes.`application/json`,
-          """{
-            |  "status": "fail",
-            |  "message": "Cromwell service shutting down"
-            |}
-          """.stripMargin), HttpProtocols.`HTTP/1.1`)
+        new HttpResponse(
+          StatusCodes.ServiceUnavailable,
+          List.empty[HttpHeader],
+          HttpEntity(ContentTypes.`application/json`, errorMessage),
+          HttpProtocols.`HTTP/1.1`
+        )
       )
     }
 
-    recoverToExceptionIf[CromwellFailedResponseException] { client.version(scala.concurrent.ExecutionContext.global) } map { exception =>
-      assert(exception.status == "fail")
-      assert(exception.message == "Cromwell service shutting down")
-    }
+    for {
+      exception <- recoverToExceptionIf[UnsuccessfulRequestException] {
+        client.version.asIo.unsafeToFuture()
+      }
+      entity = exception.httpResponse.entity
+      content <- Unmarshal(entity).to[String]
+      _ = entity.contentType should be(ContentTypes.`application/json`)
+      _ = content should be(errorMessage)
+    } yield succeed
   }
 }

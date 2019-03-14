@@ -1,0 +1,15 @@
+name: none_literal
+testFormat: workflowsuccess
+
+files {
+  workflow: none_literal/none_literal.wdl
+}
+
+metadata {
+  workflowName: none_literal
+  status: Succeeded
+  "outputs.none_literal.out": null
+  "outputs.none_literal.out2": null
+  "outputs.none_literal.out3": 3
+  "outputs.none_literal.out_none": "None"
+}

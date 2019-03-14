@@ -57,14 +57,47 @@ class WomMapTypeSpec extends FlatSpec with Matchers  {
       case Failure(_) => fail("Failed to coerce a map to an object")
     }
   }
-  it should "detect invalid map construction if there are mixed types" in {
+
+  it should "detect invalid map construction if there are mixed keys" in {
     try {
-      WomMap(WomMapType(WomStringType, WomStringType), Map(WomInteger(0) -> WomString("foo"), WomString("x") -> WomInteger(2)))
+      WomMap(WomMapType(WomStringType, WomStringType), Map(WomInteger(0) -> WomString("foo"), WomString("x") -> WomString("y")))
       fail("Map initialization should have failed")
     } catch {
-      case _: UnsupportedOperationException => // expected
+      case e: UnsupportedOperationException =>
+        e.getMessage shouldEqual "Cannot construct WomMapType(WomStringType,WomStringType) with mixed types in map keys: [WomInteger(0), WomString(x)]"
     }
   }
+
+  it should "detect invalid map construction if there are mixed values" in {
+    try {
+      WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("bar") -> WomString("foo"), WomString("x") -> WomInteger(2)))
+      fail("Map initialization should have failed")
+    } catch {
+      case e: UnsupportedOperationException =>
+        e.getMessage shouldEqual "Cannot construct WomMapType(WomStringType,WomStringType) with mixed types in map values: [WomString(foo), WomInteger(2)]"
+    }
+  }
+
+  it should "detect invalid map construction if the keys are all the wrong type" in {
+    try {
+      WomMap(WomMapType(WomStringType, WomStringType), Map(WomInteger(22) -> WomString("foo"), WomInteger(2222) -> WomString("y")))
+      fail("Map initialization should have failed")
+    } catch {
+      case e: UnsupportedOperationException =>
+        e.getMessage shouldEqual "Could not construct a WomMapType(WomStringType,WomStringType) with map keys of unexpected type: [WomInteger(22), WomInteger(2222)]"
+    }
+  }
+
+  it should "detect invalid map construction if the values are all the wrong type" in {
+    try {
+      WomMap(WomMapType(WomStringType, WomStringType), Map(WomString("bar") -> WomInteger(44), WomString("x") -> WomInteger(4444)))
+      fail("Map initialization should have failed")
+    } catch {
+      case e: UnsupportedOperationException =>
+        e.getMessage shouldEqual "Could not construct a WomMapType(WomStringType,WomStringType) with map values of unexpected type: [WomInteger(44), WomInteger(4444)]"
+    }
+  }
+
   it should "detect invalid map construction if type does not match the input map type" in {
     try {
       WomMap(WomMapType(WomStringType, WomStringType), Map(WomInteger(2) -> WomInteger(3)))

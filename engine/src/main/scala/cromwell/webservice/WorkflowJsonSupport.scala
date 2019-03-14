@@ -33,7 +33,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)
     override def read(json: JsValue): File = json match {
       case JsString(str) => Paths.get(str)
-      case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a File")
+      case unknown => throw new UnsupportedOperationException(s"Cannot parse $unknown to a File")
     }
   }
 
@@ -46,7 +46,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
 
     override def read(json: JsValue): OffsetDateTime = json match {
       case JsString(str) => OffsetDateTime.parse(str)
-      case unknown => throw new NotImplementedError(s"Cannot parse $unknown to a DateTime")
+      case unknown => throw new UnsupportedOperationException(s"Cannot parse $unknown to a DateTime")
     }
   }
 

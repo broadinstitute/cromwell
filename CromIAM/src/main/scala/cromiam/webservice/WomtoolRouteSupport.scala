@@ -12,6 +12,8 @@ trait WomtoolRouteSupport extends RequestSupport {
       post {
         extractStrictRequest { req =>
           complete {
+            // My understanding is that the proxies enforce authentication for any /api route, and that no further
+            // authentication nor authorization is required here since any authenticated user can describe workflows.
             cromwellClient.forwardToCromwell(req).asHttpResponse
           }
         }

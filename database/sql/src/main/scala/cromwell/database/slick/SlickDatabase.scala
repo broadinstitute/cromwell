@@ -14,6 +14,7 @@ import slick.jdbc.{JdbcCapabilities, JdbcProfile, TransactionIsolation}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.language.postfixOps
 
 object SlickDatabase {
   /**
@@ -48,7 +49,7 @@ object SlickDatabase {
   def getDatabaseConfig(name: String, parentConfig: Config): (Config, Duration) = {
     val rootDatabaseConfig = parentConfig.getConfig("database")
     val databaseConfig = rootDatabaseConfig.getOrElse(name, rootDatabaseConfig)
-    val duration: Duration = databaseConfig.as[Duration]("queryTimeout")
+    val duration: Duration = databaseConfig.getOrElse("queryTimeout", 10 minutes)
     (databaseConfig, duration)
   }
 }
@@ -149,11 +150,6 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config, queryT
   }
 
   override def withConnection[A](block: Connection => A): A = {
-    /*
-     TODO: Should this withConnection() method have a (implicit?) timeout parameter, that it passes on to Await.result?
-     If we run completely asynchronously, nest calls to withConnection, and then call flatMap, the outer connection may
-     already be closed before an inner block finishes running.
-     */
     Await.result(database.run(SimpleDBIO(context => block(context.connection))), queryTimeout)
   }
 

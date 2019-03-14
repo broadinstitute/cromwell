@@ -58,15 +58,14 @@ object TaskDefinitionElementToWomTaskDefinition {
       }
 
       val metaSection : ErrorOr[Map[String, String]] = a.taskDefinitionElement.metaSection match {
-        case None => Map.empty.validNel
+        case None => Map.empty[String, String].validNel
         case Some(MetaSectionElement(meta)) =>
-          val m : Map[String, String] = meta.map{
-            case (key, MetaValueElement.MetaValueElementString(value)) =>
-              key -> value
-            case (key, other) =>
-              throw new Exception(s"non string meta values are not handled currently <${key} -> ${other}>")
-          }.toMap
-          m.validNel
+              meta.traverse{
+                  case (key, MetaValueElement.MetaValueElementString(value)) =>
+                      (key -> value).validNel
+                  case (key, other) =>
+                      s"non string meta values are not handled currently <${key} -> ${other}>, see https://github.com/broadinstitute/cromwell/issues/4746".invalidNel
+          }
       }
 
       (validRuntimeAttributes, validCommand, metaSection) mapN { (runtime, command, metaSection) =>

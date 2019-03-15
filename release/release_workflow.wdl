@@ -1,3 +1,9 @@
+# Releases the next version of Cromwell.
+# Only handles strictly-increasing versions.
+# The current version is retrieved from the GitHub releases page.
+# If `majorRelease` is `false`, then `nextVersion = currentVersion + 0.1`.
+# If `majorRelease` is `true`, then `nextVersion = floor(currentVersion) + 1.0`.
+
 version 1.0
 
 task do_major_release {
@@ -14,8 +20,7 @@ task do_major_release {
     Int nextV = releaseVersion + 1
 
     command {
-        set -e
-        set -x
+        set -euxo pipefail
 
         # Clone repo and checkout develop
         git clone git@github.com:~{organization}/cromwell.git -b develop cromwell
@@ -69,8 +74,7 @@ task do_minor_release {
     String hotfixBranchName = "~{majorReleaseNumber}_hotfix"
 
     command {
-        set -e
-        set -x
+        set -euxo pipefail
 
         # Clone repo and checkout hotfix branch
         git clone git@github.com:~{organization}/cromwell.git -b ~{hotfixBranchName} cromwell
@@ -79,9 +83,6 @@ task do_minor_release {
         # Make sure tests pass
         sbt update
         sbt test:compile
-        # Test with a backup just in case of timeouts
-        # If tests repeatedly timeout locally, ensure all tests pass in Travis and then comment out the next line
-        sbt test || sbt testQuick
 
         # Tag the release
         git tag ~{releaseVersion}
@@ -106,10 +107,17 @@ task versionPrep {
     }
 
     command <<<
-        set -e
+        set -euxo pipefail
 
         which jq || brew install jq
-        curl --fail -v -s https://api.github.com/repos/~{organization}/cromwell/releases/latest | jq --raw-output '.tag_name' > version
+        # Latest is the latest release by time, not version number.
+        # Instead, grab the first page of releases, then find the max release version from the returned results
+        # https://rosettacode.org/wiki/Determine_if_a_string_is_numeric
+        curl --fail -v -s https://api.github.com/repos/~{organization}/cromwell/releases \
+            | jq \
+                --raw-output \
+                'def is_numeric: true and try tonumber catch false; [ .[] | select(.tag_name|is_numeric) ] | max_by(.tag_name|tonumber) | .tag_name' \
+            > version
     >>>
 
     output {
@@ -125,17 +133,26 @@ task draftGithubRelease {
         String organization
         String oldVersion
         String newVersion
+        Boolean majorRelease
     }
-    command <<<
-        set -e
-        set -x
 
-        # download changelog from master
-        curl --fail -v https://raw.githubusercontent.com/~{organization}/cromwell/master/CHANGELOG.md -o CHANGELOG.md
+    Float oldVersionAsFloat = oldVersion
+    Int oldMajorReleaseNumber = floor(oldVersionAsFloat)
+    Float newVersionAsFloat = newVersion
+    Int newMajorReleaseNumber = floor(newVersionAsFloat)
+    String hotfixBranchName = "~{newMajorReleaseNumber}_hotfix"
+    String changelogPreviousVersion = if (majorRelease) then oldMajorReleaseNumber else oldVersion
+    String changelogBranchName = if (majorRelease) then "develop" else hotfixBranchName
+
+    command <<<
+        set -euxo pipefail
+
+        # download changelog from ~{changelogBranchName}
+        curl --fail -v https://raw.githubusercontent.com/~{organization}/cromwell/~{changelogBranchName}/CHANGELOG.md -o CHANGELOG.md
 
         # Extract the latest piece of the changelog corresponding to this release
         # head remove the last line, next sed escapes all ", and last sed/tr replaces all new lines with \n so it can be used as a JSON string
-        BODY=$(sed -n '/## ~{newVersion}/,/## ~{oldVersion}/p' CHANGELOG.md | head -n -1 | sed -e 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
+        BODY=$(sed -n '/## ~{newVersion}/,/## ~{changelogPreviousVersion}/p' CHANGELOG.md | sed '$d' | sed -e 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
 
         # Build the json body for the POST release
         API_JSON="{\"tag_name\": \"~{newVersion}\",\"name\": \"~{newVersion}\",\"body\": \"$BODY\",\"draft\": true,\"prerelease\": false}"
@@ -144,15 +161,10 @@ task draftGithubRelease {
         curl --fail -v -X POST --data "$API_JSON" https://api.github.com/repos/~{organization}/cromwell/releases?access_token=~{githubToken} -o release_response
 
         # parse the response to get the release id and the asset upload url
-        RELEASE_ID=$(python -c "import sys, json; print json.load(sys.stdin)['id']" < release_response)
-        UPLOAD_URL=$(python -c "import sys, json; print json.load(sys.stdin)['upload_url']" < release_response)
-
-        echo $RELEASE_ID > release_id.txt
-        echo $UPLOAD_URL > upload_url.txt
+        jq --raw-output .id < release_response > release_id.txt
+        jq --raw-output .upload_url < release_response > upload_url.txt
     >>>
-    runtime {
-        docker: "python:2.7"
-    }
+
     output {
         String release_id = read_string("release_id.txt")
         String upload_url = sub(read_string("upload_url.txt"), "\\{.*", "")
@@ -180,8 +192,7 @@ task publishGithubRelease {
     String womtool_upload_url = "~{upload_url}?name=~{womtoolJarName}&label=~{womtoolJarName}"
 
     command <<<
-        set -e
-        set -x
+        set -euxo pipefail
 
         cp ~{cromwellJar} crom.jar
         cp ~{womtoolJar} womt.jar
@@ -195,9 +206,7 @@ task publishGithubRelease {
         # Publish the draft
         curl --fail -v -X PATCH -d '{"draft": false, "tag": "~{newVersion}"}' https://api.github.com/repos/~{organization}/cromwell/releases/"~{release_id}"?access_token=~{githubToken}
     >>>
-    runtime {
-        docker: "python:2.7"
-    }
+
     output {
         String cromwellReleaseUrl = "https://github.com/~{organization}/cromwell/releases/download/~{newVersion}/~{cromwellJarName}"
         String womtoolReleaseUrl = "https://github.com/~{organization}/cromwell/releases/download/~{newVersion}/~{womtoolJarName}"
@@ -233,8 +242,7 @@ task releaseHomebrew {
     # 'brew bump-formula-pr' seems very promising and could simplify a lot of this, however it's unclear if it would be
     # able to update the womtool version too.
     command <<<
-        set -e
-        set -x
+        set -euxo pipefail
 
         # Clone the homebrew fork
         git clone git@github.com:~{organization}/homebrew-core.git --depth=100
@@ -286,24 +294,30 @@ task releaseHomebrew {
         #####   Verify install works and create PR if so   #####
         ########################################################
 
+        set +e
         brew uninstall --force cromwell
         brew install --build-from-source Formula/cromwell.rb
         INSTALL=$?
+        brew test Formula/cromwell.rb
+        TEST=$?
         brew audit --strict Formula/cromwell.rb
         AUDIT=$?
+        set -e
 
-        if [[ "${INSTALL}" -eq 0 && "${AUDIT}" -eq 0 ]]; then
+        if [[ "${INSTALL}" -eq 0 && "${TEST}" -eq 0 && "${AUDIT}" -eq 0 ]]; then
             git commit -a -m "cromwell ~{releaseVersion}"
             git push origin ~{branchName}
             echo "Creating Homebew PR"
             # Download a template for the homebrew PR
-            curl -o template.md https://raw.githubusercontent.com/brewsci/homebrew-bio/master/.github/PULL_REQUEST_TEMPLATE.md
+            curl -o template.md https://raw.githubusercontent.com/~{pullRepo}/homebrew-core/master/.github/PULL_REQUEST_TEMPLATE.md
 
             # Check the boxes in the template. White list the boxes to be checked so that if new boxes are added they're not
             # automatically checked and should be reviewed manually instead
-            sed -i '' -e '/guidelines for contributing/s/\[[[:space:]]\]/[x]/' \
+            sed -i '' \
+                -e '/guidelines for contributing/s/\[[[:space:]]\]/[x]/' \
                 -e "/checked that there aren't other open/s/\[[[:space:]]\]/[x]/" \
                 -e "/built your formula locally/s/\[[[:space:]]\]/[x]/" \
+                -e "/your test running fine/s/\[[[:space:]]\]/[x]/" \
                 -e "/your build pass/s/\[[[:space:]]\]/[x]/" \
                 template.md
 
@@ -311,6 +325,9 @@ task releaseHomebrew {
                 -H "Authorization: token ~{githubToken}" \
                 -d "{ \"title\": \"Cromwell ~{releaseVersion}\", \"head\": \"~{headBranch}\", \"base\": \"~{baseBranch}\", \"body\": \"$(cat template.md | sed -e 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')\" }" \
                 https://api.github.com/repos/~{pullRepo}/homebrew-core/pulls
+        else
+            echo "Homebrew verification failed." 2>&1
+            exit 1
         fi
     >>>
 }
@@ -318,7 +335,7 @@ task releaseHomebrew {
 workflow release_cromwell {
     input {
         String githubToken
-        String organization = "broadinstitute"
+        String organization
         Boolean majorRelease = true
         Boolean publishHomebrew = true
     }
@@ -327,6 +344,7 @@ workflow release_cromwell {
         githubToken: "Github token to interact with github API"
         organization: "Organization on which the release will be performed. Swap out for a test organization for testing"
         majorRelease: "Set to false to do a .X minor release"
+        publishHomebrew: "Set to false for most test cases, especially when testing releases to github only"
     }
 
     call versionPrep { input:
@@ -338,7 +356,8 @@ workflow release_cromwell {
         githubToken = githubToken,
         organization = organization,
         newVersion = cromwellVersion,
-        oldVersion = cromwellPreviousVersion
+        oldVersion = cromwellPreviousVersion,
+        majorRelease = majorRelease
     }
 
     # This is the version before the one being released

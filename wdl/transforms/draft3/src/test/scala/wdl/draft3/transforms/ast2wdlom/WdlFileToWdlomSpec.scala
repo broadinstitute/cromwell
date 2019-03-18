@@ -352,6 +352,24 @@ object WdlFileToWdlomSpec {
                   "k3" -> MetaValueElementInteger(3)))
               )))
           ))),
+    "task_with_metas2" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector.empty,
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "task_with_metas2",
+            inputsSection = Some(InputsSectionElement(Vector.empty)),
+            declarations = Vector.empty,
+            outputsSection = Some(OutputsSectionElement(Vector.empty)),
+            commandSection = CommandSectionElement(List.empty),
+            runtimeSection = None,
+            metaSection = Some(MetaSectionElement(
+              Map("author" -> MetaValueElementString("John Doe"),
+                  "email" -> MetaValueElementString("john.doe@yahoo.com")))),
+            parameterMetaSection = None
+          ))),
     "no_input_no_output_workflow" ->
       FileElement(
         imports = Vector.empty,

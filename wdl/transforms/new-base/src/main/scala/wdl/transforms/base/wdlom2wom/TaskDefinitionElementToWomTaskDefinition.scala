@@ -57,8 +57,19 @@ object TaskDefinitionElementToWomTaskDefinition {
         }.map(_.toSeq)
       }
 
-      (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
-        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, Map.empty, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
+      val metaSection : ErrorOr[Map[String, String]] = a.taskDefinitionElement.metaSection match {
+        case None => Map.empty[String, String].validNel
+        case Some(MetaSectionElement(meta)) =>
+              meta.traverse{
+                  case (key, MetaValueElement.MetaValueElementString(value)) =>
+                      (key -> value).validNel
+                  case (key, other) =>
+                      s"non string meta values are not handled currently <${key} -> ${other}>, see https://github.com/broadinstitute/cromwell/issues/4746".invalidNel
+          }
+      }
+
+      (validRuntimeAttributes, validCommand, metaSection) mapN { (runtime, command, metaSection) =>
+        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, metaSection, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
       }
     }
 

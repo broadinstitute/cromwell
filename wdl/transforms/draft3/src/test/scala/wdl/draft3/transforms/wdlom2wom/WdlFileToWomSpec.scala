@@ -78,6 +78,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "command_syntaxes" -> validateCommandSyntaxes,
     "standalone_task" -> anyWomWillDo,
     "task_with_metas" -> anyWomWillDo,
+    "task_with_metas2" -> validateMetaSection,
     "input_values" -> anyWomWillDo,
     "gap_in_command" -> anyWomWillDo,
     "nio_file" -> validateNioFile,
@@ -158,5 +159,12 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     callInputs(1).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
     callInputs(2).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
     callInputs(3).inputPorts.head.upstream should be theSameInstanceAs exposedExpressionNode.outputPorts.head
+  }
+
+  private def validateMetaSection(b: WomBundle): Assertion = {
+    val task = b.primaryCallable.get.asInstanceOf[CallableTaskDefinition]
+
+    task.meta should be (Map("author" -> "John Doe",
+                             "email" -> "john.doe@yahoo.com"))
   }
 }

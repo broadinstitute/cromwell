@@ -37,7 +37,7 @@ task read_write_all {
   File written_map = write_map( {"key1": "value1", "key2": "value2", "key3": "value3"} )
   File written_object = write_object(object { line1: "line one", line2: "line two", line3: "line three" })
   File written_objects = write_objects( [object { line1: "line one", line2: "line two", line3: "line three" },
-                                         object { line1: "line one (second obj)", line2: "line two  (second obj)", line3: "line three (second obj)" }] )
+                                         object { line1: "line one (second obj)", line2: "line two (second obj)", line3: "line three (second obj)" }] )
   File written_json = write_json(my_foo)
 
   command <<<

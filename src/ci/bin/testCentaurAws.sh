@@ -20,13 +20,6 @@ export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_c
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 
-cromwell::build::run_centaur \
-    -i hello \
-    -i long_cmd \
-    -i haplotypecaller.aws \
-    -i singlesample.aws \
-    -i inline_files \
-    -i sizeenginefunction \
-    -i if_then_else_expressions \
+cromwell::build::run_centaur 
 
 cromwell::build::generate_code_coverage

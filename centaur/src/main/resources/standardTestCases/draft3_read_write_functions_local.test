@@ -19,6 +19,7 @@ metadata {
   "outputs.read_write_functions.tsv.2": "[\"line3\",\"line three\"]"
   "outputs.read_write_functions.map.key1": "value1"
   "outputs.read_write_functions.map.key2": "value2"
+  "outputs.read_write_functions.map.key3": "value3"
   "outputs.read_write_functions.my_object.line1": "line one"
   "outputs.read_write_functions.my_object.line2": "line two"
   "outputs.read_write_functions.my_object.line3": "line three"

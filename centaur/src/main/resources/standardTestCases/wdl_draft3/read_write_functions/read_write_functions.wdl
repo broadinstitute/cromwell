@@ -34,7 +34,7 @@ task read_write_all {
 
   File written_lines = write_lines(["line1", "line2", "line3"])
   File written_tsv = write_tsv( [[ "line1", "line one"], ["line2", "line two"], [ "line3", "line three" ]] )
-  File written_map = write_map( {"key1": "value1", "key2": "value2"} )
+  File written_map = write_map( {"key1": "value1", "key2": "value2", "key3": "value3"} )
   File written_object = write_object(object { line1: "line one", line2: "line two", line3: "line three" })
   File written_objects = write_objects( [object { line1: "line one", line2: "line two", line3: "line three" },
                                          object { line1: "line one (second obj)", line2: "line two  (second obj)", line3: "line three (second obj)" }] )

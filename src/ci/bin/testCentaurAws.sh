@@ -25,5 +25,8 @@ cromwell::build::run_centaur \
     -i long_cmd \
     -i haplotypecaller.aws \
     -i singlesample.aws \
+    -i inline_files \
+    -i sizeenginefunction \
+    -i if_then_else_expressions \
 
 cromwell::build::generate_code_coverage

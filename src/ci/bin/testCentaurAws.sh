@@ -21,7 +21,6 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 
 cromwell::build::run_centaur \
-    -p 100 \
     -e localdockertest \
     -e inline_file \
     -e exit \
@@ -38,7 +37,6 @@ cromwell::build::run_centaur \
     -e call_cache_hit_prefixes_no_hint \
     -e bad_file_string \
     -e default_runtime_attributes \
-    -e prepare_scatter_gather_local \
     -e non_root_specified_user \
     -e space \
     -e draft3_optional_input_from_scatter \

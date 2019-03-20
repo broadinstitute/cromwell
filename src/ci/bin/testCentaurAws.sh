@@ -23,10 +23,11 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 cromwell::build::run_centaur \
     -e localdockertest \
     -e inline_file \
+    -e exit \
     -e iwdr_input_string_function \
     -e globbingBehavior \
     -e non_root_default_user \
-    -e draft3_glob_access \  # This one seems to work locally for me
+    -e draft3_glob_access \
     -e bad_output_task \
     -e cacheWithinWF \
     -e floating_tags \
@@ -45,9 +46,8 @@ cromwell::build::run_centaur \
     -e continue_on_return_code \
     -e globbingscatter \
     -e inline_file_custom_entryname \
-    -e draft3_globs \       # This one seems to work locally for me
+    -e draft3_globs \    
     -e cwl_cache_between_workflows \
-    -e exit \
     -e abort.scheduled_abort
 
 

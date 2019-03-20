@@ -5,6 +5,7 @@ workflow basics {
   meta {
     email: "skroob@spaceballs.gov"
     author: "President Skroob"
+    description: "Spaceballs: The Unit Test"
   }
 
   input {

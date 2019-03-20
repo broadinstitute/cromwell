@@ -52,6 +52,7 @@
   "importedDescriptorTypes" : [
   ],
   "meta" : {
-
+    "email": "skroob@spaceballs.gov",
+    "author": "President Skroob"
   }
 }

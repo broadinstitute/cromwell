@@ -4,8 +4,24 @@
   ],
   "name" : "use_this_name",
   "inputs" : [
+    {
+      "name" : "f",
+      "valueType" : {
+        "typeName" : "File"
+      },
+      "typeDisplayName" : "File",
+      "optional" : false,
+      "default" : null
+    }
   ],
   "outputs" : [
+    {
+      "name" : "f2",
+      "valueType" : {
+        "typeName" : "File"
+      },
+      "typeDisplayName" : "File"
+    }
   ],
   "images" : [
   ],
@@ -16,6 +32,7 @@
   "importedDescriptorTypes" : [
   ],
   "meta" : {
-
+    "email" : "skroob@spaceballs.gov",
+    "author" : "President Skroob"
   }
 }

@@ -1,5 +1,6 @@
 package wdl.transforms.base.wdlom2wom
 
+import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, SelectFirst}
@@ -18,7 +19,7 @@ import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEva
 import wdl.transforms.base.wdlom2wom.graph.renaming.GraphIdentifierLookupRenamer.ops._
 import wdl.transforms.base.wdlom2wom.graph.renaming._
 
-object WorkflowDefinitionElementToWomWorkflowDefinition {
+object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
 
   final case class WorkflowDefinitionConvertInputs(definitionElement: WorkflowDefinitionElement, typeAliases: Map[String, WomType], callables: Map[String, Callable])
 
@@ -46,7 +47,12 @@ object WorkflowDefinitionElementToWomWorkflowDefinition {
     } else {
       innerGraph
     }
-    (withDefaultOutputs map { ig =>  WorkflowDefinition(a.definitionElement.name, ig, Map.empty, Map.empty) }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
+
+    {
+      (withDefaultOutputs, processMetaSection(a.definitionElement.metaSection)) mapN {
+        (ig, meta) => WorkflowDefinition(a.definitionElement.name, ig, meta, Map.empty)
+      }
+    }.contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
   }
 
   final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],

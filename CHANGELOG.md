@@ -1,5 +1,25 @@
 # Cromwell Change Log
 
+## 39 Release Notes
+
+### Bug fixes
+
+#### Format fix for `write_map()` 
+
+Fixed an issue that caused the `write_map()` function in Cromwell's WDL 1.0 implementation to produce output in the wrong format. Specifically, the output's rows and columns were swapped. WDL draft-2 was not affected.
+  
+Incorrect `write_map()` output in Cromwell 38 and earlier:
+```
+key1    key2    key3
+value1  value2  value3
+```
+Corrected `write_map()` output in Cromwell 39 and later:
+```
+key1  value1
+key2  value2
+key3  value3
+```
+
 ## 38 Release Notes
 
 ### HPC paths with Docker
@@ -17,19 +37,6 @@ available as `StandardHealthMonitorServiceActor`.
 
 ### Bug fixes
 - Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
-- Fixed an issue that caused the `write_map()` function in Cromwell's WDL 1.0 implementation to produce output in the wrong format. Specifically, the output's rows and columns were swapped. WDL draft-2 was not affected.
-  
-  Incorrect `write_map()` output in Cromwell 37 and earlier:
-  ```
-  key1    key2    key3
-  value1  value2  value3
-  ```
-  Corrected `write_map()` output in Cromwell 38 and later:
-  ```
-  key1  value1
-  key2  value2
-  key3  value3
-  ```
 
 #### HTTP responses
 

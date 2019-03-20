@@ -84,11 +84,11 @@ case object WorkflowDescription {
 
     (bundle.allCallables.values.toList, bundle.primaryCallable) match {
 
-      // We have present a workflow or task that this language considers a primary callable
+      // We have present a workflow that this language considers a primary callable
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
         createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta)
 
-      // We have present a workflow or task that this language considers a primary callable
+      // We have present a task that this language considers a primary callable
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
         createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta)
 

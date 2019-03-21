@@ -14,7 +14,7 @@ trait Util {
         case (key, MetaValueElement.MetaValueElementString(value)) =>
           (key -> value).validNel
         case (key, other) =>
-          s"non string meta values are not handled currently <${key} -> ${other}>, see https://github.com/broadinstitute/cromwell/issues/4746".invalidNel
+          (key -> s"Compound types not yet supported, see #4746. String approximation: ${other.toString}").validNel
       }
   }
 

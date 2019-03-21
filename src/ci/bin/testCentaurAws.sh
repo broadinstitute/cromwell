@@ -25,14 +25,14 @@ cromwell::build::run_centaur \
     -e inline_file \
     -e exit \
     -e iwdr_input_string_function \
-    -e globbingBehavior \
+    -e globbingbehavior \
     -e non_root_default_user \
     -e draft3_glob_access \
     -e bad_output_task \
-    -e cacheWithinWF \
+    -e cachewithinwf \
     -e floating_tags \
     -e cwl_interpolated_strings \
-    -e cacheBetweenWF \
+    -e cachebetweenwf \
     -e failures.terminal_status \
     -e call_cache_hit_prefixes_no_hint \
     -e bad_file_string \

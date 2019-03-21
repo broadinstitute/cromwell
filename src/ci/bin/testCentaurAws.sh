@@ -21,6 +21,7 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 
 cromwell::build::run_centaur \
+    -p 100 \
     -e localdockertest \
     -e inline_file \
     -e exit \

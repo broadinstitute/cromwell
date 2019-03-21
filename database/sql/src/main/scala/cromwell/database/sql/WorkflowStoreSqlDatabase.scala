@@ -85,7 +85,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
     * Clears out cromwellId and heartbeatTimestamp for all workflow store entries currently assigned
     * the specified cromwellId.
     */
-  def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit]
+  def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Int]
 
   /**
     * Deletes a workflow from the database, returning the number of rows affected.

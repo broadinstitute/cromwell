@@ -28,5 +28,6 @@ cromwell::build::run_centaur \
     -i inline_files \
     -i sizeenginefunction \
     -i if_then_else_expressions \
+    -e file_name_too_long
 
 cromwell::build::generate_code_coverage

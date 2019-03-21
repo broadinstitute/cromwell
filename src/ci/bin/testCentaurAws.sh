@@ -42,13 +42,13 @@ cromwell::build::run_centaur \
     -e draft3_optional_input_from_scatter \
     -e iwdr_input_string \
     -e globbingindex \
-    -e cwl_cache_within_workflow \
+    -e cwl_cache_within_workflows \
     -e continue_on_return_code \
     -e globbingscatter \
     -e inline_file_custom_entryname \
     -e draft3_globs \    
     -e cwl_cache_between_workflows \
-    -e abort.scheduled_abort
+    -e scheduled_abort
 
 
 cromwell::build::generate_code_coverage

@@ -1,6 +1,5 @@
 package wdl.transforms.base.wdlom2wom
 
-import cats.syntax.apply._
 import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, SelectFirst}
@@ -48,11 +47,12 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
       innerGraph
     }
 
-    {
-      (withDefaultOutputs, processMetaSection(a.definitionElement.metaSection)) mapN {
-        (ig, meta) => WorkflowDefinition(a.definitionElement.name, ig, meta, Map.empty)
-      }
-    }.contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
+    val meta = processMetaSection(a.definitionElement.metaSection.map(_.meta).getOrElse(Map.empty))
+    val parameterMeta = processMetaSection(a.definitionElement.parameterMetaSection.map(_.metaAttributes).getOrElse(Map.empty))
+
+    (withDefaultOutputs map {
+      ig => WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta)
+    }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
   }
 
   final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],

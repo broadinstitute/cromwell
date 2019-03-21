@@ -6,7 +6,7 @@ import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, Outpu
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 
-// Very provisional types for some of these, and perhaps the defaults will go away later in development
+// `meta`, `parameterMeta` will need updating to support compound types - issue #4746
 case class WorkflowDescription(
                                 valid: Boolean,
                                 errors: List[String],
@@ -49,54 +49,6 @@ case object WorkflowDescription {
       "descriptorTypeVersion" -> languageVersionName
     )
 
-    def createDescription(name: String, inputs: List[InputDefinition],
-                          outputs: List[OutputDefinition],
-                          meta: Map[String, String],
-                          parameterMeta: Map[String, String]): WorkflowDescription = {
-      val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
-        input match {
-          case i: InputDefinitionWithDefault =>
-            InputDescription(
-              input.name,
-              input.womType,
-              input.womType.friendlyName,
-              input.optional,
-              Option(i.default)
-            )
-          case _ =>
-            InputDescription(
-              input.name,
-              input.womType,
-              input.womType.friendlyName,
-              input.optional,
-              None
-            )
-        }
-
-      }
-
-      val outputDescriptions = outputs.sortBy(_.name) map { output =>
-        OutputDescription(
-          output.name,
-          output.womType,
-          output.womType.friendlyName
-        )
-      }
-
-      WorkflowDescription(
-        valid = true,
-        errors = List.empty,
-        name = name,
-        inputs = inputDescriptions,
-        outputs = outputDescriptions,
-        images = List.empty,
-        submittedDescriptorType = sdt,
-        importedDescriptorTypes = List.empty,
-        meta = meta,
-        parameterMeta = parameterMeta
-      )
-    }
-
     // Does a source file containing a single task get a primaryCallable? In WDL 1.0 yes, in draft-2 no.
     // https://github.com/broadinstitute/cromwell/pull/3772
 
@@ -104,21 +56,65 @@ case object WorkflowDescription {
 
       // We have present a workflow that this language considers a primary callable
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
-        createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
+        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
 
       // We have present a task that this language considers a primary callable
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
-        createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
+        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
 
       // WDL draft-2: a solo task is not primary, but we should still use its name and IO
       case ((soloNonPrimaryTask: CallableTaskDefinition) :: Nil, None) =>
-        createDescription(soloNonPrimaryTask.name, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta)
+        fromBundleInner(soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta)
 
       // Multiple tasks
       case _ =>
-        WorkflowDescription.empty.copy(valid = true, submittedDescriptorType = sdt)
+        fromBundleInner("", sdt, List.empty, List.empty, Map.empty, Map.empty)
+    }
+  }
+
+  private def fromBundleInner(name: String, submittedDescriptorType: Map[String, String], inputs: List[InputDefinition], outputs: List[OutputDefinition], meta: Map[String, String], parameterMeta: Map[String, String]) = {
+    val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
+      input match {
+        case i: InputDefinitionWithDefault =>
+          InputDescription(
+            input.name,
+            input.womType,
+            input.womType.friendlyName,
+            input.optional,
+            Option(i.default)
+          )
+        case _ =>
+          InputDescription(
+            input.name,
+            input.womType,
+            input.womType.friendlyName,
+            input.optional,
+            None
+          )
+      }
 
     }
+
+    val outputDescriptions = outputs.sortBy(_.name) map { output: OutputDefinition =>
+      OutputDescription(
+        output.name,
+        output.womType,
+        output.womType.friendlyName
+      )
+    }
+
+    WorkflowDescription(
+      valid = true,
+      errors = List.empty,
+      name = name,
+      inputs = inputDescriptions,
+      outputs = outputDescriptions,
+      images = List.empty,
+      submittedDescriptorType = submittedDescriptorType,
+      importedDescriptorTypes = List.empty,
+      meta = meta,
+      parameterMeta = parameterMeta
+    )
   }
 
   implicit val workflowDescriptionEncoder: Encoder[WorkflowDescription] = deriveEncoder[WorkflowDescription]

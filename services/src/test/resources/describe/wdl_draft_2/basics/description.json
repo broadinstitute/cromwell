@@ -55,5 +55,10 @@
     "email": "skroob@spaceballs.gov",
     "author": "President Skroob",
     "description": "Spaceballs: The Unit Test"
+  },
+  "parameterMeta" : {
+    "i" : "an integer",
+    "j" : "another integer",
+    "f" : "a file"
   }
 }

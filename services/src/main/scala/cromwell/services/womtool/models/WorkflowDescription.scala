@@ -10,23 +10,37 @@ import wom.executable.WomBundle
 case class WorkflowDescription(
                                 valid: Boolean,
                                 errors: List[String],
-                                name: String = "",
-                                inputs: List[InputDescription] = List.empty,
-                                outputs: List[OutputDescription] = List.empty,
-                                images: List[String] = List.empty,
-                                submittedDescriptorType: Map[String, String] = Map.empty,
-                                importedDescriptorTypes: List[Map[String, String]] = List.empty,
-                                meta: Map[String, String] = Map.empty
+                                name: String,
+                                inputs: List[InputDescription],
+                                outputs: List[OutputDescription],
+                                images: List[String],
+                                submittedDescriptorType: Map[String, String],
+                                importedDescriptorTypes: List[Map[String, String]],
+                                meta: Map[String, String],
+                                parameterMeta: Map[String, String]
                               )
 
 case object WorkflowDescription {
 
   def withErrors(errors: List[String]): WorkflowDescription = {
-    WorkflowDescription(
+    WorkflowDescription.empty.copy(
       valid = false,
       errors = errors
     )
   }
+
+  def empty = WorkflowDescription(
+    valid = true,
+    errors = List.empty,
+    name = "",
+    inputs = List.empty,
+    outputs = List.empty,
+    images = List.empty,
+    submittedDescriptorType = Map.empty,
+    importedDescriptorTypes = List.empty,
+    meta = Map.empty,
+    parameterMeta = Map.empty
+  )
 
   def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String): WorkflowDescription = {
 
@@ -35,7 +49,10 @@ case object WorkflowDescription {
       "descriptorTypeVersion" -> languageVersionName
     )
 
-    def createDescription(name: String, inputs: List[InputDefinition], outputs: List[OutputDefinition], meta: Map[String, String]): WorkflowDescription = {
+    def createDescription(name: String, inputs: List[InputDefinition],
+                          outputs: List[OutputDefinition],
+                          meta: Map[String, String],
+                          parameterMeta: Map[String, String]): WorkflowDescription = {
       val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
         input match {
           case i: InputDefinitionWithDefault =>
@@ -75,7 +92,8 @@ case object WorkflowDescription {
         images = List.empty,
         submittedDescriptorType = sdt,
         importedDescriptorTypes = List.empty,
-        meta = meta
+        meta = meta,
+        parameterMeta = parameterMeta
       )
     }
 
@@ -86,29 +104,19 @@ case object WorkflowDescription {
 
       // We have present a workflow that this language considers a primary callable
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
-        createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta)
+        createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
 
       // We have present a task that this language considers a primary callable
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
-        createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta)
+        createDescription(primaryCallable.name, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
 
       // WDL draft-2: a solo task is not primary, but we should still use its name and IO
       case ((soloNonPrimaryTask: CallableTaskDefinition) :: Nil, None) =>
-        createDescription(soloNonPrimaryTask.name, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta)
+        createDescription(soloNonPrimaryTask.name, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta)
 
       // Multiple tasks
       case _ =>
-        WorkflowDescription(
-          valid = true,
-          errors = List.empty,
-          name = "", // No name if multiple tasks
-          inputs = List.empty,
-          outputs = List.empty,
-          images = List.empty,
-          submittedDescriptorType = sdt,
-          importedDescriptorTypes = List.empty,
-          meta = Map.empty
-        )
+        WorkflowDescription.empty.copy(valid = true, submittedDescriptorType = sdt)
 
     }
   }
@@ -122,10 +130,7 @@ case object WorkflowDescription {
       valid <- c.downField("valid").as[Boolean]
       errors <- c.downField("errors").as[List[String]]
     } yield {
-      WorkflowDescription(
-        valid = valid,
-        errors = errors
-      )
+      WorkflowDescription.empty.copy(valid = valid, errors = errors)
     }
   }
 }

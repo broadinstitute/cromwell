@@ -82,7 +82,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
         "descriptorTypeVersion" -> "1.0"
       ),
       importedDescriptorTypes = List.empty,
-      meta = Map.empty
+      meta = Map.empty,
+      parameterMeta = Map.empty
     )
   }
 
@@ -128,7 +129,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
+        description = WorkflowDescription.empty.copy(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
     }
 
     "return valid for a valid workflow URL" in {
@@ -150,7 +151,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
               "descriptorTypeVersion" -> "1.0"
             ),
             importedDescriptorTypes = List.empty,
-            meta = Map.empty
+            meta = Map.empty,
+            parameterMeta = Map.empty
           )
         )
       )

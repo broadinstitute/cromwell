@@ -47,8 +47,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
       innerGraph
     }
 
-    val meta = processMetaSection(a.definitionElement.metaSection.map(_.meta).getOrElse(Map.empty))
-    val parameterMeta = processMetaSection(a.definitionElement.parameterMetaSection.map(_.metaAttributes).getOrElse(Map.empty))
+    val (meta, parameterMeta) = processMetaSections(a.definitionElement.metaSection, a.definitionElement.parameterMetaSection)
 
     (withDefaultOutputs map {
       ig => WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta)

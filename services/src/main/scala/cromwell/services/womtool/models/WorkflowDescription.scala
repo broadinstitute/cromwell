@@ -72,7 +72,12 @@ case object WorkflowDescription {
     }
   }
 
-  private def fromBundleInner(name: String, submittedDescriptorType: Map[String, String], inputs: List[InputDefinition], outputs: List[OutputDefinition], meta: Map[String, String], parameterMeta: Map[String, String]) = {
+  private def fromBundleInner(
+                               name: String, submittedDescriptorType: Map[String, String],
+                               inputs: List[InputDefinition], outputs: List[OutputDefinition],
+                               meta: Map[String, String],
+                               parameterMeta: Map[String, String]
+                             ): WorkflowDescription = {
     val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
       input match {
         case i: InputDefinitionWithDefault =>

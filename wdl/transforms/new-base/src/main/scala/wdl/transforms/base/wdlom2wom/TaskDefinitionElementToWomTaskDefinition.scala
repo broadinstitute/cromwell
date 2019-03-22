@@ -57,8 +57,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
         }.map(_.toSeq)
       }
 
-      val meta = processMetaSection(a.taskDefinitionElement.metaSection.map(_.meta).getOrElse(Map.empty))
-      val parameterMeta = processMetaSection(a.taskDefinitionElement.parameterMetaSection.map(_.metaAttributes).getOrElse(Map.empty))
+      val (meta, parameterMeta) = processMetaSections(a.taskDefinitionElement.metaSection, a.taskDefinitionElement.parameterMetaSection)
 
       (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
         CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, meta, parameterMeta, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)

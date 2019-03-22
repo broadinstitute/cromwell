@@ -24,6 +24,7 @@
     }
   ],
   "images" : [
+    "\"docker image\""
   ],
   "submittedDescriptorType" : {
     "descriptorType" : "WDL",
@@ -34,7 +35,7 @@
   "meta" : {
     "email" : "skroob@spaceballs.gov",
     "author" : "President Skroob",
-    "description": "Spaceballs: The Unit Test"
+    "description" : "Spaceballs: The Unit Test"
   },
   "parameterMeta" : {
 

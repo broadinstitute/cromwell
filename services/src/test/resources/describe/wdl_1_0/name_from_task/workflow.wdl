@@ -17,4 +17,8 @@ task use_this_name {
   output {
     File f2 = "a"
   }
+
+  runtime {
+    docker: "docker image"
+  }
 }

@@ -8,6 +8,8 @@
   "outputs" : [
   ],
   "images" : [
+    "\"docker image\"",
+    "((\"expression\" + \"based\") + \"image\")"
   ],
   "submittedDescriptorType" : {
     "descriptorType" : "WDL",

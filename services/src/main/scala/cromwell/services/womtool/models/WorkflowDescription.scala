@@ -2,8 +2,9 @@ package cromwell.services.womtool.models
 
 import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.generic.semiauto.deriveEncoder
+import wom.RuntimeAttributesKeys
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OutputDefinition}
-import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 
 // `meta`, `parameterMeta` will need updating to support compound types - issue #4746
@@ -49,6 +50,15 @@ case object WorkflowDescription {
       "descriptorTypeVersion" -> languageVersionName
     )
 
+    val images: List[String] = bundle.allCallables.values.toList flatMap { callable: Callable =>
+      callable match {
+        case task: CallableTaskDefinition =>
+          task.runtimeAttributes.attributes.get(RuntimeAttributesKeys.DockerKey).map(_.sourceString)
+        case _ =>
+          None
+      }
+    }
+
     // Does a source file containing a single task get a primaryCallable? In WDL 1.0 yes, in draft-2 no.
     // https://github.com/broadinstitute/cromwell/pull/3772
 
@@ -56,19 +66,19 @@ case object WorkflowDescription {
 
       // We have present a workflow that this language considers a primary callable
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
-        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
+        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
 
       // We have present a task that this language considers a primary callable
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
-        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta)
+        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
 
       // WDL draft-2: a solo task is not primary, but we should still use its name and IO
       case ((soloNonPrimaryTask: CallableTaskDefinition) :: Nil, None) =>
-        fromBundleInner(soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta)
+        fromBundleInner(soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images)
 
       // Multiple tasks
       case _ =>
-        fromBundleInner("", sdt, List.empty, List.empty, Map.empty, Map.empty)
+        fromBundleInner("", sdt, List.empty, List.empty, Map.empty, Map.empty, images)
     }
   }
 
@@ -76,7 +86,8 @@ case object WorkflowDescription {
                                name: String, submittedDescriptorType: Map[String, String],
                                inputs: List[InputDefinition], outputs: List[OutputDefinition],
                                meta: Map[String, String],
-                               parameterMeta: Map[String, String]
+                               parameterMeta: Map[String, String],
+                               images: List[String]
                              ): WorkflowDescription = {
     val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
       input match {
@@ -114,7 +125,7 @@ case object WorkflowDescription {
       name = name,
       inputs = inputDescriptions,
       outputs = outputDescriptions,
-      images = List.empty,
+      images = images,
       submittedDescriptorType = submittedDescriptorType,
       importedDescriptorTypes = List.empty,
       meta = meta,

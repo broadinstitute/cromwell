@@ -162,7 +162,9 @@ object CromwellShutdown extends GracefulStopSupport {
       *  the dispenser is watching all EJEAs and would be flooded by Terminated messages otherwise  
     */
     coordinatedShutdown.addTask(CoordinatedShutdown.PhaseServiceRequestsDone, "releaseWorkflowStoreEntries") { () =>
-      EngineServicesStore.engineDatabaseInterface.releaseWorkflowStoreEntries(cromwellId).as(Done)
+      EngineServicesStore.engineDatabaseInterface.releaseWorkflowStoreEntries(cromwellId).map(count => {
+        logger.info("{} workflows released by {}", count, cromwellId)
+      }).as(Done)
     }
     shutdownActor(workflowStoreActor, CoordinatedShutdown.PhaseServiceRequestsDone, ShutdownCommand)
     shutdownActor(logCopyRouter, CoordinatedShutdown.PhaseServiceRequestsDone, Broadcast(ShutdownCommand))

@@ -98,10 +98,10 @@ object OssPathBuilder {
     ).tupled.unsafe("OSS filesystem configuration is invalid")
 
     refresh match {
-      case Some(_) =>
+      case None =>
         val cfg = DefaultOssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
         fromConfiguration(cfg, options)
-      case None =>
+      case Some(_) =>
         val cfg = TTLOssStorageConfiguration(config)
         fromConfiguration(cfg, options)
     }

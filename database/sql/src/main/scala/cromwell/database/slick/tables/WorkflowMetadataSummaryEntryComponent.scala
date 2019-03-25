@@ -8,6 +8,7 @@ import cats.data.NonEmptyList
 import cromwell.database.sql.tables.WorkflowMetadataSummaryEntry
 import slick.jdbc.{GetResult, PositionedParameters, SQLActionBuilder}
 
+//noinspection SqlDialectInspection
 trait WorkflowMetadataSummaryEntryComponent {
 
   this: DriverComponent with CustomLabelEntryComponent with MetadataEntryComponent =>
@@ -30,7 +31,12 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def submissionTimestamp = column[Option[Timestamp]]("SUBMISSION_TIMESTAMP")
 
-    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp, submissionTimestamp,
+    def parentWorkflowExecutionUuid = column[Option[String]]("PARENT_WORKFLOW_EXECUTION_UUID", O.Length(100))
+
+    def rootWorkflowExecutionUuid = column[Option[String]]("ROOT_WORKFLOW_EXECUTION_UUID", O.Length(100))
+
+    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
+      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid,
       workflowMetadataSummaryEntryId.?) <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
 
     def ucWorkflowMetadataSummaryEntryWeu =
@@ -40,6 +46,12 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def ixWorkflowMetadataSummaryEntryWs =
       index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WS", workflowStatus, unique = false)
+
+    def ixWorkflowMetadataSummaryEntryPweu =
+      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_PWEU", parentWorkflowExecutionUuid, unique = false)
+
+    def ixWorkflowMetadataSummaryEntryRweu =
+      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU", rootWorkflowExecutionUuid, unique = false)
   }
 
   val workflowMetadataSummaryEntries = TableQuery[WorkflowMetadataSummaryEntries]
@@ -109,12 +121,19 @@ trait WorkflowMetadataSummaryEntryComponent {
     val summaryTableAlias = "summaryTable"
     val labelsOrTableAlias = "labelsOrMixin"
     val labelsAndTableAliases = labelAndKeyLabelValues.zipWithIndex.map { case (labelPair, i) => s"labelAndTable$i" -> labelPair }.toMap
-    val metadataTableAlias = "metadataEntryTable"
 
     val select = selectOrCount match {
       case Select =>
-        sql"""SELECT #$summaryTableAlias.WORKFLOW_EXECUTION_UUID, #$summaryTableAlias.WORKFLOW_NAME, #$summaryTableAlias.WORKFLOW_STATUS, #$summaryTableAlias.START_TIMESTAMP, #$summaryTableAlias.END_TIMESTAMP, #$summaryTableAlias.SUBMISSION_TIMESTAMP, #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
-             | """.stripMargin
+        sql"""|SELECT #$summaryTableAlias.WORKFLOW_EXECUTION_UUID,
+              |  #$summaryTableAlias.WORKFLOW_NAME,
+              |  #$summaryTableAlias.WORKFLOW_STATUS,
+              |  #$summaryTableAlias.START_TIMESTAMP,
+              |  #$summaryTableAlias.END_TIMESTAMP,
+              |  #$summaryTableAlias.SUBMISSION_TIMESTAMP,
+              |  #$summaryTableAlias.PARENT_WORKFLOW_EXECUTION_UUID,
+              |  #$summaryTableAlias.ROOT_WORKFLOW_EXECUTION_UUID,
+              |  #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
+              | """.stripMargin
       case Count =>
         sql"""SELECT COUNT(1)
              | """.stripMargin
@@ -167,7 +186,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     val excludeLabelsAndConstraint = NonEmptyList.fromList(excludeLabelAndValues.toList.map { case (labelKey, labelValue) => not(labelExists(labelKey, labelValue)) } ).map(or).toList
 
     val includeSubworkflowsConstraint = if (includeSubworkflows) List.empty else {
-      List(sql"""NOT EXISTS(SELECT 1 from METADATA_ENTRY #$metadataTableAlias WHERE ((#$metadataTableAlias.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$metadataTableAlias.METADATA_KEY = 'parentWorkflowId') AND (#$metadataTableAlias.METADATA_VALUE IS NOT NULL)))""")
+      List(sql"""#$summaryTableAlias.PARENT_WORKFLOW_EXECUTION_UUID IS NULL""".stripMargin)
     }
 
     val constraintList =
@@ -191,7 +210,6 @@ trait WorkflowMetadataSummaryEntryComponent {
     }
 
     concatNel((NonEmptyList.of(select) :+ from) ++ where)
-
   }
 
 
@@ -206,7 +224,6 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp],
                                           includeSubworkflows: Boolean) = {
-
     buildQueryAction(
       selectOrCount = Count,
       parentIdWorkflowMetadataKey,
@@ -256,7 +273,6 @@ trait WorkflowMetadataSummaryEntryComponent {
       includeSubworkflows = includeSubworkflows
     )
 
-
     val paginationAddendum: List[SQLActionBuilder] = (page, pageSize) match {
       case (Some(p), Some(ps)) => List(sql""" LIMIT #${Integer.max(p-1, 0) * ps},#$ps """)
       case (None, Some(ps)) => List(sql""" LIMIT 0,#$ps """)
@@ -266,10 +282,11 @@ trait WorkflowMetadataSummaryEntryComponent {
     val orderByAddendum = sql""" ORDER BY WORKFLOW_METADATA_SUMMARY_ENTRY_ID DESC
                                | """.stripMargin
 
-
     // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
 
     concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum)
-      .as[WorkflowMetadataSummaryEntry](rconv = GetResult(r => WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)))
+      .as[WorkflowMetadataSummaryEntry](rconv = GetResult { r =>
+      WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
+    })
   }
 }

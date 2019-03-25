@@ -21,13 +21,35 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 
 cromwell::build::run_centaur \
-    -i hello \
-    -i long_cmd \
-    -i haplotypecaller.aws \
-    -i singlesample.aws \
-    -i inline_files \
-    -i sizeenginefunction \
-    -i if_then_else_expressions \
-    -e file_name_too_long
+    -p 100 \
+    -e localdockertest \
+    -e inline_file \
+    -e exit \
+    -e iwdr_input_string_function \
+    -e globbingbehavior \
+    -e non_root_default_user \
+    -e draft3_glob_access \
+    -e bad_output_task \
+    -e cachewithinwf \
+    -e floating_tags \
+    -e cwl_interpolated_strings \
+    -e cachebetweenwf \
+    -e failures.terminal_status \
+    -e call_cache_hit_prefixes_no_hint \
+    -e bad_file_string \
+    -e default_runtime_attributes \
+    -e non_root_specified_user \
+    -e space \
+    -e draft3_optional_input_from_scatter \
+    -e iwdr_input_string \
+    -e globbingindex \
+    -e file_name_too_long \
+    -e cwl_cache_between_workflows \
+    -e abort.scheduled_abort \
+    -e cwl_cache_within_workflow \
+    -e continue_on_return_code \
+    -e globbingscatter \
+    -e inline_file_custom_entryname \
+    -e draft3_globs   
 
 cromwell::build::generate_code_coverage

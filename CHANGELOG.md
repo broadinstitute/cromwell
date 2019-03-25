@@ -2,6 +2,14 @@
 
 ## 39 Release Notes
 
+### Cromwell ID changes
+
+When set, the configuration value of `system.cromwell_id` will now have a random suffix appended, unless the
+configuration key `system.cromwell_id_random_suffix` is set to `false`.
+
+The generated id also appears more places in the logs, including when picking up workflows from the database and during
+shutdown.
+
 ### Bug fixes
 
 #### Format fix for `write_map()` 

@@ -120,9 +120,9 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runAction(action)
   }
 
-  override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def releaseWorkflowStoreEntries(cromwellId: String)(implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.releaseWorkflowStoreEntries(cromwellId).update((None, None))
-    runTransaction(action).void
+    runTransaction(action)
   }
 
   override def removeWorkflowStoreEntry(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Int] = {

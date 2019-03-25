@@ -1,0 +1,17 @@
+name: file_name_too_long
+testFormat: workflowsuccess
+
+
+files {
+  workflow: file_name_too_long/a.wdl
+  imports: [
+    file_name_too_long/b.wdl,
+    file_name_too_long/c.wdl,
+    file_name_too_long/d.wdl
+  ]
+}
+
+metadata {
+  workflowName: anesthesiologists
+  status: Succeeded
+}

@@ -48,8 +48,7 @@ trait GetRequestHandler { this: RequestHandler =>
 
     try {
       if (operation.getDone) {
-        import collection.immutable.SortedMap
-        val metadata = SortedMap[String, AnyRef](operation.getMetadata.asScala.toMap.)
+        val metadata = operation.getMetadata.asScala.toMap.toSeq.sorted.toMap
         // Deserialize the response
         val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
         val pipeline: Option[Pipeline] = operation.pipeline.toErrorOr.fallBack(pollingRequest.workflowId -> operation)

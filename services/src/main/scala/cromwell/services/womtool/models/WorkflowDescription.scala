@@ -64,11 +64,11 @@ case object WorkflowDescription {
 
     (bundle.allCallables.values.toList, bundle.primaryCallable) match {
 
-      // We have present a workflow that this language considers a primary callable
+      // There is a primary callable in the form of a task
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
         fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
 
-      // We have present a task that this language considers a primary callable
+      // There is a primary callable in the form of a workflow
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
         fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
 

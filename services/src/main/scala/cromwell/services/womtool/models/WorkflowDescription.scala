@@ -24,24 +24,24 @@ case class WorkflowDescription(
 case object WorkflowDescription {
 
   def withErrors(errors: List[String]): WorkflowDescription = {
-    WorkflowDescription.empty.copy(
+    WorkflowDescription(
       valid = false,
       errors = errors
     )
   }
 
-  def empty = WorkflowDescription(
-    valid = true,
-    errors = List.empty,
-    name = "",
-    inputs = List.empty,
-    outputs = List.empty,
-    images = List.empty,
-    submittedDescriptorType = Map.empty,
-    importedDescriptorTypes = List.empty,
-    meta = Map.empty,
-    parameterMeta = Map.empty
-  )
+  def apply(valid: Boolean = true,
+            errors: List[String] = List.empty,
+            name: String = "",
+            inputs: List[InputDescription] = List.empty,
+            outputs: List[OutputDescription] = List.empty,
+            images: List[String] = List.empty,
+            submittedDescriptorType: Map[String, String] = Map.empty,
+            importedDescriptorTypes: List[Map[String, String]] = List.empty,
+            meta: Map[String, String] = Map.empty,
+            parameterMeta: Map[String, String] = Map.empty): WorkflowDescription = {
+    new WorkflowDescription(valid, errors, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta)
+  }
 
   def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String): WorkflowDescription = {
 
@@ -142,7 +142,7 @@ case object WorkflowDescription {
       valid <- c.downField("valid").as[Boolean]
       errors <- c.downField("errors").as[List[String]]
     } yield {
-      WorkflowDescription.empty.copy(valid = valid, errors = errors)
+      WorkflowDescription(valid = valid, errors = errors)
     }
   }
 }

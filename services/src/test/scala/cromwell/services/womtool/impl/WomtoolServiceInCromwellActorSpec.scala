@@ -129,7 +129,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription.empty.copy(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
     }
 
     "return valid for a valid workflow URL" in {

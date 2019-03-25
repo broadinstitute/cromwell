@@ -74,7 +74,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          WorkflowDescription.empty.copy(valid = true,
+          WorkflowDescription(valid = true,
             errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
@@ -95,7 +95,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          WorkflowDescription.empty.copy(valid = true,
+          WorkflowDescription(valid = true,
             errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: None",
@@ -116,7 +116,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.OK)
 
         assertResult {
-          WorkflowDescription.empty.copy(valid = true,
+          WorkflowDescription(valid = true,
             errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",

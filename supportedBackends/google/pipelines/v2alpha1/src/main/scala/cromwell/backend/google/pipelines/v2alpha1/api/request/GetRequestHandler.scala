@@ -78,7 +78,7 @@ trait GetRequestHandler { this: RequestHandler =>
       }
     } catch {
       case npe: NullPointerException =>
-        throw new RuntimeException(s"Caught NPE while processing operation ${operation.getName}: ${npe.toString}", npe)
+        throw npe
     }
   }
 

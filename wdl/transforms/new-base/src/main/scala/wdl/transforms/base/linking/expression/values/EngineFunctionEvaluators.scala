@@ -273,9 +273,9 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_map"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomMap, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { mapToWrite: WomMap =>
         val tryResult = for {
-          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
+          serialized <- ValueEvaluation.serializeWomValue(functionName, mapToWrite, defaultIfOptionalEmpty = WomMap(Map.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)
         } yield written
 
@@ -291,7 +291,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_object"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite: WomObject =>
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)

@@ -86,7 +86,8 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
         (WorkflowMetadataKeys.Name, subworkflowName),
         (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString),
-        (WorkflowMetadataKeys.ParentWorkflowId, parentWorkflowId.toString)
+        (WorkflowMetadataKeys.ParentWorkflowId, parentWorkflowId.toString),
+        (WorkflowMetadataKeys.RootWorkflowId, parentWorkflowId.toString),
       )
 
       publishMetadataEvents(workflowKey, metadataKeys).map(_ => workflowId)
@@ -166,8 +167,11 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name, Set(testLabel2, testLabel3))
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
-          withClue("max") { max should be > 0L }
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map { summaryResult =>
+          withClue("summaryResult") {
+            summaryResult.increasingResult should be > 0L
+            summaryResult.decreasingResult should be >= 0L
+          }
         }
 
         // Query with no filters
@@ -274,14 +278,13 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
           Seq(testLabel2, testLabel3)
             .map(label => WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${label.key}:${label.value}"))
-        ) map { case (response, _) => {
-            val resultByName = response.results groupBy (_.name)
-            withClue("Filter by multiple exclude labels using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
-            response.totalResultsCount match {
-              case 3 => //good
-              case ct => fail(s"totalResultsCount for multiple exclude labels using AND query is expected to be 3 but is actually $ct. " +
-                s"Something has gone horribly wrong!")
-            }
+        ) map { case (response, _) =>
+          val resultByName = response.results groupBy (_.name)
+          withClue("Filter by multiple exclude labels using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
+          response.totalResultsCount match {
+            case 3 => //good
+            case ct => fail(s"totalResultsCount for multiple exclude labels using AND query is expected to be 3 but is actually $ct. " +
+              s"Something has gone horribly wrong!")
           }
         }
         // Filter by exclude label using OR
@@ -345,8 +348,9 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries() map { max =>
-          max should be > 0L
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map { summaryResult =>
+          summaryResult.increasingResult should be > 0L
+          summaryResult.decreasingResult should be >= 0L
         }
         //get totalResultsCount when page and pagesize are specified
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
@@ -369,7 +373,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           MetadataEvent.labelsToMetadataEvents(Labels(customLabelKey -> customLabelValue), workflowId)
         for {
           _ <- dataAccess.addMetadataEvents(metadataEvents)
-          _ <- dataAccess.refreshWorkflowMetadataSummaries().map(_ should be > 0L)
+          _ <- dataAccess.refreshWorkflowMetadataSummaries(1000).map { summaryResult =>
+            summaryResult.increasingResult should be > 0L
+            summaryResult.decreasingResult should be >= 0L
+          }
           _ <- dataAccess.getWorkflowLabels(workflowId).map(_.toList should contain(customLabelKey -> customLabelValue))
         } yield ()
       }
@@ -404,7 +411,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         // associate subworkflow 2 to parent
         _ <- subworkflowMetadata(parentWorkflow2, Subworkflow2Name)
         // refresh metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries()
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
         // include subworkflows
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.IncludeSubworkflows.name -> true.toString))) map { case (resp, _) =>
           val resultByName = resp.results groupBy (_.name)

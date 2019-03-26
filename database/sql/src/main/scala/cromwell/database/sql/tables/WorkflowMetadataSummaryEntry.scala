@@ -10,5 +10,7 @@ case class WorkflowMetadataSummaryEntry
   startTimestamp: Option[Timestamp],
   endTimestamp: Option[Timestamp],
   submissionTimestamp: Option[Timestamp],
+  parentWorkflowExecutionUuid: Option[String],
+  rootWorkflowExecutionUuid: Option[String],
   workflowMetadataSummaryEntryId: Option[Long] = None
 )

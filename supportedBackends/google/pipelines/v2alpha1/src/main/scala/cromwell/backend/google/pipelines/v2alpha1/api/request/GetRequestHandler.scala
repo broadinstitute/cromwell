@@ -48,8 +48,7 @@ trait GetRequestHandler { this: RequestHandler =>
 
     try {
       if (operation.getDone) {
-        import collection.immutable.SortedMap
-        val metadata = SortedMap(operation.getMetadata.asScala.toMap.toSeq:_*)
+        val metadata = operation.getMetadata.asScala.toMap
         // Deserialize the response
         val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
         val pipeline: Option[Pipeline] = operation.pipeline.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
@@ -79,7 +78,7 @@ trait GetRequestHandler { this: RequestHandler =>
       }
     } catch {
       case npe: NullPointerException =>
-        throw new RuntimeException(s"Caught NPE while processing operation ${operation.getName}: $operation", npe)
+        throw new RuntimeException(s"Caught NPE while processing operation ${operation.getName}: ${npe.toString}", npe)
     }
   }
 

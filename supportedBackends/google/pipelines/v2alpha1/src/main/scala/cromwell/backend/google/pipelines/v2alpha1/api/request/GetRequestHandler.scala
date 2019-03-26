@@ -17,6 +17,7 @@ import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
@@ -79,9 +80,7 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
       }
     } catch {
       case npe: NullPointerException =>
-        logger.error(s"Caught NPE while interpreting operation ${operation.getName} from the following JSON response: $operation")
-
-        throw npe
+        throw new RuntimeException(s"Caught NPE while interpreting operation ${operation.getName}: ${ExceptionUtils.getStackTrace(npe)} ")
     }
   }
 

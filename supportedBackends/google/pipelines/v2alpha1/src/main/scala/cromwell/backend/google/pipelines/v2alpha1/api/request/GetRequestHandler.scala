@@ -6,6 +6,7 @@ import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.v2alpha1.model._
+import com.typesafe.scalalogging.LazyLogging
 import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
@@ -22,7 +23,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Try, Success => TrySuccess}
 
-trait GetRequestHandler { this: RequestHandler =>
+trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
   // For now, don't batch the request and execute it on its own 
   def handleRequest(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest, pollingManager: ActorRef)(implicit ec: ExecutionContext): Future[Try[Unit]] = Future(pollingRequest.httpRequest.execute()) map {
@@ -78,6 +79,8 @@ trait GetRequestHandler { this: RequestHandler =>
       }
     } catch {
       case npe: NullPointerException =>
+        logger.error(s"Caught NPE while interpreting operation ${operation.getName} from the following JSON response: $operation")
+
         throw npe
     }
   }

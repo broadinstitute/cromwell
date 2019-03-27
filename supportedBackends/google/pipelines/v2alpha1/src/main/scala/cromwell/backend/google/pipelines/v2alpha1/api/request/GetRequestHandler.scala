@@ -62,7 +62,7 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
         // preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
         // If we can't get the value of preempted we still need to return something, returning false will not make the failure count
         // as a preemption which seems better than saying that it was preemptible when we really don't know
-        val preemptible = pipeline.exists(pipeline => Option(pipeline.getResources.getVirtualMachine.getPreemptible).exists(_.booleanValue()))
+        val preemptible = pipeline.flatMap(pipeline => Option(pipeline.getResources.getVirtualMachine.getPreemptible)).exists(_.booleanValue())
         val instanceName = workerEvent.map(_.getInstance())
         val zone = workerEvent.map(_.getZone)
 

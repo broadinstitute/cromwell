@@ -24,7 +24,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Try, Success => TrySuccess}
 
-trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
+trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
   // For now, don't batch the request and execute it on its own 
   def handleRequest(pollingRequest: PAPIStatusPollRequest, batch: BatchRequest, pollingManager: ActorRef)(implicit ec: ExecutionContext): Future[Try[Unit]] = Future(pollingRequest.httpRequest.execute()) map {
@@ -62,7 +62,7 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
         // preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
         // If we can't get the value of preempted we still need to return something, returning false will not make the failure count
         // as a preemption which seems better than saying that it was preemptible when we really don't know
-        val preemptible = pipeline.exists(pipeline => Option(pipeline.getResources.getVirtualMachine.getPreemptible).exists(_.booleanValue()))
+        val preemptible = pipeline.flatMap(pipeline => Option(pipeline.getResources.getVirtualMachine.getPreemptible)).exists(_.booleanValue())
         val instanceName = workerEvent.map(_.getInstance())
         val zone = workerEvent.map(_.getZone)
 

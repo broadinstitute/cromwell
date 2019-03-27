@@ -75,7 +75,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
 
         assertResult {
           WorkflowDescription(valid = true,
-            List(
+            errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
               "[reading back DescribeRequest contents] workflow url: None",
@@ -96,7 +96,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
 
         assertResult {
           WorkflowDescription(valid = true,
-            List(
+            errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: None",
               "[reading back DescribeRequest contents] workflow url: Some(https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl)",
@@ -117,7 +117,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
 
         assertResult {
           WorkflowDescription(valid = true,
-            List(
+            errors = List(
               "this is fake data from the mock SR actor",
               "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
               "[reading back DescribeRequest contents] workflow url: None",

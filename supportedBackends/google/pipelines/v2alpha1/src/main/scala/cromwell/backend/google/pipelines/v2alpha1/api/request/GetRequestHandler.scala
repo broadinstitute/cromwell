@@ -6,7 +6,6 @@ import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.v2alpha1.model._
-import com.typesafe.scalalogging.LazyLogging
 import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus

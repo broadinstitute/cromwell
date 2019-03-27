@@ -35,6 +35,7 @@ trait CromIamApiService extends RequestSupport
   with EngineRouteSupport
   with SubmissionSupport
   with QuerySupport
+  with WomtoolRouteSupport
   with CromIamInstrumentation {
 
   implicit val system: ActorSystem
@@ -83,7 +84,7 @@ trait CromIamApiService extends RequestSupport
     callCacheDiffRoute ~ labelGetRoute ~ releaseHoldRoute
 
 
-  val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes }
+  val allRoutes: Route = handleExceptions(CromIamExceptionHandler) { workflowRoutes ~ engineRoutes ~ womtoolRoutes }
 
   def abortRoute: Route = path("api" / "workflows" / Segment / Segment / Abort) { (_, workflowId) =>
     post {

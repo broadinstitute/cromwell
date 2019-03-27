@@ -80,7 +80,7 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
       }
     } catch {
       case npe: NullPointerException =>
-        throw new RuntimeException(s"Caught NPE while interpreting operation ${operation.getName}: ${ExceptionUtils.getStackTrace(npe)} ")
+        throw new RuntimeException(s"Caught NPE while interpreting operation ${operation.getName}: ${ExceptionUtils.getStackTrace(npe)}. JSON was $operation")
     }
   }
 

@@ -999,22 +999,22 @@ object WdlFileToWdlomSpec {
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "q",
-              StringLiteral("\\\"")
+              StringLiteral("\"")
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "q2",
-              StringLiteral(" \\\" ")
+              StringLiteral(" \" ")
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "sq",
-              StringLiteral("\\\'")
+              StringLiteral("\'")
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "sq2",
-              StringLiteral(" \\\' ")
+              StringLiteral(" \' ")
             )
           ), None, None, None)),
       Vector.empty

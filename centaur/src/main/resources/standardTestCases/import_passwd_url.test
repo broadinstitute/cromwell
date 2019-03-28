@@ -1,0 +1,13 @@
+name: import_passwd_url
+testFormat: workflowfailure
+
+files {
+  workflow: import_passwd_url/import_passwd_url.wdl
+}
+
+metadata {
+  status: Failed
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Failed to import workflow file:///etc/passwd.:\nBad import file:///etc/passwd: Failed to resolve 'file:///etc/passwd' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Relative path"
+}
+

@@ -47,14 +47,6 @@ trait MetadataEntryComponent {
 
     // TODO: rename index via liquibase
     def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
-
-    // TODO: rename index via liquibase
-    def ixMetadataEntryWeuCfqnJiJa = index("METADATA_JOB_IDX",
-      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
-
-    // TODO: rename index via liquibase, and change column order from WEU_[MK]_CFQN_JI_JA to WEU_CFQN_JI_JA_[MK]
-    def ixMetadataEntryWeuCfqnJiJaMk = index("METADATA_JOB_AND_KEY_IDX",
-      (workflowExecutionUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
   }
 
   val metadataEntries = TableQuery[MetadataEntries]
@@ -119,20 +111,40 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  // This is only used for metadata summary which should not require metadata sorting if rows are committed
-  // with monotonically increasing IDs. The metadata summary logic records the maximum ID it last saw and uses
-  // that last ID + 1 as the minimum ID for the next query iteration.
-  val metadataEntriesForIdGreaterThanOrEqual = Compiled(
-    (metadataEntryId: Rep[Long], startMetadataKey: Rep[String], endMetadataKey: Rep[String], nameMetadataKey: Rep[String],
-     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String], submissionMetadataKey: Rep[String]) => for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.metadataEntryId >= metadataEntryId
-      if (metadataEntry.metadataKey === startMetadataKey || metadataEntry.metadataKey === endMetadataKey ||
-        metadataEntry.metadataKey === nameMetadataKey || metadataEntry.metadataKey === statusMetadataKey ||
-        metadataEntry.metadataKey.like(likeLabelMetadataKey) || metadataEntry.metadataKey === submissionMetadataKey) &&
-        (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
-          metadataEntry.jobAttempt.isEmpty)
-    } yield metadataEntry
+  val metadataEntriesForIdRange = Compiled(
+    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long],
+     startMetadataKey: Rep[String], endMetadataKey: Rep[String],
+     nameMetadataKey: Rep[String], statusMetadataKey: Rep[String], submissionMetadataKey: Rep[String],
+     parentWorkflowIdMetadataKey: Rep[String], rootWorkflowIdMetadataKey: Rep[String],
+     likeLabelMetadataKey: Rep[String]) => {
+      for {
+        metadataEntry <- metadataEntries
+        if metadataEntry.metadataEntryId >= minMetadataEntryId
+        if metadataEntry.metadataEntryId <= maxMetadataEntryId
+        if metadataEntry.metadataKey === startMetadataKey ||
+          metadataEntry.metadataKey === endMetadataKey ||
+          metadataEntry.metadataKey === nameMetadataKey ||
+          metadataEntry.metadataKey === statusMetadataKey ||
+          metadataEntry.metadataKey === submissionMetadataKey ||
+          metadataEntry.metadataKey === parentWorkflowIdMetadataKey ||
+          metadataEntry.metadataKey === rootWorkflowIdMetadataKey ||
+          // http://slick.lightbend.com/doc/3.2.3/queries.html#expressions
+          metadataEntry.metadataKey.like(likeLabelMetadataKey ++ ("%": Rep[String]))
+        if metadataEntry.callFullyQualifiedName.isEmpty
+        if metadataEntry.jobIndex.isEmpty
+        if metadataEntry.jobAttempt.isEmpty
+      } yield metadataEntry
+    }
+  )
+
+  val existsMetadataEntriesGreaterThanMetadataEntryId = Compiled(
+    (metadataEntryId: Rep[Long]) => {
+      val query = for {
+        metadataEntry <- metadataEntries
+        if metadataEntry.metadataEntryId > metadataEntryId
+      } yield metadataEntry.metadataEntryId
+      query.exists
+    }
   )
 
   /**

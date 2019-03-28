@@ -82,7 +82,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
         "descriptorTypeVersion" -> "1.0"
       ),
       importedDescriptorTypes = List.empty,
-      meta = Map.empty
+      meta = Map.empty,
+      parameterMeta = Map.empty
     )
   }
 
@@ -150,7 +151,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
               "descriptorTypeVersion" -> "1.0"
             ),
             importedDescriptorTypes = List.empty,
-            meta = Map.empty
+            meta = Map.empty,
+            parameterMeta = Map.empty
           )
         )
       )

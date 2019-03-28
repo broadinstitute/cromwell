@@ -16,6 +16,7 @@ import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
@@ -60,7 +61,7 @@ trait GetRequestHandler { this: RequestHandler =>
         // preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
         // If we can't get the value of preempted we still need to return something, returning false will not make the failure count
         // as a preemption which seems better than saying that it was preemptible when we really don't know
-        val preemptible = pipeline.exists(_.getResources.getVirtualMachine.getPreemptible.booleanValue())
+        val preemptible = pipeline.flatMap(pipeline => Option(pipeline.getResources.getVirtualMachine.getPreemptible)).exists(_.booleanValue())
         val instanceName = workerEvent.map(_.getInstance())
         val zone = workerEvent.map(_.getZone)
 
@@ -78,7 +79,7 @@ trait GetRequestHandler { this: RequestHandler =>
       }
     } catch {
       case npe: NullPointerException =>
-        throw new RuntimeException(s"Caught NPE while processing operation ${operation.getName}: $operation", npe)
+        throw new RuntimeException(s"Caught NPE while interpreting operation ${operation.getName}: ${ExceptionUtils.getStackTrace(npe)}. JSON was $operation")
     }
   }
 

@@ -27,7 +27,7 @@ import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.transforms.base.linking.typemakers._
 
 
-object TaskDefinitionElementToWomTaskDefinition {
+object TaskDefinitionElementToWomTaskDefinition extends Util {
 
   final case class TaskDefinitionElementToWomInputs(taskDefinitionElement: TaskDefinitionElement, typeAliases: Map[String, WomType])
 
@@ -57,8 +57,10 @@ object TaskDefinitionElementToWomTaskDefinition {
         }.map(_.toSeq)
       }
 
+      val (meta, parameterMeta) = processMetaSections(a.taskDefinitionElement.metaSection, a.taskDefinitionElement.parameterMetaSection)
+
       (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
-        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, Map.empty, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
+        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, meta, parameterMeta, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
       }
     }
 

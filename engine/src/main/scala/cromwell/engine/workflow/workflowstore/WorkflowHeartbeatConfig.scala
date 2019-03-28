@@ -11,7 +11,7 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import mouse.all._
 
 /**
   *
@@ -43,7 +43,10 @@ object WorkflowHeartbeatConfig {
   private[engine] implicit lazy val encodeWorkflowHeartbeatConfig: Encoder[WorkflowHeartbeatConfig] = deriveEncoder
 
   def apply(config: Config): WorkflowHeartbeatConfig = {
-    val cromwellId: String = config.as[Option[String]]("system.cromwell_id").getOrElse("cromid-" + UUID.randomUUID().toString.take(7))
+    val randomSuffix = config
+      .getOrElse("system.cromwell_id_random_suffix", true)
+      .fold("-" + UUID.randomUUID().toString.take(7), "")
+    val cromwellId: String = config.getOrElse("system.cromwell_id", "cromid") + randomSuffix
 
     val heartbeats: Config = config.getOrElse("system.workflow-heartbeats", ConfigFactory.empty())
     // Default to 10 mins and don't allow values less than 10 secs except for testing purposes.

@@ -30,5 +30,8 @@ object WorkflowMetadataKeys {
   val SubmissionSection_Labels = "labels"
   val SubmissionSection_WorkflowTypeVersion = "workflowTypeVersion"
 
+  val SummaryNameIncreasing = "WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING"
+  val SummaryNameDecreasing = "WORKFLOW_METADATA_SUMMARY_ENTRY_DECREASING"
+
   val Labels = "labels"
 }

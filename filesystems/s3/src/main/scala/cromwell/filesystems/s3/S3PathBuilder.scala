@@ -161,13 +161,9 @@ case class S3Path private[s3](nioPath: NioPath,
                                ) extends Path {
   override protected def newPath(nioPath: NioPath): S3Path = S3Path(nioPath, bucket, client)
 
-  override def pathAsString: String = {
-    // pathWithoutScheme will have a leading '/', so by only prepending 's3:/', we'll end up with s3:// as expected
-    s"s3:/$pathWithoutScheme"
-  }
+  override def pathAsString: String = s"s3://$pathWithoutScheme"
 
-  override def pathWithoutScheme: String =
-   safeAbsolutePath.stripPrefix("s3://s3.amazonaws.com")
+  override def pathWithoutScheme: String = safeAbsolutePath.stripPrefix("s3://s3.amazonaws.com/")
 
   def key: String = safeAbsolutePath
 

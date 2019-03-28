@@ -51,11 +51,15 @@ class MockCromwellClient()(implicit system: ActorSystem,
 
   override def forwardToCromwell(httpRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val versionRoutePath = s"/engine/$version/version"
+    val womtoolRoutePath = s"/api/womtool/$version/describe"
 
     httpRequest.uri.path.toString match {
       //version endpoint doesn't require authentication
       case `versionRoutePath` =>
         FailureResponseOrT.pure(HttpResponse(status = OK, entity = "Response from Cromwell"))
+      // womtool endpoint requires authn which it gets for free from the proxy, does not care about authz
+      case `womtoolRoutePath` =>
+        FailureResponseOrT.pure(HttpResponse(status = OK, entity = "Hey there, workflow describer"))
       case _ => checkHeaderAuthorization(httpRequest)
     }
   }

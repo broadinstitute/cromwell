@@ -995,6 +995,26 @@ object WdlFileToWdlomSpec {
               PrimitiveTypeElement(WomStringType),
               "v",
               StringLiteral("\\v")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q",
+              StringLiteral("\\\"")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q2",
+              StringLiteral(" \\\" ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq",
+              StringLiteral("\\\'")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq2",
+              StringLiteral(" \\\' ")
             )
           ), None, None, None)),
       Vector.empty

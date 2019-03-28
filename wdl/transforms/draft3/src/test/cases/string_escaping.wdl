@@ -11,4 +11,6 @@ workflow escapes {
     String v = "\\v"
     String q = " \" "
     String q2 = "\""
+    String sq = "\'"
+    String sq2 = " \' "
 }

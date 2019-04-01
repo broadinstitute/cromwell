@@ -1,5 +1,17 @@
 # Cromwell Change Log
 
+## 40 Release Notes
+
+### Bug fixes
+
+#### Allow a WDL call with no inputs to have an empty `{ }` block
+
+In Cromwell 39 and below, the following syntax was erroneously rejected by Cromwell's WDL 1.0 implementation:
+```
+call task_with_no_inputs {}
+```
+In Cromwell 40 and above, it is allowed. WDL draft-2 was not affected.
+
 ## 39 Release Notes
 
 ### Cromwell ID changes

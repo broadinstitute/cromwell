@@ -10,7 +10,7 @@ In Cromwell 39 and below, the following syntax was erroneously rejected by Cromw
 ```
 call task_with_no_inputs {}
 ```
-In Cromwell 40 and above, it is allowed. WDL draft-2 was not affected.
+In Cromwell 40 and above, it is allowed. WDL draft-2 was not affected and has always allowed calls with this syntax.
 
 ## 39 Release Notes
 

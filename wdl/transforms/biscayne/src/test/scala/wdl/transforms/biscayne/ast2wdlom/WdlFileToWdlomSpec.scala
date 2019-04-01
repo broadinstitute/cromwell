@@ -49,6 +49,35 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 object WdlFileToWdlomSpec {
 
   val expectations: Map[String, FileElement] = Map(
+    "no_input_no_output_workflow" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "no_input_no_output",
+          inputsSection = None,
+          graphElements = Set(
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None)
+          ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "no_inputs",
+            inputsSection = None,
+            declarations = Vector.empty,
+            outputsSection = None,
+            commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
+            runtimeSection = None,
+            metaSection = None,
+            parameterMetaSection = None
+          )
+        )
+      ),
     "simple_first_test" ->
       FileElement(
         imports = Vector.empty,

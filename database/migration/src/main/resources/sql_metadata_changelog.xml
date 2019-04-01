@@ -10,5 +10,6 @@
     <include file="metadata_changesets/custom_label_entry_key_value_index.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/add_parent_and_root_workflow_execution_uuid.xml" relativeToChangelogFile="true"/>
     <include file="metadata_changesets/add_parent_and_root_workflow_typo_fix.xml" relativeToChangelogFile="true"/>
+    <include file="metadata_changesets/metadata_index_removals.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

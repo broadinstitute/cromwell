@@ -47,14 +47,6 @@ trait MetadataEntryComponent {
 
     // TODO: rename index via liquibase
     def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
-
-    // TODO: rename index via liquibase
-    def ixMetadataEntryWeuCfqnJiJa = index("METADATA_JOB_IDX",
-      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
-
-    // TODO: rename index via liquibase, and change column order from WEU_[MK]_CFQN_JI_JA to WEU_CFQN_JI_JA_[MK]
-    def ixMetadataEntryWeuCfqnJiJaMk = index("METADATA_JOB_AND_KEY_IDX",
-      (workflowExecutionUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
   }
 
   val metadataEntries = TableQuery[MetadataEntries]

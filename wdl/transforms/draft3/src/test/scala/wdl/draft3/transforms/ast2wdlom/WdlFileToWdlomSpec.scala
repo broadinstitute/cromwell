@@ -381,6 +381,7 @@ object WdlFileToWdlomSpec {
             CallElement("no_inputs", None, Vector.empty, None),
             CallElement("no_inputs", None, Vector.empty, None),
             CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
             CallElement("no_inputs", None, Vector.empty, None)
           ),
           outputsSection = None,

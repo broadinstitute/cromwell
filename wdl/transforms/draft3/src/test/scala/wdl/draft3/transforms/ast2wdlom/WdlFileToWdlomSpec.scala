@@ -1004,7 +1004,7 @@ object WdlFileToWdlomSpec {
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "q2",
-              StringLiteral(" \" ")
+              StringLiteral("leading text \" trailing text")
             ),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
@@ -1014,7 +1014,7 @@ object WdlFileToWdlomSpec {
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "sq2",
-              StringLiteral(" \' ")
+              StringLiteral("leading text \' trailing text")
             )
           ), None, None, None)),
       Vector.empty

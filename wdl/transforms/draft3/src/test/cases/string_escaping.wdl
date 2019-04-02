@@ -9,8 +9,8 @@ workflow escapes {
     String f = "\\f"
     String a = "\\a"
     String v = "\\v"
-    String q   = " \" "
+    String q   = "leading text \" trailing text"
     String q2  =  "\""
-    String sq  = " \' "
+    String sq  = "leading text \' trailing text"
     String sq2 =  "\'"
 }

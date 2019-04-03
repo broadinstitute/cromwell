@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common.api
 import java.io.IOException
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Terminated, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -19,7 +19,6 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CromwellFatalExceptionMarker, LoadConfig, Mailbox, WorkflowId}
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
-import cromwell.util.StopAndLogSupervisor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 
@@ -31,7 +30,9 @@ import scala.concurrent.duration._
   */
 class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: Int Refined Positive, override val serviceRegistryActor: ActorRef)
                                    (implicit batchHandler: PipelinesApiRequestHandler) extends Actor
-  with ActorLogging with StopAndLogSupervisor with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
+  with ActorLogging with PapiInstrumentation with CromwellInstrumentationScheduler with Timers {
+
+  override val supervisorStrategy = SupervisorStrategy.stoppingStrategy
 
   private val maxRetries = 10
   /*
@@ -109,6 +110,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     case abort: PAPIAbortRequest => workQueue :+= abort
     case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender, maxBatchSize)
     case failure: PAPIApiRequestFailed => handleQueryFailure(failure)
+    case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("Polling actor termination caught by manager"))
     case other => log.error("Unexpected message from {} to JesPollingManager: {}", sender().path.name, other)
   }
 
@@ -180,7 +182,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   /*
      Triggered by the StopAndLogSupervisor trait whenever a child (ie supevisee) terminates unexpectedly.
    */
-  override protected def onFailure(terminee: ActorRef, throwable: => Throwable) = {
+  private def onFailure(terminee: ActorRef, throwable: => Throwable) = {
     // We assume this is a polling actor. Might change in a future update:
     workInProgress.get(terminee) match {
       case Some(work) =>
@@ -237,7 +239,9 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
-    context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    val newWorker = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    context.watch(newWorker)
+    newWorker
   }
 }
 

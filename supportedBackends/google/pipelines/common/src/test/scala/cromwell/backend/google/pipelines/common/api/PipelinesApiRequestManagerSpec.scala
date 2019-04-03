@@ -5,11 +5,12 @@ import akka.testkit.{TestActorRef, TestProbe, _}
 import com.google.api.client.googleapis.batch.BatchRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiRunCreationQueryFailed, PAPIRunCreationRequest, PAPIStatusPollRequest}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.TestPipelinesApiRequestManagerSpec._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.util.AkkaTestUtil
+import cromwell.util.AkkaTestUtil.DeathTestActor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 import org.scalatest.concurrent.Eventually
@@ -132,9 +133,13 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
       - That statusPoller is the second ActorRef (and artifact of TestJesApiQueryManager)
      */
     it should s"catch polling actors if they $name, recreate them and add work back to the queue" in {
-      val statusPoller1 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
-      val statusPoller2 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
+      val jaqmBox = new JaqmBox()
+
+      val statusPoller1 = TestActorRef(Props(new TestPapiWorkerActor(jaqmBox, 1)), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
+      val statusPoller2 = TestActorRef(Props(new TestPapiWorkerActor(jaqmBox, 1)), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
       val jaqmActor: TestActorRef[TestPipelinesApiRequestManager] = TestActorRef(TestPipelinesApiRequestManager.props(registryProbe, statusPoller1, statusPoller2), s"TestJesApiQueryManager-${Random.nextInt()}")
+      jaqmBox.jaqm = jaqmActor
+
 
       val emptyActor = system.actorOf(Props.empty)
 
@@ -223,6 +228,29 @@ class TestPipelinesApiRequestManager(qps: Int Refined Positive, requestWorkers: 
 
   def queueSize = workQueue.size
   def statusPollerEquals(otherStatusPoller: ActorRef) = statusPollers sameElements Array(otherStatusPoller)
+}
+
+class JaqmBox() {
+  var jaqm: ActorRef = _
+  def getJaqm: ActorRef = jaqm
+}
+
+/**
+  * Grabs some work but doesn't ever work on it (let alone completing it!)
+  */
+class TestPapiWorkerActor(requestManagerInABox: JaqmBox, maxBatchSize: Int) extends DeathTestActor {
+
+  var workToDo: Int = 0
+
+  override def receive = stoppingReceive orElse {
+
+    case PipelinesApiWorkBatch(work) => workToDo = work.size
+    case NoWorkToDo => workToDo = 0
+  }
+
+  def requestWork(): Unit = {
+    requestManagerInABox.getJaqm ! PipelinesWorkerRequestWork(maxBatchSize)
+  }
 }
 
 class MockPipelinesRequestHandler extends PipelinesApiRequestHandler {

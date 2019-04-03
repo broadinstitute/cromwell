@@ -1,21 +1,10 @@
 package cromwell.util
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, PoisonPill, Props, SupervisorStrategy}
-import akka.testkit.TestProbe
+import akka.actor.{Actor, ActorRef, ActorSystem, Kill, PoisonPill, SupervisorStrategy}
+
+import scala.util.control.NoStackTrace
 
 object AkkaTestUtil {
-
-  implicit class EnhancedTestProbe(probe: TestProbe) {
-    def props = Props(new Actor with ActorLogging {
-      def receive = {
-        case outbound @ _ if sender == probe.ref =>
-          val msg = "Unexpected outbound message from Probe. You're doing something wrong!"
-          log.error(msg)
-          throw new RuntimeException(msg)
-        case inbound => probe.ref forward inbound
-      }
-    })
-  }
 
   def actorDeathMethods(system: ActorSystem): List[(String, ActorRef => Unit)] = List(
     ("external_stop", (a: ActorRef) => system.stop(a)),
@@ -34,9 +23,9 @@ object AkkaTestUtil {
   }
 
   class DeathTestActor extends Actor {
-    private def stoppingReceive: Actor.Receive = {
+    protected def stoppingReceive: Actor.Receive = {
       case InternalStop => context.stop(self)
-      case ThrowException => throw new Exception("Don't panic, dear debugger! This was a deliberate exception for the test case.")
+      case ThrowException => throw new Exception("Don't panic, dear debugger! This was a deliberate exception for the test case.") with NoStackTrace
     }
     override def receive = stoppingReceive orElse Actor.ignoringBehavior
   }

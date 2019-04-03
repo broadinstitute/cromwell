@@ -6,7 +6,7 @@
 
 #### WDL 1.0 strings can contain escaped quotes
 
-For example, the statement `String s = "\""` is now allowed, whereas previously it produced a syntax error.
+For example, the statement `String s = "\""` is now supported, whereas previously it produced a syntax error.
 
 ## 39 Release Notes
 

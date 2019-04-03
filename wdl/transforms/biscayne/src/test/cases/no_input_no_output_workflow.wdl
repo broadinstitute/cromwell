@@ -1,4 +1,4 @@
-version 1.0
+version development
 
 workflow no_input_no_output {
   call no_inputs

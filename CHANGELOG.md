@@ -8,6 +8,10 @@
 
 For example, the statement `String s = "\""` is now supported, whereas previously it produced a syntax error.
 
+#### Empty call blocks in WDL 1.0
+
+Cromwell's WDL 1.0 implementation now allows empty call blocks, e.g. `call task_with_no_inputs {}`. This brings 1.0 in line with draft-2, which has always supported this syntax.
+
 ## 39 Release Notes
 
 ### Cromwell ID changes

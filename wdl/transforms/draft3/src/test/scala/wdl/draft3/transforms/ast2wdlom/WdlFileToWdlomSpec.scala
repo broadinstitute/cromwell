@@ -377,7 +377,13 @@ object WdlFileToWdlomSpec {
         workflows = Vector(WorkflowDefinitionElement(
           name = "no_input_no_output",
           inputsSection = None,
-          graphElements = Set(CallElement("no_inputs", None, Vector.empty, None)),
+          graphElements = Set(
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None)
+          ),
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None)),

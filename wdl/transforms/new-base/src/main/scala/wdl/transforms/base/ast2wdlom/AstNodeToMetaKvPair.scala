@@ -37,6 +37,7 @@ object AstNodeToMetaKvPair {
           case ("integer", i) => Try(MetaValueElementInteger(i.toInt)).toErrorOr
           case ("float", f) => Try(MetaValueElementFloat(f.toDouble)).toErrorOr
           case ("boolean", b) => Try(MetaValueElementBoolean(b.toBoolean)).toErrorOr
+          case ("string", s) => Try(MetaValueElementString(s)).toErrorOr
           case ("null", _) => MetaValueElementNull.validNel
           case (name, other) => s"No conversion defined for Ast ($name, $other) to MetaValueElement".invalidNel
         }

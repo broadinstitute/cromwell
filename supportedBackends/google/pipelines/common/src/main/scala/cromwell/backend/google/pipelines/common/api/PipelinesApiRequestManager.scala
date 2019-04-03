@@ -24,6 +24,7 @@ import eu.timepit.refined.numeric._
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
+import scala.util.control.NoStackTrace
 
 /**
   * Holds a set of PAPI request until a JesQueryActor pulls the work.
@@ -110,8 +111,8 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     case abort: PAPIAbortRequest => workQueue :+= abort
     case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender, maxBatchSize)
     case failure: PAPIApiRequestFailed => handleQueryFailure(failure)
-    case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("Polling actor termination caught by manager"))
-    case other => log.error("Unexpected message from {} to JesPollingManager: {}", sender().path.name, other)
+    case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("PipelinesApiRequestHandler actor termination caught by manager") with NoStackTrace)
+    case other => log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
   }
 
   override def receive = instrumentationReceive(monitorQueueSize _).orElse(requestManagerReceive)
@@ -225,7 +226,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     }
 
     val stillGoodWorkers = statusPollers.filterNot(_ == worker)
-    val newWorker = makeWorkerActor()
+    val newWorker = makeAndWatchWorkerActor()
 
     statusPollers = stillGoodWorkers :+ newWorker
 
@@ -233,15 +234,19 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   private[api] def resetAllWorkers(): Vector[ActorRef] = {
-    val pollers = Vector.fill(nbWorkers) { makeWorkerActor() }
+    val pollers = Vector.fill(nbWorkers) { makeAndWatchWorkerActor() }
     pollers
+  }
+
+  private[api] def makeAndWatchWorkerActor(): ActorRef = {
+    val newWorker = makeWorkerActor()
+    context.watch(newWorker)
+    newWorker
   }
 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
-    val newWorker = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
-    context.watch(newWorker)
-    newWorker
+    context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
   }
 }
 
@@ -269,7 +274,7 @@ object PipelinesApiRequestManager {
     def withFailedAttempt: PAPIApiRequest
     def backoff: Backoff
     def httpRequest: HttpRequest
-    def contentLength: Long = Option(httpRequest.getContent).map(_.getLength).getOrElse(0L)
+    def contentLength: Long = Option(httpRequest).map(_.getContent).map(_.getLength).getOrElse(0L)
   }
   private object PAPIApiRequest {
     // This must be a def, we want a new one each time (they're mutable! Boo!)

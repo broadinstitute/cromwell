@@ -193,6 +193,7 @@ final case class BcsJob(name: String,
 
     config.spotStrategy foreach {strategy => autoCluster.setSpotStrategy(strategy)}
     config.spotPriceLimit foreach {priceLimit => autoCluster.setSpotPriceLimit(priceLimit)}
+    config.clusterId foreach {clusterId => autoCluster.setClusterId(clusterId)}
     runtime.reserveOnFail foreach {reserve => autoCluster.setReserveOnFail(reserve)}
     val userData = runtime.userData map {datas => Map(datas map {data => data.key -> data.value}: _*)}
     userData foreach {datas => autoCluster.setUserData(datas.asJava)}

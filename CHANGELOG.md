@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 40 Release Notes
+
+### Bug fixes
+
+#### WDL 1.0 strings can contain escaped quotes
+
+For example, the statement `String s = "\""` is now allowed, whereas previously it produced a syntax error.
+
 ## 39 Release Notes
 
 ### Cromwell ID changes

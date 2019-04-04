@@ -3,10 +3,7 @@ package cromwell.engine.workflow.tokens
 import akka.actor.{Actor, ActorRef, Props, SupervisorStrategy}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest}
-import cromwell.util.AkkaTestUtil
 import cromwell.util.AkkaTestUtil.DeathTestActor
-
-import scala.util.control.NoStackTrace
 
 /**
   * Grabs a token and doesn't let it go!

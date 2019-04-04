@@ -1,10 +1,25 @@
 package cromwell.util
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Kill, PoisonPill, SupervisorStrategy}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, PoisonPill, Props, SupervisorStrategy}
+import akka.testkit.TestProbe
 
 import scala.util.control.NoStackTrace
 
 object AkkaTestUtil {
+
+  implicit class EnhancedTestProbe(probe: TestProbe) {
+
+    // Get a 'props' handle which will return a (inbound-only!!) wrapper around this test probe when constructed
+    def props = Props(new Actor with ActorLogging {
+      def receive = {
+        case outbound @ _ if sender == probe.ref =>
+          val msg = "Unexpected outbound message from Probe. You're doing something wrong!"
+          log.error(msg)
+          throw new RuntimeException(msg)
+        case inbound => probe.ref forward inbound
+      }
+    })
+  }
 
   def actorDeathMethods(system: ActorSystem): List[(String, ActorRef => Unit)] = List(
     ("external_stop", (a: ActorRef) => system.stop(a)),

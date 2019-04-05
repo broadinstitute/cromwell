@@ -194,11 +194,12 @@ case class SchemaDefRequirement(
     }
 
     types.toList.flatMap {
-    case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id=>
-          List(Coproduct[SchemaDefTypes](inputRecordSchema))
-    case Inr(Inl(inputEnumSchema: InputEnumSchema)) if matchesType(inputEnumSchema)=>
-      List(Coproduct[SchemaDefTypes](inputEnumSchema))
-    case _ => List()
+      case Inl(inputRecordSchema: InputRecordSchema) if FileAndId(inputRecordSchema.name)(ParentName.empty).id equalsIgnoreCase FileAndId(tpe)(ParentName.empty).id =>
+        List(Coproduct[SchemaDefTypes](inputRecordSchema))
+      case Inr(Inl(inputEnumSchema: InputEnumSchema)) if matchesType(inputEnumSchema) =>
+        List(Coproduct[SchemaDefTypes](inputEnumSchema))
+      case _ =>
+        List()
     }.headOption
   }
 }

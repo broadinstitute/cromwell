@@ -274,6 +274,25 @@ database {
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
 
+**Database Time Zones**
+
+Cromwell's default configuration assumes that its MySQL database is set to UTC.
+
+The following MySQL configurations typically default to UTC and work with Cromwell out of the box:
+- Google CloudSQL
+- An official MySQL image running in Docker
+
+These configurations may use the system, or local, time zone instead:
+- MySQL installed natively on a workstation or server
+
+If Cromwell fails to start with a message like
+```
+The server time zone value 'XXX' is unrecognized or represents more than one time zone.
+```
+you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL.
+
+Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
+
 ## Abort
 
 **Control-C (SIGINT) abort handler**

@@ -51,7 +51,7 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
 
   private[healthmonitor] def initialize(): Unit = {
     subsystems foreach { s =>
-      logger.info(s"Availability of '${s.name}' will be monitored and reported in REST requests to 'engine/v1/status'")
+      logger.info(s"Availability of '${s.name}' will be monitored and reported via the '/engine/v1/status' API")
       self ! Check(s, failureRetryCount)
     }
   }

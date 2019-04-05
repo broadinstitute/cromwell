@@ -149,20 +149,20 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     failure.query.requester ! failure
   }
 
-  private def handleWorkerAskingForWork(workPullingJesPollingActor: ActorRef, maxBatchSize: Int) = {
-    log.debug("Request for PAPI requests received from {} (max batch size is {}, current queue size is {})", workPullingJesPollingActor.path.name, maxBatchSize, workQueue.size)
+  private def handleWorkerAskingForWork(papiRequestWorkerActor: ActorRef, maxBatchSize: Int) = {
+    log.debug("Request for PAPI requests received from {} (max batch size is {}, current queue size is {})", papiRequestWorkerActor.path.name, maxBatchSize, workQueue.size)
 
-    workInProgress -= workPullingJesPollingActor
+    workInProgress -= papiRequestWorkerActor
     val beheaded = beheadWorkQueue(maxBatchSize)
     beheaded.workToDo match {
       case Some(work) =>
-        log.debug("Sending work to PAPI request worker {}", workPullingJesPollingActor.path.name)
+        log.debug("Sending work to PAPI request worker {}", papiRequestWorkerActor.path.name)
         val workBatch = PipelinesApiWorkBatch(work)
-        workPullingJesPollingActor ! workBatch
-        workInProgress += (workPullingJesPollingActor -> workBatch)
+        papiRequestWorkerActor ! workBatch
+        workInProgress += (papiRequestWorkerActor -> workBatch)
       case None =>
-        log.debug("No work for PAPI request worker {}", workPullingJesPollingActor.path.name)
-        workPullingJesPollingActor ! NoWorkToDo
+        log.debug("No work for PAPI request worker {}", papiRequestWorkerActor.path.name)
+        papiRequestWorkerActor ! NoWorkToDo
     }
 
     workQueue = beheaded.newWorkQueue
@@ -181,7 +181,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   /*
-     Triggered by the StopAndLogSupervisor trait whenever a child (ie supevisee) terminates unexpectedly.
+     Triggered by the 'case Terminated' receive handle whenever an actor being watched (ie a worker) terminates.
    */
   private def onFailure(terminee: ActorRef, throwable: => Throwable) = {
     // We assume this is a polling actor. Might change in a future update:

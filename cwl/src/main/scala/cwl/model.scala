@@ -190,7 +190,7 @@ case class SchemaDefRequirement(
   def lookupCwlType(tpe: String): Option[SchemaDefTypes] = {
 
     def matchesType(inputEnumSchema: InputEnumSchema): Boolean = {
-      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FullyQualifiedName(tpe)(ParentName.empty).id}
+      inputEnumSchema.name.fold(false){name => FileAndId(name)(ParentName.empty).id equalsIgnoreCase FileAndId(tpe)(ParentName.empty).id}
     }
 
     types.toList.flatMap {

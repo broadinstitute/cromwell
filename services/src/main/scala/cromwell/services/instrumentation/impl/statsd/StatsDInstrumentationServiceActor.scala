@@ -10,6 +10,7 @@ import cromwell.services.instrumentation._
 import cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import nl.grons.metrics.scala.{DefaultInstrumented, Meter, MetricName}
+import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -41,9 +42,13 @@ object StatsDInstrumentationServiceActor {
   * by making use of downsampling and / or multi metrics packets: https://github.com/etsy/statsd/blob/master/docs/metric_types.md
   */
 class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with DefaultInstrumented {
-  val statsDConfig = StatsDConfig(serviceConfig)
+  val CROMWELL_METRIC_PREFIX: String = "cromwell"
 
-  override lazy val metricBaseName = MetricName("cromwell")
+  val statsDConfig = StatsDConfig(serviceConfig)
+  val cromwellInstanceIdOption: Option[String] = globalConfig.as[Option[String]]("system.cromwell-id")
+
+  override lazy val metricBaseName = MetricName{cromwellInstanceIdOption.fold(CROMWELL_METRIC_PREFIX)( _ => s"$CROMWELL_METRIC_PREFIX."_)}
+
   val gaugeFunctions = new ConcurrentHashMap[CromwellBucket, Long]()
 
   StatsDReporter

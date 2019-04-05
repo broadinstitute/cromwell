@@ -1001,6 +1001,66 @@ object WdlFileToWdlomSpec {
               PrimitiveTypeElement(WomStringType),
               "v",
               StringLiteral("\\v")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q1",
+              StringLiteral("leading text \" trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q2",
+              StringLiteral("\"")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q3",
+              StringLiteral("  \"  ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q4",
+              StringLiteral("leading text \' trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q5",
+              StringLiteral("\'")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q6",
+              StringLiteral("  \'  ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq1",
+              StringLiteral("leading text \" trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq2",
+              StringLiteral("\"")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq3",
+              StringLiteral("  \"  ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq4",
+              StringLiteral("leading text \' trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq5",
+              StringLiteral("\'")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq6",
+              StringLiteral("  \'  ")
             )
           ), None, None, None)),
       Vector.empty

@@ -159,6 +159,7 @@ cromwell::private::create_build_variables() {
     backend_type="${backend_type#centaurEngineUpgrade}"
     backend_type="${backend_type#centaurPapiUpgrade}"
     backend_type="${backend_type#centaurWdlUpgrade}"
+    backend_type="${backend_type#centaurHoricromtal}"
     backend_type="${backend_type#centaur}"
     backend_type="${backend_type#conformance}"
     backend_type="$(echo "${backend_type}" | sed 's/\([A-Z]\)/_\1/g' | tr '[:upper:]' '[:lower:]' | cut -c 2-)"
@@ -251,6 +252,7 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE="engineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE="papiUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS="papiUpgradeNewWorkflows"
+    CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL="horicromtal"
 
     if [[ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]]; then
         if [[ "${CROMWELL_BUILD_TYPE}" == centaurEngineUpgrade* ]]; then
@@ -259,15 +261,25 @@ cromwell::private::create_centaur_variables() {
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}"
         elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}"
+        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtal* ]]; then
+            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}"
         else
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_STANDARD}"
         fi
     fi
 
     CROMWELL_BUILD_CENTAUR_RESOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/src/main/resources"
-    CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
+    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}" ]]; then
+      # Use the standard test cases despite the horicromtal Centaur build type.
+      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
+      # Special horicromtal Centaur config.
+      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
+    else
+      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
+      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+    fi
+
     CROMWELL_BUILD_CENTAUR_TEST_RENDERED="${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}/rendered"
-    CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
     CROMWELL_BUILD_CENTAUR_LOG="${CROMWELL_BUILD_LOG_DIRECTORY}/centaur.log"
 
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in

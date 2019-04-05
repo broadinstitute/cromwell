@@ -9,9 +9,13 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
+import com.typesafe.config.ConfigFactory
 import cromwell.api.model.{Aborted, Aborting, Failed, Running, SubmittedWorkflow, Succeeded, TerminalStatus}
 
 import scala.concurrent.duration._
+import net.ceedubs.ficus.Ficus._
+
+import scala.language.postfixOps
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -19,9 +23,10 @@ import scala.concurrent.duration._
   */
 object TestFormulas {
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
+    val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
       s <- submitWorkflow(workflow)
-      _ <- expectSomeProgress(s, workflow, Set(Running, status), 1.minute)
+      _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
       _ <- pollUntilStatus(s, workflow, status)
     } yield s
   }

@@ -1,0 +1,45 @@
+# Startup:
+# ```
+# CROMWELL_TAG=develop
+# docker-compose -f scripts/docker-compose-mysql/docker-compose-horicromtal.yml up
+# ```
+
+# Cleanup:
+# ```
+# docker-compose -f scripts/docker-compose-mysql/docker-compose-horicromtal.yml down -v
+# ```
+#
+# Set CROMWELL_BUILD_RESOURCES_DIRECTORY explicitly so fully qualified paths to required credential files are rendered
+# into the CI config files.
+version: '2.3'
+services:
+  # Runs the summarizer and is also a regular Cromwell workflow-running backend.
+  cromwell_summarizer_plus_backend:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    network_mode: host
+    working_dir: /cromwell-working-dir
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    command: ["server"]
+    environment:
+      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8000 -Dsystem.max-workflow-launch-count=1 -Dsystem.new-workflow-poll-rate=10 -Dsystem.max-concurrent-workflows=30
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY=${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  # Talks to Centaur (i.e. is a frontend) and is also a regular Cromwell workflow-running backend.
+  cromwell_frontend_plus_backend:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    network_mode: host
+    working_dir: /cromwell-working-dir
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      cromwell_summarizer_plus_backend:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8008 -Dsystem.max-workflow-launch-count=1 -Dsystem.new-workflow-poll-rate=10 -Dsystem.max-concurrent-workflows=30 -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY=${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources

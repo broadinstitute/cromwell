@@ -289,7 +289,10 @@ If Cromwell fails to start with a message like
 ```
 The server time zone value 'XXX' is unrecognized or represents more than one time zone.
 ```
-you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL.
+you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL:
+```hocon
+url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=UTC"
+```
 
 Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
 

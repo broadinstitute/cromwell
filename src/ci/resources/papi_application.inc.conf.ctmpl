@@ -50,11 +50,14 @@ google {
 
 services {
   HealthMonitor {
-    class = "cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor"
+    class = "cromwell.services.healthmonitor.impl.ChooseYourOwnAdventureHealthMonitorServiceActor"
 	config {
-	  papi-backend-name = "Papi"
-	  papi-v1-backend-name = "Papi"
-	  papi-v2-backend-name = "Papi"
+
+      check-papi-backends: [ Papi ]
+      check-gcs: true
+      check-engine-database: true
+      check-dockerhub: true
+
 	  google-auth-name = "service_account"
 	  gcs-bucket-to-check = "cloud-cromwell-dev"
 	}

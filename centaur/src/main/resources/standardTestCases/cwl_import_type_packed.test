@@ -6,5 +6,5 @@ workflowRoot: main
 
 files {
   workflow: cwl_import_type_packed/test_pack.cwl
-  inputs: test_wf_inputs.json
+  inputs: cwl_import_type_packed/test_wf_inputs.json
 }

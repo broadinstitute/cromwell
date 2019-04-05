@@ -274,7 +274,10 @@ object PipelinesApiRequestManager {
     def withFailedAttempt: PAPIApiRequest
     def backoff: Backoff
     def httpRequest: HttpRequest
-    def contentLength: Long = Option(httpRequest).map(_.getContent).map(_.getLength).getOrElse(0L)
+    def contentLength: Long = (for {
+      r <- Option(httpRequest)
+      content <- Option(r.getContent)
+    } yield content.getLength).getOrElse(0L)
   }
   private object PAPIApiRequest {
     // This must be a def, we want a new one each time (they're mutable! Boo!)

@@ -252,6 +252,7 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE="engineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE="papiUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS="papiUpgradeNewWorkflows"
+    CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE="horicromtalEngineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL="horicromtal"
 
     if [[ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]]; then
@@ -261,6 +262,8 @@ cromwell::private::create_centaur_variables() {
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}"
         elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}"
+        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtalEngineUpgrade* ]]; then
+            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}"
         elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtal* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}"
         else
@@ -272,6 +275,11 @@ cromwell::private::create_centaur_variables() {
     if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}" ]]; then
       # Use the standard test cases despite the horicromtal Centaur build type.
       CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
+      # Special horicromtal Centaur config.
+      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
+    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}" ]] ; then
+      # Use the engine upgrade test cases despite the horicromtal Centaur build type.
+      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/engineUpgradeTestCases"
       # Special horicromtal Centaur config.
       CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
     else
@@ -536,10 +544,9 @@ cromwell::private::find_cromwell_jar() {
     export CROMWELL_BUILD_CROMWELL_JAR
 }
 
-cromwell::private::setup_prior_version_resources() {
+cromwell::private::calculate_prior_version_tag() {
     local current_version
     local prior_version
-    local prior_config
     current_version="$( \
         grep 'val cromwellVersion' "${CROMWELL_BUILD_ROOT_DIRECTORY}/project/Version.scala" \
         | awk -F \" '{print $2}' \
@@ -547,7 +554,7 @@ cromwell::private::setup_prior_version_resources() {
 
     # This function should only ever run on Travis PR builds where TRAVIS_PULL_REQUEST_BRANCH is set.
     if [ -z "${TRAVIS_PULL_REQUEST_BRANCH}" ]; then
-       echo "Error: the TRAVIS_PULL_REQUEST_BRANCH variable is not set. setup_prior_version_resources expects to only run on Travis Pull Request builds in which this variable is set." >&2
+       echo "Error: the TRAVIS_PULL_REQUEST_BRANCH variable is not set. calculate_prior_version_tag expects to only run on Travis Pull Request builds in which this variable is set." >&2
        exit 1
     fi
     # If this PR targets a hotfix branch, the previous version should be the same major version as this version.
@@ -557,11 +564,23 @@ cromwell::private::setup_prior_version_resources() {
     else
       prior_version=$((current_version - 1))
     fi
+    echo "${prior_version}"
+}
+
+cromwell::private::get_prior_version_config() {
+    local prior_version=$1
+    prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
+    echo "${prior_config}"
+}
+
+cromwell::private::setup_prior_version_resources() {
+    local prior_config
+    local prior_version="$(cromwell::private::calculate_prior_version_tag)"
 
     CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${prior_version}.jar"
     export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
 
-    prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
+    prior_config="$(cromwell::private::get_prior_version_config ${prior_version})"
     if [[ -f "${prior_config}" ]]; then
         CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
         export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG

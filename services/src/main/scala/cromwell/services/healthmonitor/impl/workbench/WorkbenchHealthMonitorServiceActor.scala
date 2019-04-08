@@ -14,8 +14,8 @@ import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
-import cromwell.services.healthmonitor.HealthMonitorServiceActor
-import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineDatabaseMonitor}
 import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor._
 import net.ceedubs.ficus.Ficus._
@@ -28,7 +28,7 @@ import scala.concurrent.{ExecutionContext, Future}
   * in a Workbench scenario but YMMV otherwise. Caveat emptor and all of that fun stuff.
   */
 abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-  extends HealthMonitorServiceActor
+  extends ProtoHealthMonitorServiceActor
     with DockerHubMonitor
     with EngineDatabaseMonitor {
   override implicit val system = context.system

@@ -8,7 +8,7 @@ import akka.pattern.after
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
-import cromwell.services.healthmonitor.HealthMonitorServiceActor._
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
@@ -28,7 +28,7 @@ import scala.util.control.NonFatal
   * if all of the subsystems are deemed to be healthy, and if this is not true subsystem-specific messages will be
   * returned to the client.
   */
-trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
+trait ProtoHealthMonitorServiceActor extends Actor with LazyLogging with Timers {
   val serviceConfig: Config
   def subsystems: Set[MonitoredSubsystem]
 
@@ -125,7 +125,7 @@ trait HealthMonitorServiceActor extends Actor with LazyLogging with Timers {
   }
 }
 
-object HealthMonitorServiceActor {
+object ProtoHealthMonitorServiceActor {
   val DefaultFutureTimeout: FiniteDuration = 1 minute
   val DefaultStaleThreshold: FiniteDuration = 15 minutes
   val DefaultSweepTime: FiniteDuration = 5 minutes

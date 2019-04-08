@@ -50,7 +50,7 @@ google {
 
 services {
   HealthMonitor {
-    class = "cromwell.services.healthmonitor.impl.ChooseYourOwnAdventureHealthMonitorServiceActor"
+    class = "cromwell.services.healthmonitor.impl.HealthMonitorServiceActor"
 	config {
 
       check-papi-backends: [ Papi ]

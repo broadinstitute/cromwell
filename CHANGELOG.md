@@ -17,8 +17,8 @@ The HealthMonitor configuration has been refactored to provide a simpler interfa
 
 ##### Upgrading
 
-You are now able to put any combination of health-checks that you desire in your configuration. However to upgrade directly
-from a pre-existing configuration, you can use one of the following standard recipes:
+You are no longer tied to the previous preset combinations of health checks. However if you just want to carry forward
+the exact same set of health checks, you can use one of the following standard recipes:
 
 ###### From default, or `NoopHealthMonitorActor`:
 If you're currently using the (default) NoopHealthMonitorActor, no action is required.

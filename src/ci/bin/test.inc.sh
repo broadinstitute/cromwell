@@ -786,9 +786,9 @@ cromwell::build::setup_centaur_environment() {
         cromwell::private::setup_prior_version_resources
     elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]]; then
         cromwell::private::setup_prior_version_resources
-        export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_37_papi_v2_upgrade.application.conf"
+        export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2_upgrade_application.conf"
     elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}" ]]; then
-        export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_37_papi_v2_upgrade.application.conf"
+        export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2_upgrade_application.conf"
     fi;
     cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail

@@ -22,27 +22,28 @@ before_cache:
 env:
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
-    - BUILD_TYPE=centaurAws
-    - BUILD_TYPE=centaurBcs
-    - BUILD_TYPE=centaurEngineUpgradeLocal
-    - BUILD_TYPE=centaurEngineUpgradePapiV2
-    - BUILD_TYPE=centaurHoricromtalPapiV2
-    - BUILD_TYPE=centaurHoricromtalEngineUpgradePapiV2
-    - BUILD_TYPE=centaurPapiUpgradePapiV1
-    - BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV1
-    - BUILD_TYPE=centaurLocal
-    - BUILD_TYPE=centaurPapiV1
-    - BUILD_TYPE=centaurPapiV2
-    - BUILD_TYPE=centaurSlurm
-    - BUILD_TYPE=centaurTes
-    - BUILD_TYPE=centaurWdlUpgradeLocal
-    - BUILD_TYPE=checkPublish
-    - BUILD_TYPE=conformanceLocal
-    - BUILD_TYPE=conformancePapiV2
-    - BUILD_TYPE=conformanceTesk
-    - BUILD_TYPE=dockerDeadlock
-    - BUILD_TYPE=dockerScripts
-    - BUILD_TYPE=sbt
+    # - BUILD_TYPE=centaurAws
+    # - BUILD_TYPE=centaurBcs
+    # - BUILD_TYPE=centaurEngineUpgradeLocal
+    # - BUILD_TYPE=centaurEngineUpgradePapiV2
+    # - BUILD_TYPE=centaurHoricromtalEngineUpgradePapiV2
+    # - BUILD_TYPE=centaurHoricromtalPapiV2
+    - BUILD_TYPE=centaurKubernetesPapiV2
+    # - BUILD_TYPE=centaurPapiUpgradePapiV1
+    # - BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV1
+    # - BUILD_TYPE=centaurLocal
+    # - BUILD_TYPE=centaurPapiV1
+    # - BUILD_TYPE=centaurPapiV2
+    # - BUILD_TYPE=centaurSlurm
+    # - BUILD_TYPE=centaurTes
+    # - BUILD_TYPE=centaurWdlUpgradeLocal
+    # - BUILD_TYPE=checkPublish
+    # - BUILD_TYPE=conformanceLocal
+    # - BUILD_TYPE=conformancePapiV2
+    # - BUILD_TYPE=conformanceTesk
+    # - BUILD_TYPE=dockerDeadlock
+    # - BUILD_TYPE=dockerScripts
+    # - BUILD_TYPE=sbt
 script:
   - src/ci/bin/test.sh
 notifications:

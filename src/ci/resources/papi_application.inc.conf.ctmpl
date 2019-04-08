@@ -33,6 +33,7 @@ google {
       scheme = "service_account"
       # This service account does have billing permission and can be used for requester pays
       json-file = ${google.json-dir}/cromwell-centaur-requester-pays-service-account.json
+      json-file = ${?GOOGLE_REQUESTER_PAYS_SERVICE_ACCOUNT_JSON}
     }
     {
       name = "refresh_token"

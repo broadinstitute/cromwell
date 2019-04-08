@@ -1,0 +1,24 @@
+{{with $cromwellCentaurGKE := vault (printf "secret/dsde/cromwell/common/cromwell-centaur-gke")}}
+
+# Generic Kubernetes conf for horicromtal testing that chooses values that work for the majority of instance types.
+# Particular instance types override only the values they need to override.
+
+include "papi_v2_application.conf"
+
+database.db.user = "cromwell"
+database.db.password = "{{$cromwellCentaurGKE.Data.db_pass}}"
+
+# Obvs can't have this for when this build gets Centaured but useful for now
+call-caching.enabled=false
+
+services.MetadataService.config.metadata-summary-refresh-limit=10000
+# Metadata refresh interval used by frontends and backends, must be overridden in summarizer.
+services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
+
+# Workflow launch values used by frontends and summarizer, must be overridden in backends.
+system.workflow-restart = false
+system.max-concurrent-workflows = 0
+system.max-workflow-launch-count = 0
+system.new-workflow-poll-rate = 999999
+
+{{end}}

@@ -33,6 +33,14 @@ object CentaurRunMode {
           DockerComposeCromwellConfiguration(cromwellConfig.getOrElse("post-restart-docker-compose", composeConf).value)
         ManagedCromwellServer(preRestart, postRestartConfig, withRestart)
 
+      case "gke" =>
+        val gkeConf = cromwellConfig.get[Config](path = "gke").value
+        val preRestart = GkeCromwellConfiguration(gkeConf)
+        val withRestart = gkeConf.getBoolean("withRestart")
+        val postRestartConfig =
+          DockerComposeCromwellConfiguration(cromwellConfig.getOrElse("post-restart-docker-compose", gkeConf).value)
+        ManagedCromwellServer(preRestart, postRestartConfig, withRestart)
+
       case other => throw new Exception(s"Unrecognized cromwell mode: $other")
     }
   }

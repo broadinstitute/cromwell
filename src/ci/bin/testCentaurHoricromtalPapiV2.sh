@@ -6,7 +6,7 @@ export CROMWELL_BUILD_REQUIRES_SECURE=true
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-# Setting these variables should cause the associated config values to be rendered into centaur_application_horicromtal.conf
+# Setting these variables should cause the associated config values to be rendered into centaur_application_horicromtal_docker_compose.conf
 # There should probably be more indirections in CI scripts but that can wait.
 export TEST_CROMWELL_TAG=just-testing-horicromtal
 export TEST_CROMWELL_CONF=papi_v2_horicromtal_application.conf

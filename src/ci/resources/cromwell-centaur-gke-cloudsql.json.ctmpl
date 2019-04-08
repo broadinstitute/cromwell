@@ -1,0 +1,5 @@
+{{with $cromwellCentaurGKE := vault (printf "secret/dsde/cromwell/common/cromwell-centaur-gke")}}
+
+{{$cromwellCentaurGKE.Data | toJSON}}
+
+{{end}}

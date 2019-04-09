@@ -73,7 +73,6 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
       case Some("true") => true
       case _ => false
     }
-
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- workflowDescriptor.backendAssignments.values.toSeq
@@ -81,12 +80,21 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
       rootPath <- getBackendRootPath(backend, config).toSeq
       outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
     } yield (rootPath, outputFiles)
-    
+
+    // This regex will make sure the path is relative to the execution folder.
+    // the call-.* part is there to prevent arbitrary folders called execution to get caught.
+    val truncateRegex = ".*/call-.*/execution/".r
     val outputFileDestinations = rootAndFiles flatMap {
       case (workflowRoot, outputs) =>
         outputs map { output => 
           val outputPath = PathFactory.buildPath(output, pathBuilders)
-          outputPath -> PathCopier.getDestinationFilePath(workflowRoot, outputPath, workflowOutputsPath) 
+          outputPath -> {
+            if (flattenWorkflowOutputs) {
+              val pathRelativeToExecDir = truncateRegex.replaceFirstIn(outputPath.pathAsString, "")
+              workflowOutputsPath.resolve(pathRelativeToExecDir)
+            }
+            else PathCopier.getDestinationFilePath(workflowRoot, outputPath, workflowOutputsPath)
+          }
         }
     }
     outputFileDestinations.distinct.toList

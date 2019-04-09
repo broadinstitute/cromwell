@@ -48,7 +48,6 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
 
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-
     val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
 
     val copies = outputFilePaths map {
@@ -69,6 +68,12 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
   }
   
   private def getOutputFilePaths(workflowOutputsPath: Path): List[(Path, Path)] = {
+
+    val flattenWorkflowOutputs: Boolean = workflowDescriptor.getWorkflowOption(FlattenWorkflowOutputs) match {
+      case Some("true") => true
+      case _ => false
+    }
+
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- workflowDescriptor.backendAssignments.values.toSeq

@@ -50,6 +50,15 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
     val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
 
+    // Check if there are duplicated destination paths and throw an exception if that is the case.
+    val destPaths = outputFilePaths.map {case (_ , dest) => dest}
+    val destPathOccurrences = destPaths.groupBy(identity).mapValues(_.length)
+    val duplicatedDestPaths = destPathOccurrences.filter{case (_, occurrences) => occurrences > 1}.keys.toSeq
+    if (duplicatedDestPaths.nonEmpty) {
+      throw new IllegalStateException(
+        "Cannot copy output files to given final_workflow_outputs_dir" +
+          s" as there are duplicate paths: $duplicatedDestPaths")}
+
     val copies = outputFilePaths map {
       case (srcPath, dstPath) => 
         dstPath.createDirectories()

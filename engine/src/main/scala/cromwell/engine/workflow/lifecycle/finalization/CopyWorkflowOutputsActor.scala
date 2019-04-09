@@ -57,7 +57,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     if (duplicatedDestPaths.nonEmpty) {
       val collidingCopyOptions = outputFilePaths.filter{
         case (_ ,destination) => duplicatedDestPaths.contains(destination)
-      }.sortBy(_._1)
+          // Sort by destination path so collides are easy to spot in the exception message
+      }.sortBy { case (_, destination) => destination.pathAsString}
       val formattedCollidingCopyOptions = collidingCopyOptions.map {case (source, dest) => s"${source.pathAsString} -> ${dest.pathAsString}"}
       throw new IllegalStateException(
         "Cannot copy output files to given final_workflow_outputs_dir" +

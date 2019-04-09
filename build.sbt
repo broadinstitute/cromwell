@@ -245,6 +245,7 @@ lazy val engine = project
   .dependsOn(gcsFileSystem)
   .dependsOn(drsFileSystem)
   .dependsOn(sraFileSystem)
+  .dependsOn(awsS3FileSystem)
   .dependsOn(awsS3FileSystem % "test->test")
   .dependsOn(drsFileSystem % "test->test")
   .dependsOn(httpFileSystem % "test->test")

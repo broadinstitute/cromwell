@@ -11,12 +11,12 @@ ignores these metrics, but Cromwell includes an alternate implementation that ca
 [StatsD](https://github.com/etsy/statsd) server.
 To specify this implementation in your configuration file:
 
-```bash
+```hocon
 services.Instrumentation.class = "cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor"
 ```
 Make sure to configure your StatsD service:
 
-```bash
+```hocon
 services.Instrumentation.config.statsd {
     hostname = "localhost" # Replace with your host
     port = 8125 # Replace with your port
@@ -27,10 +27,18 @@ services.Instrumentation.config.statsd {
 
 There is also an additional configuration value that can be set: 
 
-```bash
+```hocon
 # Rate at which Cromwell updates its gauge values (number of workflows running, queued, etc...)
 system.instrumentation-rate = 5 seconds
 ```
+
+If you have multiple Cromwell instance, and would like to separate the metrics path for each instance, set the `system.cromwell_id` with the unique identifier for your each Cromwell instance configuration. For example,
+
+```hocon
+system.cromwell_id = "cromwell-instance-1"
+```
+will prepend all the metrics with path `cromwell.cromwell-instance-1...` for the instance.
+
 
 **Metrics**
 

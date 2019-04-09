@@ -70,7 +70,6 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     callPaths.returnCodeFilename should be("hello-rc.txt")
     callPaths.stderr.getFileName.pathAsString should be("s3://my-cromwell-workflows-bucket/hello-stderr.log")
     callPaths.stdout.getFileName.pathAsString should be("s3://my-cromwell-workflows-bucket/hello-stdout.log")
-    callPaths.logFilename should be("hello.log")
   }
 
   it should "map the correct paths" taggedAs AwsTest in {
@@ -96,8 +95,6 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
       be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
     callPaths.stderr.pathAsString should
       be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
-    callPaths.logPath.pathAsString should
-      be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
 
   it should "map the correct call context" taggedAs AwsTest in {

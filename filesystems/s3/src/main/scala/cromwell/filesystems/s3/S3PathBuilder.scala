@@ -31,15 +31,17 @@
 package cromwell.filesystems.s3
 
 import java.net.URI
+
 import com.google.common.net.UrlEscapers
 import software.amazon.awssdk.auth.credentials.AwsCredentials
-import software.amazon.awssdk.services.s3.{S3Configuration,S3Client}
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
+import org.lerch.s3fs.util.S3Utils
 import software.amazon.awssdk.regions.Region
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -167,17 +169,30 @@ case class S3Path private[s3](nioPath: NioPath,
 
   def key: String = safeAbsolutePath
 
+  /*
+    This is a bit of a headache. We could make S3Path in S3PathBuilder as that can fulfill all usages of
+    nioPath. However cromwell.core.path.Path requires the NioPath argument. Further we already know that
+    nioPath is a valid S3Path by nature of how it was created in S3PathBuilder.build. However, better safe than
+    sorry
+   */
+  lazy val s3Path = nioPath match {
+    case s3Path: org.lerch.s3fs.S3Path => s3Path
+    case _ => throw new RuntimeException("Internal path was not an S3 path: " + nioPath)
+  }
+
+  lazy val eTag = new S3Utils().getS3ObjectSummary(s3Path).eTag()
+
   /** Gets an absolute path for multiple forms of input. The FS provider does
    *  not support "toAbsolutePath" on forms such as "mypath/" or "foo.bar"
    *  So this function will prepend a forward slash for input that looks like this
    *  while leaving properly rooted input or input beginning with s3:// alone
    */
   def safeAbsolutePath: String = {
-    val originalPath = nioPath.toString
-    if (originalPath.startsWith("s3")) return nioPath.toAbsolutePath.toString
+    val originalPath = s3Path.toString
+    if (originalPath.startsWith("s3")) return s3Path.toAbsolutePath.toString
     originalPath.charAt(0) match {
-      case '/' =>  nioPath.toAbsolutePath.toString
-      case _ => nioPath.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
+      case '/' =>  s3Path.toAbsolutePath.toString
+      case _ => s3Path.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
     }
   }
 }

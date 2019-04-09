@@ -1,6 +1,6 @@
 package cromwell.backend.impl.bcs
 
-import com.aliyuncs.batchcompute.pojo.v20151111.TaskDescription
+import com.aliyuncs.batchcompute.pojo.v20151111.{ TaskDescription}
 import wom.values._
 
 
@@ -44,7 +44,10 @@ class BcsJobSpec extends BcsTestUtilSpec {
     val dest = "/home/inputs/"
     val writeSupport = false
     val runtime = Map("mounts" -> WomString(s"$src $dest $writeSupport"))
-    taskWithRuntime(runtime).getInputMapping.get(src) shouldEqual dest
+    taskWithRuntime(runtime).getMounts().getEntries should have size(1)
+    taskWithRuntime(runtime).getMounts().getEntries.get(0).getSource shouldBe src
+    taskWithRuntime(runtime).getMounts().getEntries.get(0).getDestination shouldBe dest
+    taskWithRuntime(runtime).getMounts().getEntries.get(0).isWriteSupport shouldBe writeSupport
   }
 
   it should "have correct cluster id" in {

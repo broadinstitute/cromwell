@@ -5,7 +5,7 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.core.path.DefaultPathBuilder
+//import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
@@ -135,7 +135,8 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedDocker = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
   val expectedFailOnStderr = false
   val expectedUserData = Some(Vector(new BcsUserData("key", "value")))
-  val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Left(DefaultPathBuilder.build("/home/inputs/").get), false)))
+  //val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Left(DefaultPathBuilder.build("/home/inputs/").get), false)))
+  val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Right("/home/inputs/"), false)))
   val expectedCluster = Some(Left("cls-mycluster"))
   val expectedSystemDisk = Some(BcsSystemDisk("cloud", 50))
   val expectedDataDsik = Some(BcsDataDisk("cloud", 250, "/home/data/"))

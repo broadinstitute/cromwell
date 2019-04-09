@@ -12,7 +12,7 @@ class BcsWorkflowPathsSpec extends BcsTestUtilSpec {
 
     val workflowInput = paths.getWorkflowInputMounts
     workflowInput shouldBe a[BcsInputMount]
-    workflowInput.src shouldEqual(paths.workflowRoot)
+    workflowInput.src shouldEqual(Left(paths.workflowRoot))
     BcsMount.toString(workflowInput.dest).startsWith(BcsJobPaths.BcsTempInputDirectory.pathAsString) shouldBe true
     // DefaultPathBuilder always remove ending '/' from directory path.
     BcsMount.toString(workflowInput.dest).endsWith(paths.workflowRoot.pathWithoutScheme.stripSuffix("/")) shouldBe true

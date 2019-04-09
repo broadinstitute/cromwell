@@ -1,6 +1,6 @@
 package cromwell.backend.impl.bcs
 
-import cromwell.core.path.DefaultPathBuilder
+//import cromwell.core.path.DefaultPathBuilder
 import wom.values._
 
 class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
@@ -42,13 +42,15 @@ class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
 
   it should "parse correct input mount" in {
     val runtime = Map("mounts" -> WomString("oss://bcs-dir/bcs-file /home/inputs/input_file false"))
-    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsInputMount(mockPathBuiler.build("oss://bcs-dir/bcs-file").get, DefaultPathBuilder.build("/home/inputs/input_file").get, false))))
+    //val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsInputMount(Left(mockPathBuiler.build("oss://bcs-dir/bcs-file").get), Left(DefaultPathBuilder.build("/home/inputs/input_file").get), false))))
+    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsInputMount(Left(mockPathBuiler.build("oss://bcs-dir/bcs-file").get), Right("/home/inputs/input_file"), false))))
     createBcsRuntimeAttributes(runtime) shouldEqual expected
   }
 
   it should "parse correct out mount" in {
     val runtime = Map("mounts" -> WomString("/home/outputs/ oss://bcs-dir/outputs/ true"))
-    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsOutputMount(DefaultPathBuilder.build("/home/outputs/").get, mockPathBuiler.build("oss://bcs-dir/outputs/").get,  true))))
+    //val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsOutputMount(Left(DefaultPathBuilder.build("/home/outputs/").get), Left(mockPathBuiler.build("oss://bcs-dir/outputs/").get),  true))))
+    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsOutputMount(Right("/home/outputs/"), Left(mockPathBuiler.build("oss://bcs-dir/outputs/").get),  true))))
     createBcsRuntimeAttributes(runtime) shouldEqual expected
   }
 

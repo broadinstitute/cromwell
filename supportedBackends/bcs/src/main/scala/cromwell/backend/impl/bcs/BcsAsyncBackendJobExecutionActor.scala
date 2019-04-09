@@ -28,7 +28,7 @@ object BcsAsyncBackendJobExecutionActor {
   val JobIdKey = "__bcs_job_id"
 }
 
-final class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
+class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with BcsJobCachingActorHelper {
 
   type BcsPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, BcsJob, RunStatus]

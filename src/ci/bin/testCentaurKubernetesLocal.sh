@@ -33,6 +33,14 @@ cp \
     "${TEST_CROMWELL_COMPOSE_FILE}" \
     "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
 
+GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
+gcloud auth activate-service-account --key-file=${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+
+GOOGLE_KUBERNETES_CLUSTER_NAME=centaur-cluster-${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM}
+GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id)
+
+gcloud --project $GOOGLE_PROJECT container clusters create --region us-central $GOOGLE_KUBERNETES_CLUSTER_NAME --num-nodes=3
+
 docker image ls -q broadinstitute/cromwell:"${TEST_CROMWELL_TAG}" | grep . || \
 CROMWELL_SBT_DOCKER_TAGS="${TEST_CROMWELL_TAG}" sbt server/docker
 

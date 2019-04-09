@@ -41,13 +41,13 @@ GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE
 
 gcloud --project $GOOGLE_PROJECT container clusters create --region us-central $GOOGLE_KUBERNETES_CLUSTER_NAME --num-nodes=3
 
-docker image ls -q broadinstitute/cromwell:"${TEST_CROMWELL_TAG}" | grep . || \
-CROMWELL_SBT_DOCKER_TAGS="${TEST_CROMWELL_TAG}" sbt server/docker
-
-cromwell::build::run_centaur \
-    -p 100 \
-    -e localdockertest \
-    "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
-    -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
-
-cromwell::build::generate_code_coverage
+#docker image ls -q broadinstitute/cromwell:"${TEST_CROMWELL_TAG}" | grep . || \
+#CROMWELL_SBT_DOCKER_TAGS="${TEST_CROMWELL_TAG}" sbt server/docker
+#
+#cromwell::build::run_centaur \
+#    -p 100 \
+#    -e localdockertest \
+#    "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
+#    -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
+#
+#cromwell::build::generate_code_coverage

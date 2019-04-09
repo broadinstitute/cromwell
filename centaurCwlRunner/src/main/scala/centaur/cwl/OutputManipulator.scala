@@ -134,9 +134,8 @@ object OutputManipulator extends Poly1 {
       val defaultSize = sizeContent.orElse(sizeFile(path)).map(Json.fromLong).getOrElse(Json.Null)
       val size = valueOrNull("size", defaultSize)
 
-      val basename: Option[Json] = if (isInsideDirectory) {
+      val basename: Option[Json] =
         Option(valueOrNull("basename", path.exists.option(path.nameWithoutExtension).map(Json.fromString).getOrElse(Json.Null)))
-      } else None
 
       /*
       In order of priority use:

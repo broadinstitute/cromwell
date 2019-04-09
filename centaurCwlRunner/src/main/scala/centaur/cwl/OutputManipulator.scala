@@ -134,9 +134,7 @@ object OutputManipulator extends Poly1 {
       val defaultSize = sizeContent.orElse(sizeFile(path)).map(Json.fromLong).getOrElse(Json.Null)
       val size = valueOrNull("size", defaultSize)
 
-      // the conformance tests expect the files listed in the listing field for directories to have basename filled in,
-      // but only there and not for other top level files...
-      val basename: Option[Json] = if (true) {
+      val basename: Option[Json] = if (isInsideDirectory) {
         Option(valueOrNull("basename", path.exists.option(path.nameWithoutExtension).map(Json.fromString).getOrElse(Json.Null)))
       } else None
 

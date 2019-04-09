@@ -42,14 +42,7 @@ object OutputManipulator extends Poly1 {
     }
   }
 
-  /**
-    * @param isInsideDirectory Conformance tests expect "basename" to be filled in for files iff the file is listed
-    *                          in a directory. This field lets us know whether or not that's the case and if we should
-    *                          add the "basename" field to the output JSON.
-    * @param schemaOption      Optional schema.
-    */
   private def populateFileFields(pathBuilder: PathBuilder,
-                                 isInsideDirectory: Boolean,
                                  schemaOption: Option[Schema]
                                 )(obj: JsonObject): JsonObject = {
     val path = pathBuilder.build(obj.kleisli("location").get.asString.get).get
@@ -63,11 +56,11 @@ object OutputManipulator extends Poly1 {
       case None => default
     }
 
-    def populateInnerFiles(json: Json, isInsideDirectory: Boolean): Option[Json] = {
+    def populateInnerFiles(json: Json): Option[Json] = {
 
       def populateInnerFile(file: Json): Json = {
         file.asObject
-          .map(populateFileFields(pathBuilder, isInsideDirectory, schemaOption))
+          .map(populateFileFields(pathBuilder, schemaOption))
           .map(Json.fromJsonObject)
           .orElse(file.asString.map(stringToFile(_, pathBuilder)))
           .getOrElse(file)
@@ -81,13 +74,13 @@ object OutputManipulator extends Poly1 {
       if (filteredFiles.nonEmpty) Option(Json.arr(filteredFiles: _*)) else None
     }
 
-    def updateFileOrDirectoryWithNestedFiles(obj: JsonObject, fieldName: String, isInsideDirectory: Boolean) = {
+    def updateFileOrDirectoryWithNestedFiles(obj: JsonObject, fieldName: String) = {
       // Cromwell metadata has a field for all values even if their content is empty
       // remove it as the cwl test runner expects nothing instead
       val withoutField = obj.remove(fieldName)
 
       // If the field was not empty, add it back with each inner file / directory properly updated as well
-      populateInnerFiles(obj.kleisli(fieldName).get, isInsideDirectory)
+      populateInnerFiles(obj.kleisli(fieldName).get)
         .map(withoutField.add(fieldName, _))
         .getOrElse(withoutField)
     }
@@ -158,9 +151,9 @@ object OutputManipulator extends Poly1 {
         .map(withBasename.add("format", _))
         .getOrElse(withBasename)
 
-      updateFileOrDirectoryWithNestedFiles(withFormat, "secondaryFiles", isDirectory)
+      updateFileOrDirectoryWithNestedFiles(withFormat, "secondaryFiles")
     } else if (isDirectory) {
-      updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing", isDirectory).
+      updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing").
         add("basename", path.nameWithoutExtension |> Json.fromString)
     } else throw new RuntimeException(s"${path.pathAsString} is neither a valid file or a directory")
   }
@@ -191,7 +184,7 @@ object OutputManipulator extends Poly1 {
           c = if (a.contains(Inl(CwlType.Directory))) s.ensureSlashed else s
           p <- pathBuilder.build(c).toOption
         } yield p.exists).getOrElse(false)
-        if (fileExists) json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption)) else Json.Null
+        if (fileExists) json.mapObject(populateFileFields(pathBuilder, schemaOption)) else Json.Null
       case (JsNumber(metadata), Array(Inl(CwlType.Long))) => metadata.longValue.asJson
       case (JsNumber(metadata), Array(Inl(CwlType.Float))) => metadata.floatValue.asJson
       case (JsNumber(metadata), Array(Inl(CwlType.Double))) => metadata.doubleValue.asJson

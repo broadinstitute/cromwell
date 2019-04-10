@@ -38,7 +38,7 @@ gcloud auth activate-service-account --key-file=${GOOGLE_CENTAUR_SERVICE_ACCOUNT
 GOOGLE_ZONE=us-central1-c
 
 GOOGLE_KUBERNETES_CLUSTER_NAME=centaur-gke-cluster-${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM}
-GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id)
+GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id | sed 's/[^-a-zA-z0-9]/-/g')
 
 gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $GOOGLE_KUBERNETES_CLUSTER_NAME --num-nodes=3
 

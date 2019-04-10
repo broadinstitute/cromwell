@@ -52,6 +52,7 @@ import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
+import software.amazon.awssdk.services.batch.model.BatchException
 import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
@@ -377,6 +378,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         )
     }
     Future.fromTry(job.status(jobId))
+  }
+
+  // Despite being a "runtime" exception, BatchExceptions for 429 are *not* fatal:
+  override def isFatal(throwable: Throwable): Boolean = throwable match {
+    case be: BatchException => !be.getMessage.contains("Status Code: 429")
+    case _ => super.isFatal(throwable)
   }
 
   override lazy val startMetadataKeyValues: Map[String, Any] = super[AwsBatchJobCachingActorHelper].startMetadataKeyValues

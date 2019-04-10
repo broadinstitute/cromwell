@@ -15,12 +15,10 @@ final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Confi
     val engineDatabaseSubsystemOption = if (serviceConfig.getBoolean("check-engine-database")) Some(EngineDb) else None
     val gcsSubsystemOption = if (serviceConfig.getBoolean("check-gcs")) Some(Gcs) else None
 
-    (Set(
+    Set(
       dockerHubSubsystemOption,
       engineDatabaseSubsystemOption,
       gcsSubsystemOption,
-    ) collect {
-      case Some(monitor) => monitor
-    }) ++ PapiSubsystems
+    ).flatten ++ PapiSubsystems
   }
 }

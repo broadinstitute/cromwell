@@ -54,7 +54,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     // This creates a map of destinations and source paths which point to them in cases where there are multiple
     // source paths that point to the same destination.
     val duplicatedDestPaths: Map[Path, List[Path]] = outputFilePaths.groupBy{ case (_, destPath) => destPath}.collect {
-      case (destPath, list) if list.size > 1 => destPath -> list.map {case (source, dest) => source}
+      case (destPath, list) if list.size > 1 => destPath -> list.map {case (source, _) => source}
     }
     if (duplicatedDestPaths.nonEmpty) {
       val formattedCollidingCopyOptions = duplicatedDestPaths.toList

@@ -47,7 +47,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
   val statsDConfig = StatsDConfig(serviceConfig)
   val cromwellInstanceIdOption: Option[String] = globalConfig.as[Option[String]]("system.cromwell_id")
 
-  override lazy val metricBaseName = MetricName{cromwellInstanceIdOption.fold(CROMWELL_METRIC_PREFIX)( _ => s"$CROMWELL_METRIC_PREFIX."_)}
+  override lazy val metricBaseName = MetricName{cromwellInstanceIdOption.fold(CROMWELL_METRIC_PREFIX)( p => s"$CROMWELL_METRIC_PREFIX.$p")}
 
   val gaugeFunctions = new ConcurrentHashMap[CromwellBucket, Long]()
 

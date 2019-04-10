@@ -45,7 +45,7 @@ CROMWELL_PID=$!
 sleep 30
 
 java \
-    -Xmx4g \
+    -Xmx3g \
     -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
     -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
     run "${CROMWELL_BUILD_CWL_TEST_WDL}" \

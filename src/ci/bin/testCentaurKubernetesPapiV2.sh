@@ -41,6 +41,9 @@ GOOGLE_KUBERNETES_CLUSTER_NAME=$(echo -n centaur-gke-cluster-${CROMWELL_BUILD_PR
 GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id)
 
 gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $GOOGLE_KUBERNETES_CLUSTER_NAME --num-nodes=3
+#WARNING: Accessing a Container Engine cluster requires the kubernetes commandline
+#client [kubectl]. To install, run
+#  $ gcloud components install kubectl
 
 # Phase 1. Even this is PAPI since Cromwell will be running in a Docker container and trying to run Docker in Docker
 #          currently no es bueno.

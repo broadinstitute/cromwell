@@ -53,7 +53,7 @@ gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $
 
 # Phase 2 same as Phase 1 except separate Cromwells for summarizer, frontend, backend.
 
-gcloud --quiet container clusters delete $GOOGLE_KUBERNETES_CLUSTER_NAME --zone $GOOGLE_ZONE
+gcloud --project $GOOGLE_PROJECT --quiet container clusters delete $GOOGLE_KUBERNETES_CLUSTER_NAME --zone $GOOGLE_ZONE
 
 #docker image ls -q broadinstitute/cromwell:"${TEST_CROMWELL_TAG}" | grep . || \
 #CROMWELL_SBT_DOCKER_TAGS="${TEST_CROMWELL_TAG}" sbt server/docker

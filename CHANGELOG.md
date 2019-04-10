@@ -4,7 +4,7 @@
 
 ### Cromwell instance name in instrumentation path
 
-When set, the configuration value of `system.cromwell_id` will be prepended to StatsD metrics. This is helpful to separate the metric paths when there are more than one Cromwell instances. More info [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+When set, the configuration value of `system.cromwell_id` will be prepended to StatsD metrics. More info [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
 ### Bug fixes
 

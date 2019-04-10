@@ -66,8 +66,24 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |}
          |""".stripMargin
 
+    val wdlValidNoInputs =
+      s"""
+         |version 1.0
+         |
+         |workflow wf_hello {
+         |  call hello
+         |}
+         |
+         |task hello {
+         |  command <<<
+         |    echo "Hello World!"
+         |  >>>
+         |}
+       """.stripMargin
+
     val helloWorldInputs = """{"wf_hello.hello.addressee": "World"}"""
     val bogusInputs = """{"foo.bar": "World"}"""
+    val emptyInputs = "{}"
     val wdlInvalid = "This is not a valid WDL."
 
     val successfulDescription = WorkflowDescription(
@@ -132,6 +148,48 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
         description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
     }
 
+    "return invalid for a valid workflow with empty inputs" in {
+
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.emptyInputs)
+
+      check(DescribeRequest(wsfc), DescribeSuccess(
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
+    }
+
+    "return valid for a valid no-inputs workflow with empty inputs" in {
+
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidNoInputs), inputsJson = TestData.emptyInputs)
+
+      check(
+        DescribeRequest(wsfc),
+        DescribeSuccess(
+          description = WorkflowDescription(
+            valid = true,
+            errors = List.empty,
+            name = "wf_hello",
+            inputs = List.empty,
+            outputs = List.empty,
+            images = List.empty,
+            submittedDescriptorType = Map(
+              "descriptorType" -> "WDL",
+              "descriptorTypeVersion" -> "1.0"
+            ),
+            importedDescriptorTypes = List.empty,
+            meta = Map.empty,
+            parameterMeta = Map.empty
+          )
+        )
+      )
+    }
+
+    "return invalid for a valid no-inputs workflow with extraneous inputs" in {
+
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidNoInputs), inputsJson = TestData.bogusInputs)
+
+      check(DescribeRequest(wsfc), DescribeSuccess(
+        description = WorkflowDescription(valid = false, errors = List("WARNING: Unexpected input provided: foo.bar"))))
+    }
+
     "return valid for a valid workflow URL" in {
 
       val wsfc = wsfcConjurer(workflowUrl = Option(TestData.workflowUrlValid))
@@ -158,7 +216,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       )
     }
 
-    "return an error with empty inputs" in {
+    "return an error for an empty describe request" in {
 
       val wsfc = wsfcConjurer()
 

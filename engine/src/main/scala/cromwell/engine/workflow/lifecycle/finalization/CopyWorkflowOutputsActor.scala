@@ -58,7 +58,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     }
     if (duplicatedDestPaths.nonEmpty) {
       val formattedCollidingCopyOptions = duplicatedDestPaths.toList
-        .sortBy{case(dest, _) => dest} // Sort by destination path
+        .sortBy{case(dest, _) => dest.pathAsString} // Sort by destination path
         // Make a '/my/src -> /my/dest' copy tape string for each source and destination. Use flat map to get a single list
         .flatMap{ case (dest, srcList) => srcList.map(_.pathAsString + s" -> $dest")}
       throw new IllegalStateException(

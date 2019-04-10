@@ -32,7 +32,7 @@ There is also an additional configuration value that can be set:
 system.instrumentation-rate = 5 seconds
 ```
 
-If you have multiple Cromwell instance, and would like to separate the metrics path for each instance, set the `system.cromwell_id` with the unique identifier for your each Cromwell instance configuration. For example,
+If you have multiple Cromwell instances, and would like to separate the instrumentation path for each instance, set the `system.cromwell_id` with the unique identifier for your each Cromwell instance configuration. For example,
 
 ```hocon
 system.cromwell_id = "cromwell-instance-1"

@@ -51,15 +51,16 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
 
     // Check if there are duplicated destination paths and throw an exception if that is the case.
-    val destPaths = outputFilePaths.map {case (_ , dest) => dest}
-    val destPathOccurrences = destPaths.groupBy(identity).mapValues(_.length)
-    val duplicatedDestPaths = destPathOccurrences.filter{case (_, occurrences) => occurrences > 1}.keys.toSeq
+    // This creates a map of destinations and source paths which point to them in cases where there are multiple
+    // source paths that point to the same destination.
+    val duplicatedDestPaths: Map[Path, List[Path]] = outputFilePaths.groupBy{ case (_, destPath) => destPath}.collect {
+      case (destPath, list) if list.size > 1 => destPath -> list.map {case (source, dest) => source}
+    }
     if (duplicatedDestPaths.nonEmpty) {
-      val collidingCopyOptions = outputFilePaths.filter{
-        case (_ ,destination) => duplicatedDestPaths.contains(destination)
-          // Sort by destination path so collides are easy to spot in the exception message
-      }.sortBy { case (_, destination) => destination.pathAsString}
-      val formattedCollidingCopyOptions = collidingCopyOptions.map {case (source, dest) => s"${source.pathAsString} -> ${dest.pathAsString}"}
+      val formattedCollidingCopyOptions = duplicatedDestPaths.toList
+        .sortBy{case(dest, _) => dest} // Sort by destination path
+        // Make a '/my/src -> /my/dest' copy tape string for each source and destination. Use flat map to get a single list
+        .flatMap{ case (dest, srcList) => srcList.map(_.pathAsString + s" -> $dest")}
       throw new IllegalStateException(
         "Cannot copy output files to given final_workflow_outputs_dir" +
           s" as multiple files will be copied to the same path: \n${formattedCollidingCopyOptions.mkString("\n")}")}

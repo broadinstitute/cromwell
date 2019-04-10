@@ -1,0 +1,16 @@
+name: google_labels_bad
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: google_labels/google_labels.wdl
+  options: google_labels/bad_options.json
+}
+
+metadata {
+  workflowName: google_labels
+  status: Failed
+  "calls.cont_while_possible.boundToFail.executionStatus": Failed
+  "calls.cont_while_possible.shouldSucceed.executionStatus": Done
+  "calls.cont_while_possible.delayedTask.executionStatus": Done
+}

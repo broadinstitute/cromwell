@@ -7,6 +7,8 @@ import akka.actor.ActorRef
 import akka.http.scaladsl.model.ContentTypes
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
+import cats.syntax.traverse._
+import cats.instances.list._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
@@ -35,6 +37,7 @@ import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import shapeless.Coproduct
+import spray.json.{JsObject, JsString}
 import wdl4s.parser.MemoryUnit
 import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
@@ -49,6 +52,7 @@ import wom.values._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Success, Try}
 
 object PipelinesApiAsyncBackendJobExecutionActor {
@@ -393,7 +397,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def createPipelineParameters(inputOutputParameters: InputOutputParameters): CreatePipelineParameters = {
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters, customLabels: Seq[GoogleLabel]): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -432,7 +436,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           inputOutputParameters,
           googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount(jobDescriptor.workflowDescriptor),
-          backendLabels,
+          backendLabels ++ customLabels,
           preemptible,
           pipelinesConfiguration.jobShell,
           dockerKeyAndToken,
@@ -499,6 +503,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       )
     })
 
+    def readCustomGoogleLabels(): Future[Seq[GoogleLabel]] = {
+
+      def extractGoogleLabelsFromJsObject(jsObject: JsObject): Try[Seq[GoogleLabel]] = {
+        val asErrorOr = jsObject.fields.toList.traverse {
+          case (key: String, value: JsString) => GoogleLabels.validateLabel(key, value.value)
+          case (_, other) => s"Invalid label value. Expected simple string but got $other".invalidNel : ErrorOr[GoogleLabel]
+        }
+
+        asErrorOr.toTry("parse 'google_labels' workflow option")
+      }
+
+      workflowDescriptor.workflowOptions.toMap.get("google_labels") match {
+        case Some(obj: JsObject) => Future.fromTry(extractGoogleLabelsFromJsObject(obj))
+        case Some(other) => Future.failed(new Exception(s"Workflow option 'google_labels' must be a simple JSON object mapping keys to values. Got $other") with NoStackTrace)
+        case None => Future.successful(Seq.empty)
+      }
+    }
+
     def uploadScriptFile = commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain"))))
@@ -506,8 +528,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     val runPipelineResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile
+      customLabels <- readCustomGoogleLabels()
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters)
+      createParameters = createPipelineParameters(jesParameters, customLabels)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
     } yield runId

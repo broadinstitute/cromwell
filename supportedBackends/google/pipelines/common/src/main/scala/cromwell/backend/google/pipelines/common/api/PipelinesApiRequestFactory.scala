@@ -6,7 +6,6 @@ import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.standard.StandardAsyncJob
-import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
@@ -70,7 +69,7 @@ object PipelinesApiRequestFactory {
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,
                                       computeServiceAccount: String,
-                                      labels: Labels,
+                                      googleLabels: Seq[GoogleLabel],
                                       preemptible: Boolean,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],

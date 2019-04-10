@@ -58,11 +58,11 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val originalLabels: Labels = defaultLabels
 
-  lazy val backendLabels: Labels = GoogleLabels.toLabels(originalLabels.asTuple :_*)
+  lazy val backendLabels: Seq[GoogleLabel] = GoogleLabels.safeLabels(originalLabels.asTuple :_*)
 
   lazy val originalLabelEvents: Map[String, String] = originalLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
 
-  lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value } toMap
+  lazy val backendLabelEvents: Map[String, String] = backendLabels map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value } toMap
 
   override protected def nonStandardMetadata: Map[String, Any] = {
     val googleProject = initializationData

@@ -1,0 +1,13 @@
+name: google_labels_good
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: google_labels/google_labels.wdl
+  options: google_labels/good_options.json
+}
+
+metadata {
+  workflowName: google_labels
+  status: Success
+}

@@ -20,7 +20,7 @@ Cromwell supports the majority of [Draft-2 of the WDL Spec](https://github.com/o
 
 Cromwell also supports WDL version 1.0.
 
-As well as the changes to the WDL spec between draft-2 and 1.0, Cromwell also supports nested scatters and the [localization_optional](optimizations/FileLocalization.md) optimization in WDL 1.0  
+As well as the changes to the WDL spec between draft-2 and 1.0, Cromwell also supports nested scatters and the [localization_optional](optimizations/FileLocalization.md) optimization in WDL 1.0.  
 
 
 ### CWL 1.0

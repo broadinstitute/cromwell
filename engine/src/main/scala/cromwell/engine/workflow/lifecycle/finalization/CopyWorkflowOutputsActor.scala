@@ -83,7 +83,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
   
   private def getOutputFilePaths(workflowOutputsPath: Path): List[(Path, Path)] = {
 
-    val flattenWorkflowOutputs: Boolean = workflowDescriptor.getWorkflowOption(FlattenWorkflowOutputs) match {
+    val flattenWorkflowOutputs: Boolean = workflowDescriptor.getWorkflowOption(UseRelativeOutputPaths) match {
       case Some("true") => true
       case _ => false
     }

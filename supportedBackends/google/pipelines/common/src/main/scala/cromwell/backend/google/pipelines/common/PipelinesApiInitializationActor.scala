@@ -125,6 +125,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
+      _ <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowOptions))
       data <- initializationData
     } yield Option(data)
   }

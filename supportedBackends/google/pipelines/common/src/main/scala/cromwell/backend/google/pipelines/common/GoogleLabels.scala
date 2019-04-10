@@ -1,9 +1,17 @@
 package cromwell.backend.google.pipelines.common
 
-import cats.data.Validated.Valid
+import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
 import cats.syntax.validated._
+import cats.syntax.traverse._
+import cats.instances.list._
 import cats.syntax.apply._
+import common.exception.AggregatedMessageException
+import cromwell.core.{CromwellFatalExceptionMarker, WorkflowOptions}
+import spray.json.{JsObject, JsString}
+
+import scala.util.{Failure, Success, Try}
+import scala.util.control.NoStackTrace
 
 final case class GoogleLabel(key: String, value: String)
 
@@ -68,6 +76,26 @@ object GoogleLabels {
 
   def validateLabel(key: String, value: String): ErrorOr[GoogleLabel] = {
     (validateLabelRegex(key), validateLabelRegex(value)).mapN { (validKey, validValue) => GoogleLabel(validKey, validValue)  }
+  }
+
+  def extractGoogleLabelsFromJsObject(jsObject: JsObject): Try[Seq[GoogleLabel]] = {
+    val asErrorOr = jsObject.fields.toList.traverse {
+      case (key: String, value: JsString) => GoogleLabels.validateLabel(key, value.value)
+      case (_, other) => s"Invalid label value. Expected simple string but got $other".invalidNel : ErrorOr[GoogleLabel]
+    }
+
+    asErrorOr match {
+      case Valid(value) => Success(value)
+      case Invalid(errors) => Failure(new AggregatedMessageException("One or more invalid keys", errors.toList) with CromwellFatalExceptionMarker with NoStackTrace)
+    }
+  }
+
+  def fromWorkflowOptions(workflowOptions: WorkflowOptions): Try[Seq[GoogleLabel]] = {
+    workflowOptions.toMap.get("google_labels") match {
+      case Some(obj: JsObject) => GoogleLabels.extractGoogleLabelsFromJsObject(obj)
+      case Some(other) => Failure(new Exception(s"Workflow option 'google_labels' must be a simple JSON object mapping keys to values. Got $other") with NoStackTrace with CromwellFatalExceptionMarker)
+      case None => Success(Seq.empty)
+    }
   }
 
 }

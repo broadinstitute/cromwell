@@ -10,7 +10,4 @@ files {
 metadata {
   workflowName: google_labels
   status: Failed
-  "calls.cont_while_possible.boundToFail.executionStatus": Failed
-  "calls.cont_while_possible.shouldSucceed.executionStatus": Done
-  "calls.cont_while_possible.delayedTask.executionStatus": Done
 }

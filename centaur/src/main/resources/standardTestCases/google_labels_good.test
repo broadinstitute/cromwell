@@ -9,5 +9,5 @@ files {
 
 metadata {
   workflowName: google_labels
-  status: Success
+  status: Succeeded
 }

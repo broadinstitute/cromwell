@@ -1,0 +1,11 @@
+name: standard_output_paths_colliding_prevented
+testFormat: workflowsuccess
+
+files {
+  workflow: standard_output_paths_colliding_prevented/workflow_output_paths_colliding.wdl
+  options: standard_output_paths_colliding_prevented/options.json
+}
+
+metadata {
+  status: Succeeded
+}

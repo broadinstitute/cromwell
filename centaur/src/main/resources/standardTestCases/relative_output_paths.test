@@ -1,0 +1,11 @@
+name: relative_output_paths
+testFormat: workflowsuccess
+
+files {
+  workflow: relative_output_paths/workflow_output_paths.wdl
+  options: relative_output_paths/options.json
+}
+
+metadata {
+  status: Succeeded
+}

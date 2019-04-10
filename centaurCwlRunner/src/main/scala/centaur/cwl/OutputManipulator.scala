@@ -128,7 +128,7 @@ object OutputManipulator extends Poly1 {
       val size = valueOrNull("size", defaultSize)
 
       val basename: Option[Json] =
-        Option(valueOrNull("basename", path.exists.option(path.nameWithoutExtension).map(Json.fromString).getOrElse(Json.Null)))
+        Option(valueOrNull("basename", path.exists.option(path.name).map(Json.fromString).getOrElse(Json.Null)))
 
       /*
       In order of priority use:

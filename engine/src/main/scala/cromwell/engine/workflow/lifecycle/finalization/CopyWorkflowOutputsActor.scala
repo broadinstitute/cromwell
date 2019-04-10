@@ -84,10 +84,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
   
   private def getOutputFilePaths(workflowOutputsPath: Path): List[(Path, Path)] = {
 
-    val flattenWorkflowOutputs: Boolean = workflowDescriptor.getWorkflowOption(UseRelativeOutputPaths) match {
-      case Some("true") => true
-      case _ => false
-    }
+    val useRelativeOutputPaths: Boolean = workflowDescriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- workflowDescriptor.backendAssignments.values.toSeq
@@ -98,13 +95,15 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
 
     // This regex will make sure the path is relative to the execution folder.
     // the call-.* part is there to prevent arbitrary folders called execution to get caught.
-    val truncateRegex = ".*/call-.*/execution/".r
+    // Truncate regex is declared here. If it were declared in the if statement the regex would have to be
+    // compiled for every single file.
+    lazy val truncateRegex = ".*/call-.*/execution/".r
     val outputFileDestinations = rootAndFiles flatMap {
       case (workflowRoot, outputs) =>
         outputs map { output => 
           val outputPath = PathFactory.buildPath(output, pathBuilders)
           outputPath -> {
-            if (flattenWorkflowOutputs) {
+            if (useRelativeOutputPaths) {
               val pathRelativeToExecDir = truncateRegex.replaceFirstIn(outputPath.pathAsString, "")
               workflowOutputsPath.resolve(pathRelativeToExecDir)
             }

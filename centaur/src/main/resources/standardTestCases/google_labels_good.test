@@ -10,4 +10,8 @@ files {
 metadata {
   workflowName: google_labels
   status: Succeeded
+
+  "calls.google_labels.check_labels.labels.wdl-task-name": "check_labels"
+
+  "calls.google_labels.check_labels.backendLabels.custom-label": "custom-value"
 }

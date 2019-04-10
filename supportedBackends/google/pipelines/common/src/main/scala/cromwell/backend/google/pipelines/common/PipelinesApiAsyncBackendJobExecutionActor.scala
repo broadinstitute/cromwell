@@ -34,6 +34,7 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
+import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.CommandSetupSideEffectFile
@@ -501,7 +502,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
     def uploadScriptFile = commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
-      asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain"))))
+      asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    )
+
+    def sendGoogleLabelsToMetadata(customLabels: Seq[GoogleLabel]): Unit = {
+      lazy val backendLabelEvents: Map[String, String] = ((backendLabels ++ customLabels) map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value }).toMap
+      tellMetadata(backendLabelEvents)
+    }
 
     val runPipelineResponse = for {
       _ <- evaluateRuntimeAttributes
@@ -511,6 +518,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       createParameters = createPipelineParameters(jesParameters, customLabels)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
+      _ = sendGoogleLabelsToMetadata(customLabels)
     } yield runId
 
     runPipelineResponse map { runId =>

@@ -60,8 +60,8 @@ object GoogleLabels {
   def validateLabelRegex(s: String): ErrorOr[String] = {
     (GoogleLabelRegex.pattern.matcher(s).matches, s.length <= MaxLabelLength) match {
       case (true, true) => s.validNel
-      case (false, false) => s"Invalid label field: `$s` did not match regex $GoogleLabelRegexPattern and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
-      case (false, _) => s"Invalid label field: `$s` did not match the regex $GoogleLabelRegexPattern.".invalidNel
+      case (false, false) => s"Invalid label field: `$s` did not match regex '$GoogleLabelRegexPattern' and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+      case (false, _) => s"Invalid label field: `$s` did not match the regex '$GoogleLabelRegexPattern'".invalidNel
       case (_, false) => s"Invalid label field: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
     }
   }
@@ -78,22 +78,23 @@ object GoogleLabels {
     (validateLabelRegex(key), validateLabelRegex(value)).mapN { (validKey, validValue) => GoogleLabel(validKey, validValue)  }
   }
 
-  def extractGoogleLabelsFromJsObject(jsObject: JsObject): Try[Seq[GoogleLabel]] = {
-    val asErrorOr = jsObject.fields.toList.traverse {
-      case (key: String, value: JsString) => GoogleLabels.validateLabel(key, value.value)
-      case (_, other) => s"Invalid label value. Expected simple string but got $other".invalidNel : ErrorOr[GoogleLabel]
-    }
-
-    asErrorOr match {
-      case Valid(value) => Success(value)
-      case Invalid(errors) => Failure(new AggregatedMessageException("One or more invalid keys", errors.toList) with CromwellFatalExceptionMarker with NoStackTrace)
-    }
-  }
-
   def fromWorkflowOptions(workflowOptions: WorkflowOptions): Try[Seq[GoogleLabel]] = {
+
+    def extractGoogleLabelsFromJsObject(jsObject: JsObject): Try[Seq[GoogleLabel]] = {
+      val asErrorOr = jsObject.fields.toList.traverse {
+        case (key: String, value: JsString) => GoogleLabels.validateLabel(key, value.value)
+        case (key, other) => s"Bad label value type for '$key'. Expected simple string but got $other".invalidNel : ErrorOr[GoogleLabel]
+      }
+
+      asErrorOr match {
+        case Valid(value) => Success(value)
+        case Invalid(errors) => Failure(new AggregatedMessageException("Invalid 'google_labels' in workflow options", errors.toList) with CromwellFatalExceptionMarker with NoStackTrace)
+      }
+    }
+
     workflowOptions.toMap.get("google_labels") match {
-      case Some(obj: JsObject) => GoogleLabels.extractGoogleLabelsFromJsObject(obj)
-      case Some(other) => Failure(new Exception(s"Workflow option 'google_labels' must be a simple JSON object mapping keys to values. Got $other") with NoStackTrace with CromwellFatalExceptionMarker)
+      case Some(obj: JsObject) => extractGoogleLabelsFromJsObject(obj)
+      case Some(other) => Failure(new Exception(s"Invalid 'google_labels' in workflow options. Must be a simple JSON object mapping string keys to string values. Got $other") with NoStackTrace with CromwellFatalExceptionMarker)
       case None => Success(Seq.empty)
     }
   }

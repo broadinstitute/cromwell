@@ -26,11 +26,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
     """.stripMargin
   )
 
-  val cromwellInstanceConfig = ConfigFactory.parseString(
-    """
-      |system.cromwell_id = "cromwell-101"
-    """.stripMargin
-  )
+  val cromwellInstanceConfig = ConfigFactory.parseString("""system.cromwell_id = "cromwell-101"""")
 
   val registryProbe = TestProbe().ref
   val udpProbe = TestProbe()

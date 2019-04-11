@@ -16,6 +16,8 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 object StatsDInstrumentationServiceActor {
+  val CromwellMetricPrefix: String = "cromwell"
+
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
 
   implicit class CromwellBucketEnhanced(val cromwellBucket: CromwellBucket) extends AnyVal {
@@ -42,12 +44,10 @@ object StatsDInstrumentationServiceActor {
   * by making use of downsampling and / or multi metrics packets: https://github.com/etsy/statsd/blob/master/docs/metric_types.md
   */
 class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with DefaultInstrumented {
-  val CROMWELL_METRIC_PREFIX: String = "cromwell"
-
   val statsDConfig = StatsDConfig(serviceConfig)
-  val cromwellInstanceIdOption: Option[String] = globalConfig.as[Option[String]]("system.cromwell_id")
+  val cromwellInstanceIdOption: Option[String] = globalConfig.getAs[String]("system.cromwell_id")
 
-  override lazy val metricBaseName = MetricName{cromwellInstanceIdOption.fold(CROMWELL_METRIC_PREFIX)( p => s"$CROMWELL_METRIC_PREFIX.$p")}
+  override lazy val metricBaseName = MetricName(CromwellMetricPrefix + cromwellInstanceIdOption.fold("")("." + _))
 
   val gaugeFunctions = new ConcurrentHashMap[CromwellBucket, Long]()
 

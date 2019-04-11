@@ -25,6 +25,10 @@ workflow google_labels {
     ] }
   }
 
+  output {
+    Boolean done = true
+  }
+
 }
 
 task check_labels {

@@ -6,21 +6,21 @@ task text_to_file {
         String filepath
     }
     command {
-        mkdir -p $( basename( ~{filepath} )
+        mkdir -p $( dirname ~{filepath} )
         echo '~{text}' > ~{filepath}
     }
     output {
         File text_file = filepath
     }
     runtime {
-        docker: "bash:latest"
+        docker: "ubuntu:latest"
     }
 }
 
 workflow Gutenberg {
     call text_to_file as set_type {
         input:
-            text="The type is set, let's print something",
+            text="The type is set, let us print something",
             filepath="typeset.txt"
     }
     call text_to_file as great_press {

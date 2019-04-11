@@ -1,4 +1,4 @@
-name: relative_output_paths
+name: relative_output_paths_colliding
 testFormat: workflowfailure
 
 files {

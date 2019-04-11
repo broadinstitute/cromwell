@@ -104,7 +104,7 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
     case StatsDTestBit(description, metric, expectedExactPackets, expectedFuzzyPackets, prependCromwellInstancePrefix) =>
       it should description in {
 
-        val globalConfig = if (prependCromwellInstancePrefix) cromwellInstanceConfig else ConfigFactory.load()
+        val globalConfig = if (prependCromwellInstancePrefix) cromwellInstanceConfig else ConfigFactory.empty()
 
         val instrumentationActor = TestActorRef(new StatsDInstrumentationServiceActor(config, globalConfig, registryProbe))
         instrumentationActor ! InstrumentationServiceMessage(metric)

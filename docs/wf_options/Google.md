@@ -11,6 +11,7 @@ Keys | Possible Values | Description
 `auth_bucket` |`string` |     A GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`). Defaults to the the value in [jes_gcs_root](#jes_gcs_root).
 `monitoring_script` |`string` |   Specifies a GCS URL to a script that will be invoked prior to the user command being run.  For example, if the value for monitoring_script is `"gs://bucket/script.sh"`, it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
 `monitoring_image` |`string` |   Specifies a Docker image to monitor the task. This image will run concurrently with the task container, and provides an alternative mechanism to `monitoring_script` (the latter runs *inside* the task container). For example, one can use `quay.io/broadinstitute/cromwell-monitor`, which reports cpu/memory/disk utilization metrics to [Stackdriver](https://cloud.google.com/monitoring/).
+`google_labels` | `object` | String-to-string map representing label key-to-value pairs. Each key and value must conform to the regex `a-z]([-a-z0-9]*[a-z0-9])?`.
 
 # Example
 ```json

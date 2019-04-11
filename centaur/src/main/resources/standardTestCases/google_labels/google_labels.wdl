@@ -1,13 +1,36 @@
 version 1.0
 
 workflow google_labels {
-  call check_labels
+
+  meta {
+    description: "Confirms that the google_labels workflow option is propogated correctly to tasks"
+  }
+
+  input {
+    Array[Pair[String, String]] expected_kvps = [ ("wdl-task-name", "check-labels") ]
+    Boolean check_aliases = true
+  }
+
+  # Build an array of checker lines to confirm the existence of each KVP:
+  scatter (p in expected_kvps) {
+    String checker_lines = "echo $INSTANCE_INFO | grep -q '\"~{p.left}\": \"~{p.right}\"' || echo \"Couldn't find correct '~{p.left}' label in instance info: $INSTANCE_INFO\" 1>&2"
+  }
+
+  call check_labels { input: label_checker_lines = checker_lines }
+
+  if (check_aliases) {
+    call check_labels as check_label_alias { input: label_checker_lines = [
+      "echo $INSTANCE_INFO | grep -q '\"wdl-task-name\": \"check-labels\"' || echo \"Couldn't find correct 'wdl-task-name' label in instance info: $INSTANCE_INFO\" 1>&2",
+      "echo $INSTANCE_INFO | grep -q '\"wdl-call-alias\": \"check-label-alias\"' || echo \"Couldn't find correct 'wdl-call-alias' label in instance info: $INSTANCE_INFO\" 1>&2"
+    ] }
+  }
+
 }
 
 task check_labels {
 
-  meta {
-    description: "Confirms that the google_labels workflow option is propogated correctly to tasks"
+  input {
+    Array[String] label_checker_lines
   }
 
   command {
@@ -19,7 +42,7 @@ task check_labels {
       -H 'Accept: application/json')
 
     # Check for the custom label in the instance info:
-    echo $INSTANCE_INFO | grep -q '"custom-label": "custom-value"' || echo "Couldn't find custom-label in instance info: $INSTANCE_INFO" 1>&2
+    ~{sep="\n" label_checker_lines}
   }
   runtime {
     docker: "google/cloud-sdk:slim"

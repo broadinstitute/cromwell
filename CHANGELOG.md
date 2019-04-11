@@ -12,6 +12,10 @@ For example, the statement `String s = "\""` is now supported, whereas previousl
 
 Cromwell's WDL 1.0 implementation now allows empty call blocks, e.g. `call task_with_no_inputs {}`. This brings 1.0 in line with draft-2, which has always supported this syntax.
 
+#### Packed CWL bugfix
+
+Fixed a bug that caused an error like `Custom type was referred to but not found` to be issued when using an imported type as a `SchemaDefRequirement` in packed CWL.
+
 ## 39 Release Notes
 
 ### Cromwell ID changes

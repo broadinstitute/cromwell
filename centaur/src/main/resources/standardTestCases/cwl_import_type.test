@@ -1,0 +1,13 @@
+name: cwl_import_type
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+
+files {
+  workflow: cwl_import_type/test_wf.cwl
+  inputs: cwl_import_type/test_wf_inputs.json
+  imports: [
+    cwl_import_type/capture_kit.yml,
+    cwl_import_type/touch.cwl
+  ]
+}

@@ -4,7 +4,7 @@
 
 ### Config Changes
 
-### Cromwell ID in instrumentation path
+#### Cromwell ID in instrumentation path
 
 When set, the configuration value of `system.cromwell_id` will be prepended to StatsD metrics. More info [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 

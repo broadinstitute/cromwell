@@ -81,6 +81,19 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |}
        """.stripMargin
 
+    val wdlValidDraft2NoInputs =
+      s"""
+         |workflow wf_hello {
+         |  call hello
+         |}
+         |
+         |task hello {
+         |  command <<<
+         |    echo "Hello World!"
+         |  >>>
+         |}
+       """.stripMargin
+
     val helloWorldInputs = """{"wf_hello.hello.addressee": "World"}"""
     val bogusInputs = """{"foo.bar": "World"}"""
     val emptyInputs = "{}"
@@ -148,7 +161,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
         description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
     }
 
-    "return invalid for a valid workflow with empty inputs" in {
+    "return invalid for a valid inputs-requiring workflow with empty inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.emptyInputs)
 
@@ -188,6 +201,33 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
       check(DescribeRequest(wsfc), DescribeSuccess(
         description = WorkflowDescription(valid = false, errors = List("WARNING: Unexpected input provided: foo.bar"))))
+    }
+
+    // In draft-2 we allow extraneous inputs for legacy reasons - users e.g. put comments in them
+    "return valid for a valid no-inputs draft-2 workflow with extraneous inputs" in {
+
+      val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidDraft2NoInputs), inputsJson = TestData.bogusInputs)
+
+      check(
+        DescribeRequest(wsfc),
+        DescribeSuccess(
+          description = WorkflowDescription(
+            valid = true,
+            errors = List.empty,
+            name = "wf_hello",
+            inputs = List.empty,
+            outputs = List.empty,
+            images = List.empty,
+            submittedDescriptorType = Map(
+              "descriptorType" -> "WDL",
+              "descriptorTypeVersion" -> "draft-2"
+            ),
+            importedDescriptorTypes = List.empty,
+            meta = Map.empty,
+            parameterMeta = Map.empty
+          )
+        )
+      )
     }
 
     "return valid for a valid workflow URL" in {

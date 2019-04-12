@@ -2,6 +2,10 @@
 
 ## 40 Release Notes
 
+### Cromwell ID in instrumentation path
+
+When set, the configuration value of `system.cromwell_id` will be prepended to StatsD metrics. More info [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
 ### Bug fixes
 
 #### WDL 1.0 strings can contain escaped quotes

@@ -266,7 +266,11 @@ trait MetadataDatabaseAccess {
 
     def summaryToQueryResult(workflow: WorkflowMetadataSummaryEntry): Future[MetadataService.WorkflowQueryResult] = {
 
-      def queryResult(labels: Map[String, String], parentId: Option[String]): MetadataService.WorkflowQueryResult = {
+      val workflowLabels: Future[Map[String, String]] =
+        queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels).fold(
+          metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
+
+      workflowLabels map { labels =>
         MetadataService.WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
@@ -275,26 +279,10 @@ trait MetadataDatabaseAccess {
           start = workflow.startTimestamp map { _.toSystemOffsetDateTime },
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
           labels = labels.nonEmpty.option(labels),
-          parentWorkflowId = parentId
+          parentWorkflowId = workflow.parentWorkflowExecutionUuid,
+          rootWorkflowId = workflow.rootWorkflowExecutionUuid
         )
       }
-
-      def getWorkflowLabels: Future[Map[String, String]] = {
-        queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels).fold(
-          metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
-      }
-
-      val getParentWorkflowId: Future[Option[String]] = {
-        (queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.ParentWorkflowId) || !queryParameters.includeSubworkflows)
-          .fold(Future.successful(workflow.parentWorkflowExecutionUuid), Future.successful(None))
-      }
-
-      def formQueryResult(labels: Map[String, String], parentId: Option[String]): MetadataService.WorkflowQueryResult = queryResult(labels, parentId)
-
-      for {
-        labels <- getWorkflowLabels
-        parentWorkflowId <- getParentWorkflowId
-      } yield formQueryResult(labels, parentWorkflowId)
     }
 
     for {

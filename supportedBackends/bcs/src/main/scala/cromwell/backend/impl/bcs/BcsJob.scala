@@ -138,10 +138,15 @@ final case class BcsJob(name: String,
     parames
   }
 
-  private[bcs] def environments: Map[String, String] = runtime.docker match {
-      case Some(docker: BcsDockerWithoutPath) => envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
-      case Some(docker: BcsDockerWithPath) => envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) +  (BcsJob.BcsDockerImageEnvKey -> docker.image)
-      case _ => envs
+  private[bcs] def environments: Map[String, String] = {
+    runtime.docker match {
+      case Some(docker: BcsDockerWithoutPath) =>  envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+      case _ => runtime.dockerTag match {
+        case Some(docker: BcsDockerWithoutPath) =>  envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+        case Some(docker: BcsDockerWithPath) =>  envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+        case _ => envs
+      }
+    }
   }
 
   private[bcs] def jobDesc: JobDescription = {

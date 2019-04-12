@@ -25,7 +25,8 @@ object BcsTestUtilSpec {
       |  continueOnReturnCode: 0
       |  cluster: "cls-mycluster"
       |  mounts: "oss://bcs-bucket/bcs-dir/ /home/inputs/ false"
-      |  docker: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  dockerTag: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  docker: "registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"
       |  userData: "key value"
       |  reserveOnFail: true
       |  autoReleaseJob: true
@@ -132,7 +133,8 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
 
 
   val expectedContinueOnReturn = ContinueOnReturnCodeSet(Set(0))
-  val expectedDocker = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDockerTag = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDocker = Some(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
   val expectedFailOnStderr = false
   val expectedUserData = Some(Vector(new BcsUserData("key", "value")))
   //val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Left(DefaultPathBuilder.build("/home/inputs/").get), false)))
@@ -150,7 +152,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedTag = Some("jobTag")
 
 
-  val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
+  val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
     expectedSystemDisk, expectedDataDsik, expectedReserveOnFail, expectedAutoRelease, expectedWorkerPath, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
 
 

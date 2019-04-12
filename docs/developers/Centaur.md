@@ -91,6 +91,9 @@ The `testFormat` field can be one of the following, case insensitive:
 
 The `metadata` is optional. If supplied, Centaur will retrieve the metadata from the successfully completed workflow and compare the values retrieved to those supplied. At the moment the only fields supported are strings, numbers and booleans.
 
+You can find which metadata is recorded by running a workflow ```java -jar <Cromwell JAR> run -m metadata.json my_workflow.wdl```.
+This will save the metadata in `metadata.json`.
+
 For any metadata values or outputExpectations which require workflow ID (i.e, file paths), use `<<UUID>>` as a placeholder instead. For example:
 * `"calls.hello.hello.stdout": "gs://google-project/jes/root/wdl/<<UUID>>/call-task/task-stdout.log"`
 

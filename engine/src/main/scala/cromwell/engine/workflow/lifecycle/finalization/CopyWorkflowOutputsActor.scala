@@ -60,7 +60,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
       val formattedCollidingCopyOptions = duplicatedDestPaths.toList
         .sortBy{case(dest, _) => dest.pathAsString} // Sort by destination path
         // Make a '/my/src -> /my/dest' copy tape string for each source and destination. Use flat map to get a single list
-        .flatMap{ case (dest, srcList) => srcList.map(_.pathAsString + s" -> $dest")}
+        // srcList is also sorted to get a deterministic output order. This is necessary for making sure the tests
+        // for the error always succeed.
+        .flatMap{ case (dest, srcList) => srcList.sortBy(_.pathAsString).map(_.pathAsString + s" -> $dest")}
       throw new IllegalStateException(
         "Cannot copy output files to given final_workflow_outputs_dir" +
           s" as multiple files will be copied to the same path: \n${formattedCollidingCopyOptions.mkString("\n")}")}

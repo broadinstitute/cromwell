@@ -2,7 +2,12 @@ Centaur is an integration testing suite for the [Cromwell](http://github.com/bro
 
 ## Prerequisites
 
-Centaur expects to find a Cromwell server properly configured and running in server mode, listening on port 8000.  This can be configured by modifying the `cromwellUrl` parameter in `application.conf`.
+Centaur expects to find a Cromwell server properly configured and running in server mode, listening on port 8000.  
+This can be configured by modifying the `cromwellUrl` parameter in `application.conf`.
+
+You can get a build of your current cromwell code with [these instructions](Building.md).
+The server can be run with `java -jar <Cromwell JAR> server`. 
+You can now run the tests from another terminal.
 
 ## Running
 
@@ -62,6 +67,17 @@ files {
 metadata {
   fully.qualified.key.name1: VALUE1
   fully.qualified.key.name2: VALUE2
+  // Examples:
+  // failures is a list. It's first entry (0) will be the error you are looking for. 
+  // It has a "message" and a "causedBy" field.
+  "failures.0.message": "Cromwell senses you did not use WomTool validate."
+  "failures.0.causedBy": "BetweenKeyboardAndChairException"
+}
+
+filesystemcheck: "local" // possible values TODO for cromwell developers. Also explaining what this does exactly.
+outputExpectations: {
+    "/path/to/my/output/file1": 1
+    "/path/to/file/that/should/not/exist": 0
 }
 ```
 
@@ -74,5 +90,12 @@ The `testFormat` field can be one of the following, case insensitive:
 * `workflowfailure`: The workflow being supplied is expected to fail
 
 The `metadata` is optional. If supplied, Centaur will retrieve the metadata from the successfully completed workflow and compare the values retrieved to those supplied. At the moment the only fields supported are strings, numbers and booleans.
-For any metadata values which require workflow ID (i.e, file paths), use <\<UUID>> as a placeholder instead. For example:
-* "calls.hello.hello.stdout": "gs://google-project/jes/root/wdl/<\<UUID>>/call-task/task-stdout.log"
+
+For any metadata values or outputExpectations which require workflow ID (i.e, file paths), use `<<UUID>>` as a placeholder instead. For example:
+* `"calls.hello.hello.stdout": "gs://google-project/jes/root/wdl/<<UUID>>/call-task/task-stdout.log"`
+
+In case the absolute path the cromwell root is used (for example: `/home/my_user/projects/cromwell/cromwell-executions`)
+ you can use `<<WORKFLOW_ROOT>>` as a replacement. 
+* `"calls.hello.hello.exit_code": "<<WORKFLOW_ROOT>>/call-hello/execution/exit_code"`
+
+TODO: `<<CACHE_HIT_UUID>>` In what sort of tests can you use this?

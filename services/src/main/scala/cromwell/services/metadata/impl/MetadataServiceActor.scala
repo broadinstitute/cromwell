@@ -15,6 +15,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
 object MetadataServiceActor {
@@ -39,11 +40,11 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   }
 
   private val metadataSummaryRefreshInterval: Option[FiniteDuration] = {
-    val duration = serviceConfig.getOrElse[Duration]("metadata-summary-refresh-interval", 2.seconds)
+    val duration = serviceConfig.getOrElse[Duration]("metadata-summary-refresh-interval", default = 1 second)
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
 
-  private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", 1000)
+  private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
 
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
 

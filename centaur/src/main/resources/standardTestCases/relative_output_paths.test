@@ -9,3 +9,8 @@ files {
 metadata {
   status: Succeeded
 }
+fileSystemCheck: "local"
+outputExpectations: {
+    "/tmp/outputs/relative_output_paths/typeset.txt": 1
+    "/tmp/outputs/relative_output_paths/greatpress.txt": 1
+}

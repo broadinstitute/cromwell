@@ -3,7 +3,7 @@ version 1.0
 workflow google_labels {
 
   meta {
-    description: "Confirms that the google_labels workflow option is propogated correctly to tasks"
+    description: "Confirms that the google_labels workflow option is propagated correctly to tasks"
   }
 
   input {
@@ -50,8 +50,6 @@ task check_labels {
   }
   runtime {
     docker: "google/cloud-sdk:slim"
-    zones: ["us-central1-c"]
-
     failOnStderr: true
   }
 }

@@ -38,13 +38,33 @@ class WriteMetadataActor(override val batchSize: Int,
       case Success(_) =>
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
       case Failure(regerts) =>
-        val workflowMetadataFailureCounts = e.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-        log.error("Count of metadata events missed for the following workflows: " + workflowMetadataFailureCounts.mkString(","))
 
-        putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
+        val (outOfLives, stillGood) = e.toVector.partition(_.ttl <= 1)
+
+        handleOutOfLives(outOfLives, regerts)
+        handleEventsToReconsider(stillGood)
     }
 
     dbAction.map(_ => allPutEvents.size)
+  }
+
+  private def handleOutOfLives(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = {
+    val workflowMetadataFailureCounts = writeActions.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
+    log.error("Metadata events have been permanently dropped for the following workflows: " + workflowMetadataFailureCounts.mkString(","))
+
+    writeActions foreach {
+      case PutMetadataActionAndRespond(ev, replyTo, _) => replyTo ! MetadataWriteFailure(reason, ev)
+    }
+  }
+
+  private def handleEventsToReconsider(writeActions: Vector[MetadataWriteAction]): Unit = {
+    val workflowMetadataFailureCounts = writeActions.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
+    log.error("Metadata event writes failed for the following workflows but will be reconsidered: " + workflowMetadataFailureCounts.mkString(","))
+
+    writeActions foreach {
+      case action: PutMetadataAction => self ! action.copy(ttl = action.ttl - 1)
+      case action: PutMetadataActionAndRespond => self ! action.copy(ttl = action.ttl - 1)
+    }
   }
 
   // EnhancedBatchActor overrides

@@ -71,11 +71,12 @@ object MetadataService {
   }
 
   sealed trait MetadataWriteAction extends MetadataServiceAction {
+    def ttl: Int
     def events: Iterable[MetadataEvent]
     def size: Int = events.size
   }
-  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataWriteAction 
-  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataWriteAction
+  final case class PutMetadataAction(events: Iterable[MetadataEvent], ttl: Int = 10) extends MetadataWriteAction
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef, ttl: Int = 10) extends MetadataWriteAction
 
   final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 

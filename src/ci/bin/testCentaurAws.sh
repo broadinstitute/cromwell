@@ -22,39 +22,42 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 cromwell::build::run_centaur \
     -p 100 \
-    -e smartseq2singlesample \
+    -e abort.scheduled_abort \
     -e arrays \
-    -e haplotypecaller \
-    -e jointdiscovery \
-    -e mutect2 \
-    -e singlesample \
-    -e singlesample_production \
+    -e bad_file_string \
+    -e bad_output_task \
     -e cnv_somatic_pair \
     -e cnv_somatic_panel \
-    -e localdockertest \
-    -e inline_file \
-    -e exit \
-    -e iwdr_input_string_function \
-    -e globbingbehavior \
-    -e non_root_default_user \
-    -e draft3_glob_access \
-    -e bad_output_task \
-    -e cwl_interpolated_strings \
-    -e failures.terminal_status \
-    -e bad_file_string \
-    -e default_runtime_attributes \
-    -e non_root_specified_user \
-    -e space \
-    -e draft3_optional_input_from_scatter \
-    -e iwdr_input_string \
-    -e globbingindex \
-    -e file_name_too_long \
-    -e cwl_cache_between_workflows \
-    -e abort.scheduled_abort \
-    -e cwl_cache_within_workflow \
     -e continue_on_return_code \
+    -e cwl_cache_between_workflows \
+    -e cwl_cache_within_workflow \
+    -e cwl_interpolated_strings \
+    -e default_runtime_attributes \
+    -e draft3_glob_access \
+    -e draft3_globs \
+    -e draft3_optional_input_from_scatter \
+    -e exit \
+    -e failures.terminal_status \
+    -e file_name_too_long \
+    -e globbingbehavior \
+    -e globbingindex \
     -e globbingscatter \
+    -e haplotypecaller \
+    -e inline_file \
     -e inline_file_custom_entryname \
-    -e draft3_globs   
+    -e iwdr_input_string \
+    -e iwdr_input_string_function \
+    -e jointdiscovery \
+    -e localdockertest \
+    -e mutect2 \
+    -e non_root_default_user \
+    -e non_root_specified_user \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e singlesample \
+    -e singlesample_production \
+    -e smartseq2singlesample \
+    -e space \
+    -e standard_output_paths_colliding_prevented \
 
 cromwell::build::generate_code_coverage

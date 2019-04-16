@@ -28,6 +28,9 @@ cp \
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e standard_output_paths_colliding_prevented \
     "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
     -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 

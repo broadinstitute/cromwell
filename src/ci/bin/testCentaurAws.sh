@@ -55,6 +55,9 @@ cromwell::build::run_centaur \
     -e continue_on_return_code \
     -e globbingscatter \
     -e inline_file_custom_entryname \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e standard_output_paths_colliding_prevented \
     -e draft3_globs   
 
 cromwell::build::generate_code_coverage

@@ -3,16 +3,7 @@ package org.lerch.s3fs;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Bucket;
-import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectAclRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.*;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -430,9 +421,36 @@ public class S3FileSystemProvider extends FileSystemProvider {
         String keySource = s3Source.getKey();
         String bucketNameTarget = s3Target.getFileStore().name();
         String keyTarget = s3Target.getKey();
-        s3Source.getFileSystem()
-                .getClient()
-                .copyObject(CopyObjectRequest.builder()
+        S3Client client = s3Source.getFileSystem()
+                .getClient();
+
+
+        //check if the source is over 5 GB. If so, copy by parts
+        HeadObjectResponse headObjectResponse = client.headObject(HeadObjectRequest.builder().bucket(bucketNameOrigin).key(keySource).build());
+        Long length = headObjectResponse.contentLength();
+
+        long pos = 0;
+        //offset is minimum 5 MB
+        //TODO: Import this value
+        long offset = 5 * 1024 * 1024;
+
+        int partNum = 1;
+
+        ArrayList<UploadPartCopyResponse> responses = new ArrayList<>();
+
+        while (pos < length) {
+            long lastByte = Math.min(pos + offset - 1, length - 1);
+            UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder().copySourceRange(format("%l-%l", pos, lastByte)).build();
+            responses.add(client.uploadPartCopy(uploadPartCopyRequest));
+        }
+
+
+//                client.uploadPartCopy()
+//        client.copyObject()
+
+
+//        client.createMultipartUpload()
+        client.copyObject(CopyObjectRequest.builder()
                                              .copySource(bucketNameOrigin + "/" + keySource)
                                              .bucket(bucketNameTarget)
                                              .key(keyTarget)

@@ -39,7 +39,7 @@ class WriteMetadataActor(override val batchSize: Int,
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
       case Failure(regerts) =>
         val workflowMetadataFailureCounts = e.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-        log.error("Metadata events permanently dropped for the following workflows: " + workflowMetadataFailureCounts.mkString(","))
+        log.error("Count of metadata events missed for the following workflows: " + workflowMetadataFailureCounts.mkString(","))
 
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
     }

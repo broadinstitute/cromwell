@@ -6,6 +6,7 @@ import com.google.common.net.UrlEscapers
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import cats.syntax.apply._
+import com.aliyun.oss.OSSClient
 import common.validation.Validation._
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
@@ -113,8 +114,8 @@ final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration
     validateOssPath(string) match {
       case ValidFullOssPath(bucket, path) =>
         Try {
-          val nioPath = OssStorageFileSystem(bucket, ossStorageConfiguration).getPath(path)
-          OssPath(nioPath)
+          val ossStorageFileSystem = OssStorageFileSystem(bucket, ossStorageConfiguration)
+          OssPath(ossStorageFileSystem.getPath(path), ossStorageFileSystem.provider.ossClient)
         }
       case PossiblyValidRelativeOssPath => Failure(new IllegalArgumentException(s"$string does not have a oss scheme"))
       case invalid: InvalidOssPath => Failure(new IllegalArgumentException(invalid.errorMessage))
@@ -126,10 +127,11 @@ final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration
 
 final case class BucketAndObj(bucket: String, obj: String)
 
-final case class OssPath private[oss](nioPath: NioPath) extends Path {
+final case class OssPath private[oss](nioPath: NioPath,
+                                      ossClient: OSSClient) extends Path {
 
   override protected def newPath(path: NioPath): OssPath = {
-    OssPath(path)
+    OssPath(path, ossClient)
   }
 
   override def pathAsString: String = ossStoragePath.pathAsString

@@ -210,6 +210,8 @@ object UserDataValidation {
 class UserDataValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[Seq[BcsUserData]] with OptionalWithDefault[Seq[BcsUserData]]{
   override def key: String = BcsRuntimeAttributes.UserDataKey
 
+  override def usedInCallCaching: Boolean = true
+
   override def coercion: Traversable[WomType] = Set(WomStringType, WomArrayType(WomStringType))
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[Seq[BcsUserData]]] = {
@@ -248,7 +250,7 @@ object WorkerPathValidation {
 }
 
 class WorkerPathValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("workerPath") with OptionalWithDefault[String] {
-  override protected def usedInCallCaching: Boolean = false
+  override protected def usedInCallCaching: Boolean = true
 
   override protected def missingValueMessage: String = "Can't find an attribute value for key worker path"
 
@@ -293,6 +295,8 @@ object ClusterValidation {
 class ClusterValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsClusterIdOrConfiguration] with OptionalWithDefault[BcsClusterIdOrConfiguration]
 {
   override def key: String = "cluster"
+
+  override def usedInCallCaching: Boolean = true
 
   override def coercion: Traversable[WomType] = Set(WomStringType)
 
@@ -359,6 +363,7 @@ object DockerValidation {
 class DockerValidation(override val config: Option[Config]) extends DockerTagValidation(config)
 {
   override def key: String = "docker"
+  override def usedInCallCaching: Boolean = true
 }
 
 object VpcValidation {

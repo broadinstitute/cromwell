@@ -1,12 +1,14 @@
 package cromwell.backend.impl.bcs
 
+import com.aliyuncs.auth.BasicSessionCredentials
+import com.aliyuncs.auth.BasicCredentials
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendConfigurationDescriptor
 import net.ceedubs.ficus.Ficus._
-import cromwell.engine.backend.{BackendConfigurationEntry}
+import cromwell.engine.backend.BackendConfigurationEntry
+import cromwell.backend.impl.bcs.callcaching.{CopyCachedOutputs, UseOriginalCachedOutputs}
 import scala.collection.JavaConverters._
-
 import scala.util.{Failure, Success, Try}
 
 
@@ -72,6 +74,34 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
   val ossAccessKey = configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.access-key").getOrElse("")
   val ossSecurityToken = configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.auth.security-token").getOrElse("")
 
+  val duplicationStrategy = {
+    configurationDescriptor.backendConfig.as[Option[String]]("filesystems.oss.caching.duplication-strategy").getOrElse("reference") match {
+    case "copy" => CopyCachedOutputs
+    case "reference" => UseOriginalCachedOutputs
+    case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
+  } }
+
+//  val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map { creds =>
+//    BcsDockerCrCredentials.apply(creds, this)
+//  }
+
+  val dockerCredentials/*: Option[BasicSessionCredentials]*/ = {
+    bcsSecurityToken match {
+      case None => {
+        for {
+          id <- bcsAccessId
+          key <- bcsAccessKey
+        } yield new BasicCredentials(id, key)
+      }
+      case _ => {
+        for {
+          id <- bcsAccessId
+          key <- bcsAccessKey
+          token <- bcsSecurityToken
+        } yield new BasicSessionCredentials(id, key, token)
+      }
+    }
+  }
   def newBcsClient: Option[BatchComputeClient] = {
     val userDefinedRegion = for {
       region <- bcsUserDefinedRegion

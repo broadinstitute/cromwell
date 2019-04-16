@@ -5,6 +5,7 @@ object Dependencies {
   private val akkaV = "2.5.16"
   private val alibabaCloudBcsV = "6.0.6"
   private val alibabaCloudCoreV = "4.1.2"
+  private val alibabaCloudCrV = "3.0.0"
   private val alibabaCloudOssV = "3.3.0"
   private val ammoniteOpsV = "1.2.0"
   private val apacheCommonNetV = "3.6"
@@ -311,6 +312,16 @@ object Dependencies {
     "com.aliyun" % "aliyun-java-sdk-batchcompute" % alibabaCloudBcsV
   )
 
+  private val aliyunCrDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
+      // stax is included twice by oss 3.1.0 and cause assembly merge conflicts via stax vs. javax.xml.stream
+      exclude("stax", "stax-api")
+      // javax.activation:activation has been replaced. https://stackoverflow.com/a/46493809
+      // The old version was causing an assembly merge conflict.
+      exclude("javax.activation", "activation"),
+    "com.aliyun" % "aliyun-java-sdk-cr" % alibabaCloudCrV
+  )
+
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
     /*
@@ -463,7 +474,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = akkaHttpDependencies
+  val dockerHashingDependencies = akkaHttpDependencies ++ aliyunCrDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,

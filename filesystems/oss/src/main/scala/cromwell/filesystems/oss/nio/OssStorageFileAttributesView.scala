@@ -33,5 +33,6 @@ final case class OssStorageFileAttributesView(ossClient: OSSClient, path: OssSto
     OssStorageObjectAttributes(objectMeta, path)
   }
 
-  override def setTimes(lastModifiedTime: FileTime, lastAccessTime: FileTime, createTime: FileTime): Unit = throw new UnsupportedOperationException("OSS object is immutable")
+//  override def setTimes(lastModifiedTime: FileTime, lastAccessTime: FileTime, createTime: FileTime): Unit = throw new UnsupportedOperationException("OSS object is immutable")
+  override def setTimes(lastModifiedTime: FileTime, lastAccessTime: FileTime, createTime: FileTime): Unit = ()
 }

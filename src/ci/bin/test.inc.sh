@@ -103,7 +103,6 @@ cromwell::private::create_build_variables() {
             else
               CROMWELL_RUN_TESTS=false
             fi
-
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml

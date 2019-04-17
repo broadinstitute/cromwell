@@ -48,9 +48,9 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction.map(_ => allPutEvents.size)
   }
 
-  private def handleOutOfLives(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = {
+  private def handleOutOfLives(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = if (writeActions.nonEmpty) {
     val workflowMetadataFailureCounts = writeActions.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-    log.error("Metadata events have been permanently dropped for the following workflows: " + workflowMetadataFailureCounts.mkString(","))
+    log.error(reason, "Metadata event writes have failed irretrievably for the following workflows. They will be lost: " + workflowMetadataFailureCounts.mkString(","))
 
     writeActions foreach {
       case PutMetadataActionAndRespond(ev, replyTo, _) => replyTo ! MetadataWriteFailure(reason, ev)
@@ -58,9 +58,9 @@ class WriteMetadataActor(override val batchSize: Int,
     }
   }
 
-  private def handleEventsToReconsider(writeActions: Vector[MetadataWriteAction]): Unit = {
+  private def handleEventsToReconsider(writeActions: Vector[MetadataWriteAction]): Unit = if (writeActions.nonEmpty) {
     val workflowMetadataFailureCounts = writeActions.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-    log.error("Metadata event writes failed for the following workflows but will be reconsidered: " + workflowMetadataFailureCounts.mkString(","))
+    log.warning("Metadata event writes have failed for the following workflows. They will be reconsidered: " + workflowMetadataFailureCounts.mkString(","))
 
     writeActions foreach {
       case action: PutMetadataAction => self ! action.copy(ttl = action.ttl - 1)

@@ -78,6 +78,8 @@ cromwell::private::create_build_variables() {
       CROMWELL_BUILD_IS_VIRTUAL_ENV=false
     fi
 
+    CROMWELL_RUN_TESTS=true
+
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_IS_CI=true
@@ -98,9 +100,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
-            if [[ "${TRAVIS_COMMIT_MESSAGE}" == *"FORCETEST"* ]] || [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
-              CROMWELL_RUN_TESTS=true
-            else
+            if [[ "${TRAVIS_COMMIT_MESSAGE}" != *"FORCETEST"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
               CROMWELL_RUN_TESTS=false
             fi
             ;;

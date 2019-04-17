@@ -2,9 +2,81 @@
 
 ## 40 Release Notes
 
-### Cromwell ID in instrumentation path
+### Config Changes
+
+#### Cromwell ID in instrumentation path
 
 When set, the configuration value of `system.cromwell_id` will be prepended to StatsD metrics. More info [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+#### HealthMonitor Configuration
+
+The HealthMonitor configuration has been refactored to provide a simpler interface:
+* You no longer need to specify a monitor class in your `cromwell.conf` as this will now be inherited from the `reference.conf` value.
+* You can now opt-in and opt-out of any combination of status monitors.
+* The PAPI backends to monitor can now be listed in a single field.
+
+##### Upgrading
+
+You are no longer tied to the previous preset combinations of health checks. However if you just want to carry forward
+the exact same set of health checks, you can use one of the following standard recipes:
+
+###### From default, or `NoopHealthMonitorActor`:
+If you're currently using the (default) NoopHealthMonitorActor, no action is required.
+
+###### From `StandardHealthMonitorServiceActor`:
+If you're currently using the `StandardHealthMonitorServiceActor`, replace this stanza:
+```
+services {
+    HealthMonitor {
+        class = "cromwell.services.healthmonitor.impl.standard.StandardHealthMonitorServiceActor"
+    }
+}
+``` 
+With this one:
+```
+services {
+    HealthMonitor {
+        config {
+            check-dockerhub: true
+            check-engine-database: true
+        }
+    }
+}
+``` 
+###### From `WorkbenchHealthMonitorServiceActor`:
+Replace this stanza:
+```
+services {
+    HealthMonitor {
+        class = "cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor"
+
+        config {
+            papi-backend-name = PAPIv1
+            papi-v2-backend-name = PAPIv2
+
+            google-auth-name = service-account
+            gcs-bucket-to-check = "cromwell-ping-me-bucket"
+        }
+    }
+}
+``` 
+With this one:
+```
+services {
+    HealthMonitor {
+	    config {
+            check-dockerhub: true
+            check-engine-database: true
+            check-gcs: true
+            check-papi-backends: [PAPIv1, PAPIv2]
+
+            google-auth-name = service-account
+            gcs-bucket-to-check = "cromwell-ping-me-bucket"
+	}
+  }
+}
+``` 
+
 
 ### Bug fixes
 

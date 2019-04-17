@@ -8,8 +8,8 @@ import akka.testkit.TestActorRef
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
-import cromwell.services.healthmonitor.HealthMonitorServiceActor._
-import cromwell.services.healthmonitor.HealthMonitorServiceActorSpec._
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor._
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActorSpec._
 import org.scalatest.{Assertion, FlatSpecLike}
 import org.scalatest.concurrent.{Eventually, ScaledTimeSpans}
 
@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
-class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Eventually {
+class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Eventually {
   implicit val timeout = Timeout(scaled(5.seconds))
   final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
     Executors.newCachedThreadPool()
@@ -179,7 +179,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
   }
 }
 
-object HealthMonitorServiceActorSpec {
+object ProtoHealthMonitorServiceActorSpec {
   val SuccessSubsystem = MonitoredSubsystem("Success", () => mockCheckSuccess())
   val FailureSubsystem = MonitoredSubsystem("Failure", () => mockCheckFailure())
   val MultipleSubsystems = Set(SuccessSubsystem, FailureSubsystem)
@@ -188,7 +188,7 @@ object HealthMonitorServiceActorSpec {
   val TimedOutStatus = SubsystemStatus(ok = false, Option(List("Timed out")))
 
   abstract class TestHealthMonitorActor(override val serviceConfig: Config = ConfigFactory.empty())
-    extends HealthMonitorServiceActor with ScaledTimeSpans {
+    extends ProtoHealthMonitorServiceActor with ScaledTimeSpans {
     override lazy val staleThreshold = scaled(3.seconds)
     override lazy val failureRetryInterval = scaled(100.milliseconds)
     override lazy val sweepInterval = scaled(200.milliseconds)

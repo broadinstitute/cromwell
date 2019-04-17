@@ -48,7 +48,6 @@ cromwell::private::create_build_variables() {
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
-
     # simplified from https://stackoverflow.com/a/18434831/3320205
     CROMWELL_BUILD_OS_DARWIN="darwin";
     CROMWELL_BUILD_OS_LINUX="linux";
@@ -98,6 +97,13 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+
+            if [[ "${TRAVIS_COMMIT_MESSAGE}" == *"FORCETEST"* ]] || [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
+              CROMWELL_RUN_TESTS=true
+            else
+              CROMWELL_RUN_TESTS=false
+            fi
+
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
@@ -119,6 +125,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
+            CROMWELL_RUN_TESTS=true
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
@@ -138,6 +145,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD-}"
             CROMWELL_BUILD_MYSQL_SCHEMA="${CROMWELL_BUILD_MYSQL_SCHEMA-cromwell_test}"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_RUN_TESTS=true
 
             local bash_script
             for bash_script in "${BASH_SOURCE[@]}"; do
@@ -747,6 +755,10 @@ cromwell::private::kill_tree() {
 
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
+    if [[ "${CROMWELL_RUN_TESTS}" == "false" ]]; then
+      echo "quittin early"
+      exit 0
+    fi
     cromwell::private::exec_test_script
 }
 

@@ -54,6 +54,7 @@ class WriteMetadataActor(override val batchSize: Int,
 
     writeActions foreach {
       case PutMetadataActionAndRespond(ev, replyTo, _) => replyTo ! MetadataWriteFailure(reason, ev)
+      case _: PutMetadataAction => () // We need to satisfy the exhaustive match but there's nothing special to do here
     }
   }
 

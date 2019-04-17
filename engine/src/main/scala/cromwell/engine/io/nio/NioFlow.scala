@@ -12,6 +12,7 @@ import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.oss.OssPath
 import cromwell.util.TryWithResource._
 
 import scala.concurrent.ExecutionContext
@@ -107,6 +108,7 @@ class NioFlow(parallelism: Int,
   private def hash(hash: IoHashCommand) = {
     hash.file match {
       case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
+      case ossPath: OssPath => IO { ossPath.eTag}
       case path => IO.fromEither(
         tryWithResource(() => path.newInputStream) { inputStream =>
           org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)

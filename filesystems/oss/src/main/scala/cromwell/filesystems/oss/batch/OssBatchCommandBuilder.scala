@@ -27,10 +27,6 @@ private case object PartialOssBatchCommandBuilder extends PartialIoCommandBuilde
   override def existsCommand = {
     case ossPath: OssPath => OssBatchExistsCommand(ossPath)
   }
-
-//  override def isDirectoryCommand = {
-//    case ossPath: OssPath => OssBatchIsDirectoryCommand(ossPath)
-//  }
 }
 
 case object OssBatchCommandBuilder extends IoCommandBuilder(List(PartialOssBatchCommandBuilder))

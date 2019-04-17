@@ -9,9 +9,6 @@ import cromwell.core.io._
 import cromwell.filesystems.oss._
 
 /**
-  * NOTE: the setUserProject commented out code disables uses of requester pays bucket
-  * To re-enable, uncomment the code (and possibly adjust if necessary)
-  *
   * Io commands with OSS paths and some logic enabling batching of request.
   * @tparam T Return type of the IoCommand
   * @tparam U Return type of the OSS response
@@ -23,7 +20,7 @@ sealed trait OssBatchIoCommand[T, U] extends IoCommand[T] {
   def operation: Any
 
   /**
-    * Maps the google response of type U to the Cromwell Io response of type T
+    * Maps the Oss response of type U to the Cromwell Io response of type T
     */
   protected def mapOssResponse(response: U): T
 
@@ -44,16 +41,10 @@ sealed trait OssBatchIoCommand[T, U] extends IoCommand[T] {
   def onFailure(ossError: OSSException): Option[Either[T, OssBatchIoCommand[T, U]]] = None
 }
 
-//sealed trait SingleFileOssBatchIoCommand[T, U] extends OssBatchIoCommand[T, U] with SingleFileIoCommand[T] {
-//  override def file: OssPath
-//}
-
 case class OssBatchCopyCommand(
                                 override val source: OssPath,
                                 override val destination: OssPath,
-                                override val overwrite: Boolean,
-//                                rewriteToken: Option[String] = None,
-//                                setUserProject: Boolean = false
+                                override val overwrite: Boolean
                               ) extends IoCopyCommand(source, destination, overwrite) with OssBatchIoCommand[Unit, CopyObjectResult] {
   override def operation: GenericResult = {
     val getObjectRequest = new CopyObjectRequest(source.bucket, source.key, destination.bucket, destination.key)
@@ -79,12 +70,7 @@ case class OssBatchDeleteCommand(
 sealed trait OssBatchHeadCommand[T] extends OssBatchIoCommand[T, ObjectMetadata] {
   def file: OssPath
 
-  override def operation: ObjectMetadata = {
-    println("Start to get object metadata, by young for debug.")
-    println(file)
-    println(file.ossClient)
-    file.ossClient.getObjectMetadata(file.bucket, file.key)
-  }
+  override def operation: ObjectMetadata = file.ossClient.getObjectMetadata(file.bucket, file.key)
 }
 
 case class OssBatchSizeCommand(override val file: OssPath) extends IoSizeCommand(file) with OssBatchHeadCommand[Long] {
@@ -98,18 +84,6 @@ case class OssBatchEtagCommand(override val file: OssPath) extends IoHashCommand
 case class OssBatchTouchCommand(override val file: OssPath) extends IoTouchCommand(file) with OssBatchHeadCommand[Unit] {
   override def mapOssResponse(response: ObjectMetadata): Unit = ()
 }
-
-//case class OssBatchExistsCommand(override val file: OssPath) extends IoExistsCommand(file) with OssBatchHeadCommand[Boolean] {
-//  override def mapOssResponse(response: ObjectMetadata): Boolean = true
-//
-//  override def onFailure(error: OSSException) = {
-//    // If the object can't be found, don't fail the request but just return false as we were testing for existence
-//    error match {
-//      case _ : NoSuchKeyException => Option(Left(false))
-//      case _ => None
-//    }
-//  }
-//}
 
 case class OssBatchExistsCommand(override val file: OssPath) extends IoExistsCommand(file) with OssBatchIoCommand[Boolean, Boolean] {
   override def operation: Boolean = {

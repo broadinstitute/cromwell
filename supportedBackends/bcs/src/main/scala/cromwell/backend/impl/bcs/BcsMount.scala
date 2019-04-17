@@ -57,7 +57,6 @@ object BcsMount {
   private def validateRemote(value: String): ErrorOr[PathType] = {
     Try(PathFactory.buildPath(value, pathBuilders)) match {
       case Success(p) =>
-        println(s"haha$p")
         Left(p).validNel
       case _ =>
         Right(value).validNel

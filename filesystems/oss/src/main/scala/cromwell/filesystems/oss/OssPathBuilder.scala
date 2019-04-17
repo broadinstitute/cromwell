@@ -148,6 +148,8 @@ final case class OssPath private[oss](nioPath: NioPath,
     ossStoragePath.key
   }
 
+  lazy val eTag = ossClient.getSimplifiedObjectMeta(bucket, key).getETag
+
   def ossStoragePath: OssStoragePath = nioPath match {
     case ossPath: OssStoragePath => ossPath
     case _ => throw new RuntimeException(s"Internal path was not a cloud storage path: $nioPath")

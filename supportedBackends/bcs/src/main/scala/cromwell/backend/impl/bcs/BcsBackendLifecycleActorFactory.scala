@@ -4,8 +4,8 @@ import akka.actor.ActorRef
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.backend.standard._
 import cromwell.backend.BackendInitializationData
-import cromwell.backend.impl.bcs.callcaching.{BcsBackendCacheHitCopyingActor, BcsBackendFileHashingActor}
-import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
+import cromwell.backend.impl.bcs.callcaching.BcsBackendCacheHitCopyingActor
+import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor
 import wom.graph.CommandCallNode
 
 import scala.util.{Success, Try}
@@ -28,13 +28,9 @@ final case class BcsBackendLifecycleActorFactory(val name: String, val configura
     Option(classOf[BcsBackendCacheHitCopyingActor])
   }
 
-  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[BcsBackendFileHashingActor])
-
-
   override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationData: Option[BackendInitializationData]) = {
     Try(BackendInitializationData.as[BcsBackendInitializationData](initializationData)) match {
       case Success(bcsData) =>
-        println(bcsData.bcsConfiguration.dockerCredentials)
         List(bcsData.bcsConfiguration.dockerCredentials).flatten
       case _ => List.empty[Any]
     }

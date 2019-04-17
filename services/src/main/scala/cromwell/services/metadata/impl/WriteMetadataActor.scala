@@ -39,7 +39,7 @@ class WriteMetadataActor(override val batchSize: Int,
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
       case Failure(regerts) =>
 
-        val (outOfLives, stillGood) = e.toVector.partition(_.ttl <= 1)
+        val (outOfLives, stillGood) = e.toVector.partition(_.maxAttempts <= 1)
 
         handleOutOfLives(outOfLives, regerts)
         handleEventsToReconsider(stillGood)
@@ -63,8 +63,8 @@ class WriteMetadataActor(override val batchSize: Int,
     log.warning("Metadata event writes have failed for the following workflows. They will be reconsidered: " + workflowMetadataFailureCounts.mkString(","))
 
     writeActions foreach {
-      case action: PutMetadataAction => self ! action.copy(ttl = action.ttl - 1)
-      case action: PutMetadataActionAndRespond => self ! action.copy(ttl = action.ttl - 1)
+      case action: PutMetadataAction => self ! action.copy(maxAttempts = action.maxAttempts - 1)
+      case action: PutMetadataActionAndRespond => self ! action.copy(maxAttempts = action.maxAttempts - 1)
     }
   }
 

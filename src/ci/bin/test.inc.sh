@@ -124,7 +124,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
-            CROMWELL_RUN_TESTS=true
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
@@ -144,7 +143,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD-}"
             CROMWELL_BUILD_MYSQL_SCHEMA="${CROMWELL_BUILD_MYSQL_SCHEMA-cromwell_test}"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
-            CROMWELL_RUN_TESTS=true
 
             local bash_script
             for bash_script in "${BASH_SOURCE[@]}"; do

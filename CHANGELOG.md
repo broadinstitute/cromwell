@@ -64,7 +64,7 @@ With this one:
 ```
 services {
     HealthMonitor {
-	    config {
+        config {
             check-dockerhub: true
             check-engine-database: true
             check-gcs: true
@@ -72,7 +72,7 @@ services {
 
             google-auth-name = service-account
             gcs-bucket-to-check = "cromwell-ping-me-bucket"
-	}
+    }
   }
 }
 ``` 

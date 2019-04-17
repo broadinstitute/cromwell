@@ -562,11 +562,9 @@ object CromwellApiServiceSpec {
           parameters.contains(("additionalQueryResultFields", "labels")).option(
             Map("key1" -> "label1", "key2" -> "label2"))
         }
-        val parentWorkflowId: Option[String] =  {
-          parameters.contains(("additionalQueryResultFields", "parentWorkflowId")).option("pid")
-        }
+
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None, None, labels, parentWorkflowId)), 1), None)
+          None, Some(WorkflowSucceeded.toString), None, None, None, labels, Option("pid"), Option("rid"))), 1), None)
         sender ! response
       case ValidateWorkflowIdInMetadata(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

@@ -24,6 +24,6 @@ task t {
   }
 
   runtime {
-    docker: "amazonlinux:latest"
+    docker: "ubuntu:latest"
   }
 }

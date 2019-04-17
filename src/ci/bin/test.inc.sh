@@ -756,7 +756,7 @@ cromwell::private::kill_tree() {
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
     if [[ "${CROMWELL_RUN_TESTS}" == "false" ]]; then
-      echo "quittin early"
+      echo "Use 'FORCETEST' in commit message to run tests on 'push'"
       exit 0
     fi
     cromwell::private::exec_test_script

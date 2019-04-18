@@ -2,7 +2,10 @@ package org.lerch.s3fs;
 
 import static java.lang.String.format;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;
@@ -20,7 +23,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-public class S3SeekableByteChannel implements SeekableByteChannel, S3Channel {
+public class S3SeekableByteChannel implements SeekableByteChannel {
 
     private S3Path path;
     private Set<? extends OpenOption> options;
@@ -46,7 +49,7 @@ public class S3SeekableByteChannel implements SeekableByteChannel, S3Channel {
                 !this.options.contains(StandardOpenOption.CREATE))
             throw new NoSuchFileException(format("target not exists: %s", path));
 
-        tempFile = createTempFile(path);
+        tempFile = Files.createTempFile("temp-s3-", key.replaceAll("/", "_"));
         boolean removeTempFile = true;
         try {
             if (exists) {

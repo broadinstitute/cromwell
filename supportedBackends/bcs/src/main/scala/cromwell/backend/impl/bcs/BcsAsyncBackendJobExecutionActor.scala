@@ -146,7 +146,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     callRawOutputFiles.flatMap(_.flattenFiles).distinct flatMap { womFile =>
       womFile match {
         case singleFile: WomSingleFile => List(generateBcsSingleFileOutput(singleFile))
-        case _: WomGlobFile => throw new RuntimeException(s"glob output not supported currently")
+        case globFile: WomGlobFile => generateBcsGlobFileOutputs(globFile)
         case _: WomUnlistedDirectory => throw new RuntimeException(s"directory output not supported currently")
       }
     }
@@ -162,6 +162,20 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val src = relativePath(wdlFile.valueString)
 
     BcsOutputMount(Left(src), Left(destination), writeSupport = false)
+  }
+
+  protected def generateBcsGlobFileOutputs(womFile: WomGlobFile): List[BcsOutputMount] = {
+    val globName = GlobFunctions.globName(womFile.value)
+    val globDirectory = globName + "/"
+    val globListFile = globName + ".list"
+    val bcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory)
+    val bcsGlobListFileDestinationPath = callRootPath.resolve(globListFile)
+
+    // We need both the glob directory and the glob list:
+    List(
+      BcsOutputMount(Left(relativePath(globDirectory)), Left(bcsGlobDirectoryDestinationPath), writeSupport = false),
+      BcsOutputMount(Left(relativePath(globListFile)), Left(bcsGlobListFileDestinationPath), writeSupport = false)
+    )
   }
 
   private[bcs] def getOssFileName(ossPath: OssPath): String = {

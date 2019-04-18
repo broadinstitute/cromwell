@@ -1,12 +1,15 @@
 version 1.0
 
 workflow alias_separation {
-  call t as t1 { input: str="t1" }
-  call t as t2 { input: str="t2" }
+
+  scatter (x in range(3)) {
+    call t as t1 { input: str="t1" }
+    call t as t2 { input: str="t2" }
+  }
 
   output {
-    Array[String] t1out = t1.out
-    Array[String] t2out = t2.out
+    Array[Array[String]] t1out = t1.out
+    Array[Array[String]] t2out = t2.out
   }
 }
 
@@ -21,6 +24,7 @@ task t {
 
   output {
     Array[String] out = read_lines("outfile")
+    File outfile = "outfile"
   }
 
   runtime {

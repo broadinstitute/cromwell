@@ -2,10 +2,7 @@ package org.lerch.s3fs;
 
 import static java.lang.String.format;
 
-import java.io.ByteArrayInputStream;
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;
@@ -49,7 +46,11 @@ public class S3SeekableByteChannel implements SeekableByteChannel {
                 !this.options.contains(StandardOpenOption.CREATE))
             throw new NoSuchFileException(format("target not exists: %s", path));
 
-        tempFile = Files.createTempFile("", "");
+        // Create the full file hierarchy within a temporary directory, e.g. "/tmp/workflowA/workflowB/taskA/file.txt"
+        Path tempRoot = Files.createTempDirectory("");
+        Path tempParent = tempRoot.resolve(path.getParent().toString());
+        tempParent.toFile().mkdirs();
+        tempFile = tempParent.resolve(path.getFileName().toString());
         boolean removeTempFile = true;
         try {
             if (exists) {

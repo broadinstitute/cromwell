@@ -6,8 +6,8 @@ import java.nio.file.Path;
 
 public interface S3Channel {
     /**
-     * Create the full file hierarchy for an S3 file within a temporary directory,
-     * e.g. "/tmp/workflowA/workflowB/taskA/file.txt"
+     * Create a temporary place for the S3 file on the local filesystem, with the s3 filename mixed in
+     * e.g. "/tmp/script-tempSuffix"
      * @param path S3 path to create a file for
      * @return Path on the local filesystem to the temporary file that was created
      */

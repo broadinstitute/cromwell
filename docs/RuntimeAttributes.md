@@ -28,10 +28,10 @@ workflow jes_workflow {
 
 ## Recognized Runtime attributes and Backends
 
-Cromwell recognizes certain runtime attributes and has the ability to format these for some [Backends](backends/Backends). See the table below for common attributes that apply to _most_ backends.
+Cromwell recognizes certain runtime attributes and has the ability to format these for some [Backends](/backends/Backends). See the table below for common attributes that apply to _most_ backends.
 
 
-> [Shared Filesystem backend](backends/HPC#shared-filesystem) (SFS) is fully configurable and thus these attributes do not apply universally.
+> [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and thus these attributes do not apply universally.
 
 | Runtime Attribute    | LOCAL |  Google Cloud  |  SGE  | AWS Batch |
 | -------------------- |:-----:|:-----:|:-----:|:------:|
@@ -39,9 +39,9 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 | [memory](#memory)                              |       |   x   |   x   |  x  |
 | [disks](#disks)                                |       |   x   |       |  x  |
 | [docker](#docker)                              |   x   |   x   |   x   |  x  |
-| [maxRetries](#maxRetries)                      |   x   |   x   |   x   |  x  |
-| [continueOnReturnCode](#continueOnReturnCode) |   x   |   x   |   x   |  x  |
-| [failOnStderr](#failOnStderr)                  |   x   |   x   |   x   |  x  |
+| [maxRetries](#maxretries)                      |   x   |   x   |   x   |  x  |
+| [continueOnReturnCode](#continueonreturncode) |   x   |   x   |   x   |  x  |
+| [failOnStderr](#failonstderr)                  |   x   |   x   |   x   |  x  |
 
 
 
@@ -50,9 +50,9 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 - [zones](#zones)
 - [preemptible](#preemptible)
-- [bootDiskSizeGb](#bootDiskSizeGb)
-- [noAddress](#noAddress)
-- [gpuCount and gpuType](#gpuCount-and-gpuType)
+- [bootDiskSizeGb](#bootdisksizegb)
+- [noAddress](#noaddress)
+- [gpuCount and gpuType](#gpucount-and-gputype)
 
 
 
@@ -77,7 +77,7 @@ task runtime_test {
 }
 ```
 
-SGE and similar backends may define other configurable runtime attributes beyond the five listed. To find more information about SGE, view [Sun GridEngine](backends/SGE).
+SGE and similar backends may define other configurable runtime attributes beyond the five listed. To find more information about SGE, view [Sun GridEngine](/backends/SGE).
 
 ## Default Values
 
@@ -158,7 +158,7 @@ runtime {
 CWL splits the `cpu` requirement into `cpuMin` and `cpuMax`. If one of them is provided, `cpu` will inherit this value. If both of them are provided, `cpu` will take the value of `cpuMin`.
 If none is provided, `cpu` will default to its default value.
 
-Note: If provided, `cpuMin` and/or `cpuMax` will be available to the [HPC runtime attribute configuration](tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
+Note: If provided, `cpuMin` and/or `cpuMax` will be available to the [HPC runtime attribute configuration](/tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
 
 
 ### `memory`
@@ -183,7 +183,7 @@ Within the SFS backend, you can additionally specify `memory_mb` or `memory_gb` 
 
 CWL splits the `memory` requirement into `ramMin` and `ramMax`. If one of them is provided, `memory` will inherit this value. If both of them are provided, `memory` will take the value of `ramMin`. If none is provided, `memory` will default to its default value.
 
-Note: If provided, `ramMin` and/or `ramMax` will be available to the [HPC runtime attribute configuration](tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
+Note: If provided, `ramMin` and/or `ramMax` will be available to the [HPC runtime attribute configuration](/tutorials/HPCIntro.md#specifying-the-runtime-attributes-for-your-hpc-tasks).
 
 
 ### `disks`
@@ -231,7 +231,7 @@ runtime {
 ```
 
 - Local: Cromwell will automatically run the docker container.
-- SFS: When a docker container exists within a task, the `submit-docker` method is called. See the [Getting started with containers](tutorials/Containers/) guide for more information.
+- SFS: When a docker container exists within a task, the `submit-docker` method is called. See the [Getting started with containers](/tutorials/Containers/) guide for more information.
 - GCP: This attribute is mandatory when submitting tasks to Google Cloud.
 - AWS Batch: This field is mandatory when submitting tasks to AWS Batch.
 

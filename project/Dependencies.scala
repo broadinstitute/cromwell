@@ -254,8 +254,9 @@ object Dependencies {
     "batch",
     "core",
     "cloudwatchlogs",
+    "ecr",
     "s3",
-    "sts",
+    "sts"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -432,7 +433,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = http4sDependencies ++ circeDependencies
+  val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ awsCloudDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,

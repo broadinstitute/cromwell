@@ -12,11 +12,6 @@ import scala.concurrent.duration._
 class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
   private val AccessTokenAcceptableTTL = 1.minute
   
-  def gcrRegion(dockerImageIdentifier: DockerImageIdentifier) = dockerImageIdentifier.host.flatMap(_.split("/").headOption).getOrElse("")
-  
-  override def registryHostName(dockerImageIdentifier: DockerImageIdentifier) = gcrRegion(dockerImageIdentifier)
-  override def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier) = gcrRegion(dockerImageIdentifier)
-  
   override protected def buildTokenRequestUri(dockerImageID: DockerImageIdentifier): Uri = {
     val uri = super.buildTokenRequestUri(dockerImageID)
     uri.withPath(s"/v2${uri.path}")
@@ -25,7 +20,7 @@ class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
   /**
     * Builds the list of headers for the token request
     */
-   def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext) = {
+   override def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext) = {
     dockerInfoContext.credentials collect {
       case credentials: OAuth2Credentials => Authorization(org.http4s.Credentials.Token(AuthScheme.Bearer, freshAccessToken(credentials)))
     }
@@ -47,4 +42,7 @@ class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
   override def accepts(dockerImageIdentifier: DockerImageIdentifier) = {
     dockerImageIdentifier.hostAsString.contains("gcr.io")
   }
+
+  // aws_account_id.dkr.ecr.us-west-2.amazonaws.com/amazonlinux:latest -> https://012345678910.dkr.ecr.us-east-1.amazonaws.com
+  //
 }

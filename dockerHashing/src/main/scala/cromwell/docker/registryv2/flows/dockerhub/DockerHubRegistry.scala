@@ -17,7 +17,7 @@ class DockerHubRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Ab
   /**
     * Builds the list of headers for the token request
     */
-   def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext) = {
+   override def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext) = {
     dockerInfoContext.credentials collect {
       case DockerCredentials(token) =>
         Authorization(org.http4s.BasicCredentials(token))

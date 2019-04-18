@@ -133,20 +133,21 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
 
   /* Methods that must to be implemented by a subclass */
 
-  /**
-    * (e.g registry-1.docker.io)
-    */
-  protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier): String
+
+  private def hostnameFromDockerSpec(dockerImageIdentifier: DockerImageIdentifier) = dockerImageIdentifier.host.flatMap(_.split("/").headOption).getOrElse("")
 
   /**
-    * (e.g auth.docker.io)
+    * By default the hostname is everything before the first slash except for registries like Docker Hub where the registry
+    * and authorization server host names are not specified but well-known.
     */
-  protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String
+  protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier) = hostnameFromDockerSpec(dockerImageIdentifier)
+
+  protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier) = hostnameFromDockerSpec(dockerImageIdentifier)
 
   /**
     * Builds the list of headers for the token request
     */
-  protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Header]
+  protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Header] = List.empty
 
   /* Methods that may be overridden by a subclass */
 

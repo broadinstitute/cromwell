@@ -8,39 +8,117 @@ This tutorial page relies on completing the previous tutorial:
 
 ### Goals
 
-At the end of this tutorial you'll have run your first workflow against AWS Batch
+At the end of this tutorial you'll have configured your local environment to run workflows using Cromwell on AWS Batch.
 
 ### Let's get started!
 
+To create all the resources for running a Cromwell server on AWS using CloudFormation, launch the [Cromwell Full Stack Deployment](https://docs.opendata.aws/genomics-workflows/orchestration/cromwell/cromwell-overview/).  Alternatively, this page will walk through the specific steps to configure and run a local Cromwell server using AWS Batch.
 
-**Configuring the AWS environment**
+1. [Authenticating a local Cromwell server with AWS]()
+2. [Configuring the AWS environment](#)
+3. [Configuring Cromwell](#)
+4. [Workflow Source Files](#)
+5. [Running Cromwell and AWS](#)
 
-Install the <a href="https://docs.aws.amazon.com/cli/latest/userguide/installing.html" target="_blank">AWS CLI</a>.
+#### Authenticating a local Cromwell server with AWS
 
-<a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html" target="_blank">Configure the CLI for use.</a>
-Note that if using an EC2 instance, the <a href="https://docs.aws.amazon.com/cli/latest/userguide/cli-metadata.html" target="_blank">
-instance metadata, provided by an instance role</a> is generally preferred.
-Also, any EC2 instance using <a href="https://aws.amazon.com/amazon-linux-ami/" target="_blank">Amazon Linux</a>
-comes with the AWS CLI pre-installed.
+The easiest way to allow a local Cromwell server to talk to AWS is to:
 
-Create a <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html">S3 bucket</a> to hold Cromwell execution directories.
-We will refer to this bucket as `s3-bucket-name`, and the full identifier as `s3://s3-bucket-name`.
-`aws s3 mb s3://<s3-bucket-name>` 
+1. Install the AWS CLI through Amazon's [user guide](https://docs.aws.amazon.com/cli/latest/userguide/installing.html).
+2. [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) by calling `aws configure` (provide your `Access Key` and `Secret Access Key` when prompted).
 
-More information and instructions to properly setup an AWS environment to work
-properly with Cromwell on AWS can be found on the
-[AWS for Genomics Workflow page](https://docs.opendata.aws/genomics-workflows/).
-
-**Workflow Source Files**
-
-Copy over the sample `hello.wdl` and `hello.inputs` files to the same directory as the Cromwell jar. 
-This workflow takes a string value as specified in the inputs file and writes it to stdout. 
+Cromwell can access these credentials through the default authentication provider. For more options, see the [Configuring authentication of Cromwell with AWS](#Configuring-authentication-of-Cromwell-with-AWS) section below.
 
 
-***hello.wdl***
+#### Configuring the AWS environment
+
+You'll next need the following setup in your AWS account
+- The core set of resources (S3 Bucket, IAM Roles, AWS Batch)
+- Custom Compute Resource (Launch Template or AMI) with Cromwell Additions
+
+Information and instructions to setup an AWS environment to work properly with Cromwell can be found on [AWS for Genomics Workflow](https://docs.opendata.aws/genomics-workflows/core-env/introduction/). By deploying the CloudFormation templates provided by AWS, the stack will output the S3 bucket name and two AWS Batch queue ARNs (default and high-priority) required for the Cromwell configuration.
+
+
+
+
+#### Configuring Cromwell
+
+Now we're going to configure Cromwell to use the resources we just created. We require 3 pieces of information:
+
+- The [AWS Region](https://docs.aws.amazon.com/general/latest/gr/rande.html) where your resources are deployed.
+- S3 bucket name where Cromwell will store its execution files.
+- The ARN of the AWS Batch queue you want to use for your tasks.
+
+You can replace the placeholders (`<your region>`, `<your-s3-bucket-name>` and `<your-queue-arn>`) in the following config:
+
+##### `aws.conf`
+
+```hocon=
+include required(classpath("application"))
+
+aws {
+
+  application-name = "cromwell"
+  auths = [
+    {
+      name = "default"
+      scheme = "default"
+    }
+  ]
+  region = "<your-region>"
+}
+
+engine {
+  filesystems {
+    s3.auth = "default"
+  }
+}
+
+backend {
+  default = "AWSBatch"
+  providers {
+    AWSBatch {
+      actor-factory = "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory"
+      config {
+        
+        numSubmitAttempts = 6
+        numCreateDefinitionAttempts = 6
+
+        // Base bucket for workflow executions
+        root = "s3://<your-s3-bucket-name>/cromwell-execution"
+
+        // A reference to an auth defined in the `aws` stanza at the top.  This auth is used to create
+        // Jobs and manipulate auth JSONs.
+        auth = "default"
+
+        default-runtime-attributes {
+          queueArn: "<your arn here>"
+        }
+
+        filesystems {
+          s3 {
+            // A reference to a potentially different auth for manipulating files via engine functions.
+            auth = "default"
+          }
+        }
+      }
+    }
+  }
+}
+
 ```
+
+For more information about the `engine` and `backend.filesystems` configuration options, see the [`Filesystems`](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/) guide.
+
+
+#### Workflow Source Files 
+
+We're going to define a simple workflow that will `echo` a string to the console, and return the result to Cromwell. Within AWS Batch, we're required to specify a Docker container for every task.
+
+##### `hello.wdl`
+```wdl=
 task hello {
-  String addressee
+  String addressee = "Cromwell"
   command {
     echo "Hello ${addressee}! Welcome to Cromwell . . . on AWS!"
   }
@@ -61,89 +139,20 @@ workflow wf_hello {
 }
 ```
 
-***hello.inputs***
-```
-{
-  "wf_hello.hello.addressee": "World"
-}
-```
+#### Running Cromwell and AWS 
 
-**AWS Configuration File**
+Provided all of the files are within the same directory, we can run our workflow with the following command:
 
-Copy over the sample `aws.conf` file utilizing
-<a href="https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html" target="_blank">the default credential provider chain</a>
-to the same directory that contains your sample WDL, inputs and Cromwell jar.
-
-Replace in the configuration file:
-
-* `<your-region>` with the region where your resources are launched (e.g. "us-east-1")
-* `<s3-bucket-name>` with the appropriate bucket name
-* `<your queue arn here>` with either your default or high priority queue ARN
-
-***aws.conf***
-```
-include required(classpath("application"))
-
-aws {
-
-  application-name = "cromwell"
-
-  auths = [
-    {
-      name = "default"
-      scheme = "default"
-    }
-  ]
-
-  region = "<your-region>"
-}
-
-engine {
-  filesystems {
-    s3 {
-      auth = "default"
-    }
-  }
-}
-
-backend {
-  default = "AWSBATCH"
-  providers {
-    AWSBATCH {
-      actor-factory = "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory"
-      config {
-        
-        numSubmitAttempts = 6
-        numCreateDefinitionAttempts = 6
-
-        // Base bucket for workflow executions
-        root = "s3://<s3-bucket-name>/cromwell-execution"
-
-        // A reference to an auth defined in the `aws` stanza at the top.  This auth is used to create
-        // Jobs and manipulate auth JSONs.
-        auth = "default"
-
-        default-runtime-attributes {
-          queueArn: "<your arn here>"
-        }
-
-        filesystems {
-          s3 {
-            // A reference to a potentially different auth for manipulating files via engine functions.
-            auth = "default"
-          }
-        }
-      }
-    }
-  }
-}
+```bash
+java -Dconfig.file=aws.conf -jar cromwell-36.jar run hello.wdl
 ```
 
-**Run Workflow**
+This will:
+1. Start Cromwell in `run` mode,
+2. Prepare `hello.wdl` as a job, and submit this to your AWS Batch Queue. You can monitor the job within your [AWS Batch dashboard](https://console.aws.amazon.com/batch/home).
+3. Run the job, write execution files back to S3 and report progress back to Cromwell.
 
-`java -Dconfig.file=aws.conf -jar cromwell-36.jar run hello.wdl -i hello.inputs`
-
-**Outputs**
+#### Outputs
 
 The end of your workflow logs should report the workflow outputs.
 
@@ -165,33 +174,3 @@ You might find the following tutorials interesting to tackle next:
 
 * [Persisting Data Between Restarts](PersistentServer)
 * [Server Mode](ServerMode.md)
-
-### Configuration Reference
-
-Auth configuration. This requires a "name" and a "scheme".  Authentication schemes are:
-
-* default: This uses the default authentication provider, which uses
-  standard AWS search paths (Environment variables, configuration file, instance metadata)
-  to determine access key and secret key
-* custom_keys: This requires the definition of "access-key" and "secret-key"
-* assume_role: This requires the definition of "base-auth" and "role-arn". An optional "external-id" can be provided
-
-More config:
-
-* concurrent-job-limit
-* root
-* dockerhub
-* dockerhub.account
-* dockerhub.token
-* filesystems
-* filesystems.s3.auth
-* filesystems.s3.caching.duplication-strategy
-* default-runtime-attributes
-* default-runtime-attributes.disks
-* default-runtime-attributes.memory
-* default-runtime-attributes.zones
-* default-runtime-attributes.continueOnReturnCode
-* default-runtime-attributes.cpu
-* default-runtime-attributes.noAddress
-* default-runtime-attributes.docker
-* default-runtime-attributes.failOnStderr

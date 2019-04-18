@@ -12,9 +12,6 @@ public interface S3Channel {
      * @return Path on the local filesystem to the temporary file that was created
      */
     default Path createTempFile(S3Path path) throws IOException {
-        Path tempRoot = Files.createTempDirectory("");
-        Path tempParent = tempRoot.resolve(path.getParent().toString());
-        tempParent.toFile().mkdirs();
-        return tempParent.resolve(path.getFileName().toString());
+        return Files.createTempFile(path.getFileName().toString(), "");
     }
 }

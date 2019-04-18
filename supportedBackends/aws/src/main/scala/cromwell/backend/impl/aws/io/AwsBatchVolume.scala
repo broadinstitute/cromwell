@@ -32,10 +32,11 @@ package cromwell.backend.impl.aws.io
 
 import cats.data.Validated._
 import cats.syntax.validated._
-import software.amazon.awssdk.services.batch.model.{MountPoint, Volume, Host}
+import software.amazon.awssdk.services.batch.model.{Host, MountPoint, Volume}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.backend.DiskPatterns
 import wom.values._
 
 import scala.util.Try
@@ -59,6 +60,10 @@ object AwsBatchVolume {
     val validation: ErrorOr[AwsBatchVolume] = s match {
       case LocalDiskPattern() => Valid(AwsBatchWorkingDisk())
       case MountedDiskPattern(mountPoint) => Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
+      // The following two patterns match the generic "triplet" disk specification, e.g. "local-disk 10 HDD".
+      // AWS needs to know the first element of the specification but obviously not the rest.
+      case DiskPatterns.WorkingDiskPattern(_, _) => Valid(AwsBatchWorkingDisk())
+      case DiskPatterns.MountedDiskPattern(mountPoint, _, _) => Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
       case _ => s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
     }
 

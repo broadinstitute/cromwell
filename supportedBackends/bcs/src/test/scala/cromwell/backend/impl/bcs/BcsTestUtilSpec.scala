@@ -5,7 +5,6 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-//import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
@@ -57,6 +56,9 @@ object BcsTestUtilSpec {
       |        access-id = ""
       |        access-key = ""
       |        security-token = ""
+      |    }
+      |    caching {
+      |        duplication-strategy = "reference"
       |    }
       |  }
       |}

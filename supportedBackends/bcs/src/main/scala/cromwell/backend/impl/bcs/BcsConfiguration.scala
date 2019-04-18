@@ -81,10 +81,6 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
     case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
   } }
 
-//  val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map { creds =>
-//    BcsDockerCrCredentials.apply(creds, this)
-//  }
-
   val dockerCredentials/*: Option[BasicSessionCredentials]*/ = {
     bcsSecurityToken match {
       case None => {

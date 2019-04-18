@@ -37,6 +37,7 @@ import cats.data.Kleisli._
 import cats.data.ReaderT._
 import cats.implicits._
 
+import cromwell.core.ExecutionIndex._
 import scala.language.higherKinds
 import cats.effect.{Async, Timer}
 import software.amazon.awssdk.services.batch.BatchClient
@@ -131,9 +132,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     val workflow = jobDescriptor.workflowDescriptor
     val uniquePath = workflow.callable.name + "/" +
-                     jobDescriptor.taskCall.callable.name + "/" +
+                     jobDescriptor.taskCall.localName + "/" +
                      workflow.id + "/" +
-                     jobDescriptor.key.index + "/" +
+                     jobDescriptor.key.index.fromIndex + "/" +
                      jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
@@ -158,7 +159,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         }).compile.last.map(_.get)) //if successful there is guaranteed to be a value emitted, hence we can .get this option
     }
 
-    (createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.callable.name}""", uniquePath) product Kleisli.ask[F, AwsBatchAttributes]).
+    (createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.localName}""", uniquePath) product Kleisli.ask[F, AwsBatchAttributes]).
       flatMap((callClient _).tupled)
   }
 

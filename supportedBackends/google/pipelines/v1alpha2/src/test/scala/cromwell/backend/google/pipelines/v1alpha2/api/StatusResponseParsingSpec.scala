@@ -33,7 +33,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     val op = new Operation()
 
     val exception = intercept[RuntimeException](GetRequestHandler.interpretOperationStatus(op))
-    exception.getMessage should be("Caught NPE while processing operation null: {}")
+    exception.getMessage should startWith("Caught NPE while processing operation null")
   }
 
   it should "catch and wrap null pointer exceptions in a name only operation" in {
@@ -41,7 +41,7 @@ class StatusResponseParsingSpec extends FlatSpec with Matchers with MockitoTrait
     op.setName("my/customName")
 
     val exception = intercept[RuntimeException](GetRequestHandler.interpretOperationStatus(op))
-    exception.getMessage should be("Caught NPE while processing operation my/customName: {name=my/customName}")
+    exception.getMessage should startWith ("Caught NPE while processing operation my/customName")
   }
 
   it should "parse an operation without machine information" in {

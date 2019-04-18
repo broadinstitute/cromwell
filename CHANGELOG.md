@@ -8,6 +8,12 @@ The `/describe` endpoint now differentiates between an invalid workflow and a va
 
 Specifically, the new `validWorkflow` key indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
 
+### Virtual Private Network
+
+Cromwell now allows PAPIV2 jobs to run on a private network by adding the network name inside `virtual-private-cloud` in backend configuration.
+More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+
 ## 41 Release Notes
 
 ### Workflow Options

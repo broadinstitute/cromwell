@@ -428,33 +428,47 @@ public class S3FileSystemProvider extends FileSystemProvider {
         //check if the source is over 5 GB. If so, copy by parts
         HeadObjectResponse headObjectResponse = client.headObject(HeadObjectRequest.builder().bucket(bucketNameOrigin).key(keySource).build());
         Long length = headObjectResponse.contentLength();
+        Long threshold = 5368709120l;
 
-        long pos = 0;
-        //offset is minimum 5 MB
-        //TODO: Import this value
-        long offset = 5 * 1024 * 1024;
+        if (length >= threshold) {
+            long pos = 0;
 
-        int partNum = 1;
+            //This __MUST__ be constant.  In order for etags to match and call caching to succeed, the multipart segments
+            //must match for all time.  Thus a copy done w/ 5 MB segments 2 years ago must be copied again w/ 5 MB segments today
+            //in order for call caching to work properly.
+            long offset = 5 * 1024 * 1024;
 
-        ArrayList<UploadPartCopyResponse> responses = new ArrayList<>();
+            int partNum = 1;
 
-        while (pos < length) {
-            long lastByte = Math.min(pos + offset - 1, length - 1);
-            UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder().copySourceRange(format("%l-%l", pos, lastByte)).build();
-            responses.add(client.uploadPartCopy(uploadPartCopyRequest));
+            ArrayList<UploadPartCopyResponse> responses = new ArrayList<>();
+
+            CreateMultipartUploadResponse createMultipartUploadResponse = client.createMultipartUpload(CreateMultipartUploadRequest.builder().bucket(bucketNameTarget).key(keyTarget).build());
+
+            while (pos < length) {
+                long lastByte = Math.min(pos + offset - 1, length - 1);
+                UploadPartCopyRequest uploadPartCopyRequest =
+                        UploadPartCopyRequest.builder().
+                                partNumber(partNum).
+                                copySourceRange(format("%l-%l", pos, lastByte)).
+                                copySource(bucketNameOrigin + "/" + keySource).
+                                bucket(bucketNameTarget).
+                                key(keyTarget).
+                                uploadId(createMultipartUploadResponse.uploadId()).
+                                build();
+                partNum++;
+                UploadPartCopyResponse uploadPartCopyResponse = client.uploadPartCopy(uploadPartCopyRequest);
+                responses.add(uploadPartCopyResponse);
+                pos = pos + offset;
+            }
+
+            client.completeMultipartUpload(CompleteMultipartUploadRequest.builder().bucket(bucketNameTarget).key(keyTarget).uploadId(createMultipartUploadResponse.uploadId()).build());
+        } else {
+            client.copyObject(CopyObjectRequest.builder()
+                    .copySource(bucketNameOrigin + "/" + keySource)
+                    .bucket(bucketNameTarget)
+                    .key(keyTarget)
+                    .build());
         }
-
-
-//                client.uploadPartCopy()
-//        client.copyObject()
-
-
-//        client.createMultipartUpload()
-        client.copyObject(CopyObjectRequest.builder()
-                                             .copySource(bucketNameOrigin + "/" + keySource)
-                                             .bucket(bucketNameTarget)
-                                             .key(keyTarget)
-                                             .build());
     }
 
     @Override

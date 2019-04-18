@@ -431,37 +431,48 @@ public class S3FileSystemProvider extends FileSystemProvider {
         Long threshold = 5368709120l;
 
         if (length >= threshold) {
+            Integer partsCount = headObjectResponse.partsCount();
             long pos = 0;
 
             //This __MUST__ be constant.  In order for etags to match and call caching to succeed, the multipart segments
             //must match for all time.  Thus a copy done w/ 5 MB segments 2 years ago must be copied again w/ 5 MB segments today
             //in order for call caching to work properly.
-            long offset = 5 * 1024 * 1024;
+            long offset = 8 * 1024 * 1024;
 
             int partNum = 1;
 
             ArrayList<UploadPartCopyResponse> responses = new ArrayList<>();
 
-            CreateMultipartUploadResponse createMultipartUploadResponse = client.createMultipartUpload(CreateMultipartUploadRequest.builder().bucket(bucketNameTarget).key(keyTarget).build());
+
+
+            CreateMultipartUploadResponse createMultipartUploadResponse =
+                    client.createMultipartUpload(
+                            CreateMultipartUploadRequest.
+                                    builder().
+                                    bucket(bucketNameTarget).
+                                    key(keyTarget).
+                                    build());
 
             while (pos < length) {
                 long lastByte = Math.min(pos + offset - 1, length - 1);
                 UploadPartCopyRequest uploadPartCopyRequest =
                         UploadPartCopyRequest.builder().
                                 partNumber(partNum).
-                                copySourceRange(format("%l-%l", pos, lastByte)).
+                                copySourceRange(format("bytes=%s-%s", Long.toString(pos), Long.toString(lastByte))).
                                 copySource(bucketNameOrigin + "/" + keySource).
                                 bucket(bucketNameTarget).
                                 key(keyTarget).
                                 uploadId(createMultipartUploadResponse.uploadId()).
                                 build();
                 partNum++;
+                System.out.println("running part number" + Integer.toString(partNum));
                 UploadPartCopyResponse uploadPartCopyResponse = client.uploadPartCopy(uploadPartCopyRequest);
                 responses.add(uploadPartCopyResponse);
                 pos = pos + offset;
             }
+            CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder().bucket(bucketNameTarget).key(keyTarget).uploadId(createMultipartUploadResponse.uploadId()).build();
 
-            client.completeMultipartUpload(CompleteMultipartUploadRequest.builder().bucket(bucketNameTarget).key(keyTarget).uploadId(createMultipartUploadResponse.uploadId()).build());
+            client.completeMultipartUpload(completeMultipartUploadRequest);
         } else {
             client.copyObject(CopyObjectRequest.builder()
                     .copySource(bucketNameOrigin + "/" + keySource)

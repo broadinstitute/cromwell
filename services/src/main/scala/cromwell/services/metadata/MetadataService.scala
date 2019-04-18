@@ -24,7 +24,8 @@ object MetadataService {
                                        start: Option[OffsetDateTime],
                                        end: Option[OffsetDateTime],
                                        labels: Option[Map[String, String]],
-                                       parentWorkflowId: Option[String])
+                                       parentWorkflowId: Option[String],
+                                       rootWorkflowId: Option[String])
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult], totalResultsCount: Int)
 

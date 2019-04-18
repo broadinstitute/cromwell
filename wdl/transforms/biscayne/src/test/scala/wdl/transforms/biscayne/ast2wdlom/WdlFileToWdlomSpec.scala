@@ -49,6 +49,36 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 object WdlFileToWdlomSpec {
 
   val expectations: Map[String, FileElement] = Map(
+    "no_input_no_output_workflow" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(WorkflowDefinitionElement(
+          name = "no_input_no_output",
+          inputsSection = None,
+          graphElements = Set(
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None)
+          ),
+          outputsSection = None,
+          metaSection = None,
+          parameterMetaSection = None)),
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "no_inputs",
+            inputsSection = None,
+            declarations = Vector.empty,
+            outputsSection = None,
+            commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
+            runtimeSection = None,
+            metaSection = None,
+            parameterMetaSection = None
+          )
+        )
+      ),
     "simple_first_test" ->
       FileElement(
         imports = Vector.empty,
@@ -119,11 +149,21 @@ object WdlFileToWdlomSpec {
           name = "escapes",
           inputsSection = None,
           graphElements = Set(
-            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "backslash", StringExpression(Vector(StringLiteral(" "), BackslashEscape, StringLiteral(" ")))),
-            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "dash", StringExpression(Vector(StringLiteral(" "), SingleQuoteEscape, StringLiteral(" ")))),
-            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "quote", StringExpression(Vector(StringLiteral(" "), DoubleQuoteEscape, StringLiteral(" ")))),
-            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "n", StringExpression(Vector(StringLiteral(" "), NewlineEscape, StringLiteral(" ")))),
-            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "t", StringExpression(Vector(StringLiteral(" "), TabEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"backslash",StringExpression(Vector(StringLiteral(" "), BackslashEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"n",StringExpression(Vector(StringLiteral(" "), NewlineEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"t",StringExpression(Vector(StringLiteral(" "), TabEscape, StringLiteral(" ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"q1",StringExpression(Vector(StringLiteral("leading text "), DoubleQuoteEscape, StringLiteral(" trailing text")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"q2",StringLiteral("\"")),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"q3",StringExpression(Vector(StringLiteral("  "), DoubleQuoteEscape, StringLiteral("  ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"q4",StringExpression(Vector(StringLiteral("leading text "), SingleQuoteEscape, StringLiteral(" trailing text")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"q5",StringLiteral("'")),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"q6",StringExpression(Vector(StringLiteral("  "), SingleQuoteEscape, StringLiteral("  ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"sq1",StringExpression(Vector(StringLiteral("leading text "), DoubleQuoteEscape, StringLiteral(" trailing text")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"sq2",StringLiteral("\"")),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"sq3",StringExpression(Vector(StringLiteral("  "), DoubleQuoteEscape, StringLiteral("  ")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"sq4",StringExpression(Vector(StringLiteral("leading text "), SingleQuoteEscape, StringLiteral(" trailing text")))),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"sq5",StringLiteral("'")),
+            IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType),"sq6",StringExpression(Vector(StringLiteral("  "), SingleQuoteEscape, StringLiteral("  ")))),
             IntermediateValueDeclarationElement(
               PrimitiveTypeElement(WomStringType),
               "octal_hello",

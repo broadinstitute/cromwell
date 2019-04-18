@@ -22,6 +22,15 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 cromwell::build::run_centaur \
     -p 100 \
+    -e smartseq2singlesample \
+    -e arrays \
+    -e haplotypecaller \
+    -e jointdiscovery \
+    -e mutect2 \
+    -e singlesample \
+    -e singlesample_production \
+    -e cnv_somatic_pair \
+    -e cnv_somatic_panel \
     -e localdockertest \
     -e inline_file \
     -e exit \
@@ -30,12 +39,8 @@ cromwell::build::run_centaur \
     -e non_root_default_user \
     -e draft3_glob_access \
     -e bad_output_task \
-    -e cachewithinwf \
-    -e floating_tags \
     -e cwl_interpolated_strings \
-    -e cachebetweenwf \
     -e failures.terminal_status \
-    -e call_cache_hit_prefixes_no_hint \
     -e bad_file_string \
     -e default_runtime_attributes \
     -e non_root_specified_user \
@@ -50,6 +55,9 @@ cromwell::build::run_centaur \
     -e continue_on_return_code \
     -e globbingscatter \
     -e inline_file_custom_entryname \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e standard_output_paths_colliding_prevented \
     -e draft3_globs   
 
 cromwell::build::generate_code_coverage

@@ -14,8 +14,8 @@ import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
-import cromwell.services.healthmonitor.HealthMonitorServiceActor
-import cromwell.services.healthmonitor.HealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineDatabaseMonitor}
 import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor._
 import net.ceedubs.ficus.Ficus._
@@ -27,44 +27,20 @@ import scala.concurrent.{ExecutionContext, Future}
   * as GCS and PAPI. This implementation makes some assumptions of Cromwell's configuration which will be true
   * in a Workbench scenario but YMMV otherwise. Caveat emptor and all of that fun stuff.
   */
-class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-  extends HealthMonitorServiceActor
+abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+  extends ProtoHealthMonitorServiceActor
     with DockerHubMonitor
     with EngineDatabaseMonitor {
   override implicit val system = context.system
 
-  private lazy val papiV1ConfigOption =
-    PapiConfiguration.fromBackendNameKey("papi-v1-backend-name", serviceConfig, globalConfig)
-  private lazy val papiV2ConfigOption =
-    PapiConfiguration.fromBackendNameKey("papi-v2-backend-name", serviceConfig, globalConfig)
-  private lazy val papiConfigOption =
-    PapiConfiguration.fromBackendNameKey("papi-backend-name", serviceConfig, globalConfig)
-  private lazy val defaultJesConfigOption = (papiConfigOption, papiV1ConfigOption, papiV2ConfigOption) match {
-    case (None, None, None) => Option(PapiConfiguration.fromBackendNameValue("Jes", serviceConfig, globalConfig))
-    case _ => None
+  private lazy val papiBackendConfigurations = serviceConfig.as[Set[String]]("check-papi-backends").map(WorkbenchHealthMonitorServiceActor.PapiConfiguration.fromBackendNameValue(_, serviceConfig, globalConfig))
+
+  def papiMonitoredSubsystem(papiConfiguration: PapiConfiguration): MonitoredSubsystem = {
+    MonitoredSubsystem(papiConfiguration.backendName, () => checkPapi(papiConfiguration))
   }
 
-  def papiMonitoredSubsystem(name: String)(papiConfiguration: PapiConfiguration): MonitoredSubsystem = {
-    MonitoredSubsystem(name, () => checkPapi(papiConfiguration))
-  }
-
-  private lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
-  private lazy val PapiV1Option = papiV1ConfigOption map papiMonitoredSubsystem("PAPIV1")
-  private lazy val PapiV2Option = papiV2ConfigOption map papiMonitoredSubsystem("PAPIV2")
-  private lazy val PapiOption = papiConfigOption map papiMonitoredSubsystem("PAPI")
-  private lazy val DefaultJesOption = defaultJesConfigOption map papiMonitoredSubsystem("PAPI")
-
-  override lazy val subsystems: Set[MonitoredSubsystem] = Set(
-    Option(DockerHub),
-    Option(EngineDb),
-    PapiOption,
-    PapiV1Option,
-    PapiV2Option,
-    DefaultJesOption,
-    Option(Gcs)
-  ) collect {
-    case Some(value) => value
-  }
+  protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
+  protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
 
   val googleConfig = GoogleConfiguration(globalConfig)
 

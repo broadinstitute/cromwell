@@ -10,7 +10,7 @@ import MetadataService._
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
 import WomValueJsonFormatter._
 import better.files.File
-import cromwell.services.healthmonitor.HealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
 import cromwell.webservice.routes.CromwellApiService.BackendResponse
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
@@ -50,6 +50,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowQueryResult = jsonFormat8(WorkflowQueryResult)
+  implicit val workflowQueryResult = jsonFormat9(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat2(WorkflowQueryResponse)
 }

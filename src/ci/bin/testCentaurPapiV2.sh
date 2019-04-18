@@ -25,12 +25,12 @@ cp \
     "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/private_docker_papi_v2_usa.options" \
     "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
 
-# Excluded tests:
-# docker_hash_dockerhub_private: https://github.com/broadinstitute/cromwell/issues/3587
-
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e standard_output_paths_colliding_prevented \
     "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
     -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 

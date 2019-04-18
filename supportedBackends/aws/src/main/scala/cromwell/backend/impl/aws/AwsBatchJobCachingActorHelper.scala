@@ -56,13 +56,6 @@ trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val callRootPath: Path = callPaths.callExecutionRoot
   lazy val returnCodeFilename: String = callPaths.returnCodeFilename
   // lazy val returnCodePath: Path = callPaths.returnCode
-  lazy val logFilename: String = callPaths.logFilename
 
   lazy val attributes: AwsBatchAttributes = configuration.batchAttributes
-
-  // override protected def nonStandardMetadata: Map[String, Any] = {
-  //   Map(
-  //     AwsBatchMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
-  //   )
-  // }
 }

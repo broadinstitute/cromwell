@@ -181,14 +181,19 @@ When constructing this block, there are a few things to keep in mind:
 - Make sure Singularity is loaded (and in our path), for example you can call `module load Singularity/3.0.1`.
 - We should treat worker nodes as if they do not have stable access to the internet or build access, so we will pull the container before execution of the task.
 - It's a good idea to ask Singularity to build the image into the execution directory of the task as an artifact, and to save rendering time on the worker node.
+- We'll use the docker name (potentially including the docker hash) to generate a compliant filename that can be looked up later.
+- If the container exists, there is no need to rebuild the container.
 
 ```
 submit-docker = """
     module load Singularity/3.0.1
   
     # Build the Docker image into a singularity image, using the head node
-    IMAGE=${cwd}/${docker}.sif
-    singularity build $IMAGE docker://${docker}
+    DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
+    IMAGE=${cwd}/$DOCKER_NAME.sif
+    if [ ! -f $IMAGE ]; then
+        singularity pull $IMAGE docker://${docker}
+    fi
   
     # Submit the script to SLURM
     sbatch \
@@ -232,8 +237,11 @@ backend {
             module load Singularity/3.0.1
             
             # Build the Docker image into a singularity image
-            IMAGE=${cwd}/${docker}.sif
-            singularity build $IMAGE docker://${docker}
+            DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
+            IMAGE=${cwd}/$DOCKER_NAME.sif
+            if [ ! -f $IMAGE ]; then
+                singularity pull $IMAGE docker://${docker}
+            fi
 
             # Submit the script to SLURM
             sbatch \
@@ -267,7 +275,8 @@ submit-docker = """
 
     # Build the Docker image into a singularity image
     # We don't add the .sif file extension because sandbox images are directories, not files
-    IMAGE=${cwd}/${docker}
+    DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
+    IMAGE=${cwd}/$DOCKER_NAME
     singularity build --sandbox $IMAGE docker://${docker}
 
     # Now submit the job

@@ -234,9 +234,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
    *  @return Current RunStatus
    *
    */
-  def status(jobId: String): Try[RunStatus] = {
-     RunStatus.fromJobStatus(detail(jobId).status, jobId)
-  }
+  def status(jobId: String): Try[RunStatus] = for {
+    statusString <- Try(detail(jobId).status)
+    runStatus <- RunStatus.fromJobStatus(statusString, jobId)
+  } yield runStatus
 
   def detail(jobId: String): JobDetail = {
     //TODO: This client call should be wrapped in a cats Effect

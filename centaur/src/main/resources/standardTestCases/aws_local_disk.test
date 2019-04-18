@@ -1,0 +1,12 @@
+name: aws_local_disk
+testFormat: workflowsuccess
+backends: [ AWSBATCH ]
+
+files {
+  workflow: wdl_draft3/aws_local_disk/aws_local_disk.wdl
+}
+
+metadata {
+  "calls.custom_mount_point.t.backend": "AWSBATCH"
+  "calls.custom_mount_point.t.backendStatus": "Success"
+}

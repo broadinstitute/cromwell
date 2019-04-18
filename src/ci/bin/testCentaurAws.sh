@@ -49,7 +49,6 @@ cromwell::build::run_centaur \
     -e draft3_optional_input_from_scatter \
     -e iwdr_input_string \
     -e globbingindex \
-    -e file_name_too_long \
     -e cwl_cache_between_workflows \
     -e abort.scheduled_abort \
     -e cwl_cache_within_workflow \

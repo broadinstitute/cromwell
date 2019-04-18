@@ -42,7 +42,4 @@ class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
   override def accepts(dockerImageIdentifier: DockerImageIdentifier) = {
     dockerImageIdentifier.hostAsString.contains("gcr.io")
   }
-
-  // aws_account_id.dkr.ecr.us-west-2.amazonaws.com/amazonlinux:latest -> https://012345678910.dkr.ecr.us-east-1.amazonaws.com
-  //
 }

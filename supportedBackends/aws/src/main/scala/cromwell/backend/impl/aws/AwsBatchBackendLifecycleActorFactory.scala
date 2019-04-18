@@ -31,17 +31,9 @@
 
 package cromwell.backend.impl.aws
 
-import akka.actor.{ActorRef}
-import cromwell.backend.{BackendConfigurationDescriptor,
-                         BackendWorkflowDescriptor,
-                         BackendInitializationData,
-                         JobExecutionMap}
-import cromwell.backend.standard.{StandardLifecycleActorFactory,
-                                  StandardAsyncExecutionActor,
-                                  StandardInitializationActor,
-                                  StandardFinalizationActor,
-                                  StandardInitializationActorParams,
-                                  StandardFinalizationActorParams}
+import akka.actor.{ActorRef, Props}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizationActor, StandardFinalizationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardLifecycleActorFactory}
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
 import org.slf4j.LoggerFactory
@@ -91,5 +83,9 @@ case class AwsBatchBackendLifecycleActorFactory(
     // on the initialization data as there is with the execution or cache
     // hit copying actor methods.
     AwsBatchFinalizationActorParams(workflowDescriptor, ioActor, calls, configuration, jobExecutionMap, workflowOutputs, initializationDataOption)
+  }
+
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
+    Some(AwsBatchSingletonActor.props(None))
   }
 }

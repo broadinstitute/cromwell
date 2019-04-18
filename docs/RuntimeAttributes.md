@@ -5,8 +5,6 @@ Runtime attributes can be specified in one of two ways:
  1. Within a task you can specify runtime attributes to customize the environment for the call.  
  2. [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
 
-<!--  >* Certain [Backends](backends/Backends) only support certain runtime attributes.  See [Backend Support](#backend-support) for a table.
- -->
 _Task Example_
 
 ```

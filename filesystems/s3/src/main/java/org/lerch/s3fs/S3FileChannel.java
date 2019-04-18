@@ -42,7 +42,7 @@ public class S3FileChannel extends FileChannel {
                 !this.options.contains(StandardOpenOption.CREATE))
             throw new NoSuchFileException(format("target not exists: %s", path));
 
-        tempFile = Files.createTempFile("temp-s3-", key.replaceAll("/", "_"));
+        tempFile = Files.createTempFile("", "");
         boolean removeTempFile = true;
         try {
             if (exists) {

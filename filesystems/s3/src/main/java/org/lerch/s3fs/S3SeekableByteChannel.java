@@ -49,10 +49,7 @@ public class S3SeekableByteChannel implements SeekableByteChannel {
                 !this.options.contains(StandardOpenOption.CREATE))
             throw new NoSuchFileException(format("target not exists: %s", path));
 
-        Path tempdir = Files.createTempDirectory(null);
-        Path tempSubdir = tempdir.resolve(path.getParent());
-        Files.createDirectories(tempSubdir);
-        tempFile = Files.createTempFile(tempSubdir, "temp-s3-" + path.getFileName().toString(), null);
+        tempFile = Files.createTempFile("", "");
         boolean removeTempFile = true;
         try {
             if (exists) {

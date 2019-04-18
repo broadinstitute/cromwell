@@ -1,4 +1,4 @@
-name: custom_mount_point
+name: custom_mount_point_aws
 testFormat: workflowsuccess
 backends: [ AWSBATCH ]
 

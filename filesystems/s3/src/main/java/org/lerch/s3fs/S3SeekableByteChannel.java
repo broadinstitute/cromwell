@@ -20,7 +20,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
-public class S3SeekableByteChannel implements SeekableByteChannel {
+public class S3SeekableByteChannel implements SeekableByteChannel, S3Channel {
 
     private S3Path path;
     private Set<? extends OpenOption> options;
@@ -46,11 +46,7 @@ public class S3SeekableByteChannel implements SeekableByteChannel {
                 !this.options.contains(StandardOpenOption.CREATE))
             throw new NoSuchFileException(format("target not exists: %s", path));
 
-        // Create the full file hierarchy within a temporary directory, e.g. "/tmp/workflowA/workflowB/taskA/file.txt"
-        Path tempRoot = Files.createTempDirectory("");
-        Path tempParent = tempRoot.resolve(path.getParent().toString());
-        tempParent.toFile().mkdirs();
-        tempFile = tempParent.resolve(path.getFileName().toString());
+        tempFile = createTempFile(path);
         boolean removeTempFile = true;
         try {
             if (exists) {

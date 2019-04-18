@@ -45,6 +45,8 @@ awscp() {
   initExitCode=1
   retryTimes=0
   while [ $initExitCode -ne 0 ]
+  aws configure set default.s3.multipart_threshold 5GB
+  aws configure set default.s3.multipart_chunksize 5GB
   do
     echo "aws s3 $1 --sse AES256 --no-progress $2 $3"
     aws s3 $1 --sse AES256 --no-progress "$2" "$3"

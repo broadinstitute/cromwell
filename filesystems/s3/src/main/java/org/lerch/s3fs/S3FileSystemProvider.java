@@ -431,13 +431,13 @@ public class S3FileSystemProvider extends FileSystemProvider {
         Long threshold = 5368709120l;
 
         if (length >= threshold) {
-            Integer partsCount = headObjectResponse.partsCount();
+
             long pos = 0;
 
             //This __MUST__ be constant.  In order for etags to match and call caching to succeed, the multipart segments
             //must match for all time.  Thus a copy done w/ 5 MB segments 2 years ago must be copied again w/ 5 MB segments today
             //in order for call caching to work properly.
-            long offset = 8 * 1024 * 1024;
+            long offset = 5368709120l;
 
             int partNum = 1;
 

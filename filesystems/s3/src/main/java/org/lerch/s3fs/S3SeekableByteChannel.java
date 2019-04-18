@@ -2,10 +2,7 @@ package org.lerch.s3fs;
 
 import static java.lang.String.format;
 
-import java.io.ByteArrayInputStream;
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;

@@ -3,7 +3,16 @@ package org.lerch.s3fs;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.Bucket;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectAclRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -421,65 +430,13 @@ public class S3FileSystemProvider extends FileSystemProvider {
         String keySource = s3Source.getKey();
         String bucketNameTarget = s3Target.getFileStore().name();
         String keyTarget = s3Target.getKey();
-        S3Client client = s3Source.getFileSystem()
-                .getClient();
-
-
-        //check if the source is over 5 GB. If so, copy by parts
-        HeadObjectResponse headObjectResponse = client.headObject(HeadObjectRequest.builder().bucket(bucketNameOrigin).key(keySource).build());
-        Long length = headObjectResponse.contentLength();
-        Long threshold = 5368709120l;
-
-        if (length >= threshold) {
-
-            long pos = 0;
-
-            //This __MUST__ be constant.  In order for etags to match and call caching to succeed, the multipart segments
-            //must match for all time.  Thus a copy done w/ 5 MB segments 2 years ago must be copied again w/ 5 MB segments today
-            //in order for call caching to work properly.
-            long offset = 8 * 1024 * 1024;
-
-            int partNum = 1;
-
-            ArrayList<UploadPartCopyResponse> responses = new ArrayList<>();
-
-
-
-            CreateMultipartUploadResponse createMultipartUploadResponse =
-                    client.createMultipartUpload(
-                            CreateMultipartUploadRequest.
-                                    builder().
-                                    bucket(bucketNameTarget).
-                                    key(keyTarget).
-                                    build());
-
-            while (pos < length) {
-                long lastByte = Math.min(pos + offset - 1, length - 1);
-                UploadPartCopyRequest uploadPartCopyRequest =
-                        UploadPartCopyRequest.builder().
-                                partNumber(partNum).
-                                copySourceRange(format("bytes=%s-%s", Long.toString(pos), Long.toString(lastByte))).
-                                copySource(bucketNameOrigin + "/" + keySource).
-                                bucket(bucketNameTarget).
-                                key(keyTarget).
-                                uploadId(createMultipartUploadResponse.uploadId()).
-                                build();
-                partNum++;
-                System.out.println("running part number" + Integer.toString(partNum));
-                UploadPartCopyResponse uploadPartCopyResponse = client.uploadPartCopy(uploadPartCopyRequest);
-                responses.add(uploadPartCopyResponse);
-                pos = pos + offset;
-            }
-            CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder().bucket(bucketNameTarget).key(keyTarget).uploadId(createMultipartUploadResponse.uploadId()).build();
-
-            client.completeMultipartUpload(completeMultipartUploadRequest);
-        } else {
-            client.copyObject(CopyObjectRequest.builder()
-                    .copySource(bucketNameOrigin + "/" + keySource)
-                    .bucket(bucketNameTarget)
-                    .key(keyTarget)
-                    .build());
-        }
+        s3Source.getFileSystem()
+                .getClient()
+                .copyObject(CopyObjectRequest.builder()
+                                             .copySource(bucketNameOrigin + "/" + keySource)
+                                             .bucket(bucketNameTarget)
+                                             .key(keyTarget)
+                                             .build());
     }
 
     @Override

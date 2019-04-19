@@ -8,6 +8,6 @@ files {
 }
 
 metadata {
-  "calls.local_disk.t.backend": "AWSBATCH"
-  "calls.local_disk.t.backendStatus": "Success"
+  "calls.test.local_disk.backend": "AWSBATCH"
+  "calls.test.local_disk.backendStatus": "Success"
 }

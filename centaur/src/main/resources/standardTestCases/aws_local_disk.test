@@ -9,5 +9,5 @@ files {
 
 metadata {
   "calls.test.local_disk.backend": "AWSBATCH"
-  "calls.test.local_disk.backendStatus": "Success"
+  "calls.test.local_disk.backendStatus": "Succeeded"
 }

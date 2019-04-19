@@ -7,6 +7,6 @@ files {
 }
 
 metadata {
-  "calls.custom_mount_point.t.backend": "AWSBATCH"
-  "calls.custom_mount_point.t.backendStatus": "Success"
+  "calls.local_disk.t.backend": "AWSBATCH"
+  "calls.local_disk.t.backendStatus": "Success"
 }

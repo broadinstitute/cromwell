@@ -11,7 +11,7 @@ features or fixes, the following are required to build Cromwell from source:
 You can also use the [development image](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-develop), and build a development container to work inside:
 
 ```bash
-$ docker build -t cromwell-dev Dockerfile
+$ docker build -t cromwell-dev .
 $ docker run -it cromwell-dev bash
 ```
 

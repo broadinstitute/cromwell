@@ -6,7 +6,9 @@
 
 * It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).
 
-### Heartbeat failure shutdown
+### Config Changes
+
+#### Heartbeat failure shutdown
 
 When a Cromwell instance is unable to write heartbeats for some period of time it will automatically shut down. For more
 information see the docs on [configuring Workflow Hearbeats](https://cromwell.readthedocs.io/en/stable/Configuring/).
@@ -15,12 +17,21 @@ NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been co
 then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
 set less than the `ttl`.
 
+#### PAPI long running jobs
+
+The PAPI and PAPIv2 backends can now emit slow job warnings after a configurable time running in PAPI:
+```conf
+# Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck in PAPI.
+backend.providers.PAPIv2.config.slow-job-warning-time: 24 hours
+```
+
 ### Bug fixes
 
 #### Better validation of workflow heartbeats
 
 An error will be thrown on startup when the `system.workflow-heartbeats.heartbeat-interval` is not less than the
 `system.workflow-heartbeats.ttl`.
+
 
 ## 40 Release Notes
 

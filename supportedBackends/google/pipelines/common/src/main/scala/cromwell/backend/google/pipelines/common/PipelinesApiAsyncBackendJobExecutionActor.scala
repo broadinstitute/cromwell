@@ -14,8 +14,9 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.google.pipelines.common.SlowJobWarning.{WarnAboutSlownessAfter, WarnAboutSlownessIfNecessary}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
-import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
+import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortClient, PipelinesApiRunCreationClient, PipelinesApiStatusRequestClient}
@@ -87,7 +88,8 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 
 class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with PipelinesApiJobCachingActorHelper
-    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient with PapiInstrumentation {
+    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient
+    with PapiInstrumentation with SlowJobWarning {
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 
@@ -138,7 +140,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
+  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse slowJobWarningReceive orElse super.receive
 
   private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -522,6 +524,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     } yield runId
 
     runPipelineResponse map { runId =>
+      pipelinesConfiguration.slowJobWarningAfter foreach { duration => self ! WarnAboutSlownessAfter(runId.jobId, duration) }
       PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
     } recover {
       case JobAbortedException => AbortedExecutionHandle
@@ -529,7 +532,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = {
-    super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
+    val future = super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
+
+    future.onComplete {
+      case Success(Running | Initializing) => self ! WarnAboutSlownessIfNecessary
+      case _ => // do nothing
+    }
+
+    future
   }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {

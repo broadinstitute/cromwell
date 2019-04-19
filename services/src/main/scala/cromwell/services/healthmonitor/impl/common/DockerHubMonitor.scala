@@ -7,7 +7,7 @@ import cats.effect.{ContextShift, IO}
 import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInfoResponse, DockerInfoSuccessResponse}
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.{DockerImageIdentifierWithoutHash, DockerInfoActor, DockerInfoRequest, DockerRegistryConfig}
-import cromwell.services.healthmonitor.HealthMonitorServiceActor._
+import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

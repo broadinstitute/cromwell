@@ -436,7 +436,7 @@ paths:
             type: string
           collectionFormat: multi
           description: >
-            Includes the specified keys in the metadata for the returned workflows.
+            Currently only 'labels' is a valid value here. Use it to include a list of labels with each result.
         - name : includeSubworkflows
           required: false
           type: boolean

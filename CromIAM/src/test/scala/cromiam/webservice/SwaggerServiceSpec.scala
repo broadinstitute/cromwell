@@ -1,8 +1,7 @@
 package cromiam.webservice
 
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.testkit.TestDuration
+import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
+import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromiam.server.config.SwaggerOauthConfig
 import io.swagger.models.properties.RefProperty
 import io.swagger.parser.SwaggerParser
@@ -14,14 +13,11 @@ import org.yaml.snakeyaml.nodes.MappingNode
 import org.yaml.snakeyaml.{Yaml => SnakeYaml}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 
 class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRouteTest with Matchers
   with TableDrivenPropertyChecks {
   def actorRefFactory = system
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")
-
-  implicit val timeout = RouteTestTimeout(10.seconds.dilated)
 
   behavior of "SwaggerService"
 
@@ -30,6 +26,7 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
       swaggerUiResourceRoute ~>
       check {
         status should be(StatusCodes.OK)
+        contentType should be(ContentTypes.`application/octet-stream`)
 
         val body = responseAs[String]
         val yaml = new SnakeYaml(new UniqueKeyConstructor()).loadAs(body, classOf[java.util.Map[String, AnyRef]])
@@ -43,6 +40,7 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
       swaggerUiResourceRoute ~>
       check {
         status should be(StatusCodes.OK)
+        contentType should be(ContentTypes.`application/octet-stream`)
 
         /*
         BUG: Right now swagger-parser says that type is unexpected in security definitions. Should be fixed in
@@ -59,7 +57,8 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
         resultWithInfo.getMessages.asScala.filterNot(_ == swaggerBugMsg) should be(empty)
 
         resultWithInfo.getSwagger.getDefinitions.asScala foreach {
-          case (defKey, defVal) => defVal.getProperties.asScala foreach {
+          // If no properties, `getProperties` returns `null` instead of an empty map
+          case (defKey, defVal) => Option(defVal.getProperties).map(_.asScala).getOrElse(Map.empty) foreach {
             /*
             Two against one.
             Swagger parser implementation lets a RefProperty have descriptions.
@@ -85,6 +84,7 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
         assertResult("<!-- HTML for static distribution bundle build -->") {
           responseAs[String].take(50)
         }
+        assertResult(ContentTypes.`text/html(UTF-8)`)(contentType)
       }
   }
 
@@ -104,6 +104,7 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
           assertResult("OK") {
             responseAs[String]
           }
+          assertResult(ContentTypes.`text/plain(UTF-8)`)(contentType)
         }
     }
   }

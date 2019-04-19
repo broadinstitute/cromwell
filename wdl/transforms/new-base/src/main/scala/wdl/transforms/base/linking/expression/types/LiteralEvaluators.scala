@@ -19,6 +19,12 @@ object LiteralEvaluators {
       a.value.womType.validNel
   }
 
+  implicit val noneLiteralTypeEvaluator: TypeEvaluator[NoneLiteralElement.type] = new TypeEvaluator[NoneLiteralElement.type] {
+    override def evaluateType(a: NoneLiteralElement.type, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] =
+      WomOptionalType(WomNothingType).validNel
+  }
+
   implicit val objectLiteralTypeEvaluator: TypeEvaluator[ObjectLiteral] = new TypeEvaluator[ObjectLiteral] {
     override def evaluateType(a: ObjectLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = WomObjectType.validNel

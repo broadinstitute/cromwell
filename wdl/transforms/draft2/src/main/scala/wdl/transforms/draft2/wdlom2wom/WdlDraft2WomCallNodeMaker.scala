@@ -10,7 +10,7 @@ import wdl.draft2.model.WdlCall
 import wdl.draft2.model.{WdlTaskCall, WdlWomExpression}
 import wom.callable.Callable
 import wom.graph.CallNode._
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{InputDefinition, OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.transforms.WomCallableMaker.ops._
 import wom.graph.CallNode.{InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
@@ -31,7 +31,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
         case r: RequiredInputDefinition => r
         case o: OptionalInputDefinition => o
         // Draft 2 values are non-overridable if they have upstream dependencies, so filter for those:
-        case id: InputDefinitionWithDefault if id.default.inputs.isEmpty => id
+        case id: OverridableInputDefinitionWithDefault if id.default.inputs.isEmpty => id
       }.map(_.localName.value)
       val unexpectedInputs: Option[NonEmptyList[String]] = NonEmptyList.fromList(wdlCall.inputMappings.toList collect {
         case (inputName, _) if !callableExpectedInputs.contains(inputName) => inputName
@@ -102,13 +102,13 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
           )
 
         // No input mapping, either not an input or in a subworkflow: use the default expression
-        case withDefault@InputDefinitionWithDefault(_, _, expression, _, _) if inASubworkflow || expression.inputs.nonEmpty =>
+        case withDefault@OverridableInputDefinitionWithDefault(_, _, expression, _, _) if inASubworkflow || expression.inputs.nonEmpty =>
           InputDefinitionFold(
             mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
           )
 
         // No input mapping and in a top-level workflow: add an input with a default
-        case withDefault@InputDefinitionWithDefault(n, womType, expression, _, _) =>
+        case withDefault@OverridableInputDefinitionWithDefault(n, womType, expression, _, _) =>
           val identifier = wdlCall.womIdentifier.combine(n)
           withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
 
@@ -133,7 +133,7 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
           ogin <- expressionNode.upstreamOuterGraphInputNodes
         } yield ogin
 
-        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins))
+        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins), Set.empty)
 
         // If the created node is a `TaskCallNode` the created input expressions should be `TaskCallInputExpressionNode`s
         // and should be assigned a reference to the `TaskCallNode`. This is used in the `WorkflowExecutionActor` to

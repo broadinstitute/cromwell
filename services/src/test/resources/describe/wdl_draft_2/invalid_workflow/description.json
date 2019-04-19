@@ -1,0 +1,24 @@
+{
+  "valid" : false,
+  "errors" : [
+    "ERROR: Finished parsing without consuming all tokens.\n\nFour score and seven years ago our fathers brought forth on this continent, a new nation, conceived in Liberty, and dedicated to the proposition that all men are created equal.\n^\n     "
+  ],
+  "name" : "",
+  "inputs" : [
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

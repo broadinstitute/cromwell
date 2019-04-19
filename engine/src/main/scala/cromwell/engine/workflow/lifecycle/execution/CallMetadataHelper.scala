@@ -124,7 +124,7 @@ trait CallMetadataHelper {
             metadataEvent(s"$eventKey:description", eventCurrent.name),
             metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),
             metadataEvent(s"$eventKey:endTime", eventNext.offsetDateTime)
-          )
+          ) ++ (eventCurrent.grouping map { g => metadataEvent(s"$eventKey:grouping", g) })
       }
 
       serviceRegistryActor ! PutMetadataAction(events.toIterable)

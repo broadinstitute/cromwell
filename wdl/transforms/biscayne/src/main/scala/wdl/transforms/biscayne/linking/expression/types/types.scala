@@ -24,6 +24,8 @@ package object types {
       a match {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: NoneLiteralElement.type => a.evaluateType(linkedValues)(typeEvaluator)
+
         case a: StringLiteral => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StringExpression => a.evaluateType(linkedValues)(typeEvaluator)
         case a: ObjectLiteral => a.evaluateType(linkedValues)(typeEvaluator)
@@ -100,6 +102,7 @@ package object types {
         case a: StdoutElement.type => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StderrElement.type => a.evaluateType(linkedValues)(typeEvaluator)
 
+        case a: Keys => a.evaluateType(linkedValues)(typeEvaluator)
         case a: AsMap => a.evaluateType(linkedValues)(typeEvaluator)
         case a: AsPairs => a.evaluateType(linkedValues)(typeEvaluator)
         case a: CollectByKey => a.evaluateType(linkedValues)(typeEvaluator)

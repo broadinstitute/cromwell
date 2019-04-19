@@ -4,7 +4,7 @@ import cromwell.util.SampleWdl
 import org.scalatest.{Matchers, WordSpecLike}
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.{FullyQualifiedName, Draft2ImportResolver}
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.types.{WomOptionalType, WomSingleFileType, WomStringType}
 
 class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
@@ -33,7 +33,7 @@ class DeclarationWorkflowSpec extends Matchers with WordSpecLike {
           inputDefinition.localName.value should be("two_step.cat.flags2")
           inputName should be("two_step.cat.flags2")
           inputDefinition.womType should be(WomOptionalType(WomStringType))
-        case (inputName: FullyQualifiedName, inputDefinition: InputDefinitionWithDefault) =>
+        case (inputName: FullyQualifiedName, inputDefinition: OverridableInputDefinitionWithDefault) =>
           inputDefinition.localName.value should be ("two_step.static_string")
           inputName should be("two_step.static_string")
           inputDefinition.womType should be(WomStringType)

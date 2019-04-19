@@ -11,6 +11,7 @@ import cromiam.auth.{Collection, User}
 import cromiam.cromwell.CromwellClient
 import cromiam.sam.SamClient
 import cromiam.webservice.QuerySupport._
+import cromwell.api.model._
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.util.{Failure, Success, Try}
@@ -26,11 +27,11 @@ trait QuerySupport extends RequestSupport {
 
   def queryGetRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     get {
-      preprocessQuery("GET") { (user, collections, request) =>
+      preprocessQuery { (user, collections, request) =>
         processLabelsForGetQuery(user, collections) { uri =>
           val requestToForward = HttpRequest(HttpMethods.GET, uri, request.headers)
           complete {
-            cromwellClient.forwardToCromwell(requestToForward)
+            cromwellClient.forwardToCromwell(requestToForward).asHttpResponse
           }
         }
       }
@@ -39,9 +40,9 @@ trait QuerySupport extends RequestSupport {
 
   def queryPostRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     post {
-      preprocessQuery("GET") { (user, collections, request) =>
+      preprocessQuery { (user, collections, request) =>
         processLabelsForPostQuery(user, collections) { entity =>
-          complete { cromwellClient.forwardToCromwell(request.withEntity(entity)) }
+          complete { cromwellClient.forwardToCromwell(request.withEntity(entity)).asHttpResponse }
         }
       }
     }
@@ -52,12 +53,14 @@ trait QuerySupport extends RequestSupport {
     * retrieves the collections for the user, grabs the underlying HttpRequest and forwards it on to the specific
     * directive
     */
-  private def preprocessQuery(method: String): Directive[(User, List[Collection], HttpRequest)] = {
-    extractUser flatMap  { user =>
-      log.info("Received query " + method + " request for user " + user.userId)
+  private def preprocessQuery: Directive[(User, List[Collection], HttpRequest)] = {
+    extractUserAndRequest tflatMap { case (user, cromIamRequest) =>
+      log.info("Received query " + cromIamRequest.method.value + " request for user " + user.userId)
 
-      onComplete(samClient.collectionsForUser(user)) flatMap {
-        case Success(collections) =>
+      onComplete(samClient.collectionsForUser(user, cromIamRequest).value.unsafeToFuture()) flatMap {
+        case Success(Left(httpResponse)) =>
+          complete(httpResponse)
+        case Success(Right(collections)) =>
           toStrictEntity(Timeout) tflatMap { _ =>
             extractStrictRequest flatMap { request =>
               tprovide((user, collections, request))
@@ -165,8 +168,6 @@ trait QuerySupport extends RequestSupport {
 }
 
 object QuerySupport {
-  def hasCollectionLabel(labels: Iterable[String]): Boolean = labels exists { _.startsWith(s"$CollectionLabelName:") }
-
   final case class InvalidQueryException(e: Throwable) extends
     Exception(s"Invalid JSON in query POST body: ${e.getMessage}", e)
 

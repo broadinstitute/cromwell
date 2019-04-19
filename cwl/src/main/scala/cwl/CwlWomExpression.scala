@@ -1,11 +1,13 @@
 package cwl
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
+import cats.syntax.functor._
+import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._
+import common.validation.IOChecked._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
-import cwl.FileParameter.sync
 import cwl.InitialWorkDirFileGeneratorExpression._
 import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import shapeless.Poly1
@@ -52,30 +54,29 @@ case class ECMAScriptWomExpression(expression: Expression,
 
 final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEntry, expressionLib: ExpressionLib) extends ContainerizedInputExpression {
 
-  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[List[AdHocValue]] = {
-    def recursivelyBuildDirectory(directory: String): ErrorOr[WomMaybeListedDirectory] = {
+  def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): IOChecked[List[AdHocValue]] = {
+    def recursivelyBuildDirectory(directory: String): IOChecked[WomMaybeListedDirectory] = {
       import cats.instances.list._
       import cats.syntax.traverse._
       for {
-        listing <- sync(ioFunctionSet.listDirectory(directory)()).toErrorOr
-        fileListing <- listing.toList.traverse[ErrorOr, WomFile] {
-          case IoDirectory(e) => recursivelyBuildDirectory(e)
-          case IoFile(e) => WomSingleFile(e).validNel
+        listing <- ioFunctionSet.listDirectory(directory)().toIOChecked
+        fileListing <- listing.toList.traverse[IOChecked, WomFile] {
+          case IoDirectory(e) => recursivelyBuildDirectory(e).widen
+          case IoFile(e) => WomSingleFile(e).validIOChecked.widen
         }
       } yield WomMaybeListedDirectory(Option(directory), Option(fileListing))
     }
-    val updatedValues = inputValues map {
-      case (k, v: WomMaybeListedDirectory) => k -> {
+    
+    inputValues.toList.traverse[IOChecked, (String, WomValue)]({
+      case (k, v: WomMaybeListedDirectory) =>
         val absolutePathString = ioFunctionSet.pathFunctions.relativeToHostCallRoot(v.value)
-        recursivelyBuildDirectory(absolutePathString) match {
-          case Valid(d) => d
-          case Invalid(es) => throw new RuntimeException(es.toList.mkString("Error building directory: ", ", ", ""))
-        }
-      }
-      case kv => kv
-    }
-    val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, updatedValues)
-    entry.fold(InitialWorkDirFilePoly).apply(unmappedParameterContext, mappedInputValues)
+        recursivelyBuildDirectory(absolutePathString).contextualizeErrors(s"Error building directory $absolutePathString") map { k -> _ }
+      case kv => kv.validIOChecked
+    }).map(_.toMap)
+      .flatMap({ updatedValues =>
+        val unmappedParameterContext = ParameterContext(ioFunctionSet, expressionLib, updatedValues)
+        entry.fold(InitialWorkDirFilePoly).apply(unmappedParameterContext, mappedInputValues).toIOChecked
+      })
   }
 }
 
@@ -168,7 +169,7 @@ object InitialWorkDirFileGeneratorExpression {
               List(AdHocValue(file, alternativeName = None, inputName = None)).validNel
             case other =>
               val error = "InitialWorkDirRequirement listing expression must be File or Array[File] but got %s: %s"
-                .format(other, other.womType.toDisplayString)
+                .format(other, other.womType.stableName)
               error.invalidNel
           }
         }

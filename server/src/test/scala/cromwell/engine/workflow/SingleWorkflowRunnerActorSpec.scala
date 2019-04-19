@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import akka.actor._
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
-import akka.testkit.TestProbe
+import akka.testkit._
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
@@ -17,9 +17,10 @@ import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
-import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreCoordinatedWriteActor}
+import cromwell.engine.workflow.workflowstore._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
+import mouse.all._
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 import org.specs2.mock.Mockito
 import spray.json._
@@ -57,12 +58,11 @@ object SingleWorkflowRunnerActorSpec {
   }
 }
 
-abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with Mockito {
+abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreBuilder with Mockito {
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
   val store = new InMemoryWorkflowStore
-  val coordinator = system.actorOf(WorkflowStoreCoordinatedWriteActor.props(store))
   private val workflowStore =
-    system.actorOf(WorkflowStoreActor.props(store, coordinator, dummyServiceRegistryActor, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+    system.actorOf(WorkflowStoreActor.props(store, store |> access, dummyServiceRegistryActor, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
   private val serviceRegistry = TestProbe().ref
   private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
   private val ioActor = system.actorOf(SimpleIoActor.props)
@@ -70,7 +70,7 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec wit
   private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
   private val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
   private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
-  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second)))
+  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None))
 
 
   def workflowManagerActor(): ActorRef = {
@@ -257,7 +257,7 @@ class SingleWorkflowRunnerActorWithBadMetadataSpec extends SingleWorkflowRunnerA
       within(TimeoutDuration) {
         val runner = createRunnerActor(outputFile = Option(metadataDir))
         waitForErrorWithException(s"Specified metadata path is a directory, should be a file: $metadataDir") {
-          val futureResult = runner.ask(RunWorkflow)(30.seconds, implicitly)
+          val futureResult = runner.ask(RunWorkflow)(30.seconds.dilated, implicitly)
           Await.ready(futureResult, Duration.Inf)
           futureResult.value.get match {
             case Success(_) =>

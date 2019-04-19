@@ -17,5 +17,5 @@ metadata {
 
 fileSystemCheck: "gcs"
 outputExpectations {
-  "gs://cloud-cromwell-dev/cromwell_execution/travis/fofn_caching/<<UUID>>/call-use_fofn/call_caching_placeholder.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/fofn_caching/<<UUID>>/call-use_fofn/call_caching_placeholder.txt": 1
 }

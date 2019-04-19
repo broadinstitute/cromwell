@@ -5,6 +5,7 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
+import ContinuousIntegration._
 
 import scala.sys.process._
 
@@ -21,16 +22,17 @@ object Publishing {
     versions.
 
     `sbt 'show docker::imageNames'` returns:
-      ArrayBuffer(broadinstitute/womtool:30, broadinstitute/womtool:30-c33be41-SNAP)
-      ArrayBuffer(broadinstitute/cromwell:30, broadinstitute/cromwell:30-c33be41-SNAP)
+      ArrayBuffer(broadinstitute/womtool:30-c33be41-SNAP)
+      ArrayBuffer(broadinstitute/cromwell:30-c33be41-SNAP)
 
     `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
       ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
-    dockerTags := sys.env
-      .getOrElse("CROMWELL_SBT_DOCKER_TAGS", s"$cromwellVersion,${version.value}")
-      .split(","),
+    dockerTags := {
+      val versionsCsv = if (Version.isSnapshot) version.value else s"$cromwellVersion,${version.value}"
+      sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
+    },
     imageNames in docker := dockerTags.value map { tag =>
       ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
     },
@@ -117,12 +119,12 @@ object Publishing {
 
   val verifyArtifactoryCredentialsExist = taskKey[Unit]("Verify that the artifactory credentials file exists.")
 
-  def artifactorySettings: Seq[Setting[_]] = List(
+  val artifactorySettings: Seq[Setting[_]] = List(
     publishTo := Option(artifactoryResolver(isSnapshot.value)),
     credentials ++= artifactoryCredentials,
   )
 
-  def rootArtifactorySettings: Seq[Setting[_]] = List(
+  val rootArtifactorySettings: Seq[Setting[_]] = List(
     verifyArtifactoryCredentialsExist := {
       if (!artifactoryCredentialsFile.exists) {
         throw new FileNotFoundException(

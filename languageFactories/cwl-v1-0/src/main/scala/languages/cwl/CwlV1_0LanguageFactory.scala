@@ -2,16 +2,18 @@ package languages.cwl
 
 import better.files.File
 import cats.data.EitherT.fromEither
+import cats.data.NonEmptyList
 import cats.effect.IO
 import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
-import cwl.CwlDecoder
+import cwl.preprocessor.CwlReference
+import cwl.{Cwl, CwlDecoder}
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
@@ -27,16 +29,26 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
                                  ioFunctions: IoFunctionSet,
-                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+                                 importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
+
+    def parse(): IOChecked[Cwl] = source.workflowUrl match {
+      case Some(url) => for {
+        reference <- fromEither[IO](CwlReference.fromString(url).map(Right(_)).getOrElse(Left(NonEmptyList.one(s"Invalid workflow reference: $url")))): IOChecked[CwlReference]
+        parsed <- CwlDecoder.decodeCwlReference(reference.changePointer(source.workflowRoot))
+      } yield parsed
+      case None =>
+        CwlDecoder.decodeCwlString(
+          workflowSource,
+          source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
+          source.workflowRoot,
+          "cwl_temp_file_" + workflowIdForLogging.toString
+        )
+    }
+
     import cwl.AcceptAllRequirements
     for {
       _ <- fromEither[IO](enabledCheck)
-      cwl <- CwlDecoder.decodeCwlString(
-        workflowSource,
-        source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
-        source.workflowRoot,
-        "cwl_temp_file_" + workflowIdForLogging.toString
-      )
+      cwl <- parse()
       executable <- fromEither[IO](cwl.womExecutable(AcceptAllRequirements, Option(source.inputsJson), ioFunctions, strictValidation))
       validatedWomNamespace <- fromEither[IO](LanguageFactoryUtil.validateWomNamespace(executable, ioFunctions))
     } yield validatedWomNamespace

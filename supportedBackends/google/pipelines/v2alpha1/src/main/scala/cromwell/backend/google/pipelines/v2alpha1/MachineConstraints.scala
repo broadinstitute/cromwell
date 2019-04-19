@@ -13,14 +13,13 @@ object MachineConstraints {
   implicit class EnhancedInformation(val information: MemorySize) extends AnyVal {
     def asMultipleOf(factor: MemorySize): MemorySize = MemorySize(factor.amount * (information.bytes / factor.bytes).ceil, factor.unit)
     def toMBString = information.to(MemoryUnit.MB).toString
-    def toMiBString = information.to(MemoryUnit.MiB).toString
   }
 
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#specifications
-  private val minMemoryPerCpu = MemorySize(0.9, MemoryUnit.GiB)
-  private val maxMemoryPerCpu = MemorySize(6.5, MemoryUnit.GiB)
-  private val memoryFactor = MemorySize(256, MemoryUnit.MiB)
+  private val minMemoryPerCpu = MemorySize(0.9, MemoryUnit.GB)
+  private val maxMemoryPerCpu = MemorySize(6.5, MemoryUnit.GB)
+  private val memoryFactor = MemorySize(256, MemoryUnit.MB)
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
     // One CPU is cool
@@ -57,10 +56,10 @@ object MachineConstraints {
   }
   
   private def logAdjustment(originalCpu: Int, adjustedCpu: Int, originalMemory: MemorySize, adjustedMemory: MemorySize, logger: Logger) = {
-    def memoryAdjustmentLog = s"memory was adjusted from ${originalMemory.toMBString} to ${adjustedMemory.toMiBString}"
+    def memoryAdjustmentLog = s"memory was adjusted from ${originalMemory.toMBString} to ${adjustedMemory.toMBString}"
     def cpuAdjustmentLog = s"cpu was adjusted from $originalCpu to $adjustedCpu"
     
-    val message = (originalCpu == adjustedCpu, originalMemory.to(MemoryUnit.MB).amount == adjustedMemory.to(MemoryUnit.MiB).amount) match {
+    val message = (originalCpu == adjustedCpu, originalMemory.to(MemoryUnit.MB).amount == adjustedMemory.to(MemoryUnit.MB).amount) match {
       case (true, false) => Option(memoryAdjustmentLog)
       case (false, true) => Option(cpuAdjustmentLog)
       case (false, false) => Option(memoryAdjustmentLog + " and " + cpuAdjustmentLog)
@@ -73,6 +72,6 @@ object MachineConstraints {
   def machineType(memory: MemorySize, cpu: Int Refined Positive, jobLogger: Logger) = {
     val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
     logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
-    s"custom-$validCpu-${validMemory.to(MemoryUnit.MiB).amount.intValue()}"
+    s"custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
   }
 }

@@ -34,7 +34,6 @@ package cromwell.backend.impl.aws
 import java.net.SocketTimeoutException
 import java.util.concurrent.Executors
 
-import cats.data.Validated.Valid
 import cats.effect.{IO, Timer}
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
@@ -53,6 +52,7 @@ import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
+import software.amazon.awssdk.services.batch.model.BatchException
 import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
@@ -96,6 +96,14 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
+  private lazy val jobScriptMountPath =
+    AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
+
+  private lazy val execScript =
+    s"""|#!$jobShell
+        |$jobShell $jobScriptMountPath
+        |""".stripMargin
+
   /* Batch job object (see AwsBatchJob). This has the configuration necessary
    * to perform all operations with the AWS Batch infrastructure. This is
    * where the real work happens
@@ -129,15 +137,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    * commandScriptContents here
    */
   lazy val batchJob = {
-    val script = commandScriptContents match {
-      case Valid(s) => s
-      case errors => new RuntimeException(errors.toList.mkString(", "))
-    }
     AwsBatchJob(
       jobDescriptor,
       runtimeAttributes,
       instantiatedCommand.commandString,
-      script.toString,
+      execScript,
       rcPath.toString, executionStdout, executionStderr,
       generateAwsBatchInputs(jobDescriptor),
       generateAwsBatchOutputs(jobDescriptor),
@@ -217,8 +221,14 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case (name, files) => inputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
     }
 
-    (writeFunctionInputs ++ callInputInputs).toSet
+    val scriptInput: AwsBatchInput = AwsBatchFileInput(
+      "script",
+      jobPaths.script.pathAsString,
+      DefaultPathBuilder.get(jobPaths.script.pathWithoutScheme),
+      workingDisk
+    )
 
+    Set(scriptInput) ++ writeFunctionInputs ++ callInputInputs
   }
 
   /**
@@ -334,11 +344,19 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
+  def uploadScriptFile(): Future[Unit] = {
+    commandScriptContents.fold(
+      errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
+      asyncIo.writeAsync(jobPaths.script, _, Seq.empty)
+    )
+  }
+
   // Primary entry point for cromwell to actually run something
   override def executeAsync(): Future[ExecutionHandle] = {
     implicit val timer: Timer[IO] = cats.effect.IO.timer(ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor))
 
     for {
+      _ <- uploadScriptFile()
       submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
@@ -353,10 +371,19 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def pollStatusAsync(handle: AwsBatchPendingExecutionHandle): Future[RunStatus] = {
     val jobId = handle.pendingJob.jobId
     val job = handle.runInfo match {
-      case Some(job) => job
-      case None => throw new RuntimeException(s"pollStatusAsync called but job not available. This should not happen. Jobid ${jobId}")
+      case Some(actualJob) => actualJob
+      case None =>
+        throw new RuntimeException(
+          s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
+        )
     }
     Future.fromTry(job.status(jobId))
+  }
+
+  // Despite being a "runtime" exception, BatchExceptions for 429 are *not* fatal:
+  override def isFatal(throwable: Throwable): Boolean = throwable match {
+    case be: BatchException => !be.getMessage.contains("Status Code: 429")
+    case _ => super.isFatal(throwable)
   }
 
   override lazy val startMetadataKeyValues: Map[String, Any] = super[AwsBatchJobCachingActorHelper].startMetadataKeyValues
@@ -399,7 +426,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile(value =>
       getPath(value) match {
-        case Success(path: S3Path) => workingDisk.mountPoint.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
+        case Success(path: S3Path) => workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
         case _ => value
       }
     )

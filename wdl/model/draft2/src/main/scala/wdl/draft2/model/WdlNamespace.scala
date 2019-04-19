@@ -157,7 +157,14 @@ object WdlNamespace {
   }
 
   private def load(workflowSource: WorkflowSource, resource: String, importResolver: Seq[Draft2ImportResolver], importedAs: Option[String], root: Boolean = true): Try[WdlNamespace] = Try {
-    WdlNamespace(AstTools.getAst(workflowSource, resource), resource, workflowSource, importResolver, importedAs, root = root)
+    val maybeAst = Option(AstTools.getAst(workflowSource, resource))
+
+    maybeAst match {
+      case Some(ast) =>
+        WdlNamespace(ast, resource, workflowSource, importResolver, importedAs, root = root)
+      case None =>
+        throw new IllegalArgumentException("Could not build AST from workflow source. Source is empty or contains only comments and whitespace.")
+    }
   }
 
   def apply(ast: Ast, uri: String, source: WorkflowSource, importResolvers: Seq[Draft2ImportResolver], namespaceName: Option[String], root: Boolean = false): WdlNamespace = {

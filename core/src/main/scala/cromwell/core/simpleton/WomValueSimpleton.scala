@@ -52,7 +52,7 @@ object WomValueSimpleton {
         case womObjectLike: WomObjectLike => womObjectLike.values flatMap {
           case (key, value) => value.simplify(s"$name:${key.escapeMeta}")
         }
-        case WomMaybeListedDirectory(valueOption, listingOption, _) =>
+        case WomMaybeListedDirectory(valueOption, listingOption, _, _) =>
           // This simpleton is not strictly part of the WomFile but is used to record the type of this WomValue so it can
           // be re-built appropriately in the WomValueBuilder
           val classSimpleton = Option(toStringSimpleton(suffix(ClassKey))(DirectoryClass))

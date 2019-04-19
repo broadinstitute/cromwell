@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable
 import wom.callable.Callable._
 import wom.graph.GraphNode._
-import wom.graph.GraphNodePort.{InputPort, OutputPort}
+import wom.graph.GraphNodePort.{InputPort, NodeCompletionPort, OutputPort}
 import wom.graph.expression.ExpressionNode
 
 trait GraphNode {
@@ -35,6 +35,8 @@ trait GraphNode {
     */
   def outputPorts: Set[GraphNodePort.OutputPort]
 
+  val completionPort = NodeCompletionPort(_ => this)
+
   def outputByName(name: String): ErrorOr[GraphNodePort.OutputPort] = {
     outputPorts.find(_.name == name) match {
       case Some(port) => port.validNel
@@ -51,8 +53,16 @@ trait GraphNode {
     * The set of all OuterGraphInputNodes which are somewhere upstream of this Node (in the same graph)
     */
   lazy val upstreamOuterGraphInputNodes: Set[OuterGraphInputNode] = upstreamAncestry.filterByType[OuterGraphInputNode]
-  lazy val upstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  protected def calculateUpstreamPorts: Set[OutputPort] = inputPorts.map(_.upstream)
+  lazy val upstreamPorts: Set[OutputPort] = calculateUpstreamPorts
   lazy val upstream: Set[GraphNode] = upstreamPorts.map(_.graphNode)
+
+  def containedCalls: Set[CallNode] = this match {
+    case c: CallNode => Set(c)
+    case s: ScatterNode => s.innerGraph.nodes.flatMap(_.containedCalls)
+    case c: ConditionalNode => c.innerGraph.nodes.flatMap(_.containedCalls)
+    case _ => Set.empty
+  }
 }
 
 object GraphNode {
@@ -65,8 +75,8 @@ object GraphNode {
 
   def inputPortNamesMatch(required: Set[InputPort], provided: Set[InputPort]): ErrorOr[Unit] = {
     def requiredInputFound(r: InputPort): ErrorOr[Unit] = provided.find(_.name == r.name) match {
-      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.toDisplayString} to the input ${r.name}: ${r.womType}".invalidNel
-      case None => s"The required input ${r.name}: ${r.womType.toDisplayString} was not provided.".invalidNel
+      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.stableName} to the input ${r.name}: ${r.womType}".invalidNel
+      case None => s"The required input ${r.name}: ${r.womType.stableName} was not provided.".invalidNel
     }
 
     required.toList.traverse(requiredInputFound).void
@@ -89,7 +99,7 @@ object GraphNode {
     def inputDefinitions: Set[_ <: Callable.InputDefinition] = nodes collect {
       case required: RequiredGraphInputNode => RequiredInputDefinition(required.identifier.localName, required.womType)
       case optional: OptionalGraphInputNode => OptionalInputDefinition(optional.identifier.localName, optional.womType)
-      case withDefault: OptionalGraphInputNodeWithDefault => InputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
+      case withDefault: OptionalGraphInputNodeWithDefault => OverridableInputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
     }
 
     def outputDefinitions: Set[_ <: Callable.OutputDefinition] = nodes collect {

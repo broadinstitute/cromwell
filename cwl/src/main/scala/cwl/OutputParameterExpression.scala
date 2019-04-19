@@ -1,7 +1,7 @@
 package cwl
 
-import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked.{IOChecked, _}
 import cwl.CwlType.CwlType
 import shapeless.Poly1
 import wom.expression.{EmptyIoFunctionSet, FileEvaluation, IoFunctionSet}
@@ -26,7 +26,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
                                     secondaryFilesOption: Option[SecondaryFiles],
                                     formatOption: Option[StringOrExpression]
                                    )(outputBinding: CommandOutputBinding,
-                                    cwlExpressionType: WomType) = {
+                                    cwlExpressionType: WomType): IOChecked[WomValue] = {
     CommandOutputBinding.generateOutputWomValue(
       inputValues,
       ioFunctionSet,
@@ -42,7 +42,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
                                     ioFunctionSet: IoFunctionSet,
                                     secondaryFilesOption: Option[SecondaryFiles],
                                     coerceTo: WomType
-                                   )(outputBinding: CommandOutputBinding): ErrorOr[Set[FileEvaluation]] = {
+                                   )(outputBinding: CommandOutputBinding): IOChecked[Set[FileEvaluation]] = {
     CommandOutputBinding.getOutputWomFiles(
       inputValues,
       coerceTo,
@@ -63,7 +63,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
         schemaDefRequirement
       ))
 
-    fromOutputBinding.orElse(fromType).getOrElse(s"Cannot evaluate ${parameter.toString}".invalidNel)
+    fromOutputBinding.orElse(fromType).getOrElse(s"Cannot evaluate ${parameter.toString}".invalidIOChecked).toErrorOr
   }
 
   /**
@@ -89,19 +89,19 @@ case class OutputParameterExpression(parameter: OutputParameter,
       override def isDirectory(path: String): Future[Boolean] = Future.successful(false)
       override def ec: ExecutionContext = scala.concurrent.ExecutionContext.global
     }
-    def fromOutputBinding: ErrorOr[Set[FileEvaluation]] = parameter
+    def fromOutputBinding: IOChecked[Set[FileEvaluation]] = parameter
       .outputBinding
       .map(evaluateOutputBindingFiles(inputs, stubbedIoFunctionSet, parameter.secondaryFiles, coerceTo))
-      .getOrElse(Set.empty[FileEvaluation].validNel)
+      .getOrElse(Set.empty[FileEvaluation].validIOChecked)
 
-    def fromType: ErrorOr[Set[FileEvaluation]] = parameter
+    def fromType: IOChecked[Set[FileEvaluation]] = parameter
       .`type`
       .map(_.fold(MyriadOutputTypeToWomFiles).apply(evaluateOutputBindingFiles(inputs, stubbedIoFunctionSet, parameter.secondaryFiles, coerceTo)))
-      .getOrElse(Set.empty[FileEvaluation].validNel)
+      .getOrElse(Set.empty[FileEvaluation].validIOChecked)
 
     val optional: Boolean = parameter.`type`.exists(_.fold(OutputTypeIsOptional))
 
-    (fromOutputBinding, fromType) mapN (_ ++ _) map { _ map { _.copy(optional = optional) } }
+    ((fromOutputBinding, fromType) mapN (_ ++ _) map { _ map { _.copy(optional = optional) } }).toErrorOr
   }
 }
 

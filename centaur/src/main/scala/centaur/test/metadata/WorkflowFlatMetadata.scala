@@ -58,6 +58,10 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsString => (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
       case o: JsNumber => (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
       case o: JsBoolean => (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsArray if stripQuotes(cacheSubstitutions).startsWith("~>") =>
+        val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~>")
+        val replaced = stripped.replaceAll("\\\\\"", "\"")
+        (replaced != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
       case o: JsArray => (expected != JsString(o.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
       case JsNull => (expected != JsNull).option(s"expected: $cacheSubstitutions but got: $actual")
       case _ => Option(s"expected: $cacheSubstitutions but got: $actual")

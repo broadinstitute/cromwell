@@ -1,0 +1,24 @@
+name: draft3_nio_file_papi1
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+backends: [Papiv1]
+
+files {
+  workflow: wdl_draft3/draft3_nio_file/draft3_nio_file_papi1.wdl
+}
+
+metadata {
+  workflowName: draft3_nio_file
+  status: Succeeded
+  "outputs.draft3_nio_file.f_path_prefix": "gs://"
+  "outputs.draft3_nio_file.g_path_prefix": "gs://"
+  "outputs.draft3_nio_file.h_path_prefix": "gs://"
+  "outputs.draft3_nio_file.x_path_prefix": "gs://"
+  "outputs.draft3_nio_file.y_path_prefix": "gs://"
+  "outputs.draft3_nio_file.errors": ""
+
+  "calls.draft3_nio_file.cc_nio_file.callCaching.hit": true
+  "calls.draft3_nio_file.non_cc_nio_file.callCaching.hit": false
+}

@@ -3,15 +3,15 @@ package cromwell.engine.workflow.workflowstore
 import java.util.UUID
 
 import com.typesafe.config.{Config, ConfigFactory}
-import io.circe.generic.auto._
-import io.circe.literal._
-import io.circe.syntax._
+import cromwell.engine.workflow.workflowstore.WorkflowHeartbeatConfig._
 import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.syntax._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import mouse.all._
 
 /**
   *
@@ -28,23 +28,29 @@ case class WorkflowHeartbeatConfig(
                                     writeBatchSize: Int,
                                     writeThreshold: Int)
 {
-
-  // An `Encoder[FiniteDuration]` is needed for the `.asJson.toString()` shenanigans below. Unfortunately the compiler
-  // appears to get confused about this encoder actually being used. If this is made fully private or a local the compiler
-  // wrongly emits a warning about it being unused, which our compiler flag settings then promote to an error.
-  private [engine] implicit val finiteDurationEncoder: Encoder[FiniteDuration] = (d: FiniteDuration) => d.toString.asJson
-
-  override def toString: String = this.asJson.toString()
+  override def toString: String = this.asInstanceOf[WorkflowHeartbeatConfig].asJson.spaces2
 }
 
 object WorkflowHeartbeatConfig {
 
+  // NOTE: If these are made fully private the compiler wrongly emits a warning about them being unused, which our
+  // compiler flag settings then promote to an error.
+
+  // NOTE: This is a different encoding than circe's finiteDurationEncoder: https://github.com/circe/circe/pull/978
+  private[engine] implicit lazy val encodeFiniteDuration: Encoder[FiniteDuration] = {
+    Encoder.encodeString.contramap(_.toString)
+  }
+  private[engine] implicit lazy val encodeWorkflowHeartbeatConfig: Encoder[WorkflowHeartbeatConfig] = deriveEncoder
+
   def apply(config: Config): WorkflowHeartbeatConfig = {
-    val cromwellId: String = config.as[Option[String]]("system.cromwell_id").getOrElse("cromid-" + UUID.randomUUID().toString.take(7))
+    val randomSuffix = config
+      .getOrElse("system.cromwell_id_random_suffix", true)
+      .fold("-" + UUID.randomUUID().toString.take(7), "")
+    val cromwellId: String = config.getOrElse("system.cromwell_id", "cromid") + randomSuffix
 
     val heartbeats: Config = config.getOrElse("system.workflow-heartbeats", ConfigFactory.empty())
-    // Default to 10 minutes and don't allow values less than 10 seconds even for testing purposes.
-    val minHeartbeatTtl = 10 seconds
+    // Default to 10 mins and don't allow values less than 10 secs except for testing purposes.
+    val minHeartbeatTtl = config.getOrElse("danger.debug.only.minimum-heartbeat-ttl", 10.seconds)
     val ttl: FiniteDuration = heartbeats.getOrElse("ttl", 10 minutes).max(minHeartbeatTtl)
     // Default to one third the TTL and don't allow values less than one third of the minimum heartbeat TTL.
     val heartbeatInterval: FiniteDuration = heartbeats.getOrElse("heartbeat-interval", ttl / 3).max(minHeartbeatTtl / 3)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_SUPPORTS_CRON=true
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
@@ -26,6 +26,9 @@ cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
     -e gpu_on_papi \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e standard_output_paths_colliding_prevented \
     -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 
 cromwell::build::generate_code_coverage

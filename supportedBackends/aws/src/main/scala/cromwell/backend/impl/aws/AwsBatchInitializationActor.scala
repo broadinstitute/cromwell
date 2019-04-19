@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import java.io.IOException
 
 import akka.actor.ActorRef
-import software.amazon.awssdk.core.auth.AwsCredentials
+import software.amazon.awssdk.auth.credentials.AwsCredentials
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.backend.standard.{StandardInitializationActor,
                                   StandardInitializationActorParams,

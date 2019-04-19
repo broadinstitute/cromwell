@@ -1,12 +1,13 @@
 package cromwell.backend.google.pipelines.common.authentication
 
 import cats.data.Validated.{Invalid, Valid}
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import cats.syntax.validated._
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.ClientSecrets
 import cromwell.core.DockerCredentials
 import spray.json.{JsString, JsValue}
-
 /**
  * Interface for Authentication information that can be included as a json object in the file uploaded to GCS
  * upon workflow creation and used in the VM.
@@ -34,19 +35,24 @@ object PipelinesApiDockerCredentials {
 
   def apply(dockerCredentials: DockerCredentials, googleConfig: GoogleConfiguration): PipelinesApiDockerCredentials = {
     // If there's an encryption key defined there must be a valid auth defined to encrypt it.
-    val credential = dockerCredentials.keyName flatMap { _ =>
-      val authName = dockerCredentials.authName.getOrElse(throw new RuntimeException("KMS Encryption key defined for private Docker but no auth specified"))
-      googleConfig.auth(authName) match {
-        case Invalid(e) => throw new RuntimeException("Error creating GoogleAuthMode: " + e.toList.mkString(", "))
-        case Valid(auth) => auth.apiClientGoogleCredential(identity)
-      }
+    val authValidation = dockerCredentials.keyName match {
+      case None => ().validNel // fine
+      case _ =>
+        for {
+          authName <- dockerCredentials.authName.toErrorOr("KMS Encryption key defined for private Docker but no auth specified")
+          _ <- googleConfig.auth(authName)
+        } yield ()
     }
 
-    new PipelinesApiDockerCredentials(
-      token = dockerCredentials.token,
-      keyName = dockerCredentials.keyName,
-      authName = dockerCredentials.authName,
-      credential = credential)
+    authValidation match {
+      case Invalid(errors) =>
+        throw new RuntimeException(errors.toList.mkString(", "))
+      case Valid(_) =>
+        new PipelinesApiDockerCredentials(
+          token = dockerCredentials.token,
+          keyName = dockerCredentials.keyName,
+          authName = dockerCredentials.authName)
+    }
   }
 }
 
@@ -55,8 +61,7 @@ object PipelinesApiDockerCredentials {
  */
 case class PipelinesApiDockerCredentials(override val token: String,
                                          override val keyName: Option[String],
-                                         override val authName: Option[String],
-                                         credential: Option[GoogleCredential])
+                                         override val authName: Option[String])
   extends DockerCredentials(token = token, keyName = keyName, authName = authName) with PipelinesApiAuthObject {
 
   override val context = "docker"

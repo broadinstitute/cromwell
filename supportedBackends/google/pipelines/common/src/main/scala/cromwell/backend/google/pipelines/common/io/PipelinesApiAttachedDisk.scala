@@ -6,6 +6,8 @@ import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 import wom.values._
 
 import scala.util.Try
@@ -54,6 +56,15 @@ object PipelinesApiAttachedDisk {
       value.toLong.validNel
     } catch {
       case _: IllegalArgumentException => s"$value not convertible to a Long".invalidNel
+    }
+  }
+  
+  implicit class EnhancedDisks(val disks: Seq[PipelinesApiAttachedDisk]) extends AnyVal {
+    def adjustWorkingDiskWithNewMin(minimum: MemorySize, onAdjustment: => Unit): Seq[PipelinesApiAttachedDisk] = disks map {
+      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < minimum.to(MemoryUnit.GB).amount.toInt =>
+        onAdjustment
+        disk.copy(sizeGb = minimum.to(MemoryUnit.GB).amount.toInt)
+      case other => other
     }
   }
 }

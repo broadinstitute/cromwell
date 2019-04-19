@@ -8,6 +8,8 @@ trait ExpressionElement
 object ExpressionElement {
   final case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
+  case object NoneLiteralElement extends ExpressionElement
+
   final case class StringExpression(pieces: Seq[StringPiece]) extends ExpressionElement
   sealed trait StringPiece
   final case class StringLiteral(value: String) extends StringPiece with ExpressionElement
@@ -16,6 +18,18 @@ object ExpressionElement {
     * For use within a StringExpression. Cannot be a standalone ExpressionElement.
     */
   final case class StringPlaceholder(expr: ExpressionElement) extends StringPiece
+
+  sealed trait StringEscapeSequence extends StringPiece {
+    def unescape: String
+  }
+  case object NewlineEscape extends StringEscapeSequence { override val unescape: String = System.lineSeparator }
+  case object TabEscape extends StringEscapeSequence { override val unescape: String = "\t" }
+  case object DoubleQuoteEscape extends StringEscapeSequence { override val unescape: String = "\"" }
+  case object SingleQuoteEscape extends StringEscapeSequence { override val unescape: String = "'" }
+  case object BackslashEscape extends StringEscapeSequence { override val unescape: String = "\\" }
+  final case class UnicodeCharacterEscape(codePoint: Int) extends StringEscapeSequence {
+    override val unescape: String = codePoint.toChar.toString
+  }
 
 
   final case class KvPair(key: String, value: ExpressionElement)
@@ -76,6 +90,7 @@ object ExpressionElement {
 
   // 1-param functions
   sealed trait OneParamFunctionCallElement extends FunctionCallElement { def param: ExpressionElement }
+  final case class Keys(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class AsMap(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class AsPairs(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class CollectByKey(param: ExpressionElement) extends OneParamFunctionCallElement

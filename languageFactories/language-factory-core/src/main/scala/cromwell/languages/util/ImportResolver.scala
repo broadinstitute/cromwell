@@ -18,6 +18,7 @@ import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import java.nio.file.{Path => NioPath}
 
+import cromwell.core.WorkflowId
 import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
@@ -29,12 +30,13 @@ object ImportResolver {
   case class ImportResolutionRequest(toResolve: String, currentResolvers: List[ImportResolver])
   case class ResolvedImportBundle(source: WorkflowSource, newResolvers: List[ImportResolver])
 
-  sealed trait ImportResolver {
+  trait ImportResolver {
     def name: String
     protected def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle]
     def resolver: CheckedAtoB[ImportResolutionRequest, ResolvedImportBundle] = CheckedAtoB.fromCheck { request =>
       innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(s"resolve '${request.toResolve}' using resolver: '$name'")
     }
+    def cleanupIfNecessary(): ErrorOr[Unit]
   }
 
   object DirectoryResolver {
@@ -65,7 +67,8 @@ object ImportResolver {
 
   case class DirectoryResolver(directory: Path,
                                dontEscapeFrom: Option[String] = None,
-                               customName: Option[String]) extends ImportResolver {
+                               customName: Option[String],
+                               deleteOnClose: Boolean = false) extends ImportResolver {
     lazy val absolutePathToDirectory: String = directory.toJava.getCanonicalPath
 
     override def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
@@ -126,11 +129,20 @@ object ImportResolver {
         val shortPathToDirectory = Paths.get(absolutePathToDirectory).toFile.getCanonicalFile.toPath.getFileName.toString
         s"relative to directory [...]/$shortPathToDirectory (escaping allowed)"
     }
+
+    override def cleanupIfNecessary(): ErrorOr[Unit] =
+      if (deleteOnClose)
+        Try {
+          directory.delete(swallowIOExceptions = false)
+          ()
+        }.toErrorOr
+      else
+        ().validNel
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[ImportResolver] = {
-    LanguageFactoryUtil.validateImportsDirectory(zippedImports) map { dir =>
-      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None)
+  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
+    LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
+      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None, deleteOnClose = true)
     }
   }
 
@@ -179,6 +191,8 @@ object ImportResolver {
         }).contextualizeErrors(s"download $toLookup")
       }
     }
+
+    override def cleanupIfNecessary(): ErrorOr[Unit] = ().validNel
   }
 
   object HttpResolver {

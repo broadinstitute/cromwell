@@ -1,6 +1,7 @@
 package wom.expression
 
 import cats.data.Validated._
+import cats.effect.IO
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.IoFunctionSet.IoElement
 import wom.types.WomType
@@ -160,4 +161,6 @@ trait IoFunctionSet {
     * To map/flatMap over IO results
     */
   implicit def ec: ExecutionContext
+  
+  implicit def cs = IO.contextShift(ec)
 }

@@ -23,7 +23,6 @@ filesystems {
       #              going forward with the cache hit.
       duplication-strategy = "copy"
     }
-  
   }
 }
 ```
@@ -31,7 +30,7 @@ filesystems {
 - The `auth` field refers to the authentication schema that should be used to authenticate requests. See [here](../backends/Google.md) for more info.
 - The `project` field has to do with the Requester Pays feature (see below).
 - The `caching.duplication-strategy` field determines how Cromwell should behave w.r.t output files when call is being cached. The default strategy `copy` is to copy the file to its new call location. As mentioned, `reference` will not copy the file and simply point the results to the existing location.
-See the [Call Caching documentation](../CallCaching.md) for more information.
+See the [Call Caching documentation](../cromwell_features/CallCaching.md) for more information.
 
 ## Requester Pays
 

@@ -1,0 +1,22 @@
+# This test currently requires some configuration tweaks to run on the Local backend:
+#
+# 1) Using MySQL version 5.7 as packaged on Docker Hub, the default `max_allowed_packet` size must be
+#    increased to write some enormous metadata values. Starting the server as described in `PersistentServer.md`,
+#    add the value `--max-allowed-packet=41943040` to the end of the command line.
+#
+# 2) Set `system.abbreviate-command-length=1000` in Cromwell. It must be exactly this value, no more no less.
+#    There's a test expectation that wants the command string from metadata to be elided in a particular way.
+
+name: long_cmd
+testFormat: workflowsuccess
+
+files {
+  workflow: long_cmd/long_cmd.wdl
+}
+
+metadata {
+  workflowName: long_cmd
+  status: Succeeded
+  "calls.long_cmd.echo_string.commandLine": "set -o pipefail\necho \\\nchr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 c...hr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 chr1 \\\n| wc -m"
+  "outputs.long_cmd.num_chars": 25600000
+}

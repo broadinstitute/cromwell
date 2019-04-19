@@ -28,7 +28,7 @@ sealed trait PrimitiveRuntimeAttributesValidation[A, B <: WomPrimitive] extends 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be $typeString"
 
-  protected def typeString = s"a ${womType.toDisplayString}"
+  protected def typeString = s"a ${womType.stableName}"
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[A]] = {
     case value if womType.coerceRawValue(value).isSuccess =>

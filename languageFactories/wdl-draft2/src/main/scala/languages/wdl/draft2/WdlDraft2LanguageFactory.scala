@@ -1,7 +1,7 @@
 package languages.wdl.draft2
 
 import java.security.MessageDigest
-import java.util.concurrent.{Callable, TimeUnit}
+import java.util.concurrent.Callable
 
 import cats.data.EitherT.fromEither
 import cats.effect.IO
@@ -14,7 +14,7 @@ import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr._
-import common.validation.Parse.Parse
+import common.validation.IOChecked.IOChecked
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver}
@@ -35,7 +35,8 @@ import wom.transforms.WomBundleMaker.ops._
 import wom.transforms.WomExecutableMaker.ops._
 import wom.values._
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFactory {
 
@@ -48,14 +49,14 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
                                  importLocalFilesystem: Boolean,
                                  workflowIdForLogging: WorkflowId,
                                  ioFunctions: IoFunctionSet,
-                                 importResolvers: List[ImportResolver]): Parse[ValidatedWomNamespace] = {
+                                 importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
 
     def checkTypes(namespace: WdlNamespaceWithWorkflow, inputs: Map[OutputPort, WomValue]): Checked[Unit] = {
       val allDeclarations = namespace.workflow.declarations ++ namespace.workflow.calls.flatMap(_.declarations)
       val list: List[Checked[Unit]] = inputs.map({ case (k, v) =>
         allDeclarations.find(_.fullyQualifiedName == k) match {
           case Some(decl) if decl.womType.coerceRawValue(v).isFailure =>
-            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.toDisplayString}, got ${v.womType.toDisplayString}".invalidNelCheck[Unit]
+            s"Invalid right-side type of '$k'.  Expecting ${decl.womType.stableName}, got ${v.womType.stableName}".invalidNelCheck[Unit]
           case _ => ().validNelCheck
         }
       }).toList
@@ -68,16 +69,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     }
 
     def validationCallable = new Callable[ErrorOr[WdlNamespaceWithWorkflow]] {
-      def call: ErrorOr[WdlNamespaceWithWorkflow] = source match {
-        case w: WorkflowSourceFilesWithDependenciesZip =>
-          for {
-            importsDir <- LanguageFactoryUtil.validateImportsDirectory(w.importsZip)
-            wf <- WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
-            _ = importsDir.delete(swallowIOExceptions = true)
-          } yield wf
-        case _: WorkflowSourceFilesWithoutImports =>
-          WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
-      }
+      def call: ErrorOr[WdlNamespaceWithWorkflow] = WdlNamespaceWithWorkflow.load(workflowSource, importResolvers map resolverConverter).toErrorOr
     }
 
     lazy val wdlNamespaceValidation: ErrorOr[WdlNamespaceWithWorkflow] = namespaceCache.map(_.get(workflowHashKey, validationCallable)).getOrElse(validationCallable.call)
@@ -143,14 +135,11 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     for {
       _ <- enabled.option(())
       caching <- config.as[Option[Config]]("caching")
-      _ <- caching.as[Option[Boolean]]("enabled").contains(true).option(())
-      ttl = caching.as[Option[FiniteDuration]]("ttl").getOrElse(FiniteDuration.apply(20, TimeUnit.MINUTES))
-      concurrency = caching.as[Option[Int]]("concurrency").getOrElse(2)
-      size = caching.as[Option[Long]]("size").getOrElse(1000L)
-    } yield CacheConfig(concurrency = concurrency, size = size, ttl = ttl)
+      cc <- CacheConfig.optionalConfig(caching, defaultConcurrency = 2, defaultSize = 1000L, defaultTtl = 20 minutes)
+    } yield cc
   }
 
-  private[draft2] lazy val namespaceCache: Option[Cache[WorkflowSource, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
+  private[draft2] lazy val namespaceCache: Option[Cache[String, ErrorOr[WdlNamespaceWithWorkflow]]] = cacheConfig map { c =>
     CacheBuilder.newBuilder()
       .concurrencyLevel(c.concurrency)
       .expireAfterAccess(c.ttl.length, c.ttl.unit)

@@ -1,0 +1,291 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "arrays",
+  "inputs" : [
+    {
+      "name" : "array_of_optionals",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Optional",
+          "optionalType" : {
+            "typeName" : "Int"
+          }
+        },
+        "nonEmpty" : false
+      },
+      "typeDisplayName" : "Array[Int?]",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "default_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : false
+      },
+      "typeDisplayName" : "Array[Int]",
+      "optional" : true,
+      "default" : "[1, 2, 4, 8]"
+    },
+    {
+      "name" : "nested_pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Pair",
+            "pairType" : {
+              "leftType" : {
+                "typeName" : "Int"
+              },
+              "rightType" : {
+                "typeName" : "Int"
+              }
+            }
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Pair[Int, Int], String]",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "nonempty_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : true
+      },
+      "typeDisplayName" : "Array[Int]+",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "optional_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          },
+          "nonEmpty" : false
+        }
+      },
+      "typeDisplayName" : "Array[Int]?",
+      "optional" : true,
+      "default" : null
+    },
+    {
+      "name" : "optional_array_of_optionals",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Optional",
+            "optionalType" : {
+              "typeName" : "Int"
+            }
+          },
+          "nonEmpty" : false
+        }
+      },
+      "typeDisplayName" : "Array[Int?]?",
+      "optional" : true,
+      "default" : null
+    },
+    {
+      "name" : "optional_nonempty_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          },
+          "nonEmpty" : true
+        }
+      },
+      "typeDisplayName" : "Array[Int]+?",
+      "optional" : true,
+      "default" : null
+    },
+    {
+      "name" : "pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Int"
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Int, String]",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "vanilla_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : false
+      },
+      "typeDisplayName" : "Array[Int]",
+      "optional" : false,
+      "default" : null
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "output_array_of_optionals",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Optional",
+          "optionalType" : {
+            "typeName" : "Int"
+          }
+        },
+        "nonEmpty" : false
+      },
+      "typeDisplayName" : "Array[Int?]"
+    },
+    {
+      "name" : "output_nested_pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Pair",
+            "pairType" : {
+              "leftType" : {
+                "typeName" : "Int"
+              },
+              "rightType" : {
+                "typeName" : "Int"
+              }
+            }
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Pair[Int, Int], String]"
+    },
+    {
+      "name" : "output_nonempty_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : true
+      },
+      "typeDisplayName" : "Array[Int]+"
+    },
+    {
+      "name" : "output_optional_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          },
+          "nonEmpty" : false
+        }
+      },
+      "typeDisplayName" : "Array[Int]?"
+    },
+    {
+      "name" : "output_optional_array_of_optionals",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Optional",
+            "optionalType" : {
+              "typeName" : "Int"
+            }
+          },
+          "nonEmpty" : false
+        }
+      },
+      "typeDisplayName" : "Array[Int?]?"
+    },
+    {
+      "name" : "output_optional_nonempty_array",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "Array",
+          "arrayType" : {
+            "typeName" : "Int"
+          },
+          "nonEmpty" : true
+        }
+      },
+      "typeDisplayName" : "Array[Int]+?"
+    },
+    {
+      "name" : "output_pair",
+      "valueType" : {
+        "typeName" : "Pair",
+        "pairType" : {
+          "leftType" : {
+            "typeName" : "Int"
+          },
+          "rightType" : {
+            "typeName" : "String"
+          }
+        }
+      },
+      "typeDisplayName" : "Pair[Int, String]"
+    },
+    {
+      "name" : "output_vanilla_array",
+      "valueType" : {
+        "typeName" : "Array",
+        "arrayType" : {
+          "typeName" : "Int"
+        },
+        "nonEmpty" : false
+      },
+      "typeDisplayName" : "Array[Int]"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

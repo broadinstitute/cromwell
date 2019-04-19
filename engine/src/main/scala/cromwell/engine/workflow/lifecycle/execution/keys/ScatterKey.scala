@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
 import common.Checked
+import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendJobExecutionActor.JobFailedNonRetryableResponse
@@ -26,7 +27,8 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   override val tag = node.localName
 
   def makeCollectors(count: Int, scatterCollectionFunction: ScatterCollectionFunction): Set[ScatterCollectorKey] = (node.outputMapping.groupBy(_.outputToGather.source.graphNode) flatMap {
-    case (_: CallNode | _: ExposedExpressionNode | _: ConditionalNode, scatterGatherPorts) => scatterGatherPorts.map(sgp => ScatterCollectorKey(sgp, count, scatterCollectionFunction))
+    case (_: CallNode | _: ExposedExpressionNode | _: ConditionalNode, scatterGatherPorts) =>
+      scatterGatherPorts.map(sgp => ScatterCollectorKey(sgp, count, scatterCollectionFunction))
     case _ => Set.empty[ScatterCollectorKey]
   }).toSet
 
@@ -39,7 +41,8 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   def populate(count: Int, scatterCollectionFunction: ScatterCollectionFunction): Map[JobKey, ExecutionStatus.Value] = {
     val shards = node.innerGraph.nodes flatMap { makeShards(_, count) }
     val collectors = makeCollectors(count, scatterCollectionFunction)
-    (shards ++ collectors) map { _ -> ExecutionStatus.NotStarted } toMap
+    val callCompletions = node.innerGraph.nodes.filterByType[CallNode].map(cn => ScatteredCallCompletionKey(cn, count))
+    (shards ++ collectors ++ callCompletions) map { _ -> ExecutionStatus.NotStarted } toMap
   }
 
   private def makeShards(scope: GraphNode, count: Int): Seq[JobKey] = scope match {
@@ -64,7 +67,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
       data.valueStore.get(expressionNode.singleOutputPort, None) map {
         case WomArrayLike(arrayLike) => ScatterVariableAndValue(scatterVariableNode, arrayLike).validNel
         case v: WomValue =>
-          s"Scatter collection ${expressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.toDisplayString}".invalidNel
+          s"Scatter collection ${expressionNode.womExpression.sourceString} must evaluate to an array but instead got ${v.womType.stableName}".invalidNel
       } getOrElse {
         s"Could not find an array value for scatter $tag. Missing array should have come from expression ${expressionNode.womExpression.sourceString}".invalidNel
       }

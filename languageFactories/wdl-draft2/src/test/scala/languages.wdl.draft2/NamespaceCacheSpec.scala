@@ -7,6 +7,7 @@ import common.Checked
 import cromwell.core.{CacheConfig, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.HttpResolver
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import wom.expression.NoIoFunctionSet
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -70,7 +71,7 @@ class NamespaceCacheSpec extends FlatSpec with BeforeAndAfterAll with Matchers {
         workflowOptions = WorkflowOptions(new spray.json.JsObject(Map.empty)),
         importLocalFilesystem = false,
         workflowIdForLogging = WorkflowId.randomId(),
-        ioFunctions = null,
+        ioFunctions = NoIoFunctionSet,
         importResolvers = List(countingResolver)).value.unsafeToFuture()
       Await.result(futureNamespace, Duration.Inf).right.get
     }

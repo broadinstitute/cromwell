@@ -1,0 +1,49 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "o",
+  "inputs" : [
+    {
+      "name" : "obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "obj_optional",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : true,
+      "default" : "{\"a\": \"is for apple\"}"
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "output_obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

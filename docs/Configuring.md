@@ -6,8 +6,8 @@ Check out the tutorial on [How to Configure Cromwell](tutorials/ConfigurationFil
 
 ### Configuration examples
 
-You can find a description of options and example stanzas in the [file
-`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+You can find a description of options and example stanzas in the [Cromwell Example Configuration][cromwell-examples-conf],
+along with backend provider examples in the [Example Providers Folder][cromwell-examples-folder].
 
 ### Custom configuration files
 
@@ -148,6 +148,32 @@ On every poll, Cromwell will take at limited number of new submissions, provided
 system.max-workflow-launch-count = 50
 ```
 
+***Abort configuration***
+
+Cromwell will scan for abort requests using default configuration values equivalent to those below. In most circumstances
+there shouldn't be a need to override these defaults.
+
+```hocon
+system {
+  abort {
+    # How frequently Cromwell should scan for aborts.
+    scan-frequency: 30 seconds
+
+    # The cache of in-progress aborts. Cromwell will add entries to this cache once a WorkflowActor has been messaged to abort.
+    # If on the next scan an 'Aborting' status is found for a workflow that has an entry in this cache, Cromwell will not ask
+    # the associated WorkflowActor to abort again.
+    cache {
+      # Guava cache concurrency.
+      concurrency: 1
+      # How long entries in the cache should live from the time they are added to the cache.
+      ttl: 20 minutes
+      # Maximum number of entries in the cache.
+      size: 100000
+    }
+  }
+}
+```
+
 ### Database
 
 **Using a MySQL Database**
@@ -164,7 +190,7 @@ Then, edit your configuration file `database` stanza, as follows:
 database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
@@ -248,6 +274,28 @@ database {
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
 
+**Database Time Zones**
+
+Cromwell's default configuration assumes that its MySQL database is set to UTC.
+
+The following MySQL configurations typically default to UTC and work with Cromwell out of the box:
+- Google CloudSQL
+- An official MySQL image running in Docker
+
+These configurations may use the system, or local, time zone instead:
+- MySQL installed natively on a workstation or server
+
+If Cromwell fails to start with a message like
+```
+The server time zone value 'XXX' is unrecognized or represents more than one time zone.
+```
+you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL:
+```hocon
+url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=UTC"
+```
+
+Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
+
 ## Abort
 
 **Control-C (SIGINT) abort handler**
@@ -266,11 +314,11 @@ Or, via `-Dsystem.abort-jobs-on-terminate=true` command line option.
 
 By default, this value is false when running `java -jar cromwell.jar server`, and true when running `java -jar cromwell.jar run <workflow source> <inputs>`.
 
-Read the [Abort](Abort) page to learn more about how abort works.
+Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about how abort works.
 
 ### Call caching
 
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](CallCaching).
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](cromwell_features/CallCaching).
 
 To enable Call Caching, add the following to your Cromwell configuration:
 
@@ -290,23 +338,21 @@ Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-option
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
 
-```
+```HOCON
       config {
-        ...
         filesystems {
-          ...
           local {
-            ...
             caching {
               # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
               duplication-strategy: [
                 "hard-link", "soft-link", "copy"
               ]
 
-              # Possible values: file, path
+              # Possible values: file, path, path+modtime
               # "file" will compute an md5 hash of the file content.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
+              # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
               # Default: file
               hashing-strategy: "file"
 
@@ -371,3 +417,6 @@ per-backend basis with `<config-key-for-backend>.job-shell`. For example:
 
 For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
 of how this is used for the default configuration of the `Local` backend.
+
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

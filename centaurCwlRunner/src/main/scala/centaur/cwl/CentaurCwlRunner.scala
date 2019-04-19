@@ -13,7 +13,7 @@ import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
-import cwl.preprocessor.CwlPreProcessor
+import cwl.preprocessor.{CwlPreProcessor, CwlFileReference}
 import spray.json._
 
 import scala.concurrent.Await
@@ -119,7 +119,7 @@ object CentaurCwlRunner extends StrictLogging {
     val outdirOption = args.outdir.map(_.pathAsString)
     val testName = workflowPath.name
     val preProcessedWorkflow = cwlPreProcessor
-      .preProcessCwlFileToString(parsedWorkflowPath, workflowRoot)
+      .preProcessCwlToString(CwlFileReference(parsedWorkflowPath, workflowRoot))
       .value.unsafeRunSync() match {
       case Left(errors) =>
         logger.error(s"Failed to pre process cwl workflow: ${errors.toList.mkString(", ")}")
@@ -172,7 +172,8 @@ object CentaurCwlRunner extends StrictLogging {
       notInMetadata,
       directoryContentCounts,
       backends,
-      retryTestFailures = false
+      retryTestFailures = false,
+      allowOtherOutputs = true
     )
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
 

@@ -2,11 +2,10 @@ package cromwell.util
 
 import java.util.UUID
 
-import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import spray.json._
 import wom.core.{ExecutableInputMap, WorkflowJson, WorkflowSource}
-import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 import scala.language.postfixOps
@@ -91,12 +90,12 @@ trait SampleWdl extends TestFileUtil {
       case f: WomSingleFile => JsString(f.value)
       case p: Path => JsString(p.pathAsString)
     }
-    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
+    def read(value: JsValue) = throw new UnsupportedOperationException(s"Reading JSON not implemented: $value")
   }
 
   implicit object RawInputsJsonFormat extends JsonFormat[ExecutableInputMap] {
     def write(inputs: ExecutableInputMap) = JsObject(inputs map { case (k, v) => k -> v.toJson })
-    def read(value: JsValue) = throw new NotImplementedError(s"Reading JSON not implemented: $value")
+    def read(value: JsValue) = throw new UnsupportedOperationException(s"Reading JSON not implemented: $value")
   }
 
   def workflowJson: WorkflowJson = rawInputs.toJson.prettyPrint
@@ -129,26 +128,6 @@ object SampleWdl {
     val rawInputs = Map(Addressee -> "world")
     val OutputKey = "wf_hello.hello.salutation"
     val OutputValue = "Hello world!"
-  }
-
-  object HelloWorldWithoutWorkflow extends SampleWdl {
-    override def workflowSource(runtime: String = "") =
-      s"""
-        |task hello {
-        |  String addressee
-        |  command {
-        |    echo "Hello $${addressee}!"
-        |  }
-        |  output {
-        |    String salutation = read_string(stdout())
-        |  }
-        |}
-      """.stripMargin
-
-    val Addressee = "hello.hello.addressee"
-    val rawInputs = Map(Addressee -> "world")
-    val OutputKey = "hello.hello.salutation"
-    val OutputValue = "Hello world!\n"
   }
 
   object GoodbyeWorld extends SampleWdl {
@@ -315,115 +294,6 @@ object SampleWdl {
       """.stripMargin).replaceAll("RUNTIME", runtime)
   }
 
-  object ThreeStepWithInputsInTheOutputsSection extends ThreeStepTemplate {
-    override def workflowSource(runtime: String = "") = sourceString(outputsSection =
-      """
-        |output {
-        | cgrep.pattern
-        |}
-      """.stripMargin).replaceAll("RUNTIME", runtime)
-  }
-
-  object ThreeStepLargeJson extends ThreeStepTemplate {
-    override lazy val rawInputs = Map(ThreeStep.PatternKey -> "." * 10000)
-  }
-
-  object WorkflowOutputsWithFiles extends SampleWdl {
-    // ASCII art from http://www.chris.com/ascii/joan/www.geocities.com/SoHo/7373/flag.html with pipes
-    // replaced by exclamation points to keep stripMargin from removing the flagpole.
-    override def workflowSource(runtime: String = "") =
-      """
-        task A {
-          command {
-            echo "Enfin un peu de francais pour contrer ce raz-de-marée anglais !" > out
-            echo "Jacques Chirac fait du jetski sur la Seine en costume traditionnel russe" > out2
-          }
-          output {
-            File out = "out"
-            File out2 = "out2"
-          }
-        }
-        task B {
-          command {
-             echo "Je contre avec un bonnet peruvien et tire une carte chance" > out
-             echo "Kamoulox !" > out2
-          }
-          output {
-             Array[File] outs = ["out", "out2"]
-          }
-        }
-        task C {
-          command {
-            cat > out <<END
-            (_)
-             !_________________________________________
-             !*  *  *  *  * |##########################|
-             ! *  *  *  *  *|                          |
-             !*  *  *  *  * |##########################|
-             ! *  *  *  *  *|                          |
-             !*  *  *  *  * |##########################|
-             ! *  *  *  *  *|                          |
-             !*  *  *  *  * |##########################|
-             !~~~~~~~~~~~~~~~                          |
-             !#########################################|
-             !                                         |
-             !#########################################|
-             !                                         |
-             !###################################JGS###|
-             !~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-             !
-             !
-             !
-             !
-             !
-             !
-             !
-            END
-          }
-          output {
-            File out = "out"
-          }
-        }
-        workflow wfoutputs {
-          call A
-          call B
-          call C
-          output {
-            A.*
-            B.outs
-          }
-        }
-      """.stripMargin
-    override lazy val rawInputs = Map.empty[String, String]
-  }
-
-  object WorkflowScatterOutputsWithFileArrays extends SampleWdl {
-    override def workflowSource(runtime: String = "") =
-      """
-        |task A {
-        |  command {
-        |    # Make sure that even for slow tasks, the output-copy waits until the tasks are complete before starting to copy.
-        |    sleep 0.1
-        |    echo "The creatures outside looked from pig to man, and from man to pig, and from pig to man again: but already it was impossible to say which was which." > B1
-        |    echo "But it was all right, everything was all right, the struggle was finished. He had won the victory over himself. He loved Big Brother." > B2
-        |  }
-        |  output {
-        |    Array[File] outs = [ "B1", "B2" ]
-        |  }
-        |}
-        |
-        |workflow wfoutputs {
-        |  Array[Int] xs = [1,2,3,4,5,6,7,8,9,10]
-        |
-        |  scatter ( x in xs ) {
-        |    call A
-        |  }
-        |}
-      """.stripMargin
-    override lazy val rawInputs = Map.empty[String, String]
-  }
-
-
   object DeclarationsWorkflow extends SampleWdl {
     override def workflowSource(runtime: String): WorkflowSource =
       s"""
@@ -479,64 +349,6 @@ object SampleWdl {
     )
   }
 
-  trait ZeroOrMorePostfixQuantifier extends SampleWdl {
-    override def workflowSource(runtime: String): WorkflowSource =
-      s"""
-        |task hello {
-        |  Array[String] person
-        |  command {
-        |    echo "hello $${sep = "," person}"
-        |  }
-        |  output {
-        |    String greeting = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow postfix {
-        |  call hello
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-  }
-
-  object ZeroOrMorePostfixQuantifierWorkflowWithArrayInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
-  }
-
-  object ZeroOrMorePostfixQuantifierWorkflowWithOneElementArrayInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
-  }
-
-  object ZeroOrMorePostfixQuantifierWorkflowWithZeroElementArrayInput extends ZeroOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq())
-  }
-
-  trait OneOrMorePostfixQuantifier extends SampleWdl {
-    override def workflowSource(runtime: String): WorkflowSource =
-      s"""
-        |task hello {
-        |  Array[String]+ person
-        |  command {
-        |    echo "hello $${sep = "," person}"
-        |  }
-        |  output {
-        |    String greeting = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow postfix {
-        |  call hello
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-  }
-
-  object OneOrMorePostfixQuantifierWorkflowWithArrayInput extends OneOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice", "bob", "charles"))
-  }
-
-  object OneOrMorePostfixQuantifierWorkflowWithScalarInput extends OneOrMorePostfixQuantifier {
-    override val rawInputs = Map("postfix.hello.person" -> Seq("alice"))
-  }
-
   object CurrentDirectory extends SampleWdl {
     override def workflowSource(runtime: String): String =
       """
@@ -580,69 +392,6 @@ object SampleWdl {
         |}
       """.stripMargin.replace("RUNTIME", runtime)
     override val rawInputs: Map[String, Any] = Map.empty
-  }
-
-  case class ArrayLiteral(catRootDir: Path) extends SampleWdl {
-    createFileArray(catRootDir)
-    def cleanup() = cleanupFileArray(catRootDir)
-
-    override def workflowSource(runtime: String = "") =
-      s"""
-        |task cat {
-        |  Array[File]+ files
-        |  command {
-        |    cat -s $${sep = ' ' files}
-        |  }
-        |  output {
-        |    Array[String] lines = read_lines(stdout())
-        |  }
-        |}
-        |
-        |workflow wf {
-        |  Array[File] arr = ["f1", "f2", "f3"]
-        |  call cat {input: files = arr}
-        |}
-      """.stripMargin
-
-    override val rawInputs = Map.empty[String, String]
-  }
-
-  case class MapLiteral(catRootDir: Path) extends SampleWdl {
-    createFileArray(catRootDir)
-    def cleanup() = cleanupFileArray(catRootDir)
-
-    override def workflowSource(runtime: String = "") =
-      s"""
-        |task write_map {
-        |  Map[File, String] file_to_name
-        |  command {
-        |    cat $${write_map(file_to_name)}
-        |  }
-        |  output {
-        |    String contents = read_string(stdout())
-        |  }
-        |}
-        |
-        |task read_map {
-        |  command <<<
-        |    python <<CODE
-        |    map = {'x': 500, 'y': 600, 'z': 700}
-        |    print("\\n".join(["{}\\t{}".format(k,v) for k,v in map.items()]))
-        |    CODE
-        |  >>>
-        |  output {
-        |    Map[String, Int] out_map = read_map(stdout())
-        |  }
-        |}
-        |
-        |workflow wf {
-        |  Map[File, String] map = {"f1": "alice", "f2": "bob", "f3": "chuck"}
-        |  call write_map {input: file_to_name = map}
-        |  call read_map
-        |}
-      """.stripMargin
-
-    override val rawInputs = Map.empty[String, String]
   }
 
   class ScatterWdl extends SampleWdl {
@@ -709,27 +458,6 @@ object SampleWdl {
         |    call B {input: B_in = item}
         |    call C {input: C_in = B.B_out}
         |    call E
-        |  }
-        |  call D {input: D_in = B.B_out}
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-
-    override lazy val rawInputs = Map.empty[String, String]
-  }
-
-  object SiblingsScatterWdl extends ScatterWdl {
-    override def workflowSource(runtime: String = "") =
-      s"""$tasks
-        |
-        |workflow w {
-        |  call A
-        |  scatter (item in A.A_out) {
-        |    call B {input: B_in = item}
-        |    call C {input: C_in = B.B_out}
-        |    call E
-        |  }
-        |  scatter (item in A.A_out) {
-        |    call B as F {input: B_in = item}
         |  }
         |  call D {input: D_in = B.B_out}
         |}
@@ -954,96 +682,6 @@ object SampleWdl {
       "file_passing.f" -> createCannedFile("canned", fileContents).pathAsString,
       "file_passing.a.salt" -> salt,
       "file_passing.b.salt" -> salt
-    )
-  }
-
-  object WdlFunctionsAtWorkflowLevel extends SampleWdl {
-    val CannedArray =
-      """one
-        |two
-        |three
-        |four
-        |five
-      """.stripMargin.trim
-
-    val CannedMap =
-      s"""k1\tv1
-        |k2\tv2
-        |k3\tv3
-      """.stripMargin.trim
-
-    override def workflowSource(runtime: String): WorkflowSource =
-      s"""
-        |task a {
-        |  Array[String] array
-        |  Map[String, String] map
-        |
-        |  command {
-        |    echo $${sep = ' ' array} > concat
-        |  }
-        |  output {
-        |    String x = read_string("concat")
-        |    Map[String, String] y = map
-        |  }
-        |}
-        |
-        |workflow w {
-        |  File array_file
-        |  File map_file
-        |  Array[String] in_array = read_lines(array_file)
-        |  Map[String, String] in_map = read_map(map_file)
-        |  call a {input:
-        |    array = in_array,
-        |    map = in_map
-        |  }
-        |}
-      """.stripMargin.replace("RUNTIME", runtime)
-
-    override val rawInputs = {
-      Map(
-        "w.array_file" -> createCannedFile("array.txt", CannedArray).pathAsString,
-        "w.map_file" -> createCannedFile("map.txt", CannedMap).pathAsString
-      )
-    }
-  }
-
-  object ArrayOfArrays extends SampleWdl {
-    override def workflowSource(runtime: String = "") =
-      s"""task subtask {
-        |  Array[File] a
-        |  command {
-        |    cat $${sep = " " a}
-        |  }
-        |  output {
-        |    String concatenated = read_string(stdout())
-        |  }
-        |}
-        |
-        |workflow wf {
-        |  Array[Array[File]] nested_file
-        |
-        |  scatter(n in nested_file) {
-        |    call subtask {
-        |      input: a = n
-        |    }
-        |  }
-        |}
-      """.stripMargin
-
-    val tempDir = DefaultPathBuilder.createTempDirectory("ArrayOfArray")
-    val firstFile = createCannedFile(prefix = "first", contents = "foo\n", dir = Option(tempDir))
-    val secondFile = createCannedFile(prefix = "second", contents = "bar\nbaz\n", dir = Option(tempDir))
-    val thirdFile = createCannedFile(prefix = "third", contents = "third\n", dir = Option(tempDir))
-    val fourthFile = createCannedFile(prefix = "fourth", contents = "fourth\n", dir = Option(tempDir))
-
-    override val rawInputs = Map(
-      "wf.nested_file" ->
-        WomArray(WomArrayType(WomArrayType(WomStringType)),
-        Seq(
-          WomArray(WomArrayType(WomStringType), Seq(firstFile.pathAsString, secondFile.pathAsString).map(WomString)),
-          WomArray(WomArrayType(WomStringType), Seq(thirdFile.pathAsString, fourthFile.pathAsString).map(WomString))
-        )
-      )
     )
   }
 

@@ -184,7 +184,7 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
 
     "return success when tries to validate a valid Integer memory entry" in {
       val expectedGb = 1
-      val memoryValue = Some(WomInteger(1000000000))
+      val memoryValue = Some(WomInteger(1 << 30))
       val result = RuntimeAttributesValidation.validateMemory(memoryValue,
         "Failed to get memory mandatory key from runtime attributes".invalidNel)
       result match {
@@ -340,9 +340,9 @@ class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with Be
       val memoryVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, Some(backendConfig))
       val memoryMinVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMinKey, Some(backendConfig))
       val memoryMaxVal = MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryMaxKey, Some(backendConfig))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(2000000000)))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey, memoryMinVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(300000000)))
-      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMaxKey, memoryMaxVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomInteger(400000000)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, memoryVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomLong(2147483648L)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMinKey, memoryMinVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomLong(322122547L)))
+      MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryMaxKey, memoryMaxVal.get).runtimeAttributeDefinition.factoryDefault shouldBe Some((WomLong(429496729L)))
     }
 
     "shouldn't throw up if the value for a default-runtime-attribute key cannot be coerced into an expected WomType" in {

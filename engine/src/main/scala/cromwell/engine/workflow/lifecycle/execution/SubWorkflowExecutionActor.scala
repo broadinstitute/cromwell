@@ -5,6 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor.{ActorRef, FSM, LoggingFSM, OneForOneStrategy, Props, SupervisorStrategy}
 import com.typesafe.config.Config
+import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.backend.{AllBackendInitializationData, BackendLifecycleActorFactory, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
@@ -43,7 +44,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 startState: StartableState,
                                 rootConfig: Config,
                                 totalJobsByRootWf: AtomicInteger,
-                                fileHashCacheActor: Option[ActorRef]) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                fileHashCacheActor: Option[ActorRef],
+                                blacklistCache: Option[BlacklistCache]) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -205,7 +207,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         startState,
         rootConfig,
         totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor
+        fileHashCacheActor = fileHashCacheActor,
+        blacklistCache = blacklistCache
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
@@ -318,7 +321,8 @@ object SubWorkflowExecutionActor {
             startState: StartableState,
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
-            fileHashCacheActor: Option[ActorRef]) = {
+            fileHashCacheActor: Option[ActorRef],
+            blacklistCache: Option[BlacklistCache]) = {
     Props(new SubWorkflowExecutionActor(
       key,
       parentWorkflow,
@@ -337,7 +341,8 @@ object SubWorkflowExecutionActor {
       startState,
       rootConfig,
       totalJobsByRootWf,
-      fileHashCacheActor = fileHashCacheActor)
+      fileHashCacheActor = fileHashCacheActor,
+      blacklistCache = blacklistCache)
     ).withDispatcher(EngineDispatcher)
   }
 }

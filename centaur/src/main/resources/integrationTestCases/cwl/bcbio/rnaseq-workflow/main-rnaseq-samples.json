@@ -1,0 +1,111 @@
+{
+    "analysis": [
+        "RNA-seq"
+    ],
+    "config__algorithm__aligner": [
+        "hisat2"
+    ],
+    "config__algorithm__coverage_interval": [
+        null
+    ],
+    "config__algorithm__expression_caller": [
+        [
+            "salmon",
+            "kallisto"
+        ]
+    ],
+    "config__algorithm__fusion_caller": [
+        [
+            "pizzly"
+        ]
+    ],
+    "config__algorithm__qc": [
+        [
+            "fastqc",
+            "qualimap_rnaseq",
+            "samtools"
+        ]
+    ],
+    "config__algorithm__quality_format": [
+        "standard"
+    ],
+    "config__algorithm__tools_off": [
+        []
+    ],
+    "config__algorithm__tools_on": [
+        []
+    ],
+    "description": [
+        "Test1"
+    ],
+    "files": [
+        [
+            {
+                "class": "File",
+                "path": "gs://bcbio-cromwell-dev-test/test_bcbio_cwl/testdata/test_fusion/fusion-1_1.fq.gz"
+            },
+            {
+                "class": "File",
+                "path": "gs://bcbio-cromwell-dev-test/test_bcbio_cwl/testdata/test_fusion/fusion-1_2.fq.gz"
+            }
+        ]
+    ],
+    "genome_build": [
+        "hg19"
+    ],
+    "genome_resources__rnaseq__transcripts": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rnaseq/ref-transcripts.gtf",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/rnaseq/ref-transcripts.gtf.db"
+                }
+            ]
+        }
+    ],
+    "reference__fasta__base": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa",
+            "secondaryFiles": [
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.fa.fai"
+                },
+                {
+                    "class": "File",
+                    "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/seq/hg19.dict"
+                }
+            ]
+        }
+    ],
+    "reference__hisat2__indexes": [
+        {
+            "class": "File",
+            "path": "gs://bcbiodata/test_bcbio_cwl/testdata/genomes/hg19/hisat2-wf.tar.gz"
+        }
+    ],
+    "resources": [
+        "{}"
+    ],
+    "rgnames__lane": [
+        "Test1"
+    ],
+    "rgnames__lb": [
+        null
+    ],
+    "rgnames__pl": [
+        "illumina"
+    ],
+    "rgnames__pu": [
+        "Test1"
+    ],
+    "rgnames__rg": [
+        "Test1"
+    ],
+    "rgnames__sample": [
+        "Test1"
+    ]
+}

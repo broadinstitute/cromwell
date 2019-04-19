@@ -31,7 +31,7 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.core.auth.AnonymousCredentialsProvider
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 import cromwell.backend.io.JobPathsSpecHelper._
@@ -59,14 +59,17 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
 
     callPaths.returnCodeFilename should be("hello-rc.txt")
     callPaths.stderr.getFileName.pathAsString should be("s3://my-cromwell-workflows-bucket/hello-stderr.log")
     callPaths.stdout.getFileName.pathAsString should be("s3://my-cromwell-workflows-bucket/hello-stdout.log")
-    callPaths.logFilename should be("hello.log")
   }
 
   it should "map the correct paths" taggedAs AwsTest in {
@@ -78,7 +81,11 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
 
@@ -88,8 +95,6 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
       be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stdout.log")
     callPaths.stderr.pathAsString should
       be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello-stderr.log")
-    callPaths.logPath.pathAsString should
-      be(s"s3://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
 
   it should "map the correct call context" taggedAs AwsTest in {
@@ -101,7 +106,11 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     )
     val jobDescriptorKey = firstJobDescriptorKey(workflowDescriptor)
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(workflowDescriptor, AnonymousCredentialsProvider.create.getCredentials, configuration)
+    val workflowPaths = AwsBatchWorkflowPaths(
+      workflowDescriptor,
+      AnonymousCredentialsProvider.create.resolveCredentials(),
+      configuration
+    )
 
     val callPaths = AwsBatchJobPaths(workflowPaths, jobDescriptorKey)
     

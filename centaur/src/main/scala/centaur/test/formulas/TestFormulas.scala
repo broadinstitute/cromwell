@@ -9,9 +9,13 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, ManagedCromwellServer}
-import cromwell.api.model.{Aborted, Failed, SubmittedWorkflow, Succeeded, TerminalStatus}
+import com.typesafe.config.ConfigFactory
+import cromwell.api.model.{Aborted, Aborting, Failed, Running, SubmittedWorkflow, Succeeded, TerminalStatus}
 
 import scala.concurrent.duration._
+import net.ceedubs.ficus.Ficus._
+
+import scala.language.postfixOps
 
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
@@ -19,8 +23,10 @@ import scala.concurrent.duration._
   */
 object TestFormulas {
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
+    val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
       s <- submitWorkflow(workflow)
+      _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
       _ <- pollUntilStatus(s, workflow, status)
     } yield s
   }
@@ -96,6 +102,7 @@ object TestFormulas {
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
+          _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), 1.minute)
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
           metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
           _ <- if (testRecover) {
@@ -115,6 +122,7 @@ object TestFormulas {
   def instantAbort(workflowDefinition: Workflow): Test[SubmitResponse] = for {
     submittedWorkflow <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(submittedWorkflow)
+    _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), 1.minute)
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
@@ -135,6 +143,7 @@ object TestFormulas {
       _ <- waitFor(30.seconds)
       _ <- abortWorkflow(submittedWorkflow)
       _ = if(restart) withRestart()
+      _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), 1.minute)
       _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
       _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
@@ -156,5 +165,25 @@ object TestFormulas {
       actualSubmitResponse <- Operations.submitInvalidWorkflow(workflow)
       _ <- validateSubmitFailure(workflow, expectedSubmitResponse, actualSubmitResponse)
     } yield actualSubmitResponse
+  }
+
+  def papiUpgrade(workflowDefinition: Workflow, callMarker: CallMarker): Test[SubmitResponse] = {
+    CentaurConfig.runMode match {
+      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+        for {
+          first <- submitWorkflow(workflowDefinition)
+          jobId <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
+          _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
+          _ = CromwellManager.startCromwell(postRestart)
+          _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), 1.minute)
+          _ <- pollUntilStatus(first, workflowDefinition, Succeeded)
+          second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.
+          _ <- printHashDifferential(first, second)
+          metadata <- validateMetadata(second, workflowDefinition, Option(first.id.id))
+          _ <- validateNoCacheMisses(second, metadata, workflowDefinition)
+          _ <- validateDirectoryContentsCounts(workflowDefinition, second, metadata)
+        } yield SubmitResponse(second)
+      case _ => Test.invalidTestDefinition("Configuration not supported by PapiUpgradeTest", workflowDefinition)
+    }
   }
 }

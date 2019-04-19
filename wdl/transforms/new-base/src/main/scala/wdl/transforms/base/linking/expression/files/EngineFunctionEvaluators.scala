@@ -29,6 +29,26 @@ object EngineFunctionEvaluators {
     }).contextualizeErrors(s"predict files needed to de-localize from '${a.toWdlV1}' for $forFunction")
   }
 
+  def singleParameterPassthroughFileEvaluator[A <: OneParamFunctionCallElement]: FileEvaluator[A] = new FileEvaluator[A] {
+    override def predictFilesNeededToEvaluate(a: A,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement], valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
+    }
+  }
+
+  def singleParameterEvaluateToFileFileEvaluator[A <: OneParamFunctionCallElement](functionName: String): FileEvaluator[A] = new FileEvaluator[A] {
+    override def predictFilesNeededToEvaluate(a: A,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement], valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+      evaluateToFile(functionName, a.param, inputs, ioFunctionSet)
+    }
+  }
+
   implicit val stdoutFunctionEvaluator: FileEvaluator[StdoutElement.type] = new FileEvaluator[StdoutElement.type] {
     override def predictFilesNeededToEvaluate(a: ExpressionElement.StdoutElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
                                              (implicit fileEvaluator: FileEvaluator[ExpressionElement],
@@ -43,187 +63,57 @@ object EngineFunctionEvaluators {
       Set.empty[WomFile].validNel
   }
 
-  implicit val readLinesFunctionEvaluator: FileEvaluator[ReadLines] = new FileEvaluator[ReadLines] {
-    override def predictFilesNeededToEvaluate(a: ReadLines, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_lines", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readLinesFunctionEvaluator: FileEvaluator[ReadLines] = singleParameterEvaluateToFileFileEvaluator("read_lines")
 
-  implicit val readTsvFunctionEvaluator: FileEvaluator[ReadTsv] = new FileEvaluator[ReadTsv] {
-    override def predictFilesNeededToEvaluate(a: ReadTsv, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_tsv", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readTsvFunctionEvaluator: FileEvaluator[ReadTsv] = singleParameterEvaluateToFileFileEvaluator("read_tsv")
 
-  implicit val readMapFunctionEvaluator: FileEvaluator[ReadMap] = new FileEvaluator[ReadMap] {
-    override def predictFilesNeededToEvaluate(a: ReadMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_map", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readMapFunctionEvaluator: FileEvaluator[ReadMap] = singleParameterEvaluateToFileFileEvaluator("read_map")
 
-  implicit val readObjectFunctionEvaluator: FileEvaluator[ReadObject] = new FileEvaluator[ReadObject] {
-    override def predictFilesNeededToEvaluate(a: ReadObject, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_object", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readObjectFunctionEvaluator: FileEvaluator[ReadObject] = singleParameterEvaluateToFileFileEvaluator("read_object")
 
-  implicit val readObjectsFunctionEvaluator: FileEvaluator[ReadObjects] = new FileEvaluator[ReadObjects] {
-    override def predictFilesNeededToEvaluate(a: ReadObjects, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_objects", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readObjectsFunctionEvaluator: FileEvaluator[ReadObjects] = singleParameterEvaluateToFileFileEvaluator("read_objects")
 
-  implicit val readJsonFunctionEvaluator: FileEvaluator[ReadJson] = new FileEvaluator[ReadJson] {
-    override def predictFilesNeededToEvaluate(a: ReadJson, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_json", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readJsonFunctionEvaluator: FileEvaluator[ReadJson] = singleParameterEvaluateToFileFileEvaluator("read_json")
 
-  implicit val readIntFunctionEvaluator: FileEvaluator[ReadInt] = new FileEvaluator[ReadInt] {
-    override def predictFilesNeededToEvaluate(a: ReadInt, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_int", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readIntFunctionEvaluator: FileEvaluator[ReadInt] = singleParameterEvaluateToFileFileEvaluator("read_int")
 
-  implicit val readStringFunctionEvaluator: FileEvaluator[ReadString] = new FileEvaluator[ReadString] {
-    override def predictFilesNeededToEvaluate(a: ReadString, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_string", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readStringFunctionEvaluator: FileEvaluator[ReadString] = singleParameterEvaluateToFileFileEvaluator("read_string")
 
-  implicit val readFloatFunctionEvaluator: FileEvaluator[ReadFloat] = new FileEvaluator[ReadFloat] {
-    override def predictFilesNeededToEvaluate(a: ReadFloat, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_float", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readFloatFunctionEvaluator: FileEvaluator[ReadFloat] = singleParameterEvaluateToFileFileEvaluator("read_float")
 
-  implicit val readBooleanFunctionEvaluator: FileEvaluator[ReadBoolean] = new FileEvaluator[ReadBoolean] {
-    override def predictFilesNeededToEvaluate(a: ReadBoolean, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      evaluateToFile("read_boolean", a.param, inputs, ioFunctionSet)
-  }
+  implicit val readBooleanFunctionEvaluator: FileEvaluator[ReadBoolean] = singleParameterEvaluateToFileFileEvaluator("read_boolean")
 
-  implicit val writeLinesFunctionEvaluator: FileEvaluator[WriteLines] = new FileEvaluator[WriteLines] {
-    override def predictFilesNeededToEvaluate(a: WriteLines, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val writeLinesFunctionEvaluator: FileEvaluator[WriteLines] = singleParameterPassthroughFileEvaluator
 
-  implicit val writeTsvFunctionEvaluator: FileEvaluator[WriteTsv] = new FileEvaluator[WriteTsv] {
-    override def predictFilesNeededToEvaluate(a: WriteTsv, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val writeTsvFunctionEvaluator: FileEvaluator[WriteTsv] = singleParameterPassthroughFileEvaluator
 
-  implicit val writeMapFunctionEvaluator: FileEvaluator[WriteMap] = new FileEvaluator[WriteMap] {
-    override def predictFilesNeededToEvaluate(a: WriteMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val writeMapFunctionEvaluator: FileEvaluator[WriteMap] = singleParameterPassthroughFileEvaluator
 
-  implicit val writeObjectFunctionEvaluator: FileEvaluator[WriteObject] = new FileEvaluator[WriteObject] {
-    override def predictFilesNeededToEvaluate(a: WriteObject, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val writeObjectFunctionEvaluator: FileEvaluator[WriteObject] = singleParameterPassthroughFileEvaluator
 
-  implicit val writeObjectsFunctionEvaluator: FileEvaluator[WriteObjects] = new FileEvaluator[WriteObjects] {
-    override def predictFilesNeededToEvaluate(a: WriteObjects, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val writeObjectsFunctionEvaluator: FileEvaluator[WriteObjects] = singleParameterPassthroughFileEvaluator
 
-  implicit val writeJsonFunctionEvaluator: FileEvaluator[WriteJson] = new FileEvaluator[WriteJson] {
-    override def predictFilesNeededToEvaluate(a: WriteJson, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      Set.empty[WomFile].validNel
-  }
+  implicit val writeJsonFunctionEvaluator: FileEvaluator[WriteJson] = singleParameterPassthroughFileEvaluator
 
-  implicit val rangeFunctionEvaluator: FileEvaluator[Range] = new FileEvaluator[Range] {
-    override def predictFilesNeededToEvaluate(a: Range, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val rangeFunctionEvaluator: FileEvaluator[Range] = singleParameterPassthroughFileEvaluator
 
-  implicit val transposeFunctionEvaluator: FileEvaluator[Transpose] = new FileEvaluator[Transpose] {
-    override def predictFilesNeededToEvaluate(a: Transpose, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val transposeFunctionEvaluator: FileEvaluator[Transpose] = singleParameterPassthroughFileEvaluator
 
-  implicit val lengthFunctionEvaluator: FileEvaluator[Length] = new FileEvaluator[Length] {
-    override def predictFilesNeededToEvaluate(a: Length, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val lengthFunctionEvaluator: FileEvaluator[Length] = singleParameterPassthroughFileEvaluator
 
-  implicit val flattenFunctionEvaluator: FileEvaluator[Flatten] = new FileEvaluator[Flatten] {
-    override def predictFilesNeededToEvaluate(a: Flatten, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val flattenFunctionEvaluator: FileEvaluator[Flatten] = singleParameterPassthroughFileEvaluator
 
-  implicit val selectFirstFunctionEvaluator: FileEvaluator[SelectFirst] = new FileEvaluator[SelectFirst] {
-    override def predictFilesNeededToEvaluate(a: SelectFirst, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val selectFirstFunctionEvaluator: FileEvaluator[SelectFirst] = singleParameterPassthroughFileEvaluator
 
-  implicit val selectAllFunctionEvaluator: FileEvaluator[SelectAll] = new FileEvaluator[SelectAll] {
-    override def predictFilesNeededToEvaluate(a: SelectAll, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val selectAllFunctionEvaluator: FileEvaluator[SelectAll] = singleParameterPassthroughFileEvaluator
 
-  implicit val definedFunctionEvaluator: FileEvaluator[Defined] = new FileEvaluator[Defined] {
-    override def predictFilesNeededToEvaluate(a: Defined, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val definedFunctionEvaluator: FileEvaluator[Defined] = singleParameterPassthroughFileEvaluator
 
-  implicit val floorFunctionEvaluator: FileEvaluator[Floor] = new FileEvaluator[Floor] {
-    override def predictFilesNeededToEvaluate(a: Floor, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val floorFunctionEvaluator: FileEvaluator[Floor] = singleParameterPassthroughFileEvaluator
 
-  implicit val ceilFunctionEvaluator: FileEvaluator[Ceil] = new FileEvaluator[Ceil] {
-    override def predictFilesNeededToEvaluate(a: Ceil, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val ceilFunctionEvaluator: FileEvaluator[Ceil] = singleParameterPassthroughFileEvaluator
 
-  implicit val roundFunctionEvaluator: FileEvaluator[Round] = new FileEvaluator[Round] {
-    override def predictFilesNeededToEvaluate(a: Round, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
-                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement],
-                                              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] =
-      a.param.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
-  }
+  implicit val roundFunctionEvaluator: FileEvaluator[Round] = singleParameterPassthroughFileEvaluator
 
   implicit val globFunctionEvaluator: FileEvaluator[Glob] = new FileEvaluator[Glob] {
     override def predictFilesNeededToEvaluate(a: Glob, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)

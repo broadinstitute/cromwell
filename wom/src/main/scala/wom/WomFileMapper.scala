@@ -39,7 +39,7 @@ object WomFileMapper {
         val mappedMap = womObject.values map {
           case (key, value) => key -> mapWomFiles(mapper, exceptions)(value)
         }
-        TryUtil.sequenceMap(mappedMap).map(WomObject.withType(_, womObject.womObjectTypeLike))
+        TryUtil.sequenceMap(mappedMap).map(WomObject.withTypeUnsafe(_, womObject.womObjectTypeLike))
       case pair: WomPair =>
         val mappedPair: (Try[WomValue], Try[WomValue]) = (mapWomFiles(mapper, exceptions)(pair.left), mapWomFiles(mapper, exceptions)(pair.right))
         TryUtil.sequenceTuple(mappedPair) map {

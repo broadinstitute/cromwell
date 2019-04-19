@@ -33,7 +33,7 @@ class Draft3SizeFunctionSpec extends FlatSpec with Matchers {
 
   it should "correctly report a 2048 byte file, in KB" in {
     validate(Size(PrimitiveLiteralExpressionElement(WomSingleFile("blah")), Some(PrimitiveLiteralExpressionElement(WomString("KB")))).evaluateValue(Map.empty, testFunctions(Success(2048l)), None)) {
-      res => assert(res.value == WomFloat(2.048d))
+      res => assert(res.value == WomFloat(2.0d))
     }
   }
 
@@ -63,7 +63,7 @@ class Draft3SizeFunctionSpec extends FlatSpec with Matchers {
     val value = WomOptionalValue(WomSingleFileType, Option(WomSingleFile("blah")))
 
     validate(Size(IdentifierLookup("x"), Some(PrimitiveLiteralExpressionElement(WomString("MB")))).evaluateValue(Map("x" -> value), testFunctions(Success(2048l)), None)) {
-      res => assert(res.value == WomFloat(0.002048d))
+      res => assert(res.value == WomFloat(0.001953125d))
     }
   }
 

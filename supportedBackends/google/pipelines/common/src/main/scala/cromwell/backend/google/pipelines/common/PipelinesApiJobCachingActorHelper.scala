@@ -6,7 +6,6 @@ import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
-import cromwell.filesystems.demo.dos.DemoDosResolver
 import cromwell.services.metadata.CallMetadataKeys
 
 import scala.language.postfixOps
@@ -25,10 +24,6 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, pipelinesConfiguration.runtimeConfig)
 
   lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
-
-  lazy val demoDosResolver: DemoDosResolver = DemoDosResolver(
-    initializationData.papiConfiguration.configurationDescriptor.globalConfig
-  )
 
   lazy val callRootPath: Path = pipelinesApiCallPaths.callExecutionRoot
   lazy val returnCodeFilename: String = pipelinesApiCallPaths.returnCodeFilename

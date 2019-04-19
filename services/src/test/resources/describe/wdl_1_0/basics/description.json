@@ -1,0 +1,55 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "basics",
+  "inputs" : [
+    {
+      "name" : "f",
+      "valueType" : {
+        "typeName" : "File"
+      },
+      "typeDisplayName" : "File",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "i",
+      "valueType" : {
+        "typeName" : "Int"
+      },
+      "typeDisplayName" : "Int",
+      "optional" : true,
+      "default" : "(2 + 2)"
+    },
+    {
+      "name" : "j",
+      "valueType" : {
+        "typeName" : "Int"
+      },
+      "typeDisplayName" : "Int",
+      "optional" : true,
+      "default" : "4"
+    }
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "1.0"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+    "email" : "skroob@spaceballs.gov",
+    "author" : "President Skroob",
+    "description" : "Spaceballs: The Unit Test"
+  },
+  "parameterMeta" : {
+    "i" : "an integer",
+    "j" : "another integer",
+    "f" : "a file"
+  }
+}

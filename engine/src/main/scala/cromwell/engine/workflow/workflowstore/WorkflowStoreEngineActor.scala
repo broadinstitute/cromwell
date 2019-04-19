@@ -1,19 +1,17 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props}
-import akka.pattern.ask
-import akka.util.Timeout
+import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props, Timers}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
-import cromwell.core.{WorkflowAborting, WorkflowId, WorkflowSubmitted}
-import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortingResponse}
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
+import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
+import cromwell.core.{WorkflowAborted, WorkflowAborting, WorkflowId, WorkflowSubmitted}
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.WorkflowMetadataHelper
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowStoreActorState, _}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor._
 import cromwell.services.instrumentation.CromwellInstrumentationScheduler
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -22,26 +20,35 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 final case class WorkflowStoreEngineActor private(store: WorkflowStore,
-                                                  workflowStoreCoordinatedWriteActor: ActorRef,
+                                                  workflowStoreAccess: WorkflowStoreAccess,
                                                   serviceRegistryActor: ActorRef,
                                                   abortAllJobsOnTerminate: Boolean,
                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
-  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper {
+  extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper with Timers {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))
   self ! InitializerCommand
 
-  scheduleInstrumentation {
+  val instrumentationAction = () => {
     store.stats map { stats: Map[WorkflowStoreState, Int] =>
       // Update the count for Submitted and Running workflows, defaulting to 0
       val statesMap = stats.withDefault(_ => 0)
       updateWorkflowsQueued(statesMap(WorkflowStoreState.Submitted))
       updateWorkflowsRunning(statesMap(WorkflowStoreState.Running))
+      updateWorkflowsOnHold(statesMap(WorkflowStoreState.OnHold))
+      updateWorkflowsAborting(statesMap(WorkflowStoreState.Aborting))
     }
     ()
   }
+
+  override def preStart() = {
+    startInstrumentationTimer()
+    super.preStart()
+  }
+
+  override def receive = instrumentationReceive(instrumentationAction).orElse(super.receive)
 
   when(Unstarted) {
     case Event(InitializerCommand, _) =>
@@ -91,22 +98,40 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
 
   private def startNewWork(command: WorkflowStoreActorEngineCommand, sndr: ActorRef, nextData: WorkflowStoreActorData) = {
     val work: Future[Any] = command match {
-      case FetchRunnableWorkflows(n) =>
-        newWorkflowMessage(n) map { nwm =>
-          nwm match {
-            case NewWorkflowsToStart(workflows) => log.info("{} new workflows fetched", workflows.toList.size)
-            case NoNewWorkflowsToStart => log.debug("No workflows fetched")
-            case _ => log.error("Unexpected response from newWorkflowMessage({}): {}", n, nwm)
+      case FetchRunnableWorkflows(count) =>
+        newWorkflowMessage(count) map { response =>
+          response match {
+            case NewWorkflowsToStart(workflows) =>
+              val workflowsIds = workflows.map(_.id).toList
+              log.info(
+                "{} new workflows fetched by {}: {}",
+                workflowsIds.size,
+                workflowHeartbeatConfig.cromwellId,
+                workflowsIds.mkString(", ")
+              )
+            case NoNewWorkflowsToStart => log.debug("No workflows fetched by {}", workflowHeartbeatConfig.cromwellId)
+            case _ => log.error("Unexpected response from newWorkflowMessage({}): {}", count, response)
           }
-          sndr ! nwm
+          sndr ! response
+        }
+      case FindWorkflowsWithAbortRequested(cromwellId) =>
+        store.findWorkflowsWithAbortRequested(cromwellId) map {
+          ids => sndr ! FindWorkflowsWithAbortRequestedSuccess(ids)
+        } recover {
+          case t => sndr ! FindWorkflowsWithAbortRequestedFailure(t)
         }
       case AbortWorkflowCommand(id) =>
-        store.aborting(id) map {
-          case Some(restarted) =>
-            sndr ! WorkflowAbortingResponse(id, restarted)
+        store.aborting(id) map { workflowStoreAbortResponse =>
+          log.info(s"Abort requested for workflow $id.")
+          workflowStoreAbortResponse
+        } map {
+          case WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted =>
+            pushCurrentStateToMetadataService(id, WorkflowAborted)
+            sndr ! WorkflowAbortedResponse(id)
+          case WorkflowStoreAbortResponse.AbortRequested =>
             pushCurrentStateToMetadataService(id, WorkflowAborting)
-            log.info(s"Abort requested for workflow $id.")
-          case None =>
+            sndr ! WorkflowAbortRequestedResponse(id)
+          case WorkflowStoreAbortResponse.NotFound =>
             sndr ! WorkflowAbortFailureResponse(id, new WorkflowNotFoundException(s"Couldn't abort $id because no workflow with that ID is in progress"))
         } recover {
           case t =>
@@ -156,9 +181,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
   private def newWorkflowMessage(maxWorkflows: Int): Future[WorkflowStoreEngineActorResponse] = {
     def fetchStartableWorkflowsIfNeeded = {
       if (maxWorkflows > 0) {
-        implicit val timeout = Timeout(WorkflowStoreCoordinatedWriteActor.Timeout)
-        val message = WorkflowStoreCoordinatedWriteActor.FetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
-        workflowStoreCoordinatedWriteActor.ask(message).mapTo[List[WorkflowToStart]]
+        workflowStoreAccess.fetchStartableWorkflows(maxWorkflows, workflowHeartbeatConfig.cromwellId, workflowHeartbeatConfig.ttl)
       } else {
         Future.successful(List.empty[WorkflowToStart])
       }
@@ -179,12 +202,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
 object WorkflowStoreEngineActor {
   def props(
              workflowStore: WorkflowStore,
-             workflowStoreCoordinatedWriteActor: ActorRef,
+             workflowStoreAccess: WorkflowStoreAccess,
              serviceRegistryActor: ActorRef,
              abortAllJobsOnTerminate: Boolean,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig
              ) = {
-    Props(WorkflowStoreEngineActor(workflowStore, workflowStoreCoordinatedWriteActor, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
+    Props(WorkflowStoreEngineActor(workflowStore, workflowStoreAccess, serviceRegistryActor, abortAllJobsOnTerminate, workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }
 
   sealed trait WorkflowStoreEngineActorResponse

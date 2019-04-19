@@ -6,12 +6,15 @@ import java.nio.charset.StandardCharsets
 import akka.actor.Scheduler
 import akka.stream.scaladsl.Flow
 import cats.effect.IO
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
+import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.oss.OssPath
 import cromwell.util.TryWithResource._
 
@@ -71,7 +74,7 @@ class NioFlow(parallelism: Int,
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
       case readLinesCommand: IoReadLinesCommand => readLines(readLinesCommand) map readLinesCommand.success
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
-      case _ => IO.raiseError(new NotImplementedError("Method not implemented"))
+      case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
   }
 
@@ -105,11 +108,14 @@ class NioFlow(parallelism: Int,
     size.file.size
   }
 
-  private def hash(hash: IoHashCommand) = {
+  private def hash(hash: IoHashCommand): IO[String] = {
     hash.file match {
       case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
+      case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
+      case s3Path: S3Path => IO { s3Path.eTag }
       case ossPath: OssPath => IO { ossPath.eTag}
-      case path => IO.fromEither(
+      case path =>
+        IO.fromEither(
         tryWithResource(() => path.newInputStream) { inputStream =>
           org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream)
         }.toEither
@@ -163,6 +169,25 @@ class NioFlow(parallelism: Int,
         throw new IOException(s"File $file is larger than $l Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
       case Some(l) => bytesArray.take(l)
       case _ => bytesArray
+    }
+  }
+
+  private def getFileHashForDrsPath(drsPath: DrsPath): IO[String] = {
+    val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
+
+    //Since this does not actually do any IO work it is not wrapped in IO
+    val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
+
+    fileAttributesOption match {
+      case Some(fileAttributes) => {
+        val fileHashIO = IO { fileAttributes.fileHash }
+
+        fileHashIO.flatMap({
+          case Some(fileHash) => IO.pure(fileHash)
+          case None => IO.raiseError(new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file."))
+        })
+      }
+      case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
     }
   }
 }

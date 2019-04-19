@@ -32,14 +32,7 @@ package cromwell.filesystems.s3.batch
 
 import software.amazon.awssdk.core.exception.SdkException
 
-import software.amazon.awssdk.services.s3.model.{HeadObjectRequest,
-                                                  HeadObjectResponse,
-                                                  CopyObjectRequest,
-                                                  CopyObjectResponse,
-                                                  DeleteObjectRequest,
-                                                  NoSuchKeyException,
-                                                  S3Response
-                                                }
+import software.amazon.awssdk.services.s3.model.{HeadObjectResponse, CopyObjectResponse, NoSuchKeyException}
 import cromwell.core.io.{IoCommand,
                          IoDeleteCommand,
                          IoSizeCommand,
@@ -56,11 +49,6 @@ import cromwell.filesystems.s3.S3Path
   * @tparam U Return type of the response
   */
 sealed trait S3BatchIoCommand[T, U] extends IoCommand[T] {
-  /**
-    * S3 operation to be executed by this command
-    */
-  def operation: S3Response
-
   /**
     * Maps the response of type U to the Cromwell Io response of type T
     */
@@ -88,16 +76,6 @@ case class S3BatchCopyCommand(
                            override val destination: S3Path,
                            override val overwrite: Boolean,
                          ) extends IoCopyCommand(source, destination, overwrite) with S3BatchIoCommand[Unit, CopyObjectResponse] {
-  override def operation: S3Response = {
-    // TODO: Copy other attributes (encryption, metadata, etc.)
-    source.client.copyObject(CopyObjectRequest
-                              .builder
-                              .copySource(source.pathWithoutScheme)
-                              .bucket(destination.bucket)
-                              .key(destination.nioPath.toString)
-                              .build)
-  }
-
   override def mapResponse(response: CopyObjectResponse): Unit = ()
 }
 
@@ -105,11 +83,6 @@ case class S3BatchDeleteCommand(
                                   override val file: S3Path,
                                   override val swallowIOExceptions: Boolean
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with S3BatchIoCommand[Unit, Void] {
-  def operation = file.client.deleteObject(DeleteObjectRequest
-                                            .builder
-                                            .bucket(file.bucket)
-                                            .key(file.key)
-                                            .build)
   override protected def mapResponse(response: Void): Unit = ()
 }
 
@@ -118,12 +91,6 @@ case class S3BatchDeleteCommand(
   */
 sealed trait S3BatchHeadCommand[T] extends S3BatchIoCommand[T, HeadObjectResponse] {
   def file: S3Path
-  override def operation: HeadObjectResponse =
-    file.client.headObject(HeadObjectRequest
-                            .builder
-                            .bucket(file.bucket)
-                            .key(file.key)
-                            .build)
 }
 
 case class S3BatchSizeCommand(override val file: S3Path) extends IoSizeCommand(file) with S3BatchHeadCommand[Long] {

@@ -29,6 +29,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
+  def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
+
   def queryMetadataEntries(workflowExecutionUuid: String)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
@@ -60,17 +62,47 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                            (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**
-    * Retrieves all summarizable metadata satisfying the specified criteria.
+    * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
     * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
     */
-  def refreshMetadataSummaryEntries(startMetadataKey: String, endMetadataKey: String, nameMetadataKey: String,
-                                    statusMetadataKey: String, labelMetadataKey: String, submissionMetadataKey: String,
-                                    buildUpdatedSummary:
-                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
-                                      => WorkflowMetadataSummaryEntry)
-                                   (implicit ec: ExecutionContext): Future[Long]
+  def summarizeIncreasing(summaryNameIncreasing: String,
+                          startMetadataKey: String,
+                          endMetadataKey: String,
+                          nameMetadataKey: String,
+                          statusMetadataKey: String,
+                          submissionMetadataKey: String,
+                          parentWorkflowIdKey: String,
+                          rootWorkflowIdKey: String,
+                          labelMetadataKey: String,
+                          limit: Int,
+                          buildUpdatedSummary:
+                          (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
+                            => WorkflowMetadataSummaryEntry)
+                         (implicit ec: ExecutionContext): Future[Long]
+
+  /**
+    * Retrieves a window of summarizable metadata satisfying the specified criteria.
+    *
+    * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
+    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    */
+  def summarizeDecreasing(summaryNameDecreasing: String,
+                          summaryNameIncreasing: String,
+                          startMetadataKey: String,
+                          endMetadataKey: String,
+                          nameMetadataKey: String,
+                          statusMetadataKey: String,
+                          submissionMetadataKey: String,
+                          parentWorkflowIdKey: String,
+                          rootWorkflowIdKey: String,
+                          labelMetadataKey: String,
+                          limit: Int,
+                          buildUpdatedSummary:
+                          (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
+                            => WorkflowMetadataSummaryEntry)
+                         (implicit ec: ExecutionContext): Future[Long]
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 

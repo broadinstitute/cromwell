@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobCommand}
@@ -17,7 +16,7 @@ import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressi
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
-import wom.callable.Callable.{InputDefinitionWithDefault, OutputDefinition}
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OutputDefinition}
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
@@ -36,17 +35,10 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val jobAttempt = 1
 
   val task = WomMocks.mockTaskDefinition(taskName).copy(
-    inputs = List(InputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
+    inputs = List(OverridableInputDefinitionWithDefault("inInt", WomIntegerType, mockIntExpression(543))),
     outputs = List(OutputDefinition("outString", WomStringType, mockStringExpression("hello")))
   )
 
-  val workflow = new WdlWorkflow(
-    unqualifiedName = workflowName,
-    workflowOutputWildcards = Seq.empty,
-    wdlSyntaxErrorFormatter = mock[WdlSyntaxErrorFormatter],
-    meta = Map.empty,
-    parameterMeta = Map.empty,
-    ast = null)
   val call: CommandCallNode = WomMocks.mockTaskCall(WomIdentifier(taskName, jobFqn), task)
   val jobDescriptorKey = BackendJobDescriptorKey(call, jobIndex, jobAttempt)
 
@@ -55,7 +47,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     knownValues = null,
     workflowOptions = WorkflowOptions.empty,
     customLabels = null)
-  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), Map.empty)
+  val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), None, Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet
   var jobHashingInitializations: ExpectOne[(BackendJobDescriptor, CallCachingActivity)] = NothingYet
@@ -89,7 +81,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                                         ioActor: ActorRef,
                                         backendSingletonActor: Option[ActorRef]): Props = bjeaProps
 
-    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int) => Props] = Option((_, _, _, _, _) => callCacheHitCopyingProbe.props)
+    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, Option[BlacklistCache]) => Props] = Option((_, _, _, _, _, _) => callCacheHitCopyingProbe.props)
 
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                              jobKey: BackendJobDescriptorKey,
@@ -150,7 +142,6 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       callCacheWriteActor = callCacheWriteActorProbe.ref,
       dockerHashActor = dockerHashActorProbe.ref,
       jobTokenDispenserActor = jobTokenDispenserProbe.ref,
-      backendName = "NOT USED",
       callCachingMode = callCachingMode
     )), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
 
@@ -174,12 +165,11 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              callCacheWriteActor: ActorRef,
                              dockerHashActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
-                             backendName: String,
                              callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, workflowDescriptor, factory,
   initializationData, restarting, serviceRegistryActor, ioActor,
   jobStoreActor, callCacheReadActor, callCacheWriteActor,
-  dockerHashActor, jobTokenDispenserActor, None, backendName, callCachingMode,
-  if (restarting) RecoverJobCommand else ExecuteJobCommand, None
+  dockerHashActor, jobTokenDispenserActor, None, callCachingMode,
+  if (restarting) RecoverJobCommand else ExecuteJobCommand, fileHashCachingActor = None, blacklistCache = None
 ) {
 
   implicit val system = context.system

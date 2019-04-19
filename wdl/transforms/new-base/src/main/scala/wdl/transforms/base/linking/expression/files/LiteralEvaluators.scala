@@ -52,7 +52,7 @@ object LiteralEvaluators {
       }
 
       coerceTo match {
-        case WomCompositeType(mapping) => mapping.toList.traverse(filesInObjectField).map(_.flatten.toSet)
+        case WomCompositeType(mapping, _) => mapping.toList.traverse(filesInObjectField).map(_.flatten.toSet)
         case _ => a.elements.values.toList.traverse(_.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)).map(_.toSet.flatten)
       }
     }

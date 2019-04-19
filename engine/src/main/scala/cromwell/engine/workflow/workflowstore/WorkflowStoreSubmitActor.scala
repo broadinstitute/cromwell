@@ -9,20 +9,20 @@ import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.traverse._
-import common.validation.Parse._
+import common.validation.IOChecked._
 import cromwell.core.Dispatcher._
 import cromwell.core._
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowMetadataHelper
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowSubmissionResponse
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreState, WorkflowSubmissionResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmitFailed, WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import spray.json.{JsObject, JsString, _}
+import spray.json._
 import wom.core.WorkflowOptionsJson
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
@@ -42,13 +42,16 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
       } yield WorkflowSubmissionResponse(submissionResponses.head.state, id)
 
       futureResponse onComplete {
-        case Success(futureResponse) =>
+        case Success(workflowSubmissionResponse) =>
           val wfType = cmd.source.workflowType.getOrElse("Unspecified type")
           val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
-          log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, futureResponse.id)
+          log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, workflowSubmissionResponse.id)
           val labelsMap = convertJsonToLabelsMap(cmd.source.labelsJson)
-          publishLabelsToMetadata(futureResponse.id, labelsMap)
-          sndr ! WorkflowSubmittedToStore(futureResponse.id, convertDatabaseStateToApiState(futureResponse.state))
+          publishLabelsToMetadata(workflowSubmissionResponse.id, labelsMap)
+          sndr ! WorkflowSubmittedToStore(
+            workflowSubmissionResponse.id,
+            convertDatabaseStateToApiState(workflowSubmissionResponse.state)
+          )
           removeWork()
         case Failure(throwable) =>
           log.error("Workflow {} submit failed.", throwable)
@@ -66,11 +69,14 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
       } yield submissionResponses
 
       futureResponses onComplete {
-        case Success(futureResponses) =>
-          log.info("Workflows {} submitted.", futureResponses.toList.map(res => res.id).mkString(", "))
+        case Success(workflowSubmissionResponses) =>
+          log.info("Workflows {} submitted.", workflowSubmissionResponses.toList.map(res => res.id).mkString(", "))
           val labelsMap = convertJsonToLabelsMap(cmd.sources.head.labelsJson)
-          futureResponses.map(res => publishLabelsToMetadata(res.id, labelsMap))
-          sndr ! WorkflowsBatchSubmittedToStore(futureResponses.map(res => res.id), convertDatabaseStateToApiState(futureResponses.head.state))
+          workflowSubmissionResponses.map(res => publishLabelsToMetadata(res.id, labelsMap))
+          sndr ! WorkflowsBatchSubmittedToStore(
+            workflowSubmissionResponses.map(res => res.id),
+            convertDatabaseStateToApiState(workflowSubmissionResponses.head.state)
+          )
           removeWork()
         case Failure(throwable) =>
           log.error("Workflow {} submit failed.", throwable)
@@ -114,9 +120,9 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     }
   }
 
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, customLabels: Map[String, String]): Parse[Unit] = {
+  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, customLabels: Map[String, String]): IOChecked[Unit] = {
     val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
-    Monad[Parse].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
+    Monad[IOChecked].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
   }
 
   protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {

@@ -32,7 +32,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
-  override protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
+  override protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = jobDescriptor.localInputs map {
     case (key, womFile) =>
       key -> womFile.collectAsSeq({
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
@@ -73,7 +73,29 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       } getOrElse {
         GcsPathBuilder.validateGcsPath(path) match {
           case _: ValidFullGcsPath => path
-          case _ => (callRootPath / path.stripPrefix("file://").stripPrefix("/")).pathAsString
+
+          /*
+            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
+            * For instance
+            * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+            *
+            * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+            * call-A/file.txt
+            *
+            * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
+            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths 
+            * (as they were created by the cwl tool).
+            * In order to keep things working we need to map those local paths to where they were actually delocalized,
+            * which is determined in cromwell.backend.google.pipelines.v2alpha1.api.Delocalization.
+            */
+          case _ => (callRootPath / 
+            RuntimeOutputMapping
+                .prefixFilters(workflowPaths.workflowRoot)
+                .foldLeft(path)({
+                  case (newPath, prefix) => newPath.stripPrefix(prefix)
+                })
+            ).pathAsString
         }
       }
     }
@@ -89,11 +111,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   private def maybeListedDirectoryToPipelinesParameters(inputName: String, womMaybeListedDirectory: WomMaybeListedDirectory, localPath: String) = womMaybeListedDirectory match {
     // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _) =>
+    case WomMaybeListedDirectory(Some(path), _, _, _) =>
       List(PipelinesApiDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
 
     // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _) if listing.nonEmpty =>
+    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
       listing.flatMap({
         case womFile: WomFile if isAdHocFile(womFile) =>
           pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)), jobDescriptor)

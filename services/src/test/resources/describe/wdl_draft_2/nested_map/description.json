@@ -1,0 +1,88 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "wdl_draft_2_map",
+  "inputs" : [
+    {
+      "name" : "input_1",
+      "valueType" : {
+        "typeName" : "Map",
+        "mapType" : {
+          "keyType" : {
+            "typeName" : "Int"
+          },
+          "valueType" : {
+            "typeName" : "Map",
+            "mapType" : {
+              "keyType" : {
+                "typeName" : "Map",
+                "mapType" : {
+                  "keyType" : {
+                    "typeName" : "String"
+                  },
+                  "valueType" : {
+                    "typeName" : "Int"
+                  }
+                }
+              },
+              "valueType" : {
+                "typeName" : "String"
+              }
+            }
+          }
+        }
+      },
+      "typeDisplayName" : "Map[Int, Map[Map[String, Int], String]]",
+      "optional" : false,
+      "default" : null
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "output_1",
+      "valueType" : {
+        "typeName" : "Map",
+        "mapType" : {
+          "keyType" : {
+            "typeName" : "Int"
+          },
+          "valueType" : {
+            "typeName" : "Map",
+            "mapType" : {
+              "keyType" : {
+                "typeName" : "Map",
+                "mapType" : {
+                  "keyType" : {
+                    "typeName" : "String"
+                  },
+                  "valueType" : {
+                    "typeName" : "Int"
+                  }
+                }
+              },
+              "valueType" : {
+                "typeName" : "String"
+              }
+            }
+          }
+        }
+      },
+      "typeDisplayName" : "Map[Int, Map[Map[String, Int], String]]"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

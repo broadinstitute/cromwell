@@ -57,6 +57,9 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def metadataEntryExists(workflowExecutionUuid: String)
                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    override def metadataSummaryEntryExists(workflowExecutionUuid: String)
+                                           (implicit ec: ExecutionContext): Nothing = notImplemented()
+
     override def queryMetadataEntries(workflowExecutionUuid: String)
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
@@ -90,16 +93,42 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                                        metadataJobQueryValue: MetadataJobQueryValue)
                                                       (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def refreshMetadataSummaryEntries(startMetadataKey: String,
-                                               endMetadataKey: String,
-                                               nameMetadataKey: String,
-                                               statusMetadataKey: String,
-                                               labelMetadataKey: String,
-                                               submissionMetadataKey: String,
-                                               buildUpdatedSummary: (
-                                                 Option[WorkflowMetadataSummaryEntry],
-                                                   Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry)
-                                              (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def summarizeIncreasing(summaryNameIncreasing: String,
+                                     startMetadataKey: String,
+                                     endMetadataKey: String,
+                                     nameMetadataKey: String,
+                                     statusMetadataKey: String,
+                                     submissionMetadataKey: String,
+                                     parentWorkflowIdKey: String,
+                                     rootWorkflowIdKey: String,
+                                     labelMetadataKey: String,
+                                     limit: Int,
+                                     buildUpdatedSummary:
+                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
+                                       => WorkflowMetadataSummaryEntry)
+                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
+
+    /**
+      * Retrieves a window of summarizable metadata satisfying the specified criteria.
+      *
+      * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
+      * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+      */
+    override def summarizeDecreasing(summaryNameDecreasing: String,
+                                     summaryNameIncreasing: String,
+                                     startMetadataKey: String,
+                                     endMetadataKey: String,
+                                     nameMetadataKey: String,
+                                     statusMetadataKey: String,
+                                     submissionMetadataKey: String,
+                                     parentWorkflowIdKey: String,
+                                     rootWorkflowIdKey: String,
+                                     labelMetadataKey: String,
+                                     limit: Int,
+                                     buildUpdatedSummary:
+                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
+                                       => WorkflowMetadataSummaryEntry)
+                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def getWorkflowStatus(workflowExecutionUuid: String)
                                   (implicit ec: ExecutionContext): Nothing = notImplemented()

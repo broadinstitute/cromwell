@@ -35,6 +35,8 @@ trait IoCommand[+T] {
     */
   def fail[S >: T](failure: Throwable): IoFailure[S] = IoFailure(this, failure)
 
+  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = IoReadForbiddenFailure(this, failure, forbiddenPath)
+
   /**
     * A short name describing the command
     */

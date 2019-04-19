@@ -72,3 +72,4 @@ trait ThrowableAggregation extends MessageAggregation {
   */
 case class AggregatedException(exceptionContext: String, throwables: Traversable[Throwable]) extends Exception with ThrowableAggregation
 case class AggregatedMessageException(exceptionContext: String, errorMessages: Traversable[String]) extends Exception with MessageAggregation
+case class CompositeException(exceptionContext: String, throwables: Traversable[Throwable], override val errorMessages: Traversable[String]) extends Exception with ThrowableAggregation

@@ -339,7 +339,7 @@ case class WorkflowStep(
             ).validNel
 
           // No expression node mapping, use the default
-          case withDefault @ InputDefinitionWithDefault(_, _, expression, _, _) =>
+          case withDefault @ OverridableInputDefinitionWithDefault(_, _, expression, _, _) =>
             InputDefinitionFold(
               mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression))
             ).validNel
@@ -454,7 +454,7 @@ case class WorkflowStep(
         // Assign each of the callable's input definition to an output port from the pointer map
         inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(aggregatedMapForInputDefinitions)).toEither
         // Build the call node
-        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold)
+        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold, Set.empty)
         // Depending on whether the step is being scattered, invoke the scatter node builder or not
 
         /* ************************************ */

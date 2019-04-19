@@ -8,7 +8,7 @@ files {
 
 metadata {
   status: Succeeded
-  "outputs.machineTypeTool.machine_type": "projects/1005074806481/machineTypes/custom-2-6912"
+  "outputs.machineTypeTool.machine_type": "projects/1005074806481/machineTypes/custom-2-7168"
 }
 
 workflowType: CWL

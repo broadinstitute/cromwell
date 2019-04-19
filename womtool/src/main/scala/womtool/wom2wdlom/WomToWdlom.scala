@@ -121,11 +121,11 @@ object WomToWdlom {
         a match {
           case a: RequiredInputDefinition =>
             InputDeclarationElement(womType, a.localName.value, None).validNelCheck
-          case a: InputDefinitionWithDefault =>
+          case a: OverridableInputDefinitionWithDefault =>
             womExpressionToExpressionElement(a.default) map { expression =>
               InputDeclarationElement(womType, a.localName.value, Some(expression))
             }
-          case a: FixedInputDefinition =>
+          case a: FixedInputDefinitionWithDefault =>
             womExpressionToExpressionElement(a.default) map { expression =>
               InputDeclarationElement(womType, a.localName.value, Some(expression))
             }
@@ -390,9 +390,12 @@ object WomToWdlom {
       else
         None
 
+      val afters = call.nonInputBasedPrerequisites.map(_.localName).toVector
+
       CallElement(
         callableName,
         maybeAlias,
+        afters,
         if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
       ).validNelCheck
     }

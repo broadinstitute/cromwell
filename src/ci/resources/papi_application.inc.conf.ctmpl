@@ -40,17 +40,24 @@ google {
       client-id = "{{$cromwellRefreshToken.Data.client_id}}"
       client-secret = "{{$cromwellRefreshToken.Data.client_secret}}"
     }
+    {
+      name = "user_service_account"
+      scheme = "user_service_account"
+    }
   ]
 }
 {{end}}
 
 services {
   HealthMonitor {
-    class = "cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor"
+    class = "cromwell.services.healthmonitor.impl.HealthMonitorServiceActor"
 	config {
-	  papi-backend-name = "Papi"
-	  papi-v1-backend-name = "Papi"
-	  papi-v2-backend-name = "Papi"
+
+      check-papi-backends: [ Papi ]
+      check-gcs: true
+      check-engine-database: true
+      check-dockerhub: true
+
 	  google-auth-name = "service_account"
 	  gcs-bucket-to-check = "cloud-cromwell-dev"
 	}

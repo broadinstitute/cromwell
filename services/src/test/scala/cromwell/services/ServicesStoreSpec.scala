@@ -3,18 +3,18 @@ package cromwell.services
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.sql.Connection
 import java.time.OffsetDateTime
-import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 
 import better.files._
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.Logger
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase, SlickDatabase}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
-import cromwell.database.sql.tables.WorkflowStoreEntry.WorkflowStoreState
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
+import javax.sql.rowset.serial.{SerialBlob, SerialClob, SerialException}
 import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
@@ -22,14 +22,14 @@ import org.hsqldb.persist.HsqlDatabaseProperties
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpec, Matchers}
+import org.slf4j.LoggerFactory
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 import scala.xml._
 
 class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with StringNormalizations {
@@ -38,11 +38,12 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
   implicit val ec = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   behavior of "ServicesStore"
 
   it should "not deadlock" in {
+    val logger = Logger(LoggerFactory.getLogger(getClass.getName))
     // Test based on https://github.com/kwark/slick-deadlock/blob/82525fc/src/main/scala/SlickDeadlock.scala
     val databaseConfig = ConfigFactory.parseString(
       s"""|db.url = "jdbc:hsqldb:mem:$${uniqueSchema};shutdown=false;hsqldb.tx=mvcc"
@@ -52,11 +53,13 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
           |profile = "slick.jdbc.HsqldbProfile$$"
           |""".stripMargin)
     import ServicesStore.EnhancedSqlDatabase
+    logger.info("Initializing deadlock-test database")
     for {
       database <- new EngineSlickDatabase(databaseConfig)
         .initialized(EngineServicesStore.EngineLiquibaseSettings).autoClosed
     } {
-      val futures = 1 to 20 map { _ =>
+      logger.info(s"Initialized deadlock-test database: ${database.connectionDescription}")
+      val futures = 1 to 20 map { count =>
         val workflowUuid = WorkflowId.randomId().toString
         val callFqn = "call.fqn"
         val jobIndex = 1
@@ -64,14 +67,29 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         val jobSuccessful = false
         val jobStoreEntry = JobStoreEntry(workflowUuid, callFqn, jobIndex, jobAttempt, jobSuccessful, None, None, None)
         val jobStoreJoins = Seq(JobStoreJoin(jobStoreEntry, Seq()))
+
         // NOTE: This test just needs to repeatedly read/write from a table that acts as a PK for a FK.
-        for {
+        logger.info(s"Creating deadlock-test future #$count with wf id $workflowUuid")
+        val future = for {
+          _ <- Future(logger.info(s"Starting build deadlock-test future #$count"))
           _ <- database.addJobStores(jobStoreJoins, 10)
+          _ = logger.info(s"Added job stores for deadlock-test future #$count")
           queried <- database.queryJobStores(workflowUuid, callFqn, jobIndex, jobAttempt)
+          _ = logger.info(s"Queried job stores for deadlock-test future #$count")
           _ = queried.get.jobStoreEntry.workflowExecutionUuid should be(workflowUuid)
+          _ = logger.info(s"Successful check of deadlock-test future #$count")
         } yield ()
+        logger.info(s"Created deadlock-test future #$count")
+        future
       }
-      Future.sequence(futures).futureValue(Timeout(10.seconds))
+
+      logger.info("Futures created for deadlock-test. Waiting for sequence to complete…")
+      Try(Future.sequence(futures).futureValue(Timeout(scaled(30.seconds)))) match {
+        case Success(_) => logger.info("Passed deadlock-test")
+        case Failure(throwable) =>
+          logger.error("Failed deadlock-test")
+          throw throwable
+      }
     }
   }
 
@@ -311,7 +329,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
         workflowUrl = None,
         workflowInputs = clobOption,
         workflowOptions = clobOption,
-        workflowState = WorkflowStoreState.Submitted,
+        workflowState = "Submitted",
         cromwellId = None,
         heartbeatTimestamp = None,
         submissionTime = OffsetDateTime.now.toSystemTimestamp,
@@ -374,7 +392,7 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       // See notes in BytesToBlobOption
       import eu.timepit.refined.auto._
 
-      val submittedWorkflowState = WorkflowStoreState.Submitted
+      val submittedWorkflowState = "Submitted"
       val clob = "".toClob(default = "{}")
       val clobOption = "{}".toClobOption
 
@@ -434,10 +452,15 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
       val future = for {
         _ <- dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
-        queried <- dataAccess.fetchStartableWorkflows(
+        queried <- dataAccess.fetchWorkflowsInState(
           limit = Int.MaxValue,
           cromwellId = "crom-f00ba4",
-          heartbeatTtl = 1.hour)
+          heartbeatTimestampTimedOut = 1.hour.ago,
+          heartbeatTimestampTo = OffsetDateTime.now.toSystemTimestamp,
+          workflowStateFrom = "Submitted",
+          workflowStateTo = "Running",
+          workflowStateExcluded = "On Hold"
+        )
 
         _ = {
           val emptyEntry = queried.find(_.workflowExecutionUuid == emptyWorkflowUuid).get

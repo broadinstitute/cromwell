@@ -1,0 +1,37 @@
+name: scatter
+testFormat: workflowsuccess
+
+files {
+  workflow: scatter_simples/scatter.wdl
+  imports: [
+    scatter_simples/bag_of_tasks.wdl
+  ]
+}
+
+metadata {
+  "outputs.w.E.E_out.0": 9
+  "outputs.w.E.E_out.1": 9
+  "outputs.w.E.E_out.2": 9
+  "outputs.w.E.E_out.3": 9
+  "outputs.w.E.E_out.4": 9
+  "outputs.w.E.E_out.5": 9
+  "outputs.w.C.C_out.0": 400
+  "outputs.w.C.C_out.1": 500
+  "outputs.w.C.C_out.2": 600
+  "outputs.w.C.C_out.3": 800
+  "outputs.w.C.C_out.4": 600
+  "outputs.w.C.C_out.5": 500
+  "outputs.w.A.A_out.0": "jeff"
+  "outputs.w.A.A_out.1": "chris"
+  "outputs.w.A.A_out.2": "miguel"
+  "outputs.w.A.A_out.3": "thibault"
+  "outputs.w.A.A_out.4": "khalid"
+  "outputs.w.A.A_out.5": "ruchi"
+  "outputs.w.D.D_out": 34
+  "outputs.w.B.B_out.0": 4
+  "outputs.w.B.B_out.1": 5
+  "outputs.w.B.B_out.2": 6
+  "outputs.w.B.B_out.3": 8
+  "outputs.w.B.B_out.4": 6
+  "outputs.w.B.B_out.5": 5
+}

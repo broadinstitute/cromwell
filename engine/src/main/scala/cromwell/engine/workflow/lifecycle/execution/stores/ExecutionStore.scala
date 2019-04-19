@@ -14,7 +14,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{appl
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.{ConditionalOutputPort, NodeCompletionPort, OutputPort, ScatterGathererPort}
 import wom.graph._
 import wom.graph.expression.ExpressionNodeLike
 
@@ -32,10 +32,13 @@ object ExecutionStore {
     def allDependenciesAreIn(statusTable: Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]) = {
       def chooseIndex(port: OutputPort) = port match {
         case _: ScatterGathererPort => None
+        case _: NodeCompletionPort => None
         case _ => key.index
       }
 
       key match {
+        case scatteredCallCompletion: ScatteredCallCompletionKey =>
+          statusTable.row(scatteredCallCompletion.node).size == scatteredCallCompletion.totalIndices
         case scatterCollector: ScatterCollectorKey =>
           // The outputToGather is the PortBasedGraphOutputNode of the inner graph that we're collecting. Go one step upstream and then
           // find the node which will have entries in the execution store. If that has 'n' entries, then we're good to start collecting,
@@ -44,7 +47,10 @@ object ExecutionStore {
           val upstreamPort = conditionalCollector.outputNodeToCollect.singleUpstreamPort
           upstreamPort.executionNode.isInStatus(chooseIndex(upstreamPort), statusTable)
         // In the general case, the dependencies are held by the upstreamPorts
-        case _ => key.node.upstreamPorts forall { p => p.executionNode.isInStatus(chooseIndex(p), statusTable) }
+        case _ =>
+          key.node.upstreamPorts forall { p =>
+              p.executionNode.isInStatus(chooseIndex(p), statusTable)
+          }
       }
     }
 
@@ -150,8 +156,8 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
-  def keyForNode(node: GraphNode): Option[JobKey] = {
-    statusStore.keys collectFirst { case k if k.node eq node => k }
+  def keysForNode(node: GraphNode): Iterable[JobKey] = {
+    statusStore.keys collect { case k if k.node eq node => k }
   }
 
   /**
@@ -215,6 +221,12 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   def isDone: Boolean = {
     NonTerminalStatuses.map(keysWithStatus).forall(_.isEmpty)
   }
+
+  def isStalled: Boolean = {
+    !isDone && !needsUpdate && ActiveStatuses.map(keysWithStatus).forall(_.isEmpty)
+  }
+
+  def unstarted = keysWithStatus(NotStarted)
 
   def jobStatus(jobKey: JobKey): Option[ExecutionStatus] = statusStore.get(jobKey)
 

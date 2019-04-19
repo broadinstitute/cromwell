@@ -1,7 +1,9 @@
 package wom.values
 
 import common.collections.EnhancedCollections._
-import wom.expression.ValueAsAnExpression
+import common.validation.IOChecked
+import common.validation.IOChecked.IOChecked
+import wom.expression.{IoFunctionSet, ValueAsAnExpression}
 import wom.types.WomType
 import wom.{OptionalNotSuppliedException, WomExpressionException}
 
@@ -9,6 +11,7 @@ import scala.collection.immutable.TreeMap
 import scala.util.{Failure, Try}
 
 trait WomValue {
+  type ConcreteType <: WomValue
   def womType: WomType
   def invalid(operation: String) = Failure(new WomExpressionException(s"Cannot perform operation: $operation"))
   def emptyValueFailure(operationName: String) = Failure(OptionalNotSuppliedException(operationName))
@@ -37,7 +40,7 @@ trait WomValue {
   def unaryMinus: Try[WomValue] = invalid(s"-$this")
   def typeName: String = womType.getClass.getSimpleName
 
-  def toWomString: String = throw new NotImplementedError(s"$getClass does not implement toWomString")
+  def toWomString: String = throw new UnsupportedOperationException(s"$getClass does not implement toWomString")
 
   /* This emits the value as a string.  In other words, the String value that
    * would be inserted into the command line.
@@ -72,6 +75,15 @@ trait WomValue {
   }
 
   def asWomExpression: ValueAsAnExpression = ValueAsAnExpression(this)
+
+  /**
+    * Perform any potentially async initialization on this wom value before it can be used to evaluate an expression
+    * or instantiate a command for instance.
+    * 
+    * TODO: It would be better if the return type was the concrete one instead of a generic WomValue, but this 
+    * seems hard to do without WomValue being parameterized.
+    */
+  def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = IOChecked.pure(this)
 }
 
 object WomValue {

@@ -1,16 +1,14 @@
 package cromwell.services.metadata.impl
 
-
 import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
 import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props}
 import akka.routing.Listen
 import cats.data.NonEmptyList
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.MetadataServiceActor._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -22,11 +20,6 @@ import scala.util.{Failure, Success}
 
 object MetadataServiceActor {
   val MetadataInstrumentationPrefix = NonEmptyList.of("metadata")
-
-  val MetadataSummaryRefreshInterval: Option[FiniteDuration] = {
-    val duration = Duration(ConfigFactory.load().as[Option[String]]("services.MetadataService.config.metadata-summary-refresh-interval").getOrElse("2 seconds"))
-    if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
-  }
 
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(MetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 }
@@ -46,20 +39,28 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     }
   }
 
-  private val summaryActor: Option[ActorRef] = buildSummaryActor
+  private val metadataSummaryRefreshInterval: Option[FiniteDuration] = {
+    val duration = serviceConfig.getOrElse[Duration]("metadata-summary-refresh-interval", default = 1 second)
+    if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
+  }
+
+  private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
 
   val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
 
-  val dbFlushRate = serviceConfig.as[Option[FiniteDuration]]("db-flush-rate").getOrElse(5 seconds)
-  val dbBatchSize = serviceConfig.as[Option[Int]]("db-batch-size").getOrElse(200)
+  val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
+  val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
   implicit val ec = context.dispatcher
+  //noinspection ActorMutableStateInspection
   private var summaryRefreshCancellable: Option[Cancellable] = None
+
+  private val summaryActor: Option[ActorRef] = buildSummaryActor
 
   summaryActor foreach { _ => self ! RefreshSummary }
 
   private def scheduleSummary(): Unit = {
-    MetadataSummaryRefreshInterval foreach { interval =>
+    metadataSummaryRefreshInterval foreach { interval =>
       summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self))
     }
   }
@@ -70,10 +71,10 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   }
 
   private def buildSummaryActor: Option[ActorRef] = {
-    val actor = MetadataSummaryRefreshInterval map {
+    val actor = metadataSummaryRefreshInterval map {
       _ => context.actorOf(MetadataSummaryRefreshActor.props(), "metadata-summary-actor")
     }
-    val message = MetadataSummaryRefreshInterval match {
+    val message = metadataSummaryRefreshInterval match {
       case Some(interval) => s"Metadata summary refreshing every $interval."
       case None => "Metadata summary refresh is off."
     }
@@ -81,8 +82,16 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     actor
   }
 
-  private def validateWorkflowId(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
-    workflowExistsWithId(possibleWorkflowId.toString) onComplete {
+  private def validateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
+    workflowWithIdExistsInMetadata(possibleWorkflowId.toString) onComplete {
+      case Success(true) => sender ! RecognizedWorkflowId
+      case Success(false) => sender ! UnrecognizedWorkflowId
+      case Failure(e) => sender ! FailedToCheckWorkflowId(new RuntimeException(s"Failed lookup attempt for workflow ID $possibleWorkflowId", e))
+    }
+  }
+
+  private def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
+    workflowWithIdExistsInMetadataSummaries(possibleWorkflowId.toString) onComplete {
       case Success(true) => sender ! RecognizedWorkflowId
       case Success(false) => sender ! UnrecognizedWorkflowId
       case Failure(e) => sender ! FailedToCheckWorkflowId(new RuntimeException(s"Failed lookup attempt for workflow ID $possibleWorkflowId", e))
@@ -95,9 +104,10 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor
     case listen: Listen => writeActor forward listen
-    case v: ValidateWorkflowId => validateWorkflowId(v.possibleWorkflowId, sender())
+    case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
+    case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: ReadAction => readActor forward action
-    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(sender()) }
+    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
     case MetadataSummarySuccess => scheduleSummary()
     case MetadataSummaryFailure(t) =>
       log.error(t, "Error summarizing metadata")

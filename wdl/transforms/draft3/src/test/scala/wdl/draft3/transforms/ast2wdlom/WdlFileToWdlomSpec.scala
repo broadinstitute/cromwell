@@ -261,7 +261,7 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-          graphElements = Set(CallElement("in_n_out", None, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
@@ -352,6 +352,24 @@ object WdlFileToWdlomSpec {
                   "k3" -> MetaValueElementInteger(3)))
               )))
           ))),
+    "task_with_metas2" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector.empty,
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "task_with_metas2",
+            inputsSection = Some(InputsSectionElement(Vector.empty)),
+            declarations = Vector.empty,
+            outputsSection = Some(OutputsSectionElement(Vector.empty)),
+            commandSection = CommandSectionElement(List.empty),
+            runtimeSection = None,
+            metaSection = Some(MetaSectionElement(
+              Map("author" -> MetaValueElementString("John Doe"),
+                  "email" -> MetaValueElementString("john.doe@yahoo.com")))),
+            parameterMetaSection = None
+          ))),
     "no_input_no_output_workflow" ->
       FileElement(
         imports = Vector.empty,
@@ -359,7 +377,13 @@ object WdlFileToWdlomSpec {
         workflows = Vector(WorkflowDefinitionElement(
           name = "no_input_no_output",
           inputsSection = None,
-          graphElements = Set(CallElement("no_inputs", None, None)),
+          graphElements = Set(
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None),
+            CallElement("no_inputs", None, Vector.empty, None)
+          ),
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None)),
@@ -775,7 +799,7 @@ object WdlFileToWdlomSpec {
       workflows = Vector(WorkflowDefinitionElement(
         "my_workflow",
         None,
-        Set(CallElement("my_task",None,None)),
+        Set(CallElement("my_task", None, Vector.empty, None)),
         None,
         None,
         None
@@ -799,11 +823,11 @@ object WdlFileToWdlomSpec {
         "same_named_inputs_priority",
         None,
         Set(
-          CallElement("echo", Some("b"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2"))))))),
-          CallElement("echo", Some("a"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1"))))))),
+          CallElement("echo", Some("b"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2"))))))),
+          CallElement("echo", Some("a"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1"))))))),
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "out", StringLiteral("hello")),
-          CallElement("echo", Some("d"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4"))))))),
-          CallElement("echo", Some("c"), Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))))
+          CallElement("echo", Some("d"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4"))))))),
+          CallElement("echo", Some("c"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))))
         ),
         None,
         None,
@@ -831,7 +855,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo",Some("echo"),None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -852,7 +876,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo",Some("echo"),None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -873,7 +897,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo",Some("echo"),None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -894,7 +918,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo",Some("echo"),None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -916,7 +940,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo",Some("echo"),None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
         None,
         None,
         None)
@@ -977,6 +1001,66 @@ object WdlFileToWdlomSpec {
               PrimitiveTypeElement(WomStringType),
               "v",
               StringLiteral("\\v")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q1",
+              StringLiteral("leading text \" trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q2",
+              StringLiteral("\"")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q3",
+              StringLiteral("  \"  ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q4",
+              StringLiteral("leading text \' trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q5",
+              StringLiteral("\'")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "q6",
+              StringLiteral("  \'  ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq1",
+              StringLiteral("leading text \" trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq2",
+              StringLiteral("\"")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq3",
+              StringLiteral("  \"  ")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq4",
+              StringLiteral("leading text \' trailing text")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq5",
+              StringLiteral("\'")
+            ),
+            IntermediateValueDeclarationElement(
+              PrimitiveTypeElement(WomStringType),
+              "sq6",
+              StringLiteral("  \'  ")
             )
           ), None, None, None)),
       Vector.empty

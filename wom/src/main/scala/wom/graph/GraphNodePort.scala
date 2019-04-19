@@ -1,7 +1,7 @@
 package wom.graph
 
 import wom.expression.WomExpression
-import wom.types.{WomArrayType, WomOptionalType, WomType}
+import wom.types.{WomArrayType, WomNothingType, WomOptionalType, WomType}
 
 sealed trait GraphNodePort {
   def name: String
@@ -77,6 +77,14 @@ object GraphNodePort {
     override def identifier: WomIdentifier = outputToExpose.identifier
     override val womType: WomOptionalType = WomOptionalType(outputToExpose.womType).flatOptionalType
     lazy val conditionalNode: ConditionalNode = g(())
+  }
+
+  final case class NodeCompletionPort(g: Unit => GraphNode) extends OutputPort with DelayedGraphNodePort {
+    override lazy val identifier: WomIdentifier = {
+      val name = "__after"
+      WomIdentifier(LocalName(name), graphNode.identifier.fullyQualifiedName.combine(name))
+    }
+    override def womType: WomType = WomNothingType
   }
 
   /**

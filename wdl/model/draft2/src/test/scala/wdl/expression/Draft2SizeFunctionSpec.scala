@@ -27,7 +27,7 @@ class Draft2SizeFunctionSpec extends FlatSpec with Matchers {
 
   it should "correctly report a 2048 byte file, in KB" in {
     val readLike = testFunctions(Success(2048l))
-    validate(readLike.size(Seq(Success(WomSingleFile("blah")), Success(WomString("KB"))))) { res => assert(res == WomFloat(2.048d)) }
+    validate(readLike.size(Seq(Success(WomSingleFile("blah")), Success(WomString("KB"))))) { res => assert(res == WomFloat(2d)) }
   }
 
   it should "correctly report a 2048 byte file, in KiB" in {
@@ -52,7 +52,7 @@ class Draft2SizeFunctionSpec extends FlatSpec with Matchers {
     val readLike = testFunctions(Success(2048l))
     validate(readLike.size(Seq(Success(WomOptionalValue(
       WomSingleFileType, Option(WomSingleFile("blah")))), Success(WomString("MB")
-    )))) { res => assert(res == WomFloat(0.002048d)) }
+    )))) { res => assert(res == WomFloat(0.001953125d)) }
   }
 
   it should "correctly report that an unsupplied optional file is empty" in {

@@ -68,7 +68,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       ),
       newGraphInputNodes = Set.empty
     )
-    val CallNodeAndNewNodes(foo_callNode, _, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold)
+    val CallNodeAndNewNodes(foo_callNode, _, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold, Set.empty)
     val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WomStringType, foo_callNode.outputByName("foo.out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg

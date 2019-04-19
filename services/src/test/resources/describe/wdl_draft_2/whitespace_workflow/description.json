@@ -1,0 +1,24 @@
+{
+  "valid" : false,
+  "errors" : [
+    "Could not build AST from workflow source. Source is empty or contains only comments and whitespace."
+  ],
+  "name" : "",
+  "inputs" : [
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

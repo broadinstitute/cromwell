@@ -1,0 +1,20 @@
+name: bcbio_prealign
+testFormat: workflowsuccess
+backends: [Papiv2]
+workflowType: CWL
+workflowTypeVersion: v1.0
+tags: [bcbio]
+
+files {
+  workflow: cwl/bcbio/prealign-workflow/main-prealign.cwl
+  inputs: cwl/bcbio/prealign-workflow/main-prealign-samples.json
+    imports: [
+      cwl/bcbio/prealign-workflow/steps,
+      cwl/bcbio/prealign-workflow/wf-variantcall.cwl
+    ]
+  options: cwl/bcbio/bcbio.options
+}
+
+metadata {
+  status: Succeeded
+}

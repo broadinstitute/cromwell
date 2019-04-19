@@ -1,4 +1,4 @@
-## Getting started with AWS Batch
+## Getting started with AWS Batch (beta)
 
 ### Prerequisites
 
@@ -74,7 +74,11 @@ Copy over the sample `aws.conf` file utilizing
 <a href="https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html" target="_blank">the default credential provider chain</a>
 to the same directory that contains your sample WDL, inputs and Cromwell jar.
 
-Replace `<s3-bucket-name>`in the configuration file with the appropriate bucket name.
+Replace in the configuration file:
+
+* `<your-region>` with the region where your resources are launched (e.g. "us-east-1")
+* `<s3-bucket-name>` with the appropriate bucket name
+* `<your queue arn here>` with either your default or high priority queue ARN
 
 ***aws.conf***
 ```
@@ -91,8 +95,7 @@ aws {
     }
   ]
 
-  region = "default" // uses region from ~/.aws/config set by aws configure command,
-                     // or us-east-1 by default
+  region = "<your-region>"
 }
 
 engine {
@@ -109,6 +112,10 @@ backend {
     AWSBATCH {
       actor-factory = "cromwell.backend.impl.aws.AwsBatchBackendLifecycleActorFactory"
       config {
+        
+        numSubmitAttempts = 6
+        numCreateDefinitionAttempts = 6
+
         // Base bucket for workflow executions
         root = "s3://<s3-bucket-name>/cromwell-execution"
 
@@ -134,7 +141,7 @@ backend {
 
 **Run Workflow**
 
-`java -Dconfig.file=aws.conf -jar cromwell-29.jar run hello.wdl -i hello.inputs`
+`java -Dconfig.file=aws.conf -jar cromwell-36.jar run hello.wdl -i hello.inputs`
 
 **Outputs**
 

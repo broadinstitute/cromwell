@@ -29,7 +29,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     val call = WomMocks.mockTaskCall(WomIdentifier("hello", "workflow.hello")).copy(callable = task)
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns WorkflowId.randomId()
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, Map.empty)
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, None, 1), Map.empty, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
     jobDescriptor
   }
   
@@ -213,7 +213,7 @@ class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matc
     fileHashingActorProps = fileHashingActorProps,
     callCacheReadingJobActorProps = callCacheReadingJobActorProps,
     runtimeAttributeDefinitions = runtimeAttributeDefinitions,
-    backendName = backendName,
+    backendNameForCallCachingPurposes = backendName,
     activity = activity,
     callCachingEligible = callCachingEligible,
     callCachePathPrefixes = None) {

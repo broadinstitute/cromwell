@@ -41,9 +41,10 @@ object LiteralEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-      val evaluatedPieces = a.pieces.toList.traverse{
+      val evaluatedPieces = a.pieces.toList.traverse {
         case e: StringPlaceholder => e.expr.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
         case s: StringLiteral => s.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        case e: StringEscapeSequence => EvaluatedValue(WomString(e.unescape), Seq.empty).validNel
       }
 
       evaluatedPieces map { pieces =>

@@ -5,6 +5,7 @@ import wom.graph.GraphNode
 trait JobKey {
   def node: GraphNode
   def index: Option[Int]
+  def totalIndices: Int = 1
   def attempt: Int
   def tag: String
 

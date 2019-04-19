@@ -3,8 +3,11 @@ package wom.values
 import cats.Applicative
 import cats.instances.list._
 import cats.syntax.traverse._
+import cats.syntax.functor._
 import common.util.TryUtil
+import common.validation.IOChecked.IOChecked
 import wom.TsvSerializable
+import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 
@@ -22,10 +25,10 @@ object WomArray {
 
   def apply(womType: WomArrayType, value: Seq[WomValue]): WomArray = {
     if (womType == WomMaybeEmptyArrayType.EmptyArrayType && value.nonEmpty) {
-      throw new UnsupportedOperationException(s"An ${womType.toDisplayString} must be empty but instead has value: ${value.mkString(", ")}")
+      throw new UnsupportedOperationException(s"An ${womType.stableName} must be empty but instead has value: ${value.mkString(", ")}")
     }
     if (womType.guaranteedNonEmpty && value.isEmpty) {
-      throw new UnsupportedOperationException(s"An ${womType.toDisplayString} must contain at least one element")
+      throw new UnsupportedOperationException(s"An ${womType.stableName} must contain at least one element")
     }
 
     val coercedValue = TryUtil.sequence(value map womType.memberType.coerceRawValue)
@@ -72,6 +75,8 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
     }
   }
 
+  override def initialize(ioFunctionSet: IoFunctionSet): IOChecked[WomValue] = traverse(_.initialize(ioFunctionSet)).widen
+
   def size = value.size
 
   def tsvSerialize: Try[String] = {
@@ -84,7 +89,7 @@ sealed abstract case class WomArray(womType: WomArrayType, value: Seq[WomValue])
         } mkString
 
         Success(tsvString)
-      case _ => Failure(new UnsupportedOperationException(s"Cannot TSV serialize a ${this.womType.toDisplayString} (valid types are Array[Primitive], Array[Array[Primitive]], or Array[Object])"))
+      case _ => Failure(new UnsupportedOperationException(s"Cannot TSV serialize a ${this.womType.stableName} (valid types are Array[Primitive], Array[Array[Primitive]], or Array[Object])"))
     }
   }
 

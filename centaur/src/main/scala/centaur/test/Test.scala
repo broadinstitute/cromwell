@@ -171,10 +171,50 @@ object Operations {
   }
 
   /**
-    * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
-    * stops with a failure.
+    * Polls until a valid status is reached.
+    * If an unexpected terminal status is returned, the polling stops with a failure.
+    * If none of the expected statuses are returned in time, the polling also stops with a failure.
     */
-  def pollUntilStatus(workflow: SubmittedWorkflow, testDefinition: Workflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+  def expectSomeProgress(workflow: SubmittedWorkflow,
+                         testDefinition: Workflow,
+                         expectedStatuses: Set[WorkflowStatus],
+                         timeout: FiniteDuration): Test[SubmittedWorkflow] = {
+    new Test[SubmittedWorkflow] {
+      def status(remainingTimeout: FiniteDuration): IO[SubmittedWorkflow] = {
+        for {
+          workflowStatus <- CentaurCromwellClient.status(workflow)
+          mappedStatus <- workflowStatus match {
+            case s if expectedStatuses.contains(s) => IO.pure(workflow)
+            case s: TerminalStatus =>
+              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+                val message = s"Unexpected terminal status $s while waiting for one of [${expectedStatuses.mkString(", ")}] (workflow ID: ${workflow.id})"
+                IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
+              }
+            case _ if remainingTimeout > 0.seconds =>
+              for {
+                _ <- IO.sleep(10.seconds)
+                s <- status(remainingTimeout - 10.seconds)
+              } yield s
+            case other =>
+              val message = s"Cromwell failed to progress into any of the statuses [${expectedStatuses.mkString(", ")}]. Was still '$other' after $timeout (workflow ID: ${workflow.id})"
+              IO.raiseError(CentaurTestException(message, testDefinition, workflow))
+          }
+        } yield mappedStatus
+      }
+
+
+      override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
+    }
+  }
+
+  /**
+    * Polls until a specific status is reached.
+    * If a terminal status which wasn't expected is returned, the polling stops with a failure.
+    * If the workflow does not become either (a) Running or (b) terminal within 1 minute, the polling stops with a failure.
+    */
+  def pollUntilStatus(workflow: SubmittedWorkflow,
+                      testDefinition: Workflow,
+                      expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       def status: IO[SubmittedWorkflow] = {
         for {
@@ -183,7 +223,7 @@ object Operations {
             case s if s == expectedStatus => IO.pure(workflow)
             case s: TerminalStatus =>
               CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus"
+                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id})"
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ => for {
@@ -193,7 +233,6 @@ object Operations {
           }
         } yield mappedStatus
       }
-
 
       override def run: IO[SubmittedWorkflow] = status.timeout(CentaurConfig.maxWorkflowLength)
     }
@@ -233,7 +272,7 @@ object Operations {
           result <- if (!(done && aborted)) {
             CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
               val message = s"Underlying JES job was not aborted properly. " +
-                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}"
+                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")} (workflow ID: ${workflow.id})"
               IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
             }
           } else IO.unit
@@ -379,10 +418,27 @@ object Operations {
           }
         }
 
+        def validateAllowOtherOutputs(actualMetadata: WorkflowMetadata): IO[Unit] = {
+          if (workflowSpec.allowOtherOutputs) IO.unit
+          else {
+            val flat = actualMetadata.asFlat.value
+            val actualOutputs: Iterable[String] = flat.keys.filter(_.startsWith("outputs."))
+            val expectedOutputs: Iterable[String] = workflowSpec.metadata.map(w => w.value.keys.filter(_.startsWith("outputs."))).getOrElse(List.empty)
+            val diff = actualOutputs.toSet.diff(expectedOutputs.toSet)
+            if (diff.nonEmpty) {
+              val message = s"Found unwanted keys in metadata with `allow-other-outputs` = false: ${diff.mkString(", ")}"
+              IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
+            } else {
+              IO.unit
+            }
+          }
+        }
+
         cleanUpImports(workflow)
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
+          _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata

@@ -12,13 +12,13 @@ files {
 
 fileSystemCheck: "gcs"
 outputExpectations {
-  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/stdout": 1
-  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/stderr": 1
-  "gs://cloud-cromwell-dev/callLogs/wf_hello/<<UUID>>/call-hello/hello.log": 1
-  "gs://cloud-cromwell-dev/workflowLogDir/workflow.<<UUID>>.log": 1
-  "gs://cloud-cromwell-dev/outputs/wf_hello/<<UUID>>/call-hello/test.out": 1
-  "gs://cloud-cromwell-dev/outputs/wf_hello/<<UUID>>/call-hello/array.out": 1
-  "gs://cloud-cromwell-dev/outputs/wf_hello/<<UUID>>/call-hello/map.out": 1
-  "gs://cloud-cromwell-dev/outputs/wf_hello/<<UUID>>/call-hello/left.out": 1
-  "gs://cloud-cromwell-dev/outputs/wf_hello/<<UUID>>/call-hello/right.out": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wf_hello/<<UUID>>/call-hello/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wf_hello/<<UUID>>/call-hello/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wf_hello/<<UUID>>/call-hello/hello.log": 1
+  "gs://cloud-cromwell-dev-self-cleaning/workflowLogDir/workflow.<<UUID>>.log": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/test.out": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/array.out": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/map.out": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/left.out": 1
+  "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/right.out": 1
 }

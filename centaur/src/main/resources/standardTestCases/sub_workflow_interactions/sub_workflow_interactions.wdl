@@ -18,7 +18,7 @@ task hello {
 
 workflow sub_workflow_interactions {
   call hello { input: addressee = "Sub Workflow World" }
-  call counter.countEvens { input: max = hello.count } # Sub worklfow depends on previous task call
+  call counter.countEvens { input: max = hello.count } # Sub workflow depends on previous task call
   call hello as secondHello { input: addressee = countEvens.someStringOutput } # Task call depends on previous sub workflow call
   
   output {

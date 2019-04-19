@@ -23,7 +23,7 @@ From this folder with the Dockerfile, build the container. In the command below
 we are calling it `cromwell-dev` and you can choose to change this name if you want.
 
 ```bash
-$ docker build -t cromwell-dev Dockerfile
+$ docker build -t cromwell-dev .
 ```
 
 and change back to the root of the repository

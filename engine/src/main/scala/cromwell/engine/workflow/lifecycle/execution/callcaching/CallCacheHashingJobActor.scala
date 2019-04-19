@@ -37,7 +37,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                callCacheReadingJobActor: Option[ActorRef],
                                initializationData: Option[BackendInitializationData],
                                runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
-                               backendName: String,
+                               backendNameForCallCachingPurposes: String,
                                fileHashingActorProps: Props,
                                callCachingEligible: CallCachingEligible,
                                callCachingActivity: CallCachingActivity,
@@ -144,7 +144,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
 
     sendToCallCacheReadingJobActor(initialHashingResult, hashingJobActorData)
     context.parent ! initialHashingResult
-    
+
     // If there is no CCRead actor, we need to send ourselves the next NextBatchOfFileHashesRequest
     if (hashingJobActorData.callCacheReadingJobActor.isEmpty) self ! NextBatchOfFileHashesRequest
   }
@@ -152,7 +152,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
   private def calculateInitialHashes(nonFileInputs: Iterable[WomValueSimpleton], fileInputs: Iterable[WomValueSimpleton]): Set[HashResult] = {
 
     val commandTemplateHash = HashResult(HashKey("command template"), jobDescriptor.taskCall.callable.commandTemplateString(jobDescriptor.evaluatedTaskInputs).md5HashValue)
-    val backendNameHash = HashResult(HashKey("backend name"), backendName.md5HashValue)
+    val backendNameHash = HashResult(HashKey("backend name"), backendNameForCallCachingPurposes.md5HashValue)
     val inputCountHash = HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
     val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
 
@@ -193,7 +193,7 @@ object CallCacheHashingJobActor {
             callCacheReadingJobActor: Option[ActorRef],
             initializationData: Option[BackendInitializationData],
             runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],
-            backendName: String,
+            backendNameForCallCachingPurposes: String,
             fileHashingActorProps: Props,
             callCachingEligible: CallCachingEligible,
             callCachingActivity: CallCachingActivity,
@@ -203,7 +203,7 @@ object CallCacheHashingJobActor {
     callCacheReadingJobActor,
     initializationData,
     runtimeAttributeDefinitions,
-    backendName,
+    backendNameForCallCachingPurposes,
     fileHashingActorProps,
     callCachingEligible,
     callCachingActivity,
@@ -308,7 +308,7 @@ object CallCacheHashingJobActor {
       womType match {
         case c: WomCompositeType =>
           val fieldTypes = c.typeMap map {
-            case (key, value) => s"$key -> ${value.toDisplayString}"
+            case (key, value) => s"$key -> ${value.stableName}"
           }
           "CompositeType_digest_" + fieldTypes.mkString("\n").md5Sum
         case a: WomArrayType =>
@@ -320,7 +320,7 @@ object CallCacheHashingJobActor {
         case c: WomCoproductType =>
           val hashStrings = c.types.toList.map(_.toHashKeyString).mkString(",")
           s"Coproduct($hashStrings)"
-        case o => o.toDisplayString
+        case o => o.stableName
       }
     }
   }

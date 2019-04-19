@@ -22,16 +22,18 @@ object CentaurTestSuite {
     }
   }
 
-  val cromwellBackends = CentaurCromwellClient.backends.get.supportedBackends.map(_.toLowerCase)
+  val cromwellBackends = CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
   
-  def runSequential(testCase: CentaurTestCase) = testCase.testFormat match {
+  def runSequential(testCase: CentaurTestCase): Boolean = testCase.testFormat match {
     case _: RestartFormat| _: ScheduledAbort | InstantAbort => true
     case _ => false
   }
 
-  def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.testOptions.tags.contains("wdl_upgrade")
+  def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("wdl_upgrade")
 
-  def isEngineUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.testOptions.tags.contains("engine_upgrade")
+  def isEngineUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("engine_upgrade")
+
+  def isPapiUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("papi_upgrade")
 
   def runParallel(testCase: CentaurTestCase) = !runSequential(testCase)
 }

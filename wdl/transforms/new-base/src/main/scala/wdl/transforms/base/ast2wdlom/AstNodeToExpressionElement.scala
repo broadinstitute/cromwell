@@ -29,6 +29,7 @@ object AstNodeToExpressionElement {
 
       case t: GenericTerminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
       case t: GenericTerminal if t.getTerminalStr == "identifier" => IdentifierLookup(t.getSourceString).validNel
+      case t: GenericTerminal if t.getTerminalStr == "none" => NoneLiteralElement.validNel
 
       case a: GenericAst if a.getName == "StringLiteral" => handleStringLiteral(a)
       case a: GenericAst if lhsRhsOperators.contains(a.getName) => useValidatedLhsAndRhs(a, lhsRhsOperators(a.getName))
@@ -242,18 +243,15 @@ object AstNodeToExpressionElement {
 
   private def handleStringLiteral(ast: GenericAst)
                                  (implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
-    def convertStringPiece(a: GenericAstNode): ErrorOr[StringPiece] = a match {
-      case simple: GenericTerminal if simple.getTerminalStr == "string" => StringLiteral(simple.getSourceString).validNel
-      case expr: GenericAst if expr.getName == "ExpressionPlaceholder" => expr.getAttributeAs[ExpressionElement]("expr").toValidated.map(StringPlaceholder)
-    }
-    implicit val toStringPiece: CheckedAtoB[GenericAstNode, StringPiece] = CheckedAtoB.fromErrorOr(convertStringPiece)
 
+    implicit val astNodeToStringPiece: CheckedAtoB[GenericAstNode, StringPiece] = AstNodeToStringPiece.astNodeToStringPiece(Some(astNodeToExpressionElement))
     ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
       if (pieces.isEmpty) {
         StringLiteral("")
       } else if (pieces.size == 1) {
         pieces.head match {
           case s: StringLiteral => s
+          case e: StringEscapeSequence => StringLiteral(e.unescape)
           case _ => StringExpression(pieces)
         }
       } else {

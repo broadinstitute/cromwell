@@ -1,7 +1,8 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated._
-import cats.syntax.apply._
+import cats.instances.list._
+import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
@@ -30,6 +31,7 @@ object GpuResource {
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive, nvidiaDriverVersion: String = GpuResource.DefaultNvidiaDriverVersion)
 
 final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
+                                               cpuPlatform: Option[String],
                                                gpuResource: Option[GpuResource],
                                                zones: Vector[String],
                                                preemptible: Int,
@@ -61,10 +63,15 @@ object PipelinesApiRuntimeAttributes {
   val DisksKey = "disks"
   private val DisksDefaultValue = WomString(s"${PipelinesApiWorkingDisk.Name} 10 SSD")
 
+  val CpuPlatformKey = "cpuPlatform"
+  private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
+
   private val MemoryDefaultValue = "2048 MB"
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
+  private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = cpuPlatformValidationInstance
 
   private def cpuMinValidation(runtimeConfig: Option[Config]):RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instanceMin
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
@@ -109,11 +116,15 @@ object PipelinesApiRuntimeAttributes {
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MiB)
+    InformationValidation.optional(RuntimeAttributesKeys.OutDirMinKey, MemoryUnit.MB, allowZero = true)
   }
 
   private val tmpDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
-    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MiB)
+    InformationValidation.optional(RuntimeAttributesKeys.TmpDirMinKey, MemoryUnit.MB, allowZero = true)
+  }
+
+  private val inputDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
+    InformationValidation.optional(RuntimeAttributesKeys.DnaNexusInputDirMinKey, MemoryUnit.MB, allowZero = true)
   }
 
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {
@@ -131,14 +142,17 @@ object PipelinesApiRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       bootDiskSizeValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
+      cpuPlatformValidation(runtimeConfig),
       dockerValidation,
       outDirMinValidation,
-      tmpDirMinValidation
+      tmpDirMinValidation,
+      inputDirMinValidation
     )
   }
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): PipelinesApiRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
     // GPU
     lazy val nvidiaDriverVersion = runtimeAttrsConfig.flatMap(_.as[Option[String]]("nvidia-driver-version")).getOrElse(GpuResource.DefaultNvidiaDriverVersion)
@@ -163,18 +177,16 @@ object PipelinesApiRuntimeAttributes {
 
     val outDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
     val tmpDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
+    val inputDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(inputDirMinValidation.key, validatedRuntimeAttributes)
 
-    val totalExecutionDiskSizeBytes = List(outDirMin.map(_.bytes), tmpDirMin.map(_.bytes)).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
+    val totalExecutionDiskSizeBytes = List(inputDirMin.map(_.bytes), outDirMin.map(_.bytes), tmpDirMin.map(_.bytes)).flatten.fold(MemorySize(0, MemoryUnit.Bytes).bytes)(_ + _)
     val totalExecutionDiskSize = MemorySize(totalExecutionDiskSizeBytes, MemoryUnit.Bytes)
 
-    val adjustedDisks = disks.map({
-      case disk: PipelinesApiWorkingDisk if disk == PipelinesApiWorkingDisk.Default && disk.sizeGb < totalExecutionDiskSize.to(MemoryUnit.GB).amount.toInt =>
-        disk.copy(sizeGb = totalExecutionDiskSize.to(MemoryUnit.GB).amount.toInt)
-      case other => other
-    })
+    val adjustedDisks = disks.adjustWorkingDiskWithNewMin(totalExecutionDiskSize, ())
 
     new PipelinesApiRuntimeAttributes(
       cpu,
+      cpuPlatform,
       gpuResource,
       zones,
       preemptible,
@@ -216,9 +228,8 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[PipelinesApiAttac
   }
 
   private def validateLocalDisks(disks: Seq[String]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
-    val diskNels: Seq[ErrorOr[PipelinesApiAttachedDisk]] = disks map validateLocalDisk
-    val sequenced: ErrorOr[Seq[PipelinesApiAttachedDisk]] = sequenceNels(diskNels)
-    val defaulted: ErrorOr[Seq[PipelinesApiAttachedDisk]] = addDefault(sequenced)
+    val diskNels: ErrorOr[Seq[PipelinesApiAttachedDisk]] = disks.toList.traverse[ErrorOr, PipelinesApiAttachedDisk](validateLocalDisk)
+    val defaulted: ErrorOr[Seq[PipelinesApiAttachedDisk]] = addDefault(diskNels)
     defaulted
   }
 
@@ -227,14 +238,6 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[PipelinesApiAttac
       case scala.util.Success(attachedDisk) => attachedDisk.validNel
       case scala.util.Failure(ex) => ex.getMessage.invalidNel
     }
-  }
-
-  private def sequenceNels(nels: Seq[ErrorOr[PipelinesApiAttachedDisk]]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {
-    val emptyDiskNel: ErrorOr[Vector[PipelinesApiAttachedDisk]] = Vector.empty[PipelinesApiAttachedDisk].validNel
-    val disksNel: ErrorOr[Vector[PipelinesApiAttachedDisk]] = nels.foldLeft(emptyDiskNel) {
-      (acc, v) => (acc, v) mapN { (a, v) => a :+ v }
-    }
-    disksNel
   }
 
   private def addDefault(disksNel: ErrorOr[Seq[PipelinesApiAttachedDisk]]): ErrorOr[Seq[PipelinesApiAttachedDisk]] = {

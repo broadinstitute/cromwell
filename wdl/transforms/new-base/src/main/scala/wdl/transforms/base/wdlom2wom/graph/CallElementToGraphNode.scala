@@ -4,7 +4,9 @@ import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.validated._
+import cats.syntax.traverse._
 import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.Validation.OptionValidation
 import shapeless.Coproduct
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.{CallElement, ExpressionElement}
@@ -19,6 +21,7 @@ import wom.graph._
 import wom.types.{WomOptionalType, WomType}
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.CallElementWriter
 
 object CallElementToGraphNode {
   def convert(a: CallNodeMakerInputs)
@@ -38,10 +41,10 @@ object CallElementToGraphNode {
           val unsuppliedInputs = w.inputs.collect {
             case r: RequiredInputDefinition if r.localName.value.contains(".") => r.localName.value
           }
-          val unsuppliedInputsValidation: ErrorOr[Unit] = if (unsuppliedInputs.isEmpty) { ().validNel } else { s"Cannot call '${a.node.callableReference}'. To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
+          val unsuppliedInputsValidation: ErrorOr[Unit] = if (unsuppliedInputs.isEmpty) { ().validNel } else { s"To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
 
           val unspecifiedOutputs = w.graph.outputNodes.map(_.localName).filter(_.contains("."))
-          val unspecifiedOutputsValidation: ErrorOr[Unit] = if (unspecifiedOutputs.isEmpty) { ().validNel } else { s"Cannot call '${a.node.callableReference}'. To be called as a sub-workflow it must specify all outputs using an output section. This workflow may wish to declare outputs for: ${unspecifiedOutputs.mkString(", ")}".invalidNel }
+          val unspecifiedOutputsValidation: ErrorOr[Unit] = if (unspecifiedOutputs.isEmpty) { ().validNel } else { s"To be called as a sub-workflow it must specify all outputs using an output section. This workflow may wish to declare outputs for: ${unspecifiedOutputs.mkString(", ")}".invalidNel }
 
           (unsuppliedInputsValidation, unspecifiedOutputsValidation) mapN { (_,_) => w }
 
@@ -60,7 +63,7 @@ object CallElementToGraphNode {
       */
     def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
       def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
-        definition.name == name && !definition.isInstanceOf[FixedInputDefinition]
+        definition.name == name && !definition.isInstanceOf[FixedInputDefinitionWithDefault]
       }
 
       def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
@@ -72,12 +75,7 @@ object CallElementToGraphNode {
 
       a.node.body match {
         case Some(body) =>
-          lazy val callNameAlias = a.node.alias match {
-            case Some(alias) => s" (as '$alias')"
-            case None => ""
-          }
-
-          val result = body.inputs.map(input => input.key -> input.value).toMap.traverse { case (name, expression) =>
+          body.inputs.map(input => input.key -> input.value).toMap.traverse { case (name, expression) =>
             callable.inputs.find(i => validInput(name, i)) match {
               case Some(i) =>
                 val identifier = WomIdentifier(name)
@@ -87,7 +85,7 @@ object CallElementToGraphNode {
                 }
                 WdlomWomExpression.make(expression, a.linkableValues) flatMap { wdlomWomExpression =>
                   val requiredInputType = i match {
-                    case _: InputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
+                    case _: OverridableInputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
                     case _ => i.womType
                   }
 
@@ -106,7 +104,6 @@ object CallElementToGraphNode {
                 }
             }
           }
-          result.contextualizeErrors(s"make call to '${callable.name}'$callNameAlias")
 
         case None => Map.empty[LocalName, AnonymousExpressionNode].valid
       }
@@ -141,12 +138,12 @@ object CallElementToGraphNode {
           )
 
         // No input mapping, add an optional input using the default expression
-        case withDefault@InputDefinitionWithDefault(n, womType, expression, _, _) =>
+        case withDefault@OverridableInputDefinitionWithDefault(n, womType, expression, _, _) =>
           val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
           withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
 
         // Not an input, use the default expression:
-        case fixedExpression @ FixedInputDefinition(_,_,expression,_, _) => InputDefinitionFold(
+        case fixedExpression @ FixedInputDefinitionWithDefault(_,_,expression,_, _) => InputDefinitionFold(
           mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
         )
 
@@ -173,17 +170,29 @@ object CallElementToGraphNode {
       ()
     }
 
-    for {
+    def findUpstreamCall(callName: String): ErrorOr[GraphNode] = {
+      a.upstreamCalls.get(callName).toErrorOr(s"No such upstream call '$callName' found in available set: [${a.upstreamCalls.keySet.mkString(", ")}]")
+    }
+
+    def findUpstreamCalls(callNames: List[String]): ErrorOr[Set[GraphNode]] = {
+      callNames.traverse(findUpstreamCall _).map(_.toSet)
+    }
+
+    val result = for {
       callable <- callableValidation
       mappings <- expressionNodeMappings(callable)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
-      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable))
+      upstream <- findUpstreamCalls(a.node.afters.toList)
+      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream)
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
+
+    result.contextualizeErrors(s"process '${CallElementWriter.withoutBody(a.node)}'")
   }
 }
 
 case class CallNodeMakerInputs(node: CallElement,
+                               upstreamCalls: Map[String, CallNode],
                                linkableValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                linkablePorts: Map[String, OutputPort],
                                availableTypeAliases: Map[String, WomType],

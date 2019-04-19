@@ -1,8 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
-import java.io.PrintWriter
-import java.lang.IllegalArgumentException
-import java.util.Calendar
+import java.nio.file.FileAlreadyExistsException
+import java.time.Instant
 
 import common.validation.Validation._
 import cromwell.backend.RuntimeEnvironmentBuilder
@@ -11,13 +10,16 @@ import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.path.Path
+import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import wdl.draft2.model._
 import wdl.transforms.draft2.wdlom2wom._
-import wom.callable.Callable.OptionalInputDefinition
+import wom.callable.Callable.{InputDefinition, OptionalInputDefinition}
 import wom.expression.NoIoFunctionSet
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
+
+import scala.util.{Failure, Success}
 
 /**
   * Base ConfigAsyncJobExecutionActor that reads the config and generates an outer script to submit an inner script
@@ -66,7 +68,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       (localName, womValue) = input
       womInputDefinition <- taskDefinition.inputs
       if localName == womInputDefinition.localName.value
-    } yield womInputDefinition -> womValue).toMap
+    } yield womInputDefinition.asInstanceOf[InputDefinition] -> womValue).toMap
 
     /*
      * TODO WOM FIXME #2946
@@ -85,7 +87,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
      *   ${"--user " + docker_user} \
      *   --entrypoint ${job_shell} \
      *   -v ${cwd}:${docker_cwd} \
-     *   ${docker} ${script}
+     *   ${docker} ${docker_script}
      *  """
      *
      * The `docker_user` variable is an uninitialized optional. But the expression `${"--user " + docker_user}` will
@@ -134,23 +136,23 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * submit-docker.
     */
   private lazy val dockerizedInputs: WorkflowCoercedInputs = {
-    if (isDockerRun) {
+    val dockerPaths = isDockerRun.fold(
       Map(
         DockerCwdInput -> WomString(jobPathsWithDocker.callDockerRoot.pathAsString),
+        DockerStdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
+        DockerStderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
+        DockerScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString),
         DockerCidInput -> dockerCidInputValue,
-        StdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
-        StderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
-        ScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString),
-        JobShellInput -> WomString(jobShell)
-      )
-    } else {
-      Map(
-        StdoutInput -> WomString(standardPaths.output.pathAsString),
-        StderrInput -> WomString(standardPaths.error.pathAsString),
-        ScriptInput -> WomString(jobPaths.script.pathAsString),
-        JobShellInput -> WomString(jobShell)
-      )
-    }
+      ),
+      Map.empty
+    )
+
+    dockerPaths ++ Map(
+      StdoutInput -> WomString(standardPaths.output.pathAsString),
+      StderrInput -> WomString(standardPaths.error.pathAsString),
+      ScriptInput -> WomString(jobPaths.script.pathAsString),
+      JobShellInput -> WomString(jobShell),
+    )
   }
 
   /**
@@ -213,6 +215,8 @@ class BackgroundConfigAsyncJobExecutionActor(override val standardParams: Standa
 class DispatchedConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends ConfigAsyncJobExecutionActor {
 
+  lazy val jobIdRegexString = configurationDescriptor.backendConfig.getString(JobIdRegexConfig)
+
   /**
     * Retrieves the DispatchedConfigJob from the stdout using the job-id-regex from the config.
     *
@@ -221,16 +225,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @param stderr    The stderr from dispatching the job.
     * @return The wrapped job id.
     */
-  override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob = {
-    val jobIdRegex = configurationDescriptor.backendConfig.getString(JobIdRegexConfig).r
-    val output = stdout.contentAsString.stripLineEnd
-    output match {
-      case jobIdRegex(jobId) => StandardAsyncJob(jobId)
-      case _ =>
-        throw new RuntimeException("Could not find job ID from stdout file. " +
-          s"Check the stderr file for possible errors: $stderr")
-    }
-  }
+  override def getJob(exitValue: Int, stdout: Path, stderr: Path): StandardAsyncJob =
+    DispatchedConfigAsyncJobExecutionActor.getJob(stdout.contentAsString, stderr, jobIdRegexString)
 
   /**
     * Checks if the job is alive using the command from the config.
@@ -249,58 +245,110 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @return A command that may be used to kill the job.
     */
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
-    jobScriptArgs(job, "kill", KillTask)
+    if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
+    else jobScriptArgs(job, "kill", KillTask)
   }
 
-  protected lazy val exitCodeTimeout: Option[Int] = {
-    val timeout = configurationDescriptor.backendConfig.as[Option[Int]](ExitCodeTimeoutConfig)
-    timeout.foreach{x => if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")}
+  protected lazy val exitCodeTimeout: Option[Long] = {
+    val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
+    timeout match {
+      case Some(x) =>
+        jobLogger.info("Cromwell will watch for an rc file *and* double-check every {} seconds to make sure this job is still alive", x)
+        if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")
+      case None =>
+        jobLogger.info("Cromwell will watch for an rc file but will *not* double-check whether this job is actually alive (unless Cromwell restarts)")
+    }
     timeout
   }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
+
+    lazy val nextTimeout = exitCodeTimeout.map(t => Instant.now.plusSeconds(t))
+
     handle.previousState match {
       case None =>
         // Is not set yet the status will be set default to running
-        SharedFileSystemRunState("Running")
-      case Some(s) if (s.status == "Running" || s.status == "WaitingForReturnCode") && jobPaths.returnCode.exists =>
-        // If exitcode file does exists status will be set to Done always
-        SharedFileSystemRunState("Done")
-      case Some(s) if s.status == "Running" =>
-        // Exitcode file does not exist at this point, checking is jobs is still alive
-        if (exitCodeTimeout.isEmpty) s
-        else if (isAlive(handle.pendingJob).fold({ e =>
-          log.error(e, s"Running '${checkAliveArgs(handle.pendingJob).argv.mkString(" ")}' did fail")
-          true
-        }, x => x)) s
-        else SharedFileSystemRunState("WaitingForReturnCode")
-      case Some(s) if s.status == "WaitingForReturnCode" =>
-        // Can only enter this state when the exit code does not exist and the job is not alive anymore
-        // `isAlive` is not called anymore from this point
+        SharedFileSystemJobRunning(nextTimeout)
 
-        // If exit-code-timeout is set in the config cromwell will create a fake exitcode file with exitcode 137
-        exitCodeTimeout match {
-          case Some(timeout) =>
-            val currentDate = Calendar.getInstance()
-            currentDate.add(Calendar.SECOND, -timeout)
-            if (s.date.after(currentDate)) s
-            else {
-              jobLogger.error(s"Return file not found after $timeout seconds, assuming external kill")
-              val writer = new PrintWriter(jobPaths.returnCode.toFile)
-              // 137 does mean a external kill -9, this is a assumption but easy workaround for now
-              writer.println(9)
-              writer.close()
-              SharedFileSystemRunState("Failed")
-            }
-          case _ => s
+      case Some(_) if jobPaths.returnCode.exists =>
+        // If exitcode file does exists status will be set to Done always
+        SharedFileSystemJobDone
+
+      case Some(running: SharedFileSystemJobRunning) =>
+        if (running.stale) {
+          // Since the exit code timeout has expired for a running job, check whether the job is still alive.
+
+          isAlive(handle.pendingJob) match {
+            case Success(true) =>
+              // The job is still running. Don't check again for another timeout.
+              SharedFileSystemJobRunning(nextTimeout)
+            case Success(false) =>
+              // The job has stopped but we don't have an RC yet. We'll wait one more 'timeout' for the RC to arrive:
+              SharedFileSystemJobWaitingForReturnCode(nextTimeout)
+            case Failure(e) =>
+              log.error(e, s"Failed to check status for ${handle.jobDescriptor.key.tag} using command: ${checkAliveArgs(handle.pendingJob)}")
+              SharedFileSystemJobRunning(nextTimeout)
+          }
+        } else {
+          // Not stale yet so keep on running!
+          running
         }
-      case Some(s) if s.status == "Done" => s // Nothing to be done here
-      case _ => throw new NotImplementedError("This should not happen, please report this")
+
+      case Some(waiting: SharedFileSystemJobWaitingForReturnCode) =>
+        if (waiting.giveUpWaiting) {
+          // Can only enter this state when the exit code does not exist and the job is not alive anymore
+          // `isAlive` is not called anymore from this point
+
+          // If exit-code-timeout is set in the config cromwell will create a fake exitcode file
+          val backupError = "??? (!! Programmer Error: It should be impossible to give up on 'waiting' without having set a maximum wait timeout. Please report this as a bug in the Cromwell Github repository !!)"
+          jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse(backupError)} seconds, assuming external kill")
+
+          val returnCodeTemp = jobPaths.returnCode.plusExt("kill")
+          returnCodeTemp.write(s"$SIGTERM${System.lineSeparator}")
+          try {
+            returnCodeTemp.moveTo(jobPaths.returnCode)
+            SharedFileSystemJobFailed
+          } catch {
+            case _: FileAlreadyExistsException =>
+              // If the process has already completed, there will be an existing RC:
+              // Essentially, this covers the rare race condition whereby the task completes between starting to write the
+              // fake RC, and trying to copy it:
+
+              log.error(s"An RC file appeared at ${jobPaths.returnCode} whilst trying to copy a fake exitcode file from ${returnCodeTemp}. Not to worry: the real file should now be picked up on the next poll.")
+
+              // Delete the fake file since it's not needed:
+              returnCodeTemp.delete(true)
+
+              // We shouldn't be here anymore...
+              // Return a "no-op" for now and allow the now-existing rc file to be picked up as normal on the next
+              // iteration through the polling logic:
+              waiting
+          }
+        } else {
+          // Not giving up yet so keep on waiting... for now...
+          waiting
+        }
+
+      case Some(otherStatus) =>
+        jobLogger.warn(s"Unexpected status poll received when already in status $otherStatus")
+        otherStatus
     }
   }
 
-  override def isTerminal(runStatus: StandardAsyncRunState): Boolean = {
-    runStatus.status == "Done" || runStatus.status == "Failed"
-  }
-
+  override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = runStatus.terminal
 }
+
+
+object DispatchedConfigAsyncJobExecutionActor {
+  def getJob(stdoutContent: String, stderr: Path, jobIdRegexString: String): StandardAsyncJob = {
+    val jobIdRegex = jobIdRegexString.r
+    val output = stdoutContent.stripLineEnd
+    jobIdRegex findFirstIn output match {
+      case Some(jobIdRegex(jobId)) => StandardAsyncJob(jobId)
+      case _ =>
+        throw new RuntimeException("Could not find job ID from stdout file." +
+          s"Check the stderr file for possible errors: $stderr")
+    }
+  }
+}
+

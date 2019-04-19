@@ -11,14 +11,17 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{Dispatcher, DockerConfiguration}
-import cromwell.docker.DockerHashActor.DockerHashSuccessResponse
+import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
+import cromwell.engine.workflow.lifecycle.execution.CallMetadataHelper
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.values._
@@ -41,12 +44,13 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                           factory: BackendLifecycleActorFactory,
                           val workflowDockerLookupActor: ActorRef,
                           initializationData: Option[BackendInitializationData],
-                          serviceRegistryActor: ActorRef,
+                          val serviceRegistryActor: ActorRef,
                           ioActor: ActorRef,
                           backendSingletonActor: Option[ActorRef])
-  extends FSM[JobPreparationActorState, JobPreparationActorData] with WorkflowLogging {
+  extends FSM[JobPreparationActorState, JobPreparationActorData] with WorkflowLogging with CallMetadataHelper {
 
   override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
+  override lazy val workflowIdForCallMetadata = workflowDescriptor.possiblyNotRootWorkflowId
   override lazy val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
 
   private[preparation] lazy val noResponseTimeout: FiniteDuration = 3 minutes
@@ -71,8 +75,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   when(WaitingForDockerHash) {
-    case Event(DockerHashSuccessResponse(dockerHash, _), data: JobPreparationDockerLookupData) =>
-      handleDockerHashSuccess(dockerHash, data)
+    case Event(DockerInfoSuccessResponse(DockerInformation(dockerHash, dockerSize), _), data: JobPreparationDockerLookupData) =>
+      handleDockerHashSuccess(dockerHash, dockerSize, data)
     case Event(WorkflowDockerLookupFailure(reason, _), data: JobPreparationDockerLookupData) =>
       workflowLogger.warn("Docker lookup failed", reason)
       handleDockerHashFailed(data)
@@ -81,11 +85,11 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   when(FetchingKeyValueStoreEntries) {
-    case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, inputs, attributes)) =>
+    case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
         case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
         case finished: KeyValueLookupResults => 
-          sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped))
+          sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
       }
   }
 
@@ -99,10 +103,11 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
   private[preparation] def lookupKeyValueEntries(inputs: WomEvaluatedCallInputs,
                                                  attributes: Map[LocallyQualifiedName, WomValue],
-                                                 maybeCallCachingEligible: MaybeCallCachingEligible) = {
+                                                 maybeCallCachingEligible: MaybeCallCachingEligible,
+                                                 dockerSize: Option[DockerSize]) = {
     val keysToLookup = kvStoreKeysToPrefetch map scopedKey
     keysToLookup foreach { serviceRegistryActor ! KvGet(_) }
-    goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, inputs, attributes)
+    goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, dockerSize, inputs, attributes)
   }
 
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
@@ -114,8 +119,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def fetchDockerHashesIfNecessary(inputs: WomEvaluatedCallInputs, attributes: Map[LocallyQualifiedName, WomValue]) = {
-    def sendDockerRequest(dockerImageId: DockerImageIdentifierWithoutHash) = {
-      val dockerHashRequest = DockerHashRequest(dockerImageId, dockerHashCredentials)
+    def sendDockerRequest(dockerImageId: DockerImageIdentifier) = {
+      val dockerHashRequest = DockerInfoRequest(dockerImageId, dockerHashCredentials)
       val newData = JobPreparationDockerLookupData(dockerHashRequest, inputs, attributes)
       workflowDockerLookupActor ! dockerHashRequest
       goto(WaitingForDockerHash) using newData
@@ -127,15 +132,15 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         sendDockerRequest(dockerImageId)
         // If the backend supports docker, we got a tag but lookup is disabled, continue with no call caching and no hash
       case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition =>
-        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, FloatingDockerTagWithoutHash(dockerImageId.fullName))
+        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, FloatingDockerTagWithoutHash(dockerImageId.fullName), None)
 
       // If the backend doesn't support docker - no need to lookup and we're ok for call caching
       case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition => 
-        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker)
+        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
 
-      // If the docker value already has a hash - no need to lookup and we're ok for call caching
-      case Success(dockerImageId: DockerImageIdentifierWithHash) => 
-        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, DockerWithHash(dockerImageId.fullName))
+      // Even if the docker image has a hash, we need to (try to) find out the size, so send a request
+      case Success(dockerImageId: DockerImageIdentifierWithHash) =>
+        sendDockerRequest(dockerImageId)
 
       case Failure(failure) => sendFailureAndStop(failure)
     }
@@ -144,7 +149,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case Some(dockerValue) => handleDockerValue(dockerValue.valueString)
       case None =>
         // If there is no docker attribute at all - we're ok for call caching
-        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker)
+        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
     }
   }
 
@@ -153,19 +158,29 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     */
   private def lookupKvsOrBuildDescriptorAndStop(inputs: WomEvaluatedCallInputs,
                                                 attributes: Map[LocallyQualifiedName, WomValue],
-                                                maybeCallCachingEligible: MaybeCallCachingEligible) = {
-    if (kvStoreKeysToPrefetch.nonEmpty) lookupKeyValueEntries(inputs, attributes, maybeCallCachingEligible)
-    else sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, Map.empty))
+                                                maybeCallCachingEligible: MaybeCallCachingEligible,
+                                                dockerSize: Option[DockerSize]) = {
+    if (kvStoreKeysToPrefetch.nonEmpty) lookupKeyValueEntries(inputs, attributes, maybeCallCachingEligible, dockerSize)
+    else sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, Map.empty, dockerSize))
   }
 
-  private def handleDockerHashSuccess(dockerHashResult: DockerHashResult, data: JobPreparationDockerLookupData) = {
-    val hashValue = data.dockerHashRequest.dockerImageID.withHash(dockerHashResult)
-    lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, DockerWithHash(hashValue.fullName))
+  private def handleDockerHashSuccess(dockerHashResult: DockerHashResult, dockerSize: Option[DockerSize], data: JobPreparationDockerLookupData) = {
+    val hashValue = data.dockerHashRequest.dockerImageID match {
+      case withoutHash: DockerImageIdentifierWithoutHash => withoutHash.withHash(dockerHashResult)
+      case withHash => withHash
+    }
+    dockerSize.foreach(sendCompressedDockerSizeToMetadata)
+    lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, DockerWithHash(hashValue.fullName), dockerSize)
+  }
+  
+  private def sendCompressedDockerSizeToMetadata(dockerSize: DockerSize) = {
+    val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.CompressedDockerSize), MetadataValue(dockerSize.compressedSize))
+    serviceRegistryActor ! PutMetadataAction(event)
   }
 
   private def handleDockerHashFailed(data: JobPreparationDockerLookupData) = {
     val floatingDockerTag = data.dockerHashRequest.dockerImageID.fullName
-    lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, FloatingDockerTagWithoutHash(floatingDockerTag))
+    lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, FloatingDockerTagWithoutHash(floatingDockerTag), None)
   }
 
   private def sendResponseAndStop(response: CallPreparationActorResponse) = {
@@ -187,8 +202,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] def prepareBackendDescriptor(inputEvaluation: WomEvaluatedCallInputs,
                                                     runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                                     maybeCallCachingEligible: MaybeCallCachingEligible,
-                                                    prefetchedJobStoreEntries: Map[String, KvResponse]): BackendJobPreparationSucceeded = {
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, runtimeAttributes, inputEvaluation, maybeCallCachingEligible, prefetchedJobStoreEntries)
+                                                    prefetchedJobStoreEntries: Map[String, KvResponse],
+                                                    dockerSize: Option[DockerSize]): BackendJobPreparationSucceeded = {
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, runtimeAttributes, inputEvaluation, maybeCallCachingEligible, dockerSize, prefetchedJobStoreEntries)
     BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
   }
 
@@ -206,9 +222,10 @@ object JobPreparationActor {
   case object JobPreparationActorNoData extends JobPreparationActorData
   private final case class JobPreparationKeyLookupData(keyLookups: PartialKeyValueLookups,
                                                        maybeCallCachingEligible: MaybeCallCachingEligible,
+                                                       dockerSize: Option[DockerSize],
                                                        inputs: WomEvaluatedCallInputs,
                                                        attributes: Map[LocallyQualifiedName, WomValue]) extends JobPreparationActorData
-  private final case class JobPreparationDockerLookupData(dockerHashRequest: DockerHashRequest,
+  private final case class JobPreparationDockerLookupData(dockerHashRequest: DockerInfoRequest,
                                                           inputs: WomEvaluatedCallInputs,
                                                           attributes: Map[LocallyQualifiedName, WomValue]) extends JobPreparationActorData
 

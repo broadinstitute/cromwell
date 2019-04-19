@@ -212,7 +212,7 @@ paths:
     post:
       operationId: abort
       summary: Abort a running workflow
-      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will make a best effort attempt to immediately halt any currently running jobs from this workflow.
+      description: Request Cromwell to abort a running workflow. For instance this might be necessary in cases where you have submitted a workflow with incorrect inputs or no longer need the results. Cromwell will schedule a halt of all currently running jobs from this workflow.
       parameters:
         - $ref: '#/parameters/versionParam'
         - $ref: '#/parameters/singleId'
@@ -308,7 +308,7 @@ paths:
           $ref: '#/responses/ServerError'
   '/api/workflows/{version}/query':
     get:
-      operationId: query
+      operationId: queryGet
       summary: Get workflows matching some criteria
       description: Query for workflows which match various criteria. When a combination of criteria are applied the endpoint will return
       parameters:
@@ -436,7 +436,7 @@ paths:
             type: string
           collectionFormat: multi
           description: >
-            Includes the specified keys in the metadata for the returned workflows.
+            Currently only 'labels' is a valid value here. Use it to include a list of labels with each result.
         - name : includeSubworkflows
           required: false
           type: boolean
@@ -457,7 +457,7 @@ paths:
         '500':
           $ref: '#/responses/ServerError'
     post:
-      operationId: query
+      operationId: queryPost
       summary: Get workflows matching some criteria
       description: Query workflows by start dates, end dates, names, ids, labels, or statuses.
       parameters:
@@ -611,22 +611,41 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/BackendResponse'
-  '/engine/{version}/stats':
-    get:
-      operationId: stats
-      summary: Returns basic statistics from this Cromwell server.
+  '/api/womtool/{version}/describe':
+    post:
+      operationId: describe
+      summary: Machine-readable description of a workflow, including inputs and outputs
+      consumes:
+        - multipart/form-data
       parameters:
         - $ref: '#/parameters/versionParam'
-      tags:
-        - Engine
+        - name: workflowSource
+          description: The workflow source file to submit for execution. Either workflow source or workflow url is required.
+          required: false
+          type: file
+          in: formData
+        - name: workflowUrl
+          description: URL which points to the workflow. Either workflow source or workflow url is required.
+          required: false
+          type: string
+          in: formData
+        - name: workflowInputs
+          description: JSON or YAML file containing the inputs as an object.
+          required: false
+          type: file
+          in: formData
+        - $ref: '#/parameters/workflowTypeParam'
+        - $ref: '#/parameters/workflowTypeVersionParam'
       responses:
         '200':
-          description: Successful Request
+          description: Workflow description.
           schema:
-            $ref: '#/definitions/StatsResponse'
+            $ref: '#/definitions/WorkflowDescription'
+      tags:
+        - "Womtool"
   '/engine/{version}/version':
     get:
-      operationId: version
+      operationId: engineVersion
       summary: Return the version of this Cromwell server
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -639,7 +658,7 @@ paths:
             $ref: '#/definitions/VersionResponse'
   '/engine/{version}/status':
     get:
-      operationId: status
+      operationId: engineStatus
       summary: Return the current health status of any monitored subsystems
       parameters:
         - $ref: '#/parameters/versionParam'
@@ -820,6 +839,252 @@ definitions:
         type: string
         format: date-time
         description: The time at which this failure occurred
+  WorkflowDescription:
+    required:
+      - valid
+      - errors
+      - name
+      - inputs
+      - outputs
+      - submittedDescriptorType
+    properties:
+      valid:
+        type: boolean
+        description: Whether the workflow and inputs as submitted passed validation
+      errors:
+        type: array
+        items:
+          type: string
+        example:
+          - "The 'errors' field will be filled if 'valid' is false"
+          - "We might also provide warnings to a 'valid' workflow here"
+          - "Otherwise, 'errors' will be the empty array"
+        description: The set of validation failure messages
+      name:
+        type: string
+        description: For a source file with one workflow and zero or more tasks, the name of the workflow. For a single task, the name of the task. For a source file with multiple tasks but no workflows, the empty string.
+      inputs:
+        description: A list of inputs for this tool
+        type: array
+        items:
+          $ref: '#/definitions/ToolInputParameter'
+        example:
+          - name: my_wf.string_input
+            valueType:
+              typeName: String
+            optional: false
+            default: null
+            typeDisplayName: String
+          - name: my_wf.array_input
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            optional: false
+            default: null
+            typeDisplayName: Array[String]
+          - name: my_wf.optional_input
+            valueType:
+              typeName: Optional
+              optionalType:
+                typeName: String
+            optional: true
+            default: "hello"
+            typeDisplayName: String?
+          - name: my_wf.map_input
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            optional: false
+            default: null
+            typeDisplayName: Map[String, Int]
+          - name: my_wf.object_input
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+                - fieldName: "int_field"
+                  fieldType:
+                    typeName: Int
+                - fieldName: "int_array_field"
+                  fieldType:
+                    typeName: Array
+                    arrayType:
+                      typeName: Int
+            optional: false
+            default: null
+            typeDisplayName: Object
+          - name: my_wf.int_string_pair_input
+            valueType:
+              typeName: Pair
+              pairTypes:
+                - leftType:
+                  -  typeName: Int
+                - rightType:
+                  -  typeName: String
+            optional: false
+            default: null
+            typeDisplayName: Pair[Int, String]
+      outputs:
+        description: A list of outputs for this tool
+        type: array
+        items:
+          $ref: '#/definitions/ToolOutputParameter'
+        example:
+          - name: my_wf.string_output
+            valueType:
+              typeName: String
+            typeDisplayName: String
+          - name: my_wf.array_output
+            valueType:
+              typeName: Array
+              arrayType:
+                typeName: String
+            typeDisplayName: Array[String]
+          - name: my_wf.map_output
+            valueType:
+              typeName: Map
+              mapType:
+                keyType:
+                  typeName: String
+                valueType:
+                  typeName: Int
+            typeDisplayName: Map[String, Int]
+          - name: my_wf.object_output
+            valueType:
+              typeName: Object
+              objectFieldTypes:
+                - fieldName: "int_field"
+                  fieldType:
+                    typeName: Int
+                - fieldName: "int_array_field"
+                  fieldType:
+                    typeName: Array
+                    arrayType:
+                      typeName: Int
+            typeDisplayName: Object
+          - name: my_wf.int_string_pair_output
+            valueType:
+              typeName: Pair
+              tupleTypes:
+                - typeName: Int
+                - typeName: String
+            typeDisplayName: Pair[Int, String]
+      submittedDescriptorType:
+        $ref: '#/definitions/DescriptorTypeAndVersion'
+  ToolInputParameter:
+    type: object
+    description: >-
+      An input parameter for a tool or workflow.
+    required:
+      - name
+      - valueType
+      - optional
+      - default
+    properties:
+      name:
+        type: string
+        description: The name of this input value (formatted as expected by the tool)
+      valueType:
+        $ref: '#/definitions/ValueType'
+      optional:
+        type: boolean
+        description: Whether the tool allows this value to not be specified
+      default:
+        type: string
+        description: The in-language expression used to evaluate a default value for this parameter, if
+          none is supplied.
+  ToolOutputParameter:
+    type: object
+    description: >-
+      An output parameter for a tool or workflow.
+    required:
+      - name
+      - valueType
+    properties:
+      name:
+        type: string
+        description: The name of this input value (formatted as expected by the tool)
+      valueType:
+        $ref: '#/definitions/ValueType'
+  ValueType:
+    description: The type expected for a given value.
+    type: object
+    required:
+      - valueType
+    maxProperties: 2
+    properties:
+      typeName:
+        type: string
+        description: The type of this value
+        enum:
+          - String
+          - File
+          - Directory
+          - Float
+          - Int
+          - Boolean
+          - Optional
+          - Array
+          - Tuple
+          - Map
+          - Object
+      optionalType:
+        $ref: '#/definitions/ValueType'
+      arrayType:
+        $ref: '#/definitions/ValueType'
+      mapType:
+        $ref: '#/definitions/MapValueType'
+      tupleTypes:
+        type: array
+        items:
+          $ref: '#/definitions/ValueType'
+      objectFieldTypes:
+        type: array
+        items:
+          type: object
+          properties:
+            fieldName:
+              type: string
+            fieldType:
+              $ref: '#/definitions/ValueType'
+  MapValueType:
+    type: object
+    description: A type representing a map from one type to another.
+    required:
+      - keyType
+      - valueType
+    properties:
+      keyType:
+        $ref: '#/definitions/ValueType'
+      valueType:
+        $ref: '#/definitions/ValueType'
+  DescriptorTypeAndVersion:
+    type: object
+    description: >-
+      A workflow descriptor file type and version.
+    required:
+      - descriptorType
+      - descriptorTypeVersion
+    properties:
+      descriptorType:
+        $ref: '#/definitions/DescriptorType'
+      descriptorTypeVersion:
+        type: string
+        example: "1.0"
+  DescriptorType:
+    type: string
+    description: >-
+      One from a list of descriptor type strings (e.g. CWL, WDL).
+      Note that these files can also include associated Docker/container files
+      and test parameters that further describe a version of a tool
+    example: "WDL"
+    enum:
+      - CWL
+      - WDL
   WorkflowQueryParameter:
     description: Workflow query parameters
     minProperties: 1
@@ -948,18 +1213,6 @@ definitions:
       defaultBackend:
         type: string
         description: The default backend of this server
-  StatsResponse:
-    description: Provides engine level statistics for things running inside the system
-    required:
-      - workflows
-      - jobs
-    properties:
-      workflows:
-        type: integer
-        description: The number of currently running workflows
-      jobs:
-        type: integer
-        description: The number of currently running jobs
   VersionResponse:
     description: Returns the version of Cromwell
     properties:

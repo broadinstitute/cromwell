@@ -26,7 +26,7 @@ package object ast2wdlom {
   implicit val astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement] = AstNodeToExpressionElement.astNodeToExpressionElement(customEngineFunctionMakers = Map.empty)
   implicit val astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair] = AstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
 
-  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement()
+  implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] = AstNodeToTypeElement.astNodeToTypeElement(Map.empty)
   implicit val astToStructElement: CheckedAtoB[GenericAst, StructElement] = AstToStructElement.astToStructElement
   implicit val astNodeToImportElement: CheckedAtoB[GenericAstNode, ImportElement] = astNodeToAst andThen AstToImportElement.astToImportElement
 

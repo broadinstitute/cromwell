@@ -1,0 +1,139 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "name" : "o",
+  "inputs" : [
+    {
+      "name" : "my_struct",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "MyStruct",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "my_struct_optional",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "MyStruct",
+      "optional" : true,
+      "default" : "{ \"myString\": \"zardoz\", \"myInt\": 58 }"
+    },
+    {
+      "name" : "obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "obj_optional",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object",
+      "optional" : true,
+      "default" : "{ \"a\": \"is for apple\" }"
+    },
+    {
+      "name" : "other",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "OtherStruct",
+      "optional" : false,
+      "default" : null
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "my_struct_output",
+      "valueType" : {
+        "typeName" : "Object",
+        "objectFieldTypes" : [
+          {
+            "fieldName" : "myString",
+            "fieldType" : {
+              "typeName" : "String"
+            }
+          },
+          {
+            "fieldName" : "myInt",
+            "fieldType" : {
+              "typeName" : "Int"
+            }
+          }
+        ]
+      },
+      "typeDisplayName" : "MyStruct"
+    },
+    {
+      "name" : "output_obj",
+      "valueType" : {
+        "typeName" : "Object"
+      },
+      "typeDisplayName" : "Object"
+    }
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "1.0"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

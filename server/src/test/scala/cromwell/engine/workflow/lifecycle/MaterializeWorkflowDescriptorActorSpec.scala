@@ -84,13 +84,14 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.knownValues.head._2 shouldBe WomString("world")
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe Option("true")
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
-            wfDesc.backendDescriptor.customLabels shouldBe Labels("label1" -> "value1", "label2" -> "value2", "Label1" -> "valu£1")
+            wfDesc.backendDescriptor.customLabels shouldBe
+              Labels("Label1" -> "valu£1", "label1" -> "value1", "label2" -> "value2")
             // Default backend assignment is "Local":
             wfDesc.backendAssignments foreach {
               case (call, assignment) if call.callable.name.equals("hello") => assignment shouldBe "Local"
               case (call, _) => fail(s"Unexpected call: ${call.callable.name}")
             }
-            wfDesc.pathBuilders.size shouldBe 1
+            wfDesc.pathBuilders.size shouldBe 2 // one each for the local and http filesystems
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -126,7 +127,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             wfDesc.knownValues.head._2 shouldBe WomInteger(5)
             wfDesc.getWorkflowOption(WorkflowOptions.WriteToCache) shouldBe None
             wfDesc.getWorkflowOption(WorkflowOptions.ReadFromCache) shouldBe None
-            wfDesc.pathBuilders.size shouldBe 1
+            wfDesc.pathBuilders.size shouldBe 2 // // one each for the local and http filesystems
           case MaterializeWorkflowDescriptorFailureResponse(reason) => fail(s"Materialization failed with $reason")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")

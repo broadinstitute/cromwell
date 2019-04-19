@@ -10,7 +10,7 @@ trait MetadataServicesStore {
 }
 
 object MetadataServicesStore {
-  val MetadataLiquibaseSettings = LiquibaseSettings(
+  lazy val MetadataLiquibaseSettings = LiquibaseSettings(
     "sql_metadata_changelog.xml",
     "SQLMETADATA" + Database.databaseChangeLogLockTableName,
     "SQLMETADATA" + Database.databaseChangeLogTableName
@@ -20,6 +20,6 @@ object MetadataServicesStore {
 
   // Mix in AutoCloseable for shutdown purposes.
   // This whole MetadataSqlDatabase interface will likely change to a more abstract MetadataDAO in the future.
-  val metadataDatabaseInterface: MetadataSqlDatabase =
+  lazy val metadataDatabaseInterface: MetadataSqlDatabase =
     MetadataSlickDatabase.fromParentConfig().initialized(MetadataServicesStore.MetadataLiquibaseSettings)
 }

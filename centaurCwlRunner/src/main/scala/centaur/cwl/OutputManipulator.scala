@@ -2,18 +2,17 @@ package centaur.cwl
 
 import common.util.StringUtil._
 import cromwell.core.path.{Path, PathBuilder}
+import cwl.CwlCodecs._
 import cwl.command.ParentName
 import cwl.ontology.Schema
 import cwl.{File => CwlFile, _}
-import io.circe.generic.auto._
 import io.circe.literal._
-import io.circe.shapes._
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}
+import mouse.all._
 import org.apache.commons.codec.digest.DigestUtils
 import shapeless.{Inl, Poly1}
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
-import mouse.all._
 
 //Take cromwell's outputs and format them as expected by the spec
 object OutputManipulator extends Poly1 {
@@ -43,14 +42,7 @@ object OutputManipulator extends Poly1 {
     }
   }
 
-  /**
-    * @param isInsideDirectory Conformance tests expect "basename" to be filled in for files iff the file is listed
-    *                          in a directory. This field lets us know whether or not that's the case and if we should
-    *                          add the "basename" field to the output JSON.
-    * @param schemaOption      Optional schema.
-    */
   private def populateFileFields(pathBuilder: PathBuilder,
-                                 isInsideDirectory: Boolean,
                                  schemaOption: Option[Schema]
                                 )(obj: JsonObject): JsonObject = {
     val path = pathBuilder.build(obj.kleisli("location").get.asString.get).get
@@ -64,11 +56,11 @@ object OutputManipulator extends Poly1 {
       case None => default
     }
 
-    def populateInnerFiles(json: Json, isInsideDirectory: Boolean): Option[Json] = {
+    def populateInnerFiles(json: Json): Option[Json] = {
 
       def populateInnerFile(file: Json): Json = {
         file.asObject
-          .map(populateFileFields(pathBuilder, isInsideDirectory, schemaOption))
+          .map(populateFileFields(pathBuilder, schemaOption))
           .map(Json.fromJsonObject)
           .orElse(file.asString.map(stringToFile(_, pathBuilder)))
           .getOrElse(file)
@@ -82,13 +74,13 @@ object OutputManipulator extends Poly1 {
       if (filteredFiles.nonEmpty) Option(Json.arr(filteredFiles: _*)) else None
     }
 
-    def updateFileOrDirectoryWithNestedFiles(obj: JsonObject, fieldName: String, isInsideDirectory: Boolean) = {
+    def updateFileOrDirectoryWithNestedFiles(obj: JsonObject, fieldName: String) = {
       // Cromwell metadata has a field for all values even if their content is empty
       // remove it as the cwl test runner expects nothing instead
       val withoutField = obj.remove(fieldName)
 
       // If the field was not empty, add it back with each inner file / directory properly updated as well
-      populateInnerFiles(obj.kleisli(fieldName).get, isInsideDirectory)
+      populateInnerFiles(obj.kleisli(fieldName).get)
         .map(withoutField.add(fieldName, _))
         .getOrElse(withoutField)
     }
@@ -135,9 +127,8 @@ object OutputManipulator extends Poly1 {
       val defaultSize = sizeContent.orElse(sizeFile(path)).map(Json.fromLong).getOrElse(Json.Null)
       val size = valueOrNull("size", defaultSize)
 
-      val basename: Option[Json] = if (isInsideDirectory) {
+      val basename: Option[Json] =
         Option(valueOrNull("basename", path.exists.option(path.nameWithoutExtension).map(Json.fromString).getOrElse(Json.Null)))
-      } else None
 
       /*
       In order of priority use:
@@ -160,9 +151,9 @@ object OutputManipulator extends Poly1 {
         .map(withBasename.add("format", _))
         .getOrElse(withBasename)
 
-      updateFileOrDirectoryWithNestedFiles(withFormat, "secondaryFiles", isDirectory)
+      updateFileOrDirectoryWithNestedFiles(withFormat, "secondaryFiles")
     } else if (isDirectory) {
-      updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing", isDirectory).
+      updateFileOrDirectoryWithNestedFiles(updatedLocation, "listing").
         add("basename", path.nameWithoutExtension |> Json.fromString)
     } else throw new RuntimeException(s"${path.pathAsString} is neither a valid file or a directory")
   }
@@ -171,6 +162,13 @@ object OutputManipulator extends Poly1 {
                                        (jsValue: JsValue,
                                         pathBuilder: PathBuilder,
                                         schemaOption: Option[Schema]): Json = {
+    def sprayJsonToCirce(jsValue: JsValue): Json = {
+      import io.circe.parser._
+      val jsonString = jsValue.compactPrint
+      parse(jsonString).getOrElse(
+        sys.error(s"Failed to parse Json output as Json... something is very wrong: '$jsonString'")
+      )
+    }
 
     (jsValue, moits) match {
       //CWL expects quite a few enhancements to the File structure, hence...
@@ -178,8 +176,7 @@ object OutputManipulator extends Poly1 {
       // If it's a JsObject it means it's already in the right format, we just want to fill in some values that might not
       // have been populated like "checksum" and "size"
       case (obj: JsObject, a) if a.contains(Inl(CwlType.File)) || a.contains(Inl(CwlType.Directory)) =>
-        import io.circe.parser._
-        val json: Json = parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
+        val json: Json = sprayJsonToCirce(obj)
         val fileExists = (for {
           o <- json.asObject
           l <- o.kleisli("location")
@@ -187,7 +184,7 @@ object OutputManipulator extends Poly1 {
           c = if (a.contains(Inl(CwlType.Directory))) s.ensureSlashed else s
           p <- pathBuilder.build(c).toOption
         } yield p.exists).getOrElse(false)
-        if (fileExists) json.mapObject(populateFileFields(pathBuilder, isInsideDirectory = false, schemaOption)) else Json.Null
+        if (fileExists) json.mapObject(populateFileFields(pathBuilder, schemaOption)) else Json.Null
       case (JsNumber(metadata), Array(Inl(CwlType.Long))) => metadata.longValue.asJson
       case (JsNumber(metadata), Array(Inl(CwlType.Float))) => metadata.floatValue.asJson
       case (JsNumber(metadata), Array(Inl(CwlType.Double))) => metadata.doubleValue.asJson
@@ -197,11 +194,9 @@ object OutputManipulator extends Poly1 {
       //The Anys.  They have to be done for each type so that the asJson can use this type information when going back to Json representation
       case (JsString(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
       case (JsNumber(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
-      case (obj: JsObject, Array(Inl(CwlType.Any))) =>
-        import io.circe.parser._
-        parse(obj.compactPrint).right.getOrElse(throw new Exception("Failed to parse Json output as Json... something is very wrong"))
+      case (obj: JsObject, Array(Inl(CwlType.Any))) => sprayJsonToCirce(obj)
       case (JsBoolean(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
-      case (JsArray(metadata), Array(Inl(CwlType.Any))) => metadata.asJson
+      case (array: JsArray, Array(Inl(CwlType.Any))) => sprayJsonToCirce(array)
       case (JsNull, a) if a.contains(Inl(CwlType.Any)) || a.contains(Inl(CwlType.Null)) => Json.Null
 
       case (JsArray(metadata), Array(tpe)) if tpe.select[OutputArraySchema].isDefined =>

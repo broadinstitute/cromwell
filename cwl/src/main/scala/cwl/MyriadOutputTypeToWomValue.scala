@@ -4,8 +4,8 @@ import cats.data.Validated.Valid
 import cats.instances.list._
 import cats.syntax.option._
 import cats.syntax.traverse._
-import cats.syntax.validated._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.IOChecked.IOChecked
+import common.validation.IOChecked._
 import cwl.CwlType.CwlType
 import cwl.command.ParentName
 import mouse.all._
@@ -21,10 +21,10 @@ object MyriadOutputTypeToWomValue extends Poly1 {
 
   // We pass in a function that can evaluate a CommandOutputBinding and produce a WomValue. This allows us to recurse into the
   // MyriadOutputTypes and evaluate values as we do.
-  type EvaluationFunction = (CommandOutputBinding, WomType) => ErrorOr[WomValue]
+  type EvaluationFunction = (CommandOutputBinding, WomType) => IOChecked[WomValue]
 
   //Our overall return type gives us the evaluator function and custom types; returns WomValues
-  type Output = (EvaluationFunction, SchemaDefRequirement) => ErrorOr[WomValue]
+  type Output = (EvaluationFunction, SchemaDefRequirement) => IOChecked[WomValue]
 
   import Case._
 
@@ -35,9 +35,9 @@ object MyriadOutputTypeToWomValue extends Poly1 {
   // TODO: Not sure what the right thing to do is here, for now go over the list of types and use the first evaluation that yields success
   implicit def acwl: Aux[Array[MyriadOutputInnerType], Output] = at[Array[MyriadOutputInnerType]] { types =>
     (evalFunction,schemaDefRequirement) =>
-      types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, schemaDefRequirement)).collectFirst({
+      types.toList.map(_.fold(MyriadOutputInnerTypeToWomValue).apply(evalFunction, schemaDefRequirement)).map(_.toErrorOr).collectFirst({
         case Valid(validValue) => validValue
-      }).toValidNel(s"Cannot find a suitable type to build a WomValue from in ${types.mkString(", ")}")
+      }).toValidNel(s"Cannot find a suitable type to build a WomValue from in ${types.mkString(", ")}").toIOChecked
   }
 }
 
@@ -48,16 +48,16 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
 
   def ex(component: String) = throw new RuntimeException(s"output type $component cannot yield a wom value")
 
-  implicit def cwlType: Aux[CwlType, Output] = at[CwlType] { cwlType => (_,_) =>
-    "No output binding is defined. Are you expecting the output to be inferred from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidNel
+  implicit def cwlType: Aux[CwlType, Output] = at[CwlType] { _ => (_,_) =>
+    "No output binding is defined. Are you expecting the output to be inferred from a cwl.output.json file ? If so please make sure the file was effectively created.".invalidIOChecked
   }
 
   implicit def ors: Aux[OutputRecordSchema, Output] = at[OutputRecordSchema] { ors => (evalFunction, schemaDefRequirement) => ors match {
     case OutputRecordSchema(_, Some(fields), _) =>
         // Go over each field and evaluate the binding if there's one, otherwise keep folding over field types
-        def evaluateValues = fields.toList.traverse({ field =>
+        def evaluateValues = fields.toList.traverse[IOChecked, ((String, WomValue), (String, WomType))]({ field =>
           val womType = field.`type`.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
-          val womValue: ErrorOr[WomValue] = field.outputBinding match {
+          val womValue: IOChecked[WomValue] = field.outputBinding match {
             case Some(binding) => evalFunction(binding, womType)
             case None => field.`type`.fold(MyriadOutputTypeToWomValue).apply(evalFunction, schemaDefRequirement)
           }
@@ -73,7 +73,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
         evaluateValues map { evaluatedValues =>
           val (valueMap, typeMap) = evaluatedValues.unzip
           // Create a typed WomObject from the values and the typeMap
-          WomObject.withType(valueMap.toMap, WomCompositeType(typeMap.toMap))
+          WomObject.withTypeUnsafe(valueMap.toMap, WomCompositeType(typeMap.toMap))
         }
     case ors => ors.toString |> ex
   }}
@@ -82,7 +82,7 @@ object MyriadOutputInnerTypeToWomValue extends Poly1 {
     //DB: I tried to do a pattern match as the overall function here but the compiler exploded
     oes => (f, schemaDefRequirement) => oes match {
       case oes@OutputEnumSchema(_, _, _, _, Some(outputBinding)) => f(outputBinding, oes.toWomEnumerationType)
-      case _ => s"The enumeration type $oes requires an outputbinding to be evaluated.".invalidNel
+      case _ => s"The enumeration type $oes requires an outputbinding to be evaluated.".invalidIOChecked
     }
   }
 

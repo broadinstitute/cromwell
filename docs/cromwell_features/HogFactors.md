@@ -52,13 +52,14 @@ running jobs.
 
 ## Configuration
 
-Cromwell accepts two configuration values for hog factors in the `hog-safety` stanza of `system` in the configuration 
+Cromwell accepts the following configuration values for hog factors in the `hog-safety` stanza of `system` in the configuration 
 file:
 ```conf
 system {
   hog-safety {
     hog-factor = 1
     workflow-option = "hogGroup"
+    token-log-interval-seconds = 0
   }
 }
 ```
@@ -85,6 +86,18 @@ workflow's hog group:
     + You can choose a field that is already being used for other reasons
 - If a workflow is submitted without a value for the designated field in its workflow options, the workflow ID is used 
 as the hog group identifier. 
+
+### Logging
+
+Because the system is not a simple first-in-first-out, it can be valuable to see the status of all 
+the existing queues inside Cromwell. 
+
+To have this information logged on a regular basis, you can enable periodic queue logging. This will
+also alert you at the same frequency when events are happening, such as hog groups being at their individual limits.
+
+* You can enable logging for the Job Execution Token Dispenser, using
+the `system.hog-safety.token-log-interval-seconds` configuration value.
+* The default, `0`, means that no logging will occur.
 
 ## Effects
 
@@ -179,6 +192,6 @@ Yes, to various degrees:
 - To opt out of round-robin allocation between workflows, and preserve a strict first-in-first-out allocation of jobs,
 assign all workflows to the same hog-group in their workflow options.
     + To set this as the default, you can add a value to the default workflow options. 
-    + For an example see the `workflow-options` / `default` stanza of [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/master/cromwell.examples.conf).
+    + For an example see the `workflow-options` / `default` stanza of [cromwell.examples.conf][cromwell-examples-conf].
 
-
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf

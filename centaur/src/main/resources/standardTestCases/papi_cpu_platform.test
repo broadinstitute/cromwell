@@ -1,0 +1,15 @@
+name: papi_cpu_platform
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: papi_cpu_platform/papi_cpu_platform.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.cpus.broadwell.cpuPlatform": "Intel Broadwell"
+  "outputs.cpus.haswell.cpuPlatform": "Intel Haswell"
+}
+
+workflowType: WDL

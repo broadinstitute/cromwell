@@ -93,7 +93,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
 }
 
 object StandardFileHashingActorSpec {
-  private def testing: Nothing = throw new NotImplementedError("should not be run during tests")
+  private def testing: Nothing = throw new UnsupportedOperationException("should not be run during tests")
 
   def defaultParams(): StandardFileHashingActorParams = defaultParams(testing, testing, testing, testing, testing)
 

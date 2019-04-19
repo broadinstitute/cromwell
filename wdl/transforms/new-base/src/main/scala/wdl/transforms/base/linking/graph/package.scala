@@ -37,6 +37,7 @@ package object graph {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomArrayType(womType))
         case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomArrayType(womType))
+        case a: GeneratedCallFinishedHandle => a
       } }
     }
   }
@@ -46,19 +47,22 @@ package object graph {
       a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten) map { _.map {
         case GeneratedIdentifierValueHandle(id, womType) => GeneratedIdentifierValueHandle(id, WomOptionalType(womType).flatOptionalType)
         case GeneratedCallOutputValueHandle(first, second, womType) => GeneratedCallOutputValueHandle(first, second, WomOptionalType(womType).flatOptionalType)
+        case a: GeneratedCallFinishedHandle => a
       } }
     }
   }
 
   implicit val callElementUnlinkedValueGenerator: UnlinkedValueGenerator[CallElement] = new UnlinkedValueGenerator[CallElement] {
     override def generatedValueHandles(a: CallElement, typeAliases: Map[String, WomType], callables: Map[String, Callable]): ErrorOr[Set[GeneratedValueHandle]] = {
-      def callableOutputToHandle(callable: Callable)(callableOutput: OutputDefinition): GeneratedValueHandle = {
-        val callAlias = a.alias.getOrElse(callable.name)
+      def callableOutputToHandle(callAlias: String)(callableOutput: OutputDefinition): GeneratedValueHandle = {
         GeneratedCallOutputValueHandle(callAlias, callableOutput.name, callableOutput.womType)
       }
 
       callables.get(a.callableReference) match {
-        case Some(callable) => callable.outputs.map(callableOutputToHandle(callable)).toSet.validNel
+        case Some(callable) =>
+          val callAlias = a.alias.getOrElse(callable.name)
+          val outputs = callable.outputs.map(callableOutputToHandle(callAlias)).toSet
+          (outputs + GeneratedCallFinishedHandle(callAlias)).validNel
         case None => s"Cannot generate outputs for 'call ${a.callableReference}'. No such callable exists in [${callables.keySet.mkString(", ")}]".invalidNel
       }
     }
@@ -85,10 +89,14 @@ package object graph {
                                                 callables: Map[String, Callable])
                                                (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       import wdl.transforms.base.linking.expression.consumed.LiteralEvaluators.kvPairUnlinkedValueConsumer
-      a.body match {
-        case Some(callBodyElement: CallBodyElement) => callBodyElement.inputs.flatMap(_.expressionConsumedValueHooks).toSet.validNel
-        case None => Set.empty[UnlinkedConsumedValueHook].valid
+      val consumedByInputSection: Set[UnlinkedConsumedValueHook] = a.body match {
+        case Some(callBodyElement: CallBodyElement) => callBodyElement.inputs.flatMap(_.expressionConsumedValueHooks).toSet
+        case None => Set.empty[UnlinkedConsumedValueHook]
       }
+
+      val consumedByAfterRequirement: Vector[UnlinkedConsumedValueHook] = a.afters map UnlinkedAfterCallHook.apply
+
+      (consumedByInputSection ++ consumedByAfterRequirement).validNel
     }
   }
 
@@ -107,6 +115,7 @@ package object graph {
           case UnlinkedIdentifierHook(id) => bodyGeneratedValues.contains(id) || id == a.scatterVariableName
           case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) =>
             bodyGeneratedValues.contains(first) || bodyGeneratedValues.contains(s"$first.$second") || a.scatterVariableName == first
+          case after: UnlinkedAfterCallHook => bodyGeneratedValues.contains(after.linkString)
         }
 
         unsatisfiedBodyElementHooks ++ scatterExpressionHooks
@@ -120,7 +129,7 @@ package object graph {
                                                 callables: Map[String, Callable])
                                                (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): ErrorOr[Set[UnlinkedConsumedValueHook]] = {
       val bodyConsumedValuesValidation: ErrorOr[Set[UnlinkedConsumedValueHook]] = a.graphElements.toList.traverse(_.graphElementConsumedValueHooks(typeAliases, callables)).map(_.toSet.flatten)
-      val scatterExpressionHooks: Set[UnlinkedConsumedValueHook] = a.conditionExpression.expressionConsumedValueHooks
+      val ifExpressionHooks: Set[UnlinkedConsumedValueHook] = a.conditionExpression.expressionConsumedValueHooks
 
       val bodyGeneratedValuesValidation: ErrorOr[Set[String]] = a.graphElements.toList.traverse(_.generatedValueHandles(typeAliases, callables)).map(_.toSet.flatten.map(_.linkableName))
 
@@ -128,9 +137,10 @@ package object graph {
         val unsatisfiedBodyElementHooks = bodyConsumedValues.filterNot {
           case UnlinkedIdentifierHook(id) => bodyGeneratedValues.contains(id)
           case UnlinkedCallOutputOrIdentifierAndMemberAccessHook(first, second) => bodyGeneratedValues.contains(first) || bodyGeneratedValues.contains(s"$first.$second")
+          case after: UnlinkedAfterCallHook => bodyGeneratedValues.contains(after.linkString)
         }
 
-        unsatisfiedBodyElementHooks ++ scatterExpressionHooks
+        unsatisfiedBodyElementHooks ++ ifExpressionHooks
       }
     }
   }

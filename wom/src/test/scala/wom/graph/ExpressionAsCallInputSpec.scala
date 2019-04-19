@@ -52,7 +52,8 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val callNodeWithInputs = callNodeBuilder.build(
       WomIdentifier("foo"),
       CommandTaskDefinitionSpec.oneInputTask,
-      inputDefinitionFold
+      inputDefinitionFold,
+      Set.empty
     )
 
     def validateCallResult(callWithInputs: CallNodeAndNewNodes) = {

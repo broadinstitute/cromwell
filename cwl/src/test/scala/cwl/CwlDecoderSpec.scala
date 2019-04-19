@@ -27,8 +27,10 @@ class CwlDecoderSpec extends FlatSpec with Matchers {
       unsafeRunSync
 
     result.isLeft shouldBe true
-    "Field `run` contains undefined reference to `file://.+/wrong.cwl`".r.findAllIn(result.left.get.head).size shouldBe 1
-    "Field `run` contains undefined reference to `file://.+/wrong2.cwl`".r.findAllIn(result.left.get.head).size shouldBe 1
+    withClue(s"Actual message: ${result.left.get.head}") {
+      "Field `run` contains undefined reference to `file://.+/wrong.cwl`".r.findAllIn(result.left.get.head).size shouldBe 1
+      "Field `run` contains undefined reference to `file://.+/wrong2.cwl`".r.findAllIn(result.left.get.head).size shouldBe 1
+    }
   }
 
   it should "fail to parse invalid linked cwl" in {

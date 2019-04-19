@@ -13,13 +13,14 @@ pages:
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
     - Getting started with Pipelines API: tutorials/PipelinesApi101.md
     - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
-    - Getting started with AWS Batch: tutorials/AwsBatch101.md
+    - Getting started with AWS Batch (beta): tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
     - Server Mode: tutorials/ServerMode.md
     - Configuring the Local backend: tutorials/LocalBackendIntro.md
     - Viewing Metadata: tutorials/MetadataEndpoint.md
+    - Getting started with Containers: tutorials/Containers.md
 #    - Introduction to Call Caching: tutorials/CallCaching101.md
 #    - Common Errors: tutorials/FrequentErrors.md
 #    - General Debugging Tips: tutorials/GeneralDebuggingTips.md
@@ -60,18 +61,21 @@ pages:
     - HTCondor: backends/HTcondor.md
 - Filesystems:
     - Overview: filesystems/Filesystems.md
+    - File Transfer Protocol (FTP): filesystems/FileTransferProtocol.md
     - Google Cloud Storage: filesystems/GoogleCloudStorage.md
     - HTTP: filesystems/HTTP.md
+    - Data Repository Service: filesystems/DataRepositoryService.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md
 - For Developers:
-    - How to Build: Building.md
-    - Architecture: Arch.md
-    - Instrumentation: Instrumentation.md
-    - Integration tests: Centaur.md
-    - Security: Security.md
-    - Contribute to docs: Contribute.md
+    - How to Build: developers/Building.md
+    - Architecture: developers/Arch.md
+    - Instrumentation: developers/Instrumentation.md
+    - Integration tests: developers/Centaur.md
+    - Security: developers/Security.md
+    - Contribute to docs: developers/Contribute.md
+    - CWL Parsing: developers/CwlParsing.md
 
 theme: readthedocs
 

@@ -4,9 +4,8 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import cromwell.core.ExecutionStatus.{apply => _}
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
-import cromwell.engine.workflow.tokens.RoundRobinQueueIterator
+import cromwell.engine.workflow.tokens.{NullTokenEventLogger, RoundRobinQueueIterator, TokenQueue}
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
-import cromwell.engine.workflow.tokens.TokenQueue
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 import spray.json.DefaultJsonProtocol
@@ -81,7 +80,7 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
       } yield (jobCount, hogFactor, tokenType)
 
       using(queues) in { case (jobCount, hogFactor, tokenType) =>
-        var tokenQueue = TokenQueue(tokenType)
+        var tokenQueue = TokenQueue(tokenType, NullTokenEventLogger)
         val hogGroups = ((0 until hogFactor) map { i => i -> s"hogGroup$i" }).toMap
 
         tokenQueue = fillQueue(tokenQueue, jobCount / hogFactor, hogGroups.values.toList)

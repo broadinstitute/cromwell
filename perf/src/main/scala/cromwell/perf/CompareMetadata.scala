@@ -1,27 +1,32 @@
 package cromwell.perf
 
-import java.time.Duration
+import java.io.FileInputStream
+import java.time.{Duration, OffsetDateTime}
 
 import better.files.File
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
-import common.validation.ErrorOr._
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.StorageOptions
 import com.typesafe.scalalogging.StrictLogging
-import io.circe
-import io.circe.generic.auto._
+import common.validation.ErrorOr._
+import io.circe._
+import io.circe.generic.semiauto._
+import io.circe.java8.time._
 import io.circe.parser._
-import java.io.FileInputStream
-
-// Do not remove this unused import
-// If removed, circe parser fails to find implicit decoder for OffsetDateTime, and parsing fails
-import io.circe.java8.time.decodeOffsetDateTimeDefault
 
 object CompareMetadata extends App with StrictLogging{
-  private  val REGRESSION_CONST = 1.1
+  private val REGRESSION_CONST = 1.1
 
-  def parseMetadataFromLocalFile(filePath: String): Either[circe.Error, Metadata] = {
+  // If removed, IntelliJ (Oct '18) thinks the import isn't used.
+  // Later the compiler fails to find a decoder for OffsetDateTime.
+  lazy val anchorOffsetDateTime: Decoder[OffsetDateTime] = implicitly
+  implicit lazy val decodeCall: Decoder[Call] = deriveDecoder
+  implicit lazy val decodeCallCaching: Decoder[CallCaching] = deriveDecoder
+  implicit lazy val decodeExecutionEvents: Decoder[ExecutionEvents] = deriveDecoder
+  implicit lazy val decodeMetadata: Decoder[Metadata] = deriveDecoder
+
+  def parseMetadataFromLocalFile(filePath: String): Either[Error, Metadata] = {
     val metadataFile = File(filePath)
     val metadataFileContent = metadataFile.contentAsString
 
@@ -29,7 +34,7 @@ object CompareMetadata extends App with StrictLogging{
   }
 
 
-  def parseMetadataFromGcsFile(gcsUrl: String, pathToServiceAccount: String): Either[circe.Error, Metadata] = {
+  def parseMetadataFromGcsFile(gcsUrl: String, pathToServiceAccount: String): Either[Error, Metadata] = {
     val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
     val Array(gcsBucket, fileToBeLocalized) = gcsUrlArray
 
@@ -42,7 +47,7 @@ object CompareMetadata extends App with StrictLogging{
   }
 
 
-  def parseMetadata(inputFile: String, pathToServiceAccount: String): Either[circe.Error, Metadata] = {
+  def parseMetadata(inputFile: String, pathToServiceAccount: String): Either[Error, Metadata] = {
     if (inputFile.startsWith("gs://"))
       parseMetadataFromGcsFile(inputFile, pathToServiceAccount)
     else parseMetadataFromLocalFile(inputFile)
@@ -105,50 +110,45 @@ object CompareMetadata extends App with StrictLogging{
   }
 
 
-  def printParseErrorToConsoleAndExit(metadataFile: String, error: circe.Error, systemExit: Boolean): Unit = {
+  def printParseErrorToConsoleAndExit(metadataFile: String, error: Error, systemExit: Boolean): Unit = {
     logger.error(s"Something went wrong while parsing $metadataFile. Error: ${error.getLocalizedMessage}")
     if (systemExit) System.exit(1)
   }
 
 
-  def generateAndCompareMetrics(metadataOldEither: Either[circe.Error, Metadata], metadataNewEither: Either[circe.Error, Metadata]): Unit = {
+  def generateAndCompareMetrics(metadataOldEither: Either[Error, Metadata], metadataNewEither: Either[Error, Metadata]): Unit = {
     (metadataOldEither, metadataNewEither) match {
-      case (Right(metadataOld), Right(metadataNew)) => {
+      case (Right(metadataOld), Right(metadataNew)) =>
         val metadataOldMsg = s"Metrics for metadata generated from ${args(0)}"
         val metadataNewMsg = s"\nMetrics for metadata generated from ${args(1)}"
         displayComputedMetrics(metadataOld, metadataOldMsg)
         displayComputedMetrics(metadataNew, metadataNewMsg)
         compareMetadataMetrics(metadataOld, metadataNew) match {
           case Valid(_) => logger.info("\nYAY!! Metrics from new metadata json haven't regressed!")
-          case Invalid(listOfErrors) => {
+          case Invalid(listOfErrors) =>
             logger.error("\nBelow metadata metrics have regressed:")
             logger.error(listOfErrors.toList.mkString("\n"))
             System.exit(1)
-          }
         }
-      }
       case (Right(_), Left(e)) => printParseErrorToConsoleAndExit(args(1), e, systemExit = true)
       case (Left(e), Right(_)) => printParseErrorToConsoleAndExit(args(0), e, systemExit = true)
-      case (Left(e1), Left(e2)) => {
+      case (Left(e1), Left(e2)) =>
         printParseErrorToConsoleAndExit(args(0), e1, systemExit = false)
         printParseErrorToConsoleAndExit(args(1), e2, systemExit = true)
-      }
     }
   }
 
 
   args.length match {
-    case 2 => {
+    case 2 =>
       if (args(0).startsWith("gs://") || args(1).startsWith("gs://")) {
         logger.error("Path to service account is needed to download GCS file. Please pass it as 3rd argument.")
         System.exit(1)
       }
       else generateAndCompareMetrics(parseMetadataFromLocalFile(args(0)), parseMetadataFromLocalFile(args(1)))
-    }
     case 3 => generateAndCompareMetrics(parseMetadata(args(0), args(2)), parseMetadata(args(1), args(2)))
-    case _ => {
+    case _ =>
       logger.error("Please pass in 2 file paths!")
       System.exit(1)
-    }
   }
 }

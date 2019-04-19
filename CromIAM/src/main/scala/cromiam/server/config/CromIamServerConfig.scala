@@ -5,8 +5,9 @@ import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.functor._
 import cats.syntax.validated._
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromiam.server.config.CromIamServerConfig._
 import net.ceedubs.ficus.Ficus._
 
@@ -16,7 +17,7 @@ import scala.util.{Failure, Success, Try}
 final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
                                      cromwellConfig: ServiceConfig,
                                      cromwellAbortConfig: ServiceConfig,
-                                     samConfig: ServiceConfig,
+                                     samConfig: SamClientConfig,
                                      swaggerOauthConfig: SwaggerOauthConfig)
 
 object CromIamServerConfig {
@@ -25,7 +26,7 @@ object CromIamServerConfig {
     val cromwellConfig = ServiceConfig.getFromConfig(conf, "cromwell")
     val cromwellAbortConfig = conf.as[Option[Config]]("cromwell_abort") as { ServiceConfig.getFromConfig(conf, "cromwell_abort") }
     val effectiveCromwellAbortConfig = cromwellAbortConfig.getOrElse(cromwellConfig)
-    val samConfig = ServiceConfig.getFromConfig(conf, "sam")
+    val samConfig = SamClientConfig.getFromConfig(conf, "sam")
     val googleConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
 
     (cromIamConfig, cromwellConfig, effectiveCromwellAbortConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
@@ -54,16 +55,30 @@ final case class CromIamConfig(http: ServiceConfig, serverSettings: ServerSettin
 
 object CromIamConfig {
 
-  private def getValidatedServerSettings: ErrorOr[ServerSettings] = Try(ServerSettings(ConfigFactory.load())) match {
-    case Success(serverSettings) => serverSettings.validNel
-    case Failure(e) => s"Unable to generate server settings from configuration file: ${e.getMessage}".invalidNel
+  private def getValidatedServerSettings(conf: Config): ErrorOr[ServerSettings] = {
+    Try(ServerSettings(conf)) match {
+      case Success(serverSettings) => serverSettings.validNel
+      case Failure(e) =>
+        s"Unable to generate server settings from configuration file: ${e.getMessage}".invalidNel
+    }
   }
 
   private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[CromIamConfig] = {
-    val serviceConfig = ServiceConfig.getFromConfig(conf, s"$basePath")
-    val serverSettings = getValidatedServerSettings
+    val serviceConfig = ServiceConfig.getFromConfig(conf, basePath)
+    val serverSettings = getValidatedServerSettings(conf)
 
     (serviceConfig, serverSettings) mapN CromIamConfig.apply
+  }
+}
+
+final case class SamClientConfig(http: ServiceConfig, checkSubmitWhitelist: Boolean)
+
+object SamClientConfig {
+  private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[SamClientConfig] = {
+    val serviceConfig = ServiceConfig.getFromConfig(conf, basePath)
+    val checkSubmitWhitelist = validate(conf.getOrElse(s"$basePath.check-submit-whitelist", true))
+
+    (serviceConfig, checkSubmitWhitelist) mapN SamClientConfig.apply
   }
 }
 

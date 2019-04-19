@@ -10,12 +10,14 @@ import cwl.Tool.inlineJavascriptRequirements
 import cwl.command.ParentName
 import cwl.requirement.RequirementToAttributeMap
 import shapeless.Inl
-import wom.RuntimeAttributes
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.callable.{Callable, TaskDefinition}
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, OutputDefinition, RequiredInputDefinition}
+import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import wom.callable.{Callable, MetaValueElement, TaskDefinition}
 import wom.executable.Executable
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.types.WomOptionalType
+import wom.values.{WomInteger, WomLong, WomString}
+import wom.{RuntimeAttributes, RuntimeAttributesKeys}
 
 import scala.util.Try
 
@@ -115,17 +117,33 @@ trait Tool {
         _.select[SchemaDefRequirement].toList
       }.headOption.getOrElse(SchemaDefRequirement())
 
+      lazy val localizationOptionalMetaObject: MetaValueElement = MetaValueElementObject(
+        Map(
+          "localization_optional" -> MetaValueElementBoolean(true)
+        )
+      )
+
+      // If input dir min == 0 that's a signal not to localize the input files
+      // https://github.com/dnanexus/dx-cwl/blob/fca163d825beb62f8a3004f2e0a6742805e6218c/dx-cwl#L426
+      val localizationOptional = runtimeAttributes.attributes.get(RuntimeAttributesKeys.DnaNexusInputDirMinKey) match {
+        case Some(ValueAsAnExpression(WomInteger(0))) => Option(localizationOptionalMetaObject)
+        case Some(ValueAsAnExpression(WomLong(0L))) => Option(localizationOptionalMetaObject)
+        case Some(ValueAsAnExpression(WomString("0"))) => Option(localizationOptionalMetaObject)
+        case _ => None
+      }
+
       val inputDefinitions: List[_ <: Callable.InputDefinition] =
         this.inputs.map {
           case input @ InputParameter.IdDefaultAndType(inputId, default, tpe) =>
             val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
             val inputName = FullyQualifiedName(inputId).id
             val defaultWomValue = default.fold(InputParameter.DefaultToWomValuePoly).apply(inputType).toTry.get
-            InputDefinitionWithDefault(
+            OverridableInputDefinitionWithDefault(
               inputName,
               inputType,
               ValueAsAnExpression(defaultWomValue),
-              InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
+              InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption),
+              localizationOptional
             )
           case input @ InputParameter.IdAndType(inputId, tpe) =>
             val inputType = tpe.fold(MyriadInputTypeToWomType).apply(schemaDefRequirement)
@@ -135,23 +153,25 @@ trait Tool {
                 OptionalInputDefinition(
                   inputName,
                   optional,
-                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
+                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption),
+                  localizationOptional
                 )
               case _ =>
                 RequiredInputDefinition(
                   inputName,
                   inputType,
-                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption)
+                  InputParameter.inputValueMapper(input, tpe, expressionLib, asCwl.schemaOption),
+                  localizationOptional
                 )
             }
-          case other => throw new NotImplementedError(s"command input parameters such as $other are not yet supported")
+          case other => throw new UnsupportedOperationException(s"command input parameters such as $other are not yet supported")
         }.toList
 
       val outputDefinitions: List[Callable.OutputDefinition] = this.outputs.map {
         case p @ OutputParameter.IdAndType(cop_id, tpe) =>
           val womType = tpe.fold(MyriadOutputTypeToWomType).apply(schemaDefRequirement)
           OutputDefinition(FullyQualifiedName(cop_id).id, womType, OutputParameterExpression(p, womType, inputNames, expressionLib, schemaDefRequirement))
-        case other => throw new NotImplementedError(s"Command output parameters such as $other are not yet supported")
+        case other => throw new UnsupportedOperationException(s"Command output parameters such as $other are not yet supported")
       }.toList
 
       // The try will succeed if this is a task within a step. If it's a standalone file, the ID will be the file,

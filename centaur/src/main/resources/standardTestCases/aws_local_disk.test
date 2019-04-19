@@ -4,6 +4,7 @@ backends: [ AWSBATCH ]
 
 files {
   workflow: wdl_draft3/aws_local_disk/aws_local_disk.wdl
+  options: aws_local_disk/aws_local_disk.options
 }
 
 metadata {

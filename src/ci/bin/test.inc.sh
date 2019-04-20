@@ -1025,3 +1025,9 @@ cromwell::build::add_exit_function() {
 cromwell::build::kill_tree() {
     cromwell::private::kill_tree "$1"
 }
+
+# Takes a single string argument and `echo`s a possibly modified version of that argument with non-alphanumeric
+# characters converted to dashes. TODO: restrict the initial character as necessary
+cromwell::build::google_safe_name() {
+  echo -n "$1" | tr -c '[[:digit:][:alpha:]]' '-'
+}

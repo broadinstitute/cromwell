@@ -37,8 +37,8 @@ GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromw
 gcloud auth activate-service-account --key-file=${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 GOOGLE_ZONE=us-central1-c
 
-KUBE_CLUSTER_NAME=$(centaur_gke_name "cluster")
-KUBE_SQL_INSTANCE_NAME=$(centaur_gke_name "cloudsql")
+KUBE_CLUSTER_NAME=$(cromwell::build::centaur_gke_name "cluster")
+KUBE_SQL_INSTANCE_NAME=$(cromwell::build::centaur_gke_name "cloudsql")
 KUBE_CLOUDSQL_PASSWORD="$(docker run --rm -e VAULT_TOKEN=${VAULT_TOKEN} broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/centaur-gke | jq -r '.data.db_pass' | tr -d '\n')"
 
 GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id)
@@ -88,11 +88,3 @@ gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_
 #    -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 #
 #cromwell::build::generate_code_coverage
-
-# Creates a build instance specific, Google friendly identifier name based on its sole argument.
-centaur_gke_name() {
-  local prefix="centaur-gke"
-  local build_name="$(cromwell::build::google_safe_name ${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM})"
-  local arg=$1
-  echo -n "${prefix}-${arg}-${build_name}" | tr -c '[[:digit:][:alpha:]]' '-'
-}

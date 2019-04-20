@@ -1031,3 +1031,11 @@ cromwell::build::kill_tree() {
 cromwell::build::google_safe_name() {
   echo -n "$1" | tr -c '[[:digit:][:alpha:]]' '-'
 }
+
+# Creates a build instance specific, Google friendly identifier name based on its sole argument.
+cromwell::build::centaur_gke_name() {
+  local prefix="centaur-gke"
+  local build_name="$(cromwell::build::google_safe_name ${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM})"
+  local arg=$1
+  echo -n "${prefix}-${arg}-${build_name}" | tr -c '[[:digit:][:alpha:]]' '-'
+}

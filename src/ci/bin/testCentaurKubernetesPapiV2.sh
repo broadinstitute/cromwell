@@ -41,9 +41,7 @@ KUBE_CLUSTER_NAME=$(cromwell::build::centaur_gke_name "cluster")
 KUBE_SQL_INSTANCE_NAME=$(cromwell::build::centaur_gke_name "cloudsql")
 KUBE_CLOUDSQL_PASSWORD="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.data.db_pass' | tr -d '\n')"
 
-GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id)
-
-gcloud --quiet components update
+GOOGLE_PROJECT=$(cat $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | jq -r .project_id)
 
 # TEMP TURNING THIS OFF TO TEST CLOUDSQL STUFF
 # gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $KUBE_CLUSTER_NAME --num-nodes=3
@@ -55,7 +53,10 @@ gcloud --quiet components update
 #          currently no es bueno.
 # - spin up a Cloud SQL. Obtain its coordinates to be able to access it from a Cloud SQL proxy.
 #   (I think this might have been why I didn't do Cloud SQL before but who cares I think it's worth it).
-gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB $KUBE_SQL_INSTANCE_NAME
+#
+# --gce-zone is deprecated in favor of --zone in the current version of gcloud but --zone is not available in the version
+# of gcloud our Travis build is using.
+gcloud --project $GOOGLE_PROJECT sql instances create --gce-zone $GOOGLE_ZONE --storage-size=10GB $KUBE_SQL_INSTANCE_NAME
 
 # Create a user
 gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password="${KUBE_CLOUDSQL_PASSWORD}"

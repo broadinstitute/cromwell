@@ -43,6 +43,8 @@ KUBE_CLOUDSQL_PASSWORD="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-cen
 
 GOOGLE_PROJECT=$(docker run --rm -i stedolan/jq:latest < $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON -r .project_id)
 
+gcloud --quiet components update
+
 # TEMP TURNING THIS OFF TO TEST CLOUDSQL STUFF
 # gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $KUBE_CLUSTER_NAME --num-nodes=3
 #WARNING: Accessing a Container Engine cluster requires the kubernetes commandline

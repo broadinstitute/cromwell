@@ -4,9 +4,9 @@ object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.24.3"
   private val akkaHttpV = "10.1.7"
   private val akkaV = "2.5.19"
-//  private val alibabaCloudCrV = "3.0.0"
   private val aliyunBcsV = "6.0.6"
   private val aliyunCoreV = "4.3.2"
+  private val aliyunCrV = "3.0.0"
   private val aliyunOssV = "3.4.0"
   private val ammoniteOpsV = "1.6.3"
   private val apacheCommonNetV = "3.6"
@@ -311,12 +311,14 @@ object Dependencies {
       exclude("jakarta.activation", "jakarta.activation-api"),
   )
 
-//  private val aliyunCrDependencies = List(
-//    "com.aliyun" % "aliyun-java-sdk-core" % alibabaCloudCoreV
-//      exclude("stax", "stax-api")
-//      exclude("javax.activation", "activation"),
-//    "com.aliyun" % "aliyun-java-sdk-cr" % alibabaCloudCrV
-//  )
+  private val aliyunCrDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-cr" % aliyunCrV,
+    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
+      exclude("javax.xml.bind", "jaxb-api")
+      exclude("com.sun.xml.bind", "jaxb-core")
+      exclude("javax.activation", "activation"),
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
+  )
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
@@ -440,7 +442,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = http4sDependencies ++ circeDependencies// ++ aliyunCrDependencies
+  val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,

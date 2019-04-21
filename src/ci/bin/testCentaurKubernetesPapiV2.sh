@@ -32,7 +32,9 @@ cp \
 
 # Temporarily turning GKE cluster stuff off as it's unnecessary for testing Cloud SQL stuff.
 #
-# KUBE_CLUSTER_NAME=$(cromwell::kube::create_gke_cluster)
+# KUBE_CLUSTER_NAME=$(cromwell::kube::generate_gke_cluster_name)
+# cromwell::kube::create_gke_cluster ${KUBE_CLUSTER_NAME}
+# TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
 # cromwell:kube::destroy_gke_cluster ${KUBE_CLUSTER_NAME}
 
 KUBE_CLOUDSQL_INSTANCE_NAME="$(cromwell::kube::generate_cloud_sql_instance_name)"

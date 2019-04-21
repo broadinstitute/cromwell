@@ -78,9 +78,13 @@ cromwell::kube::connection_name_for_cloud_sql_instance() {
     ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} | tr -d '\n')
 }
 
-# Create a GKE cluster and return its name.
+cromwell::kube::generate_gke_cluster_name() {
+  echo -n $(cromwell::kube::centaur_gke_name "cluster")
+}
+
+# Create a GKE cluster with the specified name.
 cromwell::kube::create_gke_cluster() {
-  local gkeClusterName=$(cromwell::kube::centaur_gke_name "cluster")
+  local gkeClusterName="$1"
 
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $gkeClusterName --num-nodes=3" \

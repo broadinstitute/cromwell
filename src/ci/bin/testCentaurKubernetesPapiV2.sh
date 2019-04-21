@@ -64,7 +64,7 @@ cromwell::build::gcloud_run_as_service_account \
 
 # This is what the Cloud SQL proxies will need for their -instances parameter
 KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::build::gcloud_run_as_service_account \
-  "gcloud sql instances list --filter=name:$KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
+  "gcloud --project $GOOGLE_PROJECT sql instances list --filter=name:$KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
 
 echo "Instance connectionName is $KUBE_CLOUDSQL_CONNECTION_NAME"

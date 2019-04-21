@@ -35,13 +35,12 @@ cromwell::kube::centaur_gke_name() {
 
 # Run a specified command after activating the specified service account.
 #
-# Usage: cromwell::kube::gcloud_run_as_service_account command service_account.json
+# Usage: cromwell::kube::gcloud_run_as_service_account command
 cromwell::kube::gcloud_run_as_service_account() {
   local command="$1"
-  local service_json="$2"
   local DOCKER_ETC_PATH=/usr/share/etc
   docker run -v "$CROMWELL_BUILD_RESOURCES_DIRECTORY:$DOCKER_ETC_PATH" -e DOCKER_ETC_PATH --rm google/cloud-sdk:slim /bin/bash -c "\
-    gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${service_json} && $command "
+    gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} && $command "
 }
 
 cromwell::kube::generate_cloud_sql_instance_name() {
@@ -55,20 +54,17 @@ cromwell::kube::create_cloud_sql_instance() {
 
   # Create the Cloud SQL instance.
   cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $cloudSqlInstanceName" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $cloudSqlInstanceName"
 
   # Create a user.
   cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $cloudSqlInstanceName --password='${cloudSqlPassword}'" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $cloudSqlInstanceName --password='${cloudSqlPassword}'"
 }
 
 cromwell::kube::destroy_cloud_sql_instance() {
   local instanceName="$1"
   cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $instanceName" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $instanceName"
 }
 
 # Returns the connection name for the specific Cloud SQL instance name.
@@ -78,8 +74,7 @@ cromwell::kube::connection_name_for_cloud_sql_instance() {
   # TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), so it may not be necessary to query.
   local instanceName="$1"
   echo -n $(cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT sql instances describe $instanceName --format='value(connectionName)'" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} | tr -d '\n')
+    "gcloud --project $GOOGLE_PROJECT sql instances describe $instanceName --format='value(connectionName)'" | tr -d '\n')
 }
 
 cromwell::kube::generate_gke_cluster_name() {
@@ -91,8 +86,7 @@ cromwell::kube::create_gke_cluster() {
   local gkeClusterName="$1"
 
   cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $gkeClusterName --num-nodes=3" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    "gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $gkeClusterName --num-nodes=3"
 
   echo -n ${gkeClusterName}
 }
@@ -100,8 +94,7 @@ cromwell::kube::create_gke_cluster() {
 cromwell:kube::destroy_gke_cluster() {
   local gkeClusterName="$1"
     cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT --quiet container clusters delete $gkeClusterName --zone $GOOGLE_ZONE" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    "gcloud --project $GOOGLE_PROJECT --quiet container clusters delete $gkeClusterName --zone $GOOGLE_ZONE"
 }
 
 cromwell::kube::generate_gcr_tag() {
@@ -127,6 +120,5 @@ cromwell::kube::push_to_gcr() {
 cromwell::kube::delete_gcr_image() {
   local tag="$1"
   cromwell::kube::gcloud_run_as_service_account \
-    "gcloud --project $GOOGLE_PROJECT --quiet container images delete $tag" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    "gcloud --project $GOOGLE_PROJECT --quiet container images delete $tag"
 }

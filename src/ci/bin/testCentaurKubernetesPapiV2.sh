@@ -52,10 +52,10 @@ cp \
 # Just use Cromwell 40 for testing pushes to GCR. IRL this script would obvs build the image and push that.
 docker pull broadinstitute/cromwell:40
 KUBE_GCR_TAG=$(cromwell::kube::generate_gcr_tag)
-docker tag broadinstitute/cromwell:40 ${KUBE_GCR_IMAGE_TAG}
-docker push ${KUBE_GCR_IMAGE_TAG}
+docker tag broadinstitute/cromwell:40 ${KUBE_GCR_TAG}
+docker push ${KUBE_GCR_TAG}
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
-cromwell::kube::delete_gcr_image ${KUBE_GCR_IMAGE_TAG}
+cromwell::kube::delete_gcr_image ${KUBE_GCR_TAG}
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL

@@ -109,8 +109,19 @@ cromwell::kube::generate_gcr_tag() {
   echo -n "gcr.io/$GOOGLE_PROJECT/centaur-gke/cromwell:${buildName}"
 }
 
+cromwell::kube::tag_for_gcr() {
+  local image="$1"
+  local tag="$2"
+  docker tag ${image} ${tag}
+}
+
 cromwell::kube::gcr_login() {
   cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON" | docker login -u _json_key --password-stdin https://gcr.io
+}
+
+cromwell::kube::push_to_gcr() {
+  local tag="$1"
+  docker push ${tag}
 }
 
 cromwell::kube::delete_gcr_image() {

@@ -12,9 +12,6 @@ export TEST_CROMWELL_TAG=just-testing-horicromtal
 export TEST_CROMWELL_CONF=horicromtal_application.conf
 export CROMWELL_BUILD_MYSQL_USERNAME=travis
 
-cromwell::build::setup_common_environment
-
-cromwell::build::setup_centaur_environment
 
 #cromwell::build::assemble_jars
 

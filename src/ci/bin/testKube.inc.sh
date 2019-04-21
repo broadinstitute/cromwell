@@ -48,7 +48,8 @@ cromwell::kube::create_cloud_sql_instance() {
   # Create the Cloud SQL instance.
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $cloudSqlInstanceName" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} \
+    2>&1 > /dev/null # This emits a "helpful" summary table for the instance creation that messes with returning the instance name.
 
   # Create a user.
   cromwell::kube::gcloud_run_as_service_account \
@@ -63,18 +64,18 @@ cromwell::kube::destroy_cloud_sql_instance() {
   local instanceName="$1"
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $instanceName" \
-    $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 }
 
 # Returns the connection name for the specific Cloud SQL instance name.
 #
 # Usage: cromwell::kube::connection_name_for_cloud_sql_instance instance_name
 cromwell::kube::connection_name_for_cloud_sql_instance() {
-  # TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), it may not be necessary to query.
+  # TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), so it may not be necessary to query.
   local instanceName="$1"
   echo -n $(cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT sql instances describe $instanceName --format='value(connectionName)'" \
-    $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} | tr -d '\n')
 }
 
 # Create a GKE cluster and return its name.

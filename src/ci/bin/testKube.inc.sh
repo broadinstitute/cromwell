@@ -21,12 +21,16 @@ cromwell::kube::google_safe_name() {
   echo -n "$1" | tr -c '[[:digit:][:alpha:]]' '-'
 }
 
+cromwell::kube::google_safe_build_name() {
+  echo -n "$(cromwell::kube::google_safe_name ${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM})"
+}
+
 # Creates a Google friendly identifier name specific to this build based on a single argument.
 cromwell::kube::centaur_gke_name() {
   local prefix="centaur-gke"
-  local build_name="$(cromwell::kube::google_safe_name ${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM})"
+  local build_name="$(cromwell::kube::google_safe_build_name)"
   local arg=$1
-  echo -n "${prefix}-${arg}-${build_name}" | tr -c '[[:digit:][:alpha:]]' '-'
+  echo -n "${prefix}-${arg}-${build_name}"
 }
 
 # Run a specified command after activating the specified service account.
@@ -97,5 +101,18 @@ cromwell:kube::destroy_gke_cluster() {
   local gkeClusterName="$1"
     cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT --quiet container clusters delete $gkeClusterName --zone $GOOGLE_ZONE" \
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+}
+
+cromwell::kube::generate_gcr_tag() {
+  KUBE_BUILD_NAME=$(cromwell::kube::google_safe_build_name)
+  KUBE_GCR_IMAGE_TAG=gcr.io/broad-dsde-cromwell-dev/centaur-gke/cromwell:${KUBE_BUILD_NAME}
+  echo -n "${KUBE_GCR_IMAGE_TAG}"
+}
+
+cromwell::kube::delete_gcr_image() {
+  local tag="$1"
+  cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT --quiet container images delete $tag" \
     ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 }

@@ -57,7 +57,7 @@ cromwell::kube::create_cloud_sql_instance() {
     ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 
   # Return the instance name.
-  echo ${cloudSqlInstanceName}
+  echo -n ${cloudSqlInstanceName}
 }
 
 cromwell::kube::destroy_cloud_sql_instance() {
@@ -86,7 +86,7 @@ cromwell::kube::create_gke_cluster() {
     "gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $gkeClusterName --num-nodes=3" \
     ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 
-  echo ${gkeClusterName}
+  echo -n ${gkeClusterName}
 }
 
 cromwell:kube::destroy_gke_cluster() {

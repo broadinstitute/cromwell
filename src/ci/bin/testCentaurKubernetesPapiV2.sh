@@ -53,21 +53,29 @@ GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVIC
 # - spin up a Cloud SQL. Obtain its coordinates to be able to access it from a Cloud SQL proxy.
 #   (I think this might have been why I didn't do Cloud SQL before but who cares I think it's worth it).
 #
+# Create the Cloud SQL instance.
 cromwell::build::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $KUBE_SQL_INSTANCE_NAME" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
-# Create a user
+# Create a user.
 cromwell::build::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password='${KUBE_CLOUDSQL_PASSWORD}'" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
-# This is what the Cloud SQL proxies will need for their -instances parameter
+# Get the connectionName for this newly created instance. This is what the Cloud SQL proxies will need for their -instances parameter.
+# TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), it may not be necessary to query.
 KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::build::gcloud_run_as_service_account \
-  "gcloud --project $GOOGLE_PROJECT sql instances list --filter=name:$KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
+  "gcloud --project $GOOGLE_PROJECT sql instances describe $KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
 
 echo "Instance connectionName is $KUBE_CLOUDSQL_CONNECTION_NAME"
+
+# TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
+# Delete the Cloud SQL instance.
+cromwell::build::gcloud_run_as_service_account \
+  "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $KUBE_SQL_INSTANCE_NAME" \
+  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL

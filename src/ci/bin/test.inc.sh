@@ -1039,3 +1039,11 @@ cromwell::build::centaur_gke_name() {
   local arg=$1
   echo -n "${prefix}-${arg}-${build_name}" | tr -c '[[:digit:][:alpha:]]' '-'
 }
+
+cromwell::build::gcloud_run_as_service_account() {
+  local command="$1"
+  local service_json="$2"
+  local DOCKER_ETC_PATH=/usr/share/etc
+  docker run -v "$CROMWELL_BUILD_RESOURCES_DIRECTORY:$DOCKER_ETC_PATH" -e DOCKER_ETC_PATH --rm google/cloud-sdk:slim /bin/bash -c "\
+    gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${service_json} && $command "
+}

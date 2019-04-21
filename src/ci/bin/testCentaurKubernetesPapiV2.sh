@@ -33,8 +33,7 @@ cp \
     "${TEST_CROMWELL_COMPOSE_FILE}" \
     "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
 
-GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
-gcloud auth activate-service-account --key-file=${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="cromwell-centaur-service-account.json"
 GOOGLE_ZONE=us-central1-c
 
 KUBE_CLUSTER_NAME=$(cromwell::build::centaur_gke_name "cluster")
@@ -56,10 +55,16 @@ GOOGLE_PROJECT=$(cat $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | jq -r .project_id)
 #
 # --gce-zone is deprecated in favor of --zone in the current version of gcloud but --zone is not available in the version
 # of gcloud our Travis build is using.
-gcloud --project $GOOGLE_PROJECT sql instances create --gce-zone $GOOGLE_ZONE --storage-size=10GB $KUBE_SQL_INSTANCE_NAME
+cromwell::build::gcloud_run_as_service_account \
+  "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB $KUBE_SQL_INSTANCE_NAME" \
+  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
 # Create a user
-gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password="${KUBE_CLOUDSQL_PASSWORD}"
+
+cromwell::build::gcloud_run_as_service_account \
+  "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password='${KUBE_CLOUDSQL_PASSWORD}'" \
+  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
+
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL

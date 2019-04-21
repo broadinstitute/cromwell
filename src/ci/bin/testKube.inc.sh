@@ -21,7 +21,7 @@ cromwell::kube::google_safe_name() {
   echo -n "$1" | tr -c '[[:digit:][:alpha:]]' '-'
 }
 
-# Creates a Google friendly identifier name specific to this build based on its single argument.
+# Creates a Google friendly identifier name specific to this build based on a single argument.
 cromwell::kube::centaur_gke_name() {
   local prefix="centaur-gke"
   local build_name="$(cromwell::kube::google_safe_name ${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM})"

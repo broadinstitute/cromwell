@@ -6,6 +6,10 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 # A set of functions for use in the Kubernetes test script.
 
+GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="cromwell-centaur-service-account.json"
+GOOGLE_ZONE=us-central1-c
+GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON" | jq -r .project_id)
+
 # Takes a single string argument and `echo`s a possibly modified version of that argument with non-alphanumeric
 # characters converted to dashes. TODO: restrict the initial character as necessary
 cromwell::kube::google_safe_name() {
@@ -29,4 +33,59 @@ cromwell::kube::gcloud_run_as_service_account() {
   local DOCKER_ETC_PATH=/usr/share/etc
   docker run -v "$CROMWELL_BUILD_RESOURCES_DIRECTORY:$DOCKER_ETC_PATH" -e DOCKER_ETC_PATH --rm google/cloud-sdk:slim /bin/bash -c "\
     gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${service_json} && $command "
+}
+
+# Starts a Cloud SQL instance and returns its instance name.
+cromwell::kube::create_cloud_sql_instance() {
+  cloudSqlInstanceName=$(cromwell::kube::centaur_gke_name "cloudsql")
+  cloudSqlPassword="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.db_pass')"
+
+  # Create the Cloud SQL instance.
+  cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $cloudSqlInstanceName" \
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+
+  # Create a user.
+  cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $cloudSqlInstanceName --password='${cloudSqlPassword}'" \
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+
+  # Return the instance name.
+  echo ${cloudSqlInstanceName}
+}
+
+cromwell::kube::destroy_cloud_sql_instance() {
+  local instanceName="$1"
+  cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $instanceName" \
+    $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
+}
+
+# Returns the connection name for the specific Cloud SQL instance name.
+#
+# Usage: cromwell::kube::connection_name_for_cloud_sql_instance instance_name
+cromwell::kube::connection_name_for_cloud_sql_instance() {
+  # TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), it may not be necessary to query.
+  local instanceName="$1"
+  echo -n $(cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT sql instances describe $instanceName --format='value(connectionName)'" \
+    $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
+}
+
+# Create a GKE cluster and return its name.
+cromwell::kube::create_gke_cluster() {
+  local gkeClusterName=$(cromwell::kube::centaur_gke_name "cluster")
+
+  cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $gkeClusterName --num-nodes=3" \
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
+
+  echo ${gkeClusterName}
+}
+
+cromwell:kube::destroy_gke_cluster() {
+  local gkeClusterName="$1"
+    cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT --quiet container clusters delete $gkeClusterName --zone $GOOGLE_ZONE" \
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 }

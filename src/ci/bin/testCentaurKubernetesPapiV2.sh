@@ -33,49 +33,18 @@ cp \
     "${TEST_CROMWELL_COMPOSE_FILE}" \
     "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
 
-GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="cromwell-centaur-service-account.json"
-GOOGLE_ZONE=us-central1-c
-
-KUBE_CLUSTER_NAME=$(cromwell::kube::centaur_gke_name "cluster")
-KUBE_SQL_INSTANCE_NAME=$(cromwell::kube::centaur_gke_name "cloudsql")
-KUBE_CLOUDSQL_PASSWORD="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.db_pass')"
-
-GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON" | jq -r .project_id)
-
-# TEMP TURNING THIS OFF TO TEST CLOUDSQL STUFF
-# gcloud --project $GOOGLE_PROJECT container clusters create --zone $GOOGLE_ZONE $KUBE_CLUSTER_NAME --num-nodes=3
-#WARNING: Accessing a Container Engine cluster requires the kubernetes commandline
-#client [kubectl]. To install, run
-#  $ gcloud components install kubectl
-
-# Phase 1. Even this is PAPI since Cromwell will be running in a Docker container and trying to run Docker in Docker
-#          currently no es bueno.
-# - spin up a Cloud SQL. Obtain its coordinates to be able to access it from a Cloud SQL proxy.
-#   (I think this might have been why I didn't do Cloud SQL before but who cares I think it's worth it).
+# Temporarily turning GKE cluster stuff off as it's unnecessary for testing Cloud SQL stuff.
 #
-# Create the Cloud SQL instance.
-cromwell::kube::gcloud_run_as_service_account \
-  "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $KUBE_SQL_INSTANCE_NAME" \
-  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
+# KUBE_CLUSTER_NAME=$(cromwell::kube::create_gke_cluster)
+# cromwell:kube::destroy_gke_cluster ${KUBE_CLUSTER_NAME}
 
-# Create a user.
-cromwell::kube::gcloud_run_as_service_account \
-  "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password='${KUBE_CLOUDSQL_PASSWORD}'" \
-  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
-
+KUBE_CLOUDSQL_INSTANCE_NAME=$(cromwell::kube::create_cloud_sql_instance)
 # Get the connectionName for this newly created instance. This is what the Cloud SQL proxies will need for their -instances parameter.
-# TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), it may not be necessary to query.
-KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::kube::gcloud_run_as_service_account \
-  "gcloud --project $GOOGLE_PROJECT sql instances describe $KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
-  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
-
-echo "Instance connectionName is $KUBE_CLOUDSQL_CONNECTION_NAME"
+KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::kube::connection_name_for_cloud_sql_instance ${KUBE_CLOUDSQL_INSTANCE_NAME})
+echo "Cloud SQL connectionName is $KUBE_CLOUDSQL_CONNECTION_NAME"
 
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
-# Delete the Cloud SQL instance.
-cromwell::kube::gcloud_run_as_service_account \
-  "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $KUBE_SQL_INSTANCE_NAME" \
-  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
+cromwell::kube::destroy_cloud_sql_instance ${KUBE_CLOUDSQL_INSTANCE_NAME}
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL
@@ -93,9 +62,6 @@ cromwell::kube::gcloud_run_as_service_account \
 # Run the Centaur test suite against this Cromwell service.
 
 # Phase 2 same as Phase 1 except separate Cromwells for summarizer, frontend, backend.
-
-# TEMP TURNING THIS OFF TO TEST CLOUDSQL STUFF
-# gcloud --project $GOOGLE_PROJECT --quiet container clusters delete $GOOGLE_KUBERNETES_CLUSTER_NAME --zone $GOOGLE_ZONE
 
 #docker image ls -q broadinstitute/cromwell:"${TEST_CROMWELL_TAG}" | grep . || \
 #CROMWELL_SBT_DOCKER_TAGS="${TEST_CROMWELL_TAG}" sbt server/docker

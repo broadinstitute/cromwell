@@ -35,11 +35,12 @@ cp \
 # KUBE_CLUSTER_NAME=$(cromwell::kube::create_gke_cluster)
 # cromwell:kube::destroy_gke_cluster ${KUBE_CLUSTER_NAME}
 
-KUBE_CLOUDSQL_INSTANCE_NAME=$(cromwell::kube::create_cloud_sql_instance)
+KUBE_CLOUDSQL_INSTANCE_NAME="$(cromwell::kube::generate_cloud_sql_instance_name)"
 echo "Cloud SQL instance name is $KUBE_CLOUDSQL_INSTANCE_NAME"
 
+cromwell::kube::create_cloud_sql_instance ${KUBE_CLOUDSQL_INSTANCE_NAME}
 # Get the connectionName for this newly created instance. This is what the Cloud SQL proxies will need for their -instances parameter.
-KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::kube::connection_name_for_cloud_sql_instance ${KUBE_CLOUDSQL_INSTANCE_NAME})
+KUBE_CLOUDSQL_CONNECTION_NAME="$(cromwell::kube::connection_name_for_cloud_sql_instance ${KUBE_CLOUDSQL_INSTANCE_NAME})"
 echo "Cloud SQL connection name is $KUBE_CLOUDSQL_CONNECTION_NAME"
 
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.

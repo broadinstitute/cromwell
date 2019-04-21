@@ -40,24 +40,24 @@ cromwell::kube::gcloud_run_as_service_account() {
     gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${service_json} && $command "
 }
 
-# Starts a Cloud SQL instance and returns its instance name.
+cromwell::kube::generate_cloud_sql_instance_name() {
+  echo -n $(cromwell::kube::centaur_gke_name "cloudsql")
+}
+
+# Starts a Cloud SQL instance with the specified name.
 cromwell::kube::create_cloud_sql_instance() {
-  cloudSqlInstanceName=$(cromwell::kube::centaur_gke_name "cloudsql")
-  cloudSqlPassword="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.db_pass')"
+  local cloudSqlInstanceName="$1"
+  local cloudSqlPassword="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.db_pass')"
 
   # Create the Cloud SQL instance.
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $cloudSqlInstanceName" \
-    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} \
-    2>&1 > /dev/null # This emits a "helpful" summary table for the instance creation that messes with returning the instance name.
+    ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
 
   # Create a user.
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $cloudSqlInstanceName --password='${cloudSqlPassword}'" \
     ${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}
-
-  # Return the instance name.
-  echo -n ${cloudSqlInstanceName}
 }
 
 cromwell::kube::destroy_cloud_sql_instance() {

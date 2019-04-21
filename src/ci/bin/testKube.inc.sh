@@ -105,9 +105,8 @@ cromwell:kube::destroy_gke_cluster() {
 }
 
 cromwell::kube::generate_gcr_tag() {
-  KUBE_BUILD_NAME=$(cromwell::kube::google_safe_build_name)
-  KUBE_GCR_IMAGE_TAG=gcr.io/broad-dsde-cromwell-dev/centaur-gke/cromwell:${KUBE_BUILD_NAME}
-  echo -n "${KUBE_GCR_IMAGE_TAG}"
+  local buildName=$(cromwell::kube::google_safe_build_name)
+  echo -n "gcr.io/$GOOGLE_PROJECT/centaur-gke/cromwell:${buildName}"
 }
 
 cromwell::kube::delete_gcr_image() {

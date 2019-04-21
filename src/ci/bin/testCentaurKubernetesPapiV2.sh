@@ -53,18 +53,21 @@ GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVIC
 # - spin up a Cloud SQL. Obtain its coordinates to be able to access it from a Cloud SQL proxy.
 #   (I think this might have been why I didn't do Cloud SQL before but who cares I think it's worth it).
 #
-# --gce-zone is deprecated in favor of --zone in the current version of gcloud but --zone is not available in the version
-# of gcloud our Travis build is using.
 cromwell::build::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $KUBE_SQL_INSTANCE_NAME" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
 # Create a user
-
 cromwell::build::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password='${KUBE_CLOUDSQL_PASSWORD}'" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
+# This is what the Cloud SQL proxies will need for their -instances parameter
+KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::build::gcloud_run_as_service_account \
+  "gcloud sql instances list --filter=name:$KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
+  $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
+
+echo "Instance connectionName is $KUBE_CLOUDSQL_CONNECTION_NAME"
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL

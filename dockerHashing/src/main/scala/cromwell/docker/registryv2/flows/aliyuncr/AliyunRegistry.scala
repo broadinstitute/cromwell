@@ -1,50 +1,50 @@
 package cromwell.docker.registryv2.flows.aliyunregistry
 
-
-import spray.json._
-//import java.util.concurrent.TimeoutException
-//import akka.http.scaladsl.unmarshalling.Unmarshal
-import cats.effect.{ IO}
-//import cromwell.docker.DockerInfoActor._
-import cromwell.docker._
-import cromwell.docker.registryv2.DockerRegistryV2Abstract
-import org.http4s.client.Client
-import org.http4s.Header
 import akka.stream._
-
-import cromwell.docker.DockerInfoActor._
-import cromwell.docker.{ DockerHashResult}
-import spray.json._
-import DefaultJsonProtocol._
-
-
-import scala.concurrent.duration._
-import scala.util.{Failure, Success}
-import scala.util.matching.Regex
-import com.aliyuncs.auth.{AlibabaCloudCredentials, BasicCredentials, BasicSessionCredentials}
+import cats.effect.IO
 import com.aliyuncs.DefaultAcsClient
+import com.aliyuncs.auth.{AlibabaCloudCredentials, BasicCredentials, BasicSessionCredentials}
 import com.aliyuncs.cr.model.v20160607.GetRepoTagsRequest
 import com.aliyuncs.http.{HttpResponse => JavaHttpResponse}
 import com.aliyuncs.profile.DefaultProfile
 import com.aliyuncs.profile.IClientProfile
-import spray.json.{JsObject, JsString, JsValue}
+import cromwell.docker.DockerHashResult
+import cromwell.docker.DockerInfoActor._
+import cromwell.docker._
+import cromwell.docker.registryv2.DockerRegistryV2Abstract
+import org.http4s.Header
+import org.http4s.client.Client
+import scala.concurrent.duration._
+import scala.util.matching.Regex
+import scala.util.{Failure, Success}
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
-/**
-  * A docker flow using the CLI to return docker hashes.
-  */
 class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
-  //  implicit val cs = IO.contextShift(ec)
-  //  implicit val timer = IO.timer(ec)
-
   val ProductName = "cr"
   val HashAlg = "sha256"
   lazy val firstLookupTimeout = 5.seconds
-  val supportAliunCrRegion = List("cn-qingdao", "cn-beijing", "cn-zhangjiakou", "cn-huhehaote",
-    "cn-hangzhou", "cn-shanghai", "cn-shenzhen", "cn-hongkong",
-    "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3",
-    "ap-southeast-5", "ap-south-1", "us-east-1", "us-west-1", "me-east-1",
-    "eu-central-1").mkString("|")
-  val validAliyunCrHosts: Regex = ("""registry.""" + s"""(?:($supportAliunCrRegion))""" + """.aliyuncs.com""").r
+  val supportedAliunCrRegion = List(
+    "ap-northeast-1",
+    "ap-south-1",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-southeast-3",
+    "ap-southeast-5",
+    "cn-beijing",
+    "cn-hangzhou",
+    "cn-hongkong",
+    "cn-huhehaote",
+    "cn-qingdao",
+    "cn-shanghai",
+    "cn-shenzhen",
+    "cn-zhangjiakou",
+    "eu-central-1",
+    "me-east-1",
+    "us-east-1",
+    "us-west-1"
+  ).mkString("|")
+  val validAliyunCrHosts: Regex = ("""registry.""" + s"""(?:($supportedAliunCrRegion))""" + """.aliyuncs.com""").r
 
   def isValidAliyunCrHost(host: Option[String]): Boolean =
     host match {
@@ -65,12 +65,9 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
 
   override protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier): String = ""
   override protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String = ""
-  // Not used for now, same reason as above
   override protected def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Header] = List.empty
 
   override protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
-    //getManifest(dockerInfoContext)
-    //IO.fromFuture(getManifest(dockerInfoContext))
     getManifest(dockerInfoContext) match {
         case succ: DockerInfoSuccessResponse => IO(succ)
         case fail: DockerInfoFailedResponse => throw fail.failure
@@ -81,11 +78,11 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
   val regionPattern = """[^\s]+"""
   val hostPattern: Regex = s"""registry.($regionPattern).aliyuncs.com""".r
 
-  private def getManifest(context: DockerInfoContext) = {
+  private def getManifest(context: DockerInfoContext): DockerInfoResponse = {
 
     val regionId = context.dockerImageID.host match {
       case Some(hostPattern(region)) => region
-      case _ => ""
+      case _ => throw new Exception(s"The host ${context.dockerImageID.host} does not have the expected region id")
     }
 
     val endpoint = ProductName + "." + regionId + ".aliyuncs.com"
@@ -125,8 +122,7 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
   }
 
   private def extractDigestFromBody(jsObject: JsObject, dockerHashContext: DockerInfoContext): DockerInfoResponse = {
-    val dataObj = jsObject.fields.get("data").get.asJsObject().convertTo[Map[String, JsValue]]
-    val tags = dataObj.get("tags").get.convertTo[Seq[JsObject]]
+    val tags = jsObject.fields.get("data").get.asJsObject().convertTo[Map[String, JsValue]].get("tags").get.convertTo[Seq[JsObject]]
 
     tags find { matchTag(_, dockerHashContext)} match {
       case Some(tagObj) =>
@@ -139,14 +135,14 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
           case Some(_) => DockerInfoFailedResponse((new Exception("Manifest response contains a non-string digest field")), dockerHashContext.request)
           case None => DockerInfoFailedResponse((new Exception("Manifest response did not contain a digest field")), dockerHashContext.request)
         }
-      case None => DockerInfoFailedResponse((new Exception("Manifest response did not contain a digest field")), dockerHashContext.request)
+      case None => DockerInfoFailedResponse((new Exception(s"Manifest response did not contain a expected tag: ${dockerHashContext.dockerImageID.reference}")), dockerHashContext.request)
     }
   }
 
-  private def manifestResponseHandler(response: JavaHttpResponse, dockerHashContext: DockerInfoContext) = response match {
+  private def manifestResponseHandler(response: JavaHttpResponse, dockerHashContext: DockerInfoContext): DockerInfoResponse = response match {
     case httpResponse if httpResponse.isSuccess() =>
       extractDigestFromBody(new String(response.getHttpContent).parseJson.asJsObject(), dockerHashContext)
-    case httpResponse => DockerInfoFailedResponse((new Exception(s"Get manifest not success $httpResponse")), dockerHashContext.request)
+    case httpResponse => DockerInfoFailedResponse((new Exception(s"Get manifest failed from aliyun registry: $httpResponse")), dockerHashContext.request)
   }
 }
 

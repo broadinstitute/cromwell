@@ -53,6 +53,7 @@ cp \
 docker pull broadinstitute/cromwell:40
 KUBE_GCR_TAG=$(cromwell::kube::generate_gcr_tag)
 docker tag broadinstitute/cromwell:40 ${KUBE_GCR_TAG}
+cromwell::kube::gcr_login
 docker push ${KUBE_GCR_TAG}
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
 cromwell::kube::delete_gcr_image ${KUBE_GCR_TAG}

@@ -4,7 +4,7 @@ set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
-source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
+source "${BASH_SOURCE%/*}/testKube.inc.sh" || source testKube.inc.sh
 
 # Setting these variables should cause the associated config values to be rendered into centaur_application_horicromtal.conf
 # There should probably be more indirections in CI scripts but that can wait.
@@ -36,8 +36,8 @@ cp \
 GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="cromwell-centaur-service-account.json"
 GOOGLE_ZONE=us-central1-c
 
-KUBE_CLUSTER_NAME=$(cromwell::build::centaur_gke_name "cluster")
-KUBE_SQL_INSTANCE_NAME=$(cromwell::build::centaur_gke_name "cloudsql")
+KUBE_CLUSTER_NAME=$(cromwell::kube::centaur_gke_name "cluster")
+KUBE_SQL_INSTANCE_NAME=$(cromwell::kube::centaur_gke_name "cloudsql")
 KUBE_CLOUDSQL_PASSWORD="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.db_pass')"
 
 GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON" | jq -r .project_id)
@@ -54,18 +54,18 @@ GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVIC
 #   (I think this might have been why I didn't do Cloud SQL before but who cares I think it's worth it).
 #
 # Create the Cloud SQL instance.
-cromwell::build::gcloud_run_as_service_account \
+cromwell::kube::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql instances create --zone $GOOGLE_ZONE --storage-size=10GB --database-version=MYSQL_5_7 $KUBE_SQL_INSTANCE_NAME" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
 # Create a user.
-cromwell::build::gcloud_run_as_service_account \
+cromwell::kube::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $KUBE_SQL_INSTANCE_NAME --password='${KUBE_CLOUDSQL_PASSWORD}'" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 
 # Get the connectionName for this newly created instance. This is what the Cloud SQL proxies will need for their -instances parameter.
 # TOL It appears the connectionName can be inferred (<project>:<region>:<instance name>), it may not be necessary to query.
-KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::build::gcloud_run_as_service_account \
+KUBE_CLOUDSQL_CONNECTION_NAME=$(cromwell::kube::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT sql instances describe $KUBE_SQL_INSTANCE_NAME --format='value(connectionName)'" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON | tr -d '\n')
 
@@ -73,7 +73,7 @@ echo "Instance connectionName is $KUBE_CLOUDSQL_CONNECTION_NAME"
 
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
 # Delete the Cloud SQL instance.
-cromwell::build::gcloud_run_as_service_account \
+cromwell::kube::gcloud_run_as_service_account \
   "gcloud --project $GOOGLE_PROJECT --quiet sql instances delete $KUBE_SQL_INSTANCE_NAME" \
   $GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON
 

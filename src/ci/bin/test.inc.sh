@@ -1025,25 +1025,3 @@ cromwell::build::add_exit_function() {
 cromwell::build::kill_tree() {
     cromwell::private::kill_tree "$1"
 }
-
-# Takes a single string argument and `echo`s a possibly modified version of that argument with non-alphanumeric
-# characters converted to dashes. TODO: restrict the initial character as necessary
-cromwell::build::google_safe_name() {
-  echo -n "$1" | tr -c '[[:digit:][:alpha:]]' '-'
-}
-
-# Creates a build instance specific, Google friendly identifier name based on its sole argument.
-cromwell::build::centaur_gke_name() {
-  local prefix="centaur-gke"
-  local build_name="$(cromwell::build::google_safe_name ${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER:-$RANDOM})"
-  local arg=$1
-  echo -n "${prefix}-${arg}-${build_name}" | tr -c '[[:digit:][:alpha:]]' '-'
-}
-
-cromwell::build::gcloud_run_as_service_account() {
-  local command="$1"
-  local service_json="$2"
-  local DOCKER_ETC_PATH=/usr/share/etc
-  docker run -v "$CROMWELL_BUILD_RESOURCES_DIRECTORY:$DOCKER_ETC_PATH" -e DOCKER_ETC_PATH --rm google/cloud-sdk:slim /bin/bash -c "\
-    gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${service_json} && $command "
-}

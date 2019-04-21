@@ -38,7 +38,7 @@ GOOGLE_ZONE=us-central1-c
 
 KUBE_CLUSTER_NAME=$(cromwell::build::centaur_gke_name "cluster")
 KUBE_SQL_INSTANCE_NAME=$(cromwell::build::centaur_gke_name "cloudsql")
-KUBE_CLOUDSQL_PASSWORD="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.data.db_pass' | tr -d '\n')"
+KUBE_CLOUDSQL_PASSWORD="$(cat ${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-gke-cloudsql.json | jq -r '.db_pass')"
 
 GOOGLE_PROJECT=$(cat "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON" | jq -r .project_id)
 

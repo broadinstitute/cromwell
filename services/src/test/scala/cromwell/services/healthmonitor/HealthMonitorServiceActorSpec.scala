@@ -15,11 +15,11 @@ import scala.concurrent.duration._
 
 class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually with AskSupport {
 
-  override implicit def patienceConfig = PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
+  override implicit def patienceConfig = PatienceConfig(timeout = scaled(Span(15, Seconds)), interval = Span(500, Millis))
 
   behavior of "HealthMonitorServiceActor"
 
-  it should "be able to load an instance and ask questions even with only basic configuration" in {
+  it should "be able to load an instance and answer questions even with only basic configuration" in {
 
     val serviceConfigString =
       """check-dockerhub: false
@@ -41,7 +41,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
 
     eventually {
       testProbe.send(actor, GetCurrentStatus)
-      testProbe.expectMsg(1.second, StatusCheckResponse(ok = true, systems = Map.empty))
+      testProbe.expectMsg(5.seconds, StatusCheckResponse(ok = true, systems = Map.empty))
     }
   }
 }

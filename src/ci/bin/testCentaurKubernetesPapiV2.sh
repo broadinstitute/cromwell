@@ -58,7 +58,7 @@ cromwell::kube::tag_for_gcr ${DOCKER_IMAGE} ${GCR_TAG}
 cromwell::kube::gcr_login
 cromwell::kube::push_to_gcr ${GCR_TAG}
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
-cromwell::kube::delete_gcr_image ${GCR_TAG}
+cromwell::kube::delete_from_gcr ${GCR_TAG}
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL

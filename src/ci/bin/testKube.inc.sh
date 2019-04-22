@@ -117,7 +117,7 @@ cromwell::kube::push_to_gcr() {
   docker push ${tag}
 }
 
-cromwell::kube::delete_gcr_image() {
+cromwell::kube::delete_from_gcr() {
   local tag="$1"
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT --quiet container images delete $tag"

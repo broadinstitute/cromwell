@@ -12,7 +12,7 @@ trait SlowJobWarning { this: Actor with ActorLogging =>
   def slowJobWarningReceive: Actor.Receive = {
     case WarnAboutSlownessAfter(jobId, duration) =>
       alreadyWarned = false
-      warningDetails = Some(WarningDetails(jobId, OffsetDateTime.now(), OffsetDateTime.now().plusSeconds(duration.toSeconds)))
+      warningDetails = Option(WarningDetails(jobId, OffsetDateTime.now(), OffsetDateTime.now().plusSeconds(duration.toSeconds)))
     case WarnAboutSlownessIfNecessary => handleWarnMessage()
   }
 

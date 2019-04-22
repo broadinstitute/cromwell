@@ -19,7 +19,7 @@ set less than the `ttl`.
 
 #### PAPI long running jobs
 
-The PAPI and PAPIv2 backends can now emit slow job warnings after a configurable time running in PAPI:
+The PAPIv1 and PAPIv2 backends can now emit slow job warnings after a configurable time running in the cloud:
 ```conf
 # Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck in PAPI.
 backend.providers.PAPIv2.config.slow-job-warning-time: 24 hours

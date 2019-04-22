@@ -5,7 +5,6 @@ import cats.effect.IO
 import com.aliyuncs.DefaultAcsClient
 import com.aliyuncs.auth.{AlibabaCloudCredentials, BasicCredentials, BasicSessionCredentials}
 import com.aliyuncs.cr.model.v20160607.GetRepoTagsRequest
-import com.aliyuncs.http.{HttpResponse => JavaHttpResponse}
 import com.aliyuncs.profile.DefaultProfile
 import com.aliyuncs.profile.IClientProfile
 import cromwell.docker.DockerHashResult
@@ -14,16 +13,14 @@ import cromwell.docker._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import org.http4s.Header
 import org.http4s.client.Client
-import scala.concurrent.duration._
 import scala.util.matching.Regex
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
 class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
   val ProductName = "cr"
   val HashAlg = "sha256"
-  lazy val firstLookupTimeout = 5.seconds
   val supportedAliunCrRegion = List(
     "ap-northeast-1",
     "ap-south-1",
@@ -100,7 +97,10 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
     request.setRepoName(dockerImageID.image)
     dockerImageID.repository foreach { repository => request.setRepoNamespace(repository) }
 
-    manifestResponseHandler(client.doAction(request), context)
+    manifestResponseHandler(client, request, context) match {
+      case Success(res) => res
+      case Failure(ex) => throw new Exception(s"Get AliyunCr manifest failed, ${ex.getMessage}")
+    }
   }
 
   private def getAliyunCredentialFromContext(context: DockerInfoContext): Option[AlibabaCloudCredentials] = {
@@ -122,7 +122,13 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
   }
 
   private def extractDigestFromBody(jsObject: JsObject, dockerHashContext: DockerInfoContext): DockerInfoResponse = {
-    val tags = jsObject.fields.get("data").get.asJsObject().convertTo[Map[String, JsValue]].get("tags").get.convertTo[Seq[JsObject]]
+    val tags = jsObject.fields.get("data") match {
+      case Some(data) => data.asJsObject().convertTo[Map[String, JsValue]].get("tags") match {
+        case Some(tag) => tag.convertTo[Seq[JsObject]]
+        case None => throw new Exception("Manifest response did not contain a tags field")
+      }
+      case None => throw new Exception("Manifest response did not contain a data field, Please make sure the existence of image")
+    }
 
     tags find { matchTag(_, dockerHashContext)} match {
       case Some(tagObj) =>
@@ -139,10 +145,12 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
     }
   }
 
-  private def manifestResponseHandler(response: JavaHttpResponse, dockerHashContext: DockerInfoContext): DockerInfoResponse = response match {
-    case httpResponse if httpResponse.isSuccess() =>
-      extractDigestFromBody(new String(response.getHttpContent).parseJson.asJsObject(), dockerHashContext)
-    case httpResponse => DockerInfoFailedResponse((new Exception(s"Get manifest failed from aliyun registry: $httpResponse")), dockerHashContext.request)
+  private def manifestResponseHandler(client: DefaultAcsClient, request: GetRepoTagsRequest, dockerHashContext: DockerInfoContext): Try[DockerInfoResponse] = {
+    for {
+      response <- Try(client.doAction(request))
+      jsObj <- if (response.isSuccess) Try(response.getHttpContentString.parseJson.asJsObject()) else throw new Exception(s"Get Manifest rerequest not success: ${response.getStatus}")
+      dockInfoRes <- Try(extractDigestFromBody(jsObj, dockerHashContext))
+    } yield dockInfoRes
   }
 }
 

@@ -367,8 +367,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       completionPromise = Promise[SubmitJobResponse]
       _ = backendSingletonActor ! SubmitForMe(batchJob, attributes, completionPromise)
       submitJobResponse <- completionPromise.future
-
-//      submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
       _ = backendSingletonActor ! NotifyOfStatus(submitJobResponse.jobId, Initializing)
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
@@ -394,7 +392,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     def useQuickAnswerOrFallback(quick: Any): Future[RunStatus] = quick match {
       case ThisWasYourStatus(Some(value)) =>
-//        println(s"Found a quick status answer for $jobId: $value")
         Future.successful(value)
       case ThisWasYourStatus(None) =>
         println(s"Found no quick status answer for $jobId. Falling back to a status query")

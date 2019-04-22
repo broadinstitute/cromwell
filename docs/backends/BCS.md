@@ -115,7 +115,8 @@ backend {
         default-runtime-attributes {
           cluster: "OnDemand ecs.sn1ne.large "
           mounts: "oss://<test-bucket>/inputs/ /home/inputs/ false"
-          docker: "ubuntu/latest oss://<test-bucket>/registry/ubuntu/"
+          dockerTag: "ubuntu/latest oss://<test-bucket>/registry/ubuntu/"
+          docker: "registry.cn-shanghai.aliyuncs.com/batchcompute/myubuntu:0.2"
           userData: "key value"
           reserveOnFail: true
           autoReleaseJob: true
@@ -158,11 +159,13 @@ There are two different ways of specifying an Alibaba Cloud BatchCompute cluster
 
 #### mounts
 
-BCS jobs can mount an OSS object or an OSS prefix to local filesystem as a file or a directory in VM. 
+BCS jobs can mount both OSS and [Alibaba Cloud NAS](https://www.aliyun.com/product/nas) to local filesystem as a file or a directory in VM. 
 It uses distribute-caching and lazy-load techniques to optimize concurrently read requests of the OSS file system. 
 You can mount your OSS objects to VM like this:
 
-- `<mount-src>` - An OSS object path or OSS prefix to mount from.
+- `<mount-src>` - An OSS object path or OSS prefix or NAS address to mount from, such as 
+  `oss://<test-bucket>/inputs/ /home/inputs/ false` for OSS 
+  and `nas://0266e49fea-yio75.cn-beijing.nas.aliyuncs.com:/ /home/nas/ true` for NAS. See the [NAS mount](https://www.alibabacloud.com/help/doc-detail/50494.htm) for more details of NAS mount.
 - `<mount-destination>` - An unix file path or directory path to mount to in VM.
 - `<write-support>` - Writable for mount destination, only works for directory.
 
@@ -176,16 +179,27 @@ default-runtime-attributes {
 
 #### docker
 
-This backend supports docker images pulled from OSS registry.
+This backend supports docker images pulled from OSS registry or Alibaba Cloud Container Registry.
 
+##### OSS registry
 ```hocon
 default-runtime-attributes {
-  docker: "<docker-image> <oss-registry-path>"
+  dockerTag: "<docker-image> <oss-registry-path>"
 }
 ```
 
 - `<docker-image>` - Docker image name such as: ubuntu:latest.
 - `<oss-registry-path>` - Image path in OSS filesyetem where you pushed your docker image.
+
+
+##### Alibaba Cloud Container Registry
+
+```hocon
+default-runtime-attributes {
+  docker: "<docker-image-with-tag>"
+}
+```
+- `docker-image-with-tag` - Docker image stored in Alibaba Cloud Container Registry, such as `registry.cn-shanghai.aliyuncs.com/batchcompute/myubuntu:0.2`.
 
 #### userData
 
@@ -250,3 +264,47 @@ The system disk size can support up to 500GB. One can mount another data disk in
    dataDisk: "<disk-type> <disk-size-in-GB> <mount-point>"
  }
 ```
+
+###CallCaching
+BCS supports CallCaching feature when the docker image is from Alibaba Cloud Container Registry with following conf:
+```hocon
+call-caching {
+  enabled = true
+}
+
+docker {
+  hash-lookup {
+    enable = true
+    method = "remote"
+    aliyuncr {
+      num-threads = 5
+    }
+  }
+}
+
+backend {
+  providers {
+    BCS {
+      config {
+        # BCS and OSS related configurations mentioned above
+        filesystems {
+          oss {
+            caching {
+               duplication-strategy = "reference"
+               invalidate-bad-cache-results = true
+            }
+            # ... to be filled in
+          }
+        }
+        default-runtime-attributes {
+          docker: "registry.cn-shanghai.aliyuncs.com/batchcompute/myubuntu:0.2"
+          # ... to be filled in
+        }
+      }
+    }
+  }
+}
+```
+
+- `docker.hash-lookup.method` - BCS only supports `remote` method for hash-lookup
+- `filesystems.oss.caching.duplication-strategy` - BCS only supports `reference` for duplication strategy.

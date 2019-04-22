@@ -91,6 +91,8 @@ backend {
         }
         
         default-runtime-attributes {
+          failOnStderr: false
+          continueOnReturnCode: 0
           cluster: "OnDemand ecs.sn1ne.large img-ubuntu"
           vpc: "192.168.0.0/16"
         } 

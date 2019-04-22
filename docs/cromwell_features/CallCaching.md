@@ -123,11 +123,12 @@ Cromwell provides two methods to lookup a Docker hash from a Docker tag:
     
     Docker registry and access levels supported by Cromwell for docker digest lookup in "remote" mode:
     
-    |       |       DockerHub    ||       GCR       ||
-    |:-----:|:---------:|:-------:|:------:|:-------:|
-    |       |   Public  | Private | Public | Private |
-    | Pipelines API  |     X     |    X    |    X   |    X    |
-    | Other |     X     |         |    X   |         |
+    |       |       DockerHub    | |       GCR       | |   AlibabaCloudCR   ||
+    |:-----:|:---------:|:-------:|:------:|:-------:|:------------:|:---------:|
+    |       |   Public  | Private | Public | Private | Public | Private |
+    | Pipelines API  |     X     |    X    |    X   |    X    |       |        |
+    | BCS   |           |        |         |         |        |    X    | 
+    | Other |     X     |         |    X   |         |       |        |
     
 **Runtime Attributes**
 

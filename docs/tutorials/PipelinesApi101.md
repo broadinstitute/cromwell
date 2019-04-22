@@ -1,5 +1,38 @@
 ## Getting started on Google Pipelines API
 
+## Pipelines API v2
+
+### Basic Information
+
+Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/) was added in Cromwell 32.
+Expect feature parity with v1 except:
+
+* Private dockerhub images which are not supported at the moment, but will be in the near future.
+* The "refresh token" authentication mode is **NOT** supported on PAPI V2.
+
+In addition, the following changes are to be expected:
+
+* Error messages for failed jobs might differ from V1
+* The Pipelines API log file content might differ from V1
+
+### Setting up PAPIv2
+
+For now the easiest way to try PAPIv2 is to migrate an existing set up from PAPIv1 (see below). After that, copy the PAPIv2 sample configuration in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) in place of the PAPIv1 backend.
+
+#### Permissions:
+
+With Pipelines API v2, the mode of authentication (ie, Application Default, User Service Account, default compute service account, etc) will need to have these permissions on the bucket holding the Cromwell directory (root directory):
+
+* storage.objects.list
+* storage.objects.create
+* storage.objects.delete
+
+## Pipelines API v1
+
+### Deprecation warning
+
+Please note that Google intends to deprecate PAPIv1 in the near future (circa mid 2019 or perhaps earlier). 
+
 ### Prerequisites
 
 This tutorial page relies on completing the previous tutorial:

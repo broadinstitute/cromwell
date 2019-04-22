@@ -41,8 +41,6 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
           log.error(error, "Failed to update statuses. Will try again in 2 seconds")
           scheduleStatusUpdate(2.seconds)
       }
-//      println(s"Current known statuses: ${statuses.map(s => s._1 + " => " + s._2).mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())}")
-
     case NotifyOfStatus(jobId, status) => statuses += jobId -> status
   }
 
@@ -57,11 +55,7 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
           .build()
 
 
-        val updates: Seq[JobSummary] = client.listJobs(request).jobSummaryList().asScala
-
-        //      println(s"Found '$awsStatusName' jobs: ${updates.map(_.jobId()).mkString(", ")}")
-
-        updates
+        client.listJobs(request).jobSummaryList().asScala
       }
 
       // Remove the old values and add the new values

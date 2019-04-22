@@ -394,7 +394,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case ThisWasYourStatus(Some(value)) =>
         Future.successful(value)
       case ThisWasYourStatus(None) =>
-        println(s"Found no quick status answer for $jobId. Falling back to a status query")
         Future.fromTry(job.status(jobId))
       case other =>
         val message = s"Got a weird unexpected message from the OccasionalPollingActor: $other"

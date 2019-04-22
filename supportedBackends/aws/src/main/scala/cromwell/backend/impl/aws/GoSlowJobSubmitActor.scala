@@ -32,20 +32,17 @@ class GoSlowJobSubmitActor(configRegion: Option[Region]) extends Actor with Acto
 
   override def receive = {
     case sfm: SubmitForMe =>
-      println("Work to submit received")
       workQueue :+= sfm
 
     case CheckForWork => workQueue.headOption match {
       case Some(SubmitForMe(batchJob, attributes, completionPromise)) =>
-        println("Found work to submit. Submitting")
         batchJob.submitJob[IO]().run(attributes).unsafeToFuture() onComplete {
           case Success(value) =>
             completionPromise.success(value)
-            println(s"Submission happened. Will submit again in $WorkInterval")
             scheduleWorkCheck(WorkInterval)
           case Failure(error) =>
             completionPromise.failure(error)
-            println(s"Submission failed (${error.getMessage}).")
+            log.error(error, s"Submission of new AWS job failed")
             scheduleWorkCheck(WorkInterval)
         }
         workQueue = workQueue.tail

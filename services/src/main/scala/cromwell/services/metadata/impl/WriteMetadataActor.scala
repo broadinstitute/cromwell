@@ -37,20 +37,22 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction onComplete {
       case Success(_) =>
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
-      case Failure(regerts) =>
+      case Failure(cause) =>
 
-        val (outOfLives, stillGood) = e.toVector.partition(_.maxAttempts <= 1)
+        val (outOfTries, stillGood) = e.toVector.partition(_.maxAttempts <= 1)
 
-        handleOutOfLives(outOfLives, regerts)
+        handleOutOfTries(outOfTries, cause)
         handleEventsToReconsider(stillGood)
     }
 
     dbAction.map(_ => allPutEvents.size)
   }
 
-  private def handleOutOfLives(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = if (writeActions.nonEmpty) {
-    val workflowMetadataFailureCounts = writeActions.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-    log.error(reason, "Metadata event writes have failed irretrievably for the following workflows. They will be lost: " + workflowMetadataFailureCounts.mkString(","))
+  private def enumerateWorkflowWriteFailures(writeActions: Vector[MetadataWriteAction]): String =
+    writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }.mkString(", ")
+
+  private def handleOutOfTries(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = if (writeActions.nonEmpty) {
+    log.error(reason, "Metadata event writes have failed irretrievably for the following workflows. They will be lost: " + enumerateWorkflowWriteFailures(writeActions))
 
     writeActions foreach {
       case PutMetadataActionAndRespond(ev, replyTo, _) => replyTo ! MetadataWriteFailure(reason, ev)
@@ -59,8 +61,7 @@ class WriteMetadataActor(override val batchSize: Int,
   }
 
   private def handleEventsToReconsider(writeActions: Vector[MetadataWriteAction]): Unit = if (writeActions.nonEmpty) {
-    val workflowMetadataFailureCounts = writeActions.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-    log.warning("Metadata event writes have failed for the following workflows. They will be reconsidered: " + workflowMetadataFailureCounts.mkString(","))
+    log.warning("Metadata event writes have failed for the following workflows. They will be retried: " + enumerateWorkflowWriteFailures(writeActions))
 
     writeActions foreach {
       case action: PutMetadataAction => self ! action.copy(maxAttempts = action.maxAttempts - 1)

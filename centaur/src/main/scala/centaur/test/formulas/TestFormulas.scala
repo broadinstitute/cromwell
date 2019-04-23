@@ -101,7 +101,7 @@ object TestFormulas {
           submittedWorkflow <- submitWorkflow(workflowDefinition)
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
-          _ = CromwellManager.startCromwell(postRestart)
+          _ = CromwellManager.startCromwell(postRestart, "post-restart")
           _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), 1.minute)
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
           metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
@@ -132,7 +132,7 @@ object TestFormulas {
     def withRestart() = CentaurConfig.runMode match {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
-        CromwellManager.startCromwell(postRestart)
+        CromwellManager.startCromwell(postRestart, "post-restart")
       case _ =>
     }
     
@@ -174,7 +174,7 @@ object TestFormulas {
           first <- submitWorkflow(workflowDefinition)
           jobId <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
-          _ = CromwellManager.startCromwell(postRestart)
+          _ = CromwellManager.startCromwell(postRestart, "post-restart")
           _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), 1.minute)
           _ <- pollUntilStatus(first, workflowDefinition, Succeeded)
           second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.

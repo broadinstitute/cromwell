@@ -17,7 +17,7 @@ object CentaurTestSuite {
   def startCromwell(): Unit = {
     CentaurConfig.runMode match {
       case ManagedCromwellServer(preRestart, _, _) =>
-        CromwellManager.startCromwell(preRestart)
+        CromwellManager.startCromwell(preRestart, "pre-restart")
       case _ =>
     }
   }

@@ -6,7 +6,8 @@ Centaur expects to find a Cromwell server properly configured and running in ser
 This can be configured by modifying the `cromwellUrl` parameter in `application.conf`.
 
 You can get a build of your current cromwell code with [these instructions](Building.md).
-The server can be run with `java -jar <Cromwell JAR> server`. 
+The server can be run with `java -jar <Cromwell JAR> server`, checkout [this page](../CommandLine.md) 
+for more detailed instructions. 
 You can now run the tests from another terminal.
 
 ## Running
@@ -51,7 +52,7 @@ centaur {
 Each test case file is a HOCON file with the following structure:
 ```
 name: NAME  // Required: Name of the test
-testFormat: TESTFORMAT // Required: One of WorkflowSuccessTest, WorkflowFailureTest
+testFormat: TESTFORMAT // Required: One of WorkflowSuccessTest, WorkflowFailureTest, runtwiceexpectingcallcaching
 backends: [BACKENDNAME1, BACKENDNAME2, ...] // Optional list of backends. If supplied, this test will be ignored if these backends are not supported by the Cromwell server
 basePath: /an/optional/field  // Optional, location for the files {} entries to be found relative to
 tags: [ "any", "custom", "tags" ]  // Optional, a set of custom tags to apply to this test
@@ -68,13 +69,13 @@ metadata {
   fully.qualified.key.name1: VALUE1
   fully.qualified.key.name2: VALUE2
   // Examples:
-  // failures is a list. It's first entry (0) will be the error you are looking for. 
+  // failures is a list, the first entry (0) might be the error you are looking for. If multiple errors are expected the entire list can be checked. 
   // It has a "message" and a "causedBy" field.
   "failures.0.message": "Cromwell senses you did not use WomTool validate."
   "failures.0.causedBy": "BetweenKeyboardAndChairException"
 }
 
-filesystemcheck: "local" // possible values TODO for cromwell developers. Also explaining what this does exactly.
+filesystemcheck: "local" // possible values: "local", "gcs". Used in conjunction with outputExpectations to define files we expect to exist after running this workflow.
 outputExpectations: {
     "/path/to/my/output/file1": 1
     "/path/to/file/that/should/not/exist": 0
@@ -101,4 +102,5 @@ In case the absolute path the cromwell root is used (for example: `/home/my_user
  you can use `<<WORKFLOW_ROOT>>` as a replacement. 
 * `"calls.hello.hello.exit_code": "<<WORKFLOW_ROOT>>/call-hello/execution/exit_code"`
 
-TODO: `<<CACHE_HIT_UUID>>` In what sort of tests can you use this?
+In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used. 
+The testFormat should be `runtwiceexpectingcallcaching`.

@@ -100,7 +100,9 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
-            if [[ "${TRAVIS_COMMIT_MESSAGE}" != *"FORCETEST"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
+            if [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]]; then
+              CROMWELL_RUN_TESTS=true
+            elif [[ "${TRAVIS_COMMIT_MESSAGE}" != *"FORCETEST"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
               CROMWELL_RUN_TESTS=false
             fi
             ;;
@@ -878,6 +880,8 @@ cromwell::build::publish_artifacts() {
 
     fi
 }
+
+
 
 cromwell::build::exec_retry_function() {
     local retried_function

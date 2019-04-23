@@ -100,6 +100,8 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
+            # Always run on sbt, even for 'push'.
+            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]]; then
               CROMWELL_RUN_TESTS=true
             elif [[ "${TRAVIS_COMMIT_MESSAGE}" != *"[force ci]"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then

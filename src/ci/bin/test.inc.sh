@@ -102,7 +102,7 @@ cromwell::private::create_build_variables() {
 
             if [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]]; then
               CROMWELL_RUN_TESTS=true
-            elif [[ "${TRAVIS_COMMIT_MESSAGE}" != *"FORCETEST"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
+            elif [[ "${TRAVIS_COMMIT_MESSAGE}" != *"[force ci]"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
               CROMWELL_RUN_TESTS=false
             fi
             ;;

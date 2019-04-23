@@ -39,10 +39,12 @@ object CromwellManager extends StrictLogging {
     }
   }
 
-  def startCromwell(cromwellConfiguration: CromwellConfiguration, checkTime: String): Unit = {
+  def startCromwell(cromwellConfiguration: CromwellConfiguration, startTimeName: String): Unit = {
     _isManaged = true
 
-    if (!isAlive(s"at start ($checkTime)")) {
+    logger.info(s"Starting Cromwell based on $startTimeName configuration: $cromwellConfiguration")
+
+    if (!isAlive(s"at start ($startTimeName)")) {
       cromwellProcess = Option(cromwellConfiguration.createProcess)
       cromwellProcess foreach { _.start() }
 
@@ -50,7 +52,7 @@ object CromwellManager extends StrictLogging {
       var seenAlive = false
 
       def wasOrIsAlive(): Boolean = {
-        if (!seenAlive && isAlive(s"while waiting ($checkTime)")) {
+        if (!seenAlive && isAlive(s"while waiting ($startTimeName)")) {
           seenAlive = true
         }
         seenAlive

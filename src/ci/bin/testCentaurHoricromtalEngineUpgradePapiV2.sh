@@ -11,11 +11,16 @@ if [ "${CROMWELL_BUILD_PROVIDER}" = "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ] && [ -
 
   prior_version=$(cromwell::private::calculate_prior_version_tag)
   export TEST_CROMWELL_PRIOR_VERSION_TAG="${prior_version}"
-  export TEST_CROMWELL_PRIOR_VERSION_CONF="papi_v2_${prior_version}_application.conf"
+  WOULD_BE_PRIOR_VERSION_CONF="papi_v2_${prior_version}_application.conf"
+  if [[ -f "$CROMWELL_BUILD_RESOURCES_DIRECTORY/$WOULD_BE_PRIOR_VERSION_CONF" ]]; then
+    export TEST_CROMWELL_PRIOR_VERSION_CONF="$WOULD_BE_PRIOR_VERSION_CONF"
+  else
+    export TEST_CROMWELL_PRIOR_VERSION_CONF="papi_v2_application.conf"
+  fi
   # This is the Docker tag that will be applied to the Docker image that is created for the code being built. This image
   # will *not* be pushed to Docker Hub or any other repo, it only lives local to the build.
   export TEST_CROMWELL_TAG=just-testing-horicromtal
-  export TEST_CROMWELL_CONF=horicromtal_application.conf
+  export TEST_CROMWELL_CONF="papi_v2_application.conf"
   export CROMWELL_BUILD_MYSQL_USERNAME=travis
 
   cromwell::build::setup_centaur_environment

@@ -99,14 +99,15 @@ trait SharedFileSystem extends PathFactory {
 
   def sharedFileSystemConfig: Config
 
-  val cachedCopyDir: Path
+  lazy val cachedCopyDir: Option[Path] = None
 
   private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
       createParentDirectory(executionPath, docker)
       // Hash the parent. This will make sure bamfiles and their indexes stay in the same dir. This is not ideal. But should work.
       // There should be no file collisions because two files with the same name cannot exist in the same parent dir.
-      val cachedCopySubDir: Path = cachedCopyDir.createChild(originalPath.toAbsolutePath.parent.hashCode.toString)
+      // use .get . This strategy should not be used when there is no cachedCopyDir
+      val cachedCopySubDir: Path = cachedCopyDir.get.createChild(originalPath.toAbsolutePath.parent.hashCode.toString)
 
       // By prepending the modtime we prevent collisions in the cache from files that have changed in between.
       // Md5 is safer but much much slower and way too CPU intensive for big files.
@@ -145,6 +146,7 @@ trait SharedFileSystem extends PathFactory {
     // If localizing for a docker job, remove soft-link as an option
     val filteredConfigStrategies = configStrategies filter {
       case "soft-link" if docker => false
+      case "cached-copy" if cachedCopyDir.isEmpty => false
       case _ => true
     }
 

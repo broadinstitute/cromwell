@@ -34,6 +34,7 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
+import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.CommandSetupSideEffectFile
@@ -393,7 +394,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def createPipelineParameters(inputOutputParameters: InputOutputParameters): CreatePipelineParameters = {
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters, customLabels: Seq[GoogleLabel]): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -432,7 +433,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           inputOutputParameters,
           googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount(jobDescriptor.workflowDescriptor),
-          backendLabels,
+          backendLabels ++ customLabels,
           preemptible,
           pipelinesConfiguration.jobShell,
           dockerKeyAndToken,
@@ -501,15 +502,23 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
     def uploadScriptFile = commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
-      asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain"))))
+      asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    )
+
+    def sendGoogleLabelsToMetadata(customLabels: Seq[GoogleLabel]): Unit = {
+      lazy val backendLabelEvents: Map[String, String] = ((backendLabels ++ customLabels) map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value }).toMap
+      tellMetadata(backendLabelEvents)
+    }
 
     val runPipelineResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile
+      customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters)
+      createParameters = createPipelineParameters(jesParameters, customLabels)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
+      _ = sendGoogleLabelsToMetadata(customLabels)
     } yield runId
 
     runPipelineResponse map { runId =>
@@ -613,11 +622,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           val message = unable + details + prettyError
           Future.successful(FailedNonRetryableExecutionHandle(StandardException(
             runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
-        case _ => {
+        case _ =>
           val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
           Future.successful(FailedNonRetryableExecutionHandle(StandardException(
             runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
-        }
       }
     }
 

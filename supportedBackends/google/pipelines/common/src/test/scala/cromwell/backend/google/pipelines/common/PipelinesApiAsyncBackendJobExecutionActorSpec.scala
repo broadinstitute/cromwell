@@ -885,8 +885,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val actual = jesBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
-        "backendLabels:cromwell-workflow-id" -> s"cromwell-$workflowId",
-        "backendLabels:wdl-task-name" -> "goodbye",
         "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
         "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
         "jes:endpointUrl" -> "https://genomics.googleapis.com/",

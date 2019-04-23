@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 41 Release Notes
+
+### Workflow Options
+
+* It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).
+
 ## 40 Release Notes
 
 ### Config Changes

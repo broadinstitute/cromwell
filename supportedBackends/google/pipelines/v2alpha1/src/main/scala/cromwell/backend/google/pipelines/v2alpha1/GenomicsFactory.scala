@@ -117,7 +117,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setServiceAccount(serviceAccount)
         .setMachineType(createPipelineParameters.runtimeAttributes |> toMachineType(jobLogger))
         .setBootDiskSizeGb(adjustedBootDiskSize)
-        .setLabels(createPipelineParameters.labels.asJavaMap)
+        .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
 
@@ -139,7 +139,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)
-        .setLabels(createPipelineParameters.labels.asJavaMap)
+        .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
 
       genomics.pipelines().run(pipelineRequest).buildHttpRequest()
     }

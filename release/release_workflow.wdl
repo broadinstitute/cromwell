@@ -151,11 +151,11 @@ task draftGithubRelease {
         curl --fail -v https://raw.githubusercontent.com/~{organization}/cromwell/~{changelogBranchName}/CHANGELOG.md -o CHANGELOG.md
 
         # Extract the latest piece of the changelog corresponding to this release
-        # head remove the last line, next sed escapes all ", and last sed/tr replaces all new lines with \n so it can be used as a JSON string
-        BODY=$(sed -n '/## ~{newVersion}/,/## ~{changelogPreviousVersion}/p' CHANGELOG.md | sed '$d' | sed -e 's/"/\\"/g' | sed 's/$/\\n/' | tr -d '\n')
+        # sed removes the last line, the rest is JSON escaping so it can be used as a JSON string
+        BODY=$(sed -n '/## ~{newVersion}/,/## ~{changelogPreviousVersion}/p' CHANGELOG.md | sed '$d' | python -c 'import json; import sys; s = sys.stdin.read(); j = json.dumps( s ); print( j )' )
 
         # Build the json body for the POST release
-        API_JSON="{\"tag_name\": \"~{newVersion}\",\"name\": \"~{newVersion}\",\"body\": \"$BODY\",\"draft\": true,\"prerelease\": false}"
+        API_JSON="{\"tag_name\": \"~{newVersion}\",\"name\": \"~{newVersion}\",\"body\": $BODY,\"draft\": true,\"prerelease\": false}"
 
         # POST the release as a draft
         curl --fail -v -X POST --data "$API_JSON" https://api.github.com/repos/~{organization}/cromwell/releases?access_token=~{githubToken} -o release_response

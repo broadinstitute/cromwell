@@ -1,9 +1,9 @@
-package cromwell.backend.google.pipelines.common
+package cromwell.backend
 
 import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging}
-import cromwell.backend.google.pipelines.common.SlowJobWarning.{WarnAboutSlownessAfter, WarnAboutSlownessIfNecessary, WarningDetails}
+import cromwell.backend.SlowJobWarning._
 
 import scala.concurrent.duration.FiniteDuration
 

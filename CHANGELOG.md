@@ -17,12 +17,21 @@ NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been co
 then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
 set less than the `ttl`.
 
-#### PAPI long running jobs
+#### Logging long running jobs
 
-The PAPIv1 and PAPIv2 backends can now emit slow job warnings after a configurable time running in the cloud:
+All backends can now emit slow job warnings after a configurable time running. 
+NB This example shows how to configure this setting for the PAPIv2 backend:
 ```conf
-# Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck in PAPI.
-backend.providers.PAPIv2.config.slow-job-warning-time: 24 hours
+# Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck.
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        slow-job-warning-time: 24 hours
+      }
+    }
+  }
+}
 ```
 
 ### Bug fixes

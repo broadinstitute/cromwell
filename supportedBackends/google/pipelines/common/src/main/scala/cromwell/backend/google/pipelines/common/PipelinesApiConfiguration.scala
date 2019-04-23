@@ -8,9 +8,6 @@ import cromwell.core.BackendDockerConfiguration
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 
-import scala.concurrent.duration.FiniteDuration
-
-
 class PipelinesApiConfiguration(val configurationDescriptor: BackendConfigurationDescriptor,
                                 val genomicsFactory: PipelinesApiFactoryInterface,
                                 val googleConfig: GoogleConfiguration,
@@ -34,6 +31,4 @@ class PipelinesApiConfiguration(val configurationDescriptor: BackendConfiguratio
   val needAuthFileUpload = jesAuths.gcs.requiresAuthFile || dockerCredentials.isDefined || jesAttributes.restrictMetadataAccess
   val jobShell = configurationDescriptor.backendConfig.as[Option[String]]("job-shell").getOrElse(
     configurationDescriptor.globalConfig.getOrElse("system.job-shell", "/bin/bash"))
-
-  lazy val slowJobWarningAfter = configurationDescriptor.backendConfig.as[Option[FiniteDuration]](path="slow-job-warning-time")
 }

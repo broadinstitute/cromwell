@@ -107,7 +107,7 @@ trait SharedFileSystem extends PathFactory {
       // Hash the parent. This will make sure bamfiles and their indexes stay in the same dir. This is not ideal. But should work.
       // There should be no file collisions because two files with the same name cannot exist in the same parent dir.
       // use .get . This strategy should not be used when there is no cachedCopyDir
-      val cachedCopySubDir: Path = cachedCopyDir.get.createChild(originalPath.toAbsolutePath.parent.hashCode.toString)
+      val cachedCopySubDir: Path = cachedCopyDir.get.createChild(originalPath.toAbsolutePath.parent.hashCode.toString, asDirectory = true)
 
       // By prepending the modtime we prevent collisions in the cache from files that have changed in between.
       // Md5 is safer but much much slower and way too CPU intensive for big files.

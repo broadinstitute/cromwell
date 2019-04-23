@@ -17,6 +17,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
   val defaultLocalization = ConfigFactory.parseString(""" localization: [copy, hard-link, soft-link] """)
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
   val softLinkLocalization = ConfigFactory.parseString(""" localization: [soft-link] """)
+  val cachedCopyLocalization = ConfigFactory.parseString(""" localization: [cached-copy] """)
   val localPathBuilder = List(DefaultPathBuilder)
 
 
@@ -40,6 +41,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
       override val pathBuilders = localPathBuilder
       override val sharedFileSystemConfig = config
       override implicit def actorContext: ActorContext = null
+      override lazy val cachedCopyDir = Some(DefaultPathBuilder.createTempDirectory("cached-copy"))
     }
     val localizedinputs = Map(inputs.head._1 -> WomSingleFile(dest.pathAsString))
     val result = sharedFS.localizeInputs(callDir, docker = docker)(inputs)
@@ -77,6 +79,11 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
 
   it should "localize a file via symbolic link" in {
     localizationTest(softLinkLocalization, docker = false, symlink = true)
+  }
+
+  it should "localize a file via cached copy" in {
+    localizationTest(cachedCopyLocalization, docker = false, linkNb = 2)
+    localizationTest(cachedCopyLocalization, docker = true, linkNb = 2)
   }
 
   it should "throw a fatal exception if localization fails" in {

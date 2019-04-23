@@ -61,6 +61,19 @@ object SharedFileSystem extends StrictLogging {
     logOnFailure(action, "copy")
   }
 
+  private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
+    val action = Try {
+      createParentDirectory(executionPath, docker)
+      val cachedCopyPath: Path = ???
+      if (!cachedCopyPath.exists) {
+        val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
+        originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+      cachedCopyPath.linkTo(executionPath)
+      }
+    }.void
+    logOnFailure(action, "hard link cached file")
+  }
+
   private def localizePathViaHardLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
       createParentDirectory(executionPath, docker)
@@ -130,6 +143,7 @@ trait SharedFileSystem extends PathFactory {
       case "hard-link" => localizePathViaHardLink _
       case "soft-link" => localizePathViaSymbolicLink _
       case "copy" => localizePathViaCopy _
+      case "cached-copy" => localizePathViaCachedCopy _
       case unsupported => throw new UnsupportedOperationException(s"Strategy $unsupported is not recognized")
     }
 

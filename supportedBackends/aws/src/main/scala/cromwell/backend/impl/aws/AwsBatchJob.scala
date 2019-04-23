@@ -123,7 +123,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     |"
     |cat $dockerStderr
     |echo "--$boundary--"
-    |exit $$(cat $dockerRc)
+    |exit 0
     """).stripMargin
   }
   def submitJob[F[_]]()(

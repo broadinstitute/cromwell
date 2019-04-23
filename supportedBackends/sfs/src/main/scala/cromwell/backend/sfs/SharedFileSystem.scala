@@ -61,19 +61,6 @@ object SharedFileSystem extends StrictLogging {
     logOnFailure(action, "copy")
   }
 
-  private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
-    val action = Try {
-      createParentDirectory(executionPath, docker)
-      val cachedCopyPath: Path = ???
-      if (!cachedCopyPath.exists) {
-        val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
-        originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
-      cachedCopyPath.linkTo(executionPath)
-      }
-    }.void
-    logOnFailure(action, "hard link cached file")
-  }
-
   private def localizePathViaHardLink(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
       createParentDirectory(executionPath, docker)
@@ -111,6 +98,29 @@ trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
 
   def sharedFileSystemConfig: Config
+
+  val cachedCopyDir: Path
+
+  private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
+    val action = Try {
+      createParentDirectory(executionPath, docker)
+      // Hash the parent. This will make sure bamfiles and their indexes stay in the same dir. This is not ideal. But should work.
+      // There should be no file collisions because two files with the same name cannot exist in the same parent dir.
+      val cachedCopySubDir: Path = cachedCopyDir.createChild(originalPath.toAbsolutePath.parent.hashCode.toString)
+
+      // By prepending the modtime we prevent collisions in the cache from files that have changed in between.
+      // Md5 is safer but much much slower and way too CPU intensive for big files.
+      val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
+      val cachedCopyPath: Path = cachedCopySubDir.createChild(pathAndModTime)
+      createParentDirectory(cachedCopyPath, docker)
+      if (!cachedCopyPath.exists) {
+        val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
+        originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+      }
+      cachedCopyPath.linkTo(executionPath)
+    }.void
+    logOnFailure(action, "cached copy file")
+  }
 
   implicit def actorContext: ActorContext
 

@@ -17,13 +17,13 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
   var unsatisfiedMatchers = matchers
 
   override def receive = {
-    case PutMetadataAction(events) if unsatisfiedMatchers.nonEmpty =>
+    case PutMetadataAction(events, _) if unsatisfiedMatchers.nonEmpty =>
       unsatisfiedMatchers = unsatisfiedMatchers.filterNot { m => m.matches(events) }
       if (unsatisfiedMatchers.isEmpty) {
         promise.trySuccess(())
         ()
       }
-    case PutMetadataAction(_) => // Superfluous message. Ignore
+    case PutMetadataAction(_, _) => // Superfluous message. Ignore
     // Because the MetadataWatchActor is sometimes used in place of the ServiceRegistryActor, this allows WFs to continue:
     case kvGet: KvGet => sender ! KvKeyLookupFailed(kvGet)
     case kvPut: KvPut => sender ! KvPutSuccess(kvPut)

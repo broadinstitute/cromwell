@@ -2,44 +2,116 @@ package cromwell.services.metadata.impl
 
 import java.sql.{Connection, Timestamp}
 
+import akka.actor.ActorRef
 import akka.testkit.{TestFSMRef, TestProbe}
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, NonEmptyVector}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
-import cromwell.services.metadata.MetadataService.{MetadataWriteSuccess, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
+import scala.util.control.NoStackTrace
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Seconds, Span}
 
-class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matchers {
+class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
 
   behavior of "WriteMetadataActor"
-  
-  it should "respond to all senders" in {
+
+  implicit val defaultPatience = PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
+
+  it should "process jobs in the correct batch sizes" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new WriteMetadataActor(10, 1.second, registry, Int.MaxValue) {
-      override val metadataDatabaseInterface = mockDatabaseInterface
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 2.seconds, registry, Int.MaxValue) {
+      override val metadataDatabaseInterface = mockDatabaseInterface(0)
     })
-    
-    val metadataKey = MetadataKey(WorkflowId.randomId(), None, "metadata_key") 
-    val metadataEvent = MetadataEvent(metadataKey, MetadataValue("hello"))
-    
-    val probes = (1 until 20).map({ _ =>
+
+    def metadataEvent(index: Int) = PutMetadataAction(MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index")))
+
+    val probes = (0 until 27).map({ _ =>
       val probe = TestProbe()
-      probe.send(writeActor, PutMetadataActionAndRespond(List(metadataEvent), probe.ref))
       probe
+    }).zipWithIndex.map {
+      case (probe, index) => probe -> metadataEvent(index)
+    }
+
+    probes foreach {
+      case (probe, msg) => probe.send(writeActor, msg)
+    }
+
+    eventually {
+      writeActor.underlyingActor.batchSizes should be(Vector(10, 10, 7))
+    }
+  }
+
+  val failuresBetweenSuccessValues = List(0, 5, 9)
+  failuresBetweenSuccessValues foreach { failureRate =>
+    it should s"succeed metadata writes and respond to all senders even with $failureRate failures between each success" in {
+      val registry = TestProbe().ref
+      val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 100.millis, registry, Int.MaxValue) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(failureRate)
+      })
+
+      def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(List(MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index"))), probe)
+
+      val probes = (0 until 43).map({ _ =>
+        val probe = TestProbe()
+        probe
+      }).zipWithIndex.map {
+        case (probe, index) => probe -> metadataEvent(index, probe.ref)
+      }
+
+      probes foreach {
+        case (probe, msg) => probe.send(writeActor, msg)
+      }
+
+      probes.foreach {
+        case (probe, msg) => probe.expectMsg(MetadataWriteSuccess(msg.events))
+      }
+      eventually {
+        writeActor.underlyingActor.failureCount should be (5 * failureRate)
+      }
+    }
+  }
+
+  it should s"fail metadata writes and respond to all senders with failures" in {
+    val registry = TestProbe().ref
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 100.millis, registry, Int.MaxValue) {
+      override val metadataDatabaseInterface = mockDatabaseInterface(100)
     })
-    
-    probes.foreach(_.expectMsg(MetadataWriteSuccess(List(metadataEvent))))
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(List(MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index"))), probe)
+
+    val probes = (0 until 43).map({ _ =>
+      val probe = TestProbe()
+      probe
+    }).zipWithIndex.map {
+      case (probe, index) => probe -> metadataEvent(index, probe.ref)
+    }
+
+    probes foreach {
+      case (probe, msg) => probe.send(writeActor, msg)
+    }
+
+    probes.foreach {
+      case (probe, msg) => probe.expectMsg(MetadataWriteFailure(WriteMetadataActorSpec.IntermittentException, msg.events))
+    }
+    eventually {
+      writeActor.underlyingActor.failureCount should be(5 * 10)
+    }
   }
 
   // Mock database interface.
-  val mockDatabaseInterface = new MetadataSqlDatabase with SqlDatabase {
+  // A customizable number of failures occur between each success
+  def mockDatabaseInterface(failuresBetweenEachSuccess: Int) = new MetadataSqlDatabase with SqlDatabase {
     private def notImplemented() = throw new UnsupportedOperationException
 
     override protected val urlKey = "mock_database_url"
@@ -50,9 +122,18 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def existsMetadataEntries()(
       implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    var requestsSinceLastSuccess = 0
     // Return successful
     override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
-                                   (implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
+                                   (implicit ec: ExecutionContext): Future[Unit] = {
+      if (requestsSinceLastSuccess == failuresBetweenEachSuccess) {
+        requestsSinceLastSuccess = 0
+        Future.successful(())
+      } else {
+        requestsSinceLastSuccess += 1
+        Future.failed(WriteMetadataActorSpec.IntermittentException)
+      }
+    }
 
     override def metadataEntryExists(workflowExecutionUuid: String)
                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
@@ -175,4 +256,30 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     override def close(): Nothing = notImplemented()
   }
+}
+
+object WriteMetadataActorSpec {
+
+  val IntermittentException = new Exception("Simulated Database Flakiness Exception") with NoStackTrace
+
+  class BatchSizeCountingWriteMetadataActor(override val batchSize: Int,
+                                            override val flushRate: FiniteDuration,
+                                            override val serviceRegistryActor: ActorRef,
+                                            override val threshold: Int) extends WriteMetadataActor(batchSize, flushRate, serviceRegistryActor, threshold) {
+
+    var batchSizes: Vector[Int] = Vector.empty
+    var failureCount: Int = 0
+
+    override def process(e: NonEmptyVector[MetadataWriteAction]) = {
+      batchSizes = batchSizes :+ e.length
+      val result = super.process(e)
+      result.onComplete {
+        case Success(_) => // Don't increment failure count
+        case Failure(_) => failureCount += 1
+      }
+
+      result
+    }
+  }
+
 }

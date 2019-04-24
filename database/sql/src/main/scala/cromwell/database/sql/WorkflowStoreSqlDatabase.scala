@@ -78,7 +78,7 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
                            (implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
   def writeWorkflowHeartbeats(workflowExecutionUuids: Seq[String],
-                              heartbeatTimestampOption: Option[Timestamp])
+                              heartbeatTimestamp: Timestamp)
                              (implicit ec: ExecutionContext): Future[Int]
 
   /**

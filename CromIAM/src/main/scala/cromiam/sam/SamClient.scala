@@ -136,15 +136,17 @@ class SamClient(scheme: String,
     val createCollection = registerCreation(user, collection, cromIamRequest)
 
     createCollection flatMap {
-      case r if r.status == StatusCodes.Conflict => requestAuth(CollectionAuthorizationRequest(user, collection, "add"), cromIamRequest)
       case r if r.status == StatusCodes.NoContent => Monad[FailureResponseOrT].unit
+      case r => FailureResponseOrT[IO, HttpResponse, Unit](IO.raiseError(SamRegisterCollectionException(r.status)))
+    } recoverWith {
+      case r if r.status == StatusCodes.Conflict => requestAuth(CollectionAuthorizationRequest(user, collection, "add"), cromIamRequest)
       case r => FailureResponseOrT[IO, HttpResponse, Unit](IO.raiseError(SamRegisterCollectionException(r.status)))
     }
   }
 
-  private def registerCreation(user: User,
-                               collection: Collection,
-                               cromIamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
+  protected def registerCreation(user: User,
+                                 collection: Collection,
+                                 cromIamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = samRegisterUri(collection), headers = List[HttpHeader](user.authorization))
 
     instrumentRequest(

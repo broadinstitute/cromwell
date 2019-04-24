@@ -21,7 +21,9 @@ trait SharedFileSystemJobCachingActorHelper extends StandardCachingActorHelper {
     }
 
     // cachedCopyDir should be on the same physical filesystem as the execution root.
-    // This could also be in the workflowRoot, but this catches more stuff.
-    override lazy val cachedCopyDir: Option[Path] = Some(workflowPaths.executionRoot.createChild("cached-inputs", asDirectory = true))
+    // WDL workflow names may not contain '-' so using 'cached-inputs' will certainly
+    // not collide with any workflows in the root directory.
+    override lazy val cachedCopyDir: Option[Path] = Some(
+      workflowPaths.executionRoot.createChild("cached-inputs", asDirectory = true))
   }
 }

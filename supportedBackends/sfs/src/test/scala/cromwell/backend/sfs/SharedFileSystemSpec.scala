@@ -105,6 +105,34 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     result.failed.get.isInstanceOf[CromwellFatalExceptionMarker] shouldBe true
   }
 
+  it should "cache only one file if copied multiple times via cached copy" in {
+    val callDirs: List[Path] = List(1,2,3).map(x => DefaultPathBuilder.createTempDirectory("SharedFileSystem"))
+    val orig = DefaultPathBuilder.createTempFile("inputFile")
+    val dests = callDirs.map(_./(orig.parent.pathAsString.hashCode.toString())./(orig.name))
+    orig.touch()
+    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
+    val sharedFS = new SharedFileSystem {
+      override val pathBuilders = localPathBuilder
+      override val sharedFileSystemConfig = cachedCopyLocalization
+      override implicit def actorContext: ActorContext = null
+      override lazy val cachedCopyDir = Some(DefaultPathBuilder.createTempDirectory("cached-copy"))
+    }
+    val cachedFile: Option[Path] = sharedFS.cachedCopyDir.map(
+      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name))
+
+    val results = callDirs.map(sharedFS.localizeInputs(_, docker = true)(inputs))
+
+    results.foreach(_.isSuccess shouldBe true)
+    dests.foreach(_.exists shouldBe true)
+    dests.foreach(countLinks(_) shouldBe 4)
+
+    cachedFile.foreach(_.exists shouldBe true)
+    cachedFile.foreach(countLinks(_) shouldBe 4)
+    orig.delete(swallowIOExceptions = true)
+    dests.foreach(_.delete(swallowIOExceptions = true))
+  }
+
+
   private[this] def countLinks(file: Path): Int = file.getAttribute("unix:nlink").asInstanceOf[Int]
 
   private[this] def isSymLink(file: Path): Boolean = file.isSymbolicLink

@@ -131,18 +131,19 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     */
   def accepts(dockerImageIdentifier: DockerImageIdentifier) = dockerImageIdentifier.host.contains(registryHostName(dockerImageIdentifier))
 
-  /* Methods that must to be implemented by a subclass */
+  /*
+   * Utility method to extract the hostname from a specified `DockerImageIdentifier`.
+   */
+  private def hostnameFrom(dockerImageIdentifier: DockerImageIdentifier) = {
+    // By default the hostname is everything before the first slash. In Docker Hub the hostnames
+    // are not specified but well-known, so `DockerHubRegistry` overrides the two protected callers
+    // of this method (`registryHostName` and `authorizationServerHostName`).
+    dockerImageIdentifier.host.flatMap(_.split("/").headOption).getOrElse("")
+  }
 
+  protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier) = hostnameFrom(dockerImageIdentifier)
 
-  private def hostnameFromDockerSpec(dockerImageIdentifier: DockerImageIdentifier) = dockerImageIdentifier.host.flatMap(_.split("/").headOption).getOrElse("")
-
-  /**
-    * By default the hostname is everything before the first slash except for registries like Docker Hub where the registry
-    * and authorization server host names are not specified but well-known.
-    */
-  protected def registryHostName(dockerImageIdentifier: DockerImageIdentifier) = hostnameFromDockerSpec(dockerImageIdentifier)
-
-  protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier) = hostnameFromDockerSpec(dockerImageIdentifier)
+  protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier) = hostnameFrom(dockerImageIdentifier)
 
   /**
     * Builds the list of headers for the token request

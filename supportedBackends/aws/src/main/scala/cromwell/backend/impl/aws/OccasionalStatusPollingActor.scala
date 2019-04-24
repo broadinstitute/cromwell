@@ -5,11 +5,11 @@ import cromwell.backend.impl.aws.OccasionalStatusPollingActor._
 import cromwell.backend.impl.aws.RunStatus.{Initializing, Running}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
-import software.amazon.awssdk.services.batch.model.{JobSummary, ListJobsRequest}
+import software.amazon.awssdk.services.batch.model.ListJobsRequest
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor with ActorLogging {

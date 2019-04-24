@@ -1,6 +1,7 @@
 task make_file {
     Boolean ready = true
     command {
+        # This comment adds noise to this command to stop it from call caching to other test cases
         echo woohoo > out.txt
     }
     runtime {
@@ -15,6 +16,7 @@ task make_file {
 task read_file {
     File input_file
     command {
+      # This comment adds noise to this command to stop it from call caching to other test cases
       cat ${input_file}
     }
     runtime {
@@ -29,6 +31,7 @@ task read_file {
 task delete_file_in_gcs {
     String file_path
     command {
+        # This comment adds noise to this command to stop it from call caching to other test cases
         gsutil rm ${file_path}
     }
     runtime {

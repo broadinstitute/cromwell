@@ -79,6 +79,8 @@ cromwell::private::create_build_variables() {
       CROMWELL_BUILD_IS_VIRTUAL_ENV=false
     fi
 
+    CROMWELL_BUILD_RUN_TESTS=true
+
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_IS_CI=true
@@ -98,6 +100,14 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+
+            # Always run on sbt, even for 'push'.
+            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
+            if [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]]; then
+              CROMWELL_BUILD_RUN_TESTS=true
+            elif [[ "${TRAVIS_COMMIT_MESSAGE}" != *"[force ci]"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
+              CROMWELL_BUILD_RUN_TESTS=false
+            fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
@@ -747,6 +757,10 @@ cromwell::private::kill_tree() {
 
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
+    if [[ "${CROMWELL_BUILD_RUN_TESTS}" == "false" ]]; then
+      echo "Use '[force ci]' in commit message to run tests on 'push'"
+      exit 0
+    fi
     cromwell::private::exec_test_script
 }
 

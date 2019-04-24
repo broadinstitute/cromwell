@@ -6,7 +6,7 @@ import akka.event.Logging
 import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
@@ -14,6 +14,7 @@ import cromwell.core.io.Throttle
 import cromwell.core.io.Throttle._
 import cromwell.docker.DockerInfoActor
 import cromwell.docker.local.DockerCliFlow
+import cromwell.engine.CromwellTerminator
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
@@ -48,14 +49,20 @@ import scala.util.{Failure, Success, Try}
   * READ THIS: If you add a "system-level" actor here, make sure to consider what should be its
   * position in the shutdown process and modify CromwellShutdown accordingly.
   */
-abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean, val serverMode: Boolean)(implicit materializer: ActorMaterializer) extends Actor with ActorLogging with GracefulShutdownHelper {
+abstract class CromwellRootActor(terminator: CromwellTerminator,
+                                 gracefulShutdown: Boolean,
+                                 abortJobsOnTerminate: Boolean,
+                                 val serverMode: Boolean,
+                                 protected val config: Config)
+                                (implicit materializer: ActorMaterializer)
+  extends Actor with ActorLogging with GracefulShutdownHelper {
+
   import CromwellRootActor._
   
   // Make sure the filesystems are initialized at startup
   val _ = CromwellFileSystems.instance
 
   private val logger = Logging(context.system, this)
-  protected val config = ConfigFactory.load()
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(config)
   logger.info("Workflow heartbeat configuration:\n{}", workflowHeartbeatConfig)
@@ -71,7 +78,10 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     coordinatedWorkflowStoreAccess match {
       case Some(false) => UncoordinatedWorkflowStoreAccess(workflowStore)
       case _ =>
-        val coordinatedWorkflowStoreAccessActor: ActorRef = context.actorOf(WorkflowStoreCoordinatedAccessActor.props(workflowStore))
+        val coordinatedWorkflowStoreAccessActor: ActorRef = context.actorOf(
+          WorkflowStoreCoordinatedAccessActor.props(workflowStore),
+          "WorkflowStoreCoordinatedAccessActor"
+        )
         CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor)
     }
   }
@@ -81,6 +91,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
       workflowStoreDatabase = workflowStore,
       workflowStoreAccess = workflowStoreAccess,
       serviceRegistryActor = serviceRegistryActor,
+      terminator = terminator,
       abortAllJobsOnTerminate = abortJobsOnTerminate,
       workflowHeartbeatConfig = workflowHeartbeatConfig),
       "WorkflowStoreActor")
@@ -174,7 +185,8 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
         workflowStoreActor = workflowStoreActor,
         workflowManagerActor = workflowManagerActor,
         workflowHeartbeatConfig = workflowHeartbeatConfig
-      )
+      ),
+      "AbortRequestScanningActor"
     )
   }
 
@@ -182,7 +194,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     // If abortJobsOnTerminate is true, aborting all workflows will be handled by the graceful shutdown process
     CromwellShutdown.registerShutdownTasks(
       cromwellId = workflowHeartbeatConfig.cromwellId,
-      abortJobsOnTerminate,
+      abortJobsOnTerminate = abortJobsOnTerminate,
       actorSystem = context.system,
       workflowManagerActor = workflowManagerActor,
       logCopyRouter = workflowLogCopyRouter,
@@ -198,6 +210,7 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
     )
   } else if (abortJobsOnTerminate) {
     // If gracefulShutdown is false but abortJobsOnTerminate is true, set up a classic JVM shutdown hook
+    val abortTimeout = config.as[FiniteDuration]("akka.coordinated-shutdown.phases.abort-all-workflows.timeout")
     sys.addShutdownHook {
       implicit val ec = context.system.dispatcher
 
@@ -205,10 +218,10 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
         // Give 30 seconds to the workflow store to switch all running workflows to aborting and shutdown. Should be more than enough
         _ <- gracefulStop(workflowStoreActor, 30.seconds, ShutdownCommand)
         // Once all workflows are "Aborting" in the workflow store, ask the WMA to effectively abort all of them
-        _ <- gracefulStop(workflowManagerActor, AbortTimeout, AbortAllWorkflowsCommand)
+        _ <- gracefulStop(workflowManagerActor, abortTimeout, AbortAllWorkflowsCommand)
       } yield ()
 
-      Try(Await.result(abortFuture, AbortTimeout)) match {
+      Try(Await.result(abortFuture, abortTimeout)) match {
         case Success(_) => logger.info("All workflows aborted")
         case Failure(f) => logger.error("Failed to abort workflows", f)
       }
@@ -231,8 +244,6 @@ abstract class CromwellRootActor(gracefulShutdown: Boolean, abortJobsOnTerminate
 }
 
 object CromwellRootActor extends GracefulStopSupport {
-  import net.ceedubs.ficus.Ficus._
-  val AbortTimeout = ConfigFactory.load().as[FiniteDuration]("akka.coordinated-shutdown.phases.abort-all-workflows.timeout")
   val DefaultNumberOfWorkflowLogCopyWorkers = 10
   val DefaultCacheTTL = 20 minutes
   val DefaultNumberOfCacheReadWorkers = 25

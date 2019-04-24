@@ -7,7 +7,6 @@
 Initial support for Google [Pipelines API version 2](https://cloud.google.com/genomics/reference/rest/) was added in Cromwell 32.
 Expect feature parity with v1 except:
 
-* Private dockerhub images which are not supported at the moment, but will be in the near future.
 * The "refresh token" authentication mode is **NOT** supported on PAPI V2.
 
 In addition, the following changes are to be expected:

@@ -2,6 +2,11 @@
 
 ## 41 Release Notes
 
+### Config changes
+
+* A new experimental feature, the `cached-copy` localization strategy is available for the shared filesystem. 
+More information can be found in the [documentation on localization](https://cromwell.readthedocs.io/en/stable/backends/HPC).
+
 ### Workflow Options
 
 * It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).

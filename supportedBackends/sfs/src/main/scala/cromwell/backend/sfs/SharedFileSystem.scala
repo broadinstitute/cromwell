@@ -18,7 +18,7 @@ import wom.WomFileMapper
 import wom.values._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
+import scala.concurrent.{Await}
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -101,7 +101,6 @@ trait SharedFileSystem extends PathFactory {
 
   lazy val cachedCopyDir: Option[Path] = None
 
-  private lazy val lock = new java.lang.Object
   private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
       createParentDirectory(executionPath, docker)
@@ -115,13 +114,11 @@ trait SharedFileSystem extends PathFactory {
       val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
       val cachedCopyPath: Path = cachedCopySubDir./(pathAndModTime)
 
-      lock.synchronized {
-        if (!cachedCopyPath.exists) {
+      if (!cachedCopyPath.exists) {
           val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
           originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
         }
-      }
-      cachedCopyPath.linkTo(executionPath)
+       cachedCopyPath.linkTo(executionPath)
     }.void
     logOnFailure(action, "cached copy file")
   }

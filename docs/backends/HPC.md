@@ -18,11 +18,20 @@ Cromwell is configured with a root execution directory which is set in the confi
 When Cromwell runs a workflow, it first creates a directory `<cromwell_root>/<workflow_uuid>`.  This is called the `workflow_root` and it is the root directory for all activity in this workflow.
 
 Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name>`.  This is the `<call_dir>`.
-Any input files to a call need to be localized into the `<call_dir>/inputs` directory. There are different localization strategies that Cromwell will try until one works. Below is the default order specified in `reference.conf` but it can be overridden:
+Any input files to a call need to be localized into the `<call_dir>/inputs` directory. There are different localization strategies that Cromwell will try until one works:
 
 * `hard-link` - This will create a hard link to the file
 * `soft-link` - Create a symbolic link to the file. This strategy is not applicable for tasks which specify a Docker image and will be ignored.
 * `copy` - Make a copy the file
+* `cached-copy` introduced in cromwell 41 as an experimental feature. This copies files to a file cache in 
+`<workflow_root>/cached-inputs` and then hard links them in the `<call_dir>/inputs` directory. 
+
+`cached-copy` is intended for a shared filesystem that runs on multiple physical disks, where docker containers are used. 
+Hard-links don't work between different physical disks and soft-links don't work with docker. Copying uses a lot of
+space if a multitude of tasks use the same input. `cached-copy` copies the file only once to the physical disk containing
+the `<workflow_root>` and then uses hard links for every task that needs the input file. This can save a lot of space.
+
+The default order in `reference.conf` is `hard-link`, `soft-link`, `copy`
 
 Shared filesystem localization is defined in the `config` section of each backend. The default stanza for the Local and HPC backends looks like this:
 

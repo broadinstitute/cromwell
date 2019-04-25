@@ -101,6 +101,7 @@ trait SharedFileSystem extends PathFactory {
 
   lazy val cachedCopyDir: Option[Path] = None
 
+  private lazy val lock = new java.lang.Object
   private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
     val action = Try {
       createParentDirectory(executionPath, docker)
@@ -114,9 +115,11 @@ trait SharedFileSystem extends PathFactory {
       val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
       val cachedCopyPath: Path = cachedCopySubDir.createChild(pathAndModTime)
       createParentDirectory(cachedCopyPath, docker)
-      if (!cachedCopyPath.exists) {
-        val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
-        originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+      lock.synchronized {
+        if (!cachedCopyPath.exists) {
+          val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
+          originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+        }
       }
       cachedCopyPath.linkTo(executionPath)
     }.void

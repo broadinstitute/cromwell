@@ -85,29 +85,10 @@ services {
 ### Workflow options changes
 
 A new workflow option is added. If the `final_workflow_outputs_dir` is set 
-`use_relative_output_paths` can be used. Example:
-```JSON
-
-{
-  "final_workflow_outputs_dir": "final_workflow_outputs_dir",
-  "use_relative_output_paths": true
-}
-```
-With `"use_relative_output_paths": false` (the default) the outputs will look like this
-
-```
-final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_one_task/execution/my_output_picture.jpg
-final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_other_task/execution/created_subdir/submarine.txt
-```
-
-The above result will look like this when `"use_relative_output_paths": true`:
-```
-final_workflow_outputs_dir/my_output_picture.jpg
-final_workflow_outputs_dir/created_subdir/submarine.txt
-```
-
-This will create file collisions in `final_workflow_outputs_dir` when a workflow is run twice. When cromwell
-detects file collisions it will throw an error and report the workflow as failed.
+`use_relative_output_paths` can be used. When set to `true` this will copy 
+all the outputs relative to their execution directory. 
+my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest.
+More information can be found in [the workflow options documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Overview/#output-copying).
 
 ### Bug fixes
 

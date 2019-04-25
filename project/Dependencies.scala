@@ -4,7 +4,7 @@ object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.24.3"
   private val akkaHttpV = "10.1.7"
   private val akkaV = "2.5.19"
-  private val aliyunBcsV = "6.0.6"
+  private val aliyunBcsV = "6.1.0"
   private val aliyunCoreV = "4.3.2"
   private val aliyunCrV = "3.0.0"
   private val aliyunOssV = "3.4.0"

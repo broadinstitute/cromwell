@@ -4,6 +4,7 @@ import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.exceptions.{ClientException, ServerException}
 import common.collections.EnhancedCollections._
+import common.util.StringUtil._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
@@ -147,7 +148,7 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       womFile match {
         case singleFile: WomSingleFile => List(generateBcsSingleFileOutput(singleFile))
         case globFile: WomGlobFile => generateBcsGlobFileOutputs(globFile)
-        case _: WomUnlistedDirectory => throw new RuntimeException(s"directory output not supported currently")
+        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory)
       }
     }
   }
@@ -175,6 +176,19 @@ class BcsAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     List(
       BcsOutputMount(Left(relativePath(globDirectory)), Left(bcsGlobDirectoryDestinationPath), writeSupport = false),
       BcsOutputMount(Left(relativePath(globListFile)), Left(bcsGlobListFileDestinationPath), writeSupport = false)
+    )
+  }
+
+  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory): List[BcsOutputMount] = {
+    val directoryPath = womFile.value.ensureSlashed
+    val directoryListFile = womFile.value.ensureUnslashed + ".list"
+    val bcsDirDestinationPath = callRootPath.resolve(directoryPath)
+    val bcsListDestinationPath = callRootPath.resolve(directoryListFile)
+
+    // We need both the collection directory and the collection list:
+    List(
+      BcsOutputMount(Left(relativePath(directoryPath)), Left(bcsDirDestinationPath), writeSupport = false),
+      BcsOutputMount(Left(relativePath(directoryListFile)), Left(bcsListDestinationPath), writeSupport = false)
     )
   }
 

@@ -3,6 +3,7 @@ package cromwell.docker
 import cromwell.core.Tags.IntegrationTest
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
+import cromwell.docker.registryv2.flows.ecr.EcrRegistry
 import cromwell.docker.registryv2.flows.gcr.GcrRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
@@ -16,7 +17,8 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
   override protected lazy val registryFlows = List(
     new DockerHubRegistry(DockerRegistryConfig.default),
     new GcrRegistry(DockerRegistryConfig.default),
-    new QuayRegistry(DockerRegistryConfig.default)
+    new QuayRegistry(DockerRegistryConfig.default),
+    new EcrRegistry(DockerRegistryConfig.default)
   )
 
   it should "retrieve a public docker hash" taggedAs IntegrationTest in {
@@ -31,6 +33,18 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
 
   it should "retrieve a public docker hash on gcr" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
+
+    expectMsgPF(5 second) {
+      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+        alg shouldBe "sha256"
+        hash should not be empty
+    }
+  }
+
+  // `ignore`d as authorization currently fails. The expectation was copy/pasted from code elsewhere and may not
+  // turn out to be correct when the authorization issue is resolved.
+  it should "retrieve a public docker hash on ecr" taggedAs IntegrationTest ignore {
+    dockerActor ! makeRequest("952500931424.dkr.ecr.us-east-1.amazonaws.com/broadinstitute/cromwell:latest")
 
     expectMsgPF(5 second) {
       case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>

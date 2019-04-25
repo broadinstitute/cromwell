@@ -206,6 +206,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * Request to get the manifest, using the auth token if provided
     */
   private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier): IO[Request[IO]] = {
+    // ECR: it looks like `Basic` is required here instead of `Bearer`
     val authorizationHeader = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
     val request = Method.GET(
       buildManifestUri(imageId),

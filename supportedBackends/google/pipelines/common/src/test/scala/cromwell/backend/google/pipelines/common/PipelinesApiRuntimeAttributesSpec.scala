@@ -2,13 +2,12 @@ package cromwell.backend.google.pipelines.common
 
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
-import cromwell.backend.google.pipelines.common.GpuResource.GpuType
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, papiAttributes, _}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.{Matchers, TestSuite, WordSpecLike}
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
@@ -17,17 +16,13 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
+import scala.util.{Failure, Success, Try}
 
-  def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
-    WorkflowOptions(JsObject(Map(
-      "default_runtime_attributes" -> JsObject(defaults)
-    )))
-  }
-
-  val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
-    MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
-    ContinueOnReturnCodeSet(Set(0)), false)
+final class PipelinesApiRuntimeAttributesSpec
+  extends WordSpecLike
+    with Matchers
+    with Mockito
+    with PipelinesApiRuntimeAttributesSpecsMixin {
 
   "PipelinesApiRuntimeAttributes" should {
 
@@ -91,42 +86,6 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
     "fail to validate an invalid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
       assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
-    }
-
-    "validate a valid gpu entry (1)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("nvidia-tesla-k80"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = refineMV(1), gpuType = GpuType.NVIDIATeslaK80)))
-      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "validate a valid gpu entry (2)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(2), "gpuType" -> WomString("nvidia-tesla-p100"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(gpuResource = Option(GpuResource(gpuCount = refineMV(2), gpuType = GpuType.NVIDIATeslaP100)))
-      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    // Missing gpu type
-    "fail to validate an invalid gpu entry (1)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Please specify a GPU type: nvidia-tesla-p100, nvidia-tesla-k80")
-    }
-
-    // Missing gpu count
-    "fail to validate an invalid gpu entry (2)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuType" -> WomString("nvidia-tesla-p100"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Please specify how many GPU should be attached to the instance.")
-    }
-
-    // unrecoginzed gpu type
-    "fail to validate an invalid gpu entry (3)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomInteger(1), "gpuType" -> WomString("not-a-gpu"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "not-a-gpu is not a supported GPU type. Supported types are nvidia-tesla-k80, nvidia-tesla-p100")
-    }
-
-    // gpu count is not an int
-    "fail to validate an invalid gpu entry (4)" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "gpuCount" -> WomString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting gpuCount runtime attribute to be an Integer")
     }
 
     "validate a valid cpu entry" in {
@@ -277,27 +236,41 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(4))
       assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
     }
+
+    "parse cpuPlatform correctly" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
+      val workflowOptionsJson =
+        """{
+          |  "default_runtime_attributes": { "cpuPlatform": "the platform" }
+          |}
+        """.stripMargin.parseJson.asInstanceOf[JsObject]
+      val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
+      val expectedRuntimeAttributes = expectedDefaults.copy(cpuPlatform = Option("the platform"))
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
+    }
+  }
+}
+
+trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
+
+
+  def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
+    WorkflowOptions(JsObject(Map(
+      "default_runtime_attributes" -> JsObject(defaults)
+    )))
   }
 
-  "should parse cpuPlatform correctly" in {
-    val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
-    val workflowOptionsJson =
-      """{
-        |  "default_runtime_attributes": { "cpuPlatform": "the platform" }
-        |}
-      """.stripMargin.parseJson.asInstanceOf[JsObject]
-    val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
-    val expectedRuntimeAttributes = expectedDefaults.copy(cpuPlatform = Option("the platform"))
-    assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
-  }
+  val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
+    MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
+    ContinueOnReturnCodeSet(Set(0)), false)
 
-  private def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],
+  def assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],
                                                            expectedRuntimeAttributes: PipelinesApiRuntimeAttributes,
                                                            workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                            defaultZones: NonEmptyList[String] = defaultZones,
                                                            jesConfiguration: PipelinesApiConfiguration = papiConfiguration): Unit = {
     try {
-      val actualRuntimeAttributes = toJesRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
+      val actualRuntimeAttributes = toPapiRuntimeAttributes(runtimeAttributes, workflowOptions, jesConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
     } catch {
       case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
@@ -305,31 +278,40 @@ class PipelinesApiRuntimeAttributesSpec extends WordSpecLike with Matchers with 
     ()
   }
 
-  private def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
-                                                       exMsg: String,
-                                                       workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    try {
-      toJesRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)
-      fail(s"A RuntimeException was expected with message: $exMsg")
-    } catch {
-      case ex: RuntimeException => assert(ex.getMessage.contains(exMsg))
+  def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
+                                               exMsgs: List[String],
+                                               workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+    Try(toPapiRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)) match {
+      case Success(oops) =>
+        fail(s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString()} but instead got Success($oops)")
+      case Failure(ex) => assert(ex.getMessage.contains(exMsg))
     }
     ()
   }
 
-  private def toJesRuntimeAttributes(runtimeAttributes: Map[String, WomValue],
-                                     workflowOptions: WorkflowOptions,
-                                     jesConfiguration: PipelinesApiConfiguration): PipelinesApiRuntimeAttributes = {
-    val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(jesConfiguration)
+  def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
+                                                       exMsg: String,
+                                                       workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+    Try(toPapiRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)) match {
+      case Success(oops) => fail(s"Expected error containing '$exMsg' but instead got Success($oops)")
+      case Failure(ex) => assert(ex.getMessage.contains(exMsg))
+    }
+    ()
+  }
+
+  def toPapiRuntimeAttributes(runtimeAttributes: Map[String, WomValue],
+                              workflowOptions: WorkflowOptions,
+                              papiConfiguration: PipelinesApiConfiguration): PipelinesApiRuntimeAttributes = {
+    val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(papiConfiguration)
     val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, jesConfiguration.runtimeConfig)
+    PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, papiConfiguration.runtimeConfig)
   }
 
-  private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
-  private val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
-  private val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
-  private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
+  val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
+  val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
+  val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
+  val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet
 }

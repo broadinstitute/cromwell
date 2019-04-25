@@ -113,8 +113,8 @@ trait SharedFileSystem extends PathFactory {
       // By prepending the modtime we prevent collisions in the cache from files that have changed in between.
       // Md5 is safer but much much slower and way too CPU intensive for big files.
       val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
-      val cachedCopyPath: Path = cachedCopySubDir.createChild(pathAndModTime)
-      createParentDirectory(cachedCopyPath, docker)
+      val cachedCopyPath: Path = cachedCopySubDir./(pathAndModTime)
+
       lock.synchronized {
         if (!cachedCopyPath.exists) {
           val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")

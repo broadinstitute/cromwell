@@ -10,6 +10,8 @@ import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.values.WomSingleFile
 
+import scala.io.Source
+
 class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
 
   behavior of "SharedFileSystem"
@@ -31,10 +33,16 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
     val orig = if (fileInCallDir) callDir.createChild("inputFile") else DefaultPathBuilder.createTempFile("inputFile")
     val dest = if (fileInCallDir) orig else callDir./(orig.parent.pathAsString.hashCode.toString())./(orig.name)
+    val testText =
+      """This is a simple text to check if the localization
+        | works correctly for the file contents.
+        |""".stripMargin
     orig.touch()
+    orig.writeText(testText)
     if (fileAlreadyExists) {
       dest.parent.createPermissionedDirectories()
       dest.touch()
+      dest.writeText(testText)
     }
 
     val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
@@ -53,6 +61,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
     result.get.toList should contain theSameElementsAs localizedinputs
 
     dest.exists shouldBe true
+    Source.fromFile(dest.toFile).mkString shouldBe testText
     countLinks(dest) should be(linkNb)
     isSymLink(dest) should be(symlink)
 

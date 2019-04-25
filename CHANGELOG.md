@@ -1,5 +1,9 @@
 # Cromwell Change Log
 
+## 40_hotfix Release Notes
+
+Loosened the parsing requirements on DRS/DRS URI's such that they don't require host names, and simply have to adhere to a scheme that looks like `drs` or `dos`.
+
 ## 40 Release Notes
 
 ### Config Changes

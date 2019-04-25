@@ -1,6 +1,5 @@
 package cloud.nio.impl.drs
 
-import java.net.URI
 import java.nio.channels.ReadableByteChannel
 
 import cats.effect.IO
@@ -35,19 +34,17 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   override def getScheme: String = "dos"
 
+  val alternateScheme: String = "drs"
+
+  /*
+ * No guarantees that host or authority is present, as this isn't a true spec yet.
+ * Just need to ensure the scheme is "drs://" or "dos://", for now.
+ */
   override def getHost(uriAsString: String): String = {
-    require(uriAsString.startsWith(getScheme + "://"), s"Scheme does not match $getScheme")
+    require(uriAsString.startsWith(getScheme + "://") || uriAsString.startsWith(alternateScheme + "://"),
+      s"Scheme does not match $getScheme or $alternateScheme")
 
-    /*
-     * In some cases for a URI, the host name is null. For example, for DRS urls like 'dos://dg.123/123-123-123',
-     * even though 'dg.123' is a valid host, somehow since it does not conform to URI's standards, uri.getHost returns null. In such
-     * cases, authority is used instead of host.
-     */
-    val uri = new URI(uriAsString)
-    val host = uri.getHost
-    val hostOrAuthority = if (host == null) uri.getAuthority else host
-    require(!hostOrAuthority.isEmpty, s"Bucket/Host is empty")
-
-    hostOrAuthority
+    //Either return the string as-is, or fail if missing "drs" or "dos" scheme
+    getHost(uriAsString)
   }
 }

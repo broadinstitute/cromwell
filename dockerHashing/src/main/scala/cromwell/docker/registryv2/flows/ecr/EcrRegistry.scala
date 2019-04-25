@@ -3,7 +3,9 @@ package cromwell.docker.registryv2.flows.ecr
 import cats.effect.IO
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import cromwell.docker.{DockerImageIdentifier, DockerInfoActor, DockerRegistryConfig}
+import org.http4s.AuthScheme
 import org.http4s.client.Client
+import org.http4s.util.CaseInsensitiveString
 import software.amazon.awssdk.services.ecr.EcrClient
 
 import scala.collection.JavaConverters._
@@ -17,4 +19,6 @@ class EcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
   override def accepts(dockerImageIdentifier: DockerImageIdentifier) = {
     dockerImageIdentifier.hostAsString.contains(".dkr.ecr.")
   }
+
+  override protected def authScheme: CaseInsensitiveString = AuthScheme.Basic
 }

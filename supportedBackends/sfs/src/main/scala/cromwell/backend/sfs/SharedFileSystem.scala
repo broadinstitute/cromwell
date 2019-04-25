@@ -114,11 +114,17 @@ trait SharedFileSystem extends PathFactory {
       val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
       val cachedCopyPath: Path = cachedCopySubDir./(pathAndModTime)
 
-      if (!cachedCopyPath.exists) {
+      // The following step cannot be performed multithreaded. Checking if the file exists and copying of the file should never
+      // happen simultaneously. Therefore this is synchronized using an object that only exists once in the JVM. (The akka system.)
+      // This is probably not the proper 'akka' way of doing things. But I could not find the proper way of doing things
+      // after an extensive web search and read through the akka documentation.
+      actorContext.system.synchronized {
+        if (!cachedCopyPath.exists) {
           val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
           originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
         }
-       cachedCopyPath.linkTo(executionPath)
+      }
+      cachedCopyPath.linkTo(executionPath)
     }.void
     logOnFailure(action, "cached copy file")
   }

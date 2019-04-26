@@ -37,9 +37,7 @@ cromwell::build::run_centaur \
     -e globbingbehavior \
     -e non_root_default_user \
     -e draft3_glob_access \
-    -e bad_output_task \
     -e cwl_interpolated_strings \
-    -e bad_file_string \
     -e non_root_specified_user \
     -e space \
     -e draft3_optional_input_from_scatter \

@@ -47,7 +47,7 @@ awscp() {
   while [ $initExitCode -ne 0 ]
   do
     echo "aws s3 $1 --sse AES256 --no-progress $2 $3"
-    aws s3 $1 --sse AES256 --no-progress "$2" "$3"
+    aws s3 "$1" --sse AES256 --no-progress "$2" "$3"
     initExitCode=$?
     if [ $initExitCode -ne 0 ]; then
       if [ $retryTimes -gt 4 ]; then
@@ -94,7 +94,13 @@ copyfile() {
     if [[ "$localname" == glob-*/"*" ]]; then
       awscp sync "${localdirectory}/${name}" "${s3location}"
     else
-      awscp cp "${localdirectory}/${localname}" "${s3location}"
+      localfilepath="${localdirectory}/${localname}"
+      if [ -e  "$localfilepath" ] ; then
+        awscp cp "${localfilepath}" "${s3location}"
+      else
+        echo "No such local file: ${localfilepath}"
+        exit 1
+      fi
     fi
   else
     awscp cp "${s3location}" "${localdirectory}/${localname}"
@@ -110,7 +116,7 @@ copyfiles() {
 }
 
 copyToS3() {
-  if [ ! -z "${1}" ]; then
+  if [ -n "${1}" ]; then
     awscp cp "${1}" "${2}"
   else
     echo "Variable defining file to be copied does not exist"
@@ -129,12 +135,12 @@ decompVal() {
 # copy outputs as necessary
 #
 ###########################################################################
-if [ ! -z "${AWS_CROMWELL_INPUTS}" ]; then 
+if [ -n "${AWS_CROMWELL_INPUTS}" ]; then
   echo "Copying input files from s3"
   copyfiles "${AWS_CROMWELL_INPUTS}" in
 fi
 
-if [ ! -z "${AWS_CROMWELL_INPUTS_GZ}" ]; then
+if [ -n "${AWS_CROMWELL_INPUTS_GZ}" ]; then
   echo "Copying input files from s3 (gzipped input)"
   inputs=$(decompVal "${AWS_CROMWELL_INPUTS_GZ}")
   copyfiles "${inputs}" in
@@ -145,18 +151,19 @@ fi
 docker start -i "${AWS_ECS_PROXY_TARGET_CONTAINER_ID}" > /dev/null
 rc=$?
 
-# If there are no outputs, there's no reason to go through the dance below.
-# We can just exit now
-if [ ! -z "${AWS_CROMWELL_OUTPUTS}" ]; then
-  echo "Copying output files to S3"
-  copyfiles "${AWS_CROMWELL_OUTPUTS}" out
-fi
 echo "Copying rc file"
 copyToS3 "${AWS_CROMWELL_RC_FILE}" "${AWS_CROMWELL_CALL_ROOT}/"
 echo "Copying stdout file"
 copyToS3 "${AWS_CROMWELL_STDOUT_FILE}" "${AWS_CROMWELL_CALL_ROOT}/"
 echo "Copying stderr file"
 copyToS3 "${AWS_CROMWELL_STDERR_FILE}" "${AWS_CROMWELL_CALL_ROOT}/"
+
+# Wait until copying stdout/stderr/rc before copying outputs to ensure they're always there in case of
+# transfer error. Check first that there are outputs prior to trying to copy the outputs
+if [ -n "${AWS_CROMWELL_OUTPUTS}" ]; then
+  echo "Copying output files to S3"
+  copyfiles "${AWS_CROMWELL_OUTPUTS}" out
+fi
 
 echo "Removing target container"
 docker rm "${AWS_ECS_PROXY_TARGET_CONTAINER_ID}"

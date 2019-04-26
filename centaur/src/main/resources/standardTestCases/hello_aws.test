@@ -1,10 +1,10 @@
-name: hello
+name: hello_aws
 testFormat: workflowsuccess
 backends: [AWSBATCH]
 
 files {
-  workflow: hello/hello.wdl
-  inputs: hello/hello.inputs
+  workflow: hello_aws/hello.wdl
+  inputs: hello_aws/hello.inputs
 }
 
 metadata {

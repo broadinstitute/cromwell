@@ -74,7 +74,6 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
       } else {
         leaseTry match {
           case thl: TokenHoggingLease =>
-            val oldQueue = queues(hogGroup)
             val (placeholder, newQueue) = oldQueue.dequeue
             val (newQueues, newQueueOrder) = if (newQueue.isEmpty) {
               (queues - hogGroup, remainingHogGroups ++ queuesTried)

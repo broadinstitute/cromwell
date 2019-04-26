@@ -50,9 +50,9 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     */
   def dequeue: DequeueResult = {
     val guaranteedNonEmptyQueues = queues.filterNot { case (hogGroup, q: Queue[_]) =>
-      val result = q.isEmpty
-      if (!result) logger.warn(s"Empty token queue value still present in TokenQueue: $hogGroup")
-      result
+      val empty = q.isEmpty
+      if (empty) logger.warn(s"Empty token queue value still present in TokenQueue: $hogGroup")
+      empty
     }
     recursingDequeue(guaranteedNonEmptyQueues, Vector.empty, queueOrder)
   }

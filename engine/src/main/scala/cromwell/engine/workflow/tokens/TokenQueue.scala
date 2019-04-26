@@ -51,7 +51,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
   def dequeue: DequeueResult = {
     val guaranteedNonEmptyQueues = queues.filterNot { case (hogGroup, q: Queue[_]) =>
       val empty = q.isEmpty
-      if (empty) logger.warn(s"Empty token queue value still present in TokenQueue: $hogGroup")
+      if (empty) logger.warn(s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup")
       empty
     }
     recursingDequeue(guaranteedNonEmptyQueues, Vector.empty, queueOrder)
@@ -69,7 +69,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
 
       if (oldQueue.isEmpty) {
         // We should have caught this above. But just in case:
-        logger.warn(s"Empty token queue value still present in TokenQueue: $hogGroup *and* made it through into recursiveDequeue(!): $hogGroup")
+        logger.warn(s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup *and* made it through into recursiveDequeue(!): $hogGroup")
         recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
       } else {
         leaseTry match {

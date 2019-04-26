@@ -30,7 +30,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
   it should "process jobs in the correct batch sizes" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 2.seconds, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
       override val metadataDatabaseInterface = mockDatabaseInterface(0)
     })
 
@@ -50,13 +50,15 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     eventually {
       writeActor.underlyingActor.batchSizes should be(Vector(10, 10, 7))
     }
+
+    writeActor.stop()
   }
 
   val failuresBetweenSuccessValues = List(0, 5, 9)
   failuresBetweenSuccessValues foreach { failureRate =>
     it should s"succeed metadata writes and respond to all senders even with $failureRate failures between each success" in {
       val registry = TestProbe().ref
-      val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 100.millis, registry, Int.MaxValue) {
+      val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
         override val metadataDatabaseInterface = mockDatabaseInterface(failureRate)
       })
 
@@ -79,12 +81,14 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       eventually {
         writeActor.underlyingActor.failureCount should be (5 * failureRate)
       }
+
+      writeActor.stop()
     }
   }
 
   it should s"fail metadata writes and respond to all senders with failures" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 100.millis, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
       override val metadataDatabaseInterface = mockDatabaseInterface(100)
     })
 
@@ -105,8 +109,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       case (probe, msg) => probe.expectMsg(MetadataWriteFailure(WriteMetadataActorSpec.IntermittentException, msg.events))
     }
     eventually {
-      writeActor.underlyingActor.failureCount should be(5 * 10)
+      writeActor.underlyingActor.failureCount should be (5 * 10)
     }
+
+    writeActor.stop()
   }
 
   // Mock database interface.
@@ -269,6 +275,8 @@ object WriteMetadataActorSpec {
 
     var batchSizes: Vector[Int] = Vector.empty
     var failureCount: Int = 0
+
+    override val recentArrivalThreshold = Some(100.millis)
 
     override def process(e: NonEmptyVector[MetadataWriteAction]) = {
       batchSizes = batchSizes :+ e.length

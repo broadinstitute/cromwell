@@ -280,7 +280,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     )
   }
   
-  private def extractDigestFromHeaders(headers: Headers) = {
+  private def extractDigestFromHeaders(headers: Headers): IO[DockerHashResult] = {
     headers.find(a => a.toRaw.name.equals(DigestHeaderName)) match {
       case Some(digest) => IO.fromEither(DockerHashResult.fromString(digest.value).toEither)
       case None => IO.raiseError(new Exception(s"Manifest response did not have a digest header"))

@@ -273,6 +273,8 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   }
 
   private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
+    case Status.Successful(r) if r.headers.exists(_.value.equalsIgnoreCase(ManifestV2MediaType)) =>
+      r.as[DockerManifest].flatMap(manifest => IO.fromEither(DockerHashResult.fromString(manifest.config.digest).toEither))
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
     case Status.Unauthorized(_) => IO.raiseError(new Unauthorized)
     case Status.NotFound(_) => IO.raiseError(new NotFound)

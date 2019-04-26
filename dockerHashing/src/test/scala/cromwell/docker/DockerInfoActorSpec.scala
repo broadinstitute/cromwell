@@ -41,9 +41,7 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
     }
   }
 
-  // `ignore`d as authorization currently fails. The expectation was copy/pasted from code elsewhere and may not
-  // turn out to be correct when the authorization issue is resolved.
-  it should "retrieve a public docker hash on ecr" taggedAs IntegrationTest ignore {
+  it should "retrieve a public docker hash on ecr" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("952500931424.dkr.ecr.us-east-1.amazonaws.com/broadinstitute/cromwell:latest")
 
     expectMsgPF(5 second) {

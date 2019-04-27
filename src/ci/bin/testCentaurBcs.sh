@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-# Temporary nerfing until the current zero-node cluster issue is resolved.
-exit 0
-
 set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways

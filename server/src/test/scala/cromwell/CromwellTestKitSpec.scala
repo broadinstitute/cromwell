@@ -14,6 +14,7 @@ import cromwell.core.path.BetterFileMethods.Cmds
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation}
 import cromwell.docker.{DockerHashResult, DockerInfoRequest}
+import cromwell.engine.MockCromwellTerminator
 import cromwell.engine.workflow.WorkflowManagerActor.RetrieveNewWorkflows
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.{CacheLookupNoHit, CacheLookupRequest}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
@@ -106,6 +107,8 @@ object CromwellTestKitSpec {
   private val testWorkflowManagerSystemCount = new AtomicInteger()
 
   class TestWorkflowManagerSystem extends CromwellSystem {
+    override val config = CromwellTestKitSpec.DefaultConfig
+
     override protected def systemName: String = "test-system-" + testWorkflowManagerSystemCount.incrementAndGet()
     override protected def newActorSystem() = ActorSystem(systemName, ConfigFactory.parseString(CromwellTestKitSpec.ConfigText))
     /**
@@ -175,7 +178,9 @@ object CromwellTestKitSpec {
     }
   }
 
-  lazy val DefaultConfig = ConfigFactory.load.withValue(
+  lazy val DefaultConfig = ConfigFactory.load
+
+  lazy val NooPServiceActorConfig = DefaultConfig.withValue(
     "services.LoadController.class", ConfigValueFactory.fromAnyRef("cromwell.services.NooPServiceActor")
   )
 
@@ -229,10 +234,12 @@ object CromwellTestKitSpec {
   private val ServiceRegistryActorSystem = akka.actor.ActorSystem("cromwell-service-registry-system")
 
   val ServiceRegistryActorInstance = {
-    ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(ConfigFactory.load()), "ServiceRegistryActor")
+    ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(CromwellTestKitSpec.DefaultConfig), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(override val config: Config)(implicit materializer: ActorMaterializer) extends CromwellRootActor(false, false, serverMode = true) {
+  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer)
+    extends CromwellRootActor(MockCromwellTerminator, false, false, serverMode = true, config = config) {
+
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
     override lazy val workflowStore = new InMemoryWorkflowStore
     override lazy val subWorkflowStore = new InMemorySubWorkflowStore(workflowStore)
@@ -308,7 +315,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
              workflowOptions: String = "{}",
              customLabels: String = "{}",
              terminalState: WorkflowState = WorkflowSucceeded,
-             config: Config = DefaultConfig,
+             config: Config = NooPServiceActorConfig,
              patienceConfig: PatienceConfig = defaultPatience)(implicit ec: ExecutionContext): Map[FullyQualifiedName, WomValue] = {
 
     val rootActor = buildCromwellRootActor(config)
@@ -334,7 +341,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
                              workflowOptions: String = "{}",
                              allowOtherOutputs: Boolean = true,
                              terminalState: WorkflowState = WorkflowSucceeded,
-                             config: Config = DefaultConfig,
+                             config: Config = NooPServiceActorConfig,
                              patienceConfig: PatienceConfig = defaultPatience)
                             (implicit ec: ExecutionContext): WorkflowId = {
     val rootActor = buildCromwellRootActor(config)

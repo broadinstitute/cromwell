@@ -4,7 +4,7 @@ package cromwell.backend.async
 import java.util.concurrent.ExecutionException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.{BackendJobDescriptor, SlowJobWarning}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.core.CromwellFatalExceptionMarker
@@ -40,7 +40,7 @@ object AsyncBackendJobExecutionActor {
   }
 }
 
-trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
+trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging with SlowJobWarning =>
 
   def dockerImageUsed: Option[String]
 
@@ -84,7 +84,7 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging =>
     context.stop(self)
   }
 
-  override def receive: Receive = {
+  override def receive: Receive = slowJobWarningReceive orElse {
     case mode: ExecutionMode => robustExecuteOrRecover(mode)
     case IssuePollRequest(handle) => robustPoll(handle)
     case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)

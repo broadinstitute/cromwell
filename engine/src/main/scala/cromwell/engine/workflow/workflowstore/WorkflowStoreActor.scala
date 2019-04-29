@@ -7,6 +7,7 @@ import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
+import cromwell.engine.CromwellTerminator
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
@@ -14,6 +15,7 @@ final case class WorkflowStoreActor private(
                                              workflowStore: WorkflowStore,
                                              workflowStoreAccess: WorkflowStoreAccess,
                                              serviceRegistryActor: ActorRef,
+                                             terminator: CromwellTerminator,
                                              abortAllJobsOnTerminate: Boolean,
                                              workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends Actor with ActorLogging with GracefulShutdownHelper {
@@ -40,6 +42,7 @@ final case class WorkflowStoreActor private(
     WorkflowStoreHeartbeatWriteActor.props(
       workflowStoreAccess = workflowStoreAccess,
       workflowHeartbeatConfig = workflowHeartbeatConfig,
+      terminator = terminator,
       serviceRegistryActor = serviceRegistryActor),
     "WorkflowStoreHeartbeatWriteActor")
 
@@ -82,6 +85,7 @@ object WorkflowStoreActor {
              workflowStoreDatabase: WorkflowStore,
              workflowStoreAccess: WorkflowStoreAccess,
              serviceRegistryActor: ActorRef,
+             terminator: CromwellTerminator,
              abortAllJobsOnTerminate: Boolean,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig
       ) = {
@@ -89,6 +93,7 @@ object WorkflowStoreActor {
       workflowStore = workflowStoreDatabase,
       workflowStoreAccess = workflowStoreAccess,
       serviceRegistryActor = serviceRegistryActor,
+      terminator = terminator,
       abortAllJobsOnTerminate = abortAllJobsOnTerminate,
       workflowHeartbeatConfig = workflowHeartbeatConfig)).withDispatcher(EngineDispatcher)
   }

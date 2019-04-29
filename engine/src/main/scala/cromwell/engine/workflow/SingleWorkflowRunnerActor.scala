@@ -7,6 +7,7 @@ import akka.actor._
 import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
+import com.typesafe.config.Config
 import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
@@ -14,6 +15,7 @@ import cromwell.core.abort.WorkflowAbortFailureResponse
 import cromwell.core.actor.BatchActor.QueueWeight
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.engine.CromwellTerminator
 import cromwell.engine.workflow.SingleWorkflowRunnerActor._
 import cromwell.engine.workflow.WorkflowManagerActor.{PreventNewWorkflowsFromStarting, RetrieveNewWorkflows}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
@@ -37,10 +39,13 @@ import scala.util.{Failure, Try}
  */
 class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                 metadataOutputPath: Option[Path],
+                                terminator: CromwellTerminator,
                                 gracefulShutdown: Boolean,
-                                abortJobsOnTerminate: Boolean
+                                abortJobsOnTerminate: Boolean,
+                                config: Config
                                 )(implicit materializer: ActorMaterializer)
-  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate, false) with LoggingFSM[RunnerState, SwraData] {
+  extends CromwellRootActor(terminator, gracefulShutdown, abortJobsOnTerminate, false, config)
+    with LoggingFSM[RunnerState, SwraData] {
 
   import SingleWorkflowRunnerActor._
   private val backoff = SimpleExponentialBackoff(1 second, 1 minute, 1.2)
@@ -220,9 +225,21 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
 object SingleWorkflowRunnerActor {
   def props(source: WorkflowSourceFilesCollection,
             metadataOutputFile: Option[Path],
+            terminator: CromwellTerminator,
             gracefulShutdown: Boolean,
-            abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer): Props = {
-    Props(new SingleWorkflowRunnerActor(source, metadataOutputFile, gracefulShutdown, abortJobsOnTerminate)).withDispatcher(EngineDispatcher)
+            abortJobsOnTerminate: Boolean,
+            config: Config)
+           (implicit materializer: ActorMaterializer): Props = {
+    Props(
+      new SingleWorkflowRunnerActor(
+        source = source,
+        metadataOutputPath = metadataOutputFile,
+        terminator = terminator,
+        gracefulShutdown = gracefulShutdown,
+        abortJobsOnTerminate = abortJobsOnTerminate,
+        config = config
+      )
+    ).withDispatcher(EngineDispatcher)
   }
 
   sealed trait RunnerMessage

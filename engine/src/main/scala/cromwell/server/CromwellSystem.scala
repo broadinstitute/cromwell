@@ -1,16 +1,18 @@
 package cromwell.server
 
-import akka.actor.{ActorSystem, DeadLetter, Props, Terminated}
+import akka.Done
+import akka.actor.{ActorSystem, CoordinatedShutdown, DeadLetter, Props, Terminated}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.Config
+import cromwell.engine.CromwellTerminator
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 
 import scala.concurrent.Future
 
-trait CromwellSystem {
+trait CromwellSystem extends CromwellTerminator {
   /*
   Initialize the service stores and their respective data access objects, if they haven't been already, before starting
   any services such as Metadata refresh and especially HTTP server binding. Some services like HTTP binding terminate
@@ -26,10 +28,10 @@ trait CromwellSystem {
   MetadataServicesStore.metadataDatabaseInterface
 
   protected def systemName = "cromwell-system"
-  val conf = ConfigFactory.load()
-  
+  def config: Config
+
   protected def newActorSystem(): ActorSystem = {
-    val system = ActorSystem(systemName, conf)
+    val system = ActorSystem(systemName, config)
     // This sets up our own dead letter listener that we can shut off during shutdown
     lazy val deadLetterListener = system.actorOf(Props(classOf[CromwellDeadLetterListener]), "DeadLetterListenerActor")
     system.eventStream.subscribe(deadLetterListener, classOf[DeadLetter])
@@ -39,6 +41,10 @@ trait CromwellSystem {
   implicit final lazy val actorSystem = newActorSystem()
   implicit final lazy val materializer = ActorMaterializer()
   implicit private final lazy val ec = actorSystem.dispatcher
+
+  override def beginCromwellShutdown(reason: CoordinatedShutdown.Reason): Future[Done] = {
+    CromwellShutdown.instance(actorSystem).run(reason)
+  }
 
   def shutdownActorSystem(): Future[Terminated] = {
     // If the actor system is already terminated it's already too late for a clean shutdown

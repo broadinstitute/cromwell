@@ -79,6 +79,8 @@ cromwell::private::create_build_variables() {
       CROMWELL_BUILD_IS_VIRTUAL_ENV=false
     fi
 
+    CROMWELL_BUILD_RUN_TESTS=true
+
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_IS_CI=true
@@ -98,6 +100,14 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_MYSQL_PASSWORD=""
             CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+
+            # Always run on sbt, even for 'push'.
+            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
+            if [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]]; then
+              CROMWELL_BUILD_RUN_TESTS=true
+            elif [[ "${TRAVIS_COMMIT_MESSAGE}" != *"[force ci]"* ]] && [[ "${TRAVIS_EVENT_TYPE}" == "push" ]]; then
+              CROMWELL_BUILD_RUN_TESTS=false
+            fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
@@ -332,9 +342,9 @@ cromwell::private::verify_secure_build() {
 }
 
 cromwell::private::export_conformance_variables() {
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
-    CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20180601100346"
-    CROMWELL_BUILD_CWL_TEST_COMMIT="eb73b5e70e65ab9303a814bd1c230b927018da8f" # use known git hash to avoid changes
+    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20190228155703"
+    CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20190228134645"
+    CROMWELL_BUILD_CWL_TEST_COMMIT="1f501e38ff692a408e16b246ac7d64d32f0822c2" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
     CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
     CROMWELL_BUILD_CWL_TEST_RESOURCES="${CROMWELL_BUILD_CWL_TEST_DIRECTORY}/v1.0/v1.0"
@@ -747,6 +757,10 @@ cromwell::private::kill_tree() {
 
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
+    if [[ "${CROMWELL_BUILD_RUN_TESTS}" == "false" ]]; then
+      echo "Use '[force ci]' in commit message to run tests on 'push'"
+      exit 0
+    fi
     cromwell::private::exec_test_script
 }
 

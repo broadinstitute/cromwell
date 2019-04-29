@@ -80,7 +80,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
           _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
           abortWorkflowId = submissionResponses.head.id
           _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
-          _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)))
+          _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
           workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
           _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
         } yield ()).futureValue
@@ -121,7 +121,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
             WorkflowStoreState.Submitted.toString,
             WorkflowStoreState.Running.toString
           )
-          _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)))
+          _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
           workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
           _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
         } yield ()).futureValue

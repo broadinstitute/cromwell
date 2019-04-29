@@ -73,5 +73,5 @@ AWS Batch allows the use of private Docker containers by providing `dockerhub` c
 
 ### More configuration options
 
-* `(backend.providers.AWSBatch.config.)concurrent-job-limit` specifies the number of jobs to send into AWS Batch at any given time. Tune this parameter based on how many nodes are in the compute environment.
+* `(backend.providers.AWSBatch.config.)concurrent-job-limit` specifies the number of jobs that Cromwell will allow to be running in AWS at the same time. Tune this parameter based on how many nodes are in the compute environment.
 * `(backend.providers.AWSBatch.config.)root` points to the S3 bucket where workflow outputs are stored. This becomes a path on the root instance, and by default is cromwell_root. This is monitored by preinstalled daemon that expands drive space on the host, ie AWS EBS autoscale.  This path is used as the 'local-disk' for containers.

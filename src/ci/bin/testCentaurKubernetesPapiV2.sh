@@ -4,7 +4,7 @@ set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
-source "${BASH_SOURCE%/*}/testKube.inc.sh" || source testKube.inc.sh
+source "${BASH_SOURCE%/*}/test_kube.inc.sh" || source test_kube.inc.sh
 
 # Setting these variables should cause the associated config values to be rendered into centaur_application_horicromtal.conf
 # There should probably be more indirections in CI scripts but that can wait.

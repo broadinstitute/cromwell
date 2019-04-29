@@ -6,7 +6,7 @@ metadata:
   labels:
     app: cromwell
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: cromwell
   ports:

@@ -6,6 +6,17 @@
 
 * It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).
 
+### AWS backend
+
+It is now possible to use WDL disk attributes with the following formats on AWS.
+```
+disks: "local-disk 20 SSD"
+```
+```
+disks: "/some/mnt 20 SSD"
+```
+Because AWS auto-sizes disks, the size specification is simply discarded.
+
 ### Config Changes
 
 #### Heartbeat failure shutdown

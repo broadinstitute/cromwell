@@ -33,7 +33,7 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 
 > [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and thus these attributes do not apply universally.
 
-| Runtime Attribute    | LOCAL |  Google Cloud  |  SGE  | AWS Batch |
+| Runtime Attribute    | LOCAL |  Google Cloud  |  SFS  | AWS Batch |
 | -------------------- |:-----:|:-----:|:-----:|:------:|
 | [cpu](#cpu)                  |       |   x   |   x   |  x  |
 | [memory](#memory)                              |       |   x   |   x   |  x  |
@@ -45,7 +45,7 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 
 
 
-### Cloud specific attributes
+### Google Cloud Specific Attributes
 There are a number of additional runtime attributes that apply to the Google Cloud Platform:
 
 - [zones](#zones)
@@ -167,7 +167,7 @@ Note: If provided, `cpuMin` and/or `cpuMax` will be available to the [HPC runtim
 Memory is the amount of RAM that should be allocated to a task, however each backend may interpret this differently:
 
 - Google Cloud: The minimum amount of RAM to use.
-- SGE: Configurable, but usually a reservation and/or limit of memory.
+- SFS: Configurable, but usually a reservation and/or limit of memory.
 
 The memory size is specified as an amount and units of memory, for example "4G":
 
@@ -233,7 +233,7 @@ runtime {
 - Local: Cromwell will automatically run the docker container.
 - SFS: When a docker container exists within a task, the `submit-docker` method is called. See the [Getting started with containers](/tutorials/Containers/) guide for more information.
 - GCP: This attribute is mandatory when submitting tasks to Google Cloud.
-- AWS Batch: This field is mandatory when submitting tasks to AWS Batch.
+- AWS Batch: This attribute is mandatory when submitting tasks to AWS Batch.
 
 
 ### `maxRetries`

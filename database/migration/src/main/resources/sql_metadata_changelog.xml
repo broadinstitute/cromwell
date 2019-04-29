@@ -11,5 +11,6 @@
     <include file="metadata_changesets/add_parent_and_root_workflow_execution_uuid.xml" relativeToChangelogFile="true"/>
     <include file="metadata_changesets/add_parent_and_root_workflow_typo_fix.xml" relativeToChangelogFile="true"/>
     <include file="metadata_changesets/metadata_index_removals.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/postgresql_metadata_schema.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="chrisl" id="WORKFLOW_STORE">
+    <changeSet author="chrisl" id="WORKFLOW_STORE" dbms="mysql,hsqldb">
         <comment>
             Temporary storage area for workflows that are still in progress.
         </comment>
@@ -38,14 +38,14 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="kshakir" id="workflow_store_uuid_index">
+    <changeSet author="kshakir" id="workflow_store_uuid_index" dbms="mysql,hsqldb">
         <addUniqueConstraint
                 constraintName="WORKFLOW_STORE_UUID_IDX"
                 tableName="WORKFLOW_STORE"
                 columnNames="WORKFLOW_UUID" />
     </changeSet>
 
-    <changeSet author="chrisl" id="workflow_store_state_index">
+    <changeSet author="chrisl" id="workflow_store_state_index" dbms="mysql,hsqldb">
         <createIndex indexName="WORKFLOW_STORE_STATE_IDX"
                      tableName="WORKFLOW_STORE" unique="false">
             <column name="WORKFLOW_STATE"/>

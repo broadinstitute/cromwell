@@ -42,6 +42,8 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
   "MetadataDatabaseAccess (mariadb)" should behave like testWith("database-test-mariadb")
 
+  "MetadataDatabaseAccess (postgresql)" should behave like testWith("database-test-postgresql")
+
   implicit val ec = ExecutionContext.global
 
   implicit val defaultPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(100, Millis)))

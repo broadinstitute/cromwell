@@ -20,10 +20,11 @@ package cromwell.database.sql
   * - `Double`
   * - `Int`
   * - `Long`
-  * - `java.sql.Clob`
+  * - `javax.sql.rowset.serial.SerialClob`
   * - `java.sql.Timestamp`
   *
-  * Nullable columns should be wrapped in an `Option`.
+  * Nullable columns should be wrapped in an `Option`.  Note that SerialClob is
+  * required instead of java.sql.Clob, for Postgres support.
   *
   * Primary and foreign key columns are the only columns that should be defaulted, as they are to be filled in by the
   * database, and cannot and should not be set within the business logic. On the other hand, columns to be filled in by

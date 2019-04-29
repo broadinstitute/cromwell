@@ -1,6 +1,6 @@
 package cromwell.database.slick.tables
 
-import java.sql.Clob
+import javax.sql.rowset.serial.SerialClob
 
 import cromwell.database.sql.tables.JobStoreSimpletonEntry
 import slick.model.ForeignKeyAction.Cascade
@@ -16,7 +16,7 @@ trait JobStoreSimpletonEntryComponent {
 
     def simpletonKey = column[String]("SIMPLETON_KEY", O.Length(255))
 
-    def simpletonValue = column[Option[Clob]]("SIMPLETON_VALUE")
+    def simpletonValue = column[Option[SerialClob]]("SIMPLETON_VALUE")
 
     def wdlType = column[String]("WDL_TYPE", O.Length(255))
 

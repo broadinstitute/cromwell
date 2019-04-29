@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="workflow-store-restarted-column">
+    <changeSet author="tjeandet" id="workflow-store-restarted-column" dbms="mysql,hsqldb">
         <addColumn
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="RESTARTED" type="BOOLEAN" valueBoolean = "false">
@@ -11,7 +11,7 @@
             </column>
         </addColumn>
     </changeSet>
-    <changeSet author="tjeandet" id="update-restartable">
+    <changeSet author="tjeandet" id="update-restartable" dbms="mysql,hsqldb">
         <!--RestartableRunning to Running-->
         <update
                 tableName="WORKFLOW_STORE_ENTRY">

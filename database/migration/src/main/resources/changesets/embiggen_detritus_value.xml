@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="rmunshi" id="embiggen_call_caching_detritus_entry">
+    <changeSet author="rmunshi" id="embiggen_call_caching_detritus_entry" dbms="mysql,hsqldb">
         <modifyDataType tableName="CALL_CACHING_DETRITUS_ENTRY"
                         columnName="DETRITUS_VALUE"
                         newDataType="${clob.type}"/>

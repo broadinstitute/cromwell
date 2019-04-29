@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="chrisl" id="JOB_STORE">
+    <changeSet author="chrisl" id="JOB_STORE" dbms="mysql,hsqldb">
         <comment>
             Temporary storage area for completed jobs which belong to workflows that are still in progress.
         </comment>
@@ -49,14 +49,14 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="chrisl" id="job_store_uuid_index">
+    <changeSet author="chrisl" id="job_store_uuid_index" dbms="mysql,hsqldb">
         <createIndex indexName="JOB_STORE_UUID_IDX"
                      tableName="JOB_STORE">
             <column name="WORKFLOW_UUID"/>
         </createIndex>
     </changeSet>
 
-    <changeSet author="chrisl" id="job_store_jobkey_index">
+    <changeSet author="chrisl" id="job_store_jobkey_index" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="JOB_STORE_JOBKEY_IDX"
                      tableName="JOB_STORE" columnNames="WORKFLOW_UUID, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT" />
 

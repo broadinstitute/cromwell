@@ -297,6 +297,33 @@ url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=U
 
 Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
 
+**Using Cromwell with Postgresql**
+
+To use Postgresql as the database, you will need to install and enable the
+Large Object extension.  If the extension is present, setting up the database
+requires just these commands:
+
+```
+$ createdb cromwell
+$ psql -d cromwell -c "create extension lo;"
+```
+
+Postgresql configuration in Cromwell is very similar to MySQL.  An example:
+
+```hocon
+database {
+  profile = "slick.jdbc.PostgresProfile$"
+  db {
+    driver = "org.postgresql.Driver"
+    url = "jdbc:postgresql//localhost:5432/cromwell"
+    user = "user"
+    password = "pass"
+    port = 5432
+    connectionTimeout = 5000
+  }
+}
+```
+
 ### Abort
 
 **Control-C (SIGINT) abort handler**

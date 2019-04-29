@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="custom_LABEL_entry" author="rmunshi">
+    <changeSet id="custom_LABEL_entry" author="rmunshi" dbms="mysql,hsqldb">
         <createTable tableName="CUSTOM_LABEL_ENTRY">
             <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
@@ -20,7 +20,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet author="rmunshi" id="WMSE_workflow_execution_uuid_foreign_key">
+    <changeSet author="rmunshi" id="WMSE_workflow_execution_uuid_foreign_key" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID"
                                  baseTableName="CUSTOM_LABEL_ENTRY"
                                  baseColumnNames="WORKFLOW_EXECUTION_UUID"
@@ -30,13 +30,13 @@
         />
     </changeSet>
 
-    <changeSet author="rmunshi" id="custom_label_entry_index">
+    <changeSet author="rmunshi" id="custom_label_entry_index" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UC_CUSTOM_LABEL_ENTRY_CLK_CLV_WEU"
                              tableName="CUSTOM_LABEL_ENTRY" columnNames="CUSTOM_LABEL_KEY, CUSTOM_LABEL_VALUE, WORKFLOW_EXECUTION_UUID" />
 
     </changeSet>
 
-    <changeSet author="rmunshi" id="modify label key/value data types">
+    <changeSet author="rmunshi" id="modify label key/value data types" dbms="mysql,hsqldb">
         <modifyDataType tableName="CUSTOM_LABEL_ENTRY" columnName="CUSTOM_LABEL_KEY" newDataType="VARCHAR(63)"/>
         <modifyDataType tableName="CUSTOM_LABEL_ENTRY" columnName="CUSTOM_LABEL_VALUE" newDataType="VARCHAR(63)"/>
     </changeSet>

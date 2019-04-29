@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="mcovarr" id="entry_or_journal_existence_xor">
+    <changeSet author="mcovarr" id="entry_or_journal_existence_xor" dbms="mysql,hsqldb">
         <preConditions>
             <or>
                 <and>
@@ -25,7 +25,7 @@
         </comment>
     </changeSet>
 
-    <changeSet author="mcovarr" id="embiggen_metadata_entry">
+    <changeSet author="mcovarr" id="embiggen_metadata_entry" dbms="mysql,hsqldb">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="METADATA_ENTRY"/>
         </preConditions>
@@ -36,7 +36,7 @@
         <modifyDataType tableName="METADATA_ENTRY" columnName="METADATA_VALUE" newDataType="LONGTEXT"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="embiggen_metadata_journal">
+    <changeSet author="mcovarr" id="embiggen_metadata_journal" dbms="mysql,hsqldb">
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="METADATA_JOURNAL"/>
         </preConditions>

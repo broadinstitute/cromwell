@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="tjeandet" id="SUB_WORKFLOW_STORE_ENTRY">
+    <changeSet author="tjeandet" id="SUB_WORKFLOW_STORE_ENTRY" dbms="mysql,hsqldb">
         <comment>
             Temporary storage area for sub workflows which belong to workflows that are still in progress.
         </comment>
@@ -40,20 +40,20 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="tjeandet" id="sub_workflow_store_uuid_index">
+    <changeSet author="tjeandet" id="sub_workflow_store_uuid_index" dbms="mysql,hsqldb">
         <createIndex indexName="IX_SUB_WORKFLOW_STORE_ENTRY_PWEU"
                      tableName="SUB_WORKFLOW_STORE_ENTRY">
             <column name="PARENT_WORKFLOW_EXECUTION_UUID"/>
         </createIndex>
     </changeSet>
 
-    <changeSet author="tjeandet" id="sub_workflow_store_jobkey_index">
+    <changeSet author="tjeandet" id="sub_workflow_store_jobkey_index" dbms="mysql,hsqldb">
         <addUniqueConstraint constraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"
                      tableName="SUB_WORKFLOW_STORE_ENTRY" columnNames="PARENT_WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, CALL_INDEX, CALL_ATTEMPT" />
 
     </changeSet>
 
-    <changeSet author="tjeandet" id="sub_workflow_store_root_workflow_fk">
+    <changeSet author="tjeandet" id="sub_workflow_store_root_workflow_fk" dbms="mysql,hsqldb">
     <addForeignKeyConstraint constraintName="FK_SUB_WORKFLOW_STORE_ROOT_WORKFLOW_ID_WORKFLOW_STORE_ENTRY_ID" onDelete="CASCADE"
                              referencedTableName="WORKFLOW_STORE_ENTRY" referencedColumnNames="WORKFLOW_STORE_ENTRY_ID"
                              baseTableName="SUB_WORKFLOW_STORE_ENTRY" baseColumnNames="ROOT_WORKFLOW_ID"/>

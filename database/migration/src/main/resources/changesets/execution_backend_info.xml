@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
@@ -36,31 +37,33 @@
     </changeSet>
 
     <changeSet id="insert_data_from_backend_tables" author="mcovarr">
+        <validCheckSum>7:048b888da01dd85b94dd0eb57dc9ebb3</validCheckSum>
         <sql>
-            insert into EXECUTION_INFO(EXECUTION_ID, INFO_KEY, INFO_VALUE)
-            select EXECUTION_ID, "JES_RUN_ID", JES_RUN_ID from JES_JOB;
+            insert into "EXECUTION_INFO"("EXECUTION_ID", "INFO_KEY", "INFO_VALUE")
+            select "EXECUTION_ID", 'JES_RUN_ID', "JES_RUN_ID" from "JES_JOB";
 
-            insert into EXECUTION_INFO(EXECUTION_ID, INFO_KEY, INFO_VALUE)
-            select EXECUTION_ID, "JES_STATUS", JES_STATUS from JES_JOB;
+            insert into "EXECUTION_INFO"("EXECUTION_ID", "INFO_KEY", "INFO_VALUE")
+            select "EXECUTION_ID", 'JES_STATUS', "JES_STATUS" from "JES_JOB";
 
-            insert into EXECUTION_INFO(EXECUTION_ID, INFO_KEY, INFO_VALUE)
-            select EXECUTION_ID, "PID", PID from LOCAL_JOB;
+            insert into "EXECUTION_INFO"("EXECUTION_ID", "INFO_KEY", "INFO_VALUE")
+            select "EXECUTION_ID", 'PID', "PID" from "LOCAL_JOB";
 
-            insert into EXECUTION_INFO(EXECUTION_ID, INFO_KEY, INFO_VALUE)
-            select EXECUTION_ID, "SGE_JOB_NUMBER", SGE_JOB_NUMBER from SGE_JOB;
+            insert into "EXECUTION_INFO"("EXECUTION_ID", "INFO_KEY", "INFO_VALUE")
+            select "EXECUTION_ID", 'SGE_JOB_NUMBER', "SGE_JOB_NUMBER" from "SGE_JOB";
         </sql>
     </changeSet>
 
     <changeSet id="set_backend_type" author="mcovarr">
+        <validCheckSum>7:6e3f9eed14d8a266b11755e3fcfbbf6b</validCheckSum>
         <sql>
-            update EXECUTION e set BACKEND_TYPE = 'JES' where exists
-            (select 1 from JES_JOB jj where jj.EXECUTION_ID = e.EXECUTION_ID);
+            update "EXECUTION" e set "BACKEND_TYPE" = 'JES' where exists
+            (select 1 from "JES_JOB" jj where jj."EXECUTION_ID" = e."EXECUTION_ID");
 
-            update EXECUTION e set BACKEND_TYPE = 'SGE' where exists
-            (select 1 from SGE_JOB sj where sj.EXECUTION_ID = e.EXECUTION_ID);
+            update "EXECUTION" e set "BACKEND_TYPE" = 'SGE' where exists
+            (select 1 from "SGE_JOB" sj where sj."EXECUTION_ID" = e."EXECUTION_ID");
 
-            update EXECUTION e set BACKEND_TYPE = 'Local' where exists
-            (select 1 from LOCAL_JOB lj where lj.EXECUTION_ID = e.EXECUTION_ID);
+            update "EXECUTION" e set "BACKEND_TYPE" = 'Local' where exists
+            (select 1 from "LOCAL_JOB" lj where lj."EXECUTION_ID" = e."EXECUTION_ID");
         </sql>
     </changeSet>
 

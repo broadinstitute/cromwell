@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="metadata_journal_id_int_to_big_int" author="kshakir">
+    <changeSet id="metadata_journal_id_int_to_big_int" author="kshakir" dbms="!postgresql">
+        <validCheckSum>7:ee1ad4f2c555c3808f72d3dab4a4bc3e</validCheckSum>
         <modifyDataType tableName="METADATA_JOURNAL" columnName="METADATA_JOURNAL_ID" newDataType="BIGINT" />
         <addAutoIncrement tableName="METADATA_JOURNAL" columnName="METADATA_JOURNAL_ID" columnDataType="BIGINT" />
+    </changeSet>
+
+    <changeSet id="metadata_journal_id_seq_int_to_big_int" author="kshakir" dbms="postgresql">
+        <modifyDataType tableName="METADATA_JOURNAL" columnName="METADATA_JOURNAL_ID" newDataType="BIGINT" />
     </changeSet>
 
     <changeSet id="workflow_metadata_summary" author="mcovarr">

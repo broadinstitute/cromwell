@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
@@ -7,12 +8,14 @@
     <property name="boolean.type" value="TINYINT" dbms="mysql"/>
 
     <changeSet id="job_store_fix_job_successful" author="mcovarr">
+        <validCheckSum>7:4541504163dd898f74c8f1d0649da9b3</validCheckSum>
         <modifyDataType columnName="JOB_SUCCESSFUL"
                         newDataType="${boolean.type}"
                         tableName="JOB_STORE"/>
     </changeSet>
 
     <changeSet id="job_store_fix_job_retryable_failure" author="mcovarr">
+        <validCheckSum>7:6a28d1917bfb60249f7d711b9a609c11</validCheckSum>
         <modifyDataType columnName="RETRYABLE_FAILURE"
                         newDataType="${boolean.type}"
                         tableName="JOB_STORE"/>
@@ -20,6 +23,7 @@
     </changeSet>
 
     <changeSet id="job_store_not_nullable_job_successful" author="mcovarr">
+        <validCheckSum>7:f3e1f547394018eea72bc6a4ed6f6d9d</validCheckSum>
         <addNotNullConstraint tableName="JOB_STORE"
                               columnName="JOB_SUCCESSFUL"
                               columnDataType="${boolean.type}" />

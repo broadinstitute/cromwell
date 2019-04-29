@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <changeSet author="mcovarr" id="metadata_journal">
+        <validCheckSum>7:a7e302437c678cbb8c9fed16c6ce3eb6</validCheckSum>
         <createTable tableName="METADATA_JOURNAL">
             <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>

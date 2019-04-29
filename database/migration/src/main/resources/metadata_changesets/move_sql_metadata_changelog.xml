@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <property name="serial.type" value="BIGINT" dbms="!postgresql"/>
+    <property name="serial.type" value="BIGSERIAL" dbms="postgresql"/>
 
     <changeSet author="kshakir" id="move_metadata_changelog">
         <preConditions onFail="MARK_RAN">
@@ -11,7 +15,7 @@
         </preConditions>
 
         <createTable tableName="CUSTOM_LABEL_ENTRY">
-            <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="BIGINT">
+            <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="${serial.type}">
                 <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
             </column>
             <column name="CUSTOM_LABEL_KEY" type="VARCHAR(63)">
@@ -25,7 +29,7 @@
             </column>
         </createTable>
         <createTable tableName="METADATA_ENTRY">
-            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="BIGINT">
+            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="${serial.type}">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
@@ -58,7 +62,7 @@
             </column>
         </createTable>
         <createTable tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
-            <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" type="BIGINT">
+            <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" type="${serial.type}">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">

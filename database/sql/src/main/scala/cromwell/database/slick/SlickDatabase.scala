@@ -58,6 +58,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
   protected val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
+  lazy val isPostgresql = databaseConfig.getOrElse("db.driver", "unknown") == "org.postgresql.Driver"
 
   /*
   Not a def because we need to have a "stable identifier" for the imports below.
@@ -136,7 +137,8 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
 
   protected[this] lazy val useSlickUpserts =
-    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate) &&
+    (!isPostgresql)
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {
@@ -167,6 +169,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel))
   }
 
+  // this should be avoided due to postgres large object issues
   protected[this] def runAction[R](action: DBIO[R]): Future[R] = {
     runActionInternal(action.withPinnedSession)
   }

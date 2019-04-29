@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
     <property name="boolean.type" value="BOOLEAN" dbms="!mysql"/>
     <property name="boolean.type" value="TINYINT" dbms="mysql"/>
     <changeSet author="chrisl" id="call_result_caching">
+        <validCheckSum>7:5148ab992677684a1375c00138921705</validCheckSum>
         <comment>Adding some tracking columns for determining eligibility for Call Result Caching.</comment>
         <addColumn tableName="EXECUTION">
             <column name="ALLOWS_RESULT_REUSE" type="${boolean.type}" defaultValueBoolean="true" >

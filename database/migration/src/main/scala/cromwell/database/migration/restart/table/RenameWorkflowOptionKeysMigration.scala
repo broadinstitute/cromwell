@@ -6,9 +6,9 @@ import liquibase.database.jvm.JdbcConnection
 import spray.json._
 
 object RenameWorkflowOptionKeysMigration {
-  private val QueryWorkflowStore = " SELECT WORKFLOW_STORE_ID, WORKFLOW_OPTIONS FROM WORKFLOW_STORE "
+  private val QueryWorkflowStore = """ SELECT "WORKFLOW_STORE_ID", "WORKFLOW_OPTIONS" FROM "WORKFLOW_STORE" """
 
-  private val UpdateWorkflowStore = " UPDATE WORKFLOW_STORE SET WORKFLOW_OPTIONS = ? WHERE WORKFLOW_STORE_ID = ? "
+  private val UpdateWorkflowStore = """ UPDATE "WORKFLOW_STORE" SET "WORKFLOW_OPTIONS" = ? WHERE "WORKFLOW_STORE_ID" = ? """
 }
 
 

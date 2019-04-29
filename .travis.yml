@@ -3,11 +3,18 @@ dist: trusty
 services:
   - docker
   - mysql
+  - postgresql
 language: scala
 scala:
   - 2.12.6
 jdk:
   - oraclejdk8
+addons:
+  postgresql: "9.6"
+  apt:
+    packages:
+      - postgresql-client-9.6
+      - postgresql-contrib-9.6
 cache:
   directories:
     - $HOME/.ivy2/cache
@@ -43,6 +50,9 @@ env:
     - BUILD_TYPE=dockerDeadlock
     - BUILD_TYPE=dockerScripts
     - BUILD_TYPE=sbt
+before_script:
+  - createdb -U postgres cromwell
+  - psql -U postgres -c "create extension lo;"
 script:
   - src/ci/bin/test.sh
 notifications:

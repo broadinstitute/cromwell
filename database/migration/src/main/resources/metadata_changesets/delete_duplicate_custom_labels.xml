@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <changeSet author="kshakir" id="delete_duplicate_custom_labels">
+        <validCheckSum>7:ec68c628482c67e139af77428d16d53d</validCheckSum>
         <comment>
             Delete the rows from CUSTOM_LABEL_ENTRY with duplicate (CLK, WEU) entries keeping only the rows with the
             largest primary key. Then drop the unique constraint that expands over the columns (CLK, CLV, WEU),
@@ -11,11 +13,11 @@
         </comment>
         <delete tableName="CUSTOM_LABEL_ENTRY">
             <where>
-                CUSTOM_LABEL_ENTRY_ID NOT IN (
+                "CUSTOM_LABEL_ENTRY_ID" NOT IN (
                     SELECT * FROM (
-                        SELECT MAX(CUSTOM_LABEL_ENTRY_ID)
-                        FROM CUSTOM_LABEL_ENTRY
-                        GROUP BY CUSTOM_LABEL_KEY, WORKFLOW_EXECUTION_UUID
+                        SELECT MAX("CUSTOM_LABEL_ENTRY_ID")
+                        FROM "CUSTOM_LABEL_ENTRY"
+                        GROUP BY "CUSTOM_LABEL_KEY", "WORKFLOW_EXECUTION_UUID"
                     ) AS TEMPORARY_TABLE
                 )
             </where>

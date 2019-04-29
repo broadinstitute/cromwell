@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
     <changeSet author="scottfrazer" id="db_schema_other_table_alldb">
+        <validCheckSum>7:4bff83dd09d67fa4fd48062489071a3a</validCheckSum>
         <createTable tableName="WORKFLOW_EXECUTION">
             <column autoIncrement="true" name="WORKFLOW_EXECUTION_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_EXECUTION"/>

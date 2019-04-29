@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
@@ -23,12 +24,13 @@
         `WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING` **backwards** to the summary-pointer of
         `WORKFLOW_METADATA_SUMMARY_ENTRY'.
         -->
+        <validCheckSum>7:dcbfdf2865ad50690f8bef99cd562111</validCheckSum>
         <delete tableName="SUMMARY_STATUS_ENTRY">
-            <where>SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING'</where>
+            <where>"SUMMARY_NAME" = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING'</where>
         </delete>
         <update tableName="SUMMARY_STATUS_ENTRY">
             <column name="SUMMARY_NAME" value="WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING" type="VARCHAR(255)"/>
-            <where>SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY_ENTRY'</where>
+            <where>"SUMMARY_NAME" = 'WORKFLOW_METADATA_SUMMARY_ENTRY'</where>
         </update>
     </changeSet>
 

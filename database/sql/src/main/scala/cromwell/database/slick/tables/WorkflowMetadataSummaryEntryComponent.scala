@@ -65,6 +65,14 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry)
 
+  // workaround for slick+postgres+autoincrement behavior
+  val workflowMetadataSummaryEntriesForWorkflowExecutionUuidTupled = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      e <- workflowMetadataSummaryEntries
+      if e.workflowExecutionUuid === workflowExecutionUuid
+    } yield (e.workflowExecutionUuid, e.workflowName, e.workflowStatus, e.startTimestamp, e.endTimestamp, e.submissionTimestamp)
+  )
+
   val workflowMetadataSummaryEntryExistsForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       summaryEntry <- workflowMetadataSummaryEntries

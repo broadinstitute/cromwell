@@ -10,17 +10,17 @@ class RenameWorkflowOptionsInMetadata extends BatchedTaskChange {
   val tableName = "METADATA_ENTRY"
   val primaryKeyColumn = "METADATA_JOURNAL_ID"
   val workflowOptionsColumn = "METADATA_VALUE"
-  val additionalReadBatchFilters = "AND METADATA_KEY = 'submittedFiles:options'"
+  val additionalReadBatchFilters = """AND "METADATA_KEY" = 'submittedFiles:options'"""
 
-  override def readCountQuery = s"SELECT MAX($primaryKeyColumn) FROM $tableName;"
+  override def readCountQuery = s"""SELECT MAX("$primaryKeyColumn") FROM "$tableName";"""
 
   override def readBatchQuery =
-    s"""|SELECT $primaryKeyColumn, $workflowOptionsColumn
-        |  FROM $tableName
-        |  WHERE $primaryKeyColumn >= ? AND $primaryKeyColumn < ? $additionalReadBatchFilters;
+    s"""|SELECT "$primaryKeyColumn", "$workflowOptionsColumn"
+        |  FROM "$tableName"
+        |  WHERE "$primaryKeyColumn" >= ? AND "$primaryKeyColumn" < ? $additionalReadBatchFilters;
         |""".stripMargin
 
-  override def migrateBatchQueries = List(s"UPDATE $tableName SET $workflowOptionsColumn = ? WHERE $primaryKeyColumn = ?;")
+  override def migrateBatchQueries = List(s"""UPDATE "$tableName" SET "$workflowOptionsColumn" = ? WHERE "$primaryKeyColumn" = ?;""")
 
   override def migrateBatchRow(readRow: ResultSet, migrateStatements: List[PreparedStatement]): Int = {
     val migrateStatement = migrateStatements.head

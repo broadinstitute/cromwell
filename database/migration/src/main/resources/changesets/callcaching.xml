@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+    <property name="clob.type" value="LONGTEXT" dbms="postgresql"/>
 
     <changeSet author="chrisl" id="call_caching_result_metainfo">
+        <validCheckSum>7:0bdd7c30a9b5ea19ad9643e565abb239</validCheckSum>
         <comment>
             One row per cached job result.
             Stores meta info about which job the result came from.
@@ -47,6 +50,7 @@
     </changeSet>
 
     <changeSet author="chrisl" id="call_caching_hashes">
+        <validCheckSum>7:a4acee576852838a7aa0fda62afd1636</validCheckSum>
         <comment>
             One row per hashkey per call cache meta info.
             Allows us to link hash keys and values to any matching call cache results.
@@ -87,6 +91,7 @@
     </changeSet>
 
     <changeSet author="chrisl" id="call_caching_result_simpletons">
+        <validCheckSum>7:ab06f8e745f0cce6e872528413945361</validCheckSum>
         <comment>
             One row per result simpleton in the job result.
             Simpleton: a single non-complex WDL value.

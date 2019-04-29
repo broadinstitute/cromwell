@@ -41,7 +41,9 @@ trait CustomLabelEntryComponent {
       customLabelEntry <- customLabelEntries
       if customLabelEntry.workflowExecutionUuid === workflowExecutionUuid &&
         customLabelEntry.customLabelKey === labelKey
-    } yield customLabelEntry)
+    } yield (customLabelEntry.customLabelKey,
+             customLabelEntry.customLabelValue,
+             customLabelEntry.workflowExecutionUuid))
 
   def existsWorkflowIdLabelKeyAndValue(workflowId: Rep[String],
                                        labelKey: Rep[String],

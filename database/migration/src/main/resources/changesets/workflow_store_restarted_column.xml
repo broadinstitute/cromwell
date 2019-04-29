@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
@@ -12,18 +13,19 @@
         </addColumn>
     </changeSet>
     <changeSet author="tjeandet" id="update-restartable">
+        <validCheckSum>7:603652eeb80f37837bd8ed3d0cda1b8a</validCheckSum>
         <!--RestartableRunning to Running-->
         <update
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="WORKFLOW_STATE" value="Running" />
-            <where>WORKFLOW_STATE = 'RestartableRunning'</where>
+            <where>"WORKFLOW_STATE" = 'RestartableRunning'</where>
         </update>
 
         <!--RestartableAborting to Aborting-->
         <update
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="WORKFLOW_STATE" value="Aborting" />
-            <where>WORKFLOW_STATE = 'RestartableAborting'</where>
+            <where>"WORKFLOW_STATE" = 'RestartableAborting'</where>
         </update>
 
         <!--Note: there's no need to set the flags to true because that's the first thing Cromwell will do when it starts-->

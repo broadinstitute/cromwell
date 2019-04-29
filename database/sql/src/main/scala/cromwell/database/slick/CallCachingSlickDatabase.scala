@@ -15,6 +15,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
+  import SqlTableConverters._
 
   override def addCallCaching(joins: Seq[CallCachingJoin], batchSize: Int)
                              (implicit ec: ExecutionContext): Future[Unit] = {
@@ -102,6 +103,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     runTransaction(action)
   }
 
+  private def withLargeObjects(join: CallCachingJoin): CallCachingJoin =
+    if (isPostgresql) join.withLargeObjects else join
+
   override def queryResultsForCacheId(callCachingEntryId: Int)
                                      (implicit ec: ExecutionContext): Future[Option[CallCachingJoin]] = {
     val action = for {
@@ -114,7 +118,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     } yield callCachingEntryOption.map(
       CallCachingJoin(_, Seq.empty, None, callCachingSimpletonEntries, callCachingDetritusEntries))
 
-    runTransaction(action)
+    runTransaction(action.map(_.map(withLargeObjects)))
   }
 
   private def callCacheJoinFromEntryQuery(callCachingEntry: CallCachingEntry)
@@ -142,7 +146,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
         callCachingEntriesForWorkflowFqnIndex((workflowExecutionUuid, callFqn, index)).result.headOption
       callCacheJoin <- callCachingEntryOption
         .fold[DBIOAction[Option[CallCachingJoin], NoStream, Effect.All]](DBIO.successful(None))(callCacheJoinFromEntryQuery(_).map(Option.apply))
-    } yield callCacheJoin
+    } yield callCacheJoin.map(withLargeObjects)
 
     runTransaction(action)
   }

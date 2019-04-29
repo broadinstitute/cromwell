@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
     <changeSet author="scottfrazer" id="sge">
-
+        <validCheckSum>7:0f2f2908f2fb02c5d1fe54a55377d83d</validCheckSum>
         <createTable tableName="SGE_JOB">
             <column autoIncrement="true" name="SGE_JOB_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_SGE_JOB"/>

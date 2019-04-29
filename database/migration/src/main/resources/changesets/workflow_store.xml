@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
+    <property name="clob.type" value="LONGTEXT" dbms="postgresql"/>
 
     <changeSet author="chrisl" id="WORKFLOW_STORE">
+        <validCheckSum>7:1655e18826cf1d242664f6b261ab039e</validCheckSum>
         <comment>
             Temporary storage area for workflows that are still in progress.
         </comment>

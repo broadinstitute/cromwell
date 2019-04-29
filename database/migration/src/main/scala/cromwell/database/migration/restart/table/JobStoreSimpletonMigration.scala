@@ -14,30 +14,30 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
   private val QueryOutputsForDoneCallsInRunningWorkflows =
   """
       SELECT
-        js.JOB_STORE_ID,   -- 1
-        s.NAME,            -- 2
-        s.WDL_VALUE,       -- 3
-        s.WDL_TYPE         -- 4
-      FROM EXECUTION e
-        JOIN WORKFLOW_EXECUTION we
-          ON we.WORKFLOW_EXECUTION_ID = e.WORKFLOW_EXECUTION_ID
-        JOIN SYMBOL s
-          ON s.WORKFLOW_EXECUTION_ID = e.WORKFLOW_EXECUTION_ID
-        JOIN JOB_STORE js
-          ON js.WORKFLOW_UUID     = we.WORKFLOW_EXECUTION_UUID AND
-             js.CALL_FQN          = e.CALL_FQN AND
-             js.JOB_SCATTER_INDEX = e.IDX AND
-             js.JOB_RETRY_ATTEMPT = e.ATTEMPT
+        js."JOB_STORE_ID",   -- 1
+        s."NAME",            -- 2
+        s."WDL_VALUE",       -- 3
+        s."WDL_TYPE"         -- 4
+      FROM "EXECUTION" e
+        JOIN "WORKFLOW_EXECUTION" we
+          ON we."WORKFLOW_EXECUTION_ID" = e."WORKFLOW_EXECUTION_ID"
+        JOIN "SYMBOL" s
+          ON s."WORKFLOW_EXECUTION_ID" = e."WORKFLOW_EXECUTION_ID"
+        JOIN "JOB_STORE" js
+          ON js."WORKFLOW_UUID"     = we."WORKFLOW_EXECUTION_UUID" AND
+             js."CALL_FQN"          = e."CALL_FQN" AND
+             js."JOB_SCATTER_INDEX" = e."IDX" AND
+             js."JOB_RETRY_ATTEMPT" = e."ATTEMPT"
       WHERE
-        s.IO = 'OUTPUT' AND
-        s.SCOPE = js.CALL_FQN AND
-        s.INDEX = js.JOB_SCATTER_INDEX
+        s."IO" = 'OUTPUT' AND
+        s."SCOPE" = js."CALL_FQN" AND
+        s."INDEX" = js."JOB_SCATTER_INDEX"
   """
 
   private val InsertJobStoreSimpleton =
     """
-      INSERT INTO JOB_STORE_RESULT_SIMPLETON(
-        JOB_STORE_ID, SIMPLETON_KEY, SIMPLETON_VALUE, WDL_TYPE)
+      INSERT INTO "JOB_STORE_RESULT_SIMPLETON"(
+        "JOB_STORE_ID", "SIMPLETON_KEY", "SIMPLETON_VALUE", "WDL_TYPE")
           VALUES(?, ?, ?, ?)
     """
 

@@ -6,6 +6,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
+import cromwell.database.sql.SqlTableConverters._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
@@ -25,6 +26,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     with SummaryStatusSlickDatabase {
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
+  private def withLargeObjects(entries: Seq[MetadataEntry]): Seq[MetadataEntry] =
+    if (isPostgresql) entries.map(_.withLargeObjects) else entries
+
   import dataAccess.driver.api._
 
   override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -35,7 +39,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[Unit] = {
     val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
-    runAction(action)
+    runTransaction(action)
   }
 
   override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -51,7 +55,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def queryMetadataEntries(workflowExecutionUuid: String)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
-    runTransaction(action)
+    runTransaction(action.map(withLargeObjects))
   }
 
   override def queryMetadataEntries(workflowExecutionUuid: String,
@@ -59,7 +63,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action =
       dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result
-    runTransaction(action)
+    runTransaction(action.map(withLargeObjects))
   }
 
   override def queryMetadataEntries(workflowExecutionUuid: String,
@@ -69,7 +73,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.
       metadataEntriesForJobKey((workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt)).result
-    runTransaction(action)
+    runTransaction(action.map(withLargeObjects))
   }
 
   override def queryMetadataEntries(workflowUuid: String,
@@ -80,7 +84,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForJobKeyAndMetadataKey((
       workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt)).result
-    runTransaction(action)
+    runTransaction(action.map(withLargeObjects))
   }
 
   override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
@@ -94,7 +98,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       case CallOrWorkflowQuery => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
     }
 
-    runTransaction(action)
+    runTransaction(action.map(withLargeObjects))
   }
 
   override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
@@ -107,7 +111,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       case WorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
       case CallOrWorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
     }
-    runTransaction(action)
+    runTransaction(action.map(withLargeObjects))
   }
 
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:
@@ -145,7 +149,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         updateCount <- dataAccess.
           customLabelEntriesForWorkflowExecutionUuidAndLabelKey(
             (customLabelEntry.workflowExecutionUuid, customLabelEntry.customLabelKey)
-          ).update(customLabelEntry)
+          ).update(customLabelEntry.toUpdateColumns)
         _ <- updateCount match {
           case 0 => dataAccess.customLabelEntryIdsAutoInc += customLabelEntry
           case _ => assertUpdateCount("upsertCustomLabelEntry", updateCount, 1)
@@ -163,8 +167,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } else {
       for {
         updateCount <- dataAccess.
-          workflowMetadataSummaryEntriesForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid).
-          update(workflowMetadataSummaryEntry)
+          workflowMetadataSummaryEntriesForWorkflowExecutionUuidTupled(workflowMetadataSummaryEntry.workflowExecutionUuid).
+          update(workflowMetadataSummaryEntry.toUpdateColumns)
         _ <- updateCount match {
           case 0 => dataAccess.workflowMetadataSummaryEntryIdsAutoInc += workflowMetadataSummaryEntry
           case _ => assertUpdateCount("upsertWorkflowMetadataSummaryEntry", updateCount, 1)

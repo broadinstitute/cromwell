@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <changeSet author="kshakir" id="add_parent_and_root_workflow_execution_uuid">
-
+        <validCheckSum>7:7790244e63d91c27b7eb92c9f8ac611d</validCheckSum>
         <addColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
             <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
             <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
@@ -33,7 +34,7 @@
 
         <update tableName="SUMMARY_STATUS_ENTRY">
             <column name="SUMMARY_NAME" value="WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING" type="VARCHAR(255)"/>
-            <where>SUMMARY_NAME = 'WORKFLOW_METADATA_SUMMARY'</where>
+            <where>"SUMMARY_NAME" = 'WORKFLOW_METADATA_SUMMARY'</where>
         </update>
 
         <addUniqueConstraint

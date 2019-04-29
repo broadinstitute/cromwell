@@ -142,6 +142,8 @@ workflow wf_hello {
 
 Provided all of the files are within the same directory, we can run our workflow with the following command:
 
+> **Note**: You might have a different Cromwell version number here
+
 ```bash
 java -Dconfig.file=aws.conf -jar cromwell-36.jar run hello.wdl
 ```

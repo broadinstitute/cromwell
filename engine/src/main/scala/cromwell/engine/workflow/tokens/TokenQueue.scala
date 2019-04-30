@@ -93,11 +93,20 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     }
   }
 
-  def removeLostActor(lostActor: ActorRef): TokenQueue = this.copy(
-    queues = queues.map { case (hogGroup, queue) =>
-      hogGroup -> queue.filterNot(_.actor == lostActor)
+  def removeTokenlessActor(actor: ActorRef): TokenQueue = {
+    val actorRemovedQueues = queues.map { case (hogGroup, queue) =>
+      hogGroup -> queue.filterNot(_.actor == actor)
     }
-  )
+
+    val (emptyQueues, nonEmptyQueues) = actorRemovedQueues partition { case (_, q) => q.isEmpty }
+    val emptyHogGroups = emptyQueues.keys.toSet
+
+    this.copy(
+      // Filter out hog group mappings with empty queues
+      queues = nonEmptyQueues,
+      queueOrder = queueOrder filterNot emptyHogGroups.contains
+    )
+  }
 
   /**
     * Returns true if there's at least on element that can be dequeued, false otherwise.

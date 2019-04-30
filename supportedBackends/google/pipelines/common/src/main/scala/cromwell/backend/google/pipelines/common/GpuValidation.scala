@@ -35,7 +35,6 @@ class GpuValidation(attributeName: String) extends PositiveIntRuntimeAttributesV
             .toValidated
       }
     case other =>
-      println("Found a bad 'un!")
       s"Invalid gpu count. Expected positive Int but got ${other.womType.friendlyName} ${other.toWomString}".invalidNel
   }
 }

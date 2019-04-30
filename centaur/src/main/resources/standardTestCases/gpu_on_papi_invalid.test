@@ -1,0 +1,14 @@
+name: gpu_on_papi_invalid
+testFormat: workflowfailure
+backends: [Papi]
+
+files {
+  workflow: gpu_on_papi/gpu_on_papi.wdl
+  inputs: gpu_on_papi/valid.inputs.json
+}
+
+metadata {
+  status: Failed
+
+  "failures.0.message": "some invalid GPU message (including URL)"
+}

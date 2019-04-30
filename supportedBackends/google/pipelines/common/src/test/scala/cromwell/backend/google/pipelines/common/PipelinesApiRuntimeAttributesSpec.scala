@@ -280,11 +280,11 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
   def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
                                                exMsgs: List[String],
-                                               workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+                                               workflowOptions: WorkflowOptions): Unit = {
     Try(toPapiRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)) match {
       case Success(oops) =>
-        fail(s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString()} but instead got Success($oops)")
-      case Failure(ex) => assert(ex.getMessage.contains(exMsg))
+        fail(s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString(", ")} but instead got Success($oops)")
+      case Failure(ex) => exMsgs foreach { exMsg =>  assert(ex.getMessage.contains(exMsg)) }
     }
     ()
   }
@@ -292,11 +292,7 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
   def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
                                                        exMsg: String,
                                                        workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    Try(toPapiRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)) match {
-      case Success(oops) => fail(s"Expected error containing '$exMsg' but instead got Success($oops)")
-      case Failure(ex) => assert(ex.getMessage.contains(exMsg))
-    }
-    ()
+    assertJesRuntimeAttributesFailedCreation(runtimeAttributes, List(exMsg), workflowOptions)
   }
 
   def toPapiRuntimeAttributes(runtimeAttributes: Map[String, WomValue],

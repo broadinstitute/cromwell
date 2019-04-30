@@ -83,9 +83,13 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
       hogGroup -> queue.filterNot(_.actor == lostActor)
     }
 
+    val (emptyQueues, nonEmptyQueues) = lostActorRemovedQueues partition { case (_, q) => q.isEmpty }
+    val emptyHogGroups = emptyQueues.keys.toSet
+
     this.copy(
       // Filter out hog group mappings with empty queues
-      queues = lostActorRemovedQueues filterNot { case (_, q) => q.isEmpty }
+      queues = nonEmptyQueues,
+      queueOrder = queueOrder filterNot emptyHogGroups.contains
     )
   }
 

@@ -78,12 +78,12 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     }
   }
 
-  def removeLostActor(lostActor: ActorRef): TokenQueue = {
-    val lostActorRemovedQueues = queues.map { case (hogGroup, queue) =>
-      hogGroup -> queue.filterNot(_.actor == lostActor)
+  def removeTokenlessActor(actor: ActorRef): TokenQueue = {
+    val actorRemovedQueues = queues.map { case (hogGroup, queue) =>
+      hogGroup -> queue.filterNot(_.actor == actor)
     }
 
-    val (emptyQueues, nonEmptyQueues) = lostActorRemovedQueues partition { case (_, q) => q.isEmpty }
+    val (emptyQueues, nonEmptyQueues) = actorRemovedQueues partition { case (_, q) => q.isEmpty }
     val emptyHogGroups = emptyQueues.keys.toSet
 
     this.copy(

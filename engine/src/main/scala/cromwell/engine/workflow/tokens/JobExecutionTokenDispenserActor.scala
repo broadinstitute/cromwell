@@ -144,10 +144,10 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         log.debug("Actor {} stopped without returning its Job Execution Token. Reclaiming it!", terminee)
         self.tell(msg = JobExecutionTokenReturn, sender = terminee)
       case None =>
-        log.debug("Actor {} stopped while we were still watching it... but it doesn't have a token. Removing it from any queues if necessary", terminee)
+        log.debug("Actor {} stopped before receiving a token, removing it from any queues if necessary", terminee)
         // This is a very inefficient way to remove the actor from the queue and can lead to very poor performance for a large queue and a large number of actors to remove
         tokenQueues = tokenQueues map {
-          case (tokenType, tokenQueue) => tokenType -> tokenQueue.removeLostActor(terminee)
+          case (tokenType, tokenQueue) => tokenType -> tokenQueue.removeTokenlessActor(terminee)
         }
     }
     context.unwatch(terminee)

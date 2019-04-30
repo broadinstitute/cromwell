@@ -15,7 +15,7 @@ disks: "local-disk 20 SSD"
 ```
 disks: "/some/mnt 20 SSD"
 ```
-Because AWS auto-sizes disks, the size specification is simply discarded.
+Because Cromwell's AWS backend auto-sizes disks, the size specification is simply discarded.
 
 ### Config Changes
 

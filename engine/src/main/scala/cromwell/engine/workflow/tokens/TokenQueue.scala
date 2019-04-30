@@ -78,11 +78,16 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     }
   }
 
-  def removeLostActor(lostActor: ActorRef): TokenQueue = this.copy(
-    queues = queues.map { case (hogGroup, queue) =>
+  def removeLostActor(lostActor: ActorRef): TokenQueue = {
+    val lostActorRemovedQueues = queues.map { case (hogGroup, queue) =>
       hogGroup -> queue.filterNot(_.actor == lostActor)
     }
-  )
+
+    this.copy(
+      // Filter out hog group mappings with empty queues
+      queues = lostActorRemovedQueues filterNot { case (_, q) => q.isEmpty }
+    )
+  }
 
   /**
     * Returns true if there's at least on element that can be dequeued, false otherwise.

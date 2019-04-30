@@ -21,9 +21,9 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
   _healthCheck = Function.const(true)) {
 
   lazy val hogLimitOption: Option[Int] = tokenType match {
-    case JobExecutionTokenType(_, None, _) => None
-    case JobExecutionTokenType(_, Some(limit), hogFactor) if hogFactor > 1 => Option(math.max(1, math.round(limit.floatValue() / hogFactor.floatValue())))
-    case JobExecutionTokenType(_, _, _) => None
+    case JobExecutionTokenType(_, Some(limit), hogFactor) if hogFactor > 1 =>
+      Option(math.max(1, math.round(limit.floatValue() / hogFactor.floatValue())))
+    case _ => None
   }
 
   private[this] val hogGroupAssignments: mutable.Map[String, HashSet[JobExecutionToken]] = mutable.Map.empty
@@ -55,7 +55,7 @@ final class UnhoggableTokenPool(val tokenType: JobExecutionTokenType) extends Si
         synchronized {
           val thisHogSet = hogGroupAssignments.getOrElse(hogGroup, HashSet.empty)
 
-          if (thisHogSet.size + 1 <= hogLimit) {
+          if (thisHogSet.size < hogLimit) {
             super.tryAcquire() match {
               case Some(lease) =>
                 val hoggingLease = new TokenHoggingLease(lease, hogGroup, this)

@@ -24,7 +24,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
 
   "SlickDatabase (hsqldb)" should behave like testWith[SQLIntegrityConstraintViolationException](
     "database",
-    "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
+    """integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: "JOB_KEY_VALUE_ENTRY" column: "STORE_VALUE""""
   )
 
   "SlickDatabase (mysql)" should behave like testWith[BatchUpdateException](

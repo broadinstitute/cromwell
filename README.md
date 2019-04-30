@@ -9,4 +9,6 @@ The Cromwell documentation has a new home, [click here to check it out](http://c
 
 First time to Cromwell? Get started with [Tutorials](http://cromwell.readthedocs.io/en/develop/tutorials/FiveMinuteIntro/)!
 
+Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).
+
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

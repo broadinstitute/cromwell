@@ -17,6 +17,8 @@ Cromwell distribution:
     * Supports execution of Spark jobs.
 * **[Alibaba Cloud](BCS)** 
     * Launch jobs on Alibaba Cloud BatchCompute service.
+* **[AWS Batch (beta)](AWS.md)**
+    * Use Job Queues on AWS Batch
 
 HPC backends are put under the same umbrella because they all use the same generic configuration that can be specialized to fit the need of a particular technology.
 

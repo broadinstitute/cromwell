@@ -1,5 +1,5 @@
 package wdl.model.draft3.elements
 
 trait LanguageElement {
-    val lexInfo : LexicalInformation
+    val lexInfo : Option[LexicalInformation] = None
 }

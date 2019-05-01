@@ -22,6 +22,17 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
     testCases.list.nonEmpty shouldBe true
   }
 
+
+  // Remove the lexical information from the file element. We do not provide
+  // expected line/columns numbers, while the actual run does. This mismatch
+  // would cause the comparisons to fail.
+  private def stripLexicalInfo(fe : FileElement) : FileElement = {
+    FileElement(fe.imports,
+                fe.structs,
+                fe.workflows.map { case wf => wf.copy(lexInfo = None) }.toSeq,
+                fe.tasks)
+  }
+
   testCases.list.filter(x => x.isRegularFile && x.extension.contains(".wdl")) foreach { testCase =>
 
     val fileName = testCase.name
@@ -38,7 +49,7 @@ class WdlFileToWdlomSpec extends FlatSpec with Matchers {
 
       val expected = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
       fileToFileElement.run(testCase) match {
-        case Right(actual) => actual shouldBe expected
+        case Right(actual) => stripLexicalInfo(actual) shouldBe expected
         case Left(errors) =>
           val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
           fail(s"Failed to create WDLOM:$formattedErrors")

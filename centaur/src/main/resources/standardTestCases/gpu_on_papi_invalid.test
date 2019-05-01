@@ -1,10 +1,9 @@
 name: gpu_on_papi_invalid
 testFormat: workflowfailure
-backends: [Papi]
 
 files {
   workflow: gpu_on_papi/gpu_on_papi.wdl
-  inputs: gpu_on_papi/valid.inputs.json
+  inputs: gpu_on_papi/invalid.inputs.json
 }
 
 metadata {

@@ -98,7 +98,7 @@ object SharedFileSystem extends StrictLogging {
 
   private def waitOnCopy(path: Path, lockFile: Path): Unit = {
     while (beingCopied.getOrElse(path, false) || lockFile.exists)  {
-      wait(1)
+      Thread.sleep(1)
     }
   }
 }
@@ -125,6 +125,7 @@ trait SharedFileSystem extends PathFactory {
       val cachedCopyPathLockFile: Path = cachedCopyPath.plusSuffix(".lock")
 
       if (!cachedCopyPath.exists) {
+        // This variable is used so we can release the lock before we start with the copying.
         var shouldCopy = false
 
         // LOCK: This block should only be accessed by one thread at a time. Otherwise multiple threads
@@ -132,9 +133,12 @@ trait SharedFileSystem extends PathFactory {
         // decisions which are not time consuming.
         SharedFileSystem.synchronized {
 
-          // cachedCopyPath does not exist. Is it already being copied by another thread?
-          // if not copied by another thread, is it copied by another cromwell process?
-          if (!SharedFileSystem.beingCopied.getOrElse(cachedCopyPath, false) && !cachedCopyPathLockFile.exists) {
+          // We check again if cachedCopyPath is there. It may have been created while waiting on the lock.
+          // If it is not there, is it already being copied by another thread?
+          // if not copied by another thread, is it copied by another cromwell process? (Lock file present)
+          if (!cachedCopyPath.exists &&
+            !SharedFileSystem.beingCopied.getOrElse(cachedCopyPath, false) &&
+            !cachedCopyPathLockFile.exists) {
             // Create a lock file so other cromwell processes know copying has started
             try {
               cachedCopyPathLockFile.touch()
@@ -148,7 +152,8 @@ trait SharedFileSystem extends PathFactory {
               shouldCopy = true
             } catch {
               case e: Exception =>
-                // In case any error happens, make sure that all locks are removed.
+                // In case any error happens, make sure that all locks are removed. Otherwise cromwell will hang in the
+                // future.
                 SharedFileSystem.beingCopied.remove(cachedCopyPath)
                 cachedCopyPathLockFile.delete(true)
                 throw e
@@ -163,8 +168,8 @@ trait SharedFileSystem extends PathFactory {
             case e: Exception => throw e
           }
           finally {
-            // Always remove the locks after copying. Even if there is an exception
-            // we remove the key! Not set it to false. We don't want this map being flooded with
+            // Always remove the locks after copying. Even if there is an exception.
+            // We remove the key! Not set it to false. We don't want this map being flooded with
             // keys if the cromwell process is active for months in server mode. (Memory leak!)
             SharedFileSystem.beingCopied.remove(cachedCopyPath)
             cachedCopyPathLockFile.delete()

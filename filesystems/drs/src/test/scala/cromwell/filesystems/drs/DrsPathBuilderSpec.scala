@@ -265,6 +265,20 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       name = "world",
       getFileName = s"dos://nonasciibucket£€/world",
       getNameCount = 2,
+      isAbsolute = true),
+
+    GoodPath(
+      description = "a path with just a host",
+      path = s"dos://blah/",
+      normalize = false,
+      pathAsString = s"dos://blah/",
+      pathWithoutScheme = s"blah",
+      parent = s"dos://",
+      getParent = s"dos://",
+      root = s"dos://",
+      name = "blah",
+      getFileName = s"dos://blah/",
+      getNameCount = 1,
       isAbsolute = true)
   )
 
@@ -276,8 +290,6 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     BadPath("a file uri path", "file:///hello/world", "file:///hello/world does not have a dos scheme."),
     BadPath("a relative file path", "hello/world", "hello/world does not have a dos scheme."),
     BadPath("an absolute file path", "/hello/world", "/hello/world does not have a dos scheme."),
-    BadPath("a bucket only path ending in a /", s"dos://$bucket/", s"dos://$bucket/ does not have a valid path. DRS doesn't support a host only path."),
-    BadPath("a bucket only path", s"dos://$bucket", s"dos://$bucket does not have a valid path. DRS doesn't support a host only path.")
   )
 
   private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =

@@ -36,18 +36,26 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
   override def getScheme: String = "dos"
 
   override def getHost(uriAsString: String): String = {
-    require(uriAsString.startsWith(getScheme + "://"), s"Scheme does not match $getScheme")
+    require(uriAsString.startsWith(s"$getScheme://"), s"Scheme does not match $getScheme")
 
     /*
+     * It's possible for DRS URIs to have no host, and even no authority.
+     * In the case where URI parsing shows there is a host, use that.
+     * In the case
+where host is null, try authority next and eventually fall back to an empty string.
+     * In the cases where uri.getHost returns null, and there is an authority, use that, else use an empty string for host.
      * In some cases for a URI, the host name is null. For example, for DRS urls like 'dos://dg.123/123-123-123',
      * even though 'dg.123' is a valid host, somehow since it does not conform to URI's standards, uri.getHost returns null. In such
      * cases, authority is used instead of host.
      */
     val uri = new URI(uriAsString)
     val host = uri.getHost
-    val hostOrAuthority = if (host == null) uri.getAuthority else host
-    require(!hostOrAuthority.isEmpty, s"Bucket/Host is empty")
+    val hostOrAuthorityOrEmpty =
+      if (host == null) {
+        val authority = uri.getAuthority
+        if (authority == null) { "" } else authority
+      } else host
 
-    hostOrAuthority
+    hostOrAuthorityOrEmpty
   }
 }

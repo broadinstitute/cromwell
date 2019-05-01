@@ -44,7 +44,6 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
      * cases, authority is used instead of host. If there is no authority, use an empty string.
      */
     val uri = new URI(uriAsString)
-    val host = uri.getHost
     val hostOrAuthorityOrEmpty =
       Option(uri.getHost).getOrElse(
         Option(uri.getAuthority).getOrElse("")

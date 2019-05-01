@@ -129,7 +129,13 @@ services {
   }
 }
 ``` 
+### Workflow options changes
 
+A new workflow option is added. If the `final_workflow_outputs_dir` is set 
+`use_relative_output_paths` can be used. When set to `true` this will copy 
+all the outputs relative to their execution directory. 
+my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest.
+More information can be found in [the workflow options documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Overview/#output-copying).
 
 ### Bug fixes
 

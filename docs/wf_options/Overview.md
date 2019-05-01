@@ -94,6 +94,22 @@ Example `options.json`:
 }
 ```
 
+With `"use_relative_output_paths": false` (the default) the outputs will look like this
+
+```
+final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_one_task/execution/my_output_picture.jpg
+final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_other_task/execution/created_subdir/submarine.txt
+```
+
+The above result will look like this when `"use_relative_output_paths": true`:
+```
+final_workflow_outputs_dir/my_output_picture.jpg
+final_workflow_outputs_dir/created_subdir/submarine.txt
+```
+
+This will create file collisions in `final_workflow_outputs_dir` when a workflow is run twice. When cromwell
+detects file collisions it will throw an error and report the workflow as failed.
+
 ## Call Caching Options
 
 These options can override Cromwell's configured call caching behavior for a single workflow. See the [Call Caching](../CallCaching) section for more details and how to set defaults. The call caching section will also explain how these options interact when, for example, one is set `true` and the other is `false`.

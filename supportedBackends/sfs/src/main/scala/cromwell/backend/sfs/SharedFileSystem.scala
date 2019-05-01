@@ -18,7 +18,8 @@ import wom.WomFileMapper
 import wom.values._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{Await}
+import scala.collection.mutable
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -92,6 +93,14 @@ object SharedFileSystem extends StrictLogging {
       TryUtil.sequence(attempts, s"Could not $description $source -> $dest").void
     }
   }
+
+  private lazy val beingCopied: mutable.Map[Path, Boolean] = mutable.Map[Path, Boolean]()
+
+  private def waitOnCopy(path: Path, lockFile: Path): Unit = {
+    while (beingCopied.getOrElse(path, false) || lockFile.exists)  {
+      wait(1)
+    }
+  }
 }
 
 trait SharedFileSystem extends PathFactory {
@@ -113,18 +122,58 @@ trait SharedFileSystem extends PathFactory {
       // Md5 is safer but much much slower and way too CPU intensive for big files.
       val pathAndModTime: String = originalPath.lastModifiedTime.toEpochMilli.toString + originalPath.name
       val cachedCopyPath: Path = cachedCopySubDir./(pathAndModTime)
+      val cachedCopyPathLockFile: Path = cachedCopyPath.plusSuffix(".lock")
 
-      // The following step cannot be performed multithreaded. Checking if the file exists and copying of the file should never
-      // happen simultaneously. Therefore this is synchronized using an object that only exists once in the JVM.
-      // This is probably not the proper 'akka' way of doing things. But I could not find the proper way of doing things
-      // after an extensive web search and read through the akka documentation.
+      if (!cachedCopyPath.exists) {
+        var shouldCopy = false
 
-      SharedFileSystem.synchronized {
-        if (!cachedCopyPath.exists) {
-          val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
-          originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+        // LOCK: This block should only be accessed by one thread at a time. Otherwise multiple threads
+        // will copy the same cache file. The performance impact should be minimal as it is only a few
+        // decisions which are not time consuming.
+        SharedFileSystem.synchronized {
+
+          // cachedCopyPath does not exist. Is it already being copied by another thread?
+          // if not copied by another thread, is it copied by another cromwell process?
+          if (!SharedFileSystem.beingCopied.getOrElse(cachedCopyPath, false) && !cachedCopyPathLockFile.exists) {
+            // Create a lock file so other cromwell processes know copying has started
+            try {
+              cachedCopyPathLockFile.touch()
+              // Create an entry in the dictionary so other threads in this process know copying
+              // has started (filesystem can be too slow if multiple threads need the same file at
+              // exactly the same time)
+              SharedFileSystem.beingCopied(cachedCopyPath) = true
+              // Set should copy to true for *this* thread. The lock can now be released.
+              // this thread will do the copying. The other threads and/or processes will wait for the copying to
+              // be completed.
+              shouldCopy = true
+            } catch {
+              case e: Exception =>
+                // In case any error happens, make sure that all locks are removed.
+                SharedFileSystem.beingCopied.remove(cachedCopyPath)
+                cachedCopyPathLockFile.delete(true)
+                throw e
+            }
+          }
+        } // LOCK RELEASE
+        if (shouldCopy) {
+          try {
+            val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
+            originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+          } catch {
+            case e: Exception => throw e
+          }
+          finally {
+            // Always remove the locks after copying. Even if there is an exception
+            // we remove the key! Not set it to false. We don't want this map being flooded with
+            // keys if the cromwell process is active for months in server mode. (Memory leak!)
+            SharedFileSystem.beingCopied.remove(cachedCopyPath)
+            cachedCopyPathLockFile.delete()
+          }
         }
       }
+      // If the file does exist, it may still be copied/moved and therefore not all the bits might
+      // be there. Therefore we always wait until the locks are cleared.
+      SharedFileSystem.waitOnCopy(cachedCopyPath, cachedCopyPathLockFile)
       cachedCopyPath.linkTo(executionPath)
     }.void
     logOnFailure(action, "cached copy file")

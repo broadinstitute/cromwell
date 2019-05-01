@@ -15,7 +15,6 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider) ext
 
   override def name: String = "DRS"
 
-  //DRS or DOS files can actually have no host, and treat that as valid (for now?)
   override def build(pathAsString: String): Try[Path] = {
     if (pathAsString.startsWith(s"$drsScheme://")) {
       Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(pathAsString))) flatMap { uri =>

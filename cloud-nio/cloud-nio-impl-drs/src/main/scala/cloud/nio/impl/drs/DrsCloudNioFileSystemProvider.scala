@@ -46,10 +46,9 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
     val uri = new URI(uriAsString)
     val host = uri.getHost
     val hostOrAuthorityOrEmpty =
-      if (host == null) {
-        val authority = uri.getAuthority
-        if (authority == null) { "" } else authority
-      } else host
+      Option(uri.getHost).getOrElse(
+        Option(uri.getAuthority).getOrElse("")
+      )
 
     hostOrAuthorityOrEmpty
   }

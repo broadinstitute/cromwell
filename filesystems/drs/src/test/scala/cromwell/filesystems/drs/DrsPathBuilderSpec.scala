@@ -268,18 +268,32 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       isAbsolute = true),
 
     GoodPath(
-      description = "a path with just a host",
+      description = "an non-absolute path without a host",
       path = s"dos://blah/",
       normalize = false,
       pathAsString = s"dos://blah/",
-      pathWithoutScheme = s"blah",
-      parent = s"dos://",
-      getParent = s"dos://",
-      root = s"dos://",
-      name = "blah",
-      getFileName = s"dos://blah/",
+      pathWithoutScheme = s"blah/",
+      parent = null,
+      getParent = null,
+      root = s"dos://blah/",
+      name = "",
+      getFileName = null,
+      getNameCount = 0,
+      isAbsolute = true),
+
+    GoodPath(
+      description = "an absolute path without a host",
+      path = s"dos://blah",
+      normalize = false,
+      pathAsString = s"dos://blah/",
+      pathWithoutScheme = s"blah/",
+      parent = null,
+      getParent = null,
+      root = s"dos://blah/",
+      name = "",
+      getFileName = null,
       getNameCount = 1,
-      isAbsolute = true)
+      isAbsolute = false)
   )
 
   private def badPaths = Seq(

@@ -91,8 +91,8 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
 
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
 
-    // Turning a mutable `Map` to a `List` and using an indexed pointer?
-    val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
+    // Sort by backend name to avoid re-ordering across iterations:
+    val iterator = new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2), currentTokenQueuePointer)
 
     // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
     // exception.
@@ -116,9 +116,11 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         queuePlaceholder.actor ! JobExecutionTokenDispensed
       // Only one token per actor, so if you've already got one, we don't need to use this new one:
       case LeasedActor(queuePlaceholder, lease) =>
-        log.error(s"Actor ${queuePlaceholder.actor.path} requested a job execution token more than once. This situation should have been impossible.")
+        log.error(s"Programmer Error: Actor ${queuePlaceholder.actor.path} requested a job execution token more than once.")
+        // Because this actor already has a lease assigned to it:
+        // a) tell the actor that it has a lease
+        // b) don't hold onto this new lease - release it and let some other actor take it instead
         queuePlaceholder.actor ! JobExecutionTokenDispensed
-        // If there are going to be > 1 actors mapping to this lease why is the lease being released?
         lease.release()
     })
 

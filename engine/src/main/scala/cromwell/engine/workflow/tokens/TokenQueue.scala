@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.ActorRef
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.TokenQueue._
@@ -18,7 +18,7 @@ import scala.collection.immutable.Queue
 final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
                             queueOrder: Vector[String],
                             eventLogger: TokenEventLogger,
-                            private [tokens] val pool: UnhoggableTokenPool) extends LazyLogging {
+                            private [tokens] val pool: UnhoggableTokenPool) extends StrictLogging {
   val tokenType = pool.tokenType
 
   /**
@@ -80,7 +80,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
             } else {
               (queues + (hogGroup -> newQueue), remainingHogGroups ++ queuesTried :+ hogGroup)
             }
-            DequeueResult(Some(LeasedActor(placeholder, thl)), TokenQueue(newQueues, newQueueOrder, eventLogger, pool))
+            DequeueResult(Option(LeasedActor(placeholder, thl)), TokenQueue(newQueues, newQueueOrder, eventLogger, pool))
           case TokenTypeExhausted =>
             // The pool is completely full right now, so there's no benefit trying the other hog groups:
             eventLogger.outOfTokens(tokenType.backend)

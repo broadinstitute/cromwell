@@ -100,4 +100,7 @@ final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Op
 //  }
 // the WOM graph does not say which call (A,B, or C) comes first.
 //
-final case class LexicalInformation(line: Int, column: Int)
+final case class LexicalInformation(startLine: Int,
+                                    startColumn: Int,
+                                    endLine : Int,
+                                    endColumn : Int)

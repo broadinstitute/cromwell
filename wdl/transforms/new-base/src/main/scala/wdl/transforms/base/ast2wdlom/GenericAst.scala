@@ -31,6 +31,32 @@ trait GenericAstNode {
     allTerminals.foldLeft[Option[GenericTerminal]](None)(foldFunction)
   }
 
+  def lastTerminal: Option[GenericTerminal] = {
+    def foldFunction(acc: Option[GenericTerminal], next: GenericTerminal): Option[GenericTerminal] = acc match {
+      case Some(t) if t.getLine < next.getLine || (t.getLine == next.getLine && t.getColumn < next.getColumn) => Some(next)
+      case None => Some(next)
+      case _ => acc
+    }
+
+    allTerminals.foldLeft[Option[GenericTerminal]](None)(foldFunction)
+  }
+
+  // Get the extent in the source file that this AST brackets
+  def getSourceExtent: Option[(Int, Int, Int, Int)] = {
+    val startTerminal : Option[GenericTerminal] = firstTerminal
+    val endTerminal : Option[GenericTerminal] = lastTerminal
+
+    // add the length of the end terminal
+    (startTerminal, endTerminal) match {
+      case (Some(t1), Some(t2)) =>
+        Some((t1.getLine,
+              t1.getColumn,
+              t2.getLine,
+              t2.getColumn + t2.getSourceString.length))
+      case (_, _) => None
+    }
+  }
+
   def lineAndColumnString = firstTerminal map { t => s" at line ${t.getLine} column ${t.getColumn}"} getOrElse("")
 }
 

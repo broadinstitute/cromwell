@@ -15,11 +15,11 @@ object AstToWorkflowDefinitionElement {
                                     ): CheckedAtoB[GenericAst, WorkflowDefinitionElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
 
-    val lexInfo : ErrorOr[Option[LexicalInformation]] = a.firstTerminal match {
+    val lexInfo : ErrorOr[Option[LexicalInformation]] = a.getSourceExtent match {
       case None =>
         None.validNel
-      case Some(terminal) =>
-        Some(LexicalInformation(terminal.getLine, terminal.getColumn)).validNel
+      case Some((startLine, startColumn, endLine, endColumn)) =>
+        Some(LexicalInformation(startLine, startColumn, endLine, endColumn)).validNel
     }
     val bodyElementsValidation: ErrorOr[Vector[WorkflowBodyElement]] = a.getAttributeAsVector[WorkflowBodyElement]("body")(astNodeToWorkflowBodyElement).toValidated
     (nameElementValidation, lexInfo, bodyElementsValidation) flatMapN combineElements

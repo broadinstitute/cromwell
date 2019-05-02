@@ -21,7 +21,7 @@ package object values {
   type FileHasher = WomFile => SymbolHash
 
   type WomEvaluatedCallInputs = Map[InputDefinition, WomValue]
-  
+
   implicit class EnhancedWomEvaluatedCallInputs(val inputs: WomEvaluatedCallInputs) extends AnyVal {
     def prettyString = inputs.map({
       case (inputDef, womValue) => s"${inputDef.name} -> ${womValue.valueString}"
@@ -88,3 +88,16 @@ final case class InstantiatedCommand(commandString: String,
   * @param relativeLocalPath Optionally, an override of the usual localization logic. A path relative to execution root.
   */
 final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Option[String] = None)
+
+// Reference to program source code. Allows:
+// 1) Relating a WOM error back to the original source code.
+// 2) Getting back information lost during compilation.
+// For example, in a program like:
+//  workflow {
+//    call A
+//    call B
+//    call C
+//  }
+// the WOM graph does not say which call (A,B, or C) comes first.
+//
+final case class LexicalInformation(line: Int, column: Int)

@@ -1,4 +1,5 @@
 package wdl.model.draft3.elements
+import wom.LexicalInformation
 
 final case class WorkflowDefinitionElement(name: String,
                                            inputsSection: Option[InputsSectionElement],

@@ -7,7 +7,7 @@ import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
-
+import wom.LexicalInformation
 
 object AstToWorkflowDefinitionElement {
 

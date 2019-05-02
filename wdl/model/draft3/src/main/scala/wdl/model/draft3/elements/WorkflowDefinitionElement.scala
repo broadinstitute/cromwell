@@ -7,4 +7,4 @@ final case class WorkflowDefinitionElement(name: String,
                                            outputsSection: Option[OutputsSectionElement],
                                            metaSection: Option[MetaSectionElement],
                                            parameterMetaSection: Option[ParameterMetaSectionElement],
-                                           override val lexInfo : Option[LexicalInformation] = None) extends FileBodyElement
+                                           lexInfo : Option[LexicalInformation] = None) extends FileBodyElement

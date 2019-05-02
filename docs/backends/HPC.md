@@ -48,7 +48,7 @@ backend.providers.MyHPCBackend {
     gcs {
       # A reference to a potentially different auth for manipulating files via engine functions.
       auth = "application-default"
-    }  
+    }
   }
 }
 ```
@@ -56,11 +56,13 @@ backend.providers.MyHPCBackend {
 ### Exit code timeout
 
 If the cluster forcefully kills a job, it is unable to write its exit code anymore.
-To fix this the option `exit-code-timeout-seconds` can be used. When a job is no longer running and the timeout has passed without an RC file being made, Cromwell can mark the job as failed.
+To address this the option `exit-code-timeout-seconds` can be used.
+Cromwell will check the aliveness of the job with the `check-alive` script, every `exit-code-timeout-seconds` (polling).
+When a job is no longer alive and another `exit-code-timeout-seconds` seconds have passed without an RC file being made, Cromwell can mark the job as failed.
 If retries are enabled the job is submitted again.
-This option will implicitly enable polling with the `check-alive` option.
+This option will enable polling with the `check-alive` option, this could cause high load on whatever system `check-alive` calls.
 
-When the option `exit-code-timeout-seconds` is **not** set cromwell will only execute the  `check-alive` option after a restart of a cromwell server.
+When the option `exit-code-timeout-seconds` is **not** set cromwell will only execute the `check-alive` option after a restart of a cromwell server.
 
 ```
 backend {

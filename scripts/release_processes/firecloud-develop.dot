@@ -4,20 +4,9 @@ digraph {
 
   release_cromwell [shape=oval label="Release new Cromwell version! Woohoo!"];
 
-  agora_branch [shape=oval label="Make agora PR with new Cromwell version"];
-  agora_PR [shape=oval label="Wait for PR to go green (jenkins must finish!)"];
-  agora_merge [shape=oval label="Merge agora PR"];
-
-  rawls_branch [shape=oval label="Make rawls PR with new Cromwell version"];
-  rawls_PR [shape=oval label="Wait for PR to go green (jenkins must finish!)"];
-  rawls_merge [shape=oval label="Merge rawls PR"];
-
   fcdev_branch [shape=oval label="Make firecloud-develop PR for new Cromwell version"];
-  fcdev_submodules [shape=oval label="Set rawls/agora submodule targets in firecloud-develop PR"];
   fcdev_test [shape=oval label="Retest firecloud-develop PR. Confirm Cromwell version in Jenkins console logs"];
-  fcdev_wait_for_agrawal [shape=oval label="Wait for post-merge agora/rawls builds to finish"];
   fcdev_update_dev [shape=oval label="Checkout 'dev' branch of firecloud-develop and 'git pull' the latest changes"];
-  fcdev_undo_submodules [shape=oval label="Rebase firecloud-develop PR and remove submodule changes"];
   fcdev_final_swatomation [shape=oval label="Retest firecloud-develop PR. Confirm Cromwell version in Jenkins console logs"];
   fcdev_merge [shape=oval label="Merge firecloud-develop PR"];
 
@@ -27,47 +16,26 @@ digraph {
   jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
   jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];
 
-  fiab_smoke [shape=oval label="FIAB smoke test"];
-  dev_smoke [shape=oval label="Dev (pre-merge) smoke test"];
   qa_perf [shape=oval label="QA performance testing"];
 
   # Edges
 
-  release_cromwell -> agora_branch
-  release_cromwell -> rawls_branch
   release_cromwell -> fcdev_branch
   release_cromwell -> dspjenkins_PR
 
-  agora_branch -> agora_PR
-  rawls_branch -> rawls_PR
-
-  fcdev_branch -> fcdev_submodules
-  agora_PR -> fcdev_submodules
-  rawls_PR -> fcdev_submodules
+  fcdev_branch -> fcdev_test
 
   dspjenkins_PR -> jenkins_set
 
   jenkins_set -> fcdev_test
-  fcdev_submodules -> fcdev_test
+
   fcdev_test -> jenkins_reset
 
-  fcdev_submodules -> fiab_smoke
   fcdev_test -> qa_perf
-  fiab_smoke -> qa_perf
 
-  qa_perf -> dev_smoke
+  qa_perf -> dspjenkins_merge
 
-  dev_smoke -> agora_merge
-  dev_smoke -> rawls_merge
-  dev_smoke -> dspjenkins_merge
-
-  agora_merge -> fcdev_wait_for_agrawal
-  rawls_merge -> fcdev_wait_for_agrawal
-
-  fcdev_wait_for_agrawal -> fcdev_update_dev
-  fcdev_update_dev -> fcdev_undo_submodules
-
-  dspjenkins_merge -> fcdev_final_swatomation
-  fcdev_undo_submodules -> fcdev_final_swatomation
+  dspjenkins_merge -> fcdev_update_dev
+  fcdev_update_dev -> fcdev_final_swatomation
   fcdev_final_swatomation -> fcdev_merge
 }

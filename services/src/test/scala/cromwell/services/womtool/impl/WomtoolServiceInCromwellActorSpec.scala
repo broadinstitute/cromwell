@@ -153,20 +153,20 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       )
     }
 
-    "return invalid for a valid workflow with the wrong inputs" in {
+    "return inputErrors for a valid workflow with the wrong inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = true, inputErrors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
+        description = WorkflowDescription(valid = true, inputErrors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
     }
 
-    "return invalid for a valid inputs-requiring workflow with empty inputs" in {
+    "return inputErrors for a valid inputs-requiring workflow with empty inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.emptyInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = true, inputErrors = List("Required workflow input 'wf_hello.hello.addressee' not specified"))))
+        description = WorkflowDescription(valid = true, inputErrors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
     }
 
     "return valid for a valid no-inputs workflow with empty inputs" in {
@@ -195,12 +195,12 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       )
     }
 
-    "return invalid for a valid no-inputs workflow with extraneous inputs" in {
+    "return inputErrors for a valid no-inputs workflow with extraneous inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidNoInputs), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = true, inputErrors = List("WARNING: Unexpected input provided: foo.bar"))))
+        description = WorkflowDescription(valid = true, inputErrors = List("WARNING: Unexpected input provided: foo.bar"), name = "wf_hello", inputs = List.empty, submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
     }
 
     // In draft-2 we allow extraneous inputs for legacy reasons - users e.g. put comments in them

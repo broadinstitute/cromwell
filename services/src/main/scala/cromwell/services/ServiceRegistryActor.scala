@@ -67,14 +67,17 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
   }
   
   private def transform(message: Any, from: ActorRef): Any = message match {
-    case _: ListenToMessage => Listen(from)
-    case _ => message
+    case _: ListenToMessage =>
+      Listen(from)
+    case _ =>
+      message
   }
 
   def receive = {
     case msg: ServiceRegistryMessage =>
       services.get(msg.serviceName) match {
-        case Some(ref) => ref.tell(transform(msg, sender), sender)
+        case Some(ref) =>
+          ref.tell(transform(msg, sender), sender)
         case None =>
           log.error("Received ServiceRegistryMessage requesting service '{}' for which no service is configured.  Message: {}", msg.serviceName, msg)
           sender ! ServiceRegistryFailure(msg.serviceName)

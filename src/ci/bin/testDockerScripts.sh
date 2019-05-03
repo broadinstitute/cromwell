@@ -18,8 +18,9 @@ echo "What tests would you like, my dear McMuffins?"
 echo "1. Testing for install of sbt"
 docker run --rm "${docker_tag}" which sbt
 
-echo "2. Testing sbt assembly"
-docker run --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
+echo "2. Skipping test of sbt assembly https://github.com/broadinstitute/cromwell/issues/4933"
+#echo "2. Testing sbt assembly"
+#docker run --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
 
 echo "3. Testing cloudwell docker compose"
 

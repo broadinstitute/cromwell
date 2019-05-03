@@ -57,7 +57,7 @@ backend {
 
 * The `gpuType` attribute is no longer validated against a whitelist at workflow submission time. Instead, validation now happens at runtime. This allows any valid accelerator to be used.
 * The `nvidiaDriverVersion` attribute is now available in WDL `runtime` sections. The default continues to be `390.46` which applies if and only if GPUs are being used.
-* A default `gpuType` ("nvidia-tesla-p100") will now be applied if `gpuCount` is specified but `gpuType` is not.
+* A default `gpuType` ("nvidia-tesla-k80") will now be applied if `gpuCount` is specified but `gpuType` is not.
 * Similarly, a default `gpuCount` (1) will be applied if `gpuType` is specified but `cpuCount` is not. 
 
 ### Bug fixes

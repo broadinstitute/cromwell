@@ -9,5 +9,5 @@ files {
 metadata {
   status: Failed
 
-  "failures.0.message": "some invalid GPU message (including URL)"
+  "calls.gpu_on_papi.task_with_gpu.failures.0.message": "Unable to complete PAPI request due to a problem with the request (Error: validating pipeline: unsupported accelerator: \"nonsense value\"). See https://cloud.google.com/compute/docs/gpus/ for a list of supported accelerators."
 }

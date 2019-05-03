@@ -7,7 +7,7 @@ workflow gpu_on_papi {
   }
 
   scatter (gpu in gpus) {
-    call task_with_gpu { input: gpuTypeInput = "gpu" }
+    call task_with_gpu { input: gpuTypeInput = gpu }
   }
 
   output {

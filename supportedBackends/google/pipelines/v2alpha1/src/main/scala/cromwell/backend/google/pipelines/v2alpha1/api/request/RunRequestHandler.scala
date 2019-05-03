@@ -21,8 +21,21 @@ trait RunRequestHandler { this: RequestHandler =>
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! PipelinesApiRunCreationQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
-      completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
+
+      val rootCause = new Exception(mkErrorString(e))
+
+      val papiFailureException = if (e.getCode.toString.startsWith("4")) {
+        val helpfulHint = if (rootCause.getMessage.contains("unsupported accelerator")) {
+          Option("See https://cloud.google.com/compute/docs/gpus/ for a list of supported accelerators.")
+        } else None
+
+        new UserPAPIApiException(GoogleJsonException(e, responseHeaders), helpfulHint)
+      } else {
+        new SystemPAPIApiException(GoogleJsonException(e, responseHeaders))
+      }
+
+      pollingManager ! PipelinesApiRunCreationQueryFailed(originalRequest, papiFailureException)
+      completionPromise.trySuccess(Failure(papiFailureException))
       ()
     }
   }

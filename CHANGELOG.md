@@ -28,6 +28,12 @@ NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been co
 then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
 set less than the `ttl`.
 
+#### nVidia Driver Attribute Change
+
+The runtime attribute `nvidia-driver-version` was previously allowed only as a default runtime attribute in configuration.
+Because WDL does not allow attribute names to contain `-` characters, this has been changed to `nvidiaDriverVersion`.
+This field is now accepted within WDL files as well as within the configuration file.
+
 #### Logging long running jobs
 
 All backends can now emit slow job warnings after a configurable time running. 
@@ -44,6 +50,15 @@ backend {
   }
 }
 ```
+
+### Runtime Attributes
+
+#### GPU Attributes
+
+* The `gpuType` attribute is no longer validated against a whitelist at workflow submission time. Instead, validation now happens at runtime. This allows any valid accelerator to be used.
+* The `nvidiaDriverVersion` attribute is now available in WDL `runtime` sections. The default continues to be `390.46` which applies if and only if GPUs are being used.
+* A default `gpuType` ("nvidia-tesla-p100") will now be applied if `gpuCount` is specified but `gpuType` is not.
+* Similarly, a default `gpuCount` (1) will be applied if `gpuType` is specified but `cpuCount` is not. 
 
 ### Bug fixes
 

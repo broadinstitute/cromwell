@@ -100,7 +100,8 @@ final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Op
 //  }
 // the WOM graph does not say which call (A,B, or C) comes first.
 //
-final case class LexicalInformation(startLine: Int,
-                                    startColumn: Int,
-                                    endLine : Int,
-                                    endColumn : Int)
+//
+// We would actually like to have the entire source extent covered
+// by the AST. However, it is tricky to get full information from Hermes
+// at the moment.
+final case class LexicalInformation(startLine: Int)

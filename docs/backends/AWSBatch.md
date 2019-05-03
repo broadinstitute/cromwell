@@ -36,29 +36,11 @@ Amazon's S3 storage is a supported filesystem in both the engine and backend, th
 
 ### Configuring Authentication
 
-To allow Cromwell to talk to AWS, we have a few authentication schemes that we can specify in the configuration that Cromwell can accept:
--  `default`: This uses the [default authentication provider](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html), which uses the standard AWS search paths:
-    - Environment Variables - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
-    - Java system properties - `aws.accessKeyId` and `aws.secretKey`
-    - Default credential profiles file - Created by the AWS CLI, typically located at `~/.aws/credentials`
-    - _Instance profile credentials_ - Only relevant on EC2 instances
-- `custom_keys`: This requires the definition of "access-key" and "secret-key"
-- `assume_role`: This requires the definition of "base-auth" and "role-arn". An optional "external-id" can be provided.
-
-Specifically, within the `aws.auths` array, you can provide a list of authentication options:
-
-```hocon
-
-# ... within the aws.conf
-aws {
-    application-name = "cromwell"
-    auths = [
-        { name="default", scheme="default" },
-        { name="custom_keys", access-key="<my-access-key>", role-arn="<my-role-arn>" },
-        { name="assume_role", base-auth="<my-base-auth>", role-arn="<my-role-arn>"}
-    ]
-}
-```
+To allow Cromwell to talk to AWS, the `default` authentication scheme uses the [default authentication provider](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html) with the following AWS search paths:
+- Environment Variables - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
+- Java system properties - `aws.accessKeyId` and `aws.secretKey`
+- Default credential profiles file - Created by the AWS CLI, typically located at `~/.aws/credentials`
+- _Instance profile credentials_ - Only relevant on EC2 instances
 
 ### Allowing private Docker containers
 

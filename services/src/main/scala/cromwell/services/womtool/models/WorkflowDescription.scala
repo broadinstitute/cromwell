@@ -11,6 +11,7 @@ import wom.executable.WomBundle
 case class WorkflowDescription(
                                 valid: Boolean,
                                 errors: List[String],
+                                inputErrors: List[String],
                                 name: String,
                                 inputs: List[InputDescription],
                                 outputs: List[OutputDescription],
@@ -30,8 +31,17 @@ case object WorkflowDescription {
     )
   }
 
+  // This function means "the workflow was valid but you messed up your inputs"
+  def withInputErrors(errors: List[String]): WorkflowDescription = {
+    WorkflowDescription(
+      valid = true,
+      inputErrors = errors
+    )
+  }
+
   def apply(valid: Boolean = true,
             errors: List[String] = List.empty,
+            inputErrors: List[String] = List.empty,
             name: String = "",
             inputs: List[InputDescription] = List.empty,
             outputs: List[OutputDescription] = List.empty,
@@ -40,7 +50,7 @@ case object WorkflowDescription {
             importedDescriptorTypes: List[Map[String, String]] = List.empty,
             meta: Map[String, String] = Map.empty,
             parameterMeta: Map[String, String] = Map.empty): WorkflowDescription = {
-    new WorkflowDescription(valid, errors, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta)
+    new WorkflowDescription(valid, errors, inputErrors, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta)
   }
 
   def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String): WorkflowDescription = {

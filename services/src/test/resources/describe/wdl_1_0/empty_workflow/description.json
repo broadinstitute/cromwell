@@ -3,6 +3,8 @@
   "errors" : [
     "ERROR: Unexpected end of file"
   ],
+  "inputErrors" : [
+  ],
   "name" : "",
   "inputs" : [
   ],

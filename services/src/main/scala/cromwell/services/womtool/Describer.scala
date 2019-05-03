@@ -61,7 +61,7 @@ object Describer {
             case Right(_: ValidatedWomNamespace) =>
               WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName)
             case Left(errors) =>
-              WorkflowDescription.withErrors(errors.toList)
+              WorkflowDescription.withInputErrors(errors.toList)
           }
         case Left(errors) =>
           WorkflowDescription.withErrors(errors.toList)

@@ -2,6 +2,8 @@
   "valid" : true,
   "errors" : [
   ],
+  "inputErrors" : [
+  ],
   "name" : "use_this_name",
   "inputs" : [
     {

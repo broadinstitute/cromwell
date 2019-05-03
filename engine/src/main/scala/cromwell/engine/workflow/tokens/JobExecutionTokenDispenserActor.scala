@@ -82,24 +82,16 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
     if (tokenAssignments.contains(sndr)) {
       sndr ! JobExecutionTokenDispensed
     } else {
+      val queue = tokenQueues.getOrElse(tokenType, TokenQueue(tokenType, tokenEventLogger))
+      tokenQueues += tokenType -> queue.enqueue(TokenQueuePlaceholder(sndr, hogGroup))
       context.watch(sndr)
-      val updatedTokenQueue = getTokenQueue(tokenType).enqueue(TokenQueuePlaceholder(sndr, hogGroup))
-      tokenQueues += tokenType -> updatedTokenQueue
+      ()
     }
-  }
-
-  private def getTokenQueue(tokenType: JobExecutionTokenType): TokenQueue = {
-    tokenQueues.getOrElse(tokenType, createNewQueue(tokenType))
-  }
-
-  private def createNewQueue(tokenType: JobExecutionTokenType): TokenQueue = {
-    val newQueue = TokenQueue(tokenType, tokenEventLogger)
-    tokenQueues += tokenType -> newQueue
-    newQueue
   }
 
   private def distribute(n: Int) = if (tokenQueues.nonEmpty) {
 
+    // Turning a mutable `Map` to a `List` and using an indexed pointer?
     val iterator = new RoundRobinQueueIterator(tokenQueues.values.toList, currentTokenQueuePointer)
 
     // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
@@ -126,6 +118,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
       case LeasedActor(queuePlaceholder, lease) =>
         log.error(s"Actor ${queuePlaceholder.actor.path} requested a job execution token more than once. This situation should have been impossible.")
         queuePlaceholder.actor ! JobExecutionTokenDispensed
+        // If there are going to be > 1 actors mapping to this lease why is the lease being released?
         lease.release()
     })
 
@@ -140,7 +133,8 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         leasedToken.release()
         context.unwatch(actor)
         ()
-      case None =>  log.error("Job execution token returned from incorrect actor: {}", actor.path.name)
+      case None =>
+        log.error("Job execution token returned from incorrect actor: {}", actor.path.name)
     }
   }
 
@@ -150,10 +144,10 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
         log.debug("Actor {} stopped without returning its Job Execution Token. Reclaiming it!", terminee)
         self.tell(msg = JobExecutionTokenReturn, sender = terminee)
       case None =>
-        log.debug("Actor {} stopped while we were still watching it... but it doesn't have a token. Removing it from any queues if necessary", terminee)
+        log.debug("Actor {} stopped before receiving a token, removing it from any queues if necessary", terminee)
         // This is a very inefficient way to remove the actor from the queue and can lead to very poor performance for a large queue and a large number of actors to remove
         tokenQueues = tokenQueues map {
-          case (tokenType, tokenQueue) => tokenType -> tokenQueue.removeLostActor(terminee)
+          case (tokenType, tokenQueue) => tokenType -> tokenQueue.removeTokenlessActor(terminee)
         }
     }
     context.unwatch(terminee)

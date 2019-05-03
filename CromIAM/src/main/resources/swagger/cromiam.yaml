@@ -1015,6 +1015,13 @@ definitions:
           - "We might also provide warnings to a 'valid' workflow here"
           - "Otherwise, 'errors' will be the empty array"
         description: The set of validation failure messages
+      inputErrors:
+        type: array
+        items:
+          type: string
+        example:
+          - "The workflow was valid (\"valid\": true) but there is a missing input, wrong input type, or extraneous input"
+        description: The set of input validation failure messages. Only applicable when submitting a workflow with inputs.
       name:
         type: string
         description: For a source file with one workflow and zero or more tasks, the name of the workflow. For a single task, the name of the task. For a source file with multiple tasks but no workflows, the empty string.

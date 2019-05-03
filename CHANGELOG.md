@@ -45,6 +45,10 @@ backend {
 }
 ```
 
+### Womtool endpoint
+
+When submitting a workflow together with an inputs JSON to the `/describe` endpoint, the response now differentiates between an invalid workflow and a valid workflow with invalid inputs. Look for the `inputErrors` key in the response or see the Swagger for more information.
+
 ### Bug fixes
 
 #### Better validation of workflow heartbeats

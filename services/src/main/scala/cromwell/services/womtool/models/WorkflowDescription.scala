@@ -31,14 +31,6 @@ case object WorkflowDescription {
     )
   }
 
-  // This function means "the workflow was valid but you messed up your inputs"
-  def withInputErrors(errors: List[String]): WorkflowDescription = {
-    WorkflowDescription(
-      valid = true,
-      inputErrors = errors
-    )
-  }
-
   def apply(valid: Boolean = true,
             errors: List[String] = List.empty,
             inputErrors: List[String] = List.empty,
@@ -53,7 +45,7 @@ case object WorkflowDescription {
     new WorkflowDescription(valid, errors, inputErrors, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta)
   }
 
-  def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String): WorkflowDescription = {
+  def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String, inputErrors: List[String]): WorkflowDescription = {
 
     val sdt = Map(
       "descriptorType" -> languageName,
@@ -76,19 +68,19 @@ case object WorkflowDescription {
 
       // There is a primary callable in the form of a task
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
-        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
+        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, inputErrors)
 
       // There is a primary callable in the form of a workflow
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
-        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
+        fromBundleInner(primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, inputErrors)
 
       // WDL draft-2: a solo task is not primary, but we should still use its name and IO
       case ((soloNonPrimaryTask: CallableTaskDefinition) :: Nil, None) =>
-        fromBundleInner(soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images)
+        fromBundleInner(soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images, inputErrors)
 
       // Multiple tasks
       case _ =>
-        fromBundleInner("", sdt, List.empty, List.empty, Map.empty, Map.empty, images)
+        fromBundleInner("", sdt, List.empty, List.empty, Map.empty, Map.empty, images, inputErrors)
     }
   }
 
@@ -97,7 +89,8 @@ case object WorkflowDescription {
                                inputs: List[InputDefinition], outputs: List[OutputDefinition],
                                meta: Map[String, String],
                                parameterMeta: Map[String, String],
-                               images: List[String]
+                               images: List[String],
+                               inputErrors: List[String]
                              ): WorkflowDescription = {
     val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
       input match {
@@ -132,6 +125,7 @@ case object WorkflowDescription {
     WorkflowDescription(
       valid = true,
       errors = List.empty,
+      inputErrors = inputErrors,
       name = name,
       inputs = inputDescriptions,
       outputs = outputDescriptions,

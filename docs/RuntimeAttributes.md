@@ -30,19 +30,18 @@ workflow jes_workflow {
 
 Cromwell recognizes certain runtime attributes and has the ability to format these for some [Backends](/backends/Backends). See the table below for common attributes that apply to _most_ backends.
 
-
-> [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and thus these attributes do not apply universally.
-
-| Runtime Attribute    | LOCAL |  Google Cloud  |  SFS  | AWS Batch |
+| Runtime Attribute    | LOCAL |  Google Cloud  | AWS Batch |  HPC  |
 | -------------------- |:-----:|:-----:|:-----:|:------:|
-| [cpu](#cpu)                  |       |   x   |   x   |  x  |
-| [memory](#memory)                              |       |   x   |   x   |  x  |
-| [disks](#disks)                                |       |   x   |       |  x  |
-| [docker](#docker)                              |   x   |   x   |   x   |  x  |
-| [maxRetries](#maxretries)                      |   x   |   x   |   x   |  x  |
-| [continueOnReturnCode](#continueonreturncode) |   x   |   x   |   x   |  x  |
-| [failOnStderr](#failonstderr)                  |   x   |   x   |   x   |  x  |
+| [cpu](#cpu)                  |       |   x   |   x   |  `cpu`  |
+| [memory](#memory)                              |       |   x   |   x   |  `memory_mb` / `memory_gb`  |
+| [disks](#disks)                                |       |   x   |       |  *  |
+| [docker](#docker)                              |   x   |   x   |   x   |  `docker` (see below)  |
+| [maxRetries](#maxretries)                      |   x   |   x   |   x   | * |
+| [continueOnReturnCode](#continueonreturncode) |   x   |   x   |   x   | * |
+| [failOnStderr](#failonstderr)                  |   x   |   x   |   x   |  *  |
 
+
+> `*` The HPC [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and any number of attributes can be exposed. Cromwell recognizes some of these attributes (`cpu`, `memory` and `docker`) and parses them into the attribute listed in the table which can be used within the HPC backend configuration.
 
 
 ### Google Cloud Specific Attributes
@@ -77,7 +76,7 @@ task runtime_test {
 }
 ```
 
-SGE and similar backends may define other configurable runtime attributes beyond the five listed. To find more information about SGE, view [Sun GridEngine](/backends/SGE).
+HPC backends may define other configurable runtime attributes beyond the five listed, to find out more visit the [SunGridEngine](/backends/SGE) tutorial.
 
 ## Default Values
 
@@ -140,10 +139,10 @@ Note how for `task second` the WDL value for `docker` is used instead of the def
 
 *Default: _1_*
 
-`cpu` represents the number of cores that a job should be allocated.
+The `cpu` runtime attribute represents the number of cores that a job requires, however each backend may interpret this differently:
 
 - In Google Cloud: this is interpreted as "the minimum number of cores to use."
-- In SGE: this is Configurable, but usually a reservation and/or limit of number of cores.
+- In HPCs (SFS): this is configurable, but usually a reservation and/or limit of number of cores.
 
 Example
 ```
@@ -240,7 +239,7 @@ runtime {
 
 *Default: _0_*
 
-This retry option is introduced to provide a strategy for tackling transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task. This retry is applied towards jobs that fail while executing the task command. 
+This retry option is introduced to provide a method for tackling transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task. This retry is applied towards jobs that fail while executing the task command. This method only applies to transient job failures and is a feeble attempt to retry a job, that is it cannot be used to increase memory in out-of-memory situations.
 
 If using the Google backend, it's important to note that The `maxRetries` count is independent from the [preemptible](#preemptible) count. For example, the task below can be retried up to 6 times if it's preempted 3 times AND the command execution fails 3 times.
 

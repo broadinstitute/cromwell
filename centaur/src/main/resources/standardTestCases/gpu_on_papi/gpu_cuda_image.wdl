@@ -7,7 +7,7 @@ workflow gpu_cuda_image {
     }
 
     scatter (driver_version in driver_versions) {
-        call get_machine_info { input: driver_version = driver_version}
+        call get_machine_info { input: driver_version = driver_version }
     }
 
     output {

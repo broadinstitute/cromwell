@@ -40,7 +40,5 @@ final class BcsInitializationActor(params: BcsInitializationActorParams)
       paths <- workflowPaths
       builders <- pathBuilders
     } yield Option(BcsBackendInitializationData(paths, runtimeAttributesBuilder, bcsConfiguration, builders))
-
   }
-
 }

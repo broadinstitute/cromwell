@@ -12,7 +12,7 @@ import common.validation.Validation._
 import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
-import cromwell.docker.registryv2.flows.aliyunregistry._
+import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.gcr.GcrRegistry
@@ -239,7 +239,7 @@ object DockerInfoActor {
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
       ("gcr", gcrConstructor),
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
-      ("aliyuncr", {c: DockerRegistryConfig => new AliyunRegistry(c)})
+      ("alibabacloudcr", {c: DockerRegistryConfig => new AlibabaCloudCRRegistry(c)})
     ).traverse[ErrorOr, DockerRegistry]({
       case (configPath, constructor) => DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
     }).unsafe("Docker registry configuration")

@@ -266,18 +266,26 @@ The system disk size can support up to 500GB. One can mount another data disk in
 ```
 
 ###CallCaching
-BCS supports CallCaching feature when the docker image is from Alibaba Cloud Container Registry with following conf:
+BCS supports CallCaching feature when the docker image is from Alibaba Cloud Container Registry. 
+The configuration file will look like the following:
 ```hocon
 call-caching {
   enabled = true
+  invalidate-bad-cache-results = true
+
 }
 
 docker {
   hash-lookup {
     enable = true
     method = "remote"
-    aliyuncr {
+    alibabacloudcr {
       num-threads = 5
+      auth {
+        access-id = xxxx
+        access-key = yyyy
+        security-token = zzzz
+      }
     }
   }
 }

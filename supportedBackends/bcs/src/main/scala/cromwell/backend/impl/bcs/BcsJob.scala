@@ -131,6 +131,7 @@ final case class BcsJob(name: String,
     lazyCmd.setEnvVars(environments.asJava)
     lazyCmd.setCommandLine(commandString)
 
+    dockers foreach {docker => lazyCmd.setDocker(docker)}
     stdoutPath foreach {path => parames.setStdoutRedirectPath(path.normalize().pathAsString + "/")}
     stderrPath foreach {path => parames.setStderrRedirectPath(path.normalize().pathAsString + "/")}
 
@@ -140,12 +141,23 @@ final case class BcsJob(name: String,
 
   private[bcs] def environments: Map[String, String] = {
     runtime.docker match {
-      case Some(docker: BcsDockerWithoutPath) =>  envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
-      case _ => runtime.dockerTag match {
-        case Some(docker: BcsDockerWithoutPath) =>  envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
-        case Some(docker: BcsDockerWithPath) =>  envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) + (BcsJob.BcsDockerImageEnvKey -> docker.image)
-        case _ => envs
-      }
+      case None =>
+        runtime.dockerTag match {
+          case Some(docker: BcsDockerWithoutPath) => envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+          case Some(docker: BcsDockerWithPath) => envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+          case _ => envs
+        }
+      case _ => envs
+    }
+  }
+
+  val dockers: Option[Command.Docker] = {
+    runtime.docker match {
+      case Some(docker: BcsDockerWithoutPath) =>
+        val dockers = new Command.Docker
+        dockers.setImage(docker.image)
+        Some(dockers)
+      case _ => None
     }
   }
 

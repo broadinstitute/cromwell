@@ -10,6 +10,7 @@ import cromwell.engine.backend.BackendConfigurationEntry
 import cromwell.backend.impl.bcs.callcaching.{CopyCachedOutputs, UseOriginalCachedOutputs}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
+import cromwell.core.DockerConfiguration
 
 
 object BcsConfiguration{
@@ -81,19 +82,23 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
     case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
   } }
 
+  lazy val dockerHashAccessId = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.access-id")
+  lazy val dockerHashAccessKey = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.access-key")
+  lazy val dockerHashSecurityToken = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.security-token")
+
   val dockerCredentials/*: Option[BasicSessionCredentials]*/ = {
-    bcsSecurityToken match {
+    dockerHashSecurityToken match {
       case None => {
         for {
-          id <- bcsAccessId
-          key <- bcsAccessKey
+          id <- dockerHashAccessId
+          key <- dockerHashAccessKey
         } yield new BasicCredentials(id, key)
       }
       case _ => {
         for {
-          id <- bcsAccessId
-          key <- bcsAccessKey
-          token <- bcsSecurityToken
+          id <- dockerHashAccessId
+          key <- dockerHashAccessKey
+          token <- dockerHashSecurityToken
         } yield new BasicSessionCredentials(id, key, token)
       }
     }

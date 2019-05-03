@@ -1,4 +1,4 @@
-package cromwell.docker.registryv2.flows.aliyunregistry
+package cromwell.docker.registryv2.flows.alibabacloudcrregistry
 
 import akka.stream._
 import cats.effect.IO
@@ -18,10 +18,10 @@ import scala.util.{Failure, Success, Try}
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
-class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
+class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
   val ProductName = "cr"
   val HashAlg = "sha256"
-  val supportedAliunCrRegion = List(
+  val supportedAlibabaCloudCRRegion = List(
     "ap-northeast-1",
     "ap-south-1",
     "ap-southeast-1",
@@ -40,21 +40,22 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
     "me-east-1",
     "us-east-1",
     "us-west-1"
-  ).mkString("|")
-  val validAliyunCrHosts: Regex = ("""registry.""" + s"""(?:($supportedAliunCrRegion))""" + """.aliyuncs.com""").r
+  )
+  val regionPattern = supportedAlibabaCloudCRRegion.mkString("|")
+  val validAlibabaCloudCRHosts: Regex = ("""registry.""" + s"""(?:($regionPattern))""" + """.aliyuncs.com""").r
 
-  def isValidAliyunCrHost(host: Option[String]): Boolean =
+  def isValidAlibabaCloudCRHost(host: Option[String]): Boolean =
     host match {
       case Some(h) => {
         h match {
-          case validAliyunCrHosts(_) => true
+          case validAlibabaCloudCRHosts(_) => true
           case _ => false
         }
       }
       case _ => false
     }
 
-  override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean = isValidAliyunCrHost(dockerImageIdentifier.host)
+  override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean = isValidAlibabaCloudCRHost(dockerImageIdentifier.host)
 
   override protected def getToken(dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[Option[String]] = {
     IO.pure(None)
@@ -66,19 +67,16 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
 
   override protected def getDockerResponse(token: Option[String], dockerInfoContext: DockerInfoContext)(implicit client: Client[IO]): IO[DockerInfoSuccessResponse] = {
     getManifest(dockerInfoContext) match {
-        case succ: DockerInfoSuccessResponse => IO(succ)
+        case success: DockerInfoSuccessResponse => IO(success)
         case fail: DockerInfoFailedResponse => throw fail.failure
         case other => throw new Exception(s"Get manifest failed, $other")
     }
   }
 
-  val regionPattern = """[^\s]+"""
-  val hostPattern: Regex = s"""registry.($regionPattern).aliyuncs.com""".r
-
   private def getManifest(context: DockerInfoContext): DockerInfoResponse = {
 
     val regionId = context.dockerImageID.host match {
-      case Some(hostPattern(region)) => region
+      case Some(validAlibabaCloudCRHosts(region)) => region
       case _ => throw new Exception(s"The host ${context.dockerImageID.host} does not have the expected region id")
     }
 
@@ -125,9 +123,9 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
     val tags = jsObject.fields.get("data") match {
       case Some(data) => data.asJsObject().convertTo[Map[String, JsValue]].get("tags") match {
         case Some(tag) => tag.convertTo[Seq[JsObject]]
-        case None => throw new Exception("Manifest response did not contain a tags field")
+        case None => throw new Exception(s"Manifest response did not contain a tags field, ${jsObject}")
       }
-      case None => throw new Exception("Manifest response did not contain a data field, Please make sure the existence of image")
+      case None => throw new Exception(s"Manifest response did not contain a data field, Please make sure the existence of image, ${jsObject}")
     }
 
     tags find { matchTag(_, dockerHashContext)} match {
@@ -138,17 +136,18 @@ class AliyunRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstr
               case Success(r) => DockerInfoSuccessResponse(DockerInformation(r, None), dockerHashContext.request)
               case Failure(t) => DockerInfoFailedResponse(t, dockerHashContext.request)
             }
-          case Some(_) => DockerInfoFailedResponse((new Exception("Manifest response contains a non-string digest field")), dockerHashContext.request)
-          case None => DockerInfoFailedResponse((new Exception("Manifest response did not contain a digest field")), dockerHashContext.request)
+          case Some(_) => DockerInfoFailedResponse((new Exception(s"Manifest response contains a non-string digest field, ${jsObject}")), dockerHashContext.request)
+          case None => DockerInfoFailedResponse((new Exception(s"Manifest response did not contain a digest field, ${jsObject}")), dockerHashContext.request)
         }
-      case None => DockerInfoFailedResponse((new Exception(s"Manifest response did not contain a expected tag: ${dockerHashContext.dockerImageID.reference}")), dockerHashContext.request)
+      case None => DockerInfoFailedResponse((new Exception(s"Manifest response did not contain a expected tag: ${dockerHashContext.dockerImageID.reference}, ${jsObject}")), dockerHashContext.request)
     }
   }
 
   private def manifestResponseHandler(client: DefaultAcsClient, request: GetRepoTagsRequest, dockerHashContext: DockerInfoContext): Try[DockerInfoResponse] = {
     for {
       response <- Try(client.doAction(request))
-      jsObj <- if (response.isSuccess) Try(response.getHttpContentString.parseJson.asJsObject()) else throw new Exception(s"Get Manifest rerequest not success: ${response.getStatus}")
+      jsObj <- Try(if (response.isSuccess) response.getHttpContentString.parseJson.asJsObject()
+                    else throw new Exception(s"Get Manifest rerequest not success: ${response}"))
       dockInfoRes <- Try(extractDigestFromBody(jsObj, dockerHashContext))
     } yield dockInfoRes
   }

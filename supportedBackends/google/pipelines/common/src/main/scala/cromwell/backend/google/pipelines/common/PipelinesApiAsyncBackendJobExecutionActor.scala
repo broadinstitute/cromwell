@@ -87,7 +87,8 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 
 class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with PipelinesApiJobCachingActorHelper
-    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient with PapiInstrumentation {
+    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient
+    with PapiInstrumentation {
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 

@@ -592,7 +592,7 @@ object CromwellApiServiceSpec {
       case GetSingleWorkflowMetadataAction(id, None, None, _) => sender ! MetadataLookupResponse(metadataQuery(id), fullMetadataResponse(id))
       case GetSingleWorkflowMetadataAction(id, Some(_), None, _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
       case GetSingleWorkflowMetadataAction(id, None, Some(_), _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
-      case PutMetadataActionAndRespond(events, _) =>
+      case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
           case CromwellApiServiceSpec.SummarizedWorkflowId => sender ! MetadataWriteSuccess(events)

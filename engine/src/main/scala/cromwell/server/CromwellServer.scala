@@ -26,7 +26,13 @@ object CromwellServer {
 }
 
 class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(override implicit val materializer: ActorMaterializer)
-  extends CromwellRootActor(gracefulShutdown, abortJobsOnTerminate, serverMode = true)
+  extends CromwellRootActor(
+    terminator = cromwellSystem,
+    gracefulShutdown = gracefulShutdown,
+    abortJobsOnTerminate = abortJobsOnTerminate,
+    serverMode = true,
+    config = cromwellSystem.config
+  )
     with CromwellApiService
     with CromwellInstrumentationActor
     with WesRouteSupport
@@ -36,7 +42,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
   override implicit val ec = context.dispatcher
   override def actorRefFactory: ActorContext = context
 
-  val webserviceConf = cromwellSystem.conf.getConfig("webservice")
+  val webserviceConf = cromwellSystem.config.getConfig("webservice")
   val interface = webserviceConf.getString("interface")
   val port = webserviceConf.getInt("port")
 

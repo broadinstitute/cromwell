@@ -101,9 +101,11 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     }
   }
 
-  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int] = {
+  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                       heartbeatDateTime: OffsetDateTime)
+                                      (implicit ec: ExecutionContext): Future[Int] = {
     val sortedWorkflowIds = workflowIds.toList sortBy(_._2) map (_._1.toString)
-    sqlDatabase.writeWorkflowHeartbeats(sortedWorkflowIds, Option(OffsetDateTime.now.toSystemTimestamp))
+    sqlDatabase.writeWorkflowHeartbeats(sortedWorkflowIds, heartbeatDateTime.toSystemTimestamp)
   }
 
   /**

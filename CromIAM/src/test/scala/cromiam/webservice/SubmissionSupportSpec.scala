@@ -18,9 +18,18 @@ class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTe
   implicit val routeTestTimeout = new RouteTestTimeout(10.seconds.dilated)
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
-  val badAuthHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.unauthorizedUserCollectionStr))
-  val goodAuthHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.authorizedUserCollectionStr))
-  val notWhitelistedUserHeader: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.notWhitelistedUser))
+  val badAuthHeaders: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.UnauthorizedUserCollectionStr)
+  )
+  val goodAuthHeaders: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.AuthorizedUserCollectionStr)
+  )
+  val notWhitelistedUserHeader: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.NotWhitelistedUser)
+  )
 
   val submitPath: String = "/api/workflows/v1"
 

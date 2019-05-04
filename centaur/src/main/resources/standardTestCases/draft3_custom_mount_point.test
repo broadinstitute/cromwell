@@ -9,9 +9,17 @@ files {
 }
 
 metadata {
-  "calls.custom_mount_point.t.backend": "Papi"
-  "calls.custom_mount_point.t.backendStatus": "Success"
+  "calls.custom_mount_point.local_and_custom.backend": "Papi"
+  "calls.custom_mount_point.local_and_custom.backendStatus": "Success"
 
-  "outputs.custom_mount_point.o1": "bazqux"
-  "outputs.custom_mount_point.o2": "foobar"
+  "calls.custom_mount_point.local_only.backend": "Papi"
+  "calls.custom_mount_point.local_only.backendStatus": "Success"
+
+  "calls.custom_mount_point.custom_only.backend": "Papi"
+  "calls.custom_mount_point.custom_only.backendStatus": "Success"
+
+  "outputs.custom_mount_point.o1": "local disk contents"
+  "outputs.custom_mount_point.o2": "custom mount contents"
+  "outputs.custom_mount_point.o3": "local disk contents"
+  "outputs.custom_mount_point.o4": "custom mount contents"
 }

@@ -74,8 +74,11 @@ class InMemoryWorkflowStore extends WorkflowStore {
     }
   }
 
-  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int] =
+  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                       heartbeatDateTime: OffsetDateTime)
+                                      (implicit ec: ExecutionContext): Future[Int] = {
     Future.successful(workflowIds.size)
+  }
 
   override def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 

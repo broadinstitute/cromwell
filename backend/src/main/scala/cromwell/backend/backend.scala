@@ -12,6 +12,7 @@ import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, WorkflowId, WorkflowOptions}
 import cromwell.docker.DockerInfoActor.DockerSize
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
+import net.ceedubs.ficus.Ficus._
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
@@ -19,6 +20,7 @@ import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.WomArray.WomArrayLike
 import wom.values._
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -142,6 +144,8 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
   def pathBuildersWithDefault(workflowOptions: WorkflowOptions)(implicit as: ActorSystem) = {
     PathBuilderFactory.instantiatePathBuilders(configuredFactoriesWithDefault.values.toList, workflowOptions)
   }
+
+  lazy val slowJobWarningAfter = backendConfig.as[Option[FiniteDuration]](path="slow-job-warning-time")
 }
 
 final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {

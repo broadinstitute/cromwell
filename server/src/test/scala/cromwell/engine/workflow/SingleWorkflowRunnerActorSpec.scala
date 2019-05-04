@@ -7,16 +7,16 @@ import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.testkit._
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
 import cromwell.CromwellTestKitSpec._
 import cromwell._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.{SimpleIoActor, WorkflowSourceFilesCollection}
+import cromwell.engine.MockCromwellTerminator
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.engine.workflow.SingleWorkflowRunnerActorSpec._
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore._
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.{ExpressionsInInputs, GoodbyeWorld, ThreeStep}
@@ -52,29 +52,53 @@ object SingleWorkflowRunnerActorSpec {
 
   class TestSingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                       metadataOutputPath: Option[Path])(implicit materializer: ActorMaterializer)
-    extends SingleWorkflowRunnerActor(source, metadataOutputPath, false, false) {
+    extends SingleWorkflowRunnerActor(
+      source = source,
+      metadataOutputPath = metadataOutputPath,
+      terminator = MockCromwellTerminator,
+      gracefulShutdown = false,
+      abortJobsOnTerminate = false,
+      config = CromwellTestKitSpec.DefaultConfig
+    ) {
     override lazy val serviceRegistryActor = CromwellTestKitSpec.ServiceRegistryActorInstance
     override private [workflow] def done() = context.stop(self)
   }
 }
 
 abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreBuilder with Mockito {
-  private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
+  private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(CromwellTestKitSpec.DefaultConfig)
   val store = new InMemoryWorkflowStore
   private val workflowStore =
-    system.actorOf(WorkflowStoreActor.props(store, store |> access, dummyServiceRegistryActor, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
-  private val serviceRegistry = TestProbe().ref
-  private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props)
-  private val ioActor = system.actorOf(SimpleIoActor.props)
-  private val subWorkflowStore = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
-  private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props)
-  private val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props)
-  private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props)
-  private val jobTokenDispenserActor = system.actorOf(JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None))
+    system.actorOf(
+      WorkflowStoreActor.props(
+        store,
+        store |> access,
+        dummyServiceRegistryActor,
+        MockCromwellTerminator,
+        abortAllJobsOnTerminate = false,
+        workflowHeartbeatConfig
+      ),
+      "WorkflowStoreActor"
+    )
+  private val serviceRegistry = TestProbe("ServiceRegistryProbe").ref
+  private val jobStore = system.actorOf(AlwaysHappyJobStoreActor.props, "AlwaysHappyJobStoreActor")
+  private val ioActor = system.actorOf(SimpleIoActor.props, "SimpleIoActor")
+  private val subWorkflowStore = system.actorOf(
+    AlwaysHappySubWorkflowStoreActor.props,
+    "AlwaysHappySubWorkflowStoreActor"
+  )
+  private val callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props, "EmptyCallCacheReadActor")
+  private val callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props, "EmptyCallCacheWriteActor")
+  private val dockerHashActor = system.actorOf(EmptyDockerHashActor.props, "EmptyDockerHashActor")
+  private val jobTokenDispenserActor = system.actorOf(
+    JobExecutionTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None),
+    "JobExecutionTokenDispenserActor"
+  )
 
 
   def workflowManagerActor(): ActorRef = {
-    val params = WorkflowManagerActorParams(ConfigFactory.load(),
+    val params = WorkflowManagerActorParams(
+      CromwellTestKitSpec.DefaultConfig,
       workflowStore = workflowStore,
       ioActor = ioActor,
       serviceRegistryActor = dummyServiceRegistryActor,
@@ -93,7 +117,10 @@ abstract class SingleWorkflowRunnerActorSpec extends CromwellTestKitWordSpec wit
   
   def createRunnerActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),
                           outputFile: => Option[Path] = None): ActorRef = {
-    system.actorOf(Props(new TestSingleWorkflowRunnerActor(sampleWdl.asWorkflowSources(), outputFile)))
+    system.actorOf(
+      Props(new TestSingleWorkflowRunnerActor(sampleWdl.asWorkflowSources(), outputFile)),
+      "TestSingleWorkflowRunnerActor"
+    )
   }
 
   def singleWorkflowActor(sampleWdl: SampleWdl = ThreeStep, managerActor: => ActorRef = workflowManagerActor(),

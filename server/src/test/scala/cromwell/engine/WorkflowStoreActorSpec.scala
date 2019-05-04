@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import cromwell.core._
 import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
 import cromwell.database.slick.EngineSlickDatabase
@@ -41,7 +41,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
   val helloCwlWorldSourceFiles = HelloWorld.asWorkflowSources(workflowType = Option("CWL"), workflowTypeVersion = Option("v1.0"))
   val cromwellId = "f00ba4"
   val heartbeatTtl = 1 hour
-  val rootConfig = ConfigFactory.load()
+  val rootConfig = CromwellTestKitSpec.DefaultConfig
   val databaseConfig = rootConfig.getConfig("database")
 
   /**
@@ -71,14 +71,34 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
   "The WorkflowStoreActor" should {
     "return an ID for a submitted workflow" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-ReturnIdForSubmitted"
+      )
       storeActor ! SubmitWorkflow(helloWorldSourceFiles)
       expectMsgType[WorkflowSubmittedToStore](10 seconds)
     }
 
     "check if workflow state is 'On Hold' when workflowOnHold = true" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-CheckOnHold"
+      )
       storeActor ! SubmitWorkflow(helloWorldSourceFilesOnHold)
       expectMsgPF(10 seconds) {
         case submit: WorkflowSubmittedToStore => submit.state shouldBe WorkflowOnHold
@@ -87,7 +107,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "return 3 IDs for a batch submission of 3" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-ReturnIdsForBatch"
+      )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       expectMsgPF(10 seconds) {
         case WorkflowsBatchSubmittedToStore(ids, WorkflowSubmitted) => ids.toList.size shouldBe 3
@@ -96,7 +126,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "fetch exactly N workflows" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-FetchExactlyN"
+      )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloCwlWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -139,8 +179,21 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
 
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
-      val readMetadataActor = system.actorOf(ReadMetadataActor.props())
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-FetchEncryptedWorkflowOptions"
+      )
+      val readMetadataActor = system.actorOf(
+        ReadMetadataActor.props(),
+        "ReadMetadataActor-FetchEncryptedOptions"
+      )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -182,7 +235,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "return only the remaining workflows if N is larger than size" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-ReturnOnlyRemaining"
+      )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(helloWorldSourceFiles, helloWorldSourceFiles, helloWorldSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -202,7 +265,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "remain responsive if you ask to remove a workflow it doesn't have" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(store, store |> access, CromwellTestKitSpec.ServiceRegistryActorInstance, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-RemainResponsiveForUnknown"
+      )
 
       storeActor ! FetchRunnableWorkflows(100)
       expectMsgPF(10 seconds) {
@@ -213,13 +286,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "abort an on hold workflow" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(
-        store,
-        store |> access,
-        CromwellTestKitSpec.ServiceRegistryActorInstance,
-        abortAllJobsOnTerminate = false,
-        workflowHeartbeatConfig
-      ))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-AbortOnHold"
+      )
       storeActor ! SubmitWorkflow(helloWorldSourceFiles.copy(workflowOnHold = true))
       val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
       storeActor ! AbortWorkflowCommand(workflowId)
@@ -230,13 +307,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "abort a submitted workflow with an empty heartbeat" in {
       runWithDatabase(databaseConfig) { store =>
-        val storeActor = system.actorOf(WorkflowStoreActor.props(
-          store,
-          store |> access,
-          CromwellTestKitSpec.ServiceRegistryActorInstance,
-          abortAllJobsOnTerminate = false,
-          workflowHeartbeatConfig
-        ))
+        val storeActor = system.actorOf(
+          WorkflowStoreActor.props(
+            store,
+            store |> access,
+            CromwellTestKitSpec.ServiceRegistryActorInstance,
+            MockCromwellTerminator,
+            abortAllJobsOnTerminate = false,
+            workflowHeartbeatConfig
+          ),
+          "WorkflowStoreActor-AbortSubmittedEmptyHeartbeat"
+        )
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
         storeActor ! AbortWorkflowCommand(workflowId)
@@ -250,16 +331,21 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       runWithDatabase(databaseConfig) { store =>
         val coordinatedAccess = store |> access
 
-        val storeActor = system.actorOf(WorkflowStoreActor.props(
-          store,
-          coordinatedAccess,
-          CromwellTestKitSpec.ServiceRegistryActorInstance,
-          abortAllJobsOnTerminate = false,
-          workflowHeartbeatConfig
-        ))
+        val storeActor = system.actorOf(
+          WorkflowStoreActor.props(
+            store,
+            coordinatedAccess,
+            CromwellTestKitSpec.ServiceRegistryActorInstance,
+            MockCromwellTerminator,
+            abortAllJobsOnTerminate = false,
+            workflowHeartbeatConfig
+          ),
+          "WorkflowStoreActor-AbortSubmittedNonEmptyHeartbeat"
+        )
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
-        coordinatedAccess.actor ! WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())))
+        coordinatedAccess.actor !
+          WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())), OffsetDateTime.now())
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)
         val abortResponse = expectMsgType[AbortResponse](10.seconds)
@@ -270,13 +356,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "abort a running workflow with an empty heartbeat" in {
       runWithDatabase(databaseConfig) { store =>
-        val storeActor = system.actorOf(WorkflowStoreActor.props(
-          store,
-          store |> access,
-          CromwellTestKitSpec.ServiceRegistryActorInstance,
-          abortAllJobsOnTerminate = false,
-          workflowHeartbeatConfig
-        ))
+        val storeActor = system.actorOf(
+          WorkflowStoreActor.props(
+            store,
+            store |> access,
+            CromwellTestKitSpec.ServiceRegistryActorInstance,
+            MockCromwellTerminator,
+            abortAllJobsOnTerminate = false,
+            workflowHeartbeatConfig
+          ),
+          "WorkflowStoreActor-AbortRunningEmptyHeartbeat"
+        )
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
 
@@ -299,13 +389,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
     "abort a running workflow with a non-empty heartbeat" in {
       runWithDatabase(databaseConfig) { store =>
         val coordinatedAccess = store |> access
-        val storeActor = system.actorOf(WorkflowStoreActor.props(
-          store,
-          coordinatedAccess,
-          CromwellTestKitSpec.ServiceRegistryActorInstance,
-          abortAllJobsOnTerminate = false,
-          workflowHeartbeatConfig
-        ))
+        val storeActor = system.actorOf(
+          WorkflowStoreActor.props(
+            store,
+            coordinatedAccess,
+            CromwellTestKitSpec.ServiceRegistryActorInstance,
+            MockCromwellTerminator,
+            abortAllJobsOnTerminate = false,
+            workflowHeartbeatConfig
+          ),
+          "WorkflowStoreActor-AbortRunningNonEmptyHeartbeat"
+        )
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
 
@@ -318,7 +412,8 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
         Await.result(futureUpdate, 10.seconds.dilated) should be(1)
 
-        coordinatedAccess.actor ! WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())))
+        coordinatedAccess.actor !
+          WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())), OffsetDateTime.now())
 
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)
@@ -330,13 +425,17 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "not abort a not found workflow" in {
       val store = new InMemoryWorkflowStore
-      val storeActor = system.actorOf(WorkflowStoreActor.props(
-        store,
-        store |> access,
-        CromwellTestKitSpec.ServiceRegistryActorInstance,
-        abortAllJobsOnTerminate = false,
-        workflowHeartbeatConfig
-      ))
+      val storeActor = system.actorOf(
+        WorkflowStoreActor.props(
+          store,
+          store |> access,
+          CromwellTestKitSpec.ServiceRegistryActorInstance,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-AbortNotFound"
+      )
       val notFoundWorkflowId = WorkflowId.fromString("7ff8dff3-bc80-4500-af3b-57dbe7a6ecbb")
       storeActor ! AbortWorkflowCommand(notFoundWorkflowId)
       val abortResponse = expectMsgType[AbortResponse](10 seconds)

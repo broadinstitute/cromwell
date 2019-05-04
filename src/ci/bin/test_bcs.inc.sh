@@ -61,7 +61,7 @@ cromwell::private::bcs::try_bcs_create_cluster() {
             create_cluster \
             "${cluster_name}" \
             --image img-ubuntu \
-            --type ecs.sn1.medium \
+            --type ecs.sn1ne.large \
             --nodes 8 \
             --vpc_cidr_block 192.168.1.0/24 \
             --no_cache_support \

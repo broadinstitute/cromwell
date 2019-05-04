@@ -32,10 +32,11 @@ package cromwell.backend.impl.aws.io
 
 import cats.data.Validated._
 import cats.syntax.validated._
-import software.amazon.awssdk.services.batch.model.{MountPoint, Volume, Host}
+import software.amazon.awssdk.services.batch.model.{Host, MountPoint, Volume}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
+import cromwell.backend.DiskPatterns
 import wom.values._
 
 import scala.util.Try
@@ -50,16 +51,24 @@ import scala.util.matching.Regex
  */
 
 object AwsBatchVolume {
-  val Directory = "^\\/.+"
-  val MountedDiskPattern: Regex = s"""($Directory)""".r
-  val LocalDiskPattern: Regex = s"""local-disk""".r
+  // In AWS, disks are auto-sized so these patterns match simply "local-disk" or "/some/mnt"
+  val MountedDiskPattern: Regex = raw"""^\s*(${DiskPatterns.Directory})\s*$$""".r
+  val LocalDiskPattern: Regex = raw"""^\s*local-disk\s*$$""".r
 
   def parse(s: String): Try[AwsBatchVolume] = {
 
     val validation: ErrorOr[AwsBatchVolume] = s match {
-      case LocalDiskPattern() => Valid(AwsBatchWorkingDisk())
-      case MountedDiskPattern(mountPoint) => Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
-      case _ => s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
+      case LocalDiskPattern() =>
+        Valid(AwsBatchWorkingDisk())
+      case MountedDiskPattern(mountPoint) =>
+        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
+      // In addition to the AWS-specific patterns above, we can also fall back to PAPI-style patterns and ignore the size
+      case DiskPatterns.WorkingDiskPattern(_, _) =>
+        Valid(AwsBatchWorkingDisk())
+      case DiskPatterns.MountedDiskPattern(mountPoint, _, _) =>
+        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
+      case _ =>
+        s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
     }
 
     Try(validation match {

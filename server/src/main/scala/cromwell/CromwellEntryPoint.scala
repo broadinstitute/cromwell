@@ -60,7 +60,14 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = cromwellSystem.actorSystem
 
     val sources = validateRunArguments(args)
-    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
+    val runnerProps = SingleWorkflowRunnerActor.props(
+      source = sources,
+      metadataOutputFile = args.metadataOutput,
+      terminator = cromwellSystem,
+      gracefulShutdown = gracefulShutdown,
+      abortJobsOnTerminate = abortJobsOnTerminate.getOrElse(true),
+      config = cromwellSystem.config
+    )(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
@@ -107,7 +114,9 @@ object CromwellEntryPoint extends GracefulStopSupport {
     initLogging(command)
     lazy val Log = LoggerFactory.getLogger("cromwell")
     Try {
-      new CromwellSystem {}
+      new CromwellSystem {
+        override lazy val config = CromwellEntryPoint.config
+      }
     } recoverWith {
       case t: Throwable =>
         Log.error(s"Failed to instantiate Cromwell System. Shutting down Cromwell.", t)

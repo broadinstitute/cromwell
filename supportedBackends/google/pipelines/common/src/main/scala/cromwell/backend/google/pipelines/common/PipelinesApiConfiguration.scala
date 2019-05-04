@@ -8,7 +8,6 @@ import cromwell.core.BackendDockerConfiguration
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 
-
 class PipelinesApiConfiguration(val configurationDescriptor: BackendConfigurationDescriptor,
                                 val genomicsFactory: PipelinesApiFactoryInterface,
                                 val googleConfig: GoogleConfiguration,

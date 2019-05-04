@@ -59,9 +59,9 @@ class BcsJobSpec extends BcsTestUtilSpec {
   it should "have correct docker option" in {
     val dockerImage = "ubuntu/latest"
     val dockerPath = "oss://bcs-reg/ubuntu/"toLowerCase()
-    val runtime = Map("docker" -> WomString(s"$dockerImage $dockerPath"))
-    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerImageEnvKey) shouldEqual dockerImage
-    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerPathEnvKey) shouldEqual dockerPath
+    val runtime = Map("dockerTag" -> WomString(s"$dockerImage $dockerPath"))
+    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerImageEnvKey) shouldEqual null
+    taskWithRuntime(runtime).getParameters.getCommand.getEnvVars.get(BcsJob.BcsDockerPathEnvKey) shouldEqual null
   }
 
   it should "have correct auto cluster configuration" in {

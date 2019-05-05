@@ -59,6 +59,10 @@ cromwell::kube::create_cloud_sql_instance() {
   # Create a user.
   cromwell::kube::gcloud_run_as_service_account \
     "gcloud --project $GOOGLE_PROJECT sql users create cromwell --instance $cloudSqlInstanceName --password='${cloudSqlPassword}'"
+
+  # Create the cromwell test database.
+  cromwell::kube::gcloud_run_as_service_account \
+    "gcloud --project $GOOGLE_PROJECT sql databases create cromwell_test --instance $cloudSqlInstanceName"
 }
 
 cromwell::kube::destroy_cloud_sql_instance() {

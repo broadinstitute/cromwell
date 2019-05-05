@@ -34,6 +34,7 @@ class BcsConfigurationSpec extends BcsTestUtilSpec {
     conf.duplicationStrategy shouldEqual UseOriginalCachedOutputs
   }
 
+
   private def withConfig(configs: Map[String, ValueOrDelete]) = {
     var descriptor = BcsTestUtilSpec.BcsBackendConfigurationDescriptor.copy()
     for ((key, value) <- configs) {

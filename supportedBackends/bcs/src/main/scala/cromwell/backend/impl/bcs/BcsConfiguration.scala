@@ -2,6 +2,7 @@ package cromwell.backend.impl.bcs
 
 import com.aliyuncs.auth.BasicSessionCredentials
 import com.aliyuncs.auth.BasicCredentials
+
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendConfigurationDescriptor
@@ -11,7 +12,6 @@ import cromwell.backend.impl.bcs.callcaching.{CopyCachedOutputs, UseOriginalCach
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 import cromwell.core.DockerConfiguration
-
 
 object BcsConfiguration{
   val OssEndpointKey = "ossEndpoint"
@@ -103,6 +103,7 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
       }
     }
   }
+
   def newBcsClient: Option[BatchComputeClient] = {
     val userDefinedRegion = for {
       region <- bcsUserDefinedRegion
@@ -146,5 +147,4 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
 
     oldBcsClient
   }
-
 }

@@ -23,7 +23,6 @@ object RuntimeEnvironmentBuilder {
       val tempPath: String = {
         val uuid = UUID.randomUUID().toString
         val hash = uuid.substring(0, uuid.indexOf('-'))
-        
         callRoot.resolve(s"tmp.$hash").pathAsString
       }
 

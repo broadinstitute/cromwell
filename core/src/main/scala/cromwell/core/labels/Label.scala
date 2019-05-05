@@ -5,7 +5,7 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 
-sealed abstract case class  Label(key: String, value: String)
+sealed abstract case class Label(key: String, value: String)
 
 object Label {
 

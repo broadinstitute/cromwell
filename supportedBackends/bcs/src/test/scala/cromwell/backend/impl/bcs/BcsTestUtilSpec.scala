@@ -3,12 +3,12 @@ package cromwell.backend.impl.bcs
 import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
-import cromwell.backend.BackendSpec.{buildWdlWorkflowDescriptor}
+import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-import cromwell.core.path.DefaultPathBuilder
+//import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
-import cromwell.filesystems.oss.nio.OssStorageConfiguration
+import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import org.scalatest.mockito.MockitoSugar
@@ -25,7 +25,8 @@ object BcsTestUtilSpec {
       |  continueOnReturnCode: 0
       |  cluster: "cls-mycluster"
       |  mounts: "oss://bcs-bucket/bcs-dir/ /home/inputs/ false"
-      |  docker: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  dockerTag: "ubuntu/latest oss://bcs-reg/ubuntu/"
+      |  docker: "registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"
       |  userData: "key value"
       |  reserveOnFail: true
       |  autoReleaseJob: true
@@ -118,7 +119,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   }
 
   val jobId = "test-bcs-job"
-  val mockOssConf = OssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
+  val mockOssConf = DefaultOssStorageConfiguration("oss.aliyuncs.com", "test-id", "test-key")
   val mockPathBuiler = OssPathBuilder(mockOssConf)
   val mockPathBuilders = List(mockPathBuiler)
   lazy val workflowDescriptor =  buildWdlWorkflowDescriptor(
@@ -132,10 +133,12 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
 
 
   val expectedContinueOnReturn = ContinueOnReturnCodeSet(Set(0))
-  val expectedDocker = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDockerTag = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDocker = Some(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
   val expectedFailOnStderr = false
   val expectedUserData = Some(Vector(new BcsUserData("key", "value")))
-  val expectedMounts = Some(Vector(new BcsInputMount(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get, DefaultPathBuilder.build("/home/inputs/").get, false)))
+  //val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Left(DefaultPathBuilder.build("/home/inputs/").get), false)))
+  val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuiler.build("oss://bcs-bucket/bcs-dir/").get), Right("/home/inputs/"), false)))
   val expectedCluster = Some(Left("cls-mycluster"))
   val expectedSystemDisk = Some(BcsSystemDisk("cloud", 50))
   val expectedDataDsik = Some(BcsDataDisk("cloud", 250, "/home/data/"))
@@ -149,7 +152,7 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedTag = Some("jobTag")
 
 
-  val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
+  val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
     expectedSystemDisk, expectedDataDsik, expectedReserveOnFail, expectedAutoRelease, expectedWorkerPath, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
 
 

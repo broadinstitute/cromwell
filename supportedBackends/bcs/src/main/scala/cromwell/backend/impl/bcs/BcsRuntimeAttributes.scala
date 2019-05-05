@@ -28,6 +28,7 @@ trait OptionalWithDefault[A] {
 }
 
 final case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
+                                dockerTag: Option[BcsDocker],
                                 docker: Option[BcsDocker],
                                 failOnStderr: Boolean,
                                 mounts: Option[Seq[BcsMount]],
@@ -68,7 +69,9 @@ object BcsRuntimeAttributes {
 
   private def clusterValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsClusterIdOrConfiguration] = ClusterValidation.optionalWithDefault(runtimeConfig)
 
+  private def dockerTagValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = DockerTagValidation.optionalWithDefault(runtimeConfig)
   private def dockerValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = DockerValidation.optionalWithDefault(runtimeConfig)
+
   private def userDataValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Seq[BcsUserData]] = UserDataValidation.optionalWithDefault(runtimeConfig)
 
   private def systemDiskValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[BcsSystemDisk] = SystemDiskValidation.optionalWithDefault(runtimeConfig)
@@ -90,6 +93,7 @@ object BcsRuntimeAttributes {
 
   private def tagValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = TagValidation.optionalWithDefault(runtimeConfig)
 
+
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder = {
     val defaults = StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       mountsValidation(backendRuntimeConfig),
@@ -103,14 +107,16 @@ object BcsRuntimeAttributes {
       timeoutValidation(backendRuntimeConfig),
       verboseValidation(backendRuntimeConfig),
       vpcValidation(backendRuntimeConfig),
-      tagValidation(backendRuntimeConfig)
+      tagValidation(backendRuntimeConfig),
+      dockerTagValidation(backendRuntimeConfig),
+      dockerValidation(backendRuntimeConfig)
     )
 
     // TODO: docker trips up centaur testing, for now https://github.com/broadinstitute/cromwell/issues/3518
     if (backendRuntimeConfig.exists(_.getOrElse("ignoreDocker", false))) {
       defaults
     } else {
-      defaults.withValidation(dockerValidation(backendRuntimeConfig))
+      defaults.withValidation(dockerTagValidation(backendRuntimeConfig))
     }
   }
 
@@ -123,6 +129,7 @@ object BcsRuntimeAttributes {
     val userData: Option[Seq[BcsUserData]] = RuntimeAttributesValidation.extractOption(userDataValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
 
     val cluster: Option[BcsClusterIdOrConfiguration] = RuntimeAttributesValidation.extractOption(clusterValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val dockerTag: Option[BcsDocker] = RuntimeAttributesValidation.extractOption(dockerTagValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val docker: Option[BcsDocker] = RuntimeAttributesValidation.extractOption(dockerValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val systemDisk: Option[BcsSystemDisk] = RuntimeAttributesValidation.extractOption(systemDiskValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val dataDisk: Option[BcsDataDisk] = RuntimeAttributesValidation.extractOption(dataDiskValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
@@ -137,6 +144,7 @@ object BcsRuntimeAttributes {
 
     new BcsRuntimeAttributes(
       continueOnReturnCode,
+      dockerTag,
       docker,
       failOnStderr,
       mounts,
@@ -328,13 +336,13 @@ class DataDiskValidation(override val config: Option[Config]) extends RuntimeAtt
   }
 }
 
-object DockerValidation {
-  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = new DockerValidation(config).optional
+object DockerTagValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = new DockerTagValidation(config).optional
 }
 
-class DockerValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDocker] with OptionalWithDefault[BcsDocker]
+class DockerTagValidation(override val config: Option[Config]) extends RuntimeAttributesValidation[BcsDocker] with OptionalWithDefault[BcsDocker]
 {
-  override def key: String = "docker"
+  override def key: String = "dockerTag"
   override def coercion: Traversable[WomType] = Set(WomStringType)
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsDocker]] = {
     case WomString(s) => BcsDocker.parse(s.toString) match {
@@ -342,6 +350,15 @@ class DockerValidation(override val config: Option[Config]) extends RuntimeAttri
       case _ => s"docker must be 'dockeImage dockerPath' like".invalidNel
     }
   }
+}
+
+object DockerValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[BcsDocker] = new DockerValidation(config).optional
+}
+
+class DockerValidation(override val config: Option[Config]) extends DockerTagValidation(config)
+{
+  override def key: String = "docker"
 }
 
 object VpcValidation {

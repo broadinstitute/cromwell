@@ -1,6 +1,6 @@
 package cromwell.backend.impl.bcs
 
-import cromwell.core.path.DefaultPathBuilder
+//import cromwell.core.path.DefaultPathBuilder
 import wom.values._
 
 class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
@@ -12,21 +12,27 @@ class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
     defaults shouldEqual expectedRuntimeAttributes
   }
 
-  it should "parse docker without docker path" in {
-    val runtime = Map("docker" -> WomString("ubuntu/latest"))
-    val expected = expectedRuntimeAttributes.copy(docker = Some(BcsDockerWithoutPath("ubuntu/latest")))
+  it should "parse dockerTag without docker path" in {
+    val runtime = Map("dockerTag" -> WomString("ubuntu/latest"))
+    val expected = expectedRuntimeAttributes.copy(dockerTag = Some(BcsDockerWithoutPath("ubuntu/latest")))
     createBcsRuntimeAttributes(runtime) shouldEqual(expected)
   }
 
-  it should "parse docker with path" in {
-    val runtime = Map("docker" -> WomString("centos/latest oss://bcs-dir/registry/"))
-    val expected = expectedRuntimeAttributes.copy(docker = Some(BcsDockerWithPath("centos/latest", "oss://bcs-dir/registry/")))
+  it should "parse dockerTag with path" in {
+    val runtime = Map("dockerTag" -> WomString("centos/latest oss://bcs-dir/registry/"))
+    val expected = expectedRuntimeAttributes.copy(dockerTag = Some(BcsDockerWithPath("centos/latest", "oss://bcs-dir/registry/")))
     createBcsRuntimeAttributes(runtime) shouldEqual(expected)
   }
 
-  it should "parse docker fail if an empty string value" in {
-    val runtime = Map("docker" -> WomString(""))
+  it should "parse dockerTag fail if an empty string value" in {
+    val runtime = Map("dockerTag" -> WomString(""))
     an [Exception] should be thrownBy createBcsRuntimeAttributes(runtime)
+  }
+
+  it should "parse docker" in {
+    val runtime = Map("docker" -> WomString("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.2"))
+    val expected = expectedRuntimeAttributes.copy(docker = Some(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.2")))
+    createBcsRuntimeAttributes(runtime) shouldEqual(expected)
   }
 
   it should "parse correct user data" in {
@@ -42,13 +48,15 @@ class BcsRuntimeAttributesSpec extends BcsTestUtilSpec {
 
   it should "parse correct input mount" in {
     val runtime = Map("mounts" -> WomString("oss://bcs-dir/bcs-file /home/inputs/input_file false"))
-    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsInputMount(mockPathBuiler.build("oss://bcs-dir/bcs-file").get, DefaultPathBuilder.build("/home/inputs/input_file").get, false))))
+    //val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsInputMount(Left(mockPathBuiler.build("oss://bcs-dir/bcs-file").get), Left(DefaultPathBuilder.build("/home/inputs/input_file").get), false))))
+    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsInputMount(Left(mockPathBuiler.build("oss://bcs-dir/bcs-file").get), Right("/home/inputs/input_file"), false))))
     createBcsRuntimeAttributes(runtime) shouldEqual expected
   }
 
   it should "parse correct out mount" in {
     val runtime = Map("mounts" -> WomString("/home/outputs/ oss://bcs-dir/outputs/ true"))
-    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsOutputMount(DefaultPathBuilder.build("/home/outputs/").get, mockPathBuiler.build("oss://bcs-dir/outputs/").get,  true))))
+    //val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsOutputMount(Left(DefaultPathBuilder.build("/home/outputs/").get), Left(mockPathBuiler.build("oss://bcs-dir/outputs/").get),  true))))
+    val expected = expectedRuntimeAttributes.copy(mounts = Some(Vector(BcsOutputMount(Right("/home/outputs/"), Left(mockPathBuiler.build("oss://bcs-dir/outputs/").get),  true))))
     createBcsRuntimeAttributes(runtime) shouldEqual expected
   }
 

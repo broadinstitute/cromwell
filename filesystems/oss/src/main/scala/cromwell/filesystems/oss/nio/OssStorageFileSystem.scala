@@ -8,6 +8,7 @@ import java.{lang, util}
 
 import com.aliyun.oss.common.auth.DefaultCredentialProvider
 import com.aliyun.oss.{ClientConfiguration, OSSClient}
+import cromwell.filesystems.oss.nio.OssStorageConfiguration.{ACCESS_ID_KEY, ACCESS_KEY_KEY, ENDPOINT_KEY, SECURITY_TOKEN_KEY}
 
 import scala.collection.JavaConverters._
 
@@ -52,7 +53,7 @@ object OssStorageConfiguration {
       case _ => None
     }
 
-    new OssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
+    new DefaultOssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
   }
 
   def getClient(map: Map[String, String]): OSSClient = {
@@ -63,26 +64,28 @@ object OssStorageConfiguration {
                 accessId: String,
                 accessKey: String,
                 stsToken: Option[String]): OSSClient = {
-    OssStorageConfiguration(endpoint, accessId, accessKey, stsToken).newOssClient()
+    DefaultOssStorageConfiguration(endpoint, accessId, accessKey, stsToken).newOssClient()
   }
 
 }
 
-final case class OssStorageConfiguration(endpoint: String,
-                                   accessId: String,
-                                   accessKey: String,
-                                   stsToken: Option[String] = None
-                                  ) {
-  import OssStorageConfiguration._
+trait OssStorageConfiguration {
+  def endpoint: String
+
+  def accessId: String
+
+  def accessKey: String
+
+  def securityToken: Option[String]
 
   def toMap: Map[String, String] = {
     val ret = Map(ENDPOINT_KEY -> endpoint, ACCESS_ID_KEY -> accessId, ACCESS_KEY_KEY -> accessKey)
-    val token = stsToken map {token => SECURITY_TOKEN_KEY -> token}
+    val token = securityToken map {token => SECURITY_TOKEN_KEY -> token}
     ret ++ token
   }
 
   def newOssClient() = {
-    val credentialsProvider = stsToken match {
+    val credentialsProvider = securityToken match {
       case Some(token: String) =>
         new DefaultCredentialProvider(accessId, accessKey, token)
       case None =>
@@ -91,7 +94,10 @@ final case class OssStorageConfiguration(endpoint: String,
     val clientConfiguration = new ClientConfiguration
     new OSSClient(endpoint, credentialsProvider, clientConfiguration)
   }
+
 }
+
+case class DefaultOssStorageConfiguration(endpoint: String, accessId: String, accessKey: String, securityToken: Option[String] = None) extends OssStorageConfiguration {}
 
 case class OssStorageFileSystem(bucket: String, config: OssStorageConfiguration) extends FileSystem {
 

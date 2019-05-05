@@ -230,6 +230,7 @@ lazy val sparkBackend = (project in backendRoot / "spark")
 
 lazy val bcsBackend = (project in backendRoot / "bcs")
   .withLibrarySettings("cromwell-bcs-backend", bcsBackendDependencies)
+  .dependsOn(engine)
   .dependsOn(backend)
   .dependsOn(ossFileSystem)
   .dependsOn(gcsFileSystem)

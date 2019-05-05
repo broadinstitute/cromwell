@@ -3,10 +3,14 @@ package cromwell.filesystems.oss
 import java.net.URI
 
 import com.google.common.net.UrlEscapers
+import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
+import cats.syntax.apply._
+import common.validation.Validation._
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.oss.OssPathBuilder._
-import cromwell.filesystems.oss.nio.{OssStorageConfiguration, OssStorageFileSystem, OssStoragePath}
+import cromwell.filesystems.oss.nio._
 
 import scala.language.postfixOps
 import scala.util.matching.Regex
@@ -78,15 +82,29 @@ object OssPathBuilder {
     nioPath.getFileSystem.provider().getScheme.equalsIgnoreCase(URI_SCHEME)
   }
 
-  def fromConfiguration(endpoint: String,
-                        accessId: String,
-                        accessKey: String,
-                        securityToken: Option[String],
+  def fromConfiguration(configuration: OssStorageConfiguration,
                         options: WorkflowOptions): OssPathBuilder = {
-
-    val configuration = OssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
-
     OssPathBuilder(configuration)
+  }
+
+  def fromConfig(config: Config, options: WorkflowOptions): OssPathBuilder = {
+    val refresh = config.as[Option[Long]](TTLOssStorageConfiguration.REFRESH_INTERVAL)
+
+    val (endpoint, accessId, accessKey, securityToken) = (
+      validate { config.as[String]("auth.endpoint") },
+      validate { config.as[String]("auth.access-id") },
+      validate { config.as[String]("auth.access-key") },
+      validate { config.as[Option[String]]("auth.security-token") }
+    ).tupled.unsafe("OSS filesystem configuration is invalid")
+
+    refresh match {
+      case None =>
+        val cfg = DefaultOssStorageConfiguration(endpoint, accessId, accessKey, securityToken)
+        fromConfiguration(cfg, options)
+      case Some(_) =>
+        val cfg = TTLOssStorageConfiguration(config)
+        fromConfiguration(cfg, options)
+    }
   }
 }
 

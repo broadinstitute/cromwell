@@ -16,14 +16,15 @@ class BcsConfigurationSpec extends BcsTestUtilSpec {
     conf.bcsRegion shouldEqual Some(region)
   }
 
-  it should "have correct bcs access id and key" in {
-    val id = "test-access-id"
-    val key = "test-access-key"
-    val configs = Map("access-id" -> Right(id), "access-key" -> Right(key))
-    val conf = withConfig(configs)
-    conf.bcsAccessId shouldEqual Some(id)
-    conf.bcsAccessKey shouldEqual Some(key)
-  }
+  //access-id and access-key not constant but refresh
+//  it should "have correct bcs access id and key" in {
+//    val id = "test-access-id"
+//    val key = "test-access-key"
+//    val configs = Map("access-id" -> Right(id), "access-key" -> Right(key))
+//    val conf = withConfig(configs)
+//    conf.bcsAccessId shouldEqual Some(id)
+//    conf.bcsAccessKey shouldEqual Some(key)
+//  }
 
   private def withConfig(configs: Map[String, ValueOrDelete]) = {
     var descriptor = BcsTestUtilSpec.BcsBackendConfigurationDescriptor.copy()

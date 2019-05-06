@@ -1,6 +1,0 @@
-name: runtime_failOnStderr
-testFormat: workflowfailure
-
-files {
-  workflow: runtime_failOnStderr/runtime_failOnStderr.wdl
-}

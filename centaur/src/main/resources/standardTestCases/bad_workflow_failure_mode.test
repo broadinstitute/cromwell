@@ -1,7 +1,0 @@
-name: bad_workflow_failure_mode
-testFormat: workflowfailure
-
-files {
-  workflow: bad_workflow_failure_mode/bad_workflow_failure_mode.wdl
-  options: bad_workflow_failure_mode/bad_workflow_failure_mode.options
-}

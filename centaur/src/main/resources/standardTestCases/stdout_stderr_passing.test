@@ -1,6 +1,0 @@
-name: stdout_stderr_passing
-testFormat: workflowsuccess
-
-files {
-  workflow: stdout_stderr_passing/stdout_stderr_passing.wdl
-}

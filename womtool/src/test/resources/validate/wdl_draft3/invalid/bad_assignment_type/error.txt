@@ -1,1 +1,0 @@
-Failed to process workflow definition 'bad_assignment_type' (reason 1 of 1): Failed to process declaration 'Array[String] strings = 5' (reason 1 of 1): Cannot coerce expression of type 'Int' to 'Array[String]'

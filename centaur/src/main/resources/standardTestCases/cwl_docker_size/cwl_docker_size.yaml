@@ -1,3 +1,0 @@
-INPUT:
-  - class: File
-    path: "centaur/src/main/resources/standardTestCases/cwl_docker_size/cwl_docker_size_input.txt"

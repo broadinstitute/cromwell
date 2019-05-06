@@ -1,3 +1,0 @@
-{
-    "monitoring_script": "gs://cloud-cromwell-dev/some/simple_script.sh"
-}

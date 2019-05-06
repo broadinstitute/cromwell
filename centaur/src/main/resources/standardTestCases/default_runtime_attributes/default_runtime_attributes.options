@@ -1,6 +1,0 @@
-{
-  "default_runtime_attributes": {
-    "docker": "ubuntu:latest",
-    "continueOnReturnCode": 1
-  }
-}

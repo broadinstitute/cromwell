@@ -1,6 +1,0 @@
-name: filearrayoutput
-testFormat: workflowsuccess
-
-files {
-  workflow: filearrayoutput/filearrayoutput.wdl
-}

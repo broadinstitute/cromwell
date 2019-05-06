@@ -1,9 +1,0 @@
-ignore: true
-name: super_massive_array_output
-testFormat: workflowsuccess
-# We can't be trusting this yet. And also it takes up 500 VMs per run - ouch!
-
-
-files {
-  workflow: super_massive_array_output/super_massive_array_output.wdl
-}

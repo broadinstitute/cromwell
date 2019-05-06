@@ -1,4 +1,0 @@
-Expected identifier, got "Boolean".
-
-    Int Boolean = 5
-        ^

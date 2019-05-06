@@ -1,8 +1,0 @@
-{
-  "google_compute_service_account": "default",
-  "read_from_cache":false,
-  "default_runtime_attributes": {
-    "zones": "us-central1-a us-central1-b us-central1-c us-central1-f",
-    "docker": "us.gcr.io/broad-gotc-dev/autocall:dev-3.0.0-1527695536"
-  }
-}

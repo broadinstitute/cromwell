@@ -1,5 +1,0 @@
-{
-  "overridable_optionals.foo.y": "Int? (optional)",
-  "overridable_optionals.foo.x": "Int",
-  "overridable_optionals.foo.z": "Int (optional, default = 5)"
-}

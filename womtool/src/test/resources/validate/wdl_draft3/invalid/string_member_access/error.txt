@@ -1,1 +1,0 @@
-Failed to process workflow definition 'string_member_access' (reason 1 of 1): Failed to process declaration 'Int x = "~{s}".tbi' (reason 1 of 1): Failed to process expression '"~{s}".tbi' (reason 1 of 1): No such field 'tbi' on type String

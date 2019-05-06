@@ -1,5 +1,0 @@
-# Pass in a valid input file format
-reference:
-  class: File
-  format: edam:format_1929
-  path: "centaur/src/main/resources/standardTestCases/cwl_format/foo.fasta"

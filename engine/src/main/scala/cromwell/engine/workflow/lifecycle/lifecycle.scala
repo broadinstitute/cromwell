@@ -1,7 +1,0 @@
-package cromwell.engine.workflow.lifecycle
-
-case object EngineLifecycleActorAbortCommand
-
-trait EngineLifecycleStateCompleteResponse
-
-trait EngineLifecycleActorAbortedResponse extends EngineLifecycleStateCompleteResponse

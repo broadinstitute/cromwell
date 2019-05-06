@@ -1,4 +1,0 @@
-ERROR: bad_is is declared as a Array[Int] but the expression evaluates to a Int:
-
-  Array[Int] bad_is = i
-             ^

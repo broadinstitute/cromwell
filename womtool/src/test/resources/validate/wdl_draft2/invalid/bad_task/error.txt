@@ -1,4 +1,0 @@
-ERROR: Missing value: Couldn't find value with name 'docker_image' in task 'oopsie' (line 8):
-
-  runtime { docker: docker_image }
-                    ^

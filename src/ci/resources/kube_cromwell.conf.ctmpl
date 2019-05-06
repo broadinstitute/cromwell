@@ -1,0 +1,20 @@
+{{with $cromwellCentaurGKE := vault (printf "secret/dsde/cromwell/common/cromwell-centaur-gke")}}
+
+# When this grows up there will be different confs for each of the roles (summarizer, frontend, backend) but for
+# now it's just the one conf.
+
+include required(classpath("application.conf"))
+
+# call-caching.enabled=true
+
+database {
+  profile = "slick.jdbc.MySQLProfile$"
+  db {
+    driver = com.mysql.cj.jdbc.Driver
+    url = "jdbc:mysql://localhost:3306/cromwell_test?rewriteBatchedStatements=true&useSSL=false"
+    user = "cromwell"
+    password = "{{$cromwellCentaurGKE.Data.db_pass}}"
+    connectionTimeout = 5000
+  }
+}
+{{end}}

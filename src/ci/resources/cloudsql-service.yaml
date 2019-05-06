@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudsql-proxy
+  labels:
+    app: cloudsql-proxy
+spec:
+  type: LoadBalancer
+  selector:
+    app: cloudsql-proxy
+  ports:
+    - protocol: TCP
+      port: 3306
+      name: mysql
+
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: cloudsql-proxy
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: cloudsql-proxy
+    spec:
+      containers:
+        - name: cloudsql-proxy
+          image: gcr.io/cloudsql-docker/gce-proxy:1.12
+          command: ["/cloud_sql_proxy"]
+          args: ["-instances=KUBE_CLOUDSQL_CONNECTION_NAME=tcp:0.0.0.0:3306", "-credential_file=/conf/cromwell-centaur-service-account.json"]
+          ports:
+            - containerPort: 3306
+          livenessProbe:
+            exec:
+              command: ["nc", "-z", "127.0.0.1", "3306"]
+            initialDelaySeconds: 5
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: conf
+              mountPath: "/conf"
+              readOnly: true
+      volumes:
+        - name: conf
+          secret:
+            secretName: mlc-k8s-experiments

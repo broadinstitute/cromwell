@@ -50,15 +50,16 @@ cp \
 #cromwell::kube::destroy_cloud_sql_instance ${KUBE_CLOUDSQL_INSTANCE_NAME}
 
 # Just use Cromwell 40 for testing GCR pushes and deletes. IRL this script would obvs build the image rather than pull it.
-DOCKER_IMAGE="broadinstitute/cromwell:40"
-docker pull $DOCKER_IMAGE
+#DOCKER_IMAGE="broadinstitute/cromwell:40"
+#docker pull $DOCKER_IMAGE
 
-GCR_TAG=$(cromwell::kube::generate_gcr_tag)
-cromwell::kube::tag_for_gcr ${DOCKER_IMAGE} ${GCR_TAG}
-cromwell::kube::gcr_login
-cromwell::kube::push_to_gcr ${GCR_TAG}
+# Temporarily turning GCR push off as it's unnecessary for testing Cloud SQL proxy stuff.
+#GCR_TAG=$(cromwell::kube::generate_gcr_tag)
+#cromwell::kube::tag_for_gcr ${DOCKER_IMAGE} ${GCR_TAG}
+#cromwell::kube::gcr_login
+#cromwell::kube::push_to_gcr ${GCR_TAG}
 # TODO Move this to the "cleanup" section of the script once there is also a "do real work" section.
-cromwell::kube::delete_from_gcr ${GCR_TAG}
+#cromwell::kube::delete_from_gcr ${GCR_TAG}
 
 # - spin up a CloudIP service fronting said MySQL container
 # - spin up a uni-Cromwell that talks to said MySQL

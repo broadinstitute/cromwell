@@ -13,29 +13,50 @@ spec:
     - protocol: TCP
       port: 8000
       name: http
-
+    - protocol: TCP
+      port: 3306
+      name: mysql
 ---
 apiVersion: v1
-kind: ReplicationController
+kind: Pod
 metadata:
   name: cromwell
+  labels:
+    app: cromwell
 spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: cromwell
-    spec:
-      containers:
-        - name: cromwell
-          image: broadinstitute/cromwell:40
-          command: ["java"]
-          args: ["-jar", "/app/cromwell.jar", "server"]
-          ports:
-            - containerPort: 8010
-          livenessProbe:
-            httpGet:
-              path: /engine/v1/status
-              port: 8000
-            initialDelaySeconds: 30
-            timeoutSeconds: 5
+  containers:
+    - name: cromwell
+      image: broadinstitute/cromwell:40
+      command: ["java"]
+      args: ["-Dconfig.file=/conf/kube_cromwell.conf", "-jar", "/app/cromwell.jar", "server"]
+      ports:
+        - containerPort: 8000
+      livenessProbe:
+        httpGet:
+          path: /engine/v1/status
+          port: 8000
+        initialDelaySeconds: 30
+        timeoutSeconds: 5
+      volumeMounts:
+        - name: conf
+          mountPath: "/conf"
+          readOnly: true
+    - name: cloudsql-proxy
+      image: gcr.io/cloudsql-docker/gce-proxy:1.12
+      command: ["/cloud_sql_proxy"]
+      args: ["-instances=KUBE_CLOUDSQL_CONNECTION_NAME=tcp:0.0.0.0:3306", "-credential_file=/conf/cromwell-centaur-service-account.json"]
+      ports:
+        - containerPort: 3306
+      livenessProbe:
+        exec:
+          command: ["nc", "-z", "127.0.0.1", "3306"]
+        initialDelaySeconds: 5
+        timeoutSeconds: 3
+      volumeMounts:
+        - name: conf
+          mountPath: "/conf"
+          readOnly: true
+  volumes:
+    - name: conf
+      secret:
+        secretName: mlc-k8s-experiments

@@ -46,6 +46,10 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
   }
 
   it should "dispense the correct amount at the specified rate, not more and not faster" in {
+
+    // Override with a slower distribution rate for this one test:
+    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 4.seconds), None))
+
     val senders = (1 to 20).map(_ => TestProbe())
     senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest("hogGroupA", TestInfiniteTokenType), sender = sender.ref))
     // The first 10 should get their token
@@ -286,10 +290,43 @@ class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec
     actorRefUnderTest.underlyingActor.tokenQueues.map(x => x._2.size).sum should be(0)
   }
 
+  it should "be resilient if the last request for a hog group is removed from the queue before a token is dispensed" in {
+    val tokenType = JobExecutionTokenType(s"mini", maxPoolSize = Option(6), hogFactor = 2)
+
+    val groupARequesters = (0 until 4) map { i => TestProbe(name = s"group_a_$i") }
+    val groupBRequesters = (0 until 4) map { i => TestProbe(name = s"group_b_$i") }
+
+    // Group A and B fill up the token queue:
+    groupARequesters foreach { probe => probe.send(actorRefUnderTest, JobExecutionTokenRequest("hogGroupA", tokenType)) }
+    groupBRequesters foreach { probe => probe.send(actorRefUnderTest, JobExecutionTokenRequest("hogGroupB", tokenType)) }
+
+    // Pretty soon, the tokens should all be gone, 3 to each group, and each group should have one queued item:
+    eventually {
+      (groupARequesters.take(3) ++ groupBRequesters.take(3)).foreach { probe =>
+        actorRefUnderTest.underlyingActor.tokenAssignments.keys should contain(probe.ref)
+      }
+      // And both groups should have one item in the queue:
+      actorRefUnderTest.underlyingActor.tokenQueues(tokenType).queues.values.foreach { queue => queue.size should be(1) }
+    }
+
+    // Group B gets bored and aborts all jobs (in reverse order to make sure ):
+    groupBRequesters.reverse.foreach { probe =>
+      probe.ref ! PoisonPill
+      // TODO: validate that the probe has left the queue
+    }
+
+    // Group A's jobs are able to complete successfully:
+    groupARequesters foreach { probe =>
+      probe.expectMsg(JobExecutionTokenDispensed)
+      probe.ref ! PoisonPill
+    }
+
+  }
+
   var actorRefUnderTest: TestActorRef[JobExecutionTokenDispenserActor] = _
 
   before {
-    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 4.second), None))
+    actorRefUnderTest = TestActorRef(new JobExecutionTokenDispenserActor(TestProbe().ref, Rate(10, 100.millis), None))
   }
   after {
     actorRefUnderTest = null

@@ -17,15 +17,16 @@ class BcsConfigurationSpec extends BcsTestUtilSpec {
     conf.bcsRegion shouldEqual Some(region)
   }
 
-  //access-id and access-key not constant but refresh
-//  it should "have correct bcs access id and key" in {
-//    val id = "test-access-id"
-//    val key = "test-access-key"
-//    val configs = Map("access-id" -> Right(id), "access-key" -> Right(key))
-//    val conf = withConfig(configs)
-//    conf.bcsAccessId shouldEqual Some(id)
-//    conf.bcsAccessKey shouldEqual Some(key)
-//  }
+  it should "have correct bcs access id and key" in {
+    val id = "test-access-id"
+    val key = "test-access-key"
+    val configs = Map("access-id" -> Right(id), "access-key" -> Right(key))
+    val conf = withConfig(configs)
+    conf.bcsAccessId shouldEqual Some(id)
+    conf.bcsAccessKey shouldEqual Some(key)
+    conf.bcsSecurityToken shouldEqual None
+    conf.newBcsClient shouldNot be (None)
+  }
 
   it should "have correct bcs callcaching strategy" in {
     val region = "cn-hangzhou"

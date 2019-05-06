@@ -20,12 +20,14 @@ class BcsConfigurationSpec extends BcsTestUtilSpec {
   it should "have correct bcs access id and key" in {
     val id = "test-access-id"
     val key = "test-access-key"
+    val token = "test-security-token"
     val configs = Map("access-id" -> Right(id), "access-key" -> Right(key))
     val conf = withConfig(configs)
     conf.bcsAccessId shouldEqual Some(id)
     conf.bcsAccessKey shouldEqual Some(key)
-    conf.bcsSecurityToken shouldEqual None
+    conf.bcsSecurityToken shouldEqual Some(token)
     conf.newBcsClient shouldNot be (None)
+    conf.bcsClient shouldNot be (None)
   }
 
   it should "have correct bcs callcaching strategy" in {

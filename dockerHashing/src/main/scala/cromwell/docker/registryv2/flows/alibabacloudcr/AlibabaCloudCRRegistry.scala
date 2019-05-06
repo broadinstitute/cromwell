@@ -101,7 +101,7 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
     }
   }
 
-  private def getAliyunCredentialFromContext(context: DockerInfoContext): Option[AlibabaCloudCredentials] = {
+  private[alibabacloudcrregistry] def getAliyunCredentialFromContext(context: DockerInfoContext): Option[AlibabaCloudCredentials] = {
     context.credentials find {
       _.isInstanceOf[AlibabaCloudCredentials]
     } match {
@@ -119,7 +119,7 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
     }
   }
 
-  private def extractDigestFromBody(jsObject: JsObject, dockerHashContext: DockerInfoContext): DockerInfoResponse = {
+  private[alibabacloudcrregistry] def extractDigestFromBody(jsObject: JsObject, dockerHashContext: DockerInfoContext): DockerInfoResponse = {
     val tags = jsObject.fields.get("data") match {
       case Some(data) => data.asJsObject().convertTo[Map[String, JsValue]].get("tags") match {
         case Some(tag) => tag.convertTo[Seq[JsObject]]

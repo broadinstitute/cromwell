@@ -383,10 +383,10 @@ object Operations {
     new Test[WorkflowMetadata] {
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
-        validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
+        validateMetadata(workflow, expectedMetadata).handleErrorWith({ f =>
           for {
             _ <- IO.sleep(2.seconds)
-            _ = if (LogFailures) Console.err.println(s"Metadata mismatch for ${submittedWorkflow.id} - retrying")
+            _ = if (LogFailures) Console.err.println(s"Metadata mismatch for ${submittedWorkflow.id} (${f.getMessage}) - retrying")
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
         })

@@ -670,7 +670,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case activity: CallCachingActivity => activity.options.invalidateBadCacheResults
     }
     if (invalidationRequired) {
-      log.error(reason, "Failed copying cache results for job {}, invalidating cache entry.", jobDescriptorKey)
+      val problemSummary = s"${reason.getClass.getSimpleName}: ${reason.getMessage}"
+      log.warning("Failed copying cache results for job {} ({}), invalidating cache entry.", jobDescriptorKey, problemSummary)
       invalidateCacheHit(ejeaCacheHit.hit.cacheResultId)
       goto(InvalidatingCacheEntry)
     } else {

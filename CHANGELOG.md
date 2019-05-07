@@ -1,5 +1,58 @@
 # Cromwell Change Log
 
+## 41 Release Notes
+
+### Workflow Options
+
+* It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).
+
+### AWS backend
+
+It is now possible to use WDL disk attributes with the following formats on AWS.
+```
+disks: "local-disk 20 SSD"
+```
+```
+disks: "/some/mnt 20 SSD"
+```
+Because Cromwell's AWS backend auto-sizes disks, the size specification is simply discarded.
+
+### Config Changes
+
+#### Heartbeat failure shutdown
+
+When a Cromwell instance is unable to write heartbeats for some period of time it will automatically shut down. For more
+information see the docs on [configuring Workflow Hearbeats](https://cromwell.readthedocs.io/en/stable/Configuring/).
+
+NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been configured to be less than `5 minutes`
+then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
+set less than the `ttl`.
+
+#### Logging long running jobs
+
+All backends can now emit slow job warnings after a configurable time running. 
+NB This example shows how to configure this setting for the PAPIv2 backend:
+```conf
+# Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck.
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        slow-job-warning-time: 24 hours
+      }
+    }
+  }
+}
+```
+
+### Bug fixes
+
+#### Better validation of workflow heartbeats
+
+An error will be thrown on startup when the `system.workflow-heartbeats.heartbeat-interval` is not less than the
+`system.workflow-heartbeats.ttl`.
+
+
 ## 40 Release Notes
 
 ### Config Changes
@@ -76,7 +129,13 @@ services {
   }
 }
 ``` 
+### Workflow options changes
 
+A new workflow option is added. If the `final_workflow_outputs_dir` is set 
+`use_relative_output_paths` can be used. When set to `true` this will copy 
+all the outputs relative to their execution directory. 
+my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest.
+More information can be found in [the workflow options documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Overview/#output-copying).
 
 ### Bug fixes
 

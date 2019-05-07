@@ -17,7 +17,7 @@ cromwell::build::assemble_jars
 
 CENTAUR_CWL_RUNNER_MODE="papi"
 GOOGLE_AUTH_MODE="service-account"
-PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance/cwl-inputs/
+PAPI_INPUT_GCS_PREFIX=gs://centaur-cwl-conformance-1f501e3/cwl-inputs/
 
 # Export variables used in conf files and commands
 export CENTAUR_CWL_RUNNER_MODE
@@ -50,7 +50,7 @@ CROMWELL_PID=$!
 sleep 30
 
 java \
-    -Xmx2g \
+    -Xmx6g \
     -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
     -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
     run "${CROMWELL_BUILD_CWL_TEST_WDL}" \

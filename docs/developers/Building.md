@@ -11,7 +11,7 @@ features or fixes, the following are required to build Cromwell from source:
 You can also use the [development image](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-develop), and build a development container to work inside:
 
 ```bash
-$ docker build -t cromwell-dev Dockerfile
+$ docker build -t cromwell-dev .
 $ docker run -it cromwell-dev bash
 ```
 
@@ -34,6 +34,9 @@ Finally build the Cromwell jar:
 ```bash
 $ sbt assembly
 ```
+
+NOTE: This command will run for a long time the first time.  
+NOTE: Compiling will not succeed on directories encrypted with ecryptfs (ubuntu encrypted home dirs for example), due to long file paths.
 
 `sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`.
 

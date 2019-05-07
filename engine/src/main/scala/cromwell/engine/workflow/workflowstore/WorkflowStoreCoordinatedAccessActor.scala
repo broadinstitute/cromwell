@@ -30,15 +30,16 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
   }
 
   override def receive: Receive = {
-    case WriteHeartbeats(ids) =>
-      workflowStore.writeWorkflowHeartbeats(ids.toVector.toSet) |> run
+    case WriteHeartbeats(ids, heartbeatDateTime) =>
+      workflowStore.writeWorkflowHeartbeats(ids.toVector.toSet, heartbeatDateTime) |> run
     case FetchStartableWorkflows(count, cromwellId, heartbeatTtl) =>
       workflowStore.fetchStartableWorkflows(count, cromwellId, heartbeatTtl) |> run
   }
 }
 
 object WorkflowStoreCoordinatedAccessActor {
-  final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)])
+  final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
+                                   heartbeatDateTime: OffsetDateTime)
   final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
 
   val Timeout = 1 minute

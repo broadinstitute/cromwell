@@ -42,11 +42,11 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
   protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
 
-  val googleConfig = GoogleConfiguration(globalConfig)
+  lazy val googleConfig = GoogleConfiguration(globalConfig)
 
-  val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
+  lazy val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
 
-  val googleAuth = googleConfig.auth(googleAuthName) match {
+  lazy val googleAuth = googleConfig.auth(googleAuthName) match {
     case Valid(a) => a
     case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
   }
@@ -64,13 +64,9 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   }
 
   private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {
-    checkPapi(papiConfiguration.papiConfig, papiConfiguration.papiProviderConfig)
-  }
+    val papiConfig = papiConfiguration.papiConfig
+    val papiProviderConfig = papiConfiguration.papiProviderConfig
 
-  /**
-    * Demonstrates connectivity to Google Pipelines API (PAPI) by making sure it can access an authenticated endpoint
-    */
-  private def checkPapi(papiConfig: Config, papiProviderConfig: Config): Future[SubsystemStatus] = {
     val endpointUrl = new URL(papiConfig.as[String]("genomics.endpoint-url"))
     val papiProjectId = papiConfig.as[String]("project")
 

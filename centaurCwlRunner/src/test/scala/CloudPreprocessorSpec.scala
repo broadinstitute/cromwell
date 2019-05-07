@@ -52,26 +52,26 @@ class CloudPreprocessorSpec extends FlatSpec with Matchers {
          |  "input": {
          |    "null": null,
          |    "file": {
-         |      "location": "gs://centaur-cwl-conformance/cwl-inputs/whale.txt",
+         |      "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/whale.txt",
          |      "class": "File",
          |      "secondaryFiles": [
          |        {
          |          "class": File,
-         |          "location": "gs://centaur-cwl-conformance/cwl-inputs/hello.txt"
+         |          "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/hello.txt"
          |        }
          |      ],
          |      "default": {
-         |        "location": "gs://centaur-cwl-conformance/cwl-inputs/default_whale.txt",
+         |        "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/default_whale.txt",
          |        "class": "File",
          |      }
          |    },
          |    "directory": {
-         |      "location": "gs://centaur-cwl-conformance/cwl-inputs/ref.fasta",
+         |      "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/ref.fasta",
          |      "class": "Directory",
          |      "listing": [
          |        {
          |          "class": File,
-         |          "location": "gs://centaur-cwl-conformance/cwl-inputs/hello.txt"
+         |          "location": "gs://centaur-cwl-conformance-1f501e3/cwl-inputs/hello.txt"
          |        }
          |      ]
          |    }
@@ -114,7 +114,7 @@ class CloudPreprocessorSpec extends FlatSpec with Matchers {
          |    inputBinding: { position: 2 }
          |    default:
          |      class: File
-         |      location: gs://centaur-cwl-conformance/cwl-inputs/args.py
+         |      location: gs://centaur-cwl-conformance-1f501e3/cwl-inputs/args.py
          |
          |outputs:
          |  args: string[]

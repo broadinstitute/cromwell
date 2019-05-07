@@ -15,7 +15,7 @@ import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
 import cwl.command.ParentName
 import shapeless._
 import shapeless.syntax.singleton._
-import wom.LexicalInformation
+import wom.SourceFileLocation
 import wom.callable.WorkflowDefinition
 import wom.executable.Executable
 import wom.expression.{IoFunctionSet, ValueAsAnExpression}
@@ -190,7 +190,7 @@ case class Workflow private(
     val name: String = Paths.get(id).getFileName.toString
     val meta: Map[String, String] = Map.empty
     val paramMeta: Map[String, String] = Map.empty
-    val lexInfo : Option[LexicalInformation] = None
+    val lexInfo : Option[SourceFileLocation] = None
 
     womGraph(name, validator, expressionLib).map(graph =>
       WorkflowDefinition(

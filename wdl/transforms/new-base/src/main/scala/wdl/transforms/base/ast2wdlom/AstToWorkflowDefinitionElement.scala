@@ -7,7 +7,7 @@ import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
-import wom.LexicalInformation
+import wom.SourceFileLocation
 
 object AstToWorkflowDefinitionElement {
 
@@ -15,18 +15,18 @@ object AstToWorkflowDefinitionElement {
                                     ): CheckedAtoB[GenericAst, WorkflowDefinitionElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
 
-    val lexInfo : ErrorOr[Option[LexicalInformation]] = a.getSourceLine match {
+    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
       case None =>
         None.validNel
       case Some((startLine)) =>
-        Some(LexicalInformation(startLine)).validNel
+        Some(SourceFileLocation(startLine)).validNel
     }
     val bodyElementsValidation: ErrorOr[Vector[WorkflowBodyElement]] = a.getAttributeAsVector[WorkflowBodyElement]("body")(astNodeToWorkflowBodyElement).toValidated
-    (nameElementValidation, lexInfo, bodyElementsValidation) flatMapN combineElements
+    (nameElementValidation, srcLoc, bodyElementsValidation) flatMapN combineElements
   }
 
   private def combineElements(name: String,
-                              lexInfo: Option[LexicalInformation],
+                              srcLoc: Option[SourceFileLocation],
                               bodyElements: Vector[WorkflowBodyElement]) = {
 
     val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
@@ -39,7 +39,7 @@ object AstToWorkflowDefinitionElement {
 
     (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation) mapN {
       (validInputs, validOutputs, meta, parameterMeta) =>
-      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, lexInfo)
+      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, srcLoc)
     }
   }
 

@@ -104,4 +104,4 @@ final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Op
 // We would actually like to have the entire source extent covered
 // by the AST. However, it is tricky to get full information from Hermes
 // at the moment.
-final case class LexicalInformation(startLine: Int)
+final case class SourceFileLocation(startLine: Int)

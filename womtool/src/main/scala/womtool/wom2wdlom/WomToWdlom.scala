@@ -202,7 +202,7 @@ object WomToWdlom {
             if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
             meta,
             parameterMeta,
-            a.lexInfo)
+            a.srcLoc)
         }
       }
 

@@ -1,6 +1,6 @@
 package wom.callable
 
-import wom.LexicalInformation
+import wom.SourceFileLocation
 import wom.graph.GraphNode._
 import wom.graph.{CommandCallNode, Graph}
 
@@ -8,7 +8,7 @@ final case class WorkflowDefinition(name: String,
                                     innerGraph: Graph,
                                     meta: Map[String, String],
                                     parameterMeta: Map[String, String],
-                                    lexInfo : Option[LexicalInformation]) extends ExecutableCallable {
+                                    srcLoc : Option[SourceFileLocation]) extends ExecutableCallable {
 
   override lazy val toString = s"[Workflow $name]"
   override val graph: Graph = innerGraph

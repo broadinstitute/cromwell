@@ -6,7 +6,7 @@ import wdl.draft2.parser.WdlParser.Terminal
 import wom.callable.WorkflowDefinition
 import wom.transforms.WomWorkflowDefinitionMaker
 import wom.transforms.WomGraphMaker.ops._
-import wom.LexicalInformation
+import wom.SourceFileLocation
 
 object WdlDraft2WomWorkflowDefinitionMaker extends WomWorkflowDefinitionMaker[WdlWorkflow] {
   override def toWomWorkflowDefinition(wdlWorkflow: WdlWorkflow, isASubworkflow: Boolean): ErrorOr[WorkflowDefinition] = {
@@ -21,7 +21,7 @@ object WdlDraft2WomWorkflowDefinitionMaker extends WomWorkflowDefinitionMaker[Wd
         wg,
         wdlWorkflow.meta,
         wdlWorkflow.parameterMeta,
-        Some(LexicalInformation(t.getLine)))
+        Some(SourceFileLocation(t.getLine)))
     }
   }
 }

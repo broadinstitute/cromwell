@@ -18,13 +18,13 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
 
   assert(testFiles.nonEmpty)
 
-  // Remove the lexical information from the file element.
+  // Remove the source file information from the file element.
   //
-  // The runs we have end up creating different line numbers.
-  private def stripLexicalInfo(fe : FileElement) : FileElement = {
+  // Re-printing does not preserve line numbers at the moment.
+  private def stripSourceLocations(fe : FileElement) : FileElement = {
     FileElement(fe.imports,
                 fe.structs,
-                fe.workflows.map { case wf => wf.copy(lexInfo = None) }.toSeq,
+                fe.workflows.map { case wf => wf.copy(srcLoc = None) }.toSeq,
                 fe.tasks)
   }
 
@@ -39,7 +39,7 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
           val newModel = (stringToAst andThen wrapAst andThen astToFileElement).run(FileStringParserInput(wdlModel.toWdlV1, file.name))
 
           // Scala case class deep equality is so nice here
-          newModel.map(stripLexicalInfo) shouldEqual model.map(stripLexicalInfo)
+          newModel.map(stripSourceLocations) shouldEqual model.map(stripSourceLocations)
         case Left(_) => fail("Could not load original")
       }
     }

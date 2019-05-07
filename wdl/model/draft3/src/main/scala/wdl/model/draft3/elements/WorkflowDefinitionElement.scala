@@ -1,5 +1,5 @@
 package wdl.model.draft3.elements
-import wom.LexicalInformation
+import wom.SourceFileLocation
 
 final case class WorkflowDefinitionElement(name: String,
                                            inputsSection: Option[InputsSectionElement],
@@ -7,4 +7,4 @@ final case class WorkflowDefinitionElement(name: String,
                                            outputsSection: Option[OutputsSectionElement],
                                            metaSection: Option[MetaSectionElement],
                                            parameterMetaSection: Option[ParameterMetaSectionElement],
-                                           lexInfo : Option[LexicalInformation]) extends FileBodyElement
+                                           override val srcLoc : Option[SourceFileLocation]) extends FileBodyElement

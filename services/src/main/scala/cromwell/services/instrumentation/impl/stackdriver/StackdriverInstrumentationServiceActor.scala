@@ -1,7 +1,5 @@
 package cromwell.services.instrumentation.impl.stackdriver
 
-import java.util
-
 import com.google.api.gax.core.FixedCredentialsProvider
 import com.google.api.{Metric, MonitoredResource}
 import com.google.auth.oauth2.GoogleCredentials
@@ -26,7 +24,7 @@ class StackdriverInstrumentationServiceActor {
 
     // Prepares an individual data point
     val interval = TimeInterval.newBuilder.setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
-    val value = TypedValue.newBuilder.setDoubleValue(123.45).build
+    val value = TypedValue.newBuilder.setDoubleValue(444.45).build
     val point: Point = Point.newBuilder.setInterval(interval).setValue(value).build
 
     val pointList = List[Point](point)
@@ -43,10 +41,9 @@ class StackdriverInstrumentationServiceActor {
 
     // Prepares the time series request
     val timeSeries = TimeSeries.newBuilder.setMetric(metric).setResource(resource).addAllPoints(pointList.asJava).build
-    val timeSeriesList = new util.ArrayList[TimeSeries]
-    timeSeriesList.add(timeSeries)
+    val timeSeriesList = List[TimeSeries](timeSeries)
 
-    val request = CreateTimeSeriesRequest.newBuilder.setName(name.toString).addAllTimeSeries(timeSeriesList).build
+    val request = CreateTimeSeriesRequest.newBuilder.setName(name.toString).addAllTimeSeries(timeSeriesList.asJava).build
 
     // Writes time series data
     metricServiceClient.createTimeSeries(request)

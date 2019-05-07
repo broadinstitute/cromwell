@@ -37,8 +37,7 @@ object Dependencies {
   private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.18.0"
-  private val grpcNewV = "1.20.0"
+  private val grpcV = "1.20.0"
   private val guavaV = "27.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
@@ -607,9 +606,18 @@ object Dependencies {
     "util",
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
-  val grpcDependencyOverrides = List(
-    "io.grpc" % "grpc-core" % grpcNewV
-  )
+  //TODO: Saloni add comment
+//  val grpcDependencyOverrides = List(
+//    "io.grpc" % "grpc-alts",
+//    "io.grpc" % "grpc-auth",
+//    "io.grpc" % "grpc-context",
+//    "io.grpc" % "grpc-core",
+//    "io.grpc" % "grpc-grpclb",
+//    "io.grpc" % "grpc-netty-shaded",
+//    "io.grpc" % "grpc-protobuf",
+//    "io.grpc" % "grpc-protobuf-lite",
+//    "io.grpc" % "grpc-stub",
+//  ).map(m => m % grpcV)
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
@@ -619,6 +627,7 @@ object Dependencies {
     allProjectDependencies ++
       googleHttpClientDependencies ++
       nettyDependencyOverrides ++
-      rdf4jDependencyOverrides ++
-      grpcDependencyOverrides
+      rdf4jDependencyOverrides
+//  ++
+//      grpcDependencyOverrides
 }

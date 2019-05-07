@@ -206,6 +206,7 @@ object Operations {
 
 
       override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
+
     }
   }
 

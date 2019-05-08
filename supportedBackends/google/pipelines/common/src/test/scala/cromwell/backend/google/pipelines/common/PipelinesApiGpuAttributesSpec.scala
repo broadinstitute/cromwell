@@ -56,7 +56,7 @@ class PipelinesApiGpuAttributesSpec
           "docker" -> WomString("ubuntu:latest")
         ) ++ validGpuType.map(t => "gpuType" -> t) + ("gpuCount" -> invalidGpuCount)
 
-        assertJesRuntimeAttributesFailedCreation(
+        assertPapiRuntimeAttributesFailedCreation(
           runtimeAttributes,
           s"Invalid gpu count. Expected positive Int but got")
       }
@@ -70,7 +70,7 @@ class PipelinesApiGpuAttributesSpec
           "docker" -> WomString("ubuntu:latest")
         ) + ("gpuType" -> invalidGpuType) + ("gpuCount" -> invalidGpuCount)
 
-        assertJesRuntimeAttributesFailedCreation(
+        assertPapiRuntimeAttributesFailedCreation(
           runtimeAttributes,
           s"Invalid gpu count. Expected positive Int but got")
       }

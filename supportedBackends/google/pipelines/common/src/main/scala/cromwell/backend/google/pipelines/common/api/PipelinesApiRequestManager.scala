@@ -65,7 +65,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   */
   private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
   private val requestTooLargeException = new UserPAPIApiException(
-    e = new IllegalArgumentException(s"The task run request has exceeded the maximum PAPI request size ($maxBatchRequestSize bytes)."),
+    cause = new IllegalArgumentException(s"The task run request has exceeded the maximum PAPI request size ($maxBatchRequestSize bytes)."),
     helpfulHint = Option("If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
       "Depending on your case you could: 1) Zip your input files together and unzip them in the command. 2) Use a file of file names " +
       "and localize the files yourself.")
@@ -73,7 +73,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
 
   private[api] lazy val nbWorkers = requestWorkers.value
 
-  // 
+  //
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
 
@@ -111,7 +111,6 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     case abort: PAPIAbortRequest => workQueue :+= abort
     case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender, maxBatchSize)
     case failure: PAPIApiRequestFailed =>
-      println(s"failure ${failure.cause} received from $sender")
       handleQueryFailure(failure)
     case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("PipelinesApiRequestHandler actor termination caught by manager") with NoStackTrace)
     case other => log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
@@ -140,7 +139,6 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   private def handleQueryFailure(failure: PAPIApiRequestFailed) = {
-    println(s"Handling $failure")
     val userError: Boolean = failure.cause.isInstanceOf[UserPAPIApiException]
 
     def failQuery(): Unit = {
@@ -348,14 +346,15 @@ object PipelinesApiRequestManager {
   }
 
   sealed trait PAPIApiException extends RuntimeException with CromwellFatalExceptionMarker {
-    def e: Throwable
+    def cause: Throwable
+    override def getCause: Throwable = cause
   }
 
-  class SystemPAPIApiException(val e: Throwable) extends PAPIApiException {
-    override def getMessage: String = s"Unable to complete PAPI request due to system or connection error (${e.getMessage})"
+  class SystemPAPIApiException(val cause: Throwable) extends PAPIApiException {
+    override def getMessage: String = s"Unable to complete PAPI request due to system or connection error (${cause.getMessage})"
   }
 
-  final class UserPAPIApiException(val e: Throwable, helpfulHint: Option[String]) extends PAPIApiException {
-    override def getMessage: String = s"Unable to complete PAPI request due to a problem with the request (${e.getMessage}). ${helpfulHint.getOrElse("")}"
+  final class UserPAPIApiException(val cause: Throwable, helpfulHint: Option[String]) extends PAPIApiException {
+    override def getMessage: String = s"Unable to complete PAPI request due to a problem with the request (${cause.getMessage}). ${helpfulHint.getOrElse("")}"
   }
 }

@@ -28,13 +28,13 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Can't find an attribute value for key docker")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Can't find an attribute value for key docker")
     }
 
     "use hardcoded defaults if not declared in task, workflow options, or config (except for docker)" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
       val expectedRuntimeAttributes = expectedDefaults
-      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, jesConfiguration = noDefaultsJesConfiguration)
+      assertJesRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, jesConfiguration = noDefaultsPapiConfiguration)
     }
 
     "validate a valid Docker entry" in {
@@ -45,7 +45,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
     }
 
     "validate a valid failOnStderr entry" in {
@@ -56,7 +56,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid failOnStderr entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomString("yes"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
     "validate a valid continueOnReturnCode integer entry" in {
@@ -85,7 +85,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
     }
 
     "validate a valid cpu entry" in {
@@ -102,7 +102,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid cpu entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting cpu runtime attribute to be an Integer")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting cpu runtime attribute to be an Integer")
     }
 
     "validate a valid zones entry" in {
@@ -113,7 +113,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid zones entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomInteger(1))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
     }
 
     "validate a valid array zones entry" in {
@@ -124,7 +124,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid array zones entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
     }
 
     "validate a valid preemptible entry" in {
@@ -135,7 +135,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("value"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes,
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes,
         "Expecting preemptible runtime attribute to be an Integer")
     }
 
@@ -147,7 +147,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid bootDiskSizeGb entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "bootDiskSizeGb" -> WomString("4GB"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting bootDiskSizeGb runtime attribute to be an Integer")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting bootDiskSizeGb runtime attribute to be an Integer")
     }
 
     "validate a valid disks entry" in {
@@ -158,7 +158,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid disks entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(10))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
     }
 
     "validate a valid disks array entry" in {
@@ -169,7 +169,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate a valid disks array entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("blah"), WomString("blah blah"))))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'")
     }
 
     "validate a valid memory entry" in {
@@ -180,7 +180,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("blah"))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
     }
 
     "validate a valid noAddress entry" in {
@@ -191,7 +191,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "fail to validate an invalid noAddress entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "noAddress" -> WomInteger(1))
-      assertJesRuntimeAttributesFailedCreation(runtimeAttributes,
+      assertPapiRuntimeAttributesFailedCreation(runtimeAttributes,
         "Expecting noAddress runtime attribute to be a Boolean")
     }
 
@@ -253,7 +253,6 @@ final class PipelinesApiRuntimeAttributesSpec
 
 trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
-
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map(
       "default_runtime_attributes" -> JsObject(defaults)
@@ -278,9 +277,9 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
     ()
   }
 
-  def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
-                                               exMsgs: List[String],
-                                               workflowOptions: WorkflowOptions): Unit = {
+  def assertPapiRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
+                                                exMsgs: List[String],
+                                                workflowOptions: WorkflowOptions): Unit = {
     Try(toPapiRuntimeAttributes(runtimeAttributes, workflowOptions, papiConfiguration)) match {
       case Success(oops) =>
         fail(s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString(", ")} but instead got Success($oops)")
@@ -289,10 +288,10 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
     ()
   }
 
-  def assertJesRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
-                                                       exMsg: String,
-                                                       workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
-    assertJesRuntimeAttributesFailedCreation(runtimeAttributes, List(exMsg), workflowOptions)
+  def assertPapiRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
+                                                exMsg: String,
+                                                workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+    assertPapiRuntimeAttributesFailedCreation(runtimeAttributes, List(exMsg), workflowOptions)
   }
 
   def toPapiRuntimeAttributes(runtimeAttributes: Map[String, WomValue],
@@ -307,7 +306,7 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
   val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
-  val noDefaultsJesConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
+  val noDefaultsPapiConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
   val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet
 }

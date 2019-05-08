@@ -16,7 +16,7 @@ class ExternalTestCaseSpec(cromwellBackends: List[String]) extends AbstractCenta
   }
 
   def runTestFile(testFile: String) = {
-    CentaurTestCase.fromFile(File(testFile)) match {
+    CentaurTestCase.fromFile(cromwellTracker = None)(File(testFile)) match {
       case Valid(testCase) => executeStandardTest(testCase)
       case Invalid(error) =>
         fail(s"Invalid test case: ${error.toList.mkString(", ")}")

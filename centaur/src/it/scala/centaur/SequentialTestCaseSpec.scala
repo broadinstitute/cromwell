@@ -10,7 +10,7 @@ import org.scalatest.{DoNotDiscover, Matchers}
 class SequentialTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) with Matchers {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
-  
-  allTestCases.filter(CentaurTestSuite.runSequential) foreach executeStandardTest
+
+  allTestCases.filterNot(_.testFormat.isParallel) foreach executeStandardTest
 
 }

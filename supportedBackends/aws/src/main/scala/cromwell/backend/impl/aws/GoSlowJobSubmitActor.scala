@@ -27,7 +27,7 @@ class GoSlowJobSubmitActor(configRegion: Option[Region]) extends Actor with Acto
   }
 
   // Maps job ID to status
-  var workQueue: Vector[SubmitForMe] = Vector.empty
+  private var workQueue: Vector[SubmitForMe] = Vector.empty
 
 
   override def receive = {

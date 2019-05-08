@@ -397,8 +397,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   onTransition {
     case fromState -> toState =>
-      // TODO: UNDO THIS!
-      log.info("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
       eventList :+= ExecutionEvent(toState.toString)
   }
 

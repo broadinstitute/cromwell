@@ -8,7 +8,6 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import centaur._
 import centaur.api.CentaurCromwellClient
-import centaur.api.CentaurCromwellClient.LogFailures
 import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
@@ -396,10 +395,9 @@ object Operations {
     new Test[WorkflowMetadata] {
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
-        validateMetadata(workflow, expectedMetadata).handleErrorWith({ f =>
+        validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
-            _ = if (LogFailures) Console.err.println(s"Metadata mismatch for ${submittedWorkflow.id} (${f.getMessage}) - retrying")
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
         })

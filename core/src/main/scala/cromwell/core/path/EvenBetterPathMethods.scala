@@ -1,14 +1,16 @@
 package cromwell.core.path
 
-import java.io.InputStream
+import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 
 import better.files.File.OpenOptions
+import cromwell.util.TryWithResource.tryWithResource
 
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
+import scala.util.Failure
 
 /**
   * Implements methods beyond those implemented in NioPathMethods and BetterFileMethods
@@ -98,4 +100,40 @@ trait EvenBetterPathMethods {
     locally(ec)
     write(content)(openOptions, Codec.UTF8)
   }
+
+  /*
+   * The input stream will be closed when this method returns, which means the f function
+   * cannot leak an open stream.
+   */
+  def withReader[A](f: BufferedReader => A)(implicit ec: ExecutionContext): A = {
+
+    // Use an input reader to convert the byte stream to character stream. Buffered reader for efficiency.
+    tryWithResource(() => new BufferedReader(new InputStreamReader(this.mediaInputStream, Codec.UTF8.name)))(f).recoverWith({
+      case failure => Failure(new IOException(s"Could not read from ${this.pathAsString}: ${failure.getMessage}", failure))
+    }).get
+  }
+
+  /**
+    * Returns an Array[Byte] from a Path. Limit the array size to "limit" byte if defined.
+    * @throws IOException if failOnOverflow is true and the file is larger than limit
+    */
+  def limitFileContent(limit: Option[Int], failOnOverflow: Boolean)(implicit ec: ExecutionContext) = withReader { reader =>
+    val bytesIterator = Iterator.continually(reader.read).takeWhile(_ != -1).map(_.toByte)
+    // Take 1 more than the limit so that we can look at the size and know if it's overflowing
+    val bytesArray = limit.map(l => bytesIterator.take(l + 1)).getOrElse(bytesIterator).toArray
+
+    limit match {
+      case Some(l) if failOnOverflow && bytesArray.length > l =>
+        throw new IOException(s"File $this is larger than $l Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
+      case Some(l) => bytesArray.take(l)
+      case _ => bytesArray
+    }
+  }
+
+  /**
+    * Reads the first limitBytes of a file and makes a String. Prepend with an annotation at the start (to say that this is the
+    * first n bytes).
+    */
+  def annotatedContentAsStringWithLimit(limitBytes: Int)(implicit ec: ExecutionContext): String =
+    s"[First $limitBytes bytes]:" + new String(limitFileContent(Option(limitBytes), failOnOverflow = false))
 }

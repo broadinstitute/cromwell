@@ -6,8 +6,6 @@ digraph {
 
   fcdev_branch [shape=oval label="Make firecloud-develop PR for new Cromwell version"];
   fcdev_test [shape=oval label="Retest firecloud-develop PR. Confirm Cromwell version in Jenkins console logs"];
-  fcdev_update_dev [shape=oval label="Checkout 'dev' branch of firecloud-develop and 'git pull' the latest changes"];
-  fcdev_final_swatomation [shape=oval label="Retest firecloud-develop PR. Confirm Cromwell version in Jenkins console logs"];
   fcdev_merge [shape=oval label="Merge firecloud-develop PR"];
 
   dspjenkins_PR [shape=oval label="Make dsp-jenkins PR setting new Cromwell version"];
@@ -15,8 +13,6 @@ digraph {
 
   jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
   jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];
-
-  qa_perf [shape=oval label="QA performance testing"];
 
   # Edges
 
@@ -31,11 +27,7 @@ digraph {
 
   fcdev_test -> jenkins_reset
 
-  fcdev_test -> qa_perf
+  fcdev_test -> dspjenkins_merge
+  fcdev_test -> fcdev_merge
 
-  qa_perf -> dspjenkins_merge
-
-  dspjenkins_merge -> fcdev_update_dev
-  fcdev_update_dev -> fcdev_final_swatomation
-  fcdev_final_swatomation -> fcdev_merge
 }

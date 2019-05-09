@@ -204,7 +204,9 @@ object ActionBuilder {
 
   // This "sleep 5" is ugly, but hopefully prevents a PAPIv2 race condition whereby very-fast-completing tests never
   // get identified as complete (and thus PAPIv2 continues to run the operation indefinitely.
-  def timestampedMessage(message: String) = s"""sleep 5 && printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
+  def timestampedMessage(withSleep: Boolean)(message: String) =
+    (if (withSleep) "sleep 5 && " else "") +
+    s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
   /**
     * Creates an Action that logs the time as UTC plus prints the message. The original actionLabels will also be
@@ -223,7 +225,7 @@ object ActionBuilder {
                                    actionLabels: Map[String, String]): Action = {
     // Uses the cloudSdk image as that image will be used for other operations as well.
     cloudSdkShellAction(
-      timestampedMessage(message)
+      timestampedMessage(withSleep = true)(message)
     )(
       flags = actionFlags,
       labels = actionLabels collect {

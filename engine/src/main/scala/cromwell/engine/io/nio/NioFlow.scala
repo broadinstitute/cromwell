@@ -19,7 +19,6 @@ import cromwell.util.TryWithResource._
 
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
-import scala.util.Failure
 object NioFlow {
   def NoopOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
 }
@@ -98,7 +97,7 @@ class NioFlow(parallelism: Int,
 
   private def readAsString(read: IoContentAsStringCommand) = IO {
     new String(
-      limitFileContent(read.file, read.options.maxBytes, read.options.failOnOverflow),
+      read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
       StandardCharsets.UTF_8
     )
   }
@@ -130,7 +129,7 @@ class NioFlow(parallelism: Int,
   }
 
   private def readLines(exists: IoReadLinesCommand) = IO {
-    withReader(exists.file) { reader =>
+    exists.file.withReader { reader =>
       Stream.continually(reader.readLine()).takeWhile(_ != null).toList
     }
   }
@@ -141,35 +140,6 @@ class NioFlow(parallelism: Int,
 
   private def createDirectories(path: Path) = path.parent.createDirectories()
 
-  /*
-   * The input stream will be closed when this method returns, which means the f function
-   * cannot leak an open stream.
-   */
-  private def withReader[A](file: Path)(f: BufferedReader => A): A = {
-    
-    // Use an input reader to convert the byte stream to character stream. Buffered reader for efficiency.
-    tryWithResource(() => new BufferedReader(new InputStreamReader(file.mediaInputStream, Codec.UTF8.name)))(f).recoverWith({
-      case failure => Failure(new IOException(s"Could not read from ${file.pathAsString}: ${failure.getMessage}", failure))
-    }).get
-  }
-
-  /**
-    * Returns an Array[Byte] from a Path. Limit the array size to "limit" byte if defined.
-    * @throws IOException if failOnOverflow is true and the file is larger than limit
-    */
-  private def limitFileContent(file: Path, limit: Option[Int], failOnOverflow: Boolean) = withReader(file) { reader =>
-    val bytesIterator = Iterator.continually(reader.read).takeWhile(_ != -1).map(_.toByte)
-    // Take 1 more than the limit so that we can look at the size and know if it's overflowing
-    val bytesArray = limit.map(l => bytesIterator.take(l + 1)).getOrElse(bytesIterator).toArray
-
-    limit match {
-      case Some(l) if failOnOverflow && bytesArray.length > l =>
-        throw new IOException(s"File $file is larger than $l Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
-      case Some(l) => bytesArray.take(l)
-      case _ => bytesArray
-    }
-  }
-
   private def getFileHashForDrsPath(drsPath: DrsPath): IO[String] = {
     val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
@@ -177,14 +147,13 @@ class NioFlow(parallelism: Int,
     val fileAttributesOption = drsFileSystemProvider.fileProvider.fileAttributes(drsPath.drsPath.cloudHost, drsPath.drsPath.cloudPath)
 
     fileAttributesOption match {
-      case Some(fileAttributes) => {
+      case Some(fileAttributes) =>
         val fileHashIO = IO { fileAttributes.fileHash }
 
         fileHashIO.flatMap({
           case Some(fileHash) => IO.pure(fileHash)
           case None => IO.raiseError(new IOException(s"Error while resolving DRS path $drsPath. The response from Martha doesn't contain the 'md5' hash for the file."))
         })
-      }
       case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
     }
   }

@@ -17,6 +17,25 @@ disks: "/some/mnt 20 SSD"
 ```
 Because Cromwell's AWS backend auto-sizes disks, the size specification is simply discarded.
 
+### Time Formatting
+
+In previous versions of Cromwell, times were converted to strings using
+[the default Java formatter](https://docs.oracle.com/javase/8/docs/api/java/time/OffsetDateTime.html#toString--) which
+generates a variety of ISO-8601 formats. String conversions also retained whatever server time zone generated that
+specific time instance.
+
+Going forward, times stored in Cromwell metadata, and later returned via the HTTP endpoint, are now converted to UTC
+then formatted with exactly three digits of milliseconds.
+
+For example:
+- `2017-01-19T12:34:56-04:00` will now be formatted as
+- `2017-01-19T16:34:56.000Z`
+
+This change only affects newly formatted dates. Older dates already formatted and stored by previous versions of
+Cromwell will not be updated however they will still return a
+[valid ISO-8601 format](https://en.wikipedia.org/wiki/ISO_8601). The older format may be in various non-UTC time zones,
+and may or may not include microseconds or even nanoseconds, for example `2017-01-19T12:34:56.123456789-04:00`.
+
 ### Config Changes
 
 #### Heartbeat failure shutdown

@@ -1,0 +1,13 @@
+name: gpu_cuda_image
+testFormat: workflowsuccess
+backends: [Papi]
+
+files {
+  workflow: gpu_on_papi/gpu_cuda_image.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.gpu_cuda_image.modprobe_check.0": "good"
+  "outputs.gpu_cuda_image.smi_check.0": "good"
+}

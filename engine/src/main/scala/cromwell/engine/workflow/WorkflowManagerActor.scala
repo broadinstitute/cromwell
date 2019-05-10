@@ -22,6 +22,7 @@ import cromwell.webservice.EngineStatsActor
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
@@ -321,11 +322,13 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
   private def expandFailureReasons(reasons: Seq[Throwable]): String = {
 
+    implicit val ec: ExecutionContext = context.dispatcher
+
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
         val stderrMessage = reason.stderrPath map { path => 
-          val content = Try(path.contentAsString).recover({
+          val content = Try(path.annotatedContentAsStringWithLimit(300)).recover({
             case e => s"Could not retrieve content: ${e.getMessage}"
           }).get
           s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 

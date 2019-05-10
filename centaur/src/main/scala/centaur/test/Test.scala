@@ -24,7 +24,6 @@ import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import io.circe.Printer
 import io.circe.parser._
 import spray.json.JsString
 

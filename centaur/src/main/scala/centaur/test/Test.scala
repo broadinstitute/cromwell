@@ -230,7 +230,7 @@ object Operations {
                     metadataJson <- parse(metadata.value).toOption
                     asObject <- metadataJson.asObject
                     failures <- asObject.toMap.get("failures")
-                  } yield s" Metadata 'failures' content: ${failures.pretty(Printer.spaces2)}").getOrElse("No additional failure information found in metadata.")
+                  } yield s" Metadata 'failures' content: ${failures.spaces2}").getOrElse("No additional failure information found in metadata.")
                 } else {
                   ""
                 }

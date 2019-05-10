@@ -13,8 +13,7 @@ cromwell::build::setup_docker_environment
 # Until there is further review of what goes into the docker image (ex: rendered vault secrets!) do not push it yet.
 docker_tag="broadinstitute/cromwell-docker-develop:test-only-do-not-push"
 
-# https://www.traviscistatus.com/incidents/kyf149kl6bvp
-docker build --network=host -t "${docker_tag}" scripts/docker-develop
+docker build -t "${docker_tag}" scripts/docker-develop
 
 echo "What tests would you like, my dear McMuffins?"
 
@@ -22,8 +21,7 @@ echo "1. Testing for install of sbt"
 docker run --rm "${docker_tag}" which sbt
 
 echo "2. Testing sbt assembly"
-# https://www.traviscistatus.com/incidents/kyf149kl6bvp
-docker run --network=host --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
+docker run --rm -v "${PWD}:${PWD}" -w "${PWD}" "${docker_tag}" sbt assembly
 
 echo "3. Testing cloudwell docker compose"
 

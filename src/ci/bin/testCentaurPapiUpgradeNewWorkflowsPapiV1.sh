@@ -18,6 +18,5 @@ if [ "${CROMWELL_BUILD_PROVIDER}" = "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ] && [ -
       -p 100 \
       -e localdockertest \
       -e gpu_on_papi \
-      -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 
 fi

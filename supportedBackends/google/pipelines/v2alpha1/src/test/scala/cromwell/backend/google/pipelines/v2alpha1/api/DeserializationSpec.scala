@@ -91,7 +91,7 @@ class DeserializationSpec extends FlatSpec with Matchers {
     ).asJava
 
     operation.setMetadata(metadataMap)
-    val deserializedPipeline = operation.pipeline.get
+    val deserializedPipeline = operation.pipeline.get.get
     val action = deserializedPipeline.getActions.get(0)
     action.getCommands.asScala shouldBe List("echo", "hello")
     action.getImageUri shouldBe "ubuntu:latest"
@@ -100,6 +100,40 @@ class DeserializationSpec extends FlatSpec with Matchers {
     val virtualMachine = deserializedPipeline.getResources.getVirtualMachine
     virtualMachine.getMachineType shouldBe "custom-1-1024"
     virtualMachine.getPreemptible shouldBe false
+  }
+
+  // https://github.com/broadinstitute/cromwell/issues/4772
+  it should "deserialize pipeline from operation metadata without preemptible" in {
+    val operation = new Operation()
+
+    val metadataMap = Map[String, AnyRef](
+      "pipeline" -> Map[String, AnyRef](
+        "actions" -> List[java.util.Map[String, Object]](
+          Map[String, Object](
+            "name" -> "actionName",
+            "imageUri" -> "ubuntu:latest",
+            "commands" -> List[String]("echo", "hello").asJava
+          ).asJava
+        ).asJava,
+        "resources" -> Map(
+          "projectId" -> "project",
+          "virtualMachine" -> Map(
+            "machineType" -> "custom-1-1024",
+          ).asJava
+        ).asJava
+      ).asJava
+    ).asJava
+
+    operation.setMetadata(metadataMap)
+    val deserializedPipeline = operation.pipeline.get.get
+    val action = deserializedPipeline.getActions.get(0)
+    action.getCommands.asScala shouldBe List("echo", "hello")
+    action.getImageUri shouldBe "ubuntu:latest"
+    action.getName shouldBe "actionName"
+    deserializedPipeline.getResources.getProjectId shouldBe "project"
+    val virtualMachine = deserializedPipeline.getResources.getVirtualMachine
+    virtualMachine.getMachineType shouldBe "custom-1-1024"
+    virtualMachine.getPreemptible shouldBe null
   }
 
   it should "be able to say if the operation has started" in {

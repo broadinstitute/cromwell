@@ -4,9 +4,16 @@
 
 ![release-cromwell-version](release-cromwell-version.dot.png) 
  
-## How to Deploy Cromwell in Firecloud
+## How to Deploy Cromwell releases in Firecloud
 
 ![firecloud-develop](firecloud-develop.dot.png) 
+
+## How to Deploy Cromwell hotfixes in Firecloud
+
+* This is just like the main release, except we don't have to wait for a QA perf test, and thus
+we don't have to iterate the swatomation runs.
+
+![firecloud-develop](firecloud-develop-hotfix.dot.png)
 
 ## How to Deploy Cromwell in CAAS prod
 

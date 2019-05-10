@@ -29,6 +29,6 @@ cromwell::build::run_centaur \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
-    -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
+    -e invalidate_bad_caches_jes_no_copy \
 
 cromwell::build::generate_code_coverage

@@ -90,7 +90,7 @@ object ActionCommands {
        |    break
        |  fi
        |  if [ $$i -lt ${localizationConfiguration.localizationAttempts} ]; then
-       |    ${s"""Waiting ${wait.toSeconds} seconds and retrying""" |> timestampedMessage}
+       |    ${s"""Waiting ${wait.toSeconds} seconds and retrying""" |> timestampedMessage(withSleep = false)}
        |    sleep ${wait.toSeconds}
        |  fi
        |done
@@ -125,13 +125,13 @@ object ActionCommands {
        |# Record the exit code of the gsutil command without project flag
        |RC_GSUTIL=$$?
        |if [ "$$RC_GSUTIL" != "0" ]; then
-       |  ${s"$commandWithoutProject failed" |> timestampedMessage}
+       |  ${s"$commandWithoutProject failed" |> timestampedMessage(withSleep = false)}
        |  # Print the reason of the failure
        |  cat gsutil_output.txt
        |
        |  # Check if it matches the BucketIsRequesterPaysErrorMessage
        |  if grep -q "$BucketIsRequesterPaysErrorMessage" gsutil_output.txt; then
-       |    ${"Retrying with user project" |> timestampedMessage}
+       |    ${"Retrying with user project" |> timestampedMessage(withSleep = false)}
        |    $commandWithProject
        |  else
        |    exit "$$RC_GSUTIL"

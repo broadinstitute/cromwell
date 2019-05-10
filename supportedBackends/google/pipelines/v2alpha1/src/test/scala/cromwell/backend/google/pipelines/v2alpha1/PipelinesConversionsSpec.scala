@@ -50,11 +50,11 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     val logging = actions.head
 
     logging.keySet.asScala should contain theSameElementsAs
-      Set("commands", "flags", "imageUri", "labels", "mounts")
+      Set("commands", "flags", "imageUri", "labels", "mounts", "timeout")
 
     logging.get("commands") should be(a[java.util.List[_]])
     logging.get("commands").asInstanceOf[java.util.List[_]] should contain(
-      """printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
+      """sleep 5 && printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
         """Localizing\ input\ dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba\ """ +
         """-\>\ /cromwell_root/path/to/file.bai"""
     )

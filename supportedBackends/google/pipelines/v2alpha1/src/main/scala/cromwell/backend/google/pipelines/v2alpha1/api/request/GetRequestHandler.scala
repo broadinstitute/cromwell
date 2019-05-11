@@ -34,14 +34,14 @@ trait GetRequestHandler { this: RequestHandler =>
       TrySuccess(())
     case response =>
       val failure = Try(GoogleJsonError.parse(GoogleAuthMode.jsonFactory, response)) match {
-        case TrySuccess(googleError) => new PAPIApiException(GoogleJsonException(googleError, response.getHeaders))
-        case Failure(_) => new PAPIApiException(new RuntimeException(s"Failed to get status for operation ${pollingRequest.jobId.jobId}: HTTP Status Code: ${response.getStatusCode}"))
+        case TrySuccess(googleError) => new SystemPAPIApiException(GoogleJsonException(googleError, response.getHeaders))
+        case Failure(_) => new SystemPAPIApiException(new RuntimeException(s"Failed to get status for operation ${pollingRequest.jobId.jobId}: HTTP Status Code: ${response.getStatusCode}"))
       }
       pollingManager ! PipelinesApiStatusQueryFailed(pollingRequest, failure)
       Failure(failure)
   } recover {
     case e =>
-      pollingManager ! PipelinesApiStatusQueryFailed(pollingRequest, new PAPIApiException(e))
+      pollingManager ! PipelinesApiStatusQueryFailed(pollingRequest, new SystemPAPIApiException(e))
       Failure(e)
   }
 

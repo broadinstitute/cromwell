@@ -65,11 +65,7 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
       scheduleCheckForWork()
     case Success(someFailures) =>
       val errors = someFailures collect { case Failure(t) => t.getMessage }
-      if (log.isDebugEnabled) {
-        log.warning("PAPI request worker had {} failures making {} requests: {}", errors.size, someFailures.size, errors.mkString(", "))
-      } else {
-        log.warning("PAPI request worker had {} failures making {} requests", errors.size, someFailures.size)
-      }
+      log.warning("PAPI request worker had {} failures making {} requests: {}", errors.size, someFailures.size, errors.mkString(System.lineSeparator, "," + System.lineSeparator, ""))
       scheduleCheckForWork()
     case Failure(t) =>
       // NB: Should be impossible since we only ever do completionPromise.trySuccess()

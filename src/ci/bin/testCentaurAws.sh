@@ -34,23 +34,18 @@ cromwell::build::run_centaur \
     -e localdockertest \
     -e inline_file \
     -e iwdr_input_string_function \
-    -e globbingbehavior \
     -e non_root_default_user \
-    -e draft3_glob_access \
     -e cwl_interpolated_strings \
     -e non_root_specified_user \
     -e space \
     -e draft3_optional_input_from_scatter \
     -e iwdr_input_string \
-    -e globbingindex \
     -e cwl_cache_between_workflows \
     -e abort.scheduled_abort \
     -e cwl_cache_within_workflow \
-    -e globbingscatter \
     -e inline_file_custom_entryname \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
-    -e draft3_globs   
 
 cromwell::build::generate_code_coverage

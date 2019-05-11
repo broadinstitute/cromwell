@@ -3,6 +3,7 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 
 import com.typesafe.config.ConfigFactory
+import common.util.TimeUtil._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
 import cromwell.core.labels.{Label, Labels}
@@ -70,10 +71,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
       def keyAndValue(name: String) = Array(
-        (WorkflowMetadataKeys.SubmissionTime, OffsetDateTime.now.toString),
+        (WorkflowMetadataKeys.SubmissionTime, OffsetDateTime.now.toUtcMilliString),
         (WorkflowMetadataKeys.Status, WorkflowSubmitted.toString),
         (WorkflowMetadataKeys.Name, name),
-        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString)
+        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toUtcMilliString)
       ) ++ labelMetadata
 
       publishMetadataEvents(workflowKey, keyAndValue(name)).map(_ => workflowId)
@@ -85,7 +86,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val metadataKeys = Array(
         (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
         (WorkflowMetadataKeys.Name, subworkflowName),
-        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toString),
+        (WorkflowMetadataKeys.StartTime, OffsetDateTime.now.toUtcMilliString),
         (WorkflowMetadataKeys.ParentWorkflowId, parentWorkflowId.toString),
         (WorkflowMetadataKeys.RootWorkflowId, parentWorkflowId.toString),
       )
@@ -154,7 +155,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         val keyAndValue = Array(
           (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
           (WorkflowMetadataKeys.Status, WorkflowSucceeded.toString),
-          (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toString))
+          (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toUtcMilliString))
 
         publishMetadataEvents(workflowKey, keyAndValue)
       }
@@ -308,27 +309,37 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         }
         // Filter by start date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
-          WorkflowQueryKey.StartDate.name -> workflowQueryResult2.start.get.toString))) map { case (response, _) =>
-          response.results partition { r => r.start.isDefined && r.start.get.compareTo(workflowQueryResult.start.get) >= 0 } match {
-            case (y, n) if y.nonEmpty && n.isEmpty => // good
-            case (y, n) => fail(s"Found ${y.size} later workflows and ${n.size} earlier")
-          }
+          WorkflowQueryKey.StartDate.name -> workflowQueryResult2.start.get.toUtcMilliString))) map {
+          case (response, _) =>
+            response.results partition {
+              r => r.start.isDefined && r.start.get.compareTo(workflowQueryResult.start.get) >= 0
+            } match {
+              case (y, n) if y.nonEmpty && n.isEmpty => // good
+              case (y, n) => fail(s"Found ${y.size} later workflows and ${n.size} earlier")
+            }
         }
         // Filter by end date
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
-          WorkflowQueryKey.EndDate.name -> workflowQueryResult.end.get.toString))) map { case (response, _) =>
-          response.results partition { r => r.end.isDefined && r.end.get.compareTo(workflowQueryResult.end.get) <= 0 } match {
-            case (y, n) if y.nonEmpty && n.isEmpty => // good
-            case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
-          }
+          WorkflowQueryKey.EndDate.name -> workflowQueryResult.end.get.toUtcMilliString))) map {
+          case (response, _) =>
+            response.results partition {
+              r => r.end.isDefined && r.end.get.compareTo(workflowQueryResult.end.get) <= 0
+            } match {
+              case (y, n) if y.nonEmpty && n.isEmpty => // good
+              case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later")
+            }
         }
         // Filter by submission time
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
-          WorkflowQueryKey.SubmissionTime.name -> workflowQueryResult2.submission.get.toString))) map { case (response, _) =>
-          response.results partition { r => r.submission.isDefined && r.submission.get.compareTo(workflowQueryResult2.submission.get) <= 0 } match {
-            case (y, n) if y.nonEmpty && n.isEmpty => // good
-            case (y, n) => fail(s"Found ${y.size} earlier workflows and ${n.size} later while filtering by submission timestamp")
-          }
+          WorkflowQueryKey.SubmissionTime.name -> workflowQueryResult2.submission.get.toUtcMilliString))) map {
+          case (response, _) =>
+            response.results partition { r =>
+              r.submission.isDefined && r.submission.get.compareTo(workflowQueryResult2.submission.get) <= 0
+            } match {
+              case (y, n) if y.nonEmpty && n.isEmpty => // good
+              case (y, n) =>
+                fail(s"Found ${y.size} earlier workflows and ${n.size} later while filtering by submission timestamp")
+            }
         }
         // Check for labels in query response
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(

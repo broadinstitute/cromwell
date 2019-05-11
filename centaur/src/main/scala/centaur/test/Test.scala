@@ -6,11 +6,10 @@ import cats.Monad
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
-import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur._
 import centaur.api.CentaurCromwellClient
-import centaur.api.CentaurCromwellClient.LogFailures
 import centaur.test.metadata.WorkflowFlatMetadata
+import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
 import com.google.api.services.genomics.Genomics
@@ -22,9 +21,10 @@ import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import io.circe.parser._
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -204,6 +204,7 @@ object Operations {
 
 
       override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
+
     }
   }
 
@@ -223,7 +224,17 @@ object Operations {
             case s if s == expectedStatus => IO.pure(workflow)
             case s: TerminalStatus =>
               CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id})"
+                val failuresString = if (expectedStatus == Succeeded) {
+                  (for {
+                    metadataJson <- parse(metadata.value).toOption
+                    asObject <- metadataJson.asObject
+                    failures <- asObject.toMap.get("failures")
+                  } yield s" Metadata 'failures' content: ${failures.spaces2}").getOrElse("No additional failure information found in metadata.")
+                } else {
+                  ""
+                }
+
+                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString"
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ => for {
@@ -386,7 +397,6 @@ object Operations {
         validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
-            _ = if (LogFailures) Console.err.println(s"Metadata mismatch for ${submittedWorkflow.id} - retrying")
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
         })

@@ -1,0 +1,18 @@
+name: gpu_on_papi_valid
+testFormat: workflowsuccess
+backends: [Papi]
+
+files {
+  workflow: gpu_on_papi/gpu_on_papi.wdl
+  inputs: gpu_on_papi/valid.inputs.json
+}
+
+metadata {
+  status: Succeeded
+  "outputs.gpu_on_papi.reported_gpu_counts.0": 1
+  "outputs.gpu_on_papi.reported_gpu_counts.1": 1
+  "outputs.gpu_on_papi.reported_gpu_counts.2": 1
+  "outputs.gpu_on_papi.reported_gpu_types.0": "https://www.googleapis.com/compute/v1/projects/broad-dsde-cromwell-dev/zones/us-central1-c/acceleratorTypes/nvidia-tesla-k80"
+  "outputs.gpu_on_papi.reported_gpu_types.1": "https://www.googleapis.com/compute/v1/projects/broad-dsde-cromwell-dev/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100"
+  "outputs.gpu_on_papi.reported_gpu_types.2": "https://www.googleapis.com/compute/v1/projects/broad-dsde-cromwell-dev/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p4"
+}

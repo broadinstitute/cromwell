@@ -17,6 +17,25 @@ disks: "/some/mnt 20 SSD"
 ```
 Because Cromwell's AWS backend auto-sizes disks, the size specification is simply discarded.
 
+### Time Formatting
+
+In previous versions of Cromwell, times were converted to strings using
+[the default Java formatter](https://docs.oracle.com/javase/8/docs/api/java/time/OffsetDateTime.html#toString--) which
+generates a variety of ISO-8601 formats. String conversions also retained whatever server time zone generated that
+specific time instance.
+
+Going forward, times stored in Cromwell metadata, and later returned via the HTTP endpoint, are now converted to UTC
+then formatted with exactly three digits of milliseconds.
+
+For example:
+- `2017-01-19T12:34:56-04:00` will now be formatted as
+- `2017-01-19T16:34:56.000Z`
+
+This change only affects newly formatted dates. Older dates already formatted and stored by previous versions of
+Cromwell will not be updated however they will still return a
+[valid ISO-8601 format](https://en.wikipedia.org/wiki/ISO_8601). The older format may be in various non-UTC time zones,
+and may or may not include microseconds or even nanoseconds, for example `2017-01-19T12:34:56.123456789-04:00`.
+
 ### Config Changes
 
 #### Heartbeat failure shutdown
@@ -27,6 +46,12 @@ information see the docs on [configuring Workflow Hearbeats](https://cromwell.re
 NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been configured to be less than `5 minutes`
 then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
 set less than the `ttl`.
+
+#### nVidia Driver Attribute Change
+
+The runtime attribute `nvidia-driver-version` was previously allowed only as a default runtime attribute in configuration.
+Because WDL does not allow attribute names to contain `-` characters, this has been changed to `nvidiaDriverVersion`.
+This field is now accepted within WDL files as well as within the configuration file.
 
 #### Logging long running jobs
 
@@ -44,6 +69,15 @@ backend {
   }
 }
 ```
+
+### Runtime Attributes
+
+#### GPU Attributes
+
+* The `gpuType` attribute is no longer validated against a whitelist at workflow submission time. Instead, validation now happens at runtime. This allows any valid accelerator to be used.
+* The `nvidiaDriverVersion` attribute is now available in WDL `runtime` sections. The default continues to be `390.46` which applies if and only if GPUs are being used.
+* A default `gpuType` ("nvidia-tesla-k80") will now be applied if `gpuCount` is specified but `gpuType` is not.
+* Similarly, a default `gpuCount` (1) will be applied if `gpuType` is specified but `cpuCount` is not. 
 
 ### Bug fixes
 

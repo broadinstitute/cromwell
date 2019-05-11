@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cromwell.core.WorkflowId
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+import common.util.TimeUtil._
 
 object MetadataJsonSupport extends DefaultJsonProtocol {
   implicit object WorkflowIdJsonFormatter extends RootJsonFormat[WorkflowId] {
@@ -17,7 +18,7 @@ object MetadataJsonSupport extends DefaultJsonProtocol {
   }
 
   implicit object OffsetDateTimeFormatter extends RootJsonFormat[OffsetDateTime] {
-    def write(o: OffsetDateTime) = new JsString(o.toString)
+    def write(offsetDateTime: OffsetDateTime) = new JsString(offsetDateTime.toUtcMilliString)
     def read(value: JsValue) = throw new UnsupportedOperationException("Reading OffsetDateTime from JSON is currently unsupported")
   }
 

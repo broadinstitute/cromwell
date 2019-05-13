@@ -30,7 +30,7 @@ trait GetRequestHandler { this: RequestHandler =>
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! PipelinesApiStatusQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! PipelinesApiStatusQueryFailed(originalRequest, new SystemPAPIApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }

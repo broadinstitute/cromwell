@@ -224,7 +224,8 @@ workflows using the Google backend.
 
 #### Google Labels
 
-Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. The current default label set automatically applied is:
+Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. 
+The current default label set automatically applied is:
 
 | Key | Value | Example | Notes |
 |-----|-------|---------|-------|
@@ -233,7 +234,7 @@ Every call run on the Pipelines API backend is given certain labels by default, 
 | wdl-task-name | The name of the WDL task | my-task | |
 | wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
 
-Any custom labels provided upon workflow submission are also applied to Google resources by the Pipelines API.
+Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by the Pipelines API.
 
 ## Using NCBI Sequence Read Archive (SRA) Data
 

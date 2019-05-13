@@ -36,7 +36,7 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
-  final lazy val validatorMap: Map[String, (Option[WomExpression]) => Boolean] = {
+  final lazy val validatorMap: Map[String, Option[WomExpression] => Boolean] = {
     validations.map(validation =>
       validation.key -> validation.validateOptionalWomExpression _
     ).toMap

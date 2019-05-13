@@ -10,15 +10,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
-  # Upgrade docker-compose so that we get the correct exit codes
-  docker-compose -version
-  sudo rm /usr/local/bin/docker-compose
-  curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" > docker-compose
-  chmod +x docker-compose
-  sudo mv docker-compose /usr/local/bin
-  docker-compose -version
-fi
+cromwell::build::setup_docker_environment
 
 export TEST_CROMWELL_TAG=test-only-do-not-push
 

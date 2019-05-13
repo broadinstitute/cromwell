@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 
 /**
-  * Holds a set of PAPI request until a JesQueryActor pulls the work.
+  * Holds a set of PAPI request until a PipelinesApiRequestActor pulls the work.
   */
 class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: Int Refined Positive, override val serviceRegistryActor: ActorRef)
                                    (implicit batchHandler: PipelinesApiRequestHandler) extends Actor
@@ -64,16 +64,16 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     * 
   */
   private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
-  private val requestTooLargeException = new PAPIApiException(new IllegalArgumentException(
-    "The task run request has exceeded the maximum PAPI request size." +
-      "If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
+  private val requestTooLargeException = new UserPAPIApiException(
+    cause = new IllegalArgumentException(s"The task run request has exceeded the maximum PAPI request size ($maxBatchRequestSize bytes)."),
+    helpfulHint = Option("If you have a task with a very large number of inputs and / or outputs in your workflow you should try to reduce it. " +
       "Depending on your case you could: 1) Zip your input files together and unzip them in the command. 2) Use a file of file names " +
-      "and localize the files yourself."
-  ))
+      "and localize the files yourself.")
+  )
 
   private[api] lazy val nbWorkers = requestWorkers.value
 
-  // 
+  //
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
 
@@ -110,7 +110,8 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
       } else workQueue :+= create
     case abort: PAPIAbortRequest => workQueue :+= abort
     case PipelinesWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender, maxBatchSize)
-    case failure: PAPIApiRequestFailed => handleQueryFailure(failure)
+    case failure: PAPIApiRequestFailed =>
+      handleQueryFailure(failure)
     case Terminated(actorRef) => onFailure(actorRef, new RuntimeException("PipelinesApiRequestHandler actor termination caught by manager") with NoStackTrace)
     case other => log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)
   }
@@ -137,16 +138,32 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     })
   }
 
-  private def handleQueryFailure(failure: PAPIApiRequestFailed) = if (failure.query.failedAttempts < maxRetries) {
-    val nextRequest = failure.query.withFailedAttempt
-    val delay = nextRequest.backoff.backoffMillis.millis
-    queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
-    timers.startSingleTimer(nextRequest, nextRequest, delay)
-    failedQuery(failure)
-  } else {
-    retriedQuery(failure)
-    log.warning(s"PAPI request workers tried and failed $maxRetries times to make ${failure.query.getClass.getSimpleName} request to PAPI")
-    failure.query.requester ! failure
+  private def handleQueryFailure(failure: PAPIApiRequestFailed) = {
+    val userError: Boolean = failure.cause.isInstanceOf[UserPAPIApiException]
+
+    def failQuery(): Unit = {
+      // NB: we don't count user errors towards the PAPI failed queries count in our metrics:
+      if (!userError) {
+        failedQuery(failure)
+        log.warning(s"PAPI request workers tried and failed ${failure.query.failedAttempts} times to make ${failure.query.getClass.getSimpleName} request to PAPI")
+      }
+
+      failure.query.requester ! failure
+    }
+
+    def retryQuery(): Unit = {
+      retriedQuery(failure)
+      val nextRequest = failure.query.withFailedAttempt
+      val delay = nextRequest.backoff.backoffMillis.millis
+      queriesWaitingForRetry = queriesWaitingForRetry + nextRequest
+      timers.startSingleTimer(nextRequest, nextRequest, delay)
+    }
+
+    if (userError || failure.query.failedAttempts >= maxRetries ) {
+      failQuery()
+    } else {
+      retryQuery()
+    }
   }
 
   private def handleWorkerAskingForWork(papiRequestWorkerActor: ActorRef, maxBatchSize: Int) = {
@@ -197,13 +214,13 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
         work.workBatch.toList.foreach {
           case statusQuery: PAPIStatusPollRequest =>
             statusPolls += 1
-            self ! PipelinesApiStatusQueryFailed(statusQuery, new PAPIApiException(throwable))
+            self ! PipelinesApiStatusQueryFailed(statusQuery, new SystemPAPIApiException(throwable))
           case runCreationQuery: PAPIRunCreationRequest =>
             runCreations += 1
-            self ! PipelinesApiRunCreationQueryFailed(runCreationQuery, new PAPIApiException(throwable))
+            self ! PipelinesApiRunCreationQueryFailed(runCreationQuery, new SystemPAPIApiException(throwable))
           case abortQuery: PAPIAbortRequest =>
             abortRequests += 1
-            self ! PipelinesApiAbortQueryFailed(abortQuery, new PAPIApiException(throwable))
+            self ! PipelinesApiAbortQueryFailed(abortQuery, new SystemPAPIApiException(throwable))
         }
 
         log.warning(
@@ -328,7 +345,16 @@ object PipelinesApiRequestManager {
     override def getMessage: String = e.getMessage
   }
 
-  class PAPIApiException(val e: Throwable) extends RuntimeException(e) with CromwellFatalExceptionMarker {
-    override def getMessage: String = "Unable to complete PAPI request"
+  sealed trait PAPIApiException extends RuntimeException with CromwellFatalExceptionMarker {
+    def cause: Throwable
+    override def getCause: Throwable = cause
+  }
+
+  class SystemPAPIApiException(val cause: Throwable) extends PAPIApiException {
+    override def getMessage: String = s"Unable to complete PAPI request due to system or connection error (${cause.getMessage})"
+  }
+
+  final class UserPAPIApiException(val cause: Throwable, helpfulHint: Option[String]) extends PAPIApiException {
+    override def getMessage: String = s"Unable to complete PAPI request due to a problem with the request (${cause.getMessage}). ${helpfulHint.getOrElse("")}"
   }
 }

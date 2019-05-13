@@ -1,0 +1,17 @@
+name: google_labels_bad
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: google_labels/google_labels.wdl
+  options: google_labels/bad_options.json
+}
+
+metadata {
+  workflowName: google_labels
+  status: Failed
+
+  "failures.0.message": "Invalid 'google_labels' in workflow options"
+  "failures.0.causedBy.0.message": "Invalid label field: `custom-label-label-label-label-label-label-label-label-label-label` is 66 characters. The maximum is 63."
+  "failures.0.causedBy.1.message": "Invalid label field: `0custom-value` did not match the regex '[a-z]([-a-z0-9]*[a-z0-9])?'"
+}

@@ -1,0 +1,16 @@
+name: google_labels_sub
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: google_labels/wrapper.wdl
+  options: google_labels/good_options.json
+  imports: [
+    google_labels/google_labels.wdl
+  ]
+}
+
+metadata {
+  workflowName: google_labels_wrapper
+  status: Succeeded
+}

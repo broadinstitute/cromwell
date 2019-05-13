@@ -2,6 +2,7 @@ package cromwell.backend.google.pipelines.common
 
 import cats.data.NonEmptyList
 import cats.syntax.either._
+import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.validation.{OptionalRuntimeAttributesValidation, PositiveIntRuntimeAttributesValidation, RuntimeAttributesValidation}
@@ -33,5 +34,7 @@ class GpuValidation(attributeName: String) extends PositiveIntRuntimeAttributesV
             .leftMap(_ => NonEmptyList.one(s"Expecting $key runtime attribute value greater than 0"))
             .toValidated
       }
+    case other =>
+      s"Invalid gpu count. Expected positive Int but got ${other.womType.friendlyName} ${other.toWomString}".invalidNel
   }
 }

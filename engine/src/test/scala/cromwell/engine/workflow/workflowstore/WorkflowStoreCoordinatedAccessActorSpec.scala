@@ -31,13 +31,14 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
   it should "writeHeartBeats" in {
     val expected = 12345
     val workflowStore = new InMemoryWorkflowStore {
-      override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])
+      override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                           heartbeatDateTime: OffsetDateTime)
                                           (implicit ec: ExecutionContext): Future[Int] = {
         Future.successful(expected)
       }
     }
     val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
-    val request = WriteHeartbeats(NonEmptyVector.of((WorkflowId.randomId(), OffsetDateTime.now)))
+    val request = WriteHeartbeats(NonEmptyVector.of((WorkflowId.randomId(), OffsetDateTime.now)), OffsetDateTime.now)
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[Int] map { actual =>
       actual should be(expected)
@@ -113,13 +114,14 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
   forAll(failureResponses) { (description, result, expectedException, expectedMessagePrefix) =>
     it should s"fail to writeHeartBeats due to $description" in {
       val workflowStore = new InMemoryWorkflowStore {
-        override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])
+        override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                             heartbeatDateTime: OffsetDateTime)
                                             (implicit ec: ExecutionContext): Future[Nothing] = {
           result()
         }
       }
       val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
-      val request = WriteHeartbeats(NonEmptyVector.of((WorkflowId.randomId(), OffsetDateTime.now)))
+      val request = WriteHeartbeats(NonEmptyVector.of((WorkflowId.randomId(), OffsetDateTime.now)), OffsetDateTime.now)
       implicit val timeout: Timeout = Timeout(2.seconds.dilated)
       actor.ask(request).failed map { actual =>
         actual.getMessage should startWith(expectedMessagePrefix)

@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
-import java.time.{Instant, OffsetDateTime, ZoneId}
+import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import common.validation.ErrorOr.ErrorOr
@@ -101,9 +101,11 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     }
   }
 
-  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)])(implicit ec: ExecutionContext): Future[Int] = {
+  override def writeWorkflowHeartbeats(workflowIds: Set[(WorkflowId, OffsetDateTime)],
+                                       heartbeatDateTime: OffsetDateTime)
+                                      (implicit ec: ExecutionContext): Future[Int] = {
     val sortedWorkflowIds = workflowIds.toList sortBy(_._2) map (_._1.toString)
-    sqlDatabase.writeWorkflowHeartbeats(sortedWorkflowIds, Option(OffsetDateTime.now.toSystemTimestamp))
+    sqlDatabase.writeWorkflowHeartbeats(sortedWorkflowIds, heartbeatDateTime.toSystemTimestamp)
   }
 
   /**
@@ -152,10 +154,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     )
 
     workflowStoreStateToStartableState(workflowStoreEntry) map { startableState =>
-      val instant = Instant.ofEpochMilli(workflowStoreEntry.submissionTime.getTime)
       WorkflowToStart(
         id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
-        submissionTime = OffsetDateTime.ofInstant(instant, ZoneId.of("UTC")),
+        submissionTime = workflowStoreEntry.submissionTime.toSystemOffsetDateTime,
         sources = sources,
         state = startableState)
     }

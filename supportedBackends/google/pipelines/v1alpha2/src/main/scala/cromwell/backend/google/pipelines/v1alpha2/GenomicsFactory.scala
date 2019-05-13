@@ -70,7 +70,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         rpargs.setInputs((inputParameters.safeMapValues(_.toGoogleRunParameter) ++ literalInputRunParameters).asJava)
         rpargs.setOutputs(outputParameters.safeMapValues(_.toGoogleRunParameter).asJava)
 
-        rpargs.setLabels(createPipelineParameters.labels.asJavaMap)
+        rpargs.setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
 
         val rpr = new RunPipelineRequest().setEphemeralPipeline(pipeline).setPipelineArgs(rpargs)
 

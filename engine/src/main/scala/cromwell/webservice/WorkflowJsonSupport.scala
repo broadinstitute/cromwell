@@ -14,6 +14,7 @@ import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{StatusChe
 import cromwell.webservice.routes.CromwellApiService.BackendResponse
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
 import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+import common.util.TimeUtil._
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -42,7 +43,7 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
-    override def write(obj: OffsetDateTime) = JsString(obj.toString)
+    override def write(offsetDateTime: OffsetDateTime) = JsString(offsetDateTime.toUtcMilliString)
 
     override def read(json: JsValue): OffsetDateTime = json match {
       case JsString(str) => OffsetDateTime.parse(str)

@@ -93,7 +93,8 @@ object OutputManipulator extends Poly1 {
     // We need this because some task return a "File" object that actually does not exist on disk but has its content provided directly instead
     def sizeContent: Option[Long] = obj.kleisli("contents").flatMap(_.asString.map(_.length.toLong))
 
-    // The cwl test runner expects only the name, not the full path
+    // "as a special case, cwltest only matches the trailing part of location in the output sections so that it
+    // can do something reasonable regardless of URL scheme or prefix" - Peter Amstutz, 2019-04-16, CWL gitter
     val updatedLocation = obj.add("location", Json.fromString(path.pathAsString))
 
     // Get the format
@@ -128,7 +129,7 @@ object OutputManipulator extends Poly1 {
       val size = valueOrNull("size", defaultSize)
 
       val basename: Option[Json] =
-        Option(valueOrNull("basename", path.exists.option(path.nameWithoutExtension).map(Json.fromString).getOrElse(Json.Null)))
+        Option(valueOrNull("basename", path.exists.option(path.name).map(Json.fromString).getOrElse(Json.Null)))
 
       /*
       In order of priority use:

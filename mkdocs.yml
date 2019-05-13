@@ -51,7 +51,9 @@ pages:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Google Cloud: backends/Google.md
+    - AWS Batch: backends/AWSBatch.md
     - Alibaba Cloud: backends/BCS.md
+    - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md
     - Spark: backends/Spark.md
     - HPC: backends/HPC.md

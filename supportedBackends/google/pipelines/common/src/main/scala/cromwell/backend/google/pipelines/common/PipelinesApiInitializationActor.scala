@@ -125,6 +125,8 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
+      // Validate the google-labels workflow options, and only succeed initialization if they're good:
+      _ <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowOptions))
       data <- initializationData
     } yield Option(data)
   }

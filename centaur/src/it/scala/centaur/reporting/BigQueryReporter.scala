@@ -4,9 +4,9 @@ import java.time.OffsetDateTime
 import java.util
 
 import cats.effect.IO
-import cats.syntax.traverse._
-import cats.syntax.apply._
 import cats.instances.list._
+import cats.syntax.apply._
+import cats.syntax.traverse._
 import centaur.reporting.BigQueryReporter._
 import centaur.test.CentaurTestException
 import centaur.test.metadata.CallAttemptFailure
@@ -15,6 +15,7 @@ import com.google.api.services.bigquery.BigqueryScopes
 import com.google.auth.Credentials
 import com.google.cloud.bigquery.InsertAllRequest.RowToInsert
 import com.google.cloud.bigquery.{BigQuery, BigQueryError, BigQueryOptions, InsertAllRequest, InsertAllResponse, TableId}
+import common.util.TimeUtil._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.database.sql.SqlConverters._
@@ -154,7 +155,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "test_message" -> Option(centaurTestException.message),
       "test_name" -> Option(testEnvironment.name),
       "test_stack_trace" -> Option(ExceptionUtils.getStackTrace(centaurTestException)),
-      "test_timestamp" -> Option(OffsetDateTime.now.toString),
+      "test_timestamp" -> Option(OffsetDateTime.now.toUtcMilliString),
       "test_workflow_id" -> centaurTestException.workflowIdOption,
     ).collect {
       case (key, Some(value)) => (key, value)
@@ -165,11 +166,11 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
     RowToInsert of Map(
       "call_fully_qualified_name" -> Option(callAttemptFailure.callFullyQualifiedName),
       "call_root" -> callAttemptFailure.callRootOption,
-      "end" -> callAttemptFailure.endOption.map(_.toString),
+      "end" -> callAttemptFailure.endOption.map(_.toUtcMilliString),
       "job_attempt" -> Option(callAttemptFailure.jobAttempt),
       "job_index" -> Option(callAttemptFailure.jobIndex),
       "message" -> Option(callAttemptFailure.message),
-      "start" -> callAttemptFailure.startOption.map(_.toString),
+      "start" -> callAttemptFailure.startOption.map(_.toUtcMilliString),
       "stderr" -> callAttemptFailure.stderrOption,
       "stdout" -> callAttemptFailure.stdoutOption,
       "workflow_id" -> Option(callAttemptFailure.workflowId),
@@ -195,7 +196,7 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "job_attempt" -> metadataEntry.jobAttempt,
       "job_index" -> metadataEntry.jobIndex,
       "metadata_key" -> Option(metadataEntry.metadataKey),
-      "metadata_timestamp" -> Option(metadataEntry.metadataTimestamp.toSystemOffsetDateTime.toString),
+      "metadata_timestamp" -> Option(metadataEntry.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString),
       "metadata_value" -> metadataEntry.metadataValue.map(_.toRawString),
       "metadata_value_type" -> metadataEntry.metadataValueType,
       "workflow_execution_uuid" -> Option(metadataEntry.workflowExecutionUuid),

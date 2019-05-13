@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{GoogleJsonException, PipelinesApiAbortQueryFailed, PAPIAbortRequest, PAPIApiException}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled, PAPIOperationHasAlreadyFinished}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 
@@ -21,7 +21,7 @@ trait AbortRequestHandler { this: RequestHandler =>
       abortQuery.requester ! PAPIOperationHasAlreadyFinished(abortQuery.jobId.jobId)
       Success(())
     } else {
-      pollingManager ! PipelinesApiAbortQueryFailed(abortQuery, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! PipelinesApiAbortQueryFailed(abortQuery, new SystemPAPIApiException(GoogleJsonException(e, responseHeaders)))
       Failure(new Exception(mkErrorString(e)))
     }
   }
@@ -39,7 +39,7 @@ trait AbortRequestHandler { this: RequestHandler =>
       } yield handled
     } recover {
       case e =>
-        pollingManager ! PipelinesApiAbortQueryFailed(abortQuery, new PAPIApiException(e))
+        pollingManager ! PipelinesApiAbortQueryFailed(abortQuery, new SystemPAPIApiException(e))
         Failure(e)
     }
   }

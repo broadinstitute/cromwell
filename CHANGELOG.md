@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 42 Release Notes
+
+### Womtool endpoint
+
+The `/describe` endpoint now differentiates between an invalid workflow and a valid workflow with invalid inputs.
+
+Specifically, the new `validWorkflow` key indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
+
 ## 41 Release Notes
 
 ### Workflow Options
@@ -69,10 +77,6 @@ backend {
   }
 }
 ```
-
-### Womtool endpoint
-
-When submitting a workflow together with an inputs JSON to the `/describe` endpoint, the response now differentiates between an invalid workflow and a valid workflow with invalid inputs. Look for the `inputErrors` key in the response or see the Swagger for more information.
 
 ### Runtime Attributes
 

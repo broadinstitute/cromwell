@@ -10,6 +10,7 @@ task do_major_release {
     input {
         Int releaseVersion
         String organization
+        Boolean checkout_as_ssh
     }
 
     parameter_meta {
@@ -23,7 +24,7 @@ task do_major_release {
         set -euxo pipefail
 
         # Clone repo and checkout develop
-        git clone git@github.com:~{organization}/cromwell.git -b develop cromwell
+        git clone ~{if (checkout_as_ssh) then "git@github.com:" else "https://github.com/"}~{organization}/cromwell.git -b develop cromwell
         cd cromwell
 
         # Merge develop into master
@@ -67,6 +68,8 @@ task do_minor_release {
 
         # Can be swapped out to try this on a fork
         String organization
+
+        Boolean checkout_as_ssh
     }
 
     Float releaseVersionAsFloat = releaseVersion
@@ -77,7 +80,7 @@ task do_minor_release {
         set -euxo pipefail
 
         # Clone repo and checkout hotfix branch
-        git clone git@github.com:~{organization}/cromwell.git -b ~{hotfixBranchName} cromwell
+        git clone ~{if (checkout_as_ssh) then "git@github.com:" else "https://github.com/" }~{organization}/cromwell.git -b ~{hotfixBranchName} cromwell
         cd cromwell
 
         # Make sure tests pass
@@ -225,6 +228,8 @@ task releaseHomebrew {
 
         File cromwellJar
         File womtoolJar
+
+        Boolean checkout_as_ssh
     }
 
     String branchName = "cromwell-~{releaseVersion}"
@@ -245,7 +250,7 @@ task releaseHomebrew {
         set -euxo pipefail
 
         # Clone the homebrew fork
-        git clone git@github.com:~{organization}/homebrew-core.git --depth=100
+        git clone ~{if (checkout_as_ssh) then "git@github.com:" else "https://github.com/" }~{organization}/homebrew-core.git --depth=100
         cd homebrew-core
 
         # See https://help.github.com/articles/syncing-a-fork/
@@ -338,6 +343,7 @@ workflow release_cromwell {
         String organization
         Boolean majorRelease = true
         Boolean publishHomebrew = true
+        Boolean checkout_as_ssh = true
     }
 
     parameter_meta {
@@ -369,14 +375,16 @@ workflow release_cromwell {
         if (majorRelease) {
             call do_major_release { input:
                 organization = organization,
-                releaseVersion = cromwellVersion
+                releaseVersion = cromwellVersion,
+                checkout_as_ssh = checkout_as_ssh
             }
         }
 
         if (!majorRelease) {
             call do_minor_release { input:
                 organization = organization,
-                releaseVersion = cromwellVersion
+                releaseVersion = cromwellVersion,
+                checkout_as_ssh = checkout_as_ssh
             }
         }
     }
@@ -402,7 +410,8 @@ workflow release_cromwell {
             cromwellReleaseUrl = publishGithubRelease.cromwellReleaseUrl,
             womtoolReleaseUrl = publishGithubRelease.womtoolReleaseUrl,
             cromwellJar = cromwellJar,
-            womtoolJar = womtoolJar
+            womtoolJar = womtoolJar,
+            checkout_as_ssh = checkout_as_ssh
         }
     }
 

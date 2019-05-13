@@ -87,13 +87,14 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
+            CROMWELL_BUILD_BRANCH_PULL_REQUEST="${TRAVIS_PULL_REQUEST_BRANCH:-""}"
             CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
             CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
             CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
             CROMWELL_BUILD_URL="https://travis-ci.com/${TRAVIS_REPO_SLUG}/jobs/${TRAVIS_JOB_ID}"
             CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.com"
             CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
-            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
             CROMWELL_BUILD_MYSQL_PORT="3306"
             CROMWELL_BUILD_MYSQL_USERNAME="travis"
@@ -116,13 +117,14 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}"
             CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
+            CROMWELL_BUILD_BRANCH_PULL_REQUEST=""
             CROMWELL_BUILD_EVENT=""
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
             CROMWELL_BUILD_URL="${BUILD_URL}"
             CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
             CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
-            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…\n"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
             CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
             CROMWELL_BUILD_MYSQL_PORT="3306"
             CROMWELL_BUILD_MYSQL_USERNAME="root"
@@ -135,13 +137,14 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_IS_SECURE=true
             CROMWELL_BUILD_TYPE="unknown"
             CROMWELL_BUILD_BRANCH="unknown"
+            CROMWELL_BUILD_BRANCH_PULL_REQUEST=""
             CROMWELL_BUILD_EVENT="unknown"
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER=""
             CROMWELL_BUILD_URL=""
             CROMWELL_BUILD_GIT_USER_EMAIL="unknown.git.user@example.org"
             CROMWELL_BUILD_GIT_USER_NAME="Unknown Git User"
-            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
             CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
             CROMWELL_BUILD_MYSQL_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME-root}"
@@ -185,18 +188,24 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_REQUIRES_SECURE=false
     fi
 
+    if [[ -z "${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND-}" ]]; then
+        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
+    fi
+
     if [[ -z "${VAULT_TOKEN-}" ]]; then
         VAULT_TOKEN="vault token is not set as an environment variable"
     fi
 
-    CROMWELL_BUILD_RANDOM_256_BITS_BASE64="$(dd bs=1 count=32 if=/dev/urandom 2>/dev/null | base64 | tr -d '\n')"
+    CROMWELL_BUILD_RANDOM_256_BITS_BASE64="$(dd bs=1 count=32 if=/dev/urandom 2> /dev/null | base64 | tr -d '\n')"
 
     local hours_to_minutes
     hours_to_minutes=60
-    CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * ${hours_to_minutes}))
+    CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
 
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
+    export CROMWELL_BUILD_BRANCH_PULL_REQUEST
+    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
     export CROMWELL_BUILD_CROMWELL_CONFIG
     export CROMWELL_BUILD_CROMWELL_LOG
     export CROMWELL_BUILD_EVENT
@@ -204,7 +213,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_GENERATE_COVERAGE
     export CROMWELL_BUILD_GIT_USER_EMAIL
     export CROMWELL_BUILD_GIT_USER_NAME
-    export CROMWELL_BUILD_HEARTBEAT_MESSAGE
+    export CROMWELL_BUILD_HEARTBEAT_PATTERN
     export CROMWELL_BUILD_HEARTBEAT_MINUTES
     export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
@@ -217,19 +226,20 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_MYSQL_SCHEMA
     export CROMWELL_BUILD_MYSQL_USERNAME
     export CROMWELL_BUILD_NUMBER
+    export CROMWELL_BUILD_OPTIONAL_SECURE
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PROVIDER
-    export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_JENKINS
+    export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_RANDOM_256_BITS_BASE64
     export CROMWELL_BUILD_REQUIRES_SECURE
-    export CROMWELL_BUILD_OPTIONAL_SECURE
-    export CROMWELL_BUILD_RESOURCES_SOURCES
     export CROMWELL_BUILD_RESOURCES_DIRECTORY
+    export CROMWELL_BUILD_RESOURCES_SOURCES
     export CROMWELL_BUILD_ROOT_DIRECTORY
+    export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
     export CROMWELL_BUILD_TAG
     export CROMWELL_BUILD_TYPE
@@ -238,7 +248,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
     export CROMWELL_BUILD_WAIT_FOR_IT_URL
-    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
 }
 
 cromwell::private::echo_build_variables() {
@@ -248,6 +257,7 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_OPTIONAL_SECURE='${CROMWELL_BUILD_OPTIONAL_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
+    echo "CROMWELL_BUILD_BRANCH_PULL_REQUEST='${CROMWELL_BUILD_BRANCH_PULL_REQUEST}'"
     echo "CROMWELL_BUILD_EVENT='${CROMWELL_BUILD_EVENT}'"
     echo "CROMWELL_BUILD_TAG='${CROMWELL_BUILD_TAG}'"
     echo "CROMWELL_BUILD_NUMBER='${CROMWELL_BUILD_NUMBER}'"
@@ -442,8 +452,9 @@ cromwell::private::checkout_pinned_cwl() {
             https://github.com/common-workflow-language/common-workflow-language.git \
             "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}"
         (
-            cd "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" || exit 1
+            pushd "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" > /dev/null
             git checkout "${CROMWELL_BUILD_CWL_TEST_COMMIT}"
+            popd > /dev/null
         )
     fi
 }
@@ -483,6 +494,8 @@ cromwell::private::vault_login() {
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${VAULT_TOKEN}"
+                # Don't fail here if vault login fails
+                # shellcheck disable=SC2015
                 docker run --rm \
                     -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
                     broadinstitute/dsde-toolbox \
@@ -562,14 +575,14 @@ cromwell::private::calculate_prior_version_tag() {
         | awk -F \" '{print $2}' \
         )"
 
-    # This function should only ever run on Travis PR builds where TRAVIS_PULL_REQUEST_BRANCH is set.
-    if [ -z "${TRAVIS_PULL_REQUEST_BRANCH}" ]; then
-       echo "Error: the TRAVIS_PULL_REQUEST_BRANCH variable is not set. calculate_prior_version_tag expects to only run on Travis Pull Request builds in which this variable is set." >&2
+    # This function should only ever run on PR builds.
+    if [[ -z "${CROMWELL_BUILD_BRANCH_PULL_REQUEST}" ]]; then
+       echo "Error: the CROMWELL_BUILD_BRANCH_PULL_REQUEST variable is not set. calculate_prior_version_tag expects to only run on Travis Pull Request builds in which this variable is set." >&2
        exit 1
     fi
     # If this PR targets a hotfix branch, the previous version should be the same major version as this version.
     # Otherwise this PR targets a non-hotfix branch so the previous version should be one less than this version.
-    if $( echo "${TRAVIS_PULL_REQUEST_BRANCH}" | grep -q -E '^[0-9]+_hotfix$' ); then
+    if [[ "${CROMWELL_BUILD_BRANCH_PULL_REQUEST}" =~ ^[0-9\.]+_hotfix$ ]]; then
       prior_version="$current_version"
     else
       prior_version=$((current_version - 1))
@@ -578,19 +591,21 @@ cromwell::private::calculate_prior_version_tag() {
 }
 
 cromwell::private::get_prior_version_config() {
-    local prior_version=$1
+    local prior_version
+    prior_version="${1:?get_prior_version_config called without a version}"; shift
     prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
     echo "${prior_config}"
 }
 
 cromwell::private::setup_prior_version_resources() {
     local prior_config
-    local prior_version="$(cromwell::private::calculate_prior_version_tag)"
+    local prior_version
+    prior_version="$(cromwell::private::calculate_prior_version_tag)"
 
     CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${prior_version}.jar"
     export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
 
-    prior_config="$(cromwell::private::get_prior_version_config ${prior_version})"
+    prior_config="$(cromwell::private::get_prior_version_config "${prior_version}")"
     if [[ -f "${prior_config}" ]]; then
         CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
         export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
@@ -609,9 +624,9 @@ cromwell::private::exists_cromwell_jar() {
 }
 
 cromwell::private::assemble_jars() {
-    # CROMWELL_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
+    # CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_SBT_ASSEMBLY_COMMAND:-assembly} -error
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND:-assembly} -error
 }
 
 cromwell::private::generate_code_coverage() {
@@ -644,26 +659,27 @@ cromwell::private::push_publish_complete() {
 
     # Loosely adapted from https://github.com/broadinstitute/workbench-libs/blob/435a932/scripts/version_update.sh
     mkdir publish_complete
-    (
-        cd publish_complete || exit 1
+    pushd publish_complete > /dev/null
 
-        git init
-        git config core.sshCommand "ssh -i ${github_private_deploy_key} -F /dev/null"
-        git config user.email "${CROMWELL_BUILD_GIT_USER_EMAIL}"
-        git config user.name "${CROMWELL_BUILD_GIT_USER_NAME}"
+    git init
+    git config core.sshCommand "ssh -i ${github_private_deploy_key} -F /dev/null"
+    git config user.email "${CROMWELL_BUILD_GIT_USER_EMAIL}"
+    git config user.name "${CROMWELL_BUILD_GIT_USER_NAME}"
 
-        git remote add "${git_publish_remote}" "${git_repo}"
-        git checkout -b "${git_publish_branch}"
-        git commit --allow-empty -m "${git_publish_message}"
-        git push -f "${git_publish_remote}" "${git_publish_branch}"
-    )
+    git remote add "${git_publish_remote}" "${git_repo}"
+    git checkout -b "${git_publish_branch}"
+    git commit --allow-empty -m "${git_publish_message}"
+    git push -f "${git_publish_remote}" "${git_publish_branch}"
+
+    popd > /dev/null
 }
 
 cromwell::private::start_build_heartbeat() {
     # Sleep one minute between printouts, but don't zombie forever
     for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
         sleep 60
-        printf "${CROMWELL_BUILD_HEARTBEAT_MESSAGE}"
+        # shellcheck disable=SC2059
+        printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
     done &
     CROMWELL_BUILD_HEARTBEAT_PID=$!
 }
@@ -713,7 +729,7 @@ cromwell::private::kill_centaur_log_tail() {
 cromwell::private::run_exit_functions() {
     if [[ -f "${CROMWELL_BUILD_EXIT_FUNCTIONS}" ]]; then
         local exit_function
-        while read exit_function; do
+        while read -r exit_function; do
           ${exit_function} || true
         done < "${CROMWELL_BUILD_EXIT_FUNCTIONS}"
         rm "${CROMWELL_BUILD_EXIT_FUNCTIONS}" || true
@@ -753,6 +769,45 @@ cromwell::private::kill_tree() {
     cromwell::private::kill_tree "${cpid}"
   done
   kill "${pid}" 2> /dev/null
+}
+
+
+cromwell::private::start_conformance_cromwell() {
+    # Start the Cromwell server in the directory containing input files so it can access them via their relative path
+    pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
+
+    # Turn off call caching as hashing doesn't work since it sees local and not GCS paths.
+    # CWL conformance uses alpine images that do not have bash.
+    java \
+        -Xmx2g \
+        -Dconfig.file="${CROMWELL_BUILD_CROMWELL_CONFIG}" \
+        -Dcall-caching.enabled=false \
+        -Dsystem.job-shell=/bin/sh \
+        -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+        server &
+
+    CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID=$!
+
+    popd > /dev/null
+}
+
+cromwell::private::kill_conformance_cromwell() {
+    if [[ -n "${CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID+set}" ]]; then
+        cromwell::build::kill_tree "${CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID}"
+    fi
+}
+
+cromwell::private::run_conformance_wdl() {
+    pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
+
+    java \
+        -Xmx6g \
+        -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
+        -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+        run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
+        -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
+
+    popd > /dev/null
 }
 
 cromwell::build::exec_test_script() {
@@ -815,15 +870,11 @@ cromwell::build::setup_centaur_environment() {
     cromwell::private::add_exit_function cromwell::private::kill_centaur_log_tail
 }
 
-cromwell::build::run_centaur() {
-    "${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/test_cromwell.sh" \
-        -n "${CROMWELL_BUILD_CENTAUR_CONFIG}" \
-        -l "${CROMWELL_BUILD_LOG_DIRECTORY}" \
-        -g \
-        "$@"
-}
-
 cromwell::build::setup_conformance_environment() {
+    # Override of the default sbt assembly command which is just `assembly`.
+    # The conformance runs only need these two subprojects so save a couple of minutes and skip the rest.
+    export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="server/assembly centaurCwlRunner/assembly"
+
     cromwell::private::export_conformance_variables
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::install_cwltest
@@ -833,6 +884,23 @@ cromwell::build::setup_conformance_environment() {
     cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
     cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
+}
+
+cromwell::build::setup_docker_environment() {
+    cromwell::private::start_build_heartbeat
+    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
+
+    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
+        # Upgrade docker-compose so that we get the correct exit codes
+        docker-compose -version
+        sudo rm /usr/local/bin/docker-compose
+        curl \
+            -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" \
+            > docker-compose
+        chmod +x docker-compose
+        sudo mv docker-compose /usr/local/bin
+        docker-compose -version
+    fi
 }
 
 cromwell::build::assemble_jars() {
@@ -846,6 +914,39 @@ cromwell::build::assemble_jars() {
         echo "Error: find_cromwell_jar did not locate a cromwell jar even after assembly" >&2
         exit 1
     fi
+}
+
+cromwell::build::run_centaur() {
+    local -a additional_args
+    additional_args=()
+    if [[ -n "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS-}" ]]; then
+        # Allow splitting on space to simulate an exported array
+        # https://stackoverflow.com/questions/5564418/exporting-an-array-in-bash-script#answer-5564589
+        # shellcheck disable=SC2206
+        additional_args=(${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS})
+    fi
+    # Handle empty arrays in older versions of bash
+    # https://stackoverflow.com/questions/7577052/bash-empty-array-expansion-with-set-u#answer-7577209
+    "${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/test_cromwell.sh" \
+        -n "${CROMWELL_BUILD_CENTAUR_CONFIG}" \
+        -l "${CROMWELL_BUILD_LOG_DIRECTORY}" \
+        -g \
+        ${additional_args[@]+"${additional_args[@]}"} \
+        "$@"
+}
+
+cromwell::build::run_conformance() {
+    CROMWELL_BUILD_CWL_RUNNER_MODE="${CROMWELL_BUILD_BACKEND_TYPE}"
+
+    export CROMWELL_BUILD_CWL_RUNNER_MODE
+
+    cromwell::private::start_conformance_cromwell
+    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
+
+    # Give cromwell time to start up
+    sleep 30
+
+    cromwell::private::run_conformance_wdl
 }
 
 cromwell::build::generate_code_coverage() {
@@ -896,8 +997,8 @@ cromwell::build::exec_retry_function() {
 
     # https://unix.stackexchange.com/a/82610
     # https://stackoverflow.com/a/17336953
-    for attempt in $(seq 0 ${retry_count}); do
-        [[ ${attempt} -gt 0 ]] && sleep ${sleep_seconds}
+    for attempt in $(seq 0 "${retry_count}"); do
+        [[ ${attempt} -gt 0 ]] && sleep "${sleep_seconds}"
         ${retried_function} && exit_status=0 && break || exit_status=$?
     done
     return ${exit_status}
@@ -907,7 +1008,7 @@ cromwell::build::exec_silent_function() {
     local silent_function
     silent_function="${1:?exec_silent_function called without a function}"; shift
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function ${silent_function} "$@"
+        cromwell::private::exec_silent_function "${silent_function}" "$@"
     else
         ${silent_function} "$@"
     fi

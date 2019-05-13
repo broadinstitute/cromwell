@@ -88,7 +88,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val accelerators = createPipelineParameters.runtimeAttributes
         .gpuResource.map(toAccelerator).toList.asJava
-      
+
       /*
        * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */

@@ -6,13 +6,13 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
-import cromwell.backend.google.pipelines.common.GpuResource.GpuType.GpuType
+import cromwell.backend.google.pipelines.common.GpuResource.GpuType
 import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
+import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import net.ceedubs.ficus.Ficus._
 import wdl4s.parser.MemoryUnit
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
@@ -21,10 +21,17 @@ import wom.values._
 
 object GpuResource {
   val DefaultNvidiaDriverVersion = "390.46"
-  object GpuType extends Enumeration {
-    type GpuType = Value
-    val NVIDIATeslaP100 = Value("nvidia-tesla-p100")
-    val NVIDIATeslaK80 = Value("nvidia-tesla-k80")
+
+  final case class GpuType(name: String) {
+    override def toString: String = name
+  }
+  object GpuType {
+    val NVIDIATeslaP100 = GpuType("nvidia-tesla-p100")
+    val NVIDIATeslaK80 = GpuType("nvidia-tesla-k80")
+
+    val DefaultGpuType: GpuType = NVIDIATeslaK80
+    val DefaultGpuCount: Int Refined Positive = refineMV[Positive](1)
+    val MoreDetailsURL = "https://cloud.google.com/compute/docs/gpus/"
   }
 }
 
@@ -78,7 +85,10 @@ object PipelinesApiRuntimeAttributes {
 
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] = GpuTypeValidation.optional
 
-  private def gpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
+  val GpuDriverVersionKey = "nvidiaDriverVersion"
+  private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
+
+  private def gpuCountValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
 
   private def gpuMinValidation(runtimeConfig: Option[Config]):OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optionalMin
 
@@ -130,8 +140,9 @@ object PipelinesApiRuntimeAttributes {
   def runtimeAttributesBuilder(jesConfiguration: PipelinesApiConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = jesConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
-      gpuValidation(runtimeConfig),
+      gpuCountValidation(runtimeConfig),
       gpuTypeValidation(runtimeConfig),
+      gpuDriverValidation(runtimeConfig),
       cpuValidation(runtimeConfig),
       cpuMinValidation(runtimeConfig),
       gpuMinValidation(runtimeConfig),
@@ -155,14 +166,14 @@ object PipelinesApiRuntimeAttributes {
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
     // GPU
-    lazy val nvidiaDriverVersion = runtimeAttrsConfig.flatMap(_.as[Option[String]]("nvidia-driver-version")).getOrElse(GpuResource.DefaultNvidiaDriverVersion)
-    val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    val gpu: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(gpuValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    val gpuResource = (gpuType, gpu) match {
-      case (Some(t), Some(g)) => Option(GpuResource(t, g, nvidiaDriverVersion))
-      case (Some(_), None) => throw new RuntimeException(s"Please specify how many GPU should be attached to the instance.")
-      case (None, Some(_)) => throw new RuntimeException(s"Please specify a GPU type: ${GpuResource.GpuType.values.mkString(", ")}")
-      case (None, None) => None
+    lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation.extractOption(gpuCountValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+    lazy val gpuDriver: Option[String] = RuntimeAttributesValidation.extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+
+    val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined || gpuDriver.isDefined) {
+      Option(GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType), gpuCount.getOrElse(GpuType.DefaultGpuCount), gpuDriver.getOrElse(GpuResource.DefaultNvidiaDriverVersion)))
+    } else {
+      None
     }
 
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)

@@ -12,6 +12,7 @@ import mouse.all._
 import org.apache.commons.text.StringEscapeUtils
 
 import scala.collection.JavaConverters._
+import scala.concurrent.duration._
 
 /**
   * Utility singleton to create high level actions.
@@ -43,6 +44,11 @@ object ActionBuilder {
     def withFlags(flags: List[ActionFlag]): Action = action.setFlags(flags |> javaFlags)
     def withMounts(mounts: List[Mount]): Action = action.setMounts(mounts.asJava)
     def withLabels(labels: Map[String, String]): Action = action.setLabels(labels.asJava)
+    def withTimeout(timeout: Duration): Action = timeout match {
+      case fd: FiniteDuration => action.setTimeout(fd.toSeconds + "s")
+      case _ => action
+    }
+
 
     def scalaLabels: Map[String, String] = {
       val list = for {
@@ -118,12 +124,16 @@ object ActionBuilder {
       .setCredentials(secret.orNull)
   }
 
-  def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty, flags: List[ActionFlag] = List.empty, labels: Map[String, String] = Map.empty): Action =
+  def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty,
+                                                flags: List[ActionFlag] = List.empty,
+                                                labels: Map[String, String] = Map.empty,
+                                                timeout: Duration = Duration.Inf): Action =
     cloudSdkAction
       .withCommand("/bin/sh", "-c", if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand)
       .withFlags(flags)
       .withMounts(mounts)
       .withLabels(labels)
+      .withTimeout(timeout)
 
   /**
     * Returns a set of labels for a parameter.
@@ -170,14 +180,14 @@ object ActionBuilder {
     pipelinesParameter match {
       case _: PipelinesApiInput =>
         val message = "Localizing input %s -> %s".format(
-          quoted(pipelinesParameter.cloudPath),
-          quoted(pipelinesParameter.containerPath),
+          shellEscaped(pipelinesParameter.cloudPath),
+          shellEscaped(pipelinesParameter.containerPath),
         )
         ActionBuilder.logTimestampedAction(message, List(), actionLabels)
       case _: PipelinesApiOutput =>
         val message = "Delocalizing output %s -> %s".format(
-          quoted(pipelinesParameter.containerPath),
-          quoted(pipelinesParameter.cloudPath),
+          shellEscaped(pipelinesParameter.containerPath),
+          shellEscaped(pipelinesParameter.cloudPath),
         )
         ActionBuilder.logTimestampedAction(message, List(ActionFlag.AlwaysRun), actionLabels)
     }
@@ -191,12 +201,19 @@ object ActionBuilder {
       action.scalaLabels
     )
   }
-  
-  def timestampedMessage(message: String) = s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${quoted(message)}"""
+
+  // This "sleep 5" is ugly, but hopefully prevents a PAPIv2 race condition whereby very-fast-completing tests never
+  // get identified as complete (and thus PAPIv2 continues to run the operation indefinitely.
+  def timestampedMessage(withSleep: Boolean)(message: String) =
+    (if (withSleep) "sleep 5 && " else "") +
+    s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
   /**
     * Creates an Action that logs the time as UTC plus prints the message. The original actionLabels will also be
     * applied to the logged action, except that Key.Tag -> some-value will be replaced with Key.Logging -> some-value.
+    *
+    * Note that these log actions have a timeout of 300 seconds. That's obviously a huge timeout, and is more of a
+    * safety net in case these actions get stuck.
     *
     * @param message      Message to output.
     * @param actionFlags  Flags from the original Action to also apply to the logging Action.
@@ -208,13 +225,14 @@ object ActionBuilder {
                                    actionLabels: Map[String, String]): Action = {
     // Uses the cloudSdk image as that image will be used for other operations as well.
     cloudSdkShellAction(
-      timestampedMessage(message)
+      timestampedMessage(withSleep = true)(message)
     )(
       flags = actionFlags,
       labels = actionLabels collect {
         case (key, value) if key == Key.Tag => Key.Logging -> value
         case (key, value) => key -> value
-      }
+      },
+      timeout = 300.seconds
     )
   }
 
@@ -223,22 +241,22 @@ object ActionBuilder {
     val commandArgs: String = Option(action.getCommands) match {
       case Some(commands) =>
         commands.asScala map {
-          case command if Option(command).isDefined => s" ${quoted(command)}"
+          case command if Option(command).isDefined => s" ${shellEscaped(command)}"
           case _ => ""
         } mkString ""
       case None => ""
     }
 
     val entrypointArg: String = Option(action.getEntrypoint) match {
-      case Some(entrypoint) => s" --entrypoint=${quoted(entrypoint)}"
+      case Some(entrypoint) => s" --entrypoint=${shellEscaped(entrypoint)}"
       case None => ""
     }
 
     val environmentArgs: String = Option(action.getEnvironment) match {
       case Some(environment) =>
         environment.asScala map {
-          case (key, value) if Option(key).isDefined && Option(value).isDefined => s" -e ${quoted(s"$key:$value")}"
-          case (key, _) if Option(key).isDefined => s" -e ${quoted(key)}"
+          case (key, value) if Option(key).isDefined && Option(value).isDefined => s" -e ${shellEscaped(s"$key:$value")}"
+          case (key, _) if Option(key).isDefined => s" -e ${shellEscaped(key)}"
           case _ => ""
         } mkString ""
       case None => ""
@@ -246,7 +264,7 @@ object ActionBuilder {
 
     val imageArg: String = Option(action.getImageUri) match {
       case None => " <no docker image specified>"
-      case Some(imageUri) => s" ${quoted(imageUri)}"
+      case Some(imageUri) => s" ${shellEscaped(imageUri)}"
     }
 
     val mountArgs: String = Option(action.getMounts) match {
@@ -254,25 +272,25 @@ object ActionBuilder {
       case Some(mounts) =>
         mounts.asScala map {
           case mount if Option(mount).isEmpty => ""
-          case mount if mount.getReadOnly => s" -v ${quoted(s"/mnt/${mount.getDisk}:${mount.getPath}:ro")}"
-          case mount => s" -v ${quoted(s"/mnt/${mount.getDisk}:${mount.getPath}")}"
+          case mount if mount.getReadOnly => s" -v ${shellEscaped(s"/mnt/${mount.getDisk}:${mount.getPath}:ro")}"
+          case mount => s" -v ${shellEscaped(s"/mnt/${mount.getDisk}:${mount.getPath}")}"
         } mkString ""
     }
 
     val nameArg: String = Option(action.getName) match {
       case None => ""
-      case Some(name) => s" --name ${quoted(name)}"
+      case Some(name) => s" --name ${shellEscaped(name)}"
     }
 
     val pidNamespaceArg: String = Option(action.getPidNamespace) match {
-      case Some(pidNamespace) => s" --pid=${quoted(pidNamespace)}"
+      case Some(pidNamespace) => s" --pid=${shellEscaped(pidNamespace)}"
       case None => ""
     }
 
     val portMappingArgs: String = Option(action.getPortMappings) match {
       case Some(portMappings) =>
         portMappings.asScala map {
-          case (key, value) if Option(key).isDefined => s" -p ${quoted(s"$key:$value")}"
+          case (key, value) if Option(key).isDefined => s" -p ${shellEscaped(s"$key:$value")}"
           case (_, value) => s" -p $value"
         } mkString ""
       case None => ""
@@ -303,7 +321,7 @@ object ActionBuilder {
   }
 
   /** Quotes a string such that it's compatible as a string argument in the shell. */
-  private def quoted(any: Any): String = {
+  private def shellEscaped(any: Any): String = {
     val str = String.valueOf(any)
     /*
     NOTE: escapeXSI is more compact than wrapping in single quotes. Newlines are also stripped by the shell, as they

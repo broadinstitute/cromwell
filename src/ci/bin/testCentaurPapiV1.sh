@@ -25,10 +25,12 @@ export GOOGLE_SERVICE_ACCOUNT_JSON
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
-    -e gpu_on_papi \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
-    -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
+    -e invalidate_bad_caches_jes_no_copy \
+    -e gpu_cuda_image \
+    -e gpu_on_papi_valid \
+    -e gpu_on_papi_invalid
 
 cromwell::build::generate_code_coverage

@@ -162,7 +162,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
         description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
     }
 
-    "return inputErrors for a valid inputs-requiring workflow with empty inputs" in {
+    "return valid = false, validWorkflow = true for a valid inputs-requiring workflow with an empty inputs JSON" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.emptyInputs)
 
@@ -197,7 +197,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       )
     }
 
-    "return inputErrors for a valid no-inputs workflow with extraneous inputs" in {
+    "return valid = false, validWorkflow = true for a valid no-inputs workflow with extraneous inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidNoInputs), inputsJson = TestData.bogusInputs)
 
@@ -205,7 +205,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
         description = WorkflowDescription(valid = false, errors = List("WARNING: Unexpected input provided: foo.bar"), validWorkflow = true, name = "wf_hello", inputs = List.empty, submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
     }
 
-    // In draft-2 we allow extraneous inputs for legacy reasons - users e.g. put comments in them
+    // In draft-2 we allow extraneous inputs for legacy reasons - e.g. users put comments in them
     "return valid for a valid no-inputs draft-2 workflow with extraneous inputs" in {
 
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidDraft2NoInputs), inputsJson = TestData.bogusInputs)

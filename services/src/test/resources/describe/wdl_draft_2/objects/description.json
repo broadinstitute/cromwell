@@ -2,8 +2,7 @@
   "valid" : true,
   "errors" : [
   ],
-  "inputErrors" : [
-  ],
+  "validWorkflow" : true,
   "name" : "o",
   "inputs" : [
     {

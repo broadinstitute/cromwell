@@ -3,8 +3,7 @@
   "errors" : [
     "ERROR: Unexpected end of file"
   ],
-  "inputErrors" : [
-  ],
+  "validWorkflow" : false,
   "name" : "",
   "inputs" : [
   ],

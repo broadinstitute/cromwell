@@ -2,8 +2,7 @@
   "valid" : true,
   "errors" : [
   ],
-  "inputErrors" : [
-  ],
+  "validWorkflow" : true,
   "name" : "wdl_1_0_map",
   "inputs" : [
     {

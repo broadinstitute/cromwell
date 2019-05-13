@@ -615,7 +615,7 @@ object CromwellApiServiceSpec {
               s"[reading back DescribeRequest contents] version: ${sourceFiles.workflowTypeVersion}"
             )
 
-            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack))
+            sender ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))
         }
 
     }

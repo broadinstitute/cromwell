@@ -42,7 +42,7 @@ import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
-import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, ThisWasYourStatus, WhatsMyStatus}
+import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, WhatsMyStatus}
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
 import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
@@ -367,7 +367,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       completionPromise = Promise[SubmitJobResponse]
       _ = backendSingletonActor ! SubmitAwsJobRequest(batchJob, attributes, completionPromise)
       submitJobResponse <- completionPromise.future
-      _ = backendSingletonActor ! NotifyOfStatus(submitJobResponse.jobId, Initializing)
+      _ = backendSingletonActor ! NotifyOfStatus(runtimeAttributes.queueArn, submitJobResponse.jobId, Option(Initializing))
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
 
@@ -391,9 +391,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     implicit val timeout: Timeout = Timeout(5.seconds)
 
     def useQuickAnswerOrFallback(quick: Any): Future[RunStatus] = quick match {
-      case ThisWasYourStatus(Some(value)) =>
+      case NotifyOfStatus(_, _, Some(value)) =>
         Future.successful(value)
-      case ThisWasYourStatus(None) =>
+      case NotifyOfStatus(_, _, None) =>
+        log.info(s"Having to fall back to AWS query for '${jobDescriptor.taskCall.localName}' status")
         Future.fromTry(job.status(jobId))
       case other =>
         val message = s"Programmer Error (please report this): Received an unexpected message from the OccasionalPollingActor: $other"
@@ -402,7 +403,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
     for {
-      quickAnswer <- backendSingletonActor ? WhatsMyStatus(jobId)
+      quickAnswer <- backendSingletonActor ? WhatsMyStatus(runtimeAttributes.queueArn, jobId)
       guaranteedAnswer <- useQuickAnswerOrFallback(quickAnswer)
     } yield guaranteedAnswer
   }

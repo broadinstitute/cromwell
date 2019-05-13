@@ -82,8 +82,10 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
 
         statuses = statuses.filterNot(_._2 == mapToRunStatus) ++ jobIdsInStatus.map(_.jobId() -> mapToRunStatus)
       } recover {
-        case e => log.warning(s"Failure fetching statuses in $awsStatusNamesToCheck")
+        case e =>
+          log.error(e, s"Failure fetching statuses in $awsStatusNamesToCheck")
       }
+      ()
     }
 
       updateForStatusNames(List("SUBMITTED", "PENDING", "RUNNABLE"), Initializing)

@@ -41,7 +41,7 @@ import common.util.StringUtil._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.aws.GoSlowJobSubmitActor.SubmitForMe
+import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, ThisWasYourStatus, WhatsMyStatus}
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
 import cromwell.backend.impl.aws.io._
@@ -365,7 +365,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     for {
       _ <- uploadScriptFile()
       completionPromise = Promise[SubmitJobResponse]
-      _ = backendSingletonActor ! SubmitForMe(batchJob, attributes, completionPromise)
+      _ = backendSingletonActor ! SubmitAwsJobRequest(batchJob, attributes, completionPromise)
       submitJobResponse <- completionPromise.future
       _ = backendSingletonActor ! NotifyOfStatus(submitJobResponse.jobId, Initializing)
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
@@ -396,7 +396,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case ThisWasYourStatus(None) =>
         Future.fromTry(job.status(jobId))
       case other =>
-        val message = s"Got a weird unexpected message from the OccasionalPollingActor: $other"
+        val message = s"Programmer Error (please report this): Received an unexpected message from the OccasionalPollingActor: $other"
         log.error(message)
         Future.failed(new Exception(message) with NoStackTrace)
     }

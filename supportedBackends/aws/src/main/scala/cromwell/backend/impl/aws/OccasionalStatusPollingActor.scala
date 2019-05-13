@@ -10,8 +10,21 @@ import software.amazon.awssdk.services.batch.model.ListJobsRequest
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
+/**
+  * Works by polling AWS for the statuses of jobs in our queues of interest on a fixed schedule.
+  * When queried for status, returns the currently known status, rather than going to AWS again.
+  *
+  *
+  * Known Limitations (for they are legion):
+  *
+  *   - No IO protection in case a request to AWS fails
+  *   - Those requests to AWS are also blocking IO
+  *   - The 'queuesToMonitor' get added to but never cleared out (so on a multi-tenant system, will grow indefinitely
+  *   - If a jobID is not on the first page of status results for a given queue/status combination, we will lose sight of that job
+  *   - We don't track completed jobs - so when a job completes the caller will get a None, and have to fall back to an AWS query anyway.
+  */
 class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -27,9 +40,12 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
   // Maps job ID to status
   var statuses: Map[String, RunStatus] = Map.empty
 
+  var queuesToMonitor: Set[String] = Set.empty
+
   override def receive = {
-    case WhatsMyStatus(jobId) =>
-      sender ! ThisWasYourStatus(statuses.get(jobId))
+    case WhatsMyStatus(queueArn, jobId) =>
+      queuesToMonitor += queueArn // Set addition so expectation is a no-op almost every time
+      sender ! NotifyOfStatus(queueArn, jobId, statuses.get(jobId))
 
     case UpdateStatuses =>
       Future {
@@ -41,29 +57,37 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
           log.error(error, "Failed to update statuses. Will try again in 2 seconds")
           scheduleStatusUpdate(2.seconds)
       }
-    case NotifyOfStatus(jobId, status) => statuses += jobId -> status
+    case NotifyOfStatus(queueArn, jobId, Some(status)) =>
+      statuses += jobId -> status
+      queuesToMonitor += queueArn // Set addition so expectation is a no-op almost every time
+    case NotifyOfStatus(_, jobId, None) =>
+      log.error("Programmer Error: OccasionalStatusPollerActor was given an empty status update for {}. It was probably intended to be filled.", jobId)
   }
 
   private def updateStatuses() = {
 
-    def updateForStatus(awsStatusNames: Seq[String], runStatus: RunStatus) = {
+    def updateForStatusNames(awsStatusNamesToCheck: Seq[String], mapToRunStatus: RunStatus): Unit = {
+      Try {
+        val jobIdsInStatus = for {
+          queueName <- queuesToMonitor
+          awsStatusName <- awsStatusNamesToCheck
+          request = ListJobsRequest.builder()
+            .jobStatus(awsStatusName)
+            .jobQueue(queueName)
+            .build()
+          jobId <- client.listJobs(request).jobSummaryList().asScala
+        } yield jobId
 
-      val valuesInStatus = awsStatusNames flatMap { awsStatusName =>
-        val request = ListJobsRequest.builder()
-          .jobStatus(awsStatusName)
-          .jobQueue("GenomicsDefaultQueue-9d1df58e6cbf7dc")
-          .build()
+        // Remove the old values and add the new values
 
-
-        client.listJobs(request).jobSummaryList().asScala
+        statuses = statuses.filterNot(_._2 == mapToRunStatus) ++ jobIdsInStatus.map(_.jobId() -> mapToRunStatus)
+      } recover {
+        case e => log.warning(s"Failure fetching statuses in $awsStatusNamesToCheck")
       }
-
-      // Remove the old values and add the new values
-      statuses = statuses.filterNot(_._2 == runStatus) ++ valuesInStatus.map(_.jobId() -> runStatus)
     }
 
-    updateForStatus(List("SUBMITTED", "PENDING", "RUNNABLE"), Initializing)
-    updateForStatus(List("STARTING", "RUNNING"), Running)
+      updateForStatusNames(List("SUBMITTED", "PENDING", "RUNNABLE"), Initializing)
+      updateForStatusNames(List("STARTING", "RUNNING"), Running)
   }
 
   def scheduleStatusUpdate(in: FiniteDuration): Unit = {
@@ -81,9 +105,8 @@ object OccasionalStatusPollingActor {
   case object UpdateStatuses extends OccasionalStatusPollingActorMessage
   case class StatusUpdates(newState: Map[String, RunStatus]) extends OccasionalStatusPollingActorMessage
 
-  final case class NotifyOfStatus(jobId: String, runStatus: RunStatus) extends OccasionalStatusPollingActorMessage
-  final case class WhatsMyStatus(jobId: String) extends OccasionalStatusPollingActorMessage
-  final case class ThisWasYourStatus(status: Option[RunStatus]) extends OccasionalStatusPollingActorMessage
+  final case class NotifyOfStatus(queueArn: String, jobId: String, runStatus: Option[RunStatus]) extends OccasionalStatusPollingActorMessage
+  final case class WhatsMyStatus(queueArn: String, jobId: String) extends OccasionalStatusPollingActorMessage
 
   def props(configRegion: Option[Region]) = Props(new OccasionalStatusPollingActor(configRegion))
 }

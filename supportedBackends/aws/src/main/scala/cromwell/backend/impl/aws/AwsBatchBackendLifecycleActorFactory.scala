@@ -86,6 +86,6 @@ case class AwsBatchBackendLifecycleActorFactory(
   }
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
-    Option(AwsBatchSingletonActor.props(None))
+    Option(AwsBatchSingletonActor.props(configuration.awsConfig.region))
   }
 }

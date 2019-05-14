@@ -1,4 +1,4 @@
-## Getting started on Google Pipelines API
+## Getting started on Google Cloud with the Genomics Pipelines API
 
 ## Pipelines API v2
 

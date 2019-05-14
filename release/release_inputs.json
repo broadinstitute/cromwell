@@ -1,5 +1,7 @@
 {
-  "release_cromwell.githubToken": "<<GithubAPIToken>>",
+  "release_cromwell.githubToken": "<<GithubAPIToken (value, not path)>>",
   "release_cromwell.organization": "<<broadinstitute for a real release, your github username if testing>>",
-  "release_cromwell.majorRelease": <<true for a major release, false for a minor release>>
+  "release_cromwell.majorRelease": <<true for a major release, false for a minor release>>,
+  "release_cromwell.publishHomebrew": <<true for a major release, false for a minor release>>,
+  "release_cromwell.checkout_as_ssh": <<true for a 'git@' ssh-style checkout, false for an 'https:' style checkout>>
 }

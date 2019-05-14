@@ -2,40 +2,69 @@ digraph {
 
   # Nodes
 
-  release_cromwell [shape=oval label="Release new Cromwell version! Woohoo!"];
+  subgraph cluster_0 {
+    label="\lPublishing a RELEASE"
+    style=filled
+    node [style=filled,color=white];
+    color="lightgrey"
 
-  fcdev_branch [shape=oval label="Make firecloud-develop PR for new Cromwell version"];
-  fcdev_test [shape=oval label="Retest firecloud-develop PR. Confirm Cromwell version in Jenkins console logs"];
-  fcdev_update_dev [shape=oval label="Checkout 'dev' branch of firecloud-develop and 'git pull' the latest changes"];
-  fcdev_final_swatomation [shape=oval label="Retest firecloud-develop PR. Confirm Cromwell version in Jenkins console logs"];
-  fcdev_merge [shape=oval label="Merge firecloud-develop PR"];
+    release_cromwell [shape=oval label="PUBLISH: We have a new Cromwell version! Woohoo!"];
+  }
 
-  dspjenkins_PR [shape=oval label="Make dsp-jenkins PR setting new Cromwell version"];
-  dspjenkins_merge [shape=oval label="Merge dsp-jenkins PR"];
+  subgraph cluster_1 {
+    label="\lPublishing a HOTFIX"
+    style=filled
+    node [style=filled,color=white];
+    color="lightgrey"
 
-  jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
-  jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];
+    hotfix_changes [shape=oval label="HOTFIX: Changes get merged to a hotfix branch"];
+    publish_hotfix [shape=oval label="Travis will automatically publish to dockerhub"];
+  }
 
-  qa_perf [shape=oval label="QA performance testing"];
+  subgraph cluster_2 {
+    label="Release\ninto Terra"
+    style=filled
+    node [style=filled,color=white];
+    color="lightgrey"
+
+    fcdev_pr [shape=oval label="Make (or update) the firecloud-develop PR for the new Cromwell version"];
+    confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
+    confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
+    fcdev_success [shape=oval label="Wait for swatomation to succeed"];
+
+    fcdev_merge [shape=oval label="Merge firecloud-develop PR"];
+
+    dspjenkins_PR [shape=oval label="Make dsp-jenkins PR setting new Cromwell version"];
+    dspjenkins_merge [shape=oval label="Merge dsp-jenkins PR"];
+
+    qa_perf [shape=oval label="[Gary] QA performance testing\n(NB: non-blocking for hotfix releases but QA would still\nlike to be informed and run these tests on the side)"];
+
+    jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
+    jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];
+
+  }
+
+  fcdev_upnext [shape=oval label="Create a 'work in progress' firecloud-develop PR\nfor the next Cromwell version. Mark it 'Do Not Merge'"];
 
   # Edges
 
-  release_cromwell -> fcdev_branch
+  hotfix_changes -> publish_hotfix
+  publish_hotfix -> dspjenkins_PR
+
   release_cromwell -> dspjenkins_PR
 
-  fcdev_branch -> fcdev_test
+  fcdev_pr -> confirm_cromwell_v
 
   dspjenkins_PR -> jenkins_set
 
-  jenkins_set -> fcdev_test
+  jenkins_set -> fcdev_pr
+  confirm_cromwell_v -> fcdev_success
 
-  fcdev_test -> jenkins_reset
-
-  fcdev_test -> qa_perf
+  fcdev_success -> jenkins_reset
+  fcdev_success -> qa_perf
 
   qa_perf -> dspjenkins_merge
+  qa_perf -> fcdev_merge
 
-  dspjenkins_merge -> fcdev_update_dev
-  fcdev_update_dev -> fcdev_final_swatomation
-  fcdev_final_swatomation -> fcdev_merge
+  fcdev_merge -> fcdev_upnext
 }

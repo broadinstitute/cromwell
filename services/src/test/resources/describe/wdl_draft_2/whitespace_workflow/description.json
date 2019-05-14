@@ -3,6 +3,7 @@
   "errors" : [
     "Could not build AST from workflow source. Source is empty or contains only comments and whitespace."
   ],
+  "validWorkflow" : false,
   "name" : "",
   "inputs" : [
   ],

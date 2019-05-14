@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes.ClientError
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
@@ -12,6 +13,7 @@ import cats.effect.IO
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model._
@@ -21,7 +23,7 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.Try
 
-object CentaurCromwellClient {
+object CentaurCromwellClient extends StrictLogging {
   val config = ConfigFactory.load()
   val LogFailures = config.as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
@@ -40,7 +42,22 @@ object CentaurCromwellClient {
     .getAs[Map[String, List[String]]]("centaur.metadata-args")
 
   def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
-    sendReceiveFutureCompletion(() => cromwellClient.submit(workflow.toWorkflowSubmission(refreshToken = CentaurConfig.optionalToken)))
+    sendReceiveFutureCompletion(() => {
+      val submitted = cromwellClient.submit(workflow.toWorkflowSubmission(refreshToken = CentaurConfig.optionalToken))
+      submitted.biSemiflatMap(
+        httpResponse =>
+          for {
+            _ <- httpResponse.status match {
+              case _: ClientError => IO(logger.info(s"Submitting ${workflow.testName} returned ${httpResponse.status}"))
+              case _ => IO(logger.error(s"Submitting ${workflow.testName} returned unexpected ${httpResponse.status}"))
+            }
+          } yield httpResponse,
+        submittedWorkflow =>
+          for {
+            _ <- IO(logger.info(s"Submitting ${workflow.testName} returned workflow id ${submittedWorkflow.id}"))
+          } yield submittedWorkflow
+      )
+    })
   }
 
   def status(workflow: SubmittedWorkflow): IO[WorkflowStatus] = {

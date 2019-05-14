@@ -88,6 +88,11 @@ object Dependencies {
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
 
+  private val slf4jFacadeDependencies = List(
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+  )
+
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
 
   private val circeDependencies = List(
@@ -128,9 +133,7 @@ object Dependencies {
 
   val spiDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
-  ) ++ googleApiClientDependencies
+  ) ++ googleApiClientDependencies ++ slf4jFacadeDependencies
 
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
@@ -182,7 +185,7 @@ object Dependencies {
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
     "org.slf4j" % "log4j-over-slf4j" % slf4jV
-  )
+  ) ++ slf4jFacadeDependencies
 
   private val slickDependencies = List(
     "com.typesafe.slick" %% "slick" % slickV,
@@ -323,12 +326,10 @@ object Dependencies {
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
   val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-  ) ++ catsDependencies ++ configDependencies
+  ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 

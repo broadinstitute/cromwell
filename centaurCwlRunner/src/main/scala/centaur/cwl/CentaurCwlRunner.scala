@@ -13,7 +13,7 @@ import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
-import cwl.preprocessor.{CwlPreProcessor, CwlFileReference}
+import cwl.preprocessor.{CwlFileReference, CwlPreProcessor}
 import spray.json._
 
 import scala.concurrent.Await
@@ -175,7 +175,8 @@ object CentaurCwlRunner extends StrictLogging {
       retryTestFailures = false,
       allowOtherOutputs = true
     )
-    val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)
+
+    val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)(cromwellTracker = None)
 
     if (!args.quiet) {
       logger.info(s"Starting test for $workflowPath")

@@ -22,6 +22,8 @@ trait WorkflowStore {
     */
   def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
 
+  def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]]
+
   def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]]
 
   def stats(implicit ec: ExecutionContext): Future[Map[WorkflowStoreState, Int]]

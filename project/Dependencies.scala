@@ -20,6 +20,7 @@ object Dependencies {
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8.1"
+  private val commonsMathV = "3.2"
   private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.10"
@@ -441,6 +442,7 @@ object Dependencies {
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies = List(
+    "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies

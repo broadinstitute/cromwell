@@ -22,7 +22,7 @@ services:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
     command: ["server"]
     environment:
-      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8000 -Dsystem.max-workflow-launch-count=1 -Dsystem.new-workflow-poll-rate=10 -Dsystem.max-concurrent-workflows=30
+      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8000 -Dsystem.cromwell_id=summarizer
       - CROMWELL_BUILD_RESOURCES_DIRECTORY=${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources
       - CROMWELL_BUILD_MYSQL_USERNAME=${CROMWELL_BUILD_MYSQL_USERNAME}
     healthcheck:
@@ -37,11 +37,13 @@ services:
     working_dir: /cromwell-working-dir
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
-    depends_on:
-      cromwell_summarizer_plus_backend:
-        condition: service_healthy
     command: ["server"]
     environment:
-      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8008 -Dsystem.max-workflow-launch-count=1 -Dsystem.new-workflow-poll-rate=10 -Dsystem.max-concurrent-workflows=30 -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8008 -Dsystem.cromwell_id=frontend
       - CROMWELL_BUILD_RESOURCES_DIRECTORY=${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources
       - CROMWELL_BUILD_MYSQL_USERNAME=${CROMWELL_BUILD_MYSQL_USERNAME}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008"]
+      interval: 2s
+      timeout: 30s
+      retries: 60

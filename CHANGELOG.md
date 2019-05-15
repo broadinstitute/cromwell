@@ -8,7 +8,32 @@ The `/describe` endpoint now differentiates between an invalid workflow and a va
 
 Specifically, the new `validWorkflow` key indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
 
-### Virtual Private Network
+### Configuration Changes
+
+ *  Virtual private networks can now be configured. See the section below for details.
+ 
+#### Batch Request Timeouts
+
+The timeout on Cromwell's requests to PAPIv2 can now be configured. See the sample PAPIv2.conf for more documentation:
+
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        batch-requests {
+          timeouts {
+            read = 10 seconds
+            connect = 10 seconds
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Virtual Private Networks
 
 Cromwell now allows PAPIV2 jobs to run on a private network by adding the network name inside `virtual-private-cloud` in backend configuration.
 More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).

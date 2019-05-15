@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.common.api
 
 import com.google.api.client.http.HttpRequest
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.VirtualPrivateCloudConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.VirtualPrivateCloudConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk

@@ -100,7 +100,16 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
   }
 
   it should "parse virtual-private-cloud" in {
-    val backendConfig = ConfigFactory.parseString(configString(networkLabelKey = "network-label-key = my-network", vpcAuth = "auth = application-default"))
+
+    val customConfig =
+      """
+        |  virtual-private-cloud {
+        |    network-label-key = my-network
+        |    auth = application-default
+        |  }
+      """.stripMargin
+
+    val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.name should be("my-network")

@@ -9,5 +9,5 @@ files {
 metadata {
   workflowName: workbench_health_monitor_check
   status: Succeeded
-  "outputs.workbench_health_monitor_check.out": """{"DockerHub":{"ok":true},"Engine Database":{"ok":true},"GCS":{"ok":true},"Papi":{"ok":true},"Papi-Caching-No-Copy":{"ok":true},"Papiv2":{"ok":true},"Papiv2NoDockerHubConfig":{"ok":true},"Papiv2RequesterPays":{"ok":true},"Papiv2USADockerhub":{"ok":true}}"""
+  "outputs.workbench_health_monitor_check.out": """{"DockerHub":{"ok":true},"Engine Database":{"ok":true},"GCS":{"ok":true},"Papi":{"ok":true},"Papi-Caching-No-Copy":{"ok":true},"Papiv2":{"ok":true},"Papiv2-Virtual-Private-Cloud":{"ok":true},"Papiv2NoDockerHubConfig":{"ok":true},"Papiv2RequesterPays":{"ok":true},"Papiv2USADockerhub":{"ok":true}}"""
 }

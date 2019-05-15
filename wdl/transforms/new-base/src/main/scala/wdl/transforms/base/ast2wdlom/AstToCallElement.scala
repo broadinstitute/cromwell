@@ -9,7 +9,7 @@ import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.{CallBodyElement, CallElement}
 import wdl.model.draft3.elements.ExpressionElement.KvPair
-
+import wom.SourceFileLocation
 object AstToCallElement {
 
   def astToCallElement(implicit astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair]): CheckedAtoB[GenericAst, CallElement] = CheckedAtoB.fromErrorOr { ast =>
@@ -30,8 +30,15 @@ object AstToCallElement {
 
     val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
-    (callableNameValidation, aliasValidation, afterValidation, callBodyValidation) mapN { (name, alias, after, body) =>
-      CallElement(name, alias, after, body)
+    val srcLocValidation : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
+      case None =>
+        None.validNel
+      case Some((startLine)) =>
+        Some(SourceFileLocation(startLine)).validNel
+    }
+
+    (callableNameValidation, aliasValidation, afterValidation, callBodyValidation, srcLocValidation) mapN {
+      (name, alias, after, body, srcLoc) => CallElement(name, alias, after, body, srcLoc)
     }
   }
 

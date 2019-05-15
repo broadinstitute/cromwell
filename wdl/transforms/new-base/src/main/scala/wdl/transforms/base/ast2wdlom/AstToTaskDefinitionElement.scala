@@ -7,6 +7,7 @@ import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements._
+import wom.SourceFileLocation
 
 object AstToTaskDefinitionElement {
 
@@ -17,11 +18,19 @@ object AstToTaskDefinitionElement {
 
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
     val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] = a.getAttributeAsVector[TaskSectionElement]("sections").toValidated
+    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
+      case None =>
+        None.validNel
+      case Some((startLine)) =>
+        Some(SourceFileLocation(startLine)).validNel
+    }
 
-    (nameElementValidation, sectionsValidation) flatMapN combineElements
+    (nameElementValidation, sectionsValidation, srcLoc) flatMapN combineElements
   }
 
-  def combineElements(nameElement: String, bodyElements: Vector[TaskSectionElement]) = {
+  def combineElements(nameElement: String,
+                      bodyElements: Vector[TaskSectionElement],
+                      srcLoc: Option[SourceFileLocation]) = {
     val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] = validateOneMax(bodyElements.filterByType[InputsSectionElement], "inputs")
     val declarations: Vector[IntermediateValueDeclarationElement] = bodyElements.filterByType[IntermediateValueDeclarationElement]
     val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] = validateOneMax(bodyElements.filterByType[OutputsSectionElement], "outputs")
@@ -33,7 +42,7 @@ object AstToTaskDefinitionElement {
 
     (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
       (inputs, outputs, command, runtime, meta, parameterMeta) =>
-        TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta)
+        TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta, srcLoc)
     }
   }
 

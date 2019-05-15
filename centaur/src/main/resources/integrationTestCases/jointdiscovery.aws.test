@@ -1,0 +1,14 @@
+name: jointdiscovery.aws
+testFormat: workflowsuccess
+backends: [ AWSBATCH ]
+
+files {
+  workflow: germline/joint-discovery-gatk/joint-discovery-gatk4.wdl
+  inputs: germline/joint-discovery-gatk/joint-discovery-gatk4.hg38.wgs.inputs.aws.json
+  options: germline/joint-discovery-gatk/joint-discovery.options.aws.json
+}
+
+metadata {
+  workflowName: JointGenotyping
+  status: Succeeded
+}

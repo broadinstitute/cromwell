@@ -7,6 +7,7 @@ import wom.types._
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements._
 import wdl.model.draft3.elements.ExpressionElement._
+import wom.SourceFileLocation
 import wom.values.WomInteger
 
 class WdlFileToWdlomSpec extends FlatSpec with Matchers {
@@ -65,7 +66,9 @@ object WdlFileToWdlomSpec {
           ),
           outputsSection = None,
           metaSection = None,
-          parameterMetaSection = None)),
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(3)))
+        ),
         tasks = Vector(
           TaskDefinitionElement(
             name = "no_inputs",
@@ -92,7 +95,9 @@ object WdlFileToWdlomSpec {
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
-          parameterMetaSection = None)),
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(14)))
+        ),
         tasks = Vector(TaskDefinitionElement(
           name = "in_n_out",
           inputsSection = Some(InputsSectionElement(Vector(
@@ -124,7 +129,9 @@ object WdlFileToWdlomSpec {
           ),
           outputsSection = None,
           metaSection = None,
-          parameterMetaSection = None)),
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(3)))
+        ),
         tasks = Vector(TaskDefinitionElement(
           name = "foo",
           inputsSection = Some(InputsSectionElement(Vector(
@@ -188,7 +195,8 @@ object WdlFileToWdlomSpec {
           ),
           outputsSection = None,
           metaSection = None,
-          parameterMetaSection = None
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(3))
         )),
         tasks = Vector.empty)
   )

@@ -50,7 +50,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
     val (meta, parameterMeta) = processMetaSections(a.definitionElement.metaSection, a.definitionElement.parameterMetaSection)
 
     (withDefaultOutputs map {
-      ig => WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta)
+      ig => WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta, b.definitionElement.srcLoc)
     }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
   }
 

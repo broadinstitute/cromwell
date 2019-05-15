@@ -18,6 +18,16 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
 
   assert(testFiles.nonEmpty)
 
+  // Remove the source file information from the file element.
+  //
+  // Re-printing does not preserve line numbers at the moment.
+  private def stripSourceLocations(fe : FileElement) : FileElement = {
+    FileElement(fe.imports,
+                fe.structs,
+                fe.workflows.map { case wf => wf.copy(srcLoc = None) }.toSeq,
+                fe.tasks)
+  }
+
   testFiles.foreach { file =>
 
     it should s"write a file that re-evaluates to the same case classes for ${file.name}" in {
@@ -29,7 +39,7 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
           val newModel = (stringToAst andThen wrapAst andThen astToFileElement).run(FileStringParserInput(wdlModel.toWdlV1, file.name))
 
           // Scala case class deep equality is so nice here
-          newModel shouldEqual model
+          newModel.map(stripSourceLocations) shouldEqual model.map(stripSourceLocations)
         case Left(_) => fail("Could not load original")
       }
     }

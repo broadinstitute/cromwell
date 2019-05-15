@@ -28,7 +28,7 @@ class GraphSpec extends FlatSpec with Matchers {
 
     val cgrepInFile = RequiredInputDefinition("in_file", WomSingleFileType)
     val cgrepPattern = RequiredInputDefinition("pattern", WomStringType)
-    
+
     val taskDefinition_cgrep = CallableTaskDefinition(
       name = "cgrep",
       commandTemplateBuilder = null,
@@ -53,14 +53,14 @@ class GraphSpec extends FlatSpec with Matchers {
       adHocFileCreation = Set.empty,
       environmentExpressions = Map.empty
     )
-    
+
     val workflowInputNode = RequiredGraphInputNode(WomIdentifier("cgrep.pattern"), WomStringType, "cgrep.pattern")
-    
+
     val psNodeBuilder = new CallNodeBuilder()
-    
+
     val CallNodeAndNewNodes(psCall, psGraphInputs, _, _) = psNodeBuilder.build(WomIdentifier("ps"), taskDefinition_ps, InputDefinitionFold(), Set.empty)
     val ps_procsOutputPort = psCall.outputByName("ps.procs").getOrElse(fail("Unexpectedly unable to find 'ps.procs' output"))
-    
+
     val cgrepNodeBuilder = new CallNodeBuilder()
     val cgrepInputDefinitionFold = InputDefinitionFold(
       mappings = List(
@@ -86,7 +86,7 @@ class GraphSpec extends FlatSpec with Matchers {
       ),
       Set.empty
     )
-    
+
     val CallNodeAndNewNodes(wcCall, wcGraphInputs, _, _) = wcNodeBuilder.build(WomIdentifier("wc"), taskDefinition_wc, wcInputDefinitionFold, Set.empty)
     val wc_countOutputPort = wcCall.outputByName("wc.count").getOrElse(fail("Unexpectedly unable to find 'wc.count' output"))
 
@@ -116,11 +116,11 @@ class GraphSpec extends FlatSpec with Matchers {
 
   it should "be able to represent calls to sub-workflows" in {
     val threeStepGraph = makeThreeStep
-    val threeStepWorkflow = WorkflowDefinition("three_step", threeStepGraph, Map.empty, Map.empty)
+    val threeStepWorkflow = WorkflowDefinition("three_step", threeStepGraph, Map.empty, Map.empty, None)
     val threeStepNodeBuilder = new CallNodeBuilder()
 
     val workflowInputNode = RequiredGraphInputNode(WomIdentifier("three_step.cgrep.pattern"), WomStringType, "three_step.cgrep.pattern")
-    
+
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List.empty,
       Set.empty,
@@ -142,13 +142,13 @@ class GraphSpec extends FlatSpec with Matchers {
     workflowGraph.nodes collect { case gon: GraphOutputNode => gon.localName } should be(Set("three_step.wc.count", "three_step.cgrep.count", "three_step.ps.procs"))
     workflowGraph.nodes collect { case cn: CallNode => cn.localName } should be(Set("three_step"))
   }
-  
+
   it should "fail to validate a Graph with duplicate identifiers" in {
     val nodeA = RequiredGraphInputNode(WomIdentifier("bar", "foo.bar"), WomStringType, "foo.bar")
     val nodeB = RequiredGraphInputNode(WomIdentifier("bar", "foo.bar"), WomIntegerType, "foo.bar")
     val nodeC = RequiredGraphInputNode(WomIdentifier("baz", "foo.baz"), WomStringType, "foo.baz")
     val nodeD = RequiredGraphInputNode(WomIdentifier("baz", "foo.baz"), WomIntegerType, "foo.baz")
-    
+
     Graph.validateAndConstruct(Set(nodeA, nodeB, nodeC, nodeD)) match {
       case Valid(_) => fail("Graph should not validate")
       case Invalid(errors) => errors.toList.toSet shouldBe Set(

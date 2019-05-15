@@ -201,7 +201,8 @@ object WomToWdlom {
             nodes.toSet,
             if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
             meta,
-            parameterMeta)
+            parameterMeta,
+            a.srcLoc)
         }
       }
 

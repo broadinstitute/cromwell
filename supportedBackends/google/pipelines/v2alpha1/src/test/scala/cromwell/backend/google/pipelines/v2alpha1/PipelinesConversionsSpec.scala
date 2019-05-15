@@ -6,7 +6,7 @@ import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder

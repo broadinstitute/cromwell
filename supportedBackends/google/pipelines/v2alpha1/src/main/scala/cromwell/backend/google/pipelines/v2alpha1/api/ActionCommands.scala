@@ -3,7 +3,7 @@ import java.util.UUID
 
 import akka.http.scaladsl.model.ContentType
 import common.util.StringUtil._
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath

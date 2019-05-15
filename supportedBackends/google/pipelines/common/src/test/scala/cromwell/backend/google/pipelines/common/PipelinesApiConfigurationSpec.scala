@@ -110,7 +110,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     forAll(configs) { (backend, global) =>
       an[Exception] shouldBe thrownBy {
         val failingGoogleConf = GoogleConfiguration(global)
-        val failingAttributes = PipelinesApiAttributes(failingGoogleConf, backend)
+        val failingAttributes = PipelinesApiConfigurationAttributes(failingGoogleConf, backend)
         new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global), genomicsFactory, failingGoogleConf, failingAttributes)
       }
     }
@@ -141,7 +141,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
 
     forAll(configs) { (backend, needAuthFileUpload) =>
       val customGoogleConfig = GoogleConfiguration(globalConfig)
-      val attributes = PipelinesApiAttributes(customGoogleConfig, backend)
+      val attributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backend)
       new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, globalConfig), genomicsFactory, googleConfiguration, attributes).needAuthFileUpload shouldBe needAuthFileUpload
     }
   }

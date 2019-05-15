@@ -13,8 +13,8 @@ class PipelinesApiLifecycleActorFactory(name: String, configurationDescriptor: B
   override def requiredBackendSingletonActor(serviceRegistryActor: ActorRef) = {
     implicit val batchHandler = new RequestHandler(googleConfig.applicationName, papiAttributes.endpointUrl)
     PipelinesApiBackendSingletonActor.props(
-      jesConfiguration.jesAttributes.qps,
-      jesConfiguration.jesAttributes.requestWorkers,
+      jesConfiguration.papiAttributes.qps,
+      jesConfiguration.papiAttributes.requestWorkers,
       serviceRegistryActor
     )
   }

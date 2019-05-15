@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.RuntimeOutputMapping

@@ -30,7 +30,7 @@ object AstToCallElement {
 
     val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
-    val srcLocValidation : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
+    val srcLocValidation : ErrorOr[Option[SourceFileLocation]] = ast.getSourceLine match {
       case None =>
         None.validNel
       case Some((startLine)) =>

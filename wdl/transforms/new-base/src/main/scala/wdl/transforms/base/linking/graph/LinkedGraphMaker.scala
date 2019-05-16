@@ -52,10 +52,15 @@ object LinkedGraphMaker {
         graph.findCycle match {
           case Some(cycle) =>
             val edgeStrings = cycle.value.edges map { case graph.EdgeT(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            // we need to sort the edges lexicographically to make results deterministic. This helps testing.
+            val edges = edgeStrings.toVector.sorted
             s"""This workflow contains a cyclic dependency:
-               |${edgeStrings.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+               |${edges.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+
           case None =>
-            val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            val edgeStrings = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            // sort the edges for determinism
+            val edges = edgeStrings.toVector.sorted
             s"""This workflow contains an elusive cyclic dependency amongst these edges:
                |${edges.mkString(System.lineSeparator)}""".stripMargin.invalidNel
         }

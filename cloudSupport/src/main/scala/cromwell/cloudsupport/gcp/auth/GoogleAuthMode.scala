@@ -13,6 +13,7 @@ import com.google.api.services.cloudkms.v1.CloudKMS
 import com.google.api.services.compute.ComputeScopes
 import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.storage.StorageScopes
+import com.google.api.services.bigquery.BigqueryScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
@@ -59,7 +60,9 @@ object GoogleAuthMode {
     StorageScopes.DEVSTORAGE_FULL_CONTROL,
     StorageScopes.DEVSTORAGE_READ_WRITE,
     GenomicsScopes.GENOMICS,
-    ComputeScopes.COMPUTE
+    ComputeScopes.COMPUTE,
+    BigqueryScopes.BIGQUERY,
+    BigqueryScopes.BIGQUERY_INSERTDATA
   )
 
   def checkReadable(file: File) = {

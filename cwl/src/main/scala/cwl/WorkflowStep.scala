@@ -106,7 +106,7 @@ case class WorkflowStep(
     * inputs:
     *    -id: workflow_input_A 
     *    type: string[]
-    *   -id: workflow_input_B  
+    *   -id: workflow_input_B 
     *    type: string[]
     *    -id: workflow_input_C 
     *    type: string  
@@ -168,7 +168,7 @@ case class WorkflowStep(
     *   will be created to act as a proxy to the merge node outside the scatter graph.
     *
     * ExpressionNode: If an input has a valueFrom field, an expression node will be created to evaluate the expression.
-    *   An important fact to note is that the expression needs access to all other input values 
+    *   An important fact to note is that the expression needs access to all other input values
     *   AFTER their source, default value and shard number has been determined but
     *   BEFORE their (potential) valueFrom is evaluated (see http://www.commonwl.org/v1.0/Workflow.html#WorkflowStepInput)
     *   This is why on the above diagram, StepInput0Expression depends on the OGIN, and StepInput1Expression depends on the scatter variable.
@@ -201,12 +201,12 @@ case class WorkflowStep(
       case w: WorkflowCallNode=> Set(w.identifier)
       case c: CommandCallNode => Set(c.identifier)
       case e: ExpressionCallNode => Set(e.identifier)
-      // When a node a call node is being scattered over, it is wrapped inside a scatter node. We still don't want to 
+      // When a node a call node is being scattered over, it is wrapped inside a scatter node. We still don't want to
       // duplicate it though so look inside scatter nodes to see if it's there.
       case scatter: ScatterNode => allIdentifiersRecursively(scatter.innerGraph.nodes)
       case _ => Set.empty[WomIdentifier]
     })
-    
+
     // To avoid duplicating nodes, return immediately if we've already covered this node
     val haveWeSeenThisStep: Boolean = allIdentifiersRecursively(knownNodes).contains(unqualifiedStepId)
 
@@ -454,7 +454,7 @@ case class WorkflowStep(
         // Assign each of the callable's input definition to an output port from the pointer map
         inputDefinitionFold <- checkedCallable.inputs.foldMap(foldInputDefinition(aggregatedMapForInputDefinitions)).toEither
         // Build the call node
-        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold, Set.empty)
+        callAndNodes = callNodeBuilder.build(unqualifiedStepId, checkedCallable, inputDefinitionFold, Set.empty, None)
         // Depending on whether the step is being scattered, invoke the scatter node builder or not
 
         /* ************************************ */

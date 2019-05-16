@@ -58,11 +58,12 @@ object WdlFileToWdlomSpec {
           name = "no_input_no_output",
           inputsSection = None,
           graphElements = Set(
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None)
+            CallElement("no_inputs", Some("noi1"), Vector.empty, None, Some(SourceFileLocation(4))),
+            CallElement("no_inputs", None, Vector.empty, None, Some(SourceFileLocation(6))),
+            CallElement("no_inputs", Some("noi2"), Vector.empty, None, Some(SourceFileLocation(8))),
+            CallElement("no_inputs", Some("noi3"), Vector.empty, None, Some(SourceFileLocation(10))),
+            CallElement("no_inputs", Some("noi4"), Vector.empty, None, Some(SourceFileLocation(14))),
+            CallElement("no_inputs", Some("noi5"), Vector.empty, None, Some(SourceFileLocation(18)))
           ),
           outputsSection = None,
           metaSection = None,
@@ -78,7 +79,8 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
             runtimeSection = None,
             metaSection = None,
-            parameterMetaSection = None
+            parameterMetaSection = None,
+            srcLoc = Some(SourceFileLocation(24))
           )
         )
       ),
@@ -91,7 +93,7 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))), Some(SourceFileLocation(19)))),
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
@@ -113,7 +115,8 @@ object WdlFileToWdlomSpec {
           )))),
           runtimeSection = None,
           metaSection = None,
-          parameterMetaSection = None
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(3))
         ))
       ),
     "afters" ->
@@ -124,8 +127,10 @@ object WdlFileToWdlomSpec {
           name = "afters",
           inputsSection = None,
           graphElements = Set(
-            CallElement("foo", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(5))))))),
-            CallElement("foo", Some("foo2"), Vector("foo"), Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(6)))))))
+            CallElement("foo", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(5)))))),
+                        Some(SourceFileLocation(4))),
+            CallElement("foo", Some("foo2"), Vector("foo"), Some(CallBodyElement(Vector(KvPair("i", ExpressionElement.PrimitiveLiteralExpressionElement(WomInteger(6)))))),
+                        Some(SourceFileLocation(5)))
           ),
           outputsSection = None,
           metaSection = None,
@@ -145,7 +150,8 @@ object WdlFileToWdlomSpec {
           )))),
           runtimeSection = None,
           metaSection = None,
-          parameterMetaSection = None
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(8))
         ))
       ),
     "biscayne_escaping" ->

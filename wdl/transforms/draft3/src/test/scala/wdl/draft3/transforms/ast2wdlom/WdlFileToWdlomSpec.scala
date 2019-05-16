@@ -214,7 +214,7 @@ object WdlFileToWdlomSpec {
                   PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(3)), PrimitiveLiteralExpressionElement(WomInteger(4))),
                   PairLiteral(PrimitiveLiteralExpressionElement(WomInteger(5)), PrimitiveLiteralExpressionElement(WomInteger(6)))))),
             ScatterElement("ScatterAt5_12", IdentifierLookup("pairs"), "p",
-              Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", IdentifierMemberAccess("p", "left", Vector()))))),
+                           Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", IdentifierMemberAccess("p", "left", Vector()))), None)),
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None,
@@ -271,7 +271,7 @@ object WdlFileToWdlomSpec {
           inputsSection = Some(InputsSectionElement(Vector(
             InputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "n", Some(PrimitiveLiteralExpressionElement(WomInteger(4)))),
             InputDeclarationElement(PrimitiveTypeElement(WomStringType), "more", Some(StringLiteral("more")))))),
-          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))))),
+          graphElements = Set(CallElement("in_n_out", None, Vector.empty, Some(CallBodyElement(Vector(KvPair("total", IdentifierLookup("n")), KvPair("amount", IdentifierLookup("more"))))), Some(SourceFileLocation(19)))),
           outputsSection = Some(OutputsSectionElement(Vector(
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
@@ -292,7 +292,8 @@ object WdlFileToWdlomSpec {
           )))),
           runtimeSection = None,
           metaSection = None,
-          parameterMetaSection = None
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(3))
         ))),
     "static_value_workflow" ->
       FileElement(
@@ -328,7 +329,8 @@ object WdlFileToWdlomSpec {
             )),
             runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("someFakeDockerRuntime"))))),
             metaSection = None,
-            parameterMetaSection = None
+            parameterMetaSection = None,
+            srcLoc = Some(SourceFileLocation(5))
             ))
       ),
     "task_with_metas" ->
@@ -365,7 +367,8 @@ object WdlFileToWdlomSpec {
                 "z" -> MetaValueElementObject(Map("k1" -> MetaValueElementInteger(1),
                   "k2" -> MetaValueElementInteger(2),
                   "k3" -> MetaValueElementInteger(3)))
-              )))
+              ))),
+            srcLoc = Some(SourceFileLocation(3))
           ))),
     "task_with_metas2" ->
       FileElement(
@@ -383,7 +386,8 @@ object WdlFileToWdlomSpec {
             metaSection = Some(MetaSectionElement(
               Map("author" -> MetaValueElementString("John Doe"),
                   "email" -> MetaValueElementString("john.doe@yahoo.com")))),
-            parameterMetaSection = None
+            parameterMetaSection = None,
+            srcLoc = Some(SourceFileLocation(3))
           ))),
     "no_input_no_output_workflow" ->
       FileElement(
@@ -393,11 +397,12 @@ object WdlFileToWdlomSpec {
           name = "no_input_no_output",
           inputsSection = None,
           graphElements = Set(
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None),
-            CallElement("no_inputs", None, Vector.empty, None)
+            CallElement("no_inputs", Some("noi1"), Vector.empty, None, Some(SourceFileLocation(4))),
+            CallElement("no_inputs", None, Vector.empty, None, Some(SourceFileLocation(6))),
+            CallElement("no_inputs", Some("noi2"), Vector.empty, None, Some(SourceFileLocation(8))),
+            CallElement("no_inputs", Some("noi3"), Vector.empty, None, Some(SourceFileLocation(10))),
+            CallElement("no_inputs", Some("noi4"), Vector.empty, None, Some(SourceFileLocation(14))),
+            CallElement("no_inputs", Some("noi5"), Vector.empty, None, Some(SourceFileLocation(18)))
           ),
           outputsSection = None,
           metaSection = None,
@@ -412,7 +417,8 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
             runtimeSection = None,
             metaSection = None,
-            parameterMetaSection = None
+            parameterMetaSection = None,
+            srcLoc = Some(SourceFileLocation(24))
           )
         )
       ),
@@ -467,7 +473,8 @@ object WdlFileToWdlomSpec {
             scatterVariableName = "i",
             graphElements = Vector(
               IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(IdentifierLookup("i"), PrimitiveLiteralExpressionElement(WomInteger(10))))
-            )
+            ),
+            srcLoc = None
           )
         ),
         outputsSection = Some(
@@ -494,7 +501,8 @@ object WdlFileToWdlomSpec {
             scatterVariableName = "i",
             graphElements = Vector(
               IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(IdentifierLookup("i"), IdentifierLookup("ogin_me")))
-            )
+            ),
+            srcLoc = None
           )
         ),
         outputsSection = Some(
@@ -538,16 +546,20 @@ object WdlFileToWdlomSpec {
                     IdentifierLookup("indices"),
                     "c",
                     Vector(
-                      IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(Add(Add(IdentifierLookup("a"), IdentifierLookup("b")), IdentifierLookup("c")), IdentifierLookup("x"))))),
+                      IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "j", Add(Add(Add(IdentifierLookup("a"), IdentifierLookup("b")), IdentifierLookup("c")), IdentifierLookup("x")))),
+                    None),
                   ScatterElement(
                     scatterName = "ScatterAt14_15",
                     IdentifierLookup("j"),
                     "d",
-                    Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "k", Add(IdentifierLookup("d"), IdentifierLookup("y"))))
+                    Vector(IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "k", Add(IdentifierLookup("d"), IdentifierLookup("y")))),
+                    None
                   )
-                )
+                ),
+                srcLoc = None
               )
-            )
+            ),
+            None
           )
         ),
         Some(
@@ -628,15 +640,18 @@ object WdlFileToWdlomSpec {
                                     "s",
                                     Add(IdentifierLookup("s0"), IdentifierLookup("s1"))
                                   )
-                                )
+                                ),
+                                None
                               )
                             )
                           )
-                        )
+                        ),
+                        srcLoc = None
                       )
                     )
                   )
-                )
+                ),
+                srcLoc = None
               )
             )
           )
@@ -667,7 +682,8 @@ object WdlFileToWdlomSpec {
             commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
             runtimeSection = None,
             metaSection = None,
-            parameterMetaSection = None))
+            parameterMetaSection = None,
+            srcLoc = Some(SourceFileLocation(5))))
     ),
     "default_input_overrides" -> null,
     "nio_file" -> FileElement(
@@ -697,7 +713,8 @@ object WdlFileToWdlomSpec {
             "f" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))),
             "g" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true))),
             "h" -> MetaValueElementObject(Map("localization_optional" -> MetaValueElementBoolean(true)))
-          )))
+          ))),
+          srcLoc = Some(SourceFileLocation(3))
         )
       )
   ),
@@ -790,7 +807,8 @@ object WdlFileToWdlomSpec {
             KvPair("docker", StringLiteral("ubuntu:latest"))
           ))),
           metaSection = None,
-          parameterMetaSection = None
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(3))
         ),
         TaskDefinitionElement(
           name = "b",
@@ -814,7 +832,8 @@ object WdlFileToWdlomSpec {
             KvPair("docker", StringLiteral("ubuntu:latest"))
           ))),
           metaSection = None,
-          parameterMetaSection = None
+          parameterMetaSection = None,
+          srcLoc = Some(SourceFileLocation(22))
         )
       )
     ),
@@ -824,7 +843,7 @@ object WdlFileToWdlomSpec {
       workflows = Vector(WorkflowDefinitionElement(
         "my_workflow",
         None,
-        Set(CallElement("my_task", None, Vector.empty, None)),
+        Set(CallElement("my_task", None, Vector.empty, None, Some(SourceFileLocation(4)))),
         None,
         None,
         None,
@@ -840,7 +859,8 @@ object WdlFileToWdlomSpec {
         CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("""    echo "hi""""))), CommandSectionLine(Vector()), CommandSectionLine(Vector(StringCommandPartElement("""    echo "bye""""))))),
         None,
         None,
-        None))
+        None,
+        Some(SourceFileLocation(7))))
     ),
     "same_named_inputs_priority" -> FileElement(
       Vector(),
@@ -849,11 +869,11 @@ object WdlFileToWdlomSpec {
         "same_named_inputs_priority",
         None,
         Set(
-          CallElement("echo", Some("b"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2"))))))),
-          CallElement("echo", Some("a"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1"))))))),
+          CallElement("echo", Some("b"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("2")))))), Some(SourceFileLocation(10))),
+          CallElement("echo", Some("a"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("1")))))), Some(SourceFileLocation(6))),
           IntermediateValueDeclarationElement(PrimitiveTypeElement(WomStringType), "out", StringLiteral("hello")),
-          CallElement("echo", Some("d"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4"))))))),
-          CallElement("echo", Some("c"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))))
+          CallElement("echo", Some("d"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("4")))))), Some(SourceFileLocation(18))),
+          CallElement("echo", Some("c"), Vector.empty, Some(CallBodyElement(Vector(KvPair("out", Add(IdentifierLookup("out"), StringLiteral("3")))))), Some(SourceFileLocation(14)))
         ),
         None,
         None,
@@ -874,7 +894,7 @@ object WdlFileToWdlomSpec {
             PlaceholderCommandPartElement(IdentifierLookup("out"),
               PlaceholderAttributeSet(None,None,None,None)))))
       ),
-      Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None))
+      Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None, Some(SourceFileLocation(23))))
     ),
     "cmd_whitespace_spaces" -> FileElement(
       Vector.empty,
@@ -882,7 +902,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None, Some(SourceFileLocation(10)))),
         None,
         None,
         None,
@@ -895,7 +915,8 @@ object WdlFileToWdlomSpec {
         None,
         CommandSectionElement(List(
           CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with spaces\""))))),
-        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None,
+        Some(SourceFileLocation(14)))
       )
     ),
     "cmd_whitespace_none" -> FileElement(
@@ -904,7 +925,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None, Some(SourceFileLocation(5)))),
         None,
         None,
         None,
@@ -917,7 +938,8 @@ object WdlFileToWdlomSpec {
         None,
         CommandSectionElement(List(
           CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with nothing\""))))),
-        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None,
+        Some(SourceFileLocation(9)))
       )
     ),
     "cmd_whitespace_tabs" -> FileElement(
@@ -926,7 +948,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None, Some(SourceFileLocation(5)))),
         None,
         None,
         None,
@@ -939,7 +961,8 @@ object WdlFileToWdlomSpec {
         None,
         CommandSectionElement(List(
           CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with tabs\""))))),
-        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None,
+        Some(SourceFileLocation(9)))
       )
     ),
     "cmd_strip_common_tabs" -> FileElement(
@@ -948,7 +971,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None, Some(SourceFileLocation(5)))),
         None,
         None,
         None,
@@ -962,7 +985,8 @@ object WdlFileToWdlomSpec {
         CommandSectionElement(List(
           CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with tabs\""))),
           CommandSectionLine(Vector(StringCommandPartElement("\t\techo \"I am prefixed with even more tabs\""))))),
-        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None,
+        Some(SourceFileLocation(9)))
       )
     ),
     "cmd_strip_common_spaces" -> FileElement(
@@ -971,7 +995,7 @@ object WdlFileToWdlomSpec {
       Vector(WorkflowDefinitionElement(
         "Test",
         None,
-        Set(CallElement("Echo", Some("echo"), Vector.empty, None)),
+        Set(CallElement("Echo", Some("echo"), Vector.empty, None, Some(SourceFileLocation(5)))),
         None,
         None,
         None,
@@ -985,7 +1009,8 @@ object WdlFileToWdlomSpec {
         CommandSectionElement(List(
           CommandSectionLine(Vector(StringCommandPartElement("echo \"I am prefixed with spaces\""))),
           CommandSectionLine(Vector(StringCommandPartElement("    echo \"I am prefixed with even more spaces\""))))),
-        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None)
+        Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))), None, None,
+        Some(SourceFileLocation(9)))
       )
     ),
     "string_escaping" -> FileElement(

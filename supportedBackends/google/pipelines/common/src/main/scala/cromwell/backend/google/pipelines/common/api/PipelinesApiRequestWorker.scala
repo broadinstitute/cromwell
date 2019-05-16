@@ -56,7 +56,15 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
   
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
   private[api] def createBatch(): BatchRequest = batch
-  private[api] def runBatch(batch: BatchRequest): Unit = if (batch.size() > 0) batch.execute()
+  private[api] def runBatch(batch: BatchRequest): Unit = {
+    try {
+      if (batch.size() > 0) batch.execute()
+    } catch {
+      case e: java.io.IOException =>
+        val msg = s"A batch of PAPI status requests failed. This is a recoverable error, the request manager will retry automatically. The error was: ${e.getMessage}"
+        throw new Exception(msg)
+    }
+  }
 
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {

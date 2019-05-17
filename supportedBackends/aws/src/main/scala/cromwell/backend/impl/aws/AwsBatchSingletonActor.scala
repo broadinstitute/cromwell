@@ -17,7 +17,7 @@ class AwsBatchSingletonActor(configRegion: Option[Region]) extends Actor with Ac
     case goSlowRequest: IntervalLimitedAwsJobSubmitActorMessage =>
       awsGoSlowSubmitActor.forward(goSlowRequest)
     case other =>
-      log.error(s"Unknown message to AwsBatchSingletonActor: ${other.getClass.getSimpleName}. Dropping it.")
+      log.error("Unknown message to AwsBatchSingletonActor: {}. Dropping it.", other)
   }
 }
 

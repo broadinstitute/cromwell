@@ -7,6 +7,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model.ListJobsRequest
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -66,24 +67,46 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
 
   private def updateStatuses() = {
 
+    final case class PageAccumulation(nextPageToken: String, currentList: Vector[String])
+
+    @tailrec
+    def findJobsInStatus(awsStatusName: String, queueName: String, pageAccumulation: Option[PageAccumulation]): Vector[String] = {
+
+      val requestBuilder = ListJobsRequest.builder()
+        .jobStatus(awsStatusName)
+        .jobQueue(queueName)
+          .maxResults(100)
+
+      pageAccumulation.foreach { pa => requestBuilder.nextToken(pa.nextPageToken) }
+
+      val request = requestBuilder.build()
+
+      val response = client.listJobs(request)
+      val jobIds = response.jobSummaryList().asScala.map(_.jobId()).toVector
+
+      val allKnownJobIds = jobIds ++ pageAccumulation.toVector.flatMap(_.currentList)
+
+      Option(response.nextToken()) match {
+        case Some(nextPageToken) =>
+          findJobsInStatus(awsStatusName, queueName, Option(PageAccumulation(nextPageToken, allKnownJobIds)))
+        case None => allKnownJobIds
+      }
+    }
+
     def updateForStatusNames(awsStatusNamesToCheck: Seq[String], mapToRunStatus: RunStatus): Unit = {
       Try {
         val jobIdsInStatus = for {
           queueName <- queuesToMonitor
           awsStatusName <- awsStatusNamesToCheck
-          request = ListJobsRequest.builder()
-            .jobStatus(awsStatusName)
-            .jobQueue(queueName)
-            .build()
-          jobId <- client.listJobs(request).jobSummaryList().asScala
+          jobId <- findJobsInStatus(awsStatusName, queueName, pageAccumulation = None)
         } yield jobId
 
         // Remove the old values and add the new values
 
-        statuses = statuses.filterNot(_._2 == mapToRunStatus) ++ jobIdsInStatus.map(_.jobId() -> mapToRunStatus)
+        statuses = statuses.filterNot(_._2 == mapToRunStatus) ++ jobIdsInStatus.map(_ -> mapToRunStatus)
       } recover {
         case e =>
-          log.error(e, s"Failure fetching statuses in $awsStatusNamesToCheck")
+          log.error(e, s"Failure fetching statuses for AWS jobs in $mapToRunStatus. No updates will occur.")
       }
       ()
     }

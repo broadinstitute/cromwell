@@ -11,6 +11,7 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -61,8 +62,8 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
       if (batch.size() > 0) batch.execute()
     } catch {
       case e: java.io.IOException =>
-        val msg = s"A batch of PAPI status requests failed. This is a recoverable error, the request manager will retry automatically. The error was: ${e.getMessage}"
-        throw new Exception(msg)
+        val msg = s"A batch of PAPI status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
+        throw new Exception(msg, e.getCause) with NoStackTrace
     }
   }
 

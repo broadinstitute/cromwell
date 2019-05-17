@@ -20,9 +20,9 @@ import scala.util.{Failure, Success, Try}
   *
   * Known Limitations (for they are legion):
   *
-  *   - No IO protection in case a request to AWS fails
-  *   - Those requests to AWS are also blocking IO
-  *   - The 'queuesToMonitor' get added to but never cleared out (so on a multi-tenant system, will grow indefinitely
+  *   - No IO retry in case a request to AWS fails (we just give up and don't update *anything* for this cycle)
+  *   - The requests to AWS are also blocking IO
+  *   - The 'queuesToMonitor' get added to but never cleared out (so on a multi-tenant system, will grow indefinitely)
   *   - We don't track completed jobs - so when a job completes the caller will get a None, and have to fall back to an AWS query anyway.
   */
 class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor with ActorLogging {

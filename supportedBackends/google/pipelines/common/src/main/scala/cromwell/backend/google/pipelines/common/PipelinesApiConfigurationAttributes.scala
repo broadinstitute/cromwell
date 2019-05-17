@@ -51,7 +51,7 @@ object PipelinesApiConfigurationAttributes {
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
 
 
-  lazy val Logger = LoggerFactory.getLogger("PipelinesAPIConfiguration")
+  lazy val Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
 
   val GenomicsApiDefaultQps = 1000
   val DefaultLocalizationAttempts = refineMV[Positive](3)

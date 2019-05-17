@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.v2alpha1
 import java.net.URL
 
 import com.google.api.client.http.HttpRequestInitializer
+import com.google.api.services.bigquery.BigqueryScopes
 import com.google.api.services.compute.ComputeScopes
 import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.genomics.v2alpha1.model._
@@ -75,6 +76,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             ComputeScopes.COMPUTE,
             StorageScopes.DEVSTORAGE_FULL_CONTROL,
             GenomicsFactory.KmsScope,
+            BigqueryScopes.BIGQUERY,
+            BigqueryScopes.BIGQUERY_INSERTDATA,
             // Profile and Email scopes are requirements for interacting with Martha v2
             Oauth2Scopes.USERINFO_EMAIL,
             Oauth2Scopes.USERINFO_PROFILE,

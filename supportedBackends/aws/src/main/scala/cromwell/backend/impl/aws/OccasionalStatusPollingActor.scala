@@ -23,7 +23,6 @@ import scala.util.{Failure, Success, Try}
   *   - No IO protection in case a request to AWS fails
   *   - Those requests to AWS are also blocking IO
   *   - The 'queuesToMonitor' get added to but never cleared out (so on a multi-tenant system, will grow indefinitely
-  *   - If a jobID is not on the first page of status results for a given queue/status combination, we will lose sight of that job
   *   - We don't track completed jobs - so when a job completes the caller will get a None, and have to fall back to an AWS query anyway.
   */
 class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor with ActorLogging {

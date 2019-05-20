@@ -7,6 +7,7 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpRequest
 import com.google.api.services.genomics.v2alpha1.Genomics
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PAPIAbortRequest, PAPIRunCreationRequest, PAPIStatusPollRequest}
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestHandler, PipelinesApiRequestManager}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -19,15 +20,25 @@ object RequestHandler {
   val logger = LoggerFactory.getLogger("PipelinesApiRequestHandler")
 }
 
-class RequestHandler(applicationName: String, endpointUrl: URL) extends PipelinesApiRequestHandler
+class RequestHandler(applicationName: String, endpointUrl: URL, pipelinesApiAttributes: PipelinesApiConfigurationAttributes) extends PipelinesApiRequestHandler
   with RunRequestHandler
   with GetRequestHandler
   with AbortRequestHandler {
-  override def makeBatchRequest = new Genomics.Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, (_: HttpRequest) => ())
+
+  def initializeHttpRequest(r: HttpRequest): Unit = {
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration.readTimeoutMillis.foreach {
+      t => r.setReadTimeout(t.value)
+    }
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.foreach {
+      t => r.setConnectTimeout(t.value)
+    }
+  }
+
+  override def makeBatchRequest = new Genomics.Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, initializeHttpRequest)
     .setApplicationName(applicationName)
     .setRootUrl(endpointUrl.toString)
     .build()
-    .batch()
+    .batch(initializeHttpRequest)
 
   override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)
                                                                       (implicit ec: ExecutionContext)= papiApiRequest match {

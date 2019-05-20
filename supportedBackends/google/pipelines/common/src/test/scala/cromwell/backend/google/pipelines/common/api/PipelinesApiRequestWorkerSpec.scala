@@ -139,7 +139,7 @@ object TestPipelinesApiRequestWorker {
            (implicit batchHandler: TestPipelinesApiBatchHandler[_]): Props = {
     Props(new TestPipelinesApiRequestWorker(
       manager,
-      jesConfiguration.jesAttributes.qps,
+      jesConfiguration.papiAttributes.qps,
       registryProbe
     ))
   }

@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 
 import java.nio.file.Path
 
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.filesystems.gcs.GcsPath
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito

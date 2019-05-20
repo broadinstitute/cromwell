@@ -32,7 +32,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean
 
-  lazy val jesAttributes: PipelinesApiAttributes = pipelinesConfiguration.jesAttributes
+  lazy val jesAttributes: PipelinesApiConfigurationAttributes = pipelinesConfiguration.papiAttributes
 
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor

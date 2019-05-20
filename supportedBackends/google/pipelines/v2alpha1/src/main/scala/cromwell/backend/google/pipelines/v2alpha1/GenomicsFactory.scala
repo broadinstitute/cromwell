@@ -10,7 +10,7 @@ import com.google.api.services.genomics.v2alpha1.model._
 import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.{LocalizationConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{LocalizationConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._

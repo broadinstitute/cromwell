@@ -1,8 +1,15 @@
-# Release Processes
+# Documented Processes
+
+This directory contains a selection of processes which are:
+
+* Best expressed as a `.dot` chart
+* Still manual for now
+* Under source control to make edits easy yet reviewable (just like code!)
 
 ## How to update these processes
 
-Have a better idea about how the deployment process should go? Make a PR and it'll be reviewed, just like a code change!
+Do you have a better idea about how any of these processes should work? 
+Make a PR and it'll be reviewed, just like a code change!
 
  * Modify the appropriate `.dot` file(s)
  * Navigate to the `processes` directory 

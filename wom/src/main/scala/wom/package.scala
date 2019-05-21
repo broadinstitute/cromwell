@@ -105,3 +105,7 @@ final case class CommandSetupSideEffectFile(file: WomFile, relativeLocalPath: Op
 // by the AST. However, it is tricky to get full information from Hermes
 // at the moment.
 final case class SourceFileLocation(startLine: Int)
+
+object SourceFileLocation {
+    def convert(i : Int) : SourceFileLocation = SourceFileLocation(i)
+}

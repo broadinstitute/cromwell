@@ -15,12 +15,7 @@ object AstToWorkflowDefinitionElement {
                                     ): CheckedAtoB[GenericAst, WorkflowDefinitionElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
 
-    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
-      case None =>
-        None.validNel
-      case Some((startLine)) =>
-        Some(SourceFileLocation(startLine)).validNel
-    }
+    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine.map(SourceFileLocation.convert).validNel
     val bodyElementsValidation: ErrorOr[Vector[WorkflowBodyElement]] = a.getAttributeAsVector[WorkflowBodyElement]("body")(astNodeToWorkflowBodyElement).toValidated
     (nameElementValidation, srcLoc, bodyElementsValidation) flatMapN combineElements
   }

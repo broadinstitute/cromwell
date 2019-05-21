@@ -18,12 +18,7 @@ object AstToTaskDefinitionElement {
 
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
     val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] = a.getAttributeAsVector[TaskSectionElement]("sections").toValidated
-    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
-      case None =>
-        None.validNel
-      case Some((startLine)) =>
-        Some(SourceFileLocation(startLine)).validNel
-    }
+    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine.map(SourceFileLocation.convert).validNel
 
     (nameElementValidation, sectionsValidation, srcLoc) flatMapN combineElements
   }

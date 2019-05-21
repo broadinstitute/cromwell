@@ -2,6 +2,8 @@ digraph {
 
   # Nodes
 
+  something_wrong [shape=oval label="Something went wrong with Cromwell and I can't 'fix' it.\nI just want it to go away and restore service."];
+
   # Always start with a restart:
   restart_cromwell_instance [shape=oval label="Restart Cromwell's 'writer' instance"];
 
@@ -17,6 +19,8 @@ digraph {
 
 
   # Edges
+
+  something_wrong -> restart_cromwell_instance
 
   restart_cromwell_instance -> go_to_sleep [label="That worked!"]
 

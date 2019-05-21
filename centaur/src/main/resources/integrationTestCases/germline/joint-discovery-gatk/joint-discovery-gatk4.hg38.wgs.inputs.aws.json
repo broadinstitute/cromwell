@@ -76,9 +76,9 @@
   "JointGenotyping.SNPGatherTranches.mem_size": "7 GB",
 
   "##_COMMENT8": "DISK SIZE ALLOCATION",
-  "JointGenotyping.small_disk": 100,
-  "JointGenotyping.medium_disk": 200,
-  "JointGenotyping.huge_disk": 300,
+  "JointGenotyping.small_disk": 200,
+  "JointGenotyping.medium_disk": 400,
+  "JointGenotyping.huge_disk": 500,
 
   "##_COMMENT9": "PREEMPTIBLES",
   "JointGenotyping.FinalGatherVcf.preemptibles": 0,

@@ -10,6 +10,7 @@ import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NoStackTrace
 
 trait StandardSyncExecutionActorParams extends StandardJobExecutionActorParams {
   /** The class for creating an async backend. */
@@ -180,7 +181,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   def jobFailingDecider: Decider = {
     case exception: Exception =>
       completionPromise.tryFailure(
-        new RuntimeException(s"${createAsyncRefName()} failed and didn't catch its exception.", exception))
+        new RuntimeException(s"${createAsyncRefName()} failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.", exception) with NoStackTrace)
       Stop
   }
 

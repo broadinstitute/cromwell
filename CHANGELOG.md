@@ -1,5 +1,19 @@
 # Cromwell Change Log
 
+## 45 Release Notes
+
+### BCS backend new Features support
+
+#### New docker registry
+Alibaba Cloud Container Registry is now supported for the `docker` runtime attribute, and the previous `dockerTag` 
+runtime attribute continues to be available for Alibaba Cloud OSS Registry.
+#### Call caching
+Cromwell now supports Call caching when using the BCS backend.
+#### Workflow output glob
+Globs can be used to define outputs for BCS backend.
+#### NAS mount
+Alibaba Cloud NAS is now supported for the `mounts` runtime attribute.
+
 ## 44 Release Notes
 
 ### Improved PAPI v2 Preemptible VM Support

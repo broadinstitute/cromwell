@@ -14,8 +14,8 @@ class BcsMountSpec extends BcsTestUtilSpec {
 
 
     entry shouldBe a [BcsInputMount]
-    entry.src.pathAsString shouldEqual ossObject
-    entry.dest.pathAsString shouldEqual localFile.stripSuffix("/")
+    BcsMount.toString(entry.src) shouldEqual ossObject
+    BcsMount.toString(entry.dest) shouldEqual localFile
     entry.writeSupport shouldEqual writeSupport
 
     writeSupport = false
@@ -23,8 +23,8 @@ class BcsMountSpec extends BcsTestUtilSpec {
     entryString = s"$ossObject $localFile $writeSupport"
     entry = BcsMount.parse(entryString).success.value
     entry shouldBe a [BcsInputMount]
-    entry.src.pathAsString shouldEqual ossObject
-    entry.dest.pathAsString shouldEqual localFile.stripSuffix("/")
+    BcsMount.toString(entry.src) shouldEqual ossObject
+    BcsMount.toString(entry.dest) shouldEqual localFile
     entry.writeSupport shouldEqual writeSupport
   }
 
@@ -35,8 +35,8 @@ class BcsMountSpec extends BcsTestUtilSpec {
 
 
     entry shouldBe a [BcsOutputMount]
-    entry.src.pathAsString shouldEqual localFile.stripSuffix("/")
-    entry.dest.pathAsString shouldEqual ossObject
+    BcsMount.toString(entry.src) shouldEqual localFile
+    BcsMount.toString(entry.dest) shouldEqual ossObject
     entry.writeSupport shouldEqual writeSupport
 
     writeSupport = false
@@ -44,8 +44,8 @@ class BcsMountSpec extends BcsTestUtilSpec {
     entryString = s"$localFile $ossObject $writeSupport"
     entry = BcsMount.parse(entryString).success.value
     entry shouldBe a [BcsOutputMount]
-    entry.src.pathAsString shouldEqual localFile.stripSuffix("/")
-    entry.dest.pathAsString shouldEqual ossObject
+    BcsMount.toString(entry.src) shouldEqual localFile
+    BcsMount.toString(entry.dest) shouldEqual ossObject
     entry.writeSupport shouldEqual writeSupport
   }
 

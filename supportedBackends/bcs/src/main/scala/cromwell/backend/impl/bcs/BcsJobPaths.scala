@@ -20,8 +20,7 @@ final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJob
 
 	import BcsJobPaths._
 
-	// alibaba cloud's batchcompute service can only support tar.gz formatted package.
-	val workerFileName = "worker.tar.gz"
+	val workerFileName = "worker"
 	val workerPath = callRoot.resolve(workerFileName)
 	val bcsStdoutPath = callRoot.resolve(BcsStdoutRedirectPath)
 	val bcsStderrPath = callRoot.resolve(BcsStderrRedirectPath)

@@ -1,0 +1,29 @@
+digraph {
+
+  # Nodes
+
+  schedule_perf_time [shape=oval label="Schedule time on perf for your later use.\nUse the calendar referenced in #dsp-performance's topic"];
+  create_baseline_branch [shape=oval label="Create a new branch in firecloud-develop one commit upstream of 'cromwell_<version>'.\nCall it 'cromwell_pre_<version>_baseline'"];
+
+  push_baseline_to_perf [shape=oval label="[Jenkins] Use 'deploy_project' to push the\nbaseline branch of firecloud-develop to perf"];
+  perf_test_baseline [shape=oval label="[Jenkins] Use 'perf-run-single-test-until-it-fails'.\nSet BRANCH to 'cjl_cromwell_acceptance_impatient'"];
+
+  push_new_version_to_perf [shape=oval label="[Jenkins] Use 'deploy_project' to push the\nnew version's branch of firecloud-develop to perf"];
+  perf_test_new [shape=oval label="[Jenkins] Use 'perf-run-single-test-until-it-fails'.\nSet BRANCH to 'cjl_cromwell_acceptance_impatient'"];
+
+  compare_results [shape=oval label="Make sure the new version is comparable in quality to the baseline"];
+
+  # Edges
+
+  schedule_perf_time -> create_baseline_branch
+
+  create_baseline_branch -> push_baseline_to_perf
+  push_baseline_to_perf -> perf_test_baseline
+
+  create_baseline_branch -> push_new_version_to_perf
+  push_new_version_to_perf -> perf_test_new
+
+  perf_test_baseline -> compare_results
+  perf_test_new -> compare_results
+
+}

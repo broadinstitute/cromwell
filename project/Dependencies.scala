@@ -607,17 +607,17 @@ object Dependencies {
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
   //TODO: Saloni add comment
-//  val grpcDependencyOverrides = List(
-//    "io.grpc" % "grpc-alts",
-//    "io.grpc" % "grpc-auth",
-//    "io.grpc" % "grpc-context",
-//    "io.grpc" % "grpc-core",
-//    "io.grpc" % "grpc-grpclb",
-//    "io.grpc" % "grpc-netty-shaded",
-//    "io.grpc" % "grpc-protobuf",
-//    "io.grpc" % "grpc-protobuf-lite",
-//    "io.grpc" % "grpc-stub",
-//  ).map(m => m % grpcV)
+  val grpcDependencyOverrides = List(
+    "grpc-alts",
+    "grpc-auth",
+    "grpc-context",
+    "grpc-core",
+    "grpc-grpclb",
+    "grpc-netty-shaded",
+    "grpc-protobuf-lite",
+    "grpc-protobuf",
+    "grpc-stub",
+  ).map(m => "io.grpc" % m % grpcV)
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
@@ -627,7 +627,6 @@ object Dependencies {
     allProjectDependencies ++
       googleHttpClientDependencies ++
       nettyDependencyOverrides ++
-      rdf4jDependencyOverrides
-//  ++
-//      grpcDependencyOverrides
+      rdf4jDependencyOverrides ++
+      grpcDependencyOverrides
 }

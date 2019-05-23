@@ -1,6 +1,5 @@
 package cromwell
 
-import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumentationServiceActor
 
 object CromwellApp extends App {
 
@@ -12,9 +11,6 @@ object CromwellApp extends App {
   def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
 
   def runCromwell(args: CommandLineArguments): Unit = {
-    val stack = new StackdriverInstrumentationServiceActor
-    stack.pushMetrics()
-
     args.command match {
       case Some(Run) => CromwellEntryPoint.runSingle(args)
       case Some(Server) => CromwellEntryPoint.runServer()

@@ -20,7 +20,7 @@ See our "updating the process" [process](../README.MD)!
 This performance testing process happens as part of the release into FireCloud.
 
 * **Note:** This process is non-blocking and optional for HOTFIX releases.
-* **Note:** We let QA know that we are running a perf test. They might want to double-check out working.
+* **Note:** For now we will still let QA know that we are running a perf test for a Cromwell release. They might want to double-check that we did it right.
 
 ![perf-test](perf-test.dot.png)
 

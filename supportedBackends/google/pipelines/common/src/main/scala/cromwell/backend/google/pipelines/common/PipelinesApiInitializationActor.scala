@@ -41,11 +41,11 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
 
   // Credentials object for the GCS API
   private lazy val gcsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.gcs.retryPipelinesApiCredentials(workflowOptions)
+    pipelinesConfiguration.papiAttributes.auths.gcs.retryPipelinesApiCredentials(workflowOptions)
 
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.genomics.retryPipelinesApiCredentials(workflowOptions)
+    pipelinesConfiguration.papiAttributes.auths.genomics.retryPipelinesApiCredentials(workflowOptions)
 
   // Genomics object to access the Genomics API
   private lazy val genomics: Future[PipelinesApiRequestFactory] = {

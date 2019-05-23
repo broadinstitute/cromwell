@@ -9,7 +9,7 @@ import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{LocalizationConfiguration, BatchRequestTimeoutConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -21,21 +21,23 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import scala.util.Try
 
-case class PipelinesApiAttributes(project: String,
-                                  computeServiceAccount: String,
-                                  auths: PipelinesApiAuths,
-                                  restrictMetadataAccess: Boolean,
-                                  executionBucket: String,
-                                  endpointUrl: URL,
-                                  maxPollingInterval: Int,
-                                  qps: Int Refined Positive,
-                                  duplicationStrategy: PipelinesCacheHitDuplicationStrategy,
-                                  requestWorkers: Int Refined Positive,
-                                  logFlushPeriod: Option[FiniteDuration],
-                                  localizationConfiguration: LocalizationConfiguration)
+case class PipelinesApiConfigurationAttributes(project: String,
+                                               computeServiceAccount: String,
+                                               auths: PipelinesApiAuths,
+                                               restrictMetadataAccess: Boolean,
+                                               executionBucket: String,
+                                               endpointUrl: URL,
+                                               maxPollingInterval: Int,
+                                               qps: Int Refined Positive,
+                                               cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
+                                               requestWorkers: Int Refined Positive,
+                                               logFlushPeriod: Option[FiniteDuration],
+                                               localizationConfiguration: LocalizationConfiguration,
+                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
 
-object PipelinesApiAttributes {
+object PipelinesApiConfigurationAttributes {
 
   /**
     * @param localizationAttempts Also used for de-localization. This is the number of attempts, not retries,
@@ -43,12 +45,15 @@ object PipelinesApiAttributes {
     */
   case class LocalizationConfiguration(localizationAttempts: Int Refined Positive)
 
-  lazy val Logger = LoggerFactory.getLogger("JesAttributes")
+  final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
+
+
+  lazy val Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
 
   val GenomicsApiDefaultQps = 1000
   val DefaultLocalizationAttempts = refineMV[Positive](3)
 
-  private val jesKeys = Set(
+  private val papiKeys = Set(
     "project",
     "root",
     "maximum-polling-interval",
@@ -67,6 +72,8 @@ object PipelinesApiAttributes {
     "filesystems.gcs.caching.duplication-strategy",
     "concurrent-job-limit",
     "request-workers",
+    "batch-requests.timeouts.read",
+    "batch-requests.timeouts.connect",
     "default-runtime-attributes",
     "default-runtime-attributes.cpu",
     "default-runtime-attributes.failOnStderr",
@@ -86,9 +93,9 @@ object PipelinesApiAttributes {
 
   private val context = "Jes"
 
-  def apply(googleConfig: GoogleConfiguration, backendConfig: Config): PipelinesApiAttributes = {
+  def apply(googleConfig: GoogleConfiguration, backendConfig: Config): PipelinesApiConfigurationAttributes = {
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
-    warnNotRecognized(configKeys, jesKeys, context, Logger)
+    warnNotRecognized(configKeys, papiKeys, context, Logger)
 
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
@@ -126,6 +133,12 @@ object PipelinesApiAttributes {
         .map(_.map(LocalizationConfiguration.apply))
         .getOrElse(LocalizationConfiguration(DefaultLocalizationAttempts).validNel)
 
+    val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")
+    val batchRequestsConnectTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.connect")
+
+    val batchRequestTimeoutConfigurationValidation = (batchRequestsReadTimeout, batchRequestsConnectTimeout) mapN { (read, connect) =>
+      BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
+    }
 
     def authGoogleConfigForJesAttributes(project: String,
                                          bucket: String,
@@ -136,12 +149,13 @@ object PipelinesApiAttributes {
                                          qps: Int Refined Positive,
                                          cachingStrategy: PipelinesCacheHitDuplicationStrategy,
                                          requestWorkers: Int Refined Positive,
-                                         localizationConfiguration: LocalizationConfiguration): ErrorOr[PipelinesApiAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
-      (genomicsAuth, gcsAuth) => PipelinesApiAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers, logFlushPeriod, localizationConfiguration)
+                                         localizationConfiguration: LocalizationConfiguration,
+                                         batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration): ErrorOr[PipelinesApiConfigurationAttributes] = (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
+      (genomicsAuth, gcsAuth) => PipelinesApiConfigurationAttributes(project, computeServiceAccount, PipelinesApiAuths(genomicsAuth, gcsAuth), restrictMetadata, bucket, endpointUrl, maxPollingInterval, qps, cachingStrategy, requestWorkers, logFlushPeriod, localizationConfiguration, batchRequestTimeoutConfiguration)
     }
 
     (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName,
-      qpsValidation, duplicationStrategy, requestWorkers, localizationConfiguration) flatMapN authGoogleConfigForJesAttributes match {
+      qpsValidation, duplicationStrategy, requestWorkers, localizationConfiguration, batchRequestTimeoutConfigurationValidation) flatMapN authGoogleConfigForJesAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {
@@ -167,6 +181,25 @@ object PipelinesApiAttributes {
     refineV[Positive](n) match {
       case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
       case Right(refined) => refined.validNel
+    }
+  }
+
+  def readOptionalPositiveMillisecondsIntFromDuration(backendConfig: Config, configPath: String): ErrorOr[Option[Int Refined Positive]] = {
+
+    def validate(n: FiniteDuration) = {
+      val result: ErrorOr[Int Refined Positive] = Try(n.toMillis.toInt).toErrorOr flatMap { millisInt =>
+        refineV[Positive](millisInt) match {
+          case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
+          case Right(refined) => refined.validNel
+        }
+      }
+
+      result.contextualizeErrors(s"Parse '$configPath' value $n as a positive Int (in milliseconds)")
+    }
+
+    backendConfig.as[Option[FiniteDuration]](configPath) match {
+      case Some(value) => validate(value).map(Option.apply)
+      case None => None.validNel
     }
   }
 }

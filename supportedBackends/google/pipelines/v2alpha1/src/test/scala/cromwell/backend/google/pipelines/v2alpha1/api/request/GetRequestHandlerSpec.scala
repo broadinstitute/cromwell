@@ -21,7 +21,8 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
 
   private val requestHandler: GetRequestHandler = new RequestHandler(
     "GetRequestHandlerSpec",
-    new URL("file:///getrequesthandlerspec")
+    new URL("file:///getrequesthandlerspec"),
+    null // This can be null because we never need to initialize http requests for this test
   )
 
   private val workflowId = WorkflowId.randomId()

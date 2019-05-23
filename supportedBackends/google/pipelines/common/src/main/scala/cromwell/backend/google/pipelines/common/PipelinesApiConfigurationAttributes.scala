@@ -155,7 +155,7 @@ object PipelinesApiConfigurationAttributes {
     }
 
     (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName,
-      qpsValidation, duplicationStrategy, requestWorkers, localizationConfiguration) flatMapN authGoogleConfigForJesAttributes match {
+      qpsValidation, duplicationStrategy, requestWorkers, localizationConfiguration, batchRequestTimeoutConfigurationValidation) flatMapN authGoogleConfigForJesAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {

@@ -394,7 +394,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case NotifyOfStatus(_, _, Some(value)) =>
         Future.successful(value)
       case NotifyOfStatus(_, _, None) =>
-        jobLogger.info(s"Having to fall back to AWS query for status")
+        jobLogger.info("Having to fall back to AWS query for status")
         Future.fromTry(job.status(jobId))
       case other =>
         val message = s"Programmer Error (please report this): Received an unexpected message from the OccasionalPollingActor: $other"

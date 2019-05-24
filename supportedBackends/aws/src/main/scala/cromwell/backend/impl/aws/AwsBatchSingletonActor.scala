@@ -7,15 +7,15 @@ import cromwell.core.Mailbox
 import software.amazon.awssdk.regions.Region
 
 class AwsBatchSingletonActor(configRegion: Option[Region]) extends Actor with ActorLogging {
-  val awsOccasionalStatusPoller = context.actorOf(OccasionalStatusPollingActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "AWSOccasionalStatusPoller")
-  val awsGoSlowSubmitActor = context.actorOf(IntervalLimitedAwsJobSubmitActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "AWSGoSlowSubmitter")
+  val awsOccasionalStatusPoller = context.actorOf(OccasionalStatusPollingActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "OccasionalStatusPollingActor")
+  val awsIntervalLimitedSubmitActor = context.actorOf(IntervalLimitedAwsJobSubmitActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "IntervalLimitedAWSSubmitActor")
 
   override def receive = {
 
     case statusQuery: OccasionalStatusPollingActorMessage =>
       awsOccasionalStatusPoller.forward(statusQuery)
-    case goSlowRequest: IntervalLimitedAwsJobSubmitActorMessage =>
-      awsGoSlowSubmitActor.forward(goSlowRequest)
+    case submitActorMessage: IntervalLimitedAwsJobSubmitActorMessage =>
+      awsIntervalLimitedSubmitActor.forward(submitActorMessage)
     case other =>
       log.error("Unknown message to AwsBatchSingletonActor: {}. Dropping it.", other)
   }

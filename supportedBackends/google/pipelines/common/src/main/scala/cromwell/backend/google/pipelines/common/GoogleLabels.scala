@@ -18,16 +18,18 @@ final case class GoogleLabel(key: String, value: String)
 object GoogleLabels {
 
   val MaxLabelLength = 63
-  val GoogleLabelRegexPattern = "[a-z]([-a-z0-9]*[a-z0-9])?"
-  val GoogleLabelRegex = GoogleLabelRegexPattern.r
+  val GoogleLabelKeyRegexPattern = "[a-z]([_-a-z0-9]*[a-z0-9])?"
+  val GoogleLabelKeyRegex = GoogleLabelKeyRegexPattern.r
+  val GoogleLabelValueRegexPattern = "[_-a-z0-9]*"
+  val GoogleLabelValueRegex = GoogleLabelValueRegexPattern.r
 
   // This function is used to coerce a string into one that meets the requirements for a label submission to Google Pipelines API.
   // See 'labels' in https://cloud.google.com/genomics/reference/rpc/google.genomics.v1alpha2#google.genomics.v1alpha2.RunPipelineArgs
-  def safeGoogleName(mainText: String, emptyAllowed: Boolean = false): String = {
+  def safeGoogleName(mainText: String, labelKey: Boolean): String = {
 
     validateLabelRegex(mainText) match {
       case Valid(labelText) => labelText
-      case invalid @ _ if mainText.equals("") && emptyAllowed => mainText
+      case invalid @ _ if mainText.equals("") && (!labelKey) => mainText
       case invalid @ _ =>
         def appendSafe(current: String, nextChar: Char): String = {
           nextChar match {
@@ -38,8 +40,11 @@ object GoogleLabels {
 
         val foldResult = mainText.toCharArray.foldLeft("")(appendSafe)
 
-        val startsValid = foldResult.headOption.exists(_.isLetter)
-        val endsValid = foldResult.lastOption.exists(_.isLetterOrDigit)
+        val startsValid = if (labelKey) foldResult.headOption.exists(_.isLetter) else foldResult.lastOption.exists(_.isLetterOrDigit)
+        val endsValid = (
+          foldResult.lastOption.exists(_.isLetterOrDigit)
+          || foldResult.last.equals("-") || foldResult.last.equals("_")
+        )
 
         val validStart = if (startsValid) foldResult else "x--" + foldResult
         val validStartAndEnd = if (endsValid) validStart else validStart + "--x"
@@ -57,11 +62,20 @@ object GoogleLabels {
     }
   }
 
-  def validateLabelRegex(s: String): ErrorOr[String] = {
-    (GoogleLabelRegex.pattern.matcher(s).matches, s.length <= MaxLabelLength) match {
+  def validateLabelKeyRegex(s: String): ErrorOr[String] = {
+    (GoogleLabelKeyRegex.pattern.matcher(s).matches, s.length <= MaxLabelLength) match {
       case (true, true) => s.validNel
-      case (false, false) => s"Invalid label field: `$s` did not match regex '$GoogleLabelRegexPattern' and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
-      case (false, _) => s"Invalid label field: `$s` did not match the regex '$GoogleLabelRegexPattern'".invalidNel
+      case (false, false) => s"Invalid label field: `$s` did not match regex '$GoogleLabelKeyRegexPattern' and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+      case (false, _) => s"Invalid label field: `$s` did not match the regex '$GoogleLabelKeyRegexPattern'".invalidNel
+      case (_, false) => s"Invalid label field: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+    }
+  }
+
+  def validateLabelValueRegex(s: String): ErrorOr[String] = {
+    (GoogleLabelValueRegex.pattern.matcher(s).matches, s.length <= MaxLabelLength) match {
+      case (true, true) => s.validNel
+      case (false, false) => s"Invalid label field: `$s` did not match regex '$GoogleLabelValueRegexPattern' and it is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
+      case (false, _) => s"Invalid label field: `$s` did not match the regex '$GoogleLabelValueRegexPattern'".invalidNel
       case (_, false) => s"Invalid label field: `$s` is ${s.length} characters. The maximum is $MaxLabelLength.".invalidNel
     }
   }
@@ -69,13 +83,13 @@ object GoogleLabels {
 
   def safeLabels(values: (String, String)*): Seq[GoogleLabel] = {
     def safeGoogleLabel(kvp: (String, String)): GoogleLabel = {
-      GoogleLabel(safeGoogleName(kvp._1), safeGoogleName(kvp._2, emptyAllowed = true))
+      GoogleLabel(safeGoogleName(kvp._1, labelKey = true), safeGoogleName(kvp._2, labelKey = false))
     }
     values.map(safeGoogleLabel)
   }
 
   def validateLabel(key: String, value: String): ErrorOr[GoogleLabel] = {
-    (validateLabelRegex(key), validateLabelRegex(value)).mapN { (validKey, validValue) => GoogleLabel(validKey, validValue)  }
+    (validateLabelKeyRegex(key), validateLabelValueRegex(value)).mapN { (validKey, validValue) => GoogleLabel(validKey, validValue)  }
   }
 
   def fromWorkflowOptions(workflowOptions: WorkflowOptions): Try[Seq[GoogleLabel]] = {

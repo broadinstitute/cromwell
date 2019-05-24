@@ -13,21 +13,11 @@ import com.typesafe.config.Config
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
 import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumentationServiceActor._
+import cromwell.services.instrumentation.impl.stackdriver.StackdriverConfig._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-
-sealed trait StackdriverMetricKind
-
-object StackdriverGauge extends StackdriverMetricKind
-object StackdriverCumulative extends StackdriverMetricKind
-
-
-case class StackdriverMetric(name: String, kind: StackdriverMetricKind)
-
-object SendStackdriverMetricCommand
 
 
 class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor {
@@ -35,21 +25,27 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
   final val ActorCreationTime = Timestamps.fromMillis(System.currentTimeMillis())
   final val CustomMetricDomain = "custom.googleapis.com"
+  final val InitialDelay = 1.minute
+
+  lazy val stackdriverConfig = StackdriverConfig(serviceConfig)
+  lazy val projectName: ProjectName = ProjectName.of(stackdriverConfig.googleProject)
+  lazy val metricLabelsMap = generateMetricLabels()
 
   var metricsMap = Map.empty[StackdriverMetric, List[Double]]
 
-  //TODO: Saloni- put this in something like StackdriverConfig and please validate them!!
-  val projectId = serviceConfig.as[String]("google-project")
-
+  //TODO: Saloni- add auth in config
   val appDefaultCred = GoogleCredentials.getApplicationDefault
 
   // Instantiates a client
   val metricServiceSettings = MetricServiceSettings.newBuilder.setCredentialsProvider(FixedCredentialsProvider.create(appDefaultCred)).build
   final val metricServiceClient = MetricServiceClient.create(metricServiceSettings)
 
-  val name = ProjectName.of(projectId)
+  // Prepares the monitored resource descriptor
+  lazy val resourceLabels = Map[String, String](("project_id", stackdriverConfig.googleProject))
+  lazy val monitoredResource = MonitoredResource.newBuilder.setType("global").putAllLabels(resourceLabels.asJava).build
 
-  context.system.scheduler.schedule(1.minute, 1.minute, self, SendStackdriverMetricCommand)
+  // Give the actor time to warm up, then start sending the metrics to Stackdriver at an interval
+  context.system.scheduler.schedule(InitialDelay, stackdriverConfig.flushRate, self, SendStackdriverMetricCommand)
 
 
   override def receive = {
@@ -61,12 +57,28 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
       case CromwellIncrement(bucket) => updateMetricMap(bucket, metricValue = 1D, metricKind = StackdriverCumulative)
     }
     case ShutdownCommand =>
+      // flush out metrics (if any) before shut down
+      sendMetricData()
       metricServiceClient.close()
       context stop self
   }
 
 
-  private def updateMetricMap(bucket: CromwellBucket, metricValue: Double, metricKind: StackdriverMetricKind) = {
+  private def labelFromConfig(op: StackdriverConfig => Option[String], key: String): List[(String, String)] = {
+    op(stackdriverConfig).fold(List.empty[(String, String)])(v => List((key.replace("-", "_"), v)))
+  }
+
+
+  private def generateMetricLabels(): Map[String, String] = {
+    val labelsList = labelFromConfig(_.cromwellInstanceIdentifier, CromwellInstanceIdentifier) ++
+      labelFromConfig(_.cromwellInstanceRole, CromwellInstanceRole) ++
+      labelFromConfig(_.cromwellPerfTestCase, CromwellPerfTest)
+
+    labelsList.toMap
+  }
+
+
+  private def updateMetricMap(bucket: CromwellBucket, metricValue: Double, metricKind: StackdriverMetricKind): Unit = {
     val metricObj = StackdriverMetric(bucket.toStackdriverString, metricKind)
 
     if (metricsMap.contains(metricObj)) {
@@ -75,12 +87,10 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
       metricsMap += metricObj ->  valueList.::(metricValue)
     }
     else metricsMap += metricObj -> List(metricValue)
-
-    ()
   }
 
 
-  private def sendMetricData() = {
+  private def sendMetricData(): Unit = {
     metricsMap.foreach { case (key, value: List[Double]) =>
       val dataPointListSum = value.sum
 
@@ -92,11 +102,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
       writeMetrics(key, dataPoint)
     }
 
-    println(s"MAP SIZE BEFORE: ${metricsMap.size}")
-
     metricsMap = Map.empty[StackdriverMetric, List[Double]]
-
-    println(s"MAP SIZE AFTER: ${metricsMap.size}")
   }
 
 
@@ -116,7 +122,15 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   }
 
 
-  private def writeMetrics(metricObj: StackdriverMetric, value: Double) = {
+  private def createMetricBuilder(metricName: String): Metric = {
+    metricLabelsMap match {
+      case map: Map[String, String] if map.isEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").build
+      case map: Map[String, String] if map.nonEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").putAllLabels(map.asJava).build
+    }
+  }
+
+
+  private def writeMetrics(metricObj: StackdriverMetric, value: Double): Unit = {
     // Prepares an individual data point
     val interval = timeInterval(metricObj.kind)
     val pointValue = TypedValue.newBuilder().setDoubleValue(value).build()
@@ -124,82 +138,19 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
     val dataPointList: List[Point] = List[Point](dataPoint)
 
     // Prepares the metric descriptor
-    val metric: Metric = Metric.newBuilder.setType(s"$CustomMetricDomain/${metricObj.name}").build
-
-    // Prepares the monitored resource descriptor
-    val resourceLabels = Map[String, String](("project_id", projectId))
-    val resource: MonitoredResource = MonitoredResource.newBuilder.setType("global").putAllLabels(resourceLabels.asJava).build
+    val metric: Metric = createMetricBuilder(metricObj.name)
 
     // Prepares the time series request
-    val timeSeries = createTimeSeries(metricObj.kind, metric, resource, dataPointList.asJava)
+    val timeSeries = createTimeSeries(metricObj.kind, metric, monitoredResource, dataPointList.asJava)
     val timeSeriesList = List[TimeSeries](timeSeries)
 
-    val timeSeriesRequest = CreateTimeSeriesRequest.newBuilder.setName(name.toString).addAllTimeSeries(timeSeriesList.asJava).build
+    val timeSeriesRequest = CreateTimeSeriesRequest.newBuilder.setName(projectName.toString).addAllTimeSeries(timeSeriesList.asJava).build
 
     // Writes time series data
     metricServiceClient.createTimeSeries(timeSeriesRequest)
 
     println(s"Kind: ${metricObj.kind} Value: $value Metric: ${metricObj.name}")
   }
-
-//  private def writeTimeSeriesMetricsData(bucket: CromwellBucket, metricValue: Double) = {
-//    val metricName = (bucket.prefix ++ bucket.path.toList).mkString("/").replace(" ", "_")
-//
-//    // Prepares an individual data point
-//    val interval = TimeInterval.newBuilder.setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
-//    val pointValue = TypedValue.newBuilder().setDoubleValue(metricValue).build()
-//    val dataPoint: Point = Point.newBuilder.setInterval(interval).setValue(pointValue).build
-//    val dataPointList = List[Point](dataPoint)
-//
-//    // Prepares the metric descriptor
-//    //    val metricLabels = Map[String, String](("prefix", "Pittsburg"))
-//    val metric = Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").build
-//
-//    // Prepares the monitored resource descriptor
-//    val resourceLabels = Map[String, String](("project_id", projectId))
-//    val resource = MonitoredResource.newBuilder.setType("global").putAllLabels(resourceLabels.asJava).build
-//
-//    // Prepares the time series request
-//    val timeSeries = TimeSeries.newBuilder.setMetric(metric).setResource(resource).addAllPoints(dataPointList.asJava).build
-//    val timeSeriesList = List[TimeSeries](timeSeries)
-//
-//    val timeSeriesRequest = CreateTimeSeriesRequest.newBuilder.setName(name.toString).addAllTimeSeries(timeSeriesList.asJava).build
-//
-//    // Writes time series data
-//    metricServiceClient.createTimeSeries(timeSeriesRequest)
-//
-//    println(s"Time series Metric: $metricName")
-//  }
-//
-//
-//  private def writeCumulativeMetricData(bucket: CromwellBucket, count: Long) = {
-//    val metricName = (bucket.prefix ++ bucket.path.toList).mkString("/").replace(" ", "_")
-//
-//    // Prepares an individual data point
-//    val interval = TimeInterval.newBuilder.setStartTime(ActorCreationTime).setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
-//    val pointValue = TypedValue.newBuilder().setDoubleValue(count.toDouble).build()
-//    val dataPoint: Point = Point.newBuilder.setInterval(interval).setValue(pointValue).build
-//    val dataPointList = List[Point](dataPoint)
-//
-//    // Prepares the metric descriptor
-//    //    val metricLabels = Map[String, String](("prefix", "Pittsburg"))
-//    val metric = Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").build
-//
-//    // Prepares the monitored resource descriptor
-//    val resourceLabels = Map[String, String](("project_id", projectId))
-//    val resource = MonitoredResource.newBuilder.setType("global").putAllLabels(resourceLabels.asJava).build
-//
-//    // Prepares the time series request
-//    val timeSeries = TimeSeries.newBuilder.setMetric(metric).setResource(resource).setMetricKind(MetricDescriptor.MetricKind.CUMULATIVE).addAllPoints(dataPointList.asJava).build
-//    val timeSeriesList = List[TimeSeries](timeSeries)
-//
-//    val timeSeriesRequest = CreateTimeSeriesRequest.newBuilder.setName(name.toString).addAllTimeSeries(timeSeriesList.asJava).build
-//
-//    // Writes time series data
-//    metricServiceClient.createTimeSeries(timeSeriesRequest)
-//
-//    println(s"Cumulative Metric: $metricName")
-//  }
 }
 
 
@@ -215,3 +166,14 @@ object StackdriverInstrumentationServiceActor {
     def toStackdriverString = (cromwellBucket.prefix ++ cromwellBucket.path.toList).mkString("/").replace(" ", "_")
   }
 }
+
+
+sealed trait StackdriverMetricKind
+object StackdriverGauge extends StackdriverMetricKind
+object StackdriverCumulative extends StackdriverMetricKind
+
+
+case class StackdriverMetric(name: String, kind: StackdriverMetricKind)
+
+
+object SendStackdriverMetricCommand

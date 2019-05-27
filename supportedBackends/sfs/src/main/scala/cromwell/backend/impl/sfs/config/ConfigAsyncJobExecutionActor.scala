@@ -261,6 +261,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     timeout
   }
 
+  protected lazy val retryExternallyKilledJobs: Boolean = exitCodeTimeout.isDefined
+
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
 
     lazy val nextTimeout = exitCodeTimeout.map(t => Instant.now.plusSeconds(t))
@@ -304,7 +306,11 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse(backupError)} seconds, assuming external kill")
 
           val returnCodeTemp = jobPaths.returnCode.plusExt("kill")
-          returnCodeTemp.write(s"$SIGTERM${System.lineSeparator}")
+          // If SIGTERM, SIGKILL or SIGINT codes are used, cromwell will assume the job has been aborted by cromwell.
+          // And it will therefore NOT retry the job. Which makes perfect sense. Best not to change that in the
+          // StandardAsyncExecutionActor code, but give a nonsensical return code here.
+          val exitValue = if (retryExternallyKilledJobs) Int.MaxValue else SIGKILL
+          returnCodeTemp.write(s"${exitValue}${System.lineSeparator}")
           try {
             returnCodeTemp.moveTo(jobPaths.returnCode)
             SharedFileSystemJobFailed

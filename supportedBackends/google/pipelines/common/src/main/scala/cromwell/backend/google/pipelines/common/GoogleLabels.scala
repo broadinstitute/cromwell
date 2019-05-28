@@ -27,7 +27,7 @@ object GoogleLabels {
   // See 'labels' in https://cloud.google.com/genomics/reference/rpc/google.genomics.v1alpha2#google.genomics.v1alpha2.RunPipelineArgs
   def safeGoogleName(mainText: String, labelKey: Boolean): String = {
 
-    val validator = if(labelKey) validateLabelKeyRegex else validateLabelValueRegex
+  val validator = if(labelKey) validateLabelKeyRegex(_) else validateLabelValueRegex(_)
     validator(mainText) match {
       case Valid(labelText) => labelText
       case invalid @ _ if mainText.equals("") && (!labelKey) => mainText

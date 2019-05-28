@@ -391,12 +391,18 @@ task GenotypeGVCFs {
   File ref_fasta_index
   File ref_dict
 
-  String dbsnp_vcf
+  File dbsnp_vcf
 
   String docker_image
   Int disk_size
   String mem_size
   Int preemptibles
+
+  parameter_meta {
+    dbsnp_vcf: {
+      localization_optional: true
+    }
+  }
 
   command <<<
     set -e

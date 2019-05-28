@@ -23,14 +23,14 @@ class GoogleLabelsSpec extends FlatSpec with Matchers {
 
   googleLabelConversions foreach { case (label: String, conversion: String) =>
     it should s"not validate the bad label key '$label'" in {
-      GoogleLabels.validateLabelRegex(label) match {
+      GoogleLabels.validateLabelKeyRegex(label) match {
         case Invalid(_) => // Good!
         case Valid(_) => fail(s"Label validation succeeded but should have failed.")
       }
     }
 
     it should s"convert the bad label string '$label' into the safe label string '$conversion'" in {
-      GoogleLabels.safeGoogleName(label) should be(conversion)
+      GoogleLabels.safeGoogleName(label, true) should be(conversion)
     }
   }
 }

@@ -6,7 +6,7 @@ final case class ScatterElement(scatterName: String,
                                 scatterExpression: ExpressionElement,
                                 scatterVariableName: String,
                                 graphElements: Seq[WorkflowGraphElement],
-                                override val srcLoc : Option[SourceFileLocation]) extends WorkflowGraphElement {
+                                override val sourceLocation : Option[SourceFileLocation]) extends WorkflowGraphElement {
 
   // Scatter names do not contain intrinsic information about the scatter; rather they are a sort
   // of hash based on the declarations's physical location in the source.

@@ -50,14 +50,32 @@ object LinkedGraphMaker {
     graph.topologicalSort match {
       case Left(_) =>
         graph.findCycle match {
-          case Some(cycle) =>
-            val edgeStrings = cycle.value.edges map { case graph.EdgeT(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+          case Some(cycle) if cycle.size > 0 =>
             // we need to sort the edges lexicographically to make results deterministic. This helps testing.
-            val edges = edgeStrings.toVector.sorted
-            s"""This workflow contains a cyclic dependency:
-               |${edges.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+            // In a cycle like:
+            //   b -> d
+            //   d -> c
+            //   c -> a
+            //   a -> b
+            // we want to start the cycle with the edge "a -> b"
+            val edgeDict : Map[String, String] =
+              cycle.value.edges.map{
+                case graph.EdgeT(from, to) => nodeName(from) -> nodeName(to)
+              }.toMap
+            val startPoint = edgeDict.keys.toVector.sorted.head
+            var cursor = startPoint
 
-          case None =>
+            val cycleReport = scala.collection.mutable.Queue.empty[String]
+            do {
+              val next = edgeDict(cursor)
+              cycleReport += s"${cursor} -> ${next}"
+              cursor = next
+            } while (cursor != startPoint)
+
+            s"""This workflow contains a cyclic dependency:
+               |${cycleReport.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+
+          case _ =>
             val edgeStrings = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
             // sort the edges for determinism
             val edges = edgeStrings.toVector.sorted

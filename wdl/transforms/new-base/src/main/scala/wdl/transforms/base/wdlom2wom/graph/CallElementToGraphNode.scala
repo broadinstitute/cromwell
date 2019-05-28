@@ -184,7 +184,7 @@ object CallElementToGraphNode {
       mappings <- expressionNodeMappings(callable)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
       upstream <- findUpstreamCalls(a.node.afters.toList)
-      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream, a.srcLoc)
+      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream, a.sourceLocation)
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
 
@@ -200,4 +200,4 @@ case class CallNodeMakerInputs(node: CallElement,
                                workflowName: String,
                                insideAnotherScatter: Boolean,
                                callables: Map[String, Callable],
-                               srcLoc : Option[SourceFileLocation])
+                               sourceLocation : Option[SourceFileLocation])

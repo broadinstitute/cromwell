@@ -242,7 +242,7 @@ case class CommandLineTool private(
         customizedOutputEvaluation = outputEvaluationJsonFunction,
         homeOverride = Option(_.outputPath),
         dockerOutputDirectory = dockerOutputDirectory,
-        srcLoc = None
+        sourceLocation = None
       )
     }
   }

@@ -9,4 +9,4 @@ final case class TaskDefinitionElement(name: String,
                                        runtimeSection: Option[RuntimeAttributesSectionElement],
                                        metaSection: Option[MetaSectionElement],
                                        parameterMetaSection: Option[ParameterMetaSectionElement],
-                                       override val srcLoc : Option[SourceFileLocation]) extends FileBodyElement
+                                       override val sourceLocation : Option[SourceFileLocation]) extends FileBodyElement

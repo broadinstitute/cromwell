@@ -24,7 +24,7 @@ class GraphSpec extends FlatSpec with Matchers {
       inputs = List.empty,
       adHocFileCreation = Set.empty,
       environmentExpressions = Map.empty,
-      srcLoc = None
+      sourceLocation = None
     )
 
     val cgrepInFile = RequiredInputDefinition("in_file", WomSingleFileType)
@@ -40,7 +40,7 @@ class GraphSpec extends FlatSpec with Matchers {
       inputs = List(cgrepPattern, cgrepInFile),
       adHocFileCreation = Set.empty,
       environmentExpressions = Map.empty,
-      srcLoc = None
+      sourceLocation = None
     )
 
     val wcInFile = RequiredInputDefinition("in_file", WomSingleFileType)
@@ -54,7 +54,7 @@ class GraphSpec extends FlatSpec with Matchers {
       inputs = List(wcInFile),
       adHocFileCreation = Set.empty,
       environmentExpressions = Map.empty,
-      srcLoc = None
+      sourceLocation = None
     )
 
     val workflowInputNode = RequiredGraphInputNode(WomIdentifier("cgrep.pattern"), WomStringType, "cgrep.pattern")

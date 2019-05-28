@@ -35,7 +35,7 @@ sealed abstract class CallNode extends GraphNode {
   override lazy val upstreamPorts = calculateUpstreamPorts ++ nonInputBasedPrerequisites.map(_.completionPort)
 
   // Where the call is made in the source WDL code
-  val srcLoc: Option[SourceFileLocation]
+  val sourceLocation: Option[SourceFileLocation]
 }
 
 final case class ExpressionCallNode private(override val identifier: WomIdentifier,
@@ -43,7 +43,7 @@ final case class ExpressionCallNode private(override val identifier: WomIdentifi
                                             override val inputPorts: Set[GraphNodePort.InputPort],
                                             inputDefinitionMappings: InputDefinitionMappings,
                                             outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier,
-                                            override val srcLoc : Option[SourceFileLocation]) extends CallNode with ExpressionNodeLike {
+                                            override val sourceLocation : Option[SourceFileLocation]) extends CallNode with ExpressionNodeLike {
   val callType: String = "expression task"
   lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
     callable.outputs.map(o => ExpressionBasedOutputPort(outputIdentifierCompoundingFunction(identifier, o.localName.value), o.womType, this, o.expression))
@@ -71,7 +71,7 @@ final case class CommandCallNode private(override val identifier: WomIdentifier,
                                          inputDefinitionMappings: InputDefinitionMappings,
                                          override val nonInputBasedPrerequisites: Set[GraphNode],
                                          outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier,
-                                         override val srcLoc : Option[SourceFileLocation]) extends CallNode {
+                                         override val sourceLocation : Option[SourceFileLocation]) extends CallNode {
   val callType: String = "task"
   lazy val expressionBasedOutputPorts: List[ExpressionBasedOutputPort] = {
     callable.outputs.map(o => ExpressionBasedOutputPort(outputIdentifierCompoundingFunction(identifier, o.localName.value), o.womType, this, o.expression))
@@ -94,7 +94,7 @@ final case class WorkflowCallNode private (override val identifier: WomIdentifie
                                            inputDefinitionMappings: InputDefinitionMappings,
                                            override val nonInputBasedPrerequisites: Set[GraphNode],
                                            outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier,
-                                           override val srcLoc: Option[SourceFileLocation]) extends CallNode {
+                                           override val sourceLocation: Option[SourceFileLocation]) extends CallNode {
   val callType: String = "workflow"
   val subworkflowCallOutputPorts: Set[SubworkflowCallOutputPort] = {
     callable.innerGraph.nodes.collect { case gon: GraphOutputNode => SubworkflowCallOutputPort(outputIdentifierCompoundingFunction(identifier, gon.localName), gon, this) }
@@ -142,7 +142,7 @@ object TaskCall {
     })(inputDefinitionFoldMonoid)
 
     val uniqueIdentifier = WomIdentifier(taskDefinition.name)
-    val callWithInputs = callNodeBuilder.build(uniqueIdentifier, taskDefinition, inputDefinitionFold, Set.empty, taskDefinition.srcLoc)
+    val callWithInputs = callNodeBuilder.build(uniqueIdentifier, taskDefinition, inputDefinitionFold, Set.empty, taskDefinition.sourceLocation)
 
     val outputNodes: ErrorOr[Seq[GraphOutputNode]] = callWithInputs.node.outputPorts.map(output => PortBasedGraphOutputNode(
       identifier(LocalName(output.internalName)), output.womType, output
@@ -220,10 +220,10 @@ object CallNode {
                            inputDefinitionMappings: InputDefinitionMappings,
                            mustFollow: Set[GraphNode],
                            outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier,
-                           srcLoc : Option[SourceFileLocation]): CallNode = callable match {
-    case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings, mustFollow, outputIdentifierCompoundingFunction, srcLoc)
-    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, mustFollow, outputIdentifierCompoundingFunction, srcLoc)
-    case w: ExpressionTaskDefinition => ExpressionCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, outputIdentifierCompoundingFunction, srcLoc)
+                           sourceLocation : Option[SourceFileLocation]): CallNode = callable match {
+    case t: CommandTaskDefinition => CommandCallNode(nodeIdentifier, t, inputPorts, inputDefinitionMappings, mustFollow, outputIdentifierCompoundingFunction, sourceLocation)
+    case w: WorkflowDefinition => WorkflowCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, mustFollow, outputIdentifierCompoundingFunction, sourceLocation)
+    case w: ExpressionTaskDefinition => ExpressionCallNode(nodeIdentifier, w, inputPorts, inputDefinitionMappings, outputIdentifierCompoundingFunction, sourceLocation)
   }
 
   /**
@@ -245,10 +245,10 @@ object CallNode {
               callable: Callable,
               inputDefinitionFold: InputDefinitionFold,
               mustFollow: Set[GraphNode],
-              srcLoc: Option[SourceFileLocation],
+              sourceLocation: Option[SourceFileLocation],
               outputIdentifierCompoundingFunction: (WomIdentifier, String) => WomIdentifier = defaultOutputIdentifierCompounder
              ): CallNodeAndNewNodes = {
-      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings, mustFollow, outputIdentifierCompoundingFunction, srcLoc)
+      val callNode = CallNode(nodeIdentifier, callable, inputDefinitionFold.callInputPorts, inputDefinitionFold.mappings, mustFollow, outputIdentifierCompoundingFunction, sourceLocation)
       graphNodeSetter._graphNode = callNode
       CallNodeAndNewNodes(callNode, inputDefinitionFold.newGraphInputNodes, inputDefinitionFold.newExpressionNodes, inputDefinitionFold.usedOuterGraphInputNodes)
     }

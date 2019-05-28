@@ -25,7 +25,7 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
     }).toList
 
     // Figure out the start line of the workflow in the source file
-    val t: Terminal = AstTools.findTerminals(wdlTask.ast).head
+    val t: Option[Terminal] = AstTools.findTerminals(wdlTask.ast).headOption
 
     CallableTaskDefinition(
       name = wdlTask.fullyQualifiedName,
@@ -37,7 +37,7 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
       inputs = womInputs,
       adHocFileCreation = Set.empty,
       environmentExpressions = Map.empty,
-      srcLoc = Some(SourceFileLocation(t.getLine))
+      sourceLocation = t.map(x => SourceFileLocation(x.getLine))
     ).valid
   }
 }

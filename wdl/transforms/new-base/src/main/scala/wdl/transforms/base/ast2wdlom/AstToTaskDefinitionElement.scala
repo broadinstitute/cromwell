@@ -18,14 +18,16 @@ object AstToTaskDefinitionElement {
 
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
     val sectionsValidation: ErrorOr[Vector[TaskSectionElement]] = a.getAttributeAsVector[TaskSectionElement]("sections").toValidated
-    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine.map(SourceFileLocation.convert).validNel
+    val sourceLocation : Option[SourceFileLocation] = a.getSourceLine.map(SourceFileLocation.convert)
 
-    (nameElementValidation, sectionsValidation, srcLoc) flatMapN combineElements
+    (nameElementValidation, sectionsValidation) flatMapN { (nameElement, sections) =>
+      combineElements(nameElement, sections, sourceLocation)
+    }
   }
 
   def combineElements(nameElement: String,
                       bodyElements: Vector[TaskSectionElement],
-                      srcLoc: Option[SourceFileLocation]) = {
+                      sourceLocation: Option[SourceFileLocation]) = {
     val inputsSectionElement: ErrorOr[Option[InputsSectionElement]] = validateOneMax(bodyElements.filterByType[InputsSectionElement], "inputs")
     val declarations: Vector[IntermediateValueDeclarationElement] = bodyElements.filterByType[IntermediateValueDeclarationElement]
     val outputsSectionElement: ErrorOr[Option[OutputsSectionElement]] = validateOneMax(bodyElements.filterByType[OutputsSectionElement], "outputs")
@@ -37,7 +39,7 @@ object AstToTaskDefinitionElement {
 
     (inputsSectionElement, outputsSectionElement, commandSectionElement, runtimeSectionElement, metaSectionElement, parameterMetaSectionElement) mapN {
       (inputs, outputs, command, runtime, meta, parameterMeta) =>
-        TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta, srcLoc)
+        TaskDefinitionElement(nameElement, inputs, declarations, outputs, command, runtime, meta, parameterMeta, sourceLocation)
     }
   }
 

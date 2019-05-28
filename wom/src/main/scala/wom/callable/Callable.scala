@@ -16,7 +16,7 @@ trait Callable {
   def inputs: List[_ <: InputDefinition]
   def outputs: List[_ <: OutputDefinition]
 
-  val srcLoc : Option[SourceFileLocation] = None
+  val sourceLocation : Option[SourceFileLocation] = None
 }
 
 trait ExecutableCallable extends Callable {

@@ -72,7 +72,7 @@ object CommandTaskDefinitionSpec {
     inputs = List.empty,
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    srcLoc = None)
+    sourceLocation = None)
   val executableNoInputsOrOutputsTask = noInputsOrOutputsTask.toExecutable
 
   val oneInputTask = CallableTaskDefinition(
@@ -85,7 +85,7 @@ object CommandTaskDefinitionSpec {
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomIntegerType)),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    srcLoc = None)
+    sourceLocation = None)
   val executableOneInputTask = oneInputTask.toExecutable
 
   val oneOutputTask = CallableTaskDefinition(
@@ -98,7 +98,7 @@ object CommandTaskDefinitionSpec {
     inputs = List.empty,
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    srcLoc = None)
+    sourceLocation = None)
   val executableOneOutputTask = oneOutputTask.toExecutable
 
   val duplicateFqns = CallableTaskDefinition(
@@ -111,7 +111,7 @@ object CommandTaskDefinitionSpec {
     inputs = List(Callable.RequiredInputDefinition(LocalName("bar"), WomStringType), Callable.RequiredInputDefinition(LocalName("bar"), WomStringType)),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    srcLoc = None
+    sourceLocation = None
   )
   val executableDuplicateFqns = duplicateFqns.toExecutable
 }

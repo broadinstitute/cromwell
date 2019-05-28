@@ -155,7 +155,7 @@ object ScatterElementToGraphNode {
                                          subWorkflowDefinition,
                                          InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts),
                                          Set.empty,
-                                         a.node.srcLoc,
+                                         a.node.sourceLocation,
                                          (_, localName) => WomIdentifier(localName))
       graphNodeSetter._graphNode = result.node
       result.copy(newInputs = result.newInputs ++ newInputNodes.values)

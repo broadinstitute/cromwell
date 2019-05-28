@@ -152,7 +152,7 @@ final case class CallableTaskDefinition(name: String,
                                         private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none,
                                         homeOverride: Option[RuntimeEnvironment => String] = None,
                                         dockerOutputDirectory: Option[String] = None,
-                                        override val srcLoc : Option[SourceFileLocation]
+                                        override val sourceLocation : Option[SourceFileLocation]
                                        ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
 }

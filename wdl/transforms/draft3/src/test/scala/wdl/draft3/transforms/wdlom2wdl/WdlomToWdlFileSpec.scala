@@ -21,16 +21,9 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
 
   private def stripLocationFromGraphElement(ge : WorkflowGraphElement) : WorkflowGraphElement = {
     ge match {
-      case ie: InputDeclarationElement =>
-        ie
-      case DeclarationElement(_, _, _) =>
-        ge
-      case se: ScatterElement =>
-        se.copy(srcLoc = None)
-      case ie: IfElement =>
-        ie
-      case ce: CallElement =>
-        ce.copy(srcLoc = None)
+      case se: ScatterElement => se.copy(sourceLocation = None)
+      case ce: CallElement => ce.copy(sourceLocation = None)
+      case _ => ge
     }
   }
 
@@ -46,9 +39,9 @@ class WdlomToWdlFileSpec extends FlatSpec with Matchers {
                 fe.structs,
                 fe.workflows.map { case wf =>
                   val wf2 = stripLocations(wf)
-                  wf2.copy(srcLoc = None)
+                  wf2.copy(sourceLocation = None)
                 }.toSeq,
-                fe.tasks.map { case task => task.copy(srcLoc = None) }.toSeq)
+                fe.tasks.map { case task => task.copy(sourceLocation = None) }.toSeq)
   }
 
   testFiles.foreach { file =>

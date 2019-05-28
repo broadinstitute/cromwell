@@ -27,7 +27,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     inputs = List(fooInputDef),
     adHocFileCreation = Set.empty,
     environmentExpressions = Map.empty,
-    srcLoc = None
+    sourceLocation = None
   )
 
   /**

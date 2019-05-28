@@ -68,7 +68,7 @@ object WdlFileToWdlomSpec {
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None,
-          srcLoc = Some(SourceFileLocation(3)))
+          sourceLocation = Some(SourceFileLocation(3)))
         ),
         tasks = Vector(
           TaskDefinitionElement(
@@ -80,7 +80,7 @@ object WdlFileToWdlomSpec {
             runtimeSection = None,
             metaSection = None,
             parameterMetaSection = None,
-            srcLoc = Some(SourceFileLocation(24))
+            sourceLocation = Some(SourceFileLocation(24))
           )
         )
       ),
@@ -98,7 +98,7 @@ object WdlFileToWdlomSpec {
             OutputDeclarationElement(PrimitiveTypeElement(WomIntegerType), "out", IdentifierMemberAccess("in_n_out", "out", List.empty))))),
           metaSection = None,
           parameterMetaSection = None,
-          srcLoc = Some(SourceFileLocation(14)))
+          sourceLocation = Some(SourceFileLocation(14)))
         ),
         tasks = Vector(TaskDefinitionElement(
           name = "in_n_out",
@@ -116,7 +116,7 @@ object WdlFileToWdlomSpec {
           runtimeSection = None,
           metaSection = None,
           parameterMetaSection = None,
-          srcLoc = Some(SourceFileLocation(3))
+          sourceLocation = Some(SourceFileLocation(3))
         ))
       ),
     "afters" ->
@@ -135,7 +135,7 @@ object WdlFileToWdlomSpec {
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None,
-          srcLoc = Some(SourceFileLocation(3)))
+          sourceLocation = Some(SourceFileLocation(3)))
         ),
         tasks = Vector(TaskDefinitionElement(
           name = "foo",
@@ -151,7 +151,7 @@ object WdlFileToWdlomSpec {
           runtimeSection = None,
           metaSection = None,
           parameterMetaSection = None,
-          srcLoc = Some(SourceFileLocation(8))
+          sourceLocation = Some(SourceFileLocation(8))
         ))
       ),
     "biscayne_escaping" ->
@@ -202,7 +202,7 @@ object WdlFileToWdlomSpec {
           outputsSection = None,
           metaSection = None,
           parameterMetaSection = None,
-          srcLoc = Some(SourceFileLocation(3))
+          sourceLocation = Some(SourceFileLocation(3))
         )),
         tasks = Vector.empty)
   )

@@ -398,12 +398,6 @@ task GenotypeGVCFs {
   String mem_size
   Int preemptibles
 
-  parameter_meta {
-    dbsnp_vcf: {
-      localization_optional: true
-    }
-  }
-
   command <<<
     set -e
 

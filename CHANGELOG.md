@@ -38,6 +38,9 @@ backend {
 Cromwell now allows PAPIV2 jobs to run on a private network by adding the network name inside `virtual-private-cloud` in backend configuration.
 More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
 
+### AWS Backend
+
+Now includes background job status polling to hopefully reduce the incidence of 'HTTP 429' errors for large workflows.
 
 ## 41 Release Notes
 

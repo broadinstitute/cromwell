@@ -50,7 +50,7 @@ object LinkedGraphMaker {
     graph.topologicalSort match {
       case Left(_) =>
         graph.findCycle match {
-          case Some(cycle) if cycle.size > 0 =>
+          case Some(cycle) if cycle.nonEmpty =>
             // we need to sort the edges lexicographically to make results deterministic. This helps testing.
             // In a cycle like:
             //   b -> d

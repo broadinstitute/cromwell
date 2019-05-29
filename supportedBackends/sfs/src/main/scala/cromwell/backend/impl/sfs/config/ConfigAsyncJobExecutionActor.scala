@@ -261,8 +261,6 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     timeout
   }
 
-  protected lazy val retryExternallyKilledJobs: Boolean = exitCodeTimeout.isDefined
-
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
 
     lazy val nextTimeout = exitCodeTimeout.map(t => Instant.now.plusSeconds(t))
@@ -306,11 +304,16 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse(backupError)} seconds, assuming external kill")
 
           val returnCodeTemp = jobPaths.returnCode.plusExt("kill")
+
           // If SIGTERM, SIGKILL or SIGINT codes are used, cromwell will assume the job has been aborted by cromwell.
           // And it will therefore NOT retry the job. Which makes perfect sense. Best not to change that in the
-          // StandardAsyncExecutionActor code, but give a nonsensical return code here.
-          val exitValue = if (retryExternallyKilledJobs) Int.MaxValue else SIGKILL
-          returnCodeTemp.write(s"${exitValue}${System.lineSeparator}")
+          // StandardAsyncExecutionActor code, but give a user-defined return code here.
+          // http://tldp.org/LDP/abs/html/exitcodes.html gives information on exit codes and suggests restricting
+          // user-defined exit codes to the range 64-113.
+          // Since it is arbitrary which code is chosen from that range, and it has to relate with the unpleasant
+          // business of 'killing'. 79 was chosen. The year that video killed the radio star: https://youtu.be/W8r-tXRLazs
+          returnCodeTemp.appendLine("79")
+
           try {
             returnCodeTemp.moveTo(jobPaths.returnCode)
             SharedFileSystemJobFailed

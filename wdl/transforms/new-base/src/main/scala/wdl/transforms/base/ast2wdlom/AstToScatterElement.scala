@@ -16,7 +16,7 @@ object AstToScatterElement {
 
     val scatterCollectionExpressionValidation: ErrorOr[ExpressionElement] = ast.getAttributeAs[ExpressionElement]("collection").toValidated
     val bodyValidation: ErrorOr[Vector[WorkflowGraphElement]] = ast.getAttributeAsVector[WorkflowGraphElement]("body").toValidated
-    val sourceLocation : Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation.convert)
+    val sourceLocation : Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation(_))
 
     (scatterVariableValidation, scatterCollectionExpressionValidation, bodyValidation) mapN { (variable, collection, body) =>
       val scatterName = s"ScatterAt${variable.getLine}_${variable.getColumn}"

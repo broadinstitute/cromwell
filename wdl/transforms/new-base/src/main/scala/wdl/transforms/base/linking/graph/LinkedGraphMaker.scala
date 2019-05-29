@@ -66,11 +66,14 @@ object LinkedGraphMaker {
             var cursor = startPoint
 
             val cycleReport = scala.collection.mutable.Queue.empty[String]
-            do {
+            // The cycle has the same number of edges as the size of the graph. This gives
+            // a clear and simple stopping condition. We do not want to risk
+            // a bug that causes an inifinite loop here.
+            for (_ <- edgeDict.keys) {
               val next = edgeDict(cursor)
-              cycleReport += s"${cursor} -> ${next}"
+              cycleReport += s""""${cursor}" -> "${next}""""
               cursor = next
-            } while (cursor != startPoint)
+            }
 
             s"""This workflow contains a cyclic dependency:
                |${cycleReport.mkString(System.lineSeparator)}""".stripMargin.invalidNel

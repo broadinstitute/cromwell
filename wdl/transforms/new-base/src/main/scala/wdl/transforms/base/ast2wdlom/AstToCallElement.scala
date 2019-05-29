@@ -30,7 +30,7 @@ object AstToCallElement {
 
     val callBodyValidation: ErrorOr[Option[CallBodyElement]] = ast.getAttributeAsOptional[CallBodyElement]("body").toValidated
 
-    val sourceLocation : Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation.convert)
+    val sourceLocation : Option[SourceFileLocation] = ast.getSourceLine.map(SourceFileLocation(_))
 
     (callableNameValidation, aliasValidation, afterValidation, callBodyValidation) mapN {
       (name, alias, after, body) => CallElement(name, alias, after, body, sourceLocation)

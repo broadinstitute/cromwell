@@ -12,7 +12,6 @@ import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.{CallElement, ExpressionElement}
 import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
-import wom.SourceFileLocation
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
@@ -184,7 +183,7 @@ object CallElementToGraphNode {
       mappings <- expressionNodeMappings(callable)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
       upstream <- findUpstreamCalls(a.node.afters.toList)
-      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream, a.sourceLocation)
+      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream, a.node.sourceLocation)
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
 
@@ -199,5 +198,4 @@ case class CallNodeMakerInputs(node: CallElement,
                                availableTypeAliases: Map[String, WomType],
                                workflowName: String,
                                insideAnotherScatter: Boolean,
-                               callables: Map[String, Callable],
-                               sourceLocation : Option[SourceFileLocation])
+                               callables: Map[String, Callable])

@@ -5,15 +5,14 @@ import java.util
 import akka.actor.{Actor, ActorRef, Props}
 import com.google.api.gax.core.FixedCredentialsProvider
 import com.google.api.{Metric, MetricDescriptor, MonitoredResource}
-import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.monitoring.v3.{MetricServiceClient, MetricServiceSettings}
 import com.google.monitoring.v3._
 import com.google.protobuf.util.Timestamps
 import com.typesafe.config.Config
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
-import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumentationServiceActor._
 import cromwell.services.instrumentation.impl.stackdriver.StackdriverConfig._
+import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumentationServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.collection.JavaConverters._
@@ -23,21 +22,15 @@ import scala.concurrent.duration._
 class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor {
   implicit lazy val executionContext = context.dispatcher
 
-  final val ActorCreationTime = Timestamps.fromMillis(System.currentTimeMillis())
-  final val CustomMetricDomain = "custom.googleapis.com"
-  final val InitialDelay = 1.minute
-
-  lazy val stackdriverConfig = StackdriverConfig(serviceConfig)
+  lazy val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
   lazy val projectName: ProjectName = ProjectName.of(stackdriverConfig.googleProject)
+  lazy val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
   lazy val metricLabelsMap = generateMetricLabels()
 
   var metricsMap = Map.empty[StackdriverMetric, List[Double]]
 
-  //TODO: Saloni- add auth in config
-  val appDefaultCred = GoogleCredentials.getApplicationDefault
-
   // Instantiates a client
-  val metricServiceSettings = MetricServiceSettings.newBuilder.setCredentialsProvider(FixedCredentialsProvider.create(appDefaultCred)).build
+  val metricServiceSettings = MetricServiceSettings.newBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials)).build
   final val metricServiceClient = MetricServiceClient.create(metricServiceSettings)
 
   // Prepares the monitored resource descriptor
@@ -155,15 +148,30 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
 
 object StackdriverInstrumentationServiceActor {
-  val CromwellMetricPrefix: String = "cromwell"
+  val CromwellMetricPrefix = List("cromwell")
+
+  val ActorCreationTime = Timestamps.fromMillis(System.currentTimeMillis())
+
+  // Custom metrics must begin with this domains
+  val CustomMetricDomain = "custom.googleapis.com"
+
+  /**
+    * Scope to write metrics to Stackdriver Monitoring API.
+    * Used by the monitoring action.
+    *
+    * For some reason we couldn't find this scope within Google libraries
+    */
+  val MonitoringScope = "https://www.googleapis.com/auth/monitoring"
+
+  val InitialDelay = 1.minute
 
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new StackdriverInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
 
   implicit class CromwellBucketEnhanced(val cromwellBucket: CromwellBucket) extends AnyVal {
     /**
-      * Transforms a CromwellBucket to a StatsD path
+      * Transforms a CromwellBucket to a Stackdriver path
       */
-    def toStackdriverString = (cromwellBucket.prefix ++ cromwellBucket.path.toList).mkString("/").replace(" ", "_")
+    def toStackdriverString = (CromwellMetricPrefix ++ cromwellBucket.prefix ++ cromwellBucket.path.toList).mkString("/").replace(" ", "_")
   }
 }
 

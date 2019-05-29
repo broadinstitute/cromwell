@@ -18,9 +18,9 @@ final case class GoogleLabel(key: String, value: String)
 object GoogleLabels {
 
   val MaxLabelLength = 63
-  val GoogleLabelKeyRegexPattern = "[a-z]([_-a-z0-9]*[a-z0-9])?"
+  val GoogleLabelKeyRegexPattern = "[a-z]([-_a-z0-9]*[a-z0-9])?"
   val GoogleLabelKeyRegex = GoogleLabelKeyRegexPattern.r
-  val GoogleLabelValueRegexPattern = "[_-a-z0-9]*"
+  val GoogleLabelValueRegexPattern = "[-_a-z0-9]*"
   val GoogleLabelValueRegex = GoogleLabelValueRegexPattern.r
 
   // This function is used to coerce a string into one that meets the requirements for a label submission to Google Pipelines API.
@@ -41,10 +41,11 @@ object GoogleLabels {
 
         val foldResult = mainText.toCharArray.foldLeft("")(appendSafe)
 
-        val startsValid = if (labelKey) foldResult.headOption.exists(_.isLetter) else foldResult.lastOption.exists(_.isLetterOrDigit)
-        val endsValid = (
-          foldResult.lastOption.exists(_.isLetterOrDigit)
-          || foldResult.last.equals("-") || foldResult.last.equals("_")
+        val startsValid = foldResult.headOption.exists(
+          e => e.isLetter || (!labelKey && (e.isDigit || e == '_'))
+        )
+        val endsValid = foldResult.lastOption.exists(
+          e => e.isLetterOrDigit || (!labelKey && (e == '_' || e == '-'))
         )
 
         val validStart = if (startsValid) foldResult else "x--" + foldResult

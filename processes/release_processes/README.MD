@@ -26,5 +26,7 @@ This performance testing process happens as part of the release into FireCloud.
 
 ## How to Deploy Cromwell in CAAS prod
 
+**Note:** Full details on how to complete each of these steps is found in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+
 ![caas-prod](caas-prod.dot.png)
 

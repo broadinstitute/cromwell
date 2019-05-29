@@ -32,15 +32,18 @@
 package cromwell.backend.impl.aws
 
 import java.net.SocketTimeoutException
-import java.util.concurrent.Executors
 
-import cats.effect.{IO, Timer}
+import akka.actor.ActorRef
+import akka.pattern.AskSupport
+import akka.util.Timeout
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.aws.RunStatus.TerminalRunStatus
+import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
+import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, WhatsMyStatus}
+import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
 import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
@@ -52,7 +55,7 @@ import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
-import software.amazon.awssdk.services.batch.model.BatchException
+import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
 import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
@@ -60,9 +63,10 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Success, Try}
 
 object AwsBatchAsyncBackendJobExecutionActor {
@@ -73,9 +77,13 @@ object AwsBatchAsyncBackendJobExecutionActor {
 
 class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AwsBatchJobCachingActorHelper
-    with KvClient {
+    with KvClient with AskSupport {
 
   override lazy val ioCommandBuilder = S3BatchCommandBuilder
+
+  val backendSingletonActor: ActorRef =
+    standardParams.backendSingletonActorOption.getOrElse(
+      throw new RuntimeException(s"AWS Backend actor cannot exist without its backend singleton (of type ${AwsBatchSingletonActor.getClass.getSimpleName})"))
 
   import AwsBatchAsyncBackendJobExecutionActor._
 
@@ -353,11 +361,13 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // Primary entry point for cromwell to actually run something
   override def executeAsync(): Future[ExecutionHandle] = {
-    implicit val timer: Timer[IO] = cats.effect.IO.timer(ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor))
 
     for {
       _ <- uploadScriptFile()
-      submitJobResponse <- batchJob.submitJob[IO]().run(attributes).unsafeToFuture()
+      completionPromise = Promise[SubmitJobResponse]
+      _ = backendSingletonActor ! SubmitAwsJobRequest(batchJob, attributes, completionPromise)
+      submitJobResponse <- completionPromise.future
+      _ = backendSingletonActor ! NotifyOfStatus(runtimeAttributes.queueArn, submitJobResponse.jobId, Option(Initializing))
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
 
@@ -377,7 +387,25 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           s"pollStatusAsync called but job not available. This should not happen. Job Id $jobId"
         )
     }
-    Future.fromTry(job.status(jobId))
+
+    implicit val timeout: Timeout = Timeout(5.seconds)
+
+    def useQuickAnswerOrFallback(quick: Any): Future[RunStatus] = quick match {
+      case NotifyOfStatus(_, _, Some(value)) =>
+        Future.successful(value)
+      case NotifyOfStatus(_, _, None) =>
+        jobLogger.info("Having to fall back to AWS query for status")
+        Future.fromTry(job.status(jobId))
+      case other =>
+        val message = s"Programmer Error (please report this): Received an unexpected message from the OccasionalPollingActor: $other"
+        jobLogger.error(message)
+        Future.failed(new Exception(message) with NoStackTrace)
+    }
+
+    for {
+      quickAnswer <- backendSingletonActor ? WhatsMyStatus(runtimeAttributes.queueArn, jobId)
+      guaranteedAnswer <- useQuickAnswerOrFallback(quickAnswer)
+    } yield guaranteedAnswer
   }
 
   // Despite being a "runtime" exception, BatchExceptions for 429 are *not* fatal:

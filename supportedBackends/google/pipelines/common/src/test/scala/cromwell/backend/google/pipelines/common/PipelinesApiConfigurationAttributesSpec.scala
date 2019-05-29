@@ -5,9 +5,11 @@ import java.net.URL
 import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
 import org.scalatest.{FlatSpec, Matchers}
+import scala.concurrent.duration._
 
-class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
+class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
 
   import PipelinesApiTestConfig._
 
@@ -20,7 +22,7 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
 
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.endpointUrl should be(new URL("http://myEndpoint"))
     pipelinesApiAttributes.project should be("myProject")
     pipelinesApiAttributes.executionBucket should be("gs://myBucket")
@@ -30,26 +32,61 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
   }
 
   it should "parse correct preemptible config" in {
-    val backendConfig = ConfigFactory.parseString(configString(preemptible = "preemptible = 3"))
+    val backendConfig = ConfigFactory.parseString(configString(customContent = "preemptible = 3"))
 
-    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.endpointUrl should be(new URL("http://myEndpoint"))
     pipelinesApiAttributes.project should be("myProject")
     pipelinesApiAttributes.executionBucket should be("gs://myBucket")
     pipelinesApiAttributes.maxPollingInterval should be(600)
   }
 
+  it should "parse batch-requests.timeouts values correctly" in {
+    val customContent =
+      """
+        |batch-requests {
+        |  timeouts {
+        |    read = 100 hours
+        |    connect = 10 seconds
+        |  }
+        |}
+      """.stripMargin
+
+    val backendConfig = ConfigFactory.parseString(configString(customContent = customContent))
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
+
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration.readTimeoutMillis.get.value should be(100.hours.toMillis.toInt)
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.get.value should be(10.seconds.toMillis.toInt)
+  }
+
+  it should "parse an empty batch-requests.timeouts section correctly" in {
+    val customContent =
+      """
+        |batch-requests {
+        |  timeouts {
+        |    # read = 100 hours
+        |    # connect = 10 seconds
+        |  }
+        |}
+      """.stripMargin
+
+    val backendConfig = ConfigFactory.parseString(configString(customContent = customContent))
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
+
+    pipelinesApiAttributes.batchRequestTimeoutConfiguration should be(BatchRequestTimeoutConfiguration(None, None))
+  }
+
   it should "parse compute service account" in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
 
-    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.computeServiceAccount should be("testing")
   }
 
   it should "parse restrict-metadata-access" in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = "restrict-metadata-access = true"))
 
-    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.restrictMetadataAccess should be(true)
 
   }
@@ -57,15 +94,24 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
   it should "parse localization-attempts" in {
     val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
 
-    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.localizationConfiguration.localizationAttempts.value should be(31380)
 
   }
 
   it should "parse virtual-private-cloud" in {
-    val backendConfig = ConfigFactory.parseString(configString(networkLabelKey = "network-label-key = my-network", vpcAuth = "auth = application-default"))
 
-    val pipelinesApiAttributes = PipelinesApiAttributes(googleConfig, backendConfig)
+    val customConfig =
+      """
+        |  virtual-private-cloud {
+        |    network-label-key = my-network
+        |    auth = application-default
+        |  }
+      """.stripMargin
+
+    val backendConfig = ConfigFactory.parseString(configString(customConfig))
+
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.name should be("my-network")
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.auth.name should be("application-default")
   }
@@ -82,7 +128,7 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiAttributes(googleConfig, nakedConfig)
+      PipelinesApiConfigurationAttributes(googleConfig, nakedConfig)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("No configuration setting found for key 'project'")
@@ -104,7 +150,7 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiAttributes(googleConfig, networkKeyOnlyConfig)
+      PipelinesApiConfigurationAttributes(googleConfig, networkKeyOnlyConfig)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("Auth scheme not provided for Virtual Private Cloud configuration.")
@@ -122,25 +168,19 @@ class PipelinesApiAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiAttributes(googleConfig, authOnlyConfig)
+      PipelinesApiConfigurationAttributes(googleConfig, authOnlyConfig)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("Network label key not provided for Virtual Private Cloud configuration.")
   }
 
-  def configString(preemptible: String = "", genomics: String = "", networkLabelKey: String = "", vpcAuth: String = ""): String =
+  def configString(customContent: String = "", genomics: String = ""): String =
     s"""
       |{
       |   project = "myProject"
       |   root = "gs://myBucket"
       |   maximum-polling-interval = 600
-      |
-      |   virtual-private-cloud {
-      |     $networkLabelKey
-      |     $vpcAuth
-      |   }
-      |
-      |   $preemptible
+      |   $customContent
       |   genomics {
       |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
       |     // Pipelines and manipulate auth JSONs.

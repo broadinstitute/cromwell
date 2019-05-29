@@ -11,6 +11,7 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -56,7 +57,15 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
   
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
   private[api] def createBatch(): BatchRequest = batch
-  private[api] def runBatch(batch: BatchRequest): Unit = if (batch.size() > 0) batch.execute()
+  private[api] def runBatch(batch: BatchRequest): Unit = {
+    try {
+      if (batch.size() > 0) batch.execute()
+    } catch {
+      case e: java.io.IOException =>
+        val msg = s"A batch of PAPI status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
+        throw new Exception(msg, e.getCause) with NoStackTrace
+    }
+  }
 
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {

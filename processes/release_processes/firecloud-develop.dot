@@ -37,7 +37,7 @@ digraph {
     dspjenkins_PR [shape=oval label="Make dsp-jenkins PR setting new Cromwell version"];
     dspjenkins_merge [shape=oval label="Merge dsp-jenkins PR"];
 
-    qa_perf [shape=oval label="[Gary] QA performance testing\n(NB: non-blocking for hotfix releases but QA would still\nlike to be informed and run these tests on the side)"];
+    qa_perf [shape=oval label="Performance testing.\nSee the 'Performance Testing' process for details"];
 
     jenkins_set [shape=oval label="[Jenkins] Use dsl-seed to make our dsp-jenkins branch the default"];
     jenkins_reset [shape=oval label="[Jenkins] Use dsl-seed to make 'master' the default again"];

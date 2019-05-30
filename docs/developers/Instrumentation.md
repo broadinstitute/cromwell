@@ -64,7 +64,7 @@ class = "cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumen
 
 Stackdriver configuration
 ```hocon
-config {
+services.Instrumentation.config {
     # auth scheme can be `application_default` or `service_account`
     auth = "service-account"
     google-project = "my-project"

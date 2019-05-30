@@ -1,6 +1,5 @@
 package cromwell
 
-
 object CromwellApp extends App {
 
   sealed trait Command

@@ -77,7 +77,6 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
     if (metricsMap.contains(metricObj)) {
       val valueList = metricsMap(metricObj)
-
       metricsMap += metricObj ->  valueList.::(metricValue)
     }
     else metricsMap += metricObj -> List(metricValue)
@@ -87,12 +86,10 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   private def sendMetricData(): Unit = {
     metricsMap.foreach { case (key, value: List[Double]) =>
       val dataPointListSum = value.sum
-
       val dataPoint = key.kind match {
         case StackdriverGauge => dataPointListSum / value.length
         case StackdriverCumulative => dataPointListSum
       }
-
       writeMetrics(key, dataPoint)
     }
 

@@ -606,7 +606,7 @@ object Dependencies {
     "util",
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
-  // Some libraries importing older version of these dependencies, causing conflicts. Hence the need to override them.
+  // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
   val grpcDependencyOverrides = List(
     "grpc-alts",
     "grpc-auth",

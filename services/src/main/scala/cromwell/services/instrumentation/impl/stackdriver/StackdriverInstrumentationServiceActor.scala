@@ -22,7 +22,8 @@ import scala.concurrent.duration._
 class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor {
   implicit lazy val executionContext = context.dispatcher
 
-  lazy val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
+  val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
+
   lazy val projectName: ProjectName = ProjectName.of(stackdriverConfig.googleProject)
   lazy val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
   lazy val metricLabelsMap = generateMetricLabels()
@@ -141,8 +142,6 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
     // Writes time series data
     metricServiceClient.createTimeSeries(timeSeriesRequest)
-
-    println(s"Kind: ${metricObj.kind} Value: $value Metric: ${metricObj.name}")
   }
 }
 

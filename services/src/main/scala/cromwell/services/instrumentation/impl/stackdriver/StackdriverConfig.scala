@@ -8,7 +8,7 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.validate
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -21,7 +21,6 @@ case class StackdriverConfig(googleProject: String,
                              cromwellPerfTestCase: Option[String])
 
 object StackdriverConfig {
-
   val CromwellInstanceIdentifier = "cromwell-instance-identifier"
   val CromwellInstanceRole = "cromwell-instance-role"
   val CromwellPerfTest = "cromwell-perf-test-case"
@@ -41,6 +40,7 @@ object StackdriverConfig {
   private def validateAuth(authSchemeString: String, googleConfiguration: GoogleConfiguration): ErrorOr[GoogleAuthMode] = {
     validate[String](authSchemeString) match {
       case Valid(schemeString) => googleConfiguration.auth(schemeString) match {
+        case Valid(_: UserServiceAccountMode) => s"`auth` scheme: $schemeString is of type `user_service_account` which is not allowed for Stackdriver instrumentation.".invalidNel
         case Valid(auth) => auth.valid
         case Invalid(error) => s"`auth` scheme is invalid. Errors: ${error.toString}".invalidNel
       }

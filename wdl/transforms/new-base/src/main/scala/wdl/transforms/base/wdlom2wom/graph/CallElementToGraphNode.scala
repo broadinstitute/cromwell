@@ -95,7 +95,7 @@ object CallElementToGraphNode {
                     }
                   }).contextualizeErrors(s"supply input $name = ${expression.toWdlV1}")
                 }
-                
+
               case None =>
                 if (hasDeclaration(callable, name)) {
                   s"The call tried to supply a value '$name' that isn't overridable for this task (or sub-workflow). To be able to supply this value, move it into the task (or sub-workflow)'s inputs { } section.".invalidNel
@@ -183,7 +183,7 @@ object CallElementToGraphNode {
       mappings <- expressionNodeMappings(callable)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
       upstream <- findUpstreamCalls(a.node.afters.toList)
-      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream)
+      result = callNodeBuilder.build(identifier, callable, foldInputDefinitions(mappings, callable), upstream, a.node.sourceLocation)
       _ = updateTaskCallNodeInputs(result, mappings)
     } yield result.nodes
 

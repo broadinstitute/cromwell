@@ -212,7 +212,7 @@ case class CommandLineTool private(
       initialWorkDirRequirement <- requirements.select[InitialWorkDirRequirement].toArray
       listing <- initialWorkDirRequirement.listings
     } yield InitialWorkDirFileGeneratorExpression(listing, expressionLib)).toSet[ContainerizedInputExpression]
-    
+
     val dockerOutputDirectory = requirementsAndHints
       .flatMap(_.select[DockerRequirement])
       .flatMap(_.dockerOutputDirectory)
@@ -241,7 +241,8 @@ case class CommandLineTool private(
         additionalGlob = Option(WomGlobFile(CwlOutputJson)),
         customizedOutputEvaluation = outputEvaluationJsonFunction,
         homeOverride = Option(_.outputPath),
-        dockerOutputDirectory = dockerOutputDirectory
+        dockerOutputDirectory = dockerOutputDirectory,
+        sourceLocation = None
       )
     }
   }

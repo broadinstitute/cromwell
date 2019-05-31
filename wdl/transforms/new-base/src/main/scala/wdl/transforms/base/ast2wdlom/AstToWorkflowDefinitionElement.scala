@@ -15,18 +15,15 @@ object AstToWorkflowDefinitionElement {
                                     ): CheckedAtoB[GenericAst, WorkflowDefinitionElement] = CheckedAtoB.fromErrorOr { a: GenericAst =>
     val nameElementValidation: ErrorOr[String] = astNodeToString(a.getAttribute("name")).toValidated
 
-    val srcLoc : ErrorOr[Option[SourceFileLocation]] = a.getSourceLine match {
-      case None =>
-        None.validNel
-      case Some((startLine)) =>
-        Some(SourceFileLocation(startLine)).validNel
-    }
+    val sourceLocation : Option[SourceFileLocation] = a.getSourceLine.map(SourceFileLocation(_))
     val bodyElementsValidation: ErrorOr[Vector[WorkflowBodyElement]] = a.getAttributeAsVector[WorkflowBodyElement]("body")(astNodeToWorkflowBodyElement).toValidated
-    (nameElementValidation, srcLoc, bodyElementsValidation) flatMapN combineElements
+    (nameElementValidation, bodyElementsValidation) flatMapN { (name, bodyElements) =>
+      combineElements(name, sourceLocation, bodyElements)
+    }
   }
 
   private def combineElements(name: String,
-                              srcLoc: Option[SourceFileLocation],
+                              sourceLocation: Option[SourceFileLocation],
                               bodyElements: Vector[WorkflowBodyElement]) = {
 
     val inputsSectionValidation: ErrorOr[Option[InputsSectionElement]] = validateSize(bodyElements.filterByType[InputsSectionElement], "inputs", 1)
@@ -39,7 +36,7 @@ object AstToWorkflowDefinitionElement {
 
     (inputsSectionValidation, outputsSectionValidation, metaSectionValidation, parameterMetaSectionValidation) mapN {
       (validInputs, validOutputs, meta, parameterMeta) =>
-      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, srcLoc)
+      WorkflowDefinitionElement(name, validInputs, graphSections.toSet, validOutputs, meta, parameterMeta, sourceLocation)
     }
   }
 

@@ -60,7 +60,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       val (meta, parameterMeta) = processMetaSections(a.taskDefinitionElement.metaSection, a.taskDefinitionElement.parameterMetaSection)
 
       (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
-        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, meta, parameterMeta, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
+        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, meta, parameterMeta, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty, sourceLocation = a.taskDefinitionElement.sourceLocation)
       }
     }
 

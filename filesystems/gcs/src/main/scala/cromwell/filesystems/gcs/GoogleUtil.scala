@@ -24,13 +24,16 @@ object GoogleUtil {
 
   implicit class EnhancedGoogleAuthMode(val googleAuthMode: GoogleAuthMode) extends AnyVal {
     /**
-      * Retries getting the pipelines API credentials three times.
+      * Retries getting the credentials three times.
+      *
+      * There is nothing GCS specific about this method. This package just happens to be the lowest level with access
+      * to core's version of Retry + cloudSupport's implementation of GoogleAuthMode.
       */
-    def retryPipelinesApiCredentials(options: WorkflowOptions)
-                                    (implicit as: ActorSystem, ec: ExecutionContext): Future[Credentials] = {
+    def retryCredentials(options: WorkflowOptions, scopes: Iterable[String])
+                        (implicit actorSystem: ActorSystem, executionContext: ExecutionContext): Future[Credentials] = {
       def credential(): Credentials = {
         try {
-          googleAuthMode.pipelinesApiCredentials((key: String) => options.get(key).get)
+          googleAuthMode.credentials(options.get(_).get, scopes)
         } catch {
           case exception: OptionLookupException =>
             throw new IllegalArgumentException(s"Missing parameters in workflow options: ${exception.key}", exception)

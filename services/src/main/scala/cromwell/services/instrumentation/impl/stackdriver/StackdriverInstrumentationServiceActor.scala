@@ -16,7 +16,6 @@ import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumenta
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable._
 import scala.concurrent.duration._
 
 
@@ -76,8 +75,8 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
     val metricObj = StackdriverMetric(bucket.toStackdriverString, metricKind)
 
     if (metricsMap.contains(metricObj)) {
-      val valueList = metricsMap(metricObj)
-      metricsMap += metricObj -> (valueList :: List(metricValue))
+      val valueList: List[Double] = metricsMap(metricObj) :+ metricValue
+      metricsMap += metricObj -> valueList
     }
     else metricsMap += metricObj -> List(metricValue)
   }

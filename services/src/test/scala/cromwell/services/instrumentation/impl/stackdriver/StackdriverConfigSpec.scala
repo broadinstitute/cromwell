@@ -29,7 +29,6 @@ class StackdriverConfigSpec extends TestKitSuite with FlatSpecLike with BeforeAn
         |auth = "application-default"
         |google-project = "my-project"
         |flush-rate = 1 minute
-        |cromwell-instance-identifier = "cromwell-101"
         |cromwell-instance-role = "backend"
         |cromwell-perf-test-case = "perf-test-1"
       """.stripMargin
@@ -40,13 +39,12 @@ class StackdriverConfigSpec extends TestKitSuite with FlatSpecLike with BeforeAn
     stackdriverConfig.auth.name shouldBe "application-default"
     stackdriverConfig.googleProject shouldBe "my-project"
     stackdriverConfig.flushRate shouldBe 1.minute
-    stackdriverConfig.cromwellInstanceIdentifier shouldBe Some("cromwell-101")
     stackdriverConfig.cromwellInstanceRole shouldBe Some("backend")
     stackdriverConfig.cromwellPerfTestCase shouldBe Some("perf-test-1")
   }
 
 
-  it should "coorectly parse config with optional values" in {
+  it should "correctly parse config with optional values" in {
     val config = ConfigFactory.parseString(
       """
         |auth = "application-default"
@@ -61,6 +59,42 @@ class StackdriverConfigSpec extends TestKitSuite with FlatSpecLike with BeforeAn
     stackdriverConfig.googleProject shouldBe "my-project"
     stackdriverConfig.flushRate shouldBe 1.minute
     stackdriverConfig.cromwellInstanceIdentifier shouldBe None
+    stackdriverConfig.cromwellInstanceRole shouldBe None
+    stackdriverConfig.cromwellPerfTestCase shouldBe None
+  }
+
+
+  it should "correctly add cromwell instance identifier to config" in {
+    val globalConfig = ConfigFactory.parseString(
+      s"""
+         |google {
+         |  application-name = "cromwell"
+         |  auths = [
+         |    {
+         |      name = "application-default"
+         |      scheme = "application_default"
+         |    }
+         |  ]
+         |}
+         |
+         |system.cromwell_id = "cromwell-101"
+      """.stripMargin
+    )
+
+    val config = ConfigFactory.parseString(
+      """
+        |auth = "application-default"
+        |google-project = "my-project"
+        |flush-rate = 1 minute
+      """.stripMargin
+    )
+
+    val stackdriverConfig = StackdriverConfig(config, globalConfig)
+
+    stackdriverConfig.auth.name shouldBe "application-default"
+    stackdriverConfig.googleProject shouldBe "my-project"
+    stackdriverConfig.flushRate shouldBe 1.minute
+    stackdriverConfig.cromwellInstanceIdentifier shouldBe Option("cromwell-101")
     stackdriverConfig.cromwellInstanceRole shouldBe None
     stackdriverConfig.cromwellPerfTestCase shouldBe None
   }

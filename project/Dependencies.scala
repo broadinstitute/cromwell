@@ -608,16 +608,16 @@ object Dependencies {
 
   // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
   val grpcDependencyOverrides = List(
-    "grpc-alts",
-    "grpc-auth",
-    "grpc-context",
-    "grpc-core",
-    "grpc-grpclb",
-    "grpc-netty-shaded",
-    "grpc-protobuf-lite",
-    "grpc-protobuf",
-    "grpc-stub",
-  ).map(m => "io.grpc" % m % grpcV)
+    "alts",
+    "auth",
+    "context",
+    "core",
+    "grpclb",
+    "netty-shaded",
+    "protobuf-lite",
+    "protobuf",
+    "stub",
+  ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use

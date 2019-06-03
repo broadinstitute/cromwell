@@ -16,6 +16,7 @@ import cromwell.services.instrumentation.impl.stackdriver.StackdriverInstrumenta
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable._
 import scala.concurrent.duration._
 
 
@@ -58,12 +59,11 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   }
 
 
-  private def labelFromConfig(op: StackdriverConfig => Option[String], key: String): List[(String, String)] = {
-    op(stackdriverConfig).fold(List.empty[(String, String)])(v => List((key.replace("-", "_"), v)))
-  }
-
-
   private def generateMetricLabels(): Map[String, String] = {
+    def labelFromConfig(op: StackdriverConfig => Option[String], key: String): List[(String, String)] = {
+      op(stackdriverConfig).fold(List.empty[(String, String)])(v => List((key.replace("-", "_"), v)))
+    }
+
     val labelsList = labelFromConfig(_.cromwellInstanceIdentifier, CromwellInstanceIdentifier) ++
       labelFromConfig(_.cromwellInstanceRole, CromwellInstanceRole) ++
       labelFromConfig(_.cromwellPerfTestCase, CromwellPerfTest)
@@ -77,7 +77,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
     if (metricsMap.contains(metricObj)) {
       val valueList = metricsMap(metricObj)
-      metricsMap += metricObj ->  valueList.::(metricValue)
+      metricsMap += metricObj -> (valueList :: List(metricValue))
     }
     else metricsMap += metricObj -> List(metricValue)
   }
@@ -97,31 +97,28 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   }
 
 
-  private def timeInterval(metricKind: StackdriverMetricKind): TimeInterval = {
-     metricKind match {
-       case StackdriverGauge => TimeInterval.newBuilder.setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
-       case StackdriverCumulative => TimeInterval.newBuilder.setStartTime(ActorCreationTime).setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
-     }
-  }
-
-
-  private def createTimeSeries(metricKind: StackdriverMetricKind, metric: Metric, resource: MonitoredResource, dataPointList: util.List[Point]): TimeSeries = {
-    metricKind match {
-      case StackdriverGauge => TimeSeries.newBuilder.setMetric(metric).setResource(resource).addAllPoints(dataPointList).build
-      case StackdriverCumulative => TimeSeries.newBuilder.setMetric(metric).setResource(resource).setMetricKind(MetricDescriptor.MetricKind.CUMULATIVE).addAllPoints(dataPointList).build
-    }
-  }
-
-
-  private def createMetricBuilder(metricName: String): Metric = {
-    metricLabelsMap match {
-      case map: Map[String, String] if map.isEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").build
-      case map: Map[String, String] if map.nonEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").putAllLabels(map.asJava).build
-    }
-  }
-
-
   private def writeMetrics(metricObj: StackdriverMetric, value: Double): Unit = {
+    def timeInterval(metricKind: StackdriverMetricKind): TimeInterval = {
+      metricKind match {
+        case StackdriverGauge => TimeInterval.newBuilder.setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
+        case StackdriverCumulative => TimeInterval.newBuilder.setStartTime(ActorCreationTime).setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
+      }
+    }
+
+    def createMetricBuilder(metricName: String): Metric = {
+      metricLabelsMap match {
+        case map: Map[String, String] if map.isEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").build
+        case map: Map[String, String] if map.nonEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").putAllLabels(map.asJava).build
+      }
+    }
+
+    def createTimeSeries(metricKind: StackdriverMetricKind, metric: Metric, resource: MonitoredResource, dataPointList: util.List[Point]): TimeSeries = {
+      metricKind match {
+        case StackdriverGauge => TimeSeries.newBuilder.setMetric(metric).setResource(resource).addAllPoints(dataPointList).build
+        case StackdriverCumulative => TimeSeries.newBuilder.setMetric(metric).setResource(resource).setMetricKind(MetricDescriptor.MetricKind.CUMULATIVE).addAllPoints(dataPointList).build
+      }
+    }
+
     // Prepares an individual data point
     val interval = timeInterval(metricObj.kind)
     val pointValue = TypedValue.newBuilder().setDoubleValue(value).build()

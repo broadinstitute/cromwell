@@ -15,12 +15,11 @@ case class StatsDConfig(hostname: String, port: Int, prefix: Option[String], flu
 
 object StatsDConfig {
   def apply(serviceConfig: Config): StatsDConfig = {
-    val statsDConfig = serviceConfig.getConfig("statsd")
 
-    val hostname: ErrorOr[String] = validate[String] { statsDConfig.as[String]("hostname") }
-    val port: ErrorOr[Int] = validate[Int] { statsDConfig.as[Int]("port") }
-    val prefix: ErrorOr[Option[String]] = statsDConfig.as[Option[String]]("prefix").validNel
-    val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration] { statsDConfig.as[FiniteDuration]("flush-rate") }
+    val hostname: ErrorOr[String] = validate[String] { serviceConfig.as[String]("hostname") }
+    val port: ErrorOr[Int] = validate[Int] { serviceConfig.as[Int]("port") }
+    val prefix: ErrorOr[Option[String]] = serviceConfig.as[Option[String]]("prefix").validNel
+    val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration] { serviceConfig.as[FiniteDuration]("flush-rate") }
 
     (hostname, port, prefix, flushRate).mapN({ (h, p, n, f) => 
       new StatsDConfig(h, p, n, f)

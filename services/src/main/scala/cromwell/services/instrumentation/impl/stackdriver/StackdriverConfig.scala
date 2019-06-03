@@ -42,7 +42,7 @@ object StackdriverConfig {
       case Valid(schemeString) => googleConfiguration.auth(schemeString) match {
         case Valid(_: UserServiceAccountMode) => s"`auth` scheme: $schemeString is of type `user_service_account` which is not allowed for Stackdriver instrumentation.".invalidNel
         case Valid(auth) => auth.valid
-        case Invalid(error) => s"`auth` scheme is invalid. Errors: ${error.toString}".invalidNel
+        case Invalid(error) => s"`auth` scheme is invalid. Errors: $error".invalidNel
       }
       case Invalid(e) => e.invalid
     }
@@ -51,15 +51,15 @@ object StackdriverConfig {
 
   def apply(serviceConfig: Config, globalConfig: Config): StackdriverConfig = {
     val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
+    val cromwellInstanceId: ErrorOr[Option[String]] = globalConfig.getAs[String]("system.cromwell_id").validNel
 
     val googleProject: ErrorOr[String] = validate[String] { serviceConfig.as[String]("google-project") }
     val authScheme: ErrorOr[GoogleAuthMode] = validateAuth(serviceConfig.as[String]("auth"), googleConfiguration)
     val flushRate: ErrorOr[FiniteDuration] = validateFlushRate(serviceConfig.as[FiniteDuration]("flush-rate"))
-    val cromwellInstanceIdentifier: ErrorOr[Option[String]] = serviceConfig.as[Option[String]](CromwellInstanceIdentifier).validNel
-    val cromwellInstanceRole: ErrorOr[Option[String]] = serviceConfig.as[Option[String]](CromwellInstanceRole).validNel
-    val cromwellPerfTestCase: ErrorOr[Option[String]] = serviceConfig.as[Option[String]](CromwellPerfTest).validNel
+    val cromwellInstanceRole: ErrorOr[Option[String]] = serviceConfig.getAs[String](CromwellInstanceRole).validNel
+    val cromwellPerfTestCase: ErrorOr[Option[String]] = serviceConfig.getAs[String](CromwellPerfTest).validNel
 
-    (googleProject, authScheme, flushRate, cromwellInstanceIdentifier, cromwellInstanceRole, cromwellPerfTestCase).mapN({ (p, a, f, i, r, t) =>
+    (googleProject, authScheme, flushRate, cromwellInstanceId, cromwellInstanceRole, cromwellPerfTestCase).mapN({ (p, a, f, i, r, t) =>
       new StackdriverConfig(p, a, f, i, r, t)
     }).valueOr(errors => throw new IllegalArgumentException with MessageAggregation {
       override val exceptionContext = "Stackdriver instrumentation config is invalid."

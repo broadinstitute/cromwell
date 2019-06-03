@@ -1,0 +1,13 @@
+name: mutect2.aws
+testFormat: workflowsuccess
+backends: [ AWSBATCH ]
+
+files {
+  workflow: Somatic/Mutect2/Mutect2.wdl
+  inputs: Somatic/Mutect2/Mutect2.aws.inputs
+}
+
+metadata {
+  workflowName: Mutect2
+  status: Succeeded
+}

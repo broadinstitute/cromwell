@@ -20,6 +20,7 @@ object Dependencies {
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8.1"
+  private val commonsMathV = "3.2"
   private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.10"
@@ -31,7 +32,10 @@ object Dependencies {
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleHttpClientApacheV = "2.1.1"
+  private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
+  private val googleCloudResourceManagerV = "0.87.0-alpha"
   private val grpcV = "1.18.0"
   private val guavaV = "27.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
@@ -87,6 +91,11 @@ object Dependencies {
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
 
+  private val slf4jFacadeDependencies = List(
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+  )
+
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
 
   private val circeDependencies = List(
@@ -122,14 +131,13 @@ object Dependencies {
     "com.google.api-client" % "google-api-client-java6" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5")
+      exclude("com.google.guava", "guava-jdk5"),
+    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
   )
 
   val spiDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
-  ) ++ googleApiClientDependencies
+  ) ++ googleApiClientDependencies ++ slf4jFacadeDependencies
 
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
@@ -181,7 +189,7 @@ object Dependencies {
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
     "org.slf4j" % "log4j-over-slf4j" % slf4jV
-  )
+  ) ++ slf4jFacadeDependencies
 
   private val slickDependencies = List(
     "com.typesafe.slick" %% "slick" % slickV,
@@ -322,12 +330,10 @@ object Dependencies {
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
   val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-  ) ++ catsDependencies ++ configDependencies
+  ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
@@ -441,6 +447,7 @@ object Dependencies {
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies = List(
+    "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
@@ -537,6 +544,19 @@ object Dependencies {
   Older versions have known vulnerabilities, ex: CVE-2017-7525
    */
 
+  val googleHttpClientDependencies = List(
+    /*
+    Move the google-http-client versions past https://github.com/googleapis/google-http-java-client/issues/606
+    This created a situation where com/google/api/client/http/apache/ApacheHttpTransport.class was in *both*
+    transitive dependencies causing an assembly merge conflict.
+
+    At the time of this comment older versions are being pulled in via
+    https://mvnrepository.com/artifact/com.google.api-client/google-api-client/1.28.0
+     */
+    "com.google.http-client" % "google-http-client-apache" % googleHttpClientApacheV,
+    "com.google.http-client" % "google-http-client" % googleHttpClientV,
+  )
+
   val nettyDependencyOverrides = List(
     "buffer",
     "codec",
@@ -587,6 +607,7 @@ object Dependencies {
    */
   val cromwellDependencyOverrides =
     allProjectDependencies ++
+      googleHttpClientDependencies ++
       nettyDependencyOverrides ++
       rdf4jDependencyOverrides
 }

@@ -6,8 +6,9 @@ import cats.data.NonEmptyList
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.Coproduct
-import wdl.draft2.model.WdlCall
-import wdl.draft2.model.{WdlTaskCall, WdlWomExpression}
+import wdl.draft2.model.{AstTools, WdlCall, WdlTaskCall, WdlWomExpression}
+import wdl.draft2.parser.WdlParser.Terminal
+import wom.SourceFileLocation
 import wom.callable.Callable
 import wom.graph.CallNode._
 import wom.callable.Callable.{InputDefinition, OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
@@ -133,7 +134,14 @@ object WdlDraft2WomCallNodeMaker extends WomCallNodeMaker[WdlCall] {
           ogin <- expressionNode.upstreamOuterGraphInputNodes
         } yield ogin
 
-        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier, callable, foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins), Set.empty)
+        // Figure out the line number by looking at the AST
+        val t: Terminal = AstTools.findTerminals(wdlCall.ast).head
+
+        val callNodeAndNewNodes = callNodeBuilder.build(wdlCall.womIdentifier,
+                                                        callable,
+                                                        foldInputDefinitions(mappings, callable).copy(usedOuterGraphInputNodes = usedOgins),
+                                                        Set.empty,
+                                                        Some(SourceFileLocation(t.getLine)))
 
         // If the created node is a `TaskCallNode` the created input expressions should be `TaskCallInputExpressionNode`s
         // and should be assigned a reference to the `TaskCallNode`. This is used in the `WorkflowExecutionActor` to

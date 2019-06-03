@@ -1005,7 +1005,7 @@ definitions:
     properties:
       valid:
         type: boolean
-        description: Whether the workflow and inputs as submitted passed validation
+        description: Indicates that the workflow is valid and that the inputs, if provided, are compatible with the workflow.
       errors:
         type: array
         items:
@@ -1015,6 +1015,9 @@ definitions:
           - "We might also provide warnings to a 'valid' workflow here"
           - "Otherwise, 'errors' will be the empty array"
         description: The set of validation failure messages
+      validWorkflow:
+        type: boolean
+        description: Indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
       name:
         type: string
         description: For a source file with one workflow and zero or more tasks, the name of the workflow. For a single task, the name of the task. For a source file with multiple tasks but no workflows, the empty string.

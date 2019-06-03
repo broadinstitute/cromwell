@@ -1,0 +1,32 @@
+digraph {
+
+  # Nodes
+
+  release_cromwell [shape=doubleoctagon label="New Cromwell version published"];
+
+  cromwell_develop_pr [shape=oval label="Create and PR config changes in cromwell_develop. Merge to 'dev'\nNB: 'dev' is really just the master branch"];
+  push_staging_images [shape=oval label="Tag and push to dockerhub the latest versions:\nbroadinstitute/cromiam:staging and broadinstitute/cromwell:staging"];
+
+  jenkins_deploy_staging [shape=oval label="[Jenkins] Trigger a redeploy to staging"];
+  test_staging [shape=oval label="Test a PAPIv2 workflow in staging.\nRun it twice to make sure call caching works"];
+
+  get_permission [shape=oval label="Get permission to deploy to 'prod'"];
+  push_prod_images [shape=oval label="Tag and push to dockerhub the latest versions:\nbroadinstitute/cromiam:prod and broadinstitute/cromwell:prod"];
+  jenkins_deploy_prod [shape=doubleoctagon label="[Jenkins] Trigger a redeploy to prod"];
+
+
+  # Edges
+
+  release_cromwell -> cromwell_develop_pr
+  release_cromwell -> push_staging_images
+
+  cromwell_develop_pr -> jenkins_deploy_staging
+  push_staging_images -> jenkins_deploy_staging
+
+  jenkins_deploy_staging -> test_staging
+
+  test_staging -> get_permission
+  get_permission -> push_prod_images
+  push_prod_images -> jenkins_deploy_prod
+
+}

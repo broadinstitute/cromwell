@@ -173,7 +173,8 @@ object WomToWdlom {
             CommandSectionElement(Seq(commandLine)),
             runtime,
             meta,
-            parameterMeta
+            parameterMeta,
+            a.sourceLocation
           )
         }
       }
@@ -201,7 +202,8 @@ object WomToWdlom {
             nodes.toSet,
             if (outputs.nonEmpty) Some(OutputsSectionElement(outputs)) else None,
             meta,
-            parameterMeta)
+            parameterMeta,
+            a.sourceLocation)
         }
       }
 
@@ -265,7 +267,8 @@ object WomToWdlom {
               scatterName = a.identifier.localName.value,
               scatterExpression = expression,
               scatterVariableName = a.inputPorts.toList.head.name,
-              graphElements = graph
+              graphElements = graph,
+              sourceLocation = None
             )
           }
       }
@@ -396,7 +399,8 @@ object WomToWdlom {
         callableName,
         maybeAlias,
         afters,
-        if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None
+        if (inputs.nonEmpty) Some(CallBodyElement(inputs)) else None,
+        call.sourceLocation
       ).validNelCheck
     }
 }

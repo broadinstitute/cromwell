@@ -82,7 +82,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
               "[reading back DescribeRequest contents] inputs: ",
               "[reading back DescribeRequest contents] type: None",
               "[reading back DescribeRequest contents] version: None"
-            )
+            ),
+            validWorkflow = true
           )
         } { responseAs[WorkflowDescription] }
       }
@@ -103,7 +104,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
               "[reading back DescribeRequest contents] inputs: ",
               "[reading back DescribeRequest contents] type: None",
               "[reading back DescribeRequest contents] version: None"
-            )
+            ),
+            validWorkflow = true
           )
         } { responseAs[WorkflowDescription] }
       }
@@ -124,7 +126,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
               "[reading back DescribeRequest contents] inputs: {\"a\":\"is for apple\"}",
               "[reading back DescribeRequest contents] type: Some(WDL)",
               "[reading back DescribeRequest contents] version: Some(1.0)"
-            )
+            ),
+            validWorkflow = true
           )
         } { responseAs[WorkflowDescription] }
       }

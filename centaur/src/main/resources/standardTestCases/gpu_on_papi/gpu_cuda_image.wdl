@@ -33,6 +33,7 @@ task get_machine_info {
 
     runtime {
         docker: "nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04"
+        bootDiskSizeGb: 20
         gpuType: "nvidia-tesla-k80"
         gpuCount: 1
         nvidiaDriverVersion: driver_version

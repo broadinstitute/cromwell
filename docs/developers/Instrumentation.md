@@ -1,7 +1,7 @@
 # Overview
 
 Cromwell's instrumentation support can be useful to collect utilization data in long-running, high-volume
-production environments. The default implementation of this ignores these metrics, but Cromwell includes alternative implementations that can forward metrics to a
+production environments. The default implementation of this ignores these metrics, but Cromwell includes alternate implementations that can forward metrics to a
 specific server.
 
 ### StatsD
@@ -55,7 +55,7 @@ These are the current high level categories:
 
 ### Stackdriver
 
-Cromwell now also supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). To instantiate the Stackdriver instrumentation service actor
+Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). To use the Stackdriver instrumentation
 specify this in your config:
 ```hocon
 services.Instrumentation {

@@ -144,7 +144,7 @@ object StackdriverInstrumentationServiceActor {
 
   val ActorCreationTime = Timestamps.fromMillis(System.currentTimeMillis())
 
-  // Custom metrics must begin with this domains
+  // Custom metrics must begin with this domain
   val CustomMetricDomain = "custom.googleapis.com"
 
   /**

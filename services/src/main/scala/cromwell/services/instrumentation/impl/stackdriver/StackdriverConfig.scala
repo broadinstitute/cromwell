@@ -4,7 +4,7 @@ import cats.data.Validated._
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import common.exception.MessageAggregation
+import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.validate
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -61,9 +61,6 @@ object StackdriverConfig {
 
     (googleProject, authScheme, flushRate, cromwellInstanceId, cromwellInstanceRole, cromwellPerfTestCase).mapN({ (p, a, f, i, r, t) =>
       new StackdriverConfig(p, a, f, i, r, t)
-    }).valueOr(errors => throw new IllegalArgumentException with MessageAggregation {
-      override val exceptionContext = "Stackdriver instrumentation config is invalid."
-      override val errorMessages = errors.toList
-    })
+    }).valueOr(errors => throw AggregatedMessageException("Stackdriver instrumentation config is invalid.", errors.toList))
   }
 }

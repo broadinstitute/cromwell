@@ -25,20 +25,20 @@ object StackdriverConfig {
   val CromwellInstanceRole = "cromwell-instance-role"
   val CromwellPerfTest = "cromwell-perf-test-case"
 
-  private def validateFlushRate(rate: FiniteDuration): ErrorOr[FiniteDuration] = {
-    validate[FiniteDuration](rate) match {
+  private def validateFlushRate(rateFunc: => FiniteDuration): ErrorOr[FiniteDuration] = {
+    validate[FiniteDuration](rateFunc) match {
       case Valid(duration) => duration match {
-        case d: FiniteDuration if d.<(1.minute) => (s"`flush-rate` can't be less than 1 minute. Current rate is `${d.toString}`. " +
+        case _ if duration < 1.minute => (s"`flush-rate` must be 1 minute or longer, specified rate is `$duration`. " +
           s"Google's Stackdriver API needs each metric to be sent not more than once per minute.").invalidNel
-        case d => d.validNel
+        case _ => duration.validNel
       }
       case Invalid(e) => e.invalid
     }
   }
 
 
-  private def validateAuth(authSchemeString: String, googleConfiguration: GoogleConfiguration): ErrorOr[GoogleAuthMode] = {
-    validate[String](authSchemeString) match {
+  private def validateAuth(authSchemeFunc: => String, googleConfiguration: GoogleConfiguration): ErrorOr[GoogleAuthMode] = {
+    validate[String](authSchemeFunc) match {
       case Valid(schemeString) => googleConfiguration.auth(schemeString) match {
         case Valid(_: UserServiceAccountMode) => s"`auth` scheme: $schemeString is of type `user_service_account` which is not allowed for Stackdriver instrumentation.".invalidNel
         case Valid(auth) => auth.valid
@@ -61,6 +61,6 @@ object StackdriverConfig {
 
     (googleProject, authScheme, flushRate, cromwellInstanceId, cromwellInstanceRole, cromwellPerfTestCase).mapN({ (p, a, f, i, r, t) =>
       new StackdriverConfig(p, a, f, i, r, t)
-    }).valueOr(errors => throw AggregatedMessageException("Stackdriver instrumentation config is invalid.", errors.toList))
+    }).valueOr(errors => throw AggregatedMessageException("Stackdriver instrumentation config is invalid. Error(s)", errors.toList))
   }
 }

@@ -112,7 +112,7 @@ class StackdriverConfigSpec extends TestKitSuite with FlatSpecLike with BeforeAn
 
     val exception = the[AggregatedMessageException] thrownBy StackdriverConfig(config, googleConfig)
 
-    exception.getMessage shouldBe """Stackdriver instrumentation config is invalid.:
+    exception.getMessage shouldBe """Stackdriver instrumentation config is invalid. Error(s):
                                     |`auth` scheme is invalid. Errors: NonEmptyList(`google` configuration stanza does not contain an auth named 'my-auth'.  Known auth names: application-default)""".stripMargin
   }
 
@@ -128,7 +128,7 @@ class StackdriverConfigSpec extends TestKitSuite with FlatSpecLike with BeforeAn
 
     val exception = the[AggregatedMessageException] thrownBy StackdriverConfig(config, googleConfig)
 
-    exception.getMessage shouldBe """Stackdriver instrumentation config is invalid.:
-                                    |`flush-rate` can't be less than 1 minute. Current rate is `30 seconds`. Google's Stackdriver API needs each metric to be sent not more than once per minute.""".stripMargin
+    exception.getMessage shouldBe """Stackdriver instrumentation config is invalid. Error(s):
+                                    |`flush-rate` must be 1 minute or longer, specified rate is `30 seconds`. Google's Stackdriver API needs each metric to be sent not more than once per minute.""".stripMargin
   }
 }

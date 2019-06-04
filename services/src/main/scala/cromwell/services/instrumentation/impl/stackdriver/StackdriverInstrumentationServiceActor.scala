@@ -9,6 +9,7 @@ import com.google.cloud.monitoring.v3.{MetricServiceClient, MetricServiceSetting
 import com.google.monitoring.v3._
 import com.google.protobuf.util.Timestamps
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
 import cromwell.services.instrumentation.impl.stackdriver.StackdriverConfig._
@@ -17,9 +18,10 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 
-class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor {
+class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with StrictLogging {
   implicit lazy val executionContext = context.dispatcher
 
   val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
@@ -87,14 +89,18 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
         case StackdriverGauge => dataPointVectorSum / value.length
         case StackdriverCumulative => dataPointVectorSum
       }
-      writeMetrics(key, dataPoint)
+
+      writeMetrics(key, dataPoint) match {
+        case Success(_) => // do nothing
+        case Failure(e) => logger.error(s"Failed to send metrics to Stackdriver API for metric ${key.name} with value $dataPoint.", e)
+      }
     }
 
     metricsMap = Map.empty[StackdriverMetric, Vector[Double]]
   }
 
 
-  private def writeMetrics(metricObj: StackdriverMetric, value: Double): Unit = {
+  private def writeMetrics(metricObj: StackdriverMetric, value: Double): Try[Unit] = {
     def timeInterval(metricKind: StackdriverMetricKind): TimeInterval = {
       metricKind match {
         case StackdriverGauge => TimeInterval.newBuilder.setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
@@ -132,7 +138,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
     val timeSeriesRequest = CreateTimeSeriesRequest.newBuilder.setName(projectName.toString).addAllTimeSeries(timeSeriesList.asJava).build
 
     // Writes time series data
-    metricServiceClient.createTimeSeries(timeSeriesRequest)
+    Try(metricServiceClient.createTimeSeries(timeSeriesRequest))
   }
 }
 

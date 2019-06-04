@@ -12,7 +12,8 @@ import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
-import com.google.api.services.genomics.Genomics
+import com.google.api.services.genomics.{Genomics, GenomicsScopes}
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.ServiceAccountCredentials
@@ -86,9 +87,10 @@ object Operations {
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
+  lazy val genomicsAndStorageScopes = List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, GenomicsScopes.GENOMICS)
   lazy val credentials: Credentials = configuration.auth(authName)
     .unsafe
-    .pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)
+    .credentials(genomicsAndStorageScopes)
   lazy val credentialsProjectOption: Option[String] = {
     Option(credentials) collect {
       case serviceAccountCredentials: ServiceAccountCredentials => serviceAccountCredentials.getProjectId

@@ -10,6 +10,7 @@ import com.google.api.services.genomics.v2alpha1.model._
 import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
+import com.google.auth.http.HttpCredentialsAdapter
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{LocalizationConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
@@ -39,7 +40,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
     implicit lazy val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
 
-    val ResourceManagerAuthScopes = List(GenomicsScopes.CLOUD_PLATFORM).asJava
+    val ResourceManagerAuthScopes = List(GenomicsScopes.CLOUD_PLATFORM)
     val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
 
     val genomics = new Genomics.Builder(
@@ -61,23 +62,18 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
 
       def projectMetadataRequest(vpcConfig: VirtualPrivateCloudConfiguration): IO[HttpRequest] = {
-        val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
+        IO {
+          val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
+          val credentials = vpcConfig.auth.credentials(workflowOptions.get(_).get, ResourceManagerAuthScopes)
 
-        val googleCredentialOption = vpcConfig.auth.apiClientGoogleCredential((key: String) => workflowOptions.get(key).get)
+          val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
+          val cloudResourceManagerBuilder = new CloudResourceManager
+          .Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpCredentialsAdapter)
+            .build()
 
-        googleCredentialOption match {
-          case None => IO.raiseError(new RuntimeException(s"Programmer Error: Unable to find Google Credential for auth `${vpcConfig.auth.name}`."))
-          case Some(googleCredential) => IO {
-            val auth = googleCredential.createScoped(ResourceManagerAuthScopes)
+          val project = cloudResourceManagerBuilder.projects().get(createPipelineParameters.projectId)
 
-            val cloudResourceManagerBuilder = new CloudResourceManager
-              .Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, auth)
-              .build()
-
-            val project = cloudResourceManagerBuilder.projects().get(createPipelineParameters.projectId)
-
-            project.buildHttpRequest()
-          }
+          project.buildHttpRequest()
         }
       }
 

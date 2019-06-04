@@ -28,7 +28,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   lazy val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
   lazy val metricLabelsMap = generateMetricLabels()
 
-  var metricsMap = Map.empty[StackdriverMetric, List[Double]]
+  var metricsMap = Map.empty[StackdriverMetric, Vector[Double]]
 
   // Instantiates a client
   val metricServiceSettings = MetricServiceSettings.newBuilder.setCredentialsProvider(FixedCredentialsProvider.create(credentials)).build
@@ -59,15 +59,13 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
 
   private def generateMetricLabels(): Map[String, String] = {
-    def labelFromConfig(op: StackdriverConfig => Option[String], key: String): List[(String, String)] = {
-      op(stackdriverConfig).fold(List.empty[(String, String)])(v => List((key.replace("-", "_"), v)))
+    def labelFromConfig(op: StackdriverConfig => Option[String], key: String): Option[(String, String)] = {
+      op(stackdriverConfig).map(v => (key.replace("-", "_"), v))
     }
 
-    val labelsList = labelFromConfig(_.cromwellInstanceIdentifier, CromwellInstanceIdentifier) ++
+    labelFromConfig(_.cromwellInstanceIdentifier, CromwellInstanceIdentifier).toMap ++
       labelFromConfig(_.cromwellInstanceRole, CromwellInstanceRole) ++
       labelFromConfig(_.cromwellPerfTestCase, CromwellPerfTest)
-
-    labelsList.toMap
   }
 
 
@@ -75,24 +73,24 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
     val metricObj = StackdriverMetric(bucket.toStackdriverString, metricKind)
 
     if (metricsMap.contains(metricObj)) {
-      val valueList: List[Double] = metricsMap(metricObj) :+ metricValue
-      metricsMap += metricObj -> valueList
+      val valueVector: Vector[Double] = metricsMap(metricObj) :+ metricValue
+      metricsMap += metricObj -> valueVector
     }
-    else metricsMap += metricObj -> List(metricValue)
+    else metricsMap += metricObj -> Vector(metricValue)
   }
 
 
   private def sendMetricData(): Unit = {
-    metricsMap.foreach { case (key, value: List[Double]) =>
-      val dataPointListSum = value.sum
+    metricsMap.foreach { case (key, value: Vector[Double]) =>
+      val dataPointVectorSum = value.sum
       val dataPoint = key.kind match {
-        case StackdriverGauge => dataPointListSum / value.length
-        case StackdriverCumulative => dataPointListSum
+        case StackdriverGauge => dataPointVectorSum / value.length
+        case StackdriverCumulative => dataPointVectorSum
       }
       writeMetrics(key, dataPoint)
     }
 
-    metricsMap = Map.empty[StackdriverMetric, List[Double]]
+    metricsMap = Map.empty[StackdriverMetric, Vector[Double]]
   }
 
 

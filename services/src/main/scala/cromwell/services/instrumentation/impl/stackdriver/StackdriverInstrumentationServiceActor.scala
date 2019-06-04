@@ -27,7 +27,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
 
   lazy val projectName: ProjectName = ProjectName.of(stackdriverConfig.googleProject)
-  lazy val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
+  val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
   lazy val metricLabelsMap = generateMetricLabels()
 
   var metricsMap = Map.empty[StackdriverMetric, Vector[Double]]

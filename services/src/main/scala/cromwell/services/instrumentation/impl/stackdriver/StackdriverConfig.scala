@@ -8,7 +8,7 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.validate
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
+import cromwell.cloudsupport.gcp.auth._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
@@ -40,8 +40,8 @@ object StackdriverConfig {
   private def validateAuth(authSchemeFunc: => String, googleConfiguration: GoogleConfiguration): ErrorOr[GoogleAuthMode] = {
     validate[String](authSchemeFunc) match {
       case Valid(schemeString) => googleConfiguration.auth(schemeString) match {
-        case Valid(_: UserServiceAccountMode) => s"`auth` scheme: $schemeString is of type `user_service_account` which is not allowed for Stackdriver instrumentation.".invalidNel
-        case Valid(auth) => auth.valid
+        case Valid(auth @ (_:ApplicationDefaultMode | _:ServiceAccountMode)) => auth.valid
+        case Valid(_) => s"`auth` scheme: $schemeString is not allowed for Stackdriver instrumentation. Only `application_default` and `service_account` modes are valid.".invalidNel
         case Invalid(error) => s"`auth` scheme is invalid. Errors: $error".invalidNel
       }
       case Invalid(e) => e.invalid

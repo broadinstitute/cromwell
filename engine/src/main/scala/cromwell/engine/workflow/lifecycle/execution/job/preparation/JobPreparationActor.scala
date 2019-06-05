@@ -97,8 +97,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
         case newPartialLookup: PartialKeyValueLookups => stay using data.copy(keyLookups = newPartialLookup)
         case finished: KeyValueLookupResults =>
-
-          val OOMcount: Int = finished.unscoped.get("OOMCountKey") match {
+          val OOMcount: Int = finished.unscoped.get(BackendLifecycleActorFactory.OOMCountKey) match {
             case Some(KvPair(_, count)) => count.toInt
             case _ => 0
           }

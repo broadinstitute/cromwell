@@ -134,5 +134,5 @@ trait BackendLifecycleActorFactory {
 
 object BackendLifecycleActorFactory {
   val FailedRetryCountKey = "FailedRetryCount"
-  val OOMCountKey = "OOMCountKey"
+  val OOMCountKey = "OOMCount"
 }

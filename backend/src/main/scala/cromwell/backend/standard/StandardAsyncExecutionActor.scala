@@ -38,10 +38,10 @@ import org.apache.commons.lang3.StringUtils
 import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
-import wom.format.MemorySize
 import wom.graph.LocalName
 import wom.values._
-import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
+import wom._
+import wom.format.MemorySize
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -340,7 +340,8 @@ trait StandardAsyncExecutionActor
     val errorOrGlobFiles: ErrorOr[List[WomGlobFile]] =
       backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
-    lazy val memEnvVariables = jobDescriptor.runtimeAttributes.get("memory") match {
+    // Generate env variables that publish the runtime variables
+    lazy val memEnvVariables = jobDescriptor.runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
       case Some(WomString(value)) => MemorySize.parse(value) match {
         case Success(memSize) =>
           Map("MEM_SIZE" -> memSize.amount.toInt.toString, "MEM_UNIT" -> memSize.unit.toString)
@@ -1147,7 +1148,7 @@ trait StandardAsyncExecutionActor
               println(s"RUCHI:: Job done but found OOM error in stderr!")
               println(s"--------------------------------")
               println(s"--------------------------------")
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OOM(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt, stderrAsOption), Option(returnCodeAsInt)))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OutOfMemory(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt, stderrAsOption), Option(returnCodeAsInt)))
               retryOOMElseFail(status, executionHandle)
             //If none of those above apply, you've succeeded!
             case Success(returnCodeAsInt) if !isOOM =>
@@ -1161,7 +1162,7 @@ trait StandardAsyncExecutionActor
             println(s"--------------------------------")
             println(s"RUCHI:: NOT DONE BUT FOUND OOM MESSAGE IN STDERR!")
             println(s"--------------------------------")
-            val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OOM(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt, stderrAsOption), tryReturnCodeAsInt.toOption))
+            val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(OutOfMemory(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt, stderrAsOption), tryReturnCodeAsInt.toOption))
             retryOOMElseFail(status, executionHandle)
           }
           else {

@@ -25,19 +25,19 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
   override def getMessage = s"stderr for job $jobTag has length $stderrLength and 'failOnStderr' runtime attribute was true."
 }
 
-final case class OOM(callName: String, callIndex: Option[Int], attempt: Int, stderrPath: Option[Path]) extends KnownJobFailureException {
-  def getIndexString = callIndex match {
-    case Some(i) => s", index ${i}"
+final case class OutOfMemory(callName: String, callIndex: Option[Int], attempt: Int, stderrPath: Option[Path]) extends KnownJobFailureException {
+  private val indexString = callIndex match {
+    case Some(i) => s"index $i"
     case _ => ""
   }
 
-  def getAttemptString = attempt match {
+  private val attemptString = attempt match {
     case 1 => "1st"
     case 2 => "2nd"
     case 3 => "3rd"
     case num => num + "th"
   }
-  override def getMessage = s"Job $callName$getIndexString ran out of memory on ${getAttemptString} attempt. Please check ${stderrPath.get} for more details."
+  override def getMessage = s"Job $callName, $indexString ran out of memory on $attemptString attempt. Please check ${stderrPath.get} for more details."
 }
 
 

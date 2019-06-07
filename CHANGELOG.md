@@ -1,5 +1,18 @@
 # Cromwell Change Log
 
+## 43 Release Notes
+
+### Stackdriver Instrumentation
+
+Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
+Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### StatsD Instrumentation Config change
+
+There is a small change in StatsD's configuration path. Originally, the path to the config was `services.Instrumentation.config.statsd`
+which now has been updated to `services.Instrumentation.config`. More info on it's configuration can be found
+[here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
 ## 42 Release Notes
 
 ### Womtool endpoint

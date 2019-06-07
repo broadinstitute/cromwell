@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 

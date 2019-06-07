@@ -125,3 +125,9 @@ shutdown() {
     docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml down
     clean_up
 }
+
+gcloud_run_as_service_account() {
+  local command="$1"
+  docker run -v "$CROMWELL_BUILD_RESOURCES_DIRECTORY:$DOCKER_ETC_PATH" -e DOCKER_ETC_PATH --rm google/cloud-sdk:latest /bin/bash -c "\
+    gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON} 2> /dev/null && $command "
+}

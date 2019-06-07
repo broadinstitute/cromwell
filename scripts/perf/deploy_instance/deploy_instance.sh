@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 if [ -z "${CROMWELL_INSTANCE_NAME}" ]
 then

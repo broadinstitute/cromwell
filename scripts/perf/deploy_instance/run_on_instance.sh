@@ -16,7 +16,7 @@ addVar() {
   echo "export $1" >> /root/.bashrc
 }
 
-# Make sure ip forwarding is enabled by default so that docker doesn't loses connectivity
+# Make sure ip forwarding is enabled by default so that docker doesn't lose connectivity
 echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
 
 # Set up env variables

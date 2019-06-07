@@ -138,7 +138,13 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
     val timeSeriesRequest = CreateTimeSeriesRequest.newBuilder.setName(projectName.toString).addAllTimeSeries(timeSeriesList.asJava).build
 
     // Writes time series data
-    Try(metricServiceClient.createTimeSeries(timeSeriesRequest))
+    Try(sendTimeSeriesToStackdriver(timeSeriesRequest))
+  }
+
+
+  // This single line of code is a separate function to help with StackdriverInstrumentationActor tests
+  def sendTimeSeriesToStackdriver(timeSeriesRequest: CreateTimeSeriesRequest): Unit = {
+    metricServiceClient.createTimeSeries(timeSeriesRequest)
   }
 }
 

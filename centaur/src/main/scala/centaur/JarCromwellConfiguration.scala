@@ -1,8 +1,5 @@
 package centaur
 
-import java.lang.ProcessBuilder.Redirect
-
-import better.files.File
 import centaur.CromwellManager.ManagedCromwellPort
 import com.typesafe.config.Config
 
@@ -32,20 +29,14 @@ case class JarCromwellConfiguration(jar: String, conf: String, logFile: String) 
       override def displayString: String = command.mkString(" ")
 
       override def start(): Unit = {
-        val processBuilder = new java.lang.ProcessBuilder()
-          .command(command: _*)
-          .redirectOutput(Redirect.appendTo(File(logFile).toJava))
-          .redirectErrorStream(true)
-        process = Option(processBuilder.start())
+        process = Option(runProcess(command))
       }
 
       override def stop(): Unit = {
-        process foreach { p =>
-          p.getOutputStream.flush()
-          p.destroy()
-          p.waitFor()
+        process foreach {
+          waitProcess(_, destroy = true)
         }
-        ()
+        process = None
       }
 
       override def isAlive: Boolean = process.exists { _.isAlive }

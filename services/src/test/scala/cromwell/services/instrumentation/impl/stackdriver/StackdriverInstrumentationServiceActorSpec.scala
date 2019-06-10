@@ -58,9 +58,9 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with FlatS
       CromwellTiming(testBucket.expand("timing"), 10.seconds)
     )
 
-    val receivedCumulativeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket", 162.0)
-    val receivedGaugeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/gauge/metric/bucket", 40.0)
-    val receivedTimingMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket/timing", 7500.0)
+    val expectedCumulativeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket", 162.0)
+    val expectedGaugeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/gauge/metric/bucket", 40.0)
+    val expectedTimingMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket/timing", 7500.0)
 
     val stackdriverActor = TestActorRef(new TestStackdriverInstrumentationServiceActor(stackdriverConfig, globalConfig, registryProbe))
 
@@ -69,9 +69,9 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with FlatS
     eventually {
       stackdriverActor.underlyingActor.metricsReceived should have length 3
 
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (receivedCumulativeMetrics)
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (receivedGaugeMetrics)
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (receivedTimingMetrics)
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedCumulativeMetrics)
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedGaugeMetrics)
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedTimingMetrics)
 
       stackdriverActor.underlyingActor.metricsReceived.map(_.resourceLabels) should contain (resourceLabels)
     }
@@ -94,7 +94,7 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with FlatS
       CromwellCount(testBucket, 49)
     )
 
-    val receivedCumulativeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket", 50.0)
+    val expectedCumulativeMetrics = ("custom.googleapis.com/cromwell/test_prefix/test/metric/bucket", 50.0)
     val metricLabels = Map("cromwell_instance_role" -> "backend", "cromwell_perf_test_case" -> "perf-test-1")
 
     val stackdriverActor = TestActorRef(new TestStackdriverInstrumentationServiceActor(stackdriverConfig, globalConfig, registryProbe))
@@ -103,7 +103,7 @@ class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with FlatS
 
     eventually {
       stackdriverActor.underlyingActor.metricsReceived should have length 1
-      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (receivedCumulativeMetrics)
+      stackdriverActor.underlyingActor.metricsReceived.map(m => (m.metricPath, m.metricValue)) should contain (expectedCumulativeMetrics)
       stackdriverActor.underlyingActor.metricsReceived.map(_.resourceLabels) should contain (resourceLabels)
       stackdriverActor.underlyingActor.metricsReceived.map(_.metricLabels) should contain (metricLabels)
     }

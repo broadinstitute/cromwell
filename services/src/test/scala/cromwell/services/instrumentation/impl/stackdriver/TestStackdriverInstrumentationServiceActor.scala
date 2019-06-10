@@ -14,12 +14,10 @@ class TestStackdriverInstrumentationServiceActor(serviceConfig: Config, globalCo
     val timeSeries = timeSeriesRequest.getTimeSeries(0)
     val metric = timeSeries.getMetric
 
-    val abc = TimeSeriesRequest(metric.getType,
+    metricsReceived = metricsReceived :+ TimeSeriesRequest(metric.getType,
       timeSeries.getPoints(0).getValue.getDoubleValue,
       timeSeries.getResource.getLabelsMap.asScala.toMap,
       metric.getLabelsMap.asScala.toMap)
-
-    metricsReceived = metricsReceived :+ abc
   }
 }
 

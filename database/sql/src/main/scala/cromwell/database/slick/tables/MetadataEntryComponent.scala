@@ -190,8 +190,10 @@ trait MetadataEntryComponent {
                                                      metadataKeysToFilterFor: List[String],
                                                      metadataKeysToFilterOut: List[String]): Rep[Boolean] = {
 
-    val positiveFilter: Option[Rep[Boolean]] = metadataKeysToFilterFor.map(metadataEntry.metadataKey like _).reduceOption(_ || _)
-    val negativeFilter: Option[Rep[Boolean]] = metadataKeysToFilterOut.map(metadataEntry.metadataKey like _).reduceOption(_ || _)
+    def containsKey(key: String): Rep[Boolean] = metadataEntry.metadataKey like key
+
+    val positiveFilter: Option[Rep[Boolean]] = metadataKeysToFilterFor.map(containsKey).reduceOption(_ || _)
+    val negativeFilter: Option[Rep[Boolean]] = metadataKeysToFilterOut.map(containsKey).reduceOption(_ || _)
 
     (positiveFilter, negativeFilter) match {
       case (Some(pf), Some(nf)) => pf && !nf

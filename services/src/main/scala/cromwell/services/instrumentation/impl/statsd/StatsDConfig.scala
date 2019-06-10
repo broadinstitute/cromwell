@@ -2,7 +2,6 @@ package cromwell.services.instrumentation.impl.statsd
 
 import cats.data.Validated._
 import cats.syntax.apply._
-import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
@@ -18,7 +17,7 @@ object StatsDConfig {
 
     val hostname: ErrorOr[String] = validate[String] { serviceConfig.as[String]("hostname") }
     val port: ErrorOr[Int] = validate[Int] { serviceConfig.as[Int]("port") }
-    val prefix: ErrorOr[Option[String]] = serviceConfig.as[Option[String]]("prefix").validNel
+    val prefix: ErrorOr[Option[String]] = validate { serviceConfig.as[Option[String]]("prefix") }
     val flushRate: ErrorOr[FiniteDuration] = validate[FiniteDuration] { serviceConfig.as[FiniteDuration]("flush-rate") }
 
     (hostname, port, prefix, flushRate).mapN({ (h, p, n, f) => 

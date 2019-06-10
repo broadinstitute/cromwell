@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
-
 wait_for_cromwell() {
   git clone https://github.com/vishnubob/wait-for-it.git /wait-for-it
   chmod u+x /wait-for-it/wait-for-it.sh
@@ -125,6 +123,21 @@ shutdown() {
     docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml down
     clean_up
 }
+
+read_path_from_vault_json() {
+  local path=$1
+  local field=$2
+
+  VAULT_TOKEN=$(cat /etc/vault-token-dsde)
+  docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN broadinstitute/dsde-toolbox vault read -format=json "${path}" | jq --exit-status -r "${field}"
+}
+
+
+read_service_account_from_vault() {
+  mkdir -p mnt
+  read_path_from_vault_json "secret/dsp/cromwell/perf/service-account-deployer" '.data.service_account' > mnt/sa.json
+}
+
 
 gcloud_run_as_service_account() {
   local name="$1"

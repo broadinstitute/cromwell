@@ -5,16 +5,11 @@ source scripts/perf/helper.inc.sh
 
 GCS_BUCKET=gs://cromwell-perf-test/
 
-VAULT_TOKEN=$(cat /etc/vault-token-dsde)
-
 DOCKER_ETC_PATH=/usr/share/etc
 
-mkdir -p mnt
+DB_PASS=$(read_path_from_vault_json "secret/dsp/cromwell/perf" '.data.db_pass')
 
-DB_PASS=`docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
-	broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf | jq '.data.db_pass'`
-
-docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf/service-account-deployer | jq -r '.data.service_account' > mnt/sa.json
+read_service_account_from_vault
 	
 function join() { local IFS=","; echo "$*"; }
 

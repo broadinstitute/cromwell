@@ -3,8 +3,6 @@ set -euo pipefail
 
 source scripts/perf/helper.inc.sh
 
-DOCKER_ETC_PATH=/usr/share/etc
-
 mkdir -p mnt
 
 # Read the service account credentials from vault:

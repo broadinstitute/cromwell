@@ -3,8 +3,6 @@ set -euo pipefail
 
 source scripts/perf/helper.inc.sh
 
-typeset DOCKER_ETC_PATH=/usr/share/etc
-
 mkdir -p mnt
 
 # Read the DB password from vault:

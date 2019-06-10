@@ -82,9 +82,10 @@ object MetadataService {
 
   final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 
-  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
-                                             excludeKeysOption: Option[NonEmptyList[String]],
-                                             expandSubWorkflows: Boolean)
+  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId,
+                                                   includeKeysOption: Option[NonEmptyList[String]],
+                                                   excludeKeysOption: Option[NonEmptyList[String]],
+                                                   expandSubWorkflows: Boolean)
     extends ReadAction
   final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
   final case class GetStatus(workflowId: WorkflowId) extends ReadAction

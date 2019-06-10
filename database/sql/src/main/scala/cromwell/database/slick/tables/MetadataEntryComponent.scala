@@ -158,8 +158,7 @@ trait MetadataEntryComponent {
     (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor)
-      if !metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterOut)
+      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
       if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
@@ -177,8 +176,7 @@ trait MetadataEntryComponent {
     (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor)
-      if !metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterOut)
+      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
       if metadataEntry.callFullyQualifiedName === callFqn
       if hasSameIndex(metadataEntry, jobIndex)
       // Assume that every metadata entry for a call should have a non null attempt value
@@ -189,8 +187,21 @@ trait MetadataEntryComponent {
   }
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
-                                                     metadataKeys: List[String]): Rep[Boolean] = {
-    metadataKeys.map(metadataEntry.metadataKey like _).reduce(_ || _)
+                                                     metadataKeysToFilterFor: List[String],
+                                                     metadataKeysToFilterOut: List[String]): Rep[Boolean] = {
+
+    val positiveFilter: Option[Rep[Boolean]] = metadataKeysToFilterFor.map(metadataEntry.metadataKey like _).reduceOption(_ || _)
+    val negativeFilter: Option[Rep[Boolean]] = metadataKeysToFilterOut.map(metadataEntry.metadataKey like _).reduceOption(_ || _)
+
+    (positiveFilter, negativeFilter) match {
+      case (Some(pf), Some(nf)) => pf && !nf
+      case (Some(pf), None) => pf
+      case (None, Some(nf)) => !nf
+
+      // We should never get here, but there's no reason not to handle it:
+      // ps: is there a better literal "true" in slick?
+      case (None, None) => metadataEntry.metadataEntryId === metadataEntry.metadataEntryId
+    }
   }
 
   private[this] def hasSameIndex(metadataEntry: MetadataEntries, jobIndex: Rep[Option[Int]]) = {

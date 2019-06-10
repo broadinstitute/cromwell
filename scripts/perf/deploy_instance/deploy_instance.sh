@@ -1,11 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-if [ -z "${CROMWELL_INSTANCE_NAME}" ]
-then
-  echo "[$(date)] Cannot run deploy_instance without CROMWELL_INSTANCE_NAME set"
-  exit 1
-fi
+source scripts/perf/helper.inc.sh
 
 GCS_BUCKET=gs://cromwell-perf-test/
 
@@ -39,9 +35,8 @@ metadata=(
 
 cp scripts/perf/deploy_instance/run_on_instance.sh mnt/
 
-docker run --name perf_gcloud_$BUILD_NUMBER -v "$(pwd)"/mnt:$DOCKER_ETC_PATH --rm google/cloud-sdk:slim /bin/bash -c "\
-  gcloud auth activate-service-account --key-file $DOCKER_ETC_PATH/sa.json &&\
-  gcloud \
+gcloud_run_as_service_account "perf_deploy_instance_${BUILD_NUMBER}" \
+  "gcloud \
     --verbosity info \
     --project broad-dsde-cromwell-perf \
     compute \
@@ -53,13 +48,16 @@ docker run --name perf_gcloud_$BUILD_NUMBER -v "$(pwd)"/mnt:$DOCKER_ETC_PATH --r
     --metadata \
         $(join ${metadata[@]})" | tee dockerResult.txt
 
+
 typeset CROMWELL_UNDER_TEST=$(cat dockerResult.txt | tail -n1 | awk '{print $5}' )
 
-# TODO: Error if CROMWELL_UNDER_TEST is ""
-
-echo "Determined that CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}"
-
-source scripts/perf/helper.inc.sh
+if test -z "$CROMWELL_UNDER_TEST"
+then
+  echo "\$CROMWELL_UNDER_TEST is empty"
+  exit 1
+else
+  echo "Determined that CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}"
+fi
 
 custom_wait_for_cromwell
 

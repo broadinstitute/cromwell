@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+source scripts/perf/helper.inc.sh
+
 VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 
 typeset DOCKER_ETC_PATH=/usr/share/etc
@@ -14,14 +16,6 @@ DB_PASS=$( docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN \
 
 # Read the service account credentials from vault:
 docker run --rm -e VAULT_TOKEN=$VAULT_TOKEN broadinstitute/dsde-toolbox vault read -format=json secret/dsp/cromwell/perf/service-account-deployer | jq --exit-status -r '.data.service_account' > mnt/sa.json
-
-gcloud_run_as_service_account() {
-  local name="$1"
-  local command="$2"
-  docker run --name $name -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm google/cloud-sdk:slim /bin/bash -c "\
-    gcloud auth activate-service-account --key-file ${DOCKER_ETC_PATH}/sa.json 2> /dev/null &&\
-    ${command}"
-}
 
 # Clone the CloudSQL DB
 # Note: Cloning the same database in parallel doesn't work.

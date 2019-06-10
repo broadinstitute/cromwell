@@ -18,7 +18,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 
 class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with StrictLogging {
@@ -90,9 +90,8 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
         case StackdriverCumulative => dataPointVectorSum
       }
 
-      writeMetrics(key, dataPoint) match {
-        case Success(_) => // do nothing
-        case Failure(e) => logger.error(s"Failed to send metrics to Stackdriver API for metric ${key.name} with value $dataPoint.", e)
+      writeMetrics(key, dataPoint) recover {
+        case e => logger.error(s"Failed to send metrics to Stackdriver API for metric ${key.name} with value $dataPoint.", e)
       }
     }
 
@@ -105,13 +104,6 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
       metricKind match {
         case StackdriverGauge => TimeInterval.newBuilder.setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
         case StackdriverCumulative => TimeInterval.newBuilder.setStartTime(ActorCreationTime).setEndTime(Timestamps.fromMillis(System.currentTimeMillis)).build
-      }
-    }
-
-    def createMetricBuilder(metricName: String): Metric = {
-      metricLabelsMap match {
-        case map: Map[String, String] if map.isEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").build
-        case map: Map[String, String] if map.nonEmpty => Metric.newBuilder.setType(s"$CustomMetricDomain/$metricName").putAllLabels(map.asJava).build
       }
     }
 
@@ -129,7 +121,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
     val dataPointList: List[Point] = List[Point](dataPoint)
 
     // Prepares the metric descriptor
-    val metric: Metric = createMetricBuilder(metricObj.name)
+    val metric: Metric = Metric.newBuilder.setType(s"$CustomMetricDomain/${metricObj.name}").putAllLabels(metricLabelsMap.asJava).build
 
     // Prepares the time series request
     val timeSeries = createTimeSeries(metricObj.kind, metric, monitoredResource, dataPointList.asJava)

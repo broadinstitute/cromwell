@@ -10,7 +10,7 @@ Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/
 ### StatsD Instrumentation Config change
 
 There is a small change in StatsD's configuration path. Originally, the path to the config was `services.Instrumentation.config.statsd`
-which now has been updated to `services.Instrumentation.config`. More info on it's configuration can be found
+which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
 [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
 ## 42 Release Notes

@@ -74,7 +74,7 @@ services.Instrumentation {
     }
  }
 ```
-The 2 label keys are optional. If specified, each metric will have have label(s) added in form of a (key, value) pair.
+The 2 label keys are optional. If specified, each metric will have label(s) added in the form of a (key, value) pair.
 So for example, if `cromwell-instance-role = "backend"` is mentioned in config, each metric data point sent to Stackdriver
 will have a label (cromwell_instance_role, backend) added to it.
 

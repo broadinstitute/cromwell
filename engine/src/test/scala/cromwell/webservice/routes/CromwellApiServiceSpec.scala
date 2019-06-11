@@ -473,7 +473,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult("<html>") {
             responseAs[String].substring(0, 6)
           }
-          assert(responseAs[String].contains("var metadataJson = {\"testKey1b\":\"myValue1b\",\"calls\":{},\"testKey1a\":\"myValue1a\",\"id\":\"c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5\",\"testKey2a\":\"myValue2a\"};"))
         }
     }
 

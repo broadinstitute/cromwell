@@ -197,11 +197,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey1a") ~>
       akkaHttpService.metadataRoutes ~>
       check {
-        //        val s = status
         val r = responseAs[String]
-        //
-        //        println(s"$s, $r")
-
         withClue(s"From response $r") {
           status should be(StatusCodes.OK)
           val result = responseAs[JsObject]

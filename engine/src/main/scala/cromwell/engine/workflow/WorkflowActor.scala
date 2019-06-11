@@ -440,7 +440,9 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
-            pathBuilders.map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
+            pathBuilders
+              .map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
+              .recover { case e => log.error(e, "Failed to copy workflow log") }(ec)
           case None => workflowLogger.close(andDelete = WorkflowLogger.isTemporary) match {
             case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>

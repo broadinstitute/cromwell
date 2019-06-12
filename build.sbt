@@ -422,3 +422,5 @@ lazy val root = (project in file("."))
   .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
+
+ThisBuild / turbo := true

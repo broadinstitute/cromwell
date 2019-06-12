@@ -180,7 +180,7 @@ trait MetadataEntryComponent {
       if metadataEntry.callFullyQualifiedName === callFqn
       if hasSameIndex(metadataEntry, jobIndex)
       // Assume that every metadata entry for a call should have a non null attempt value
-      // Because of that, if the jobAttempt paramater is Some(_), make sure it matches, otherwise take all entries
+      // Because of that, if the jobAttempt parameter is Some(_), make sure it matches, otherwise take all entries
       // regardless of the attempt
       if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
     } yield metadataEntry).sortBy(_.metadataTimestamp)
@@ -202,7 +202,7 @@ trait MetadataEntryComponent {
 
       // We should never get here, but there's no reason not to handle it:
       // ps: is there a better literal "true" in slick?
-      case (None, None) => metadataEntry.metadataEntryId === metadataEntry.metadataEntryId
+      case (None, None) => true: Rep[Boolean]
     }
   }
 

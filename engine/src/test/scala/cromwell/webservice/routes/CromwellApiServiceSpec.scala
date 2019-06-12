@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.stream.ActorMaterializer
+import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
@@ -560,7 +561,7 @@ object CromwellApiServiceSpec {
     }
   }
 
-  class MockServiceRegistryActor extends Actor {
+  class MockServiceRegistryActor extends Actor with StrictLogging {
     import MockServiceRegistryActor._
 
     override def receive = {
@@ -626,8 +627,7 @@ object CromwellApiServiceSpec {
             sender ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))
         }
       case _: InstrumentationServiceMessage => // Do nothing.
-      case m => System.err.println(s"Unexpected message received by MockServiceRegistryActor: $m")
-
+      case m => logger.error("Unexpected message received by MockServiceRegistryActor: {}", m)
     }
   }
 

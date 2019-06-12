@@ -12,7 +12,7 @@ import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuer
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
-import cromwell.services.metadata._
+import cromwell.services.metadata.{MetadataService, _}
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import mouse.boolean._
 
@@ -128,7 +128,10 @@ trait MetadataDatabaseAccess {
       case MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
         metadataDatabaseInterface.queryMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
       case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
-        metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallOrWorkflowQuery)
+        val excludeKeyRequirements = listKeyRequirements(excludeKeys)
+        val queryType = if (excludeKeyRequirements.exists(_.startsWith("calls"))) WorkflowQuery else CallOrWorkflowQuery
+
+        metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), excludeKeyRequirements, queryType)
       case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>
         metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt))
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))

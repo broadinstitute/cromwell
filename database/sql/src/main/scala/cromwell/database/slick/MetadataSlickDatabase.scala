@@ -93,7 +93,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       case WorkflowQuery =>
         dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = true).result
       case CallOrWorkflowQuery =>
-        dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = metadataKeysToFilterOut.contains("calls%")).result
+        dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = false).result
     }
     runTransaction(action)
   }

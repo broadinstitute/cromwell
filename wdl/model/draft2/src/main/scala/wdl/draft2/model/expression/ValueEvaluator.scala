@@ -22,7 +22,6 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
   private val InterpolationTagPattern = "\\$\\{\\s*([^\\}]*)\\s*\\}".r
 
   private def replaceInterpolationTag(string: Try[WomString], tag: String): Try[WomString] = {
-    println(s"**** replacing interpolation tag '$tag' within ${string.get.value}!!")
     val expr = WdlExpression.fromString(tag.substring(2, tag.length - 1))
     (expr.evaluate(lookup, functions), string) match {
       case (Success(value), Success(str)) =>
@@ -40,16 +39,9 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
     InterpolationTagPattern.findAllIn(str).foldLeft(Try(WomString(str)))(replaceInterpolationTag)
   }
 
-//  private def interpolate(value: WomValue): Try[WomValue] = {
-//    value match {
-//      case s: WomString => interpolate(s.valueString)
-//      case _ => Try(value)
-//    }
-//  }
-
   override def evaluate(ast: AstNode): Try[WomValue] = {
     ast match {
-      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString)) //.flatMap(interpolate)
+      case t: Terminal if t.getTerminalStr == "identifier" => Try(lookup(t.getSourceString))
       case t: Terminal if t.getTerminalStr == "integer" => Success(WomInteger(t.getSourceString.toInt))
       case t: Terminal if t.getTerminalStr == "float" => Success(WomFloat(t.getSourceString.toDouble))
       case t: Terminal if t.getTerminalStr == "boolean" => Success(WomBoolean(t.getSourceString == "true"))

@@ -302,7 +302,15 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
 object WdlStandardLibraryFunctions {
   def fromIoFunctionSet(ioFunctionSet: IoFunctionSet, _fileSizeLimitationConfig: FileSizeLimitationConfig) = new WdlStandardLibraryFunctions {
-    override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
+    override def readFile(path: String, sizeLimit: Int): String = {
+      println(s"**** About to read file: $path")
+
+      val result = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
+
+      println(s"**** About to read file: $path")
+
+      result
+    }
 
     override def writeFile(path: String, content: String): Try[WomFile] = Try(Await.result(ioFunctionSet.writeFile(path, content), Duration.Inf))
 

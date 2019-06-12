@@ -194,7 +194,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
   }
 
   it should "not parse invalid virtual-private-cloud config with just subnetwork label key" in {
-    val authOnlyConfig =
+    val subnetworkOnlyConfig =
       ConfigFactory.parseString(
         """
           |{
@@ -205,7 +205,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiConfigurationAttributes(googleConfig, authOnlyConfig)
+      PipelinesApiConfigurationAttributes(googleConfig, subnetworkOnlyConfig)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key,auth`.")

@@ -102,7 +102,9 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
               .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
               .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
 
-          case (None, _) => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
+          case (None, _) =>
+            // Falling back to running the job on default network since the project does not have high security network configured
+            new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
       }
 

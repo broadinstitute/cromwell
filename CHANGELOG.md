@@ -2,6 +2,11 @@
 
 ## 43 Release Notes
 
+### Virtual Private Cloud with Subnetworks
+
+Cromwell now allows PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the subnetwork key 
+`subnetwork-label-key` inside `virtual-private-cloud` in backend configuration. More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
 ### Call caching database refactoring
 
 Cromwell's `CALL_CACHING_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous

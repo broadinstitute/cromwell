@@ -32,6 +32,11 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
     "Column 'STORE_VALUE' cannot be null"
   )
 
+  "SlickDatabase (mariadb)" should behave like testWith[BatchUpdateException](
+    "database-test-mariadb",
+    "Column 'STORE_VALUE' cannot be null"
+  )
+
   def testWith[E <: Throwable](configPath: String, failureMessage: String)(implicit classTag: ClassTag[E]): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
     lazy val dataAccess = new EngineSlickDatabase(databaseConfig)

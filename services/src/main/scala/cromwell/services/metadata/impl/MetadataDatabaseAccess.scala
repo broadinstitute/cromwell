@@ -129,7 +129,7 @@ trait MetadataDatabaseAccess {
         metadataDatabaseInterface.queryMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
       case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
         val excludeKeyRequirements = listKeyRequirements(excludeKeys)
-        val queryType = if (excludeKeyRequirements.exists(_.startsWith("calls"))) WorkflowQuery else CallOrWorkflowQuery
+        val queryType = if (excludeKeyRequirements.contains("calls%")) WorkflowQuery else CallOrWorkflowQuery
 
         metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), excludeKeyRequirements, queryType)
       case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>

@@ -29,6 +29,8 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
 
   "SqlWorkflowStore (mysql)" should behave like testWith("database-test-mysql")
 
+  "SqlWorkflowStore (mariadb)" should behave like testWith("database-test-mariadb")
+
   def testWith(configPath: String): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
 

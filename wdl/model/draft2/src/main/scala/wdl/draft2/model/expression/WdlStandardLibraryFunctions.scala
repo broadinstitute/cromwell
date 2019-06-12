@@ -307,7 +307,7 @@ object WdlStandardLibraryFunctions {
 
       val result = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
-      println(s"**** About to read file: $path")
+      println(s"**** Read from file: $path => '$result'")
 
       result
     }

@@ -66,6 +66,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val JesPreemption = 14
 
   val PapiFailedPreConditionErrorCode = 9
+  val PapiErrorCode10 = 10
 
   // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
@@ -602,7 +603,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           && errorMsg.contains("Execution failed")
           && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))) {
         s"Please check the log file for more details: $jesLogPath."
-      } else errorMsg
+      }
+      //If error code 10, add some extra messaging to the server logging
+      if (runStatus.errorCode.getCode.value == PapiErrorCode10) {
+        jobLogger.info(s"Job Failed with Error Code 10 for a machine where Preemptible is set to $preemptible")
+        errorMsg
+      }
+      else errorMsg
     }
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)

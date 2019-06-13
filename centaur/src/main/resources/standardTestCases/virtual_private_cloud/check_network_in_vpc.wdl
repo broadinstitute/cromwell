@@ -10,8 +10,8 @@ task get_network {
     TOKEN=$(gcloud auth application-default print-access-token)
     INSTANCE_METADATA=$(curl "https://www.googleapis.com/compute/v1/projects/broad-dsde-cromwell-dev/zones/$ZONE/instances/$INSTANCE" -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json')
     NETWORK_OBJECT=$(echo $INSTANCE_METADATA | jq --raw-output --exit-status '.networkInterfaces[0]')
-    echo $NETWORK_OBJECT | jq --exit-status '.network' | sed -E 's!.*/(.*)!\1!' > network
-    echo $NETWORK_OBJECT | jq --exit-status '.subnetwork' | sed -E 's!.*/(.*)!\1!' > subnetwork
+    echo $NETWORK_OBJECT | jq --exit-status '.network' | sed -E 's!.*/(.*)!\1!' | sed 's/"//g' > network
+    echo $NETWORK_OBJECT | jq --exit-status '.subnetwork' | sed -E 's!.*/(.*)!\1!' | sed 's/"//g' > subnetwork
     echo $ZONE > zone
   }
 

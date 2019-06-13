@@ -52,7 +52,6 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
   val deathwatch = TestProbe()
   val finalizationProbe = TestProbe()
   var copyWorkflowLogsProbe: TestProbe = _
-  val logCopyErrorProbe = TestProbe()
   val AwaitAlmostNothing = 100.milliseconds
   val initialJobCtByRootWf = new AtomicInteger()
 

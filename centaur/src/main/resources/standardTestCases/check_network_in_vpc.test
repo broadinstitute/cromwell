@@ -12,6 +12,6 @@ metadata {
   status: Succeeded
 
   "outputs.check_network_in_vpc.network_used": "cromwell-ci-vpc-network"
-  "outputs.check_network_in_vpc.subnetwork_used": "ci-subnetwork"
+  "outputs.check_network_in_vpc.subnetwork_used": "cromwell-ci-vpc-network"
   "outputs.check_network_in_vpc.zone_used": "us-east1-c"
 }

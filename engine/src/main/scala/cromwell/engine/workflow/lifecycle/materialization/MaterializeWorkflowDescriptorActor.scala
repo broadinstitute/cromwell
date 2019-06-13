@@ -26,7 +26,7 @@ import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -137,7 +137,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
-                                         ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
+                                         ioActorProxy: ActorRef,
+                                         val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
   val tag = self.path.name
@@ -221,7 +222,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     workflowOptionsValidation map { workflowOptions =>
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system)
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions, pathBuilderFactories)(context.system)
       (workflowOptions, pathBuilders)
     }
   }

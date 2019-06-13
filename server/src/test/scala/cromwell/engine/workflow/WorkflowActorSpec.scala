@@ -3,14 +3,14 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
-import cromwell.core.path.DefaultPathBuilder
-import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder, PathBuilderFactory}
+import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -24,10 +24,16 @@ import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
-  override implicit val actorSystem = system
+
+  // https://doc.akka.io/docs/akka/current/testing.html#expecting-log-messages
+  override implicit val actorSystem = ActorSystem(
+    "testsystem",
+    ConfigFactory.parseString("""akka.loggers = ["akka.testkit.TestEventListener"]""")
+  )
 
   val mockServiceRegistryActor = TestActorRef(new Actor {
     override def receive = {
@@ -46,6 +52,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
   val deathwatch = TestProbe()
   val finalizationProbe = TestProbe()
   var copyWorkflowLogsProbe: TestProbe = _
+  val logCopyErrorProbe = TestProbe()
   val AwaitAlmostNothing = 100.milliseconds
   val initialJobCtByRootWf = new AtomicInteger()
 
@@ -179,7 +186,21 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
+
+    "log an error when a PBF initialization throws an exception" in {
+      EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Crashing as requested.*", occurrences = 1).intercept {
+        val _ = createWorkflowActor(WorkflowSucceededState)
+      }
+
+    }
   }
+}
+
+class ExceptionJustForThisTest extends Exception("Crashing as requested")
+
+class CrashingPathBuilderFactory() extends PathBuilderFactory {
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] =
+    Future(throw new ExceptionJustForThisTest)
 }
 
 class MockWorkflowActor(val finalizationProbe: TestProbe,
@@ -198,7 +219,8 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
                         jobTokenDispenserActor: ActorRef,
                         workflowStoreActor: ActorRef,
                         workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-                        totalJobsByRootWf: AtomicInteger) extends WorkflowActor(
+                        totalJobsByRootWf: AtomicInteger,
+                        override val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories :+ new CrashingPathBuilderFactory()) extends WorkflowActor(
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,

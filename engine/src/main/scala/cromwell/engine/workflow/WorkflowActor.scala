@@ -12,7 +12,7 @@ import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Finished
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
-import cromwell.core.path.{PathBuilder, PathFactory}
+import cromwell.core.path.{PathBuilder, PathBuilderFactory, PathFactory}
 import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
@@ -201,7 +201,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                     totalJobsByRootWf: AtomicInteger,
                     fileHashCacheActor: Option[ActorRef],
-                    blacklistCache: Option[BlacklistCache])
+                    blacklistCache: Option[BlacklistCache],
+                    val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories)
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
 
@@ -431,7 +432,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(sources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
         val system = context.system
         val ec = context.system.dispatcher
-        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system)
+        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system)
 
         val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
           case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))

@@ -12,7 +12,7 @@ import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuer
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
-import cromwell.services.metadata.{MetadataService, _}
+import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import mouse.boolean._
 

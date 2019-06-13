@@ -9,9 +9,9 @@ task get_network {
     ZONE=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google" | sed -E 's!.*/(.*)!\1!')
     TOKEN=$(gcloud auth application-default print-access-token)
     INSTANCE_METADATA=$(curl "https://www.googleapis.com/compute/v1/projects/broad-dsde-cromwell-dev/zones/$ZONE/instances/$INSTANCE" -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json')
-    NETWORK_OBJECT=`echo $INSTANCE_METADATA | jq -r '.networkInterfaces[0]'`
-    echo $NETWORK_OBJECT | jq '.network' | sed -E 's!.*/(.*)!\1!' > network
-    echo $NETWORK_OBJECT | jq '.subnetwork' | sed -E 's!.*/(.*)!\1!' > subnetwork
+    NETWORK_OBJECT=$(echo $INSTANCE_METADATA | jq --raw-output --exit-status '.networkInterfaces[0]')
+    echo $NETWORK_OBJECT | jq --exit-status '.network' | sed -E 's!.*/(.*)!\1!' > network
+    echo $NETWORK_OBJECT | jq --exit-status '.subnetwork' | sed -E 's!.*/(.*)!\1!' > subnetwork
     echo $ZONE > zone
   }
 
@@ -36,3 +36,4 @@ workflow check_network_in_vpc {
      String zone_used = get_network.zone
    }
 }
+

@@ -66,6 +66,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val JesPreemption = 14
 
   val PapiFailedPreConditionErrorCode = 9
+  val PapiMysteriouslyCrashedErrorCode = 10
 
   // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
@@ -409,7 +410,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
            * In CWL-land we tend to be aggressive in pre-fetching the size in order to be able to evaluate JS expressions,
            * but less in WDL as we can get it last minute and on demand because size is a WDL function, whereas in CWL
            * we don't inspect the JS to know if size is called and therefore always pre-fetch it.
-           * 
+           *
            * We could decide to call withSize before in which case we would retrieve the size for all files and have
            * a guaranteed more accurate total size, but there might be performance impacts ?
            */
@@ -602,7 +603,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           && errorMsg.contains("Execution failed")
           && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))) {
         s"Please check the log file for more details: $jesLogPath."
-      } else errorMsg
+      }
+      //If error code 10, add some extra messaging to the server logging
+      else if (runStatus.errorCode.getCode.value == PapiMysteriouslyCrashedErrorCode) {
+        jobLogger.info(s"Job Failed with Error Code 10 for a machine where Preemptible is set to $preemptible")
+        errorMsg
+      }
+      else errorMsg
     }
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)

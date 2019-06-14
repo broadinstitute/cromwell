@@ -186,11 +186,10 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       deathwatch.expectTerminated(actor)
     }
 
-    "log an error when a PBF initialization throws an exception" in {
+    "log an error when a path builder factory initialization fails" in {
       EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Crashing as requested.*", occurrences = 1).intercept {
         val _ = createWorkflowActor(WorkflowSucceededState)
       }
-
     }
   }
 }
@@ -218,8 +217,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   jobTokenDispenserActor: ActorRef,
                                   workflowStoreActor: ActorRef,
                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-                                  totalJobsByRootWf: AtomicInteger,
-                                  override val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories :+ new CrashingPathBuilderFactory()) extends WorkflowActor(
+                                  totalJobsByRootWf: AtomicInteger) extends WorkflowActor(
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,
@@ -241,6 +239,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   totalJobsByRootWf = totalJobsByRootWf,
   fileHashCacheActor = None,
   blacklistCache = None) {
+
+  override val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories :+ new CrashingPathBuilderFactory()
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

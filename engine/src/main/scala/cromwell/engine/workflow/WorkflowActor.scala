@@ -201,8 +201,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                     totalJobsByRootWf: AtomicInteger,
                     fileHashCacheActor: Option[ActorRef],
-                    blacklistCache: Option[BlacklistCache],
-                    val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories)
+                    blacklistCache: Option[BlacklistCache])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
 
@@ -217,6 +216,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, initialStartableState.restarted), s"WorkflowDockerLookupActor-$workflowId")
+
+  protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
   startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 

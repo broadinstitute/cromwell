@@ -26,6 +26,10 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
   val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
 
+  println("********************** DEBUGGING ********************")
+  println(s"flush rate: ${stackdriverConfig.flushRate}")
+  println("*****************************************************")
+
   lazy val projectName: ProjectName = ProjectName.of(stackdriverConfig.googleProject)
   val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
   lazy val metricLabelsMap = generateMetricLabels()
@@ -165,7 +169,8 @@ object StackdriverInstrumentationServiceActor {
     /**
       * Transforms a CromwellBucket to a Stackdriver path
       */
-    def toStackdriverString = (CromwellMetricPrefix ++ cromwellBucket.prefix ++ cromwellBucket.path.toList).mkString("/").replace(" ", "_")
+    def toStackdriverString = (CromwellMetricPrefix ++ cromwellBucket.prefix ++
+      cromwellBucket.path.toList).mkString("/").replace("[\\s-]+", "_")
   }
 }
 

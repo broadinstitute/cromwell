@@ -168,7 +168,7 @@ object StackdriverInstrumentationServiceActor {
       */
     def toStackdriverString = {
       val newM = (CromwellMetricPrefix ++ cromwellBucket.prefix ++
-        cromwellBucket.path.toList).mkString("/").replace("[\\s-]+", "_")
+        cromwellBucket.path.toList).mkString("/").replace(" ", "_").replace("/[\\[\\]']+/g", "")
 
       println(s"METRIC TO SEND: $newM")
 

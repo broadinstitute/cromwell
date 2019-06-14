@@ -25,12 +25,14 @@ sealed trait CromwellMetric
 
 object CromwellCount {
   def apply(bucket: CromwellBucket, value: Long): CromwellCount = new CromwellCount(bucket, value)
-  def unapply(count: CromwellCount): Option[(CromwellBucket, Long, Double)] = Option((count.bucket, count. value, count.sampling))
+  def unapply(count: CromwellCount): Option[(CromwellBucket, Long, Double)] = Option((count.bucket, count.value, count.sampling))
 }
 /**
   * Count occurrences of an event
   */
-class CromwellCount(val bucket: CromwellBucket, val value: Long, val sampling: Double = 1.0D) extends CromwellMetric
+class CromwellCount(val bucket: CromwellBucket, val value: Long, val sampling: Double = 1.0D) extends CromwellMetric {
+  override def toString: String = s"CromwellCount($bucket, $value, $sampling)"
+}
 
 /**
   * Convenience class to increment a count (+1)

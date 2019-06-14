@@ -72,7 +72,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   private def buildSummaryActor: Option[ActorRef] = {
     val actor = metadataSummaryRefreshInterval map {
-      _ => context.actorOf(MetadataSummaryRefreshActor.props(), "metadata-summary-actor")
+      _ => context.actorOf(MetadataSummaryRefreshActor.props(serviceRegistryActor), "metadata-summary-actor")
     }
     val message = metadataSummaryRefreshInterval match {
       case Some(interval) => s"Metadata summary refreshing every $interval."

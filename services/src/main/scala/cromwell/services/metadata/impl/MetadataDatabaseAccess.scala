@@ -77,7 +77,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(increasingResult: Long, decreasingResult: Long)
+  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
 }
 
 trait MetadataDatabaseAccess {
@@ -159,7 +159,7 @@ trait MetadataDatabaseAccess {
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
-      increasing <- metadataDatabaseInterface.summarizeIncreasing(
+      (increasingProcessed, increasingGap) <- metadataDatabaseInterface.summarizeIncreasing(
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
         startMetadataKey = WorkflowMetadataKeys.StartTime,
         endMetadataKey = WorkflowMetadataKeys.EndTime,
@@ -171,7 +171,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-      decreasing <- metadataDatabaseInterface.summarizeDecreasing(
+      (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
         startMetadataKey = WorkflowMetadataKeys.StartTime,
@@ -184,7 +184,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasing, decreasing)
+    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
   }
 
   def getWorkflowStatus(id: WorkflowId)

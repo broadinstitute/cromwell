@@ -174,8 +174,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[Long] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
+      totalTableSize <- dataAccess.metadataEntries.length.result
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
@@ -208,7 +209,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           },
         summaryName = summarizeNameIncreasing
       )
-    } yield maximumMetadataEntryId
+    } yield (maximumMetadataEntryId - previousMaxMetadataEntryId, totalTableSize.toLong - maximumMetadataEntryId)
 
     runTransaction(action)
   }
@@ -227,7 +228,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[Long] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
       previousExistingMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summaryNameDecreasing)
       previousInitializedMetadataEntryIdOption <- previousExistingMetadataEntryIdOption match {
@@ -254,7 +255,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
             summaryName = summaryNameDecreasing
           )
       }
-    } yield newMinimumMetadataEntryId
+      rowsProcessed = previousExistingMetadataEntryIdOption.map(_ - newMinimumMetadataEntryId).getOrElse(0L)
+    } yield (rowsProcessed, newMinimumMetadataEntryId)
 
     runTransaction(action)
   }

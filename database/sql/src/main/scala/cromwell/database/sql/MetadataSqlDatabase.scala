@@ -60,7 +60,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
   def summarizeIncreasing(summaryNameIncreasing: String,
                           startMetadataKey: String,
@@ -75,13 +75,13 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[Long]
+                         (implicit ec: ExecutionContext): Future[(Long, Long)]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    * @return A `Future` with the number of rows summarized by this invocation, and the number of rows still to summarize.
     */
   def summarizeDecreasing(summaryNameDecreasing: String,
                           summaryNameIncreasing: String,
@@ -97,7 +97,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[Long]
+                         (implicit ec: ExecutionContext): Future[(Long, Long)]
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 

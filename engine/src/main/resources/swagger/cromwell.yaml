@@ -511,8 +511,8 @@ paths:
         - $ref: '#/parameters/singleId'
         - name: includeKey
           description: >
-            When specified key(s) to include from the metadata. Matches any key starting with the value. May not be
-            used with excludeKey. This applies to all keys in the response, including within nested blocks.
+            When specified, filters metadata to only return fields with names which begins with this value.
+            This key is used relative to the root of the response *and* relative to each call's metadata fields.
           required: false
           type: array
           items:
@@ -521,8 +521,9 @@ paths:
           in: query
         - name: excludeKey
           description: >
-            When specified key(s) to exclude from the metadata. Matches any key starting with the value. May not be
-            used with includeKey. This applies to all keys in the response, including within nested blocks.
+            When specified, filters metadata to not return any field with a name which begins with this value.
+            This key is used relative to the root of the response *and* relative to each call's metadata fields.
+            Use 'calls' to filter out all call level metadata.
           required: false
           type: array
           items:

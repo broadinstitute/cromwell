@@ -21,7 +21,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
   def receive = {
     case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
       val includeKeys = if (expandSubWorkflows) {
-        includeKeysOption map { _.::(CallMetadataKeys.SubWorkflowId) }
+        includeKeysOption map { _ :+ CallMetadataKeys.SubWorkflowId }
       } else includeKeysOption
       queryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
     case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)

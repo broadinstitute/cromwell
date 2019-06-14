@@ -7,11 +7,20 @@
 Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
 Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
-### StatsD Instrumentation Config change
+### Configuration Changes
+
+#### StatsD Instrumentation
 
 There is a small change in StatsD's configuration path. Originally, the path to the config was `services.Instrumentation.config.statsd`
 which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
 [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### API Changes
+
+#### Workflow Metadata
+
+* It is now possible to use `includeKey` and `excludeKey` at the same time. If so, the metadata key must match the `includeKey` **and not** match the `excludeKey` to be included.
+* It is now possible to use "`calls`" as one of your `excludeKey`s, to request that only workflow metadata gets returned.
 
 ## 42 Release Notes
 

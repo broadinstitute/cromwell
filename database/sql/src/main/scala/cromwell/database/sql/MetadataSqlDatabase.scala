@@ -2,7 +2,6 @@ package cromwell.database.sql
 
 import java.sql.Timestamp
 
-import cats.data.NonEmptyList
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
@@ -51,15 +50,11 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            jobAttempt: Option[Int])
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
-                                           metadataKeys: NonEmptyList[String],
+  def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                           metadataKeysToFilterFor: List[String],
+                                           metadataKeysToFilterAgainst: List[String],
                                            metadataJobQueryValue: MetadataJobQueryValue)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
-
-  def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
-                                            metadataKeys: NonEmptyList[String],
-                                            metadataJobQueryValue: MetadataJobQueryValue)
-                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**
     * Retrieves next summarizable block of metadata satisfying the specified criteria.

@@ -26,10 +26,6 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
   val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
 
-  println("********************** DEBUGGING ********************")
-  println(s"flush rate: ${stackdriverConfig.flushRate}")
-  println("*****************************************************")
-
   lazy val projectName: ProjectName = ProjectName.of(stackdriverConfig.googleProject)
   val credentials = stackdriverConfig.auth.credentials(List(MonitoringScope))
   lazy val metricLabelsMap = generateMetricLabels()
@@ -76,6 +72,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
 
   private def updateMetricMap(bucket: CromwellBucket, metricValue: Double, metricKind: StackdriverMetricKind): Unit = {
+    println(s"OLD METRIC VALUE: ${bucket.path}")
     val metricObj = StackdriverMetric(bucket.toStackdriverString, metricKind)
 
     if (metricsMap.contains(metricObj)) {
@@ -169,8 +166,14 @@ object StackdriverInstrumentationServiceActor {
     /**
       * Transforms a CromwellBucket to a Stackdriver path
       */
-    def toStackdriverString = (CromwellMetricPrefix ++ cromwellBucket.prefix ++
-      cromwellBucket.path.toList).mkString("/").replace("[\\s-]+", "_")
+    def toStackdriverString = {
+      val newM = (CromwellMetricPrefix ++ cromwellBucket.prefix ++
+        cromwellBucket.path.toList).mkString("/").replace("[\\s-]+", "_")
+
+      println(s"METRIC TO SEND: $newM")
+
+      newM
+    }
   }
 }
 

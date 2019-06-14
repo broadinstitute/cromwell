@@ -65,7 +65,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   private def createWorkflowActor(state: WorkflowActorState) = {
     val actor = TestFSMRef(
-      factory = new MockWorkflowActor(
+      factory = new WorkflowActorWithTestAddons(
         finalizationProbe = finalizationProbe,
         workflowId = currentWorkflowId,
         startState = Submitted,
@@ -202,24 +202,24 @@ class CrashingPathBuilderFactory() extends PathBuilderFactory {
     Future(throw new ExceptionJustForThisTest)
 }
 
-class MockWorkflowActor(val finalizationProbe: TestProbe,
-                        workflowId: WorkflowId,
-                        startState: StartableState,
-                        workflowSources: WorkflowSourceFilesCollection,
-                        conf: Config,
-                        ioActor: ActorRef,
-                        serviceRegistryActor: ActorRef,
-                        workflowLogCopyRouter: ActorRef,
-                        jobStoreActor: ActorRef,
-                        subWorkflowStoreActor: ActorRef,
-                        callCacheReadActor: ActorRef,
-                        callCacheWriteActor: ActorRef,
-                        dockerHashActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef,
-                        workflowStoreActor: ActorRef,
-                        workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-                        totalJobsByRootWf: AtomicInteger,
-                        override val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories :+ new CrashingPathBuilderFactory()) extends WorkflowActor(
+class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
+                                  workflowId: WorkflowId,
+                                  startState: StartableState,
+                                  workflowSources: WorkflowSourceFilesCollection,
+                                  conf: Config,
+                                  ioActor: ActorRef,
+                                  serviceRegistryActor: ActorRef,
+                                  workflowLogCopyRouter: ActorRef,
+                                  jobStoreActor: ActorRef,
+                                  subWorkflowStoreActor: ActorRef,
+                                  callCacheReadActor: ActorRef,
+                                  callCacheWriteActor: ActorRef,
+                                  dockerHashActor: ActorRef,
+                                  jobTokenDispenserActor: ActorRef,
+                                  workflowStoreActor: ActorRef,
+                                  workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+                                  totalJobsByRootWf: AtomicInteger,
+                                  override val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories :+ new CrashingPathBuilderFactory()) extends WorkflowActor(
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,

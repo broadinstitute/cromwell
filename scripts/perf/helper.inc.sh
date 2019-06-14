@@ -78,25 +78,10 @@ export_logs() {
     gsutil -h "Content-Type:text/plain" cp $(docker inspect --format='{{.LogPath}}' cromwell) "${REPORT_URL}/cromwell.log" || true
     # Copy the docker daemon logs
     gsutil -h "Content-Type:text/plain" cp /var/log/daemon.log "${REPORT_URL}/daemon.log" || true
-    # Copy the statsd logs
-    gsutil -h "Content-Type:text/plain" cp "${STATSD_PROXY_APP_DIR}/statsd.log" "${REPORT_URL}/statsd.log" || true
     # Copy centaur log
     gsutil -h "Content-Type:text/plain" cp "${CROMWELL_ROOT}/centaur.log" "${REPORT_URL}/centaur.log" || true
     # Copy test_rc.log
     echo $TEST_RC > test_rc.txt && gsutil -h "Content-Type:text/plain" cp test_rc.txt "${REPORT_URL}/test_rc.txt" || true
-}
-
-prepare_statsd_proxy() {
-    # Build the image
-    cd ${CROMWELL_ROOT}
-    export CROMWELL_SBT_DOCKER_TAGS=perf
-    sbt statsDProxy/docker
-    
-    # Export configuration variables
-    export STATSD_PROXY_APP_DIR="${PERF_ROOT}/vm_scripts/statsd-proxy"
-    # Hard code those for now as there's no obvious reason to make them configurable
-    export PROXY_HOST=0.0.0.0
-    export PROXY_PORT=9125
 }
 
 clean_up() {

@@ -8,7 +8,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 trait ReadLikeFunctions extends PathFactory with IoFunctionSet with AsyncIoFunctions {
-  
+
   override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] =
     Future.fromTry(Try(buildPath(path))) flatMap { p => asyncIo.contentAsStringAsync(p, maxBytes, failOnOverflow) }
 

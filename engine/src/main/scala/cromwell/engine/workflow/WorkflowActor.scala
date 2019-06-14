@@ -441,8 +441,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
-            Future(pathBuilders)(ec) // Protect against path builders that may throw an exception instead of returning a failed future
-              .flatten
+            pathBuilders
               .map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
               .recover { case e => log.error(e, "Failed to copy workflow log") }(ec)
           case None => workflowLogger.close(andDelete = WorkflowLogger.isTemporary) match {

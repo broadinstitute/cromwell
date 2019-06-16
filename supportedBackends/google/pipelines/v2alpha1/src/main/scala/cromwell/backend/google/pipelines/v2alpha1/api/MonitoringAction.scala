@@ -71,10 +71,9 @@ trait MonitoringAction {
     value match {
       case _: WomString | _: WomInteger | _: WomFloat | _: WomBoolean | _: WomFile =>
         List(TaskInput(path, value))
-      case p: WomPair => List(
-        TaskInput(".left" :: path, p.left),
-        TaskInput(".right" :: path, p.right),
-      )
+      case p: WomPair =>
+        collectTaskInputs(".left" :: path, p.left) ++
+        collectTaskInputs(".right" :: path, p.right)
       case a: WomArray => a.value.zipWithIndex.flatMap {
         case (v, i) => collectTaskInputs(s"[${i.toString}]" :: path, v)
       }

@@ -8,7 +8,8 @@ import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import scala.collection.JavaConverters._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import wom.values.{WomFile, WomValue}
+import wom.callable.Callable.InputDefinition
+import wom.values.{WomArray, WomBoolean, WomFile, WomFloat, WomInteger, WomMap, WomObjectLike, WomPair, WomString, WomValue}
 
 trait MonitoringAction {
   object Env {
@@ -36,7 +37,7 @@ trait MonitoringAction {
       Env.TaskCallName -> job.taskCall.localName,
       Env.TaskCallIndex -> (job.key.index map { _.toString } getOrElse "NA"),
       Env.TaskCallAttempt -> job.key.attempt.toString,
-      Env.TaskInputs -> getTaskInputs(job.fullyQualifiedInputs),
+      Env.TaskInputs -> getTaskInputs(job.evaluatedTaskInputs),
       Env.TaskCommand -> job.taskCall.callable.commandTemplateString(job.evaluatedTaskInputs),
       Env.TaskDisks -> getTaskDisks(createPipelineParameters.adjustedSizeDisks, mounts),
       Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
@@ -53,15 +54,51 @@ trait MonitoringAction {
     List(describeAction, monitoringAction, terminationAction)
   }
 
-  private def getTaskInputs(inputs: Map[String, WomValue]): String = {
-    inputs.transform((name, v) => Map(
-      "name" -> name,
-      "type" -> v.womType.stableName,
-      "value" -> (v match {
-        case v: WomFile => v.sizeOption map { _.toString } getOrElse "" // array ? directory ?
-        case v: WomValue => v.valueString
-      }),
-    )).values.toJson.toString
+  private def getTaskInputs(inputs: Map[InputDefinition, WomValue]): String = {
+    inputs.flatMap {
+      case (definition, value) => collectTaskInputs(List(definition.name), value)
+    }.map {
+      input => Map(
+        "name" -> input.path.reverse.mkString.toJson,
+        "type" -> input.value.womType.stableName.toJson,
+        "value" -> input.value.valueString.toJson,
+        "size" -> input.size.toJson,
+      )
+    }.toJson.toString
+  }
+
+  private def collectTaskInputs(path: List[String], value: WomValue): Iterable[TaskInput] = {
+    value match {
+      case _: WomString | _: WomInteger | _: WomFloat | _: WomBoolean | _: WomFile =>
+        List(TaskInput(path, value))
+      case p: WomPair => List(
+        TaskInput(".left" :: path, p.left),
+        TaskInput(".right" :: path, p.right),
+      )
+      case a: WomArray => a.value.zipWithIndex.flatMap {
+        case (v, i) => collectTaskInputs(s"[${i.toString}]" :: path, v)
+      }
+      case m: WomMap => m.value.flatMap {
+        case (k, v) => collectTaskInputs(s"[${keyToStr(k)}]" :: path, v)
+      }
+      case o: WomObjectLike => o.values.flatMap {
+        case (k, v) => collectTaskInputs(s".$k" :: path, v)
+      }
+    }
+  }
+
+  private def keyToStr(k: WomValue): String = {
+    k match {
+      case _: WomInteger => k.valueString
+      case _ => s""""${k.valueString}""""
+    }
+  }
+
+  private case class TaskInput(path: List[String], value: WomValue) {
+    val size: Option[Long] = value match {
+      case f: WomFile => f.sizeOption // always returns None; TODO replace with sizeCommand
+      case _ => None
+    }
   }
 
   private def getTaskDisks(disks: Seq[PipelinesApiAttachedDisk], mounts: List[Mount]): String = {

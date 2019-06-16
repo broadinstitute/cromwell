@@ -21,6 +21,7 @@ trait MonitoringAction {
     val TaskCallIndex = "TASK_CALL_INDEX"
     val TaskCallAttempt = "TASK_CALL_ATTEMPT"
     val TaskInputs = "TASK_INPUTS"
+    val TaskCommand = "TASK_COMMAND"
     val TaskDisks = "TASK_DISKS"
     val DiskMounts = "DISK_MOUNTS" // preserved for backward compatibility
     val MonitoringConfig = "MONITORING_CONFIG"
@@ -36,6 +37,7 @@ trait MonitoringAction {
       Env.TaskCallIndex -> (job.key.index map { _.toString } getOrElse "NA"),
       Env.TaskCallAttempt -> job.key.attempt.toString,
       Env.TaskInputs -> getTaskInputs(job.fullyQualifiedInputs),
+      Env.TaskCommand -> job.taskCall.callable.commandTemplateString(job.evaluatedTaskInputs),
       Env.TaskDisks -> getTaskDisks(createPipelineParameters.adjustedSizeDisks, mounts),
       Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
       Env.MonitoringConfig -> config,

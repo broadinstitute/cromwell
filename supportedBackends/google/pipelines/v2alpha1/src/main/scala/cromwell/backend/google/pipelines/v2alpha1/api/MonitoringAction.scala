@@ -8,7 +8,6 @@ import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import scala.collection.JavaConverters._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
-import wom.callable.Callable.InputDefinition
 import wom.values.{WomArray, WomBoolean, WomFile, WomFloat, WomInteger, WomMap, WomObjectLike, WomPair, WomString, WomValue}
 
 trait MonitoringAction {
@@ -37,7 +36,7 @@ trait MonitoringAction {
       Env.TaskCallName -> job.taskCall.localName,
       Env.TaskCallIndex -> (job.key.index map { _.toString } getOrElse "NA"),
       Env.TaskCallAttempt -> job.key.attempt.toString,
-      Env.TaskInputs -> getTaskInputs(job.evaluatedTaskInputs),
+      Env.TaskInputs -> getTaskInputs(job.localInputs),
       Env.TaskCommand -> job.taskCall.callable.commandTemplateString(job.evaluatedTaskInputs),
       Env.TaskDisks -> getTaskDisks(createPipelineParameters.adjustedSizeDisks, mounts),
       Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
@@ -54,9 +53,9 @@ trait MonitoringAction {
     List(describeAction, monitoringAction, terminationAction)
   }
 
-  private def getTaskInputs(inputs: Map[InputDefinition, WomValue]): String = {
+  private def getTaskInputs(inputs: Map[String, WomValue]): String = {
     inputs.flatMap {
-      case (definition, value) => collectTaskInputs(List(definition.name), value)
+      case (name, value) => collectTaskInputs(List(name), value)
     }.map {
       input => Map(
         "name" -> input.path.reverse.mkString.toJson,

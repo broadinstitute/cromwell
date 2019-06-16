@@ -65,7 +65,7 @@ object WorkflowOptions {
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
-  private lazy val validObjectKeys: Set[String] = Set(DefaultRuntimeOptions.name, "google_labels")
+  private lazy val validObjectKeys: Set[String] = Set(DefaultRuntimeOptions.name, "google_labels", "monitoring_config")
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {

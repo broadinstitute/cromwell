@@ -28,7 +28,7 @@ trait MonitoringAction {
     val MonitoringConfig = "MONITORING_CONFIG"
   }
 
-  private def monitoringAction(createPipelineParameters: CreatePipelineParameters, image: String, config: String, mounts: List[Mount]): List[Action] = {
+  private def monitoringAction(createPipelineParameters: CreatePipelineParameters, image: String, config: JsValue, mounts: List[Mount]): List[Action] = {
     val job = createPipelineParameters.jobDescriptor
 
     val environment = Map(
@@ -41,7 +41,7 @@ trait MonitoringAction {
       Env.TaskCommand -> job.taskCall.callable.commandTemplateString(job.evaluatedTaskInputs),
       Env.TaskDisks -> getTaskDisks(createPipelineParameters.adjustedSizeDisks, mounts),
       Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
-      Env.MonitoringConfig -> config,
+      Env.MonitoringConfig -> config.toString,
     )
 
     val monitoringAction = ActionBuilder.monitoringAction(image, environment, mounts)
@@ -114,7 +114,7 @@ trait MonitoringAction {
   def monitoringActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {
     val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
 
-    lazy val config = workflowOptions.get(WorkflowOptionKeys.MonitoringConfig) getOrElse ""
+    lazy val config = workflowOptions.toMap.getOrElse(WorkflowOptionKeys.MonitoringConfig, JsObject())
 
     workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption match {
       case Some(image) => monitoringAction(createPipelineParameters, image, config, mounts)

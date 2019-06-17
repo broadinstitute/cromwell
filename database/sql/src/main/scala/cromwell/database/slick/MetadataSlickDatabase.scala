@@ -176,11 +176,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                      => WorkflowMetadataSummaryEntry)
                                   (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
-      totalTableSize <- dataAccess.metadataEntries.length.result
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryId <- summarizeMetadata(
+      maximumMetadataEntryIdConsidered <- summarizeMetadata(
         minMetadataEntryId = previousMaxMetadataEntryId + 1L,
         maxMetadataEntryId = nextMaxMetadataEntryId,
         startMetadataKey = startMetadataKey,
@@ -209,7 +208,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           },
         summaryName = summarizeNameIncreasing
       )
-    } yield (maximumMetadataEntryId - previousMaxMetadataEntryId, totalTableSize.toLong - maximumMetadataEntryId)
+      maximumMetadataEntryIdInTableOption <- dataAccess.metadataEntries.map(_.metadataEntryId).max.result
+      maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
+        // TODO: Add a logging framework to this 'database' project and log this weirdness.
+        maximumMetadataEntryIdConsidered
+      }
+    } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
 
     runTransaction(action)
   }

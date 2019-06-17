@@ -11,6 +11,10 @@
                 tableName="CALL_CACHING_HASH_ENTRY"
                 columnName="CALL_CACHING_HASH_ENTRY_ID"
                 newDataType="BIGINT"/>
+        <addAutoIncrement columnName="CALL_CACHING_HASH_ENTRY_ID"
+                          columnDataType="BIGINT"
+                          incrementBy="1"
+                          tableName="CALL_CACHING_HASH_ENTRY"/>
     </changeSet>
 
 </databaseChangeLog>

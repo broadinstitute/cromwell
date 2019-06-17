@@ -72,7 +72,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
 
 
   private def updateMetricMap(bucket: CromwellBucket, metricValue: Double, metricKind: StackdriverMetricKind): Unit = {
-    println(s"OLD METRIC VALUE: ${bucket.path}")
+//    println(s"OLD METRIC VALUE: ${bucket.path}")
     val metricObj = StackdriverMetric(bucket.toStackdriverString, metricKind)
 
     if (metricsMap.contains(metricObj)) {

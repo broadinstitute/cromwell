@@ -9,7 +9,7 @@ trait CallCachingHashEntryComponent {
   import driver.api._
 
   class CallCachingHashEntries(tag: Tag) extends Table[CallCachingHashEntry](tag, "CALL_CACHING_HASH_ENTRY") {
-    def callCachingHashEntryId = column[Int]("CALL_CACHING_HASH_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def callCachingHashEntryId = column[Long]("CALL_CACHING_HASH_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def hashKey = column[String]("HASH_KEY", O.Length(255))
 

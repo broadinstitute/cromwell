@@ -76,6 +76,7 @@
     <include file="changesets/add_workflow_url_in_workflow_store_entry.xml" relativeToChangelogFile="true" />
     <include file="changesets/change_max_size_workflow_url.xml" relativeToChangelogFile="true" />
     <include file="changesets/docker_hash_store_add_size_column.xml" relativeToChangelogFile="true" />
+    <include file="changesets/enlarge_call_caching_hash_entry_id" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

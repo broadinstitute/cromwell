@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="mcovarr" id="enlarge_call_caching_hash_entry_id">
+        <comment>
+            Larger integer data type for the PK since > 2 billion rows.
+        </comment>
+        <modifyDataType
+                tableName="CALL_CACHING_HASH_ENTRY"
+                columnName="CALL_CACHING_HASH_ENTRY_ID"
+                newDataType="BIGINT"/>
+    </changeSet>
+
+</databaseChangeLog>

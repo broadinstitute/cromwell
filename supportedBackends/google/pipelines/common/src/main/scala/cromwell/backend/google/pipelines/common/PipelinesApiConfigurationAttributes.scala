@@ -161,9 +161,7 @@ object PipelinesApiConfigurationAttributes {
     val vpcAuth: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.auth")}
 
     val virtualPrivateCloudConfiguration: ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
-      (vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN  {
-        case (network, subnetwork, auth) => validateVPCConfig(network, subnetwork, auth)
-      }
+      (vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN  validateVPCConfig
     }
 
     val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")

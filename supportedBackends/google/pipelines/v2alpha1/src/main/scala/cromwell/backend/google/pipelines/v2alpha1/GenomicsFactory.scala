@@ -91,17 +91,13 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         val subnetworkLabelOption = vpcConfig.subnetwork.flatMap(s => projectLabels.labels.find(l => l._1.equals(s)))
 
         (networkLabelOption, subnetworkLabelOption) match {
-          case (Some(networkLabel), Some(subnetworkLabel)) =>
-            new Network()
-              .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
-              .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
-              .setSubnetwork(subnetworkLabel._2)
-
-          case (Some(networkLabel), None) =>
-            new Network()
+          case (Some(networkLabel), _) =>
+            val network = new Network()
               .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
               .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
 
+            subnetworkLabelOption foreach { case(_, subnet) => network.setSubnetwork(subnet) }
+            network
           case (None, _) =>
             // Falling back to running the job on default network since the project does not have high security network configured
             new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)

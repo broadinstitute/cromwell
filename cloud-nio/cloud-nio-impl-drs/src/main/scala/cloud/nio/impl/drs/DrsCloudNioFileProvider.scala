@@ -39,10 +39,13 @@ class DrsCloudNioFileProvider(scheme: String,
 
 
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
-    drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
-      val errorMsg = s"Status line was null for martha response $marthaResponse."
-      toIO(Option(marthaResponse.getStatusLine), errorMsg)
-    }.map(_.getStatusCode == HttpStatus.SC_OK)
+    if (drsPath.endsWith("/")) IO(false)
+    else {
+      drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
+        val errorMsg = s"Status line was null for martha response $marthaResponse."
+        toIO(Option(marthaResponse.getStatusLine), errorMsg)
+      }.map(_.getStatusCode == HttpStatus.SC_OK)
+    }
   }
 
 

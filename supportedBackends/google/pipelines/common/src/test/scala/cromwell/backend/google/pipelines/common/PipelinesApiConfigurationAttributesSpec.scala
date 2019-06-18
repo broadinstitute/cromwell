@@ -135,6 +135,16 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.auth.name should be("application-default")
   }
 
+  it should "parse virtual-private-cloud with empty body" in {
+
+    val customConfig = """virtual-private-cloud{ }"""
+
+    val backendConfig = ConfigFactory.parseString(configString(customConfig))
+
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.virtualPrivateCloudConfiguration should be(None)
+  }
+
   it should "not parse invalid config" in {
     val nakedConfig =
       ConfigFactory.parseString(
@@ -209,6 +219,44 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key,auth`.")
+  }
+
+  it should "not parse invalid virtual-private-cloud config with network & subnetwork label keys" in {
+    val config =
+      ConfigFactory.parseString(
+        """
+          |{
+          |   virtual-private-cloud {
+          |     network-label-key = "my-network"
+          |     subnetwork-label-key = "my-subnetwork"
+          |   }
+          |}
+        """.stripMargin)
+
+    val exception = intercept[IllegalArgumentException with MessageAggregation] {
+      PipelinesApiConfigurationAttributes(googleConfig, config)
+    }
+    val errorsList = exception.errorMessages.toList
+    errorsList should contain("Virtual Private Cloud configuration is invalid. Missing keys: `auth`.")
+  }
+
+  it should "not parse invalid virtual-private-cloud config with subnetwork label key & auth" in {
+    val config =
+      ConfigFactory.parseString(
+        """
+          |{
+          |   virtual-private-cloud {
+          |     subnetwork-label-key = "my-subnetwork"
+          |     auth = "application-default"
+          |   }
+          |}
+        """.stripMargin)
+
+    val exception = intercept[IllegalArgumentException with MessageAggregation] {
+      PipelinesApiConfigurationAttributes(googleConfig, config)
+    }
+    val errorsList = exception.errorMessages.toList
+    errorsList should contain("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`.")
   }
 
   def configString(customContent: String = "", genomics: String = ""): String =

@@ -11,6 +11,12 @@
                 tableName="CALL_CACHING_HASH_ENTRY"
                 columnName="CALL_CACHING_HASH_ENTRY_ID"
                 newDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="restore_auto_increment_call_caching_hash_entry_id">
+        <comment>
+            Factored into a separate changeset from the above to allow for handling various RDBMS implementations differently.
+        </comment>
         <addAutoIncrement columnName="CALL_CACHING_HASH_ENTRY_ID"
                           columnDataType="BIGINT"
                           incrementBy="1"

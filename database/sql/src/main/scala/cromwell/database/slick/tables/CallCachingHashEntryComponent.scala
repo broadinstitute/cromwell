@@ -36,9 +36,9 @@ trait CallCachingHashEntryComponent {
     * Find all hashes for a CALL_CACHING_ENTRY_ID
     */
   val callCachingHashEntriesForCallCachingEntryId = Compiled(
-    (callCachingHashEntryId: Rep[Int]) => for {
+    (callCachingEntryId: Rep[Int]) => for {
       callCachingHashEntry <- callCachingHashEntries
-      if callCachingHashEntry.callCachingEntryId === callCachingHashEntryId
+      if callCachingHashEntry.callCachingEntryId === callCachingEntryId
     } yield callCachingHashEntry
   )
 }

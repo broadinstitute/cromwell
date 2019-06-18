@@ -4,10 +4,10 @@
 
 ### Call caching database refactoring
 
-Cromwell's `CALL_CACHE_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous `INT` datatype.
+Cromwell's `CALL_CACHING_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous `INT` datatype.
 Cromwell will not be usable during the time the Liquibase migration for this refactor is running. In the Google Cloud SQL environment
-the migration runs at a rate of approximately 100,000 `CALL_CACHE_HASH_ENTRY` rows per second. In deployments with millions or billions
-of `CALL_CACHE_HASH_ENTRY` rows the migration may run for a significant amount of time so please plan accordingly.    
+the migration runs at a rate of approximately 100,000 `CALL_CACHING_HASH_ENTRY` rows per second. In deployments with millions or billions
+of `CALL_CACHING_HASH_ENTRY` rows the migration may run for a significant amount of time so please plan accordingly.
 
 ### Stackdriver Instrumentation
 

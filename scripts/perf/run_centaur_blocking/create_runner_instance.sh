@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -euo pipefail
 
 source scripts/perf/helper.inc.sh

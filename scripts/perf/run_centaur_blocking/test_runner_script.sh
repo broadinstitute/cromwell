@@ -2,11 +2,6 @@
 
 set -euo pipefail
 
-addVar CROMWELL_ROOT=/app
-addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
-
-source ${PERF_ROOT}/helper.inc.sh
-
 ### /!\ This script assumes docker and docker compose are already installed on the host
 
 # Utility function to extract values from instance metadata
@@ -23,6 +18,11 @@ addVar() {
 
 # Make sure ip forwarding is enabled by default so that docker doesn't loses connectivity
 echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
+
+addVar CROMWELL_ROOT=/app
+addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+
+source ${PERF_ROOT}/helper.inc.sh
 
 # Set up env variables
 addVar TEST_CASE_DIRECTORY=$(extract_metadata TEST_CASE_DIRECTORY)

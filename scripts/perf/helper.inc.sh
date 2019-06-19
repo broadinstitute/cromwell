@@ -161,7 +161,7 @@ wait_for_ping_to_start_then_stop() {
     sleep 30
     ATTEMPTS=$((ATTEMPTS + 1))
 
-    ping -c 1 35.194.33.189 &> /dev/null
+    ping -c 1 ${address} &> /dev/null
     RESULT=$?
   done
 
@@ -173,7 +173,7 @@ wait_for_ping_to_start_then_stop() {
     echo "[$(date)] ${address} came up after ${ATTEMPTS} attempts"
   fi
 
-  while ping -c 1 35.194.33.189 &> /dev/null
+  while ping -c 1 ${address} &> /dev/null
   do
     echo "${address} is still responding to pings. Pausing before next ping"
     sleep 30

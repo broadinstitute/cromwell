@@ -98,7 +98,7 @@ case class AwsBatchEmptyMountedDisk(mountPoint: Path) extends AwsBatchVolume {
 }
 
 object AwsBatchWorkingDisk {
-  val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
+  val MountPoint: Path = DefaultPathBuilder.get("/pacbio-data/cromwell_root")
   val Name = "local-disk"
   val Default = AwsBatchWorkingDisk()
 }

@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+addVar CROMWELL_ROOT=/app
+addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+
 source ${PERF_ROOT}/helper.inc.sh
 
 ### /!\ This script assumes docker and docker compose are already installed on the host
@@ -30,11 +33,8 @@ addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
 addVar BUILD_ID=$(extract_metadata BUILD_TAG)
 addVar CLEAN_UP=true
 
-addVar REPORT_BUCKET=cromwell-perf-test-reporting
-
-addVar CROMWELL_ROOT=/app
-addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
-addVar TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
+addVar REPORT_BUCKET="cromwell-perf-test-reporting"
+addVar TEST_WORKFLOW_ROOT="${PERF_ROOT}/test_cases"
 
 addVar CROMWELL_UNDER_TEST="localhost"
 

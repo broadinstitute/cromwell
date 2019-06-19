@@ -24,9 +24,10 @@ class Slf4jReporter(override val params: ErrorReporterParams)
     IO {
       val message =
         s"Test '${testEnvironment.name}' " +
-          centaurTestException.workflowIdOption.map("with workflow id '" + _ + "' ").getOrElse("") +
           s"failed on attempt ${testEnvironment.attempt + 1} " +
-          s"of ${testEnvironment.retries + 1}"
+          s"of ${testEnvironment.retries + 1} " +
+          centaurTestException.workflowIdOption.map("with workflow id '" + _ + "' ").getOrElse("")
+
       logger.error(message, centaurTestException)
     }
   }

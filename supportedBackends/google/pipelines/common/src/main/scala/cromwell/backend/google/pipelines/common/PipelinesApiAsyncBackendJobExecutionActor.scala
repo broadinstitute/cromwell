@@ -34,6 +34,7 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
+import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.CommandSetupSideEffectFile
@@ -64,6 +65,9 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val JesUnexpectedTermination = 13
   val JesPreemption = 14
 
+  val PapiFailedPreConditionErrorCode = 9
+  val PapiMysteriouslyCrashedErrorCode = 10
+
   // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
 
@@ -84,7 +88,8 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 
 class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with PipelinesApiJobCachingActorHelper
-    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient with PapiInstrumentation {
+    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient
+    with PapiInstrumentation {
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
 
@@ -391,7 +396,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def createPipelineParameters(inputOutputParameters: InputOutputParameters): CreatePipelineParameters = {
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters, customLabels: Seq[GoogleLabel]): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -405,7 +410,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
            * In CWL-land we tend to be aggressive in pre-fetching the size in order to be able to evaluate JS expressions,
            * but less in WDL as we can get it last minute and on demand because size is a WDL function, whereas in CWL
            * we don't inspect the JS to know if size is called and therefore always pre-fetch it.
-           * 
+           *
            * We could decide to call withSize before in which case we would retrieve the size for all files and have
            * a guaranteed more accurate total size, but there might be performance impacts ?
            */
@@ -427,15 +432,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
           logGcsPath = jesLogPath,
-          inputOutputParameters,
-          googleProject(jobDescriptor.workflowDescriptor),
-          computeServiceAccount(jobDescriptor.workflowDescriptor),
-          backendLabels,
-          preemptible,
-          pipelinesConfiguration.jobShell,
-          dockerKeyAndToken,
-          jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
-          adjustedSizeDisks
+          inputOutputParameters = inputOutputParameters,
+          projectId = googleProject(jobDescriptor.workflowDescriptor),
+          computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
+          googleLabels = backendLabels ++ customLabels,
+          preemptible = preemptible,
+          jobShell = pipelinesConfiguration.jobShell,
+          privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
+          womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
+          adjustedSizeDisks = adjustedSizeDisks,
+          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -499,15 +505,23 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
     def uploadScriptFile = commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
-      asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain"))))
+      asyncIo.writeAsync(jobPaths.script, _, Seq(CloudStorageOptions.withMimeType("text/plain")))
+    )
+
+    def sendGoogleLabelsToMetadata(customLabels: Seq[GoogleLabel]): Unit = {
+      lazy val backendLabelEvents: Map[String, String] = ((backendLabels ++ customLabels) map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value }).toMap
+      tellMetadata(backendLabelEvents)
+    }
 
     val runPipelineResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile
+      customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters)
+      createParameters = createPipelineParameters(jesParameters, customLabels)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
+      _ = sendGoogleLabelsToMetadata(customLabels)
     } yield runId
 
     runPipelineResponse map { runId =>
@@ -584,6 +598,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def handleExecutionFailure(runStatus: RunStatus,
                                       returnCode: Option[Int]): Future[ExecutionHandle] = {
 
+    def generateBetterErrorMsg(runStatus: RunStatus.UnsuccessfulRunStatus, errorMsg: String): String = {
+      if (runStatus.errorCode.getCode.value == PapiFailedPreConditionErrorCode
+          && errorMsg.contains("Execution failed")
+          && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))) {
+        s"Please check the log file for more details: $jesLogPath."
+      }
+      //If error code 10, add some extra messaging to the server logging
+      else if (runStatus.errorCode.getCode.value == PapiMysteriouslyCrashedErrorCode) {
+        jobLogger.info(s"Job Failed with Error Code 10 for a machine where Preemptible is set to $preemptible")
+        errorMsg
+      }
+      else errorMsg
+    }
+
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
                               returnCode: Option[Int]): Future[ExecutionHandle] = {
@@ -592,19 +620,21 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
 
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(runStatus.prettyPrintedError, jobTag, Option(standardPaths.error))))
-        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, runStatus.prettyPrintedError, returnCode)
+        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error))))
+        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
         case _ if isDockerPullFailure =>
           val unable = s"Unable to pull Docker image '$jobDockerImage' "
           val details = if (hasDockerCredentials)
             "but Docker credentials are present; is this Docker account authorized to pull the image? " else
             "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
             "Please check your private Docker configuration and/or the pull access for this image. "
-          val message = unable + details + runStatus.prettyPrintedError
+          val message = unable + details + prettyError
           Future.successful(FailedNonRetryableExecutionHandle(StandardException(
             runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
-        case _ => Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          runStatus.errorCode, runStatus.prettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+        case _ =>
+          val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
+          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
+            runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
       }
     }
 

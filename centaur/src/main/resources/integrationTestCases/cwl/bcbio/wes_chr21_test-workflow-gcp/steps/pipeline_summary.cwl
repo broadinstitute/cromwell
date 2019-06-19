@@ -17,15 +17,15 @@ class: CommandLineTool
 cwlVersion: v1.0
 hints:
 - class: DockerRequirement
-  dockerImageId: quay.io/bcbio/bcbio-vc
-  dockerPull: quay.io/bcbio/bcbio-vc
+  dockerImageId: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
+  dockerPull: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
 - class: ResourceRequirement
   coresMin: 16
-  outdirMin: 1261
+  outdirMin: 10477
   ramMin: 49152
   tmpdirMin: 119
 - class: dx:InputResourceRequirement
-  indirMin: 63008
+  indirMin: 3010
 - class: SoftwareRequirement
   packages:
   - package: bcftools
@@ -93,11 +93,15 @@ inputs:
       type: string
     - name: genome_build
       type: string
+    - name: metadata__phenotype
+      type: string
     - name: config__algorithm__tools_off
       type:
         items: string
         type: array
     - name: reference__versions
+      type: File
+    - name: reference__viral
       type: File
     - name: config__algorithm__qc
       type:

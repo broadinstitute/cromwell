@@ -33,6 +33,7 @@ task echo_string {
     }
 
     command {
+        set -o pipefail
         echo \
         ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} \
         ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} ~{in_string} \
@@ -75,5 +76,6 @@ task echo_string {
 
     runtime {
         docker: "ubuntu"
+        memory: "4GB"
     }
 }

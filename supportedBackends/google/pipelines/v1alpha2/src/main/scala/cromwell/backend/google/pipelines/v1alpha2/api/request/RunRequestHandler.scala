@@ -21,7 +21,7 @@ trait RunRequestHandler { this: RequestHandler =>
     }
 
     override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
-      pollingManager ! PipelinesApiRunCreationQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
+      pollingManager ! PipelinesApiRunCreationQueryFailed(originalRequest, new SystemPAPIApiException(GoogleJsonException(e, responseHeaders)))
       completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       ()
     }

@@ -63,6 +63,7 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_LOG_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/logs"
     CROMWELL_BUILD_CROMWELL_LOG="${CROMWELL_BUILD_LOG_DIRECTORY}/cromwell.log"
 
+    CROMWELL_BUILD_DOCKER_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/docker-compose"
     CROMWELL_BUILD_SCRIPTS_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/bin"
     CROMWELL_BUILD_RESOURCES_SOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/resources"
     CROMWELL_BUILD_RESOURCES_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources"
@@ -83,61 +84,69 @@ cromwell::private::create_build_variables() {
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
+
+            if [[ -n "${TRAVIS_PULL_REQUEST_BRANCH:+set}" ]]; then
+              CROMWELL_BUILD_IS_PULL_REQUEST=true
+            else
+              CROMWELL_BUILD_IS_PULL_REQUEST=false
+            fi
+
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
+            CROMWELL_BUILD_BRANCH_PULL_REQUEST="${TRAVIS_PULL_REQUEST_BRANCH:-""}"
             CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
             CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
             CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
             CROMWELL_BUILD_URL="https://travis-ci.com/${TRAVIS_REPO_SLUG}/jobs/${TRAVIS_JOB_ID}"
             CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.com"
             CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
-            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
-            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
-            CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_USERNAME="travis"
-            CROMWELL_BUILD_MYSQL_PASSWORD=""
-            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+
+            # Always run on sbt, even for 'push'.
+            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
+            if [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
+                [[ "${BUILD_TYPE}" != "sbt" ]] && \
+                [[ "${TRAVIS_COMMIT_MESSAGE}" != *"[force ci]"* ]]; then
+              CROMWELL_BUILD_RUN_TESTS=false
+            else
+              CROMWELL_BUILD_RUN_TESTS=true
+            fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE=true
+            CROMWELL_BUILD_IS_PULL_REQUEST=false
             CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
-            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}"
             CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
+            CROMWELL_BUILD_BRANCH_PULL_REQUEST=""
             CROMWELL_BUILD_EVENT=""
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
             CROMWELL_BUILD_URL="${BUILD_URL}"
             CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
             CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
-            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…\n"
-            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
-            CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_USERNAME="root"
-            CROMWELL_BUILD_MYSQL_PASSWORD=""
-            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
+            CROMWELL_BUILD_RUN_TESTS=true
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
             CROMWELL_BUILD_IS_SECURE=true
+            CROMWELL_BUILD_IS_PULL_REQUEST=false
             CROMWELL_BUILD_TYPE="unknown"
             CROMWELL_BUILD_BRANCH="unknown"
+            CROMWELL_BUILD_BRANCH_PULL_REQUEST=""
             CROMWELL_BUILD_EVENT="unknown"
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER=""
             CROMWELL_BUILD_URL=""
             CROMWELL_BUILD_GIT_USER_EMAIL="unknown.git.user@example.org"
             CROMWELL_BUILD_GIT_USER_NAME="Unknown Git User"
-            CROMWELL_BUILD_HEARTBEAT_MESSAGE="…"
-            CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
-            CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
-            CROMWELL_BUILD_MYSQL_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME-root}"
-            CROMWELL_BUILD_MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD-}"
-            CROMWELL_BUILD_MYSQL_SCHEMA="${CROMWELL_BUILD_MYSQL_SCHEMA-cromwell_test}"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_RUN_TESTS=true
 
             local bash_script
             for bash_script in "${BASH_SOURCE[@]}"; do
@@ -159,66 +168,69 @@ cromwell::private::create_build_variables() {
     backend_type="${backend_type#centaurEngineUpgrade}"
     backend_type="${backend_type#centaurPapiUpgrade}"
     backend_type="${backend_type#centaurWdlUpgrade}"
+    backend_type="${backend_type#centaurHoricromtal}"
     backend_type="${backend_type#centaur}"
     backend_type="${backend_type#conformance}"
     backend_type="$(echo "${backend_type}" | sed 's/\([A-Z]\)/_\1/g' | tr '[:upper:]' '[:lower:]' | cut -c 2-)"
     CROMWELL_BUILD_BACKEND_TYPE="${backend_type}"
 
-    CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
-
-    if [[ -z "${CROMWELL_BUILD_OPTIONAL_SECURE-}" ]]; then
-        CROMWELL_BUILD_OPTIONAL_SECURE=false
+    if [[ "${CROMWELL_BUILD_TYPE}" == conformance* ]]; then
+        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="server/assembly centaurCwlRunner/assembly"
+    else
+        CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
     fi
 
-    if [[ -z "${CROMWELL_BUILD_REQUIRES_SECURE-}" ]]; then
-        CROMWELL_BUILD_REQUIRES_SECURE=false
+    if [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]] || \
+        [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtalEngineUpgrade* ]]; then
+        CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2_upgrade_application.conf"
+    else
+        CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
     fi
 
-    if [[ -z "${VAULT_TOKEN-}" ]]; then
-        VAULT_TOKEN="vault token is not set as an environment variable"
-    fi
-
-    CROMWELL_BUILD_RANDOM_256_BITS_BASE64="$(dd bs=1 count=32 if=/dev/urandom 2>/dev/null | base64 | tr -d '\n')"
+    CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
+    CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
+    CROMWELL_BUILD_REQUIRES_PULL_REQUEST="${CROMWELL_BUILD_REQUIRES_PULL_REQUEST-false}"
+    CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND-assembly}"
+    VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
     hours_to_minutes=60
-    CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * ${hours_to_minutes}))
+    CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
 
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
+    export CROMWELL_BUILD_BRANCH_PULL_REQUEST
     export CROMWELL_BUILD_CROMWELL_CONFIG
     export CROMWELL_BUILD_CROMWELL_LOG
+    export CROMWELL_BUILD_DOCKER_DIRECTORY
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
     export CROMWELL_BUILD_GENERATE_COVERAGE
     export CROMWELL_BUILD_GIT_USER_EMAIL
     export CROMWELL_BUILD_GIT_USER_NAME
-    export CROMWELL_BUILD_HEARTBEAT_MESSAGE
     export CROMWELL_BUILD_HEARTBEAT_MINUTES
+    export CROMWELL_BUILD_HEARTBEAT_PATTERN
     export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
+    export CROMWELL_BUILD_IS_PULL_REQUEST
     export CROMWELL_BUILD_IS_SECURE
     export CROMWELL_BUILD_IS_VIRTUAL_ENV
     export CROMWELL_BUILD_LOG_DIRECTORY
-    export CROMWELL_BUILD_MYSQL_HOSTNAME
-    export CROMWELL_BUILD_MYSQL_PASSWORD
-    export CROMWELL_BUILD_MYSQL_PORT
-    export CROMWELL_BUILD_MYSQL_SCHEMA
-    export CROMWELL_BUILD_MYSQL_USERNAME
     export CROMWELL_BUILD_NUMBER
+    export CROMWELL_BUILD_OPTIONAL_SECURE
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PROVIDER
-    export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_JENKINS
+    export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
-    export CROMWELL_BUILD_RANDOM_256_BITS_BASE64
     export CROMWELL_BUILD_REQUIRES_SECURE
-    export CROMWELL_BUILD_OPTIONAL_SECURE
-    export CROMWELL_BUILD_RESOURCES_SOURCES
     export CROMWELL_BUILD_RESOURCES_DIRECTORY
+    export CROMWELL_BUILD_RESOURCES_SOURCES
     export CROMWELL_BUILD_ROOT_DIRECTORY
+    export CROMWELL_BUILD_RUN_TESTS
+    export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
     export CROMWELL_BUILD_TAG
     export CROMWELL_BUILD_TYPE
@@ -227,7 +239,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
     export CROMWELL_BUILD_WAIT_FOR_IT_URL
-    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
 }
 
 cromwell::private::echo_build_variables() {
@@ -237,6 +248,7 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_OPTIONAL_SECURE='${CROMWELL_BUILD_OPTIONAL_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
+    echo "CROMWELL_BUILD_BRANCH_PULL_REQUEST='${CROMWELL_BUILD_BRANCH_PULL_REQUEST}'"
     echo "CROMWELL_BUILD_EVENT='${CROMWELL_BUILD_EVENT}'"
     echo "CROMWELL_BUILD_TAG='${CROMWELL_BUILD_TAG}'"
     echo "CROMWELL_BUILD_NUMBER='${CROMWELL_BUILD_NUMBER}'"
@@ -245,12 +257,108 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_URL='${CROMWELL_BUILD_URL}'"
 }
 
+cromwell::private::create_database_variables() {
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
+            CROMWELL_BUILD_MARIADB_PORT="13306"
+            CROMWELL_BUILD_MARIADB_USERNAME="cromwell"
+            CROMWELL_BUILD_MARIADB_PASSWORD="test"
+            CROMWELL_BUILD_MARIADB_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_MYSQL_USERNAME="cromwell"
+            CROMWELL_BUILD_MYSQL_PASSWORD="test"
+            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_MYSQL_DOCKER_TAG="${BUILD_MYSQL-}"
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
+            CROMWELL_BUILD_POSTGRESQL_USERNAME="cromwell"
+            CROMWELL_BUILD_POSTGRESQL_PASSWORD="test"
+            CROMWELL_BUILD_POSTGRESQL_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG="${BUILD_POSTGRESQL-}"
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
+            # We don't define a docker tag because the docker-compose has already spun up the database containers by the
+            # time this script is run. Other variables here must match the database service names and settings the yaml.
+            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
+            CROMWELL_BUILD_MARIADB_HOSTNAME="mariadb-db"
+            CROMWELL_BUILD_MARIADB_PORT="3306"
+            CROMWELL_BUILD_MARIADB_USERNAME="cromwell"
+            CROMWELL_BUILD_MARIADB_PASSWORD="test"
+            CROMWELL_BUILD_MARIADB_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
+            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_MYSQL_USERNAME="cromwell"
+            CROMWELL_BUILD_MYSQL_PASSWORD="test"
+            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="postgresql-db"
+            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
+            CROMWELL_BUILD_POSTGRESQL_USERNAME="cromwell"
+            CROMWELL_BUILD_POSTGRESQL_PASSWORD="test"
+            CROMWELL_BUILD_POSTGRESQL_SCHEMA="cromwell_test"
+            ;;
+        *)
+            CROMWELL_BUILD_MARIADB_HOSTNAME="${CROMWELL_BUILD_MARIADB_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MARIADB_PORT="${CROMWELL_BUILD_MARIADB_PORT-13306}"
+            CROMWELL_BUILD_MARIADB_USERNAME="${CROMWELL_BUILD_MARIADB_USERNAME-cromwell}"
+            CROMWELL_BUILD_MARIADB_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD-test}"
+            CROMWELL_BUILD_MARIADB_SCHEMA="${CROMWELL_BUILD_MARIADB_SCHEMA-cromwell_test}"
+            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
+            CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
+            CROMWELL_BUILD_MYSQL_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME-cromwell}"
+            CROMWELL_BUILD_MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD-test}"
+            CROMWELL_BUILD_MYSQL_SCHEMA="${CROMWELL_BUILD_MYSQL_SCHEMA-cromwell_test}"
+            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_HOSTNAME-localhost}"
+            CROMWELL_BUILD_POSTGRESQL_PORT="${CROMWELL_BUILD_POSTGRESQL_PORT-5432}"
+            CROMWELL_BUILD_POSTGRESQL_USERNAME="${CROMWELL_BUILD_POSTGRESQL_USERNAME-cromwell}"
+            CROMWELL_BUILD_POSTGRESQL_PASSWORD="${CROMWELL_BUILD_POSTGRESQL_PASSWORD-test}"
+            CROMWELL_BUILD_POSTGRESQL_SCHEMA="${CROMWELL_BUILD_POSTGRESQL_SCHEMA-cromwell_test}"
+            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
+            ;;
+    esac
+
+    CROMWELL_BUILD_MARIADB_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_MARIADB_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC"
+    CROMWELL_BUILD_MYSQL_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}/${CROMWELL_BUILD_MYSQL_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC"
+    CROMWELL_BUILD_POSTGRESQL_JDBC_URL="jdbc:postgresql://${CROMWELL_BUILD_POSTGRESQL_HOSTNAME}:${CROMWELL_BUILD_POSTGRESQL_PORT}/${CROMWELL_BUILD_POSTGRESQL_SCHEMA}"
+
+    export CROMWELL_BUILD_MARIADB_DOCKER_TAG
+    export CROMWELL_BUILD_MARIADB_HOSTNAME
+    export CROMWELL_BUILD_MARIADB_JDBC_URL
+    export CROMWELL_BUILD_MARIADB_PASSWORD
+    export CROMWELL_BUILD_MARIADB_PORT
+    export CROMWELL_BUILD_MARIADB_SCHEMA
+    export CROMWELL_BUILD_MARIADB_USERNAME
+    export CROMWELL_BUILD_MYSQL_DOCKER_TAG
+    export CROMWELL_BUILD_MYSQL_HOSTNAME
+    export CROMWELL_BUILD_MYSQL_JDBC_URL
+    export CROMWELL_BUILD_MYSQL_PASSWORD
+    export CROMWELL_BUILD_MYSQL_PORT
+    export CROMWELL_BUILD_MYSQL_SCHEMA
+    export CROMWELL_BUILD_MYSQL_USERNAME
+    export CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG
+    export CROMWELL_BUILD_POSTGRESQL_HOSTNAME
+    export CROMWELL_BUILD_POSTGRESQL_JDBC_URL
+    export CROMWELL_BUILD_POSTGRESQL_PASSWORD
+    export CROMWELL_BUILD_POSTGRESQL_PORT
+    export CROMWELL_BUILD_POSTGRESQL_SCHEMA
+    export CROMWELL_BUILD_POSTGRESQL_USERNAME
+}
+
 cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_STANDARD="standard"
     CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION="integration"
     CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE="engineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE="papiUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS="papiUpgradeNewWorkflows"
+    CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE="horicromtalEngineUpgrade"
+    CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL="horicromtal"
 
     if [[ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]]; then
         if [[ "${CROMWELL_BUILD_TYPE}" == centaurEngineUpgrade* ]]; then
@@ -259,16 +367,84 @@ cromwell::private::create_centaur_variables() {
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}"
         elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]]; then
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}"
+        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtalEngineUpgrade* ]]; then
+            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}"
+        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtal* ]]; then
+            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}"
         else
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_STANDARD}"
         fi
     fi
 
     CROMWELL_BUILD_CENTAUR_RESOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/src/main/resources"
-    CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
+    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}" ]]; then
+      # Use the standard test cases despite the horicromtal Centaur build type.
+      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
+      # Special horicromtal Centaur config.
+      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
+    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}" ]] ; then
+      # Use the engine upgrade test cases despite the horicromtal Centaur build type.
+      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/engineUpgradeTestCases"
+      # Special horicromtal engine upgrade Centaur config with horicromtal assertions turned off.
+      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal_no_assert.conf"
+    else
+      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
+      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+    fi
+
     CROMWELL_BUILD_CENTAUR_TEST_RENDERED="${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}/rendered"
-    CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
     CROMWELL_BUILD_CENTAUR_LOG="${CROMWELL_BUILD_LOG_DIRECTORY}/centaur.log"
+
+    # Pick **one** of the databases to run Centaur against
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+
+            if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
+                CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
+                CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
+                CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME}"
+                CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD}"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_MYSQL_JDBC_URL}"
+
+            elif [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
+                CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
+                CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
+                CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_MARIADB_USERNAME}"
+                CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD}"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_MARIADB_JDBC_URL}"
+
+            elif [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
+                CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.PostgresProfile$"
+                CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.postgresql.Driver"
+                CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_POSTGRESQL_USERNAME}"
+                CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_POSTGRESQL_PASSWORD}"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_POSTGRESQL_JDBC_URL}"
+
+            else
+                echo "Error: Unable to determine which RDBMS to use for Centaur." >&2
+                exit 1
+
+            fi
+
+            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
+            CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
+            CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME}"
+            CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD}"
+            CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_MYSQL_JDBC_URL}"
+            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS-}"
+            ;;
+        *)
+            CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE-slick.jdbc.MySQLProfile\$}"
+            CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER-com.mysql.cj.jdbc.Driver}"
+            CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_CENTAUR_JDBC_USERNAME-${CROMWELL_BUILD_MYSQL_USERNAME}}"
+            CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD-${CROMWELL_BUILD_MYSQL_PASSWORD}}"
+            CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_JDBC_URL-${CROMWELL_BUILD_MYSQL_JDBC_URL}}"
+            CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=
+            ;;
+    esac
 
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
@@ -279,16 +455,51 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
+    CROMWELL_BUILD_CENTAUR_256_BITS_KEY="$(dd bs=1 count=32 if=/dev/urandom 2> /dev/null | base64 | tr -d '\n')"
+
+    export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
+    export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+    export CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
+    export CROMWELL_BUILD_CENTAUR_JDBC_URL
+    export CROMWELL_BUILD_CENTAUR_JDBC_USERNAME
     export CROMWELL_BUILD_CENTAUR_LOG
+    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
     export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
     export CROMWELL_BUILD_CENTAUR_TEST_RENDERED
     export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
     export CROMWELL_BUILD_CENTAUR_RESOURCES
+    export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
     export CROMWELL_BUILD_CENTAUR_TYPE
     export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
     export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
     export CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE
+}
+
+cromwell::private::create_conformance_variables() {
+    CROMWELL_BUILD_CWL_RUNNER_MODE="${CROMWELL_BUILD_BACKEND_TYPE}"
+    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20190228155703"
+    CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20190228134645"
+    CROMWELL_BUILD_CWL_TEST_COMMIT="1f501e38ff692a408e16b246ac7d64d32f0822c2" # use known git hash to avoid changes
+    CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
+    CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
+    CROMWELL_BUILD_CWL_TEST_RESOURCES="${CROMWELL_BUILD_CWL_TEST_DIRECTORY}/v1.0/v1.0"
+    CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
+    CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
+    CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_LOG_DIRECTORY}/cwl_conformance_test.out.txt"
+    CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
+
+    export CROMWELL_BUILD_CWL_RUNNER_MODE
+    export CROMWELL_BUILD_CWL_TOOL_VERSION
+    export CROMWELL_BUILD_CWL_TEST_VERSION
+    export CROMWELL_BUILD_CWL_TEST_COMMIT
+    export CROMWELL_BUILD_CWL_TEST_RUNNER
+    export CROMWELL_BUILD_CWL_TEST_DIRECTORY
+    export CROMWELL_BUILD_CWL_TEST_RESOURCES
+    export CROMWELL_BUILD_CWL_TEST_WDL
+    export CROMWELL_BUILD_CWL_TEST_INPUTS
+    export CROMWELL_BUILD_CWL_TEST_OUTPUT
+    export CROMWELL_BUILD_CWL_TEST_PARALLELISM
 }
 
 cromwell::private::verify_secure_build() {
@@ -311,34 +522,36 @@ cromwell::private::verify_secure_build() {
     esac
 }
 
-cromwell::private::export_conformance_variables() {
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20180809224403"
-    CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20180601100346"
-    CROMWELL_BUILD_CWL_TEST_COMMIT="eb73b5e70e65ab9303a814bd1c230b927018da8f" # use known git hash to avoid changes
-    CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
-    CROMWELL_BUILD_CWL_TEST_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/common-workflow-language"
-    CROMWELL_BUILD_CWL_TEST_RESOURCES="${CROMWELL_BUILD_CWL_TEST_DIRECTORY}/v1.0/v1.0"
-    CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
-    CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
-    CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_LOG_DIRECTORY}/cwl_conformance_test.out.txt"
-    CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
-
-    export CROMWELL_BUILD_CWL_TOOL_VERSION
-    export CROMWELL_BUILD_CWL_TEST_VERSION
-    export CROMWELL_BUILD_CWL_TEST_COMMIT
-    export CROMWELL_BUILD_CWL_TEST_RUNNER
-    export CROMWELL_BUILD_CWL_TEST_DIRECTORY
-    export CROMWELL_BUILD_CWL_TEST_RESOURCES
-    export CROMWELL_BUILD_CWL_TEST_WDL
-    export CROMWELL_BUILD_CWL_TEST_INPUTS
-    export CROMWELL_BUILD_CWL_TEST_OUTPUT
-    export CROMWELL_BUILD_CWL_TEST_PARALLELISM
+cromwell::private::verify_pull_request_build() {
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            if [[ "${CROMWELL_BUILD_IS_PULL_REQUEST}" != "true" ]] && \
+                [[ "${CROMWELL_BUILD_REQUIRES_PULL_REQUEST}" == "true" ]]; then
+                echo "**************************************************"
+                echo "**************************************************"
+                echo "**                                              **"
+                echo "**  NOTE: Build is not a Pull Request. Exiting. **"
+                echo "**                                              **"
+                echo "**************************************************"
+                echo "**************************************************"
+                exit 0
+            fi
+            ;;
+        *)
+            ;;
+    esac
 }
 
 cromwell::private::exec_test_script() {
     local upper_build_type
     upper_build_type="$(tr '[:lower:]' '[:upper:]' <<< "${CROMWELL_BUILD_TYPE:0:1}")${CROMWELL_BUILD_TYPE:1}"
     exec "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/test${upper_build_type}.sh"
+}
+
+cromwell::private::stop_travis_defaults() {
+  # https://stackoverflow.com/questions/27382295/how-to-stop-services-on-travis-ci-running-by-default#answer-27410479
+  sudo /etc/init.d/mysql stop
+  sudo /etc/init.d/postgresql stop
 }
 
 cromwell::private::delete_boto_config() {
@@ -377,18 +590,65 @@ cromwell::private::install_wait_for_it() {
     chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
 }
 
-cromwell::private::create_mysql_cromwell_test() {
+cromwell::private::start_docker() {
+    local docker_image
+    local docker_cid_file
+    docker_image="${1:?foo called without a docker image}"; shift
+    docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/$(echo "${docker_image}" | tr "/" "_" | tr ":" "-").cid.$$"
+
+    docker run --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
+
+    cromwell::private::add_exit_function docker rm --force --volumes "$(cat "${docker_cid_file}")"
+    cromwell::private::add_exit_function rm "${docker_cid_file}"
+}
+
+cromwell::private::start_docker_mysql() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::create_mysql_cromwell_test
-    else
-        "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT" -t 120 "${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}"
-        mysql \
-            --host="${CROMWELL_BUILD_MYSQL_HOSTNAME}" \
-            --port="${CROMWELL_BUILD_MYSQL_PORT}" \
-            --user="${CROMWELL_BUILD_MYSQL_USERNAME}" \
-            --password="${CROMWELL_BUILD_MYSQL_PASSWORD}" \
-            --execute \
-            "SET GLOBAL sql_mode = 'STRICT_ALL_TABLES'; CREATE DATABASE IF NOT EXISTS ${CROMWELL_BUILD_MYSQL_SCHEMA};"
+        cromwell::private::exec_silent_function cromwell::private::start_docker_mysql
+
+    elif [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
+        cromwell::private::start_docker \
+            mysql:"${CROMWELL_BUILD_MYSQL_DOCKER_TAG}" \
+            --env MYSQL_ROOT_PASSWORD=private \
+            --env MYSQL_USER="${CROMWELL_BUILD_MYSQL_USERNAME}" \
+            --env MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD}" \
+            --env MYSQL_DATABASE="${CROMWELL_BUILD_MYSQL_SCHEMA}" \
+            --publish "${CROMWELL_BUILD_MYSQL_PORT}":3306 \
+            --volume "${CROMWELL_BUILD_DOCKER_DIRECTORY}"/mysql-conf.d:/etc/mysql/conf.d \
+
+    fi
+}
+
+cromwell::private::start_docker_mariadb() {
+    if cromwell::private::is_xtrace_enabled; then
+        cromwell::private::exec_silent_function cromwell::private::start_docker_mariadb
+
+    elif [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
+        cromwell::private::start_docker \
+            mariadb:"${CROMWELL_BUILD_MARIADB_DOCKER_TAG}" \
+            --env MYSQL_ROOT_PASSWORD=private \
+            --env MYSQL_USER="${CROMWELL_BUILD_MARIADB_USERNAME}" \
+            --env MYSQL_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD}" \
+            --env MYSQL_DATABASE="${CROMWELL_BUILD_MARIADB_SCHEMA}" \
+            --publish "${CROMWELL_BUILD_MARIADB_PORT}":3306 \
+            --volume "${CROMWELL_BUILD_DOCKER_DIRECTORY}"/mariadb-conf.d:/etc/mysql/conf.d \
+
+    fi
+}
+
+cromwell::private::start_docker_postgresql() {
+    if cromwell::private::is_xtrace_enabled; then
+        cromwell::private::exec_silent_function cromwell::private::start_docker_postgresql
+
+    elif [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
+        cromwell::private::start_docker \
+            postgres:"${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG}" \
+            --env POSTGRES_USER="${CROMWELL_BUILD_POSTGRESQL_USERNAME}" \
+            --env POSTGRES_PASSWORD="${CROMWELL_BUILD_POSTGRESQL_PASSWORD}" \
+            --env POSTGRES_DB="${CROMWELL_BUILD_POSTGRESQL_SCHEMA}" \
+            --publish "${CROMWELL_BUILD_POSTGRESQL_PORT}":5432 \
+            --volume "${CROMWELL_BUILD_DOCKER_DIRECTORY}"/postgresql-initdb.d:/docker-entrypoint-initdb.d \
+
     fi
 }
 
@@ -412,8 +672,9 @@ cromwell::private::checkout_pinned_cwl() {
             https://github.com/common-workflow-language/common-workflow-language.git \
             "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}"
         (
-            cd "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" || exit 1
+            pushd "${CROMWELL_BUILD_CWL_TEST_DIRECTORY}" > /dev/null
             git checkout "${CROMWELL_BUILD_CWL_TEST_COMMIT}"
+            popd > /dev/null
         )
     fi
 }
@@ -453,9 +714,11 @@ cromwell::private::vault_login() {
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${VAULT_TOKEN}"
+                # Don't fail here if vault login fails
+                # shellcheck disable=SC2015
                 docker run --rm \
                     -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-                    broadinstitute/dsde-toolbox \
+                    broadinstitute/dsde-toolbox:dev \
                     vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
                 || true
                 ;;
@@ -524,20 +787,45 @@ cromwell::private::find_cromwell_jar() {
     export CROMWELL_BUILD_CROMWELL_JAR
 }
 
-cromwell::private::setup_prior_version_resources() {
+cromwell::private::calculate_prior_version_tag() {
     local current_version
     local prior_version
-    local prior_config
     current_version="$( \
         grep 'val cromwellVersion' "${CROMWELL_BUILD_ROOT_DIRECTORY}/project/Version.scala" \
         | awk -F \" '{print $2}' \
         )"
-    prior_version=$((current_version - 1))
+
+    # This function should only ever run on PR builds.
+    if [[ -z "${CROMWELL_BUILD_BRANCH_PULL_REQUEST-}" ]]; then
+       echo "Error: the CROMWELL_BUILD_BRANCH_PULL_REQUEST variable is not set. calculate_prior_version_tag expects to only run on Travis Pull Request builds in which this variable is set." >&2
+       exit 1
+    fi
+    # If this PR targets a hotfix branch, the previous version should be the same major version as this version.
+    # Otherwise this PR targets a non-hotfix branch so the previous version should be one less than this version.
+    if [[ "${CROMWELL_BUILD_BRANCH_PULL_REQUEST}" =~ ^[0-9\.]+_hotfix$ ]]; then
+      prior_version="$current_version"
+    else
+      prior_version=$((current_version - 1))
+    fi
+    echo "${prior_version}"
+}
+
+cromwell::private::get_prior_version_config() {
+    local prior_version
+    prior_version="${1:?get_prior_version_config called without a version}"; shift
+    prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
+    echo "${prior_config}"
+}
+
+cromwell::private::setup_prior_version_resources() {
+    local prior_config
+    local prior_version
+    prior_version="$(cromwell::private::calculate_prior_version_tag)"
 
     CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${prior_version}.jar"
     export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
 
-    prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
+    prior_config="$(cromwell::private::get_prior_version_config "${prior_version}")"
     if [[ -f "${prior_config}" ]]; then
         CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
         export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
@@ -556,9 +844,10 @@ cromwell::private::exists_cromwell_jar() {
 }
 
 cromwell::private::assemble_jars() {
-    # CROMWELL_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
+    # CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_SBT_ASSEMBLY_COMMAND:-assembly} -error
+    # shellcheck disable=SC2086
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} -error
 }
 
 cromwell::private::generate_code_coverage() {
@@ -591,26 +880,27 @@ cromwell::private::push_publish_complete() {
 
     # Loosely adapted from https://github.com/broadinstitute/workbench-libs/blob/435a932/scripts/version_update.sh
     mkdir publish_complete
-    (
-        cd publish_complete || exit 1
+    pushd publish_complete > /dev/null
 
-        git init
-        git config core.sshCommand "ssh -i ${github_private_deploy_key} -F /dev/null"
-        git config user.email "${CROMWELL_BUILD_GIT_USER_EMAIL}"
-        git config user.name "${CROMWELL_BUILD_GIT_USER_NAME}"
+    git init
+    git config core.sshCommand "ssh -i ${github_private_deploy_key} -F /dev/null"
+    git config user.email "${CROMWELL_BUILD_GIT_USER_EMAIL}"
+    git config user.name "${CROMWELL_BUILD_GIT_USER_NAME}"
 
-        git remote add "${git_publish_remote}" "${git_repo}"
-        git checkout -b "${git_publish_branch}"
-        git commit --allow-empty -m "${git_publish_message}"
-        git push -f "${git_publish_remote}" "${git_publish_branch}"
-    )
+    git remote add "${git_publish_remote}" "${git_repo}"
+    git checkout -b "${git_publish_branch}"
+    git commit --allow-empty -m "${git_publish_message}"
+    git push -f "${git_publish_remote}" "${git_publish_branch}"
+
+    popd > /dev/null
 }
 
 cromwell::private::start_build_heartbeat() {
     # Sleep one minute between printouts, but don't zombie forever
     for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
         sleep 60
-        printf "${CROMWELL_BUILD_HEARTBEAT_MESSAGE}"
+        # shellcheck disable=SC2059
+        printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
     done &
     CROMWELL_BUILD_HEARTBEAT_PID=$!
 }
@@ -660,7 +950,7 @@ cromwell::private::kill_centaur_log_tail() {
 cromwell::private::run_exit_functions() {
     if [[ -f "${CROMWELL_BUILD_EXIT_FUNCTIONS}" ]]; then
         local exit_function
-        while read exit_function; do
+        while read -r exit_function; do
           ${exit_function} || true
         done < "${CROMWELL_BUILD_EXIT_FUNCTIONS}"
         rm "${CROMWELL_BUILD_EXIT_FUNCTIONS}" || true
@@ -668,11 +958,13 @@ cromwell::private::run_exit_functions() {
 }
 
 # Adds the function to the list of functions to run on exit.
-# Requires one positional parameter, the function to run.
+# Requires at least one positional parameter, the function to run.
 cromwell::private::add_exit_function() {
-    local exit_function
-    exit_function="${1:?add_exit_function called without a function}"; shift
-    echo "${exit_function}" >> "${CROMWELL_BUILD_EXIT_FUNCTIONS}"
+    if [[ "$#" -eq 0 ]]; then
+        echo "Error: add_exit_function called without a function" >&2
+        exit 1
+    fi
+    echo "$@" >> "${CROMWELL_BUILD_EXIT_FUNCTIONS}"
     trap cromwell::private::run_exit_functions TERM EXIT
 }
 
@@ -702,8 +994,51 @@ cromwell::private::kill_tree() {
   kill "${pid}" 2> /dev/null
 }
 
+
+cromwell::private::start_conformance_cromwell() {
+    # Start the Cromwell server in the directory containing input files so it can access them via their relative path
+    pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
+
+    # Turn off call caching as hashing doesn't work since it sees local and not GCS paths.
+    # CWL conformance uses alpine images that do not have bash.
+    java \
+        -Xmx2g \
+        -Dconfig.file="${CROMWELL_BUILD_CROMWELL_CONFIG}" \
+        -Dcall-caching.enabled=false \
+        -Dsystem.job-shell=/bin/sh \
+        -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+        server &
+
+    CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID=$!
+
+    popd > /dev/null
+}
+
+cromwell::private::kill_conformance_cromwell() {
+    if [[ -n "${CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID+set}" ]]; then
+        cromwell::build::kill_tree "${CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID}"
+    fi
+}
+
+cromwell::private::run_conformance_wdl() {
+    pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
+
+    java \
+        -Xmx6g \
+        -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
+        -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+        run "${CROMWELL_BUILD_CWL_TEST_WDL}" \
+        -i "${CROMWELL_BUILD_CWL_TEST_INPUTS}"
+
+    popd > /dev/null
+}
+
 cromwell::build::exec_test_script() {
     cromwell::private::create_build_variables
+    if [[ "${CROMWELL_BUILD_RUN_TESTS}" == "false" ]]; then
+      echo "Use '[force ci]' in commit message to run tests on 'push'"
+      exit 0
+    fi
     cromwell::private::exec_test_script
 }
 
@@ -711,25 +1046,29 @@ cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
     cromwell::private::echo_build_variables
+    cromwell::private::create_database_variables
     cromwell::private::verify_secure_build
+    cromwell::private::verify_pull_request_build
     cromwell::private::make_build_directories
     cromwell::private::setup_secure_resources
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            cromwell::private::stop_travis_defaults
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::pull_common_docker_images
             cromwell::private::install_wait_for_it
-            cromwell::private::create_mysql_cromwell_test
+            cromwell::private::start_docker_mysql
+            cromwell::private::start_docker_mariadb
+            cromwell::private::start_docker_postgresql
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::install_wait_for_it
-            cromwell::private::create_mysql_cromwell_test
             ;;
         *)
             cromwell::private::pull_common_docker_images
@@ -739,14 +1078,10 @@ cromwell::build::setup_common_environment() {
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}" ]]; then
+    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}" ]] || \
+        [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]]; then
         cromwell::private::setup_prior_version_resources
-    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]]; then
-        cromwell::private::setup_prior_version_resources
-        export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_37_papi_v2_upgrade.application.conf"
-    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}" ]]; then
-        export CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_37_papi_v2_upgrade.application.conf"
-    fi;
+    fi
     cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
@@ -758,16 +1093,9 @@ cromwell::build::setup_centaur_environment() {
     cromwell::private::add_exit_function cromwell::private::kill_centaur_log_tail
 }
 
-cromwell::build::run_centaur() {
-    "${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/test_cromwell.sh" \
-        -n "${CROMWELL_BUILD_CENTAUR_CONFIG}" \
-        -l "${CROMWELL_BUILD_LOG_DIRECTORY}" \
-        -g \
-        "$@"
-}
-
 cromwell::build::setup_conformance_environment() {
-    cromwell::private::export_conformance_variables
+    cromwell::private::create_centaur_variables
+    cromwell::private::create_conformance_variables
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::install_cwltest
     fi
@@ -776,6 +1104,23 @@ cromwell::build::setup_conformance_environment() {
     cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
     cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
+}
+
+cromwell::build::setup_docker_environment() {
+    cromwell::private::start_build_heartbeat
+    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
+
+    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
+        # Upgrade docker-compose so that we get the correct exit codes
+        docker-compose -version
+        sudo rm /usr/local/bin/docker-compose
+        curl \
+            -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" \
+            > docker-compose
+        chmod +x docker-compose
+        sudo mv docker-compose /usr/local/bin
+        docker-compose -version
+    fi
 }
 
 cromwell::build::assemble_jars() {
@@ -789,6 +1134,35 @@ cromwell::build::assemble_jars() {
         echo "Error: find_cromwell_jar did not locate a cromwell jar even after assembly" >&2
         exit 1
     fi
+}
+
+cromwell::build::run_centaur() {
+    local -a additional_args
+    additional_args=()
+    if [[ -n "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS-}" ]]; then
+        # Allow splitting on space to simulate an exported array
+        # https://stackoverflow.com/questions/5564418/exporting-an-array-in-bash-script#answer-5564589
+        # shellcheck disable=SC2206
+        additional_args=(${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS})
+    fi
+    # Handle empty arrays in older versions of bash
+    # https://stackoverflow.com/questions/7577052/bash-empty-array-expansion-with-set-u#answer-7577209
+    "${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/test_cromwell.sh" \
+        -n "${CROMWELL_BUILD_CENTAUR_CONFIG}" \
+        -l "${CROMWELL_BUILD_LOG_DIRECTORY}" \
+        -g \
+        ${additional_args[@]+"${additional_args[@]}"} \
+        "$@"
+}
+
+cromwell::build::run_conformance() {
+    cromwell::private::start_conformance_cromwell
+    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
+
+    # Give cromwell time to start up
+    sleep 30
+
+    cromwell::private::run_conformance_wdl
 }
 
 cromwell::build::generate_code_coverage() {
@@ -839,8 +1213,8 @@ cromwell::build::exec_retry_function() {
 
     # https://unix.stackexchange.com/a/82610
     # https://stackoverflow.com/a/17336953
-    for attempt in $(seq 0 ${retry_count}); do
-        [[ ${attempt} -gt 0 ]] && sleep ${sleep_seconds}
+    for attempt in $(seq 0 "${retry_count}"); do
+        [[ ${attempt} -gt 0 ]] && sleep "${sleep_seconds}"
         ${retried_function} && exit_status=0 && break || exit_status=$?
     done
     return ${exit_status}
@@ -850,7 +1224,7 @@ cromwell::build::exec_silent_function() {
     local silent_function
     silent_function="${1:?exec_silent_function called without a function}"; shift
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function ${silent_function} "$@"
+        cromwell::private::exec_silent_function "${silent_function}" "$@"
     else
         ${silent_function} "$@"
     fi

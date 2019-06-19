@@ -25,7 +25,7 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   protected val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
 
-  protected val papiAttributes = PipelinesApiAttributes(googleConfig, configurationDescriptor.backendConfig)
+  protected val papiAttributes = PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig)
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 

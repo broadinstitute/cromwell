@@ -104,6 +104,9 @@ object ConfigWdlNamespace {
     s"""
        |String $DockerCwdInput
        |String $DockerCidInput
+       |String $DockerScriptInput
+       |String $DockerStdoutInput
+       |String $DockerStderrInput
        |""".stripMargin
 
   /**

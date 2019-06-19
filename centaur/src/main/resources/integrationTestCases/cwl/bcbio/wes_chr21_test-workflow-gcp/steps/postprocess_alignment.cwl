@@ -17,15 +17,15 @@ class: CommandLineTool
 cwlVersion: v1.0
 hints:
 - class: DockerRequirement
-  dockerImageId: quay.io/bcbio/bcbio-vc
-  dockerPull: quay.io/bcbio/bcbio-vc
+  dockerImageId: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
+  dockerPull: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
 - class: ResourceRequirement
   coresMin: 16
-  outdirMin: 1380
+  outdirMin: 10596
   ramMin: 49152
   tmpdirMin: 178
 - class: dx:InputResourceRequirement
-  indirMin: 18758
+  indirMin: 18018
 - class: SoftwareRequirement
   packages:
   - package: sambamba
@@ -68,8 +68,6 @@ inputs:
       type: File
     - name: genome_resources__variation__lcr
       type: File
-    - name: reference__twobit
-      type: File
     - name: config__algorithm__recalibrate
       type:
       - string
@@ -94,6 +92,10 @@ inputs:
       - 'null'
       - items: 'null'
         type: array
+    - name: config__algorithm__archive
+      type:
+      - 'null'
+      - string
     - name: align_bam
       type:
       - File

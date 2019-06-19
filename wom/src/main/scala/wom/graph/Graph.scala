@@ -17,7 +17,7 @@ import wom.values.WomValue
 /**
   * A sealed set of graph nodes.
   */
-final case class Graph private(nodes: Set[GraphNode]) {
+final case class Graph private (nodes: Set[GraphNode]) {
   lazy val inputNodes: Set[GraphInputNode] = nodes.filterByType[GraphInputNode]
   lazy val externalInputNodes: Set[ExternalGraphInputNode] = nodes.filterByType[ExternalGraphInputNode]
   lazy val outerGraphInputNodes: Set[OuterGraphInputNode] = nodes.filterByType[OuterGraphInputNode]
@@ -87,7 +87,7 @@ object Graph {
         case callNode: CallNode => callNode
         case gin: GraphInputNode => gin
         case gon: GraphOutputNode => gon
-      })  
+      })
       .toList // Important since nodes is a Set, we don't want duplicates to disappear automatically when mapping to FQN
       .map(_.identifier.fullyQualifiedName)
       .groupBy(identity)

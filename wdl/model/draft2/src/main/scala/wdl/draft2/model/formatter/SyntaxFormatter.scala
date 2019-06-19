@@ -13,7 +13,7 @@ trait SyntaxHighlighter {
   def keyword(s: String): String = s
   def name(s: String): String = s
   def section(s: String): String = s
-  def womType(t: WomType): String = t.toDisplayString
+  def womType(t: WomType): String = t.stableName
   def variable(s: String): String = s
   def alias(s: String): String = s
   def command(s: String): String = s
@@ -26,7 +26,7 @@ object AnsiSyntaxHighlighter extends SyntaxHighlighter {
   override def keyword(s: String): String = TerminalUtil.highlight(214, s)
   override def name(s: String): String = TerminalUtil.highlight(253, s)
   override def section(s: String): String = keyword(s)
-  override def womType(t: WomType): String = TerminalUtil.highlight(33, t.toDisplayString)
+  override def womType(t: WomType): String = TerminalUtil.highlight(33, t.stableName)
   override def variable(s: String): String = TerminalUtil.highlight(112, s)
   override def alias(s: String): String = s
   override def command(s: String): String = s
@@ -38,7 +38,7 @@ object HtmlSyntaxHighlighter extends SyntaxHighlighter {
   override def keyword(s: String): String = wrap(s, "keyword")
   override def name(s: String): String = wrap(s, "name")
   override def section(s: String): String = wrap(s, "section")
-  override def womType(t: WomType): String = wrap(t.toDisplayString, "type")
+  override def womType(t: WomType): String = wrap(t.stableName, "type")
   override def variable(s: String): String = wrap(s, "variable")
   override def alias(s: String): String = wrap(s, "alias")
   override def command(s: String): String = wrap(s, "command")

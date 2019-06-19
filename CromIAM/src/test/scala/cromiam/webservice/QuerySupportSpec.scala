@@ -15,7 +15,10 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
   override val log: LoggingAdapter = NoLogging
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
-  val authHeaders: List[HttpHeader] = List(authorization, RawHeader("OIDC_CLAIM_user_id", samClient.authorizedUserCollectionStr))
+  val authHeaders: List[HttpHeader] = List(
+    authorization,
+    RawHeader("OIDC_CLAIM_user_id", MockSamClient.AuthorizedUserCollectionStr)
+  )
 
   val queryPath = "/api/workflows/v1/query"
   val getQuery = s"$queryPath?status=Submitted&label=foo:bar&label=foo:baz"
@@ -70,24 +73,28 @@ class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest wi
 
   "GET query" should "peacefully forward to Cromwell if nothing is untoward" in {
     Get(getQuery).withHeaders(authHeaders) ~> queryGetRoute ~> check {
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
       responseAs[String] shouldBe "Response from Cromwell"
     }
   }
 
   it should "reject requests that contain labelOrs" in {
     Get(badGetQuery).withHeaders(authHeaders) ~> queryGetRoute ~> check {
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
       status shouldEqual StatusCodes.InternalServerError
     }
   }
 
   "POST query" should "peacefully forward to Cromwell is nothing is untoward" in {
     Post(queryPath).withHeaders(authHeaders).withEntity(goodPostEntity) ~> queryPostRoute ~> check {
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
       responseAs[String] shouldBe "Response from Cromwell"
     }
   }
 
   it should "reject requests that contain labelOrs" in {
     Post(queryPath).withHeaders(authHeaders).withEntity(badPostEntity) ~> queryPostRoute ~> check {
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
       status shouldEqual StatusCodes.InternalServerError
     }
   }

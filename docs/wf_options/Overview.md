@@ -78,6 +78,7 @@ Example `options.json`:
 |Option|Value|Description|
 |---|---|---|
 |`final_workflow_outputs_dir`|A directory available to Cromwell|Specifies a path where final workflow outputs will be written. If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.|
+|`use_relative_output_paths`| A boolean | When set to `true` this will copy all the outputs relative to their execution directory. my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest . Cromwell will throw an exception when this leads to collisions. When the option is not set it will default to `false`.|
 |`final_workflow_log_dir`|A directory available to Cromwell|Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.|
 |`final_call_logs_dir`|A directory available to Cromwell|Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.|
 
@@ -87,10 +88,27 @@ Example `options.json`:
 ```json
 {
     "final_workflow_outputs_dir": "/Users/michael_scott/cromwell/outputs",
+    "use_relative_output_paths": true,
     "final_workflow_log_dir": "/Users/michael_scott/cromwell/wf_logs",
     "final_call_logs_dir": "/Users/michael_scott/cromwell/call_logs"
 }
 ```
+
+With `"use_relative_output_paths": false` (the default) the outputs will look like this
+
+```
+final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_one_task/execution/my_output_picture.jpg
+final_workflow_outputs_dir/my_workflow/ade68a6d876e8d-8a98d7e9-ad98e9ae8d/call-my_other_task/execution/created_subdir/submarine.txt
+```
+
+The above result will look like this when `"use_relative_output_paths": true`:
+```
+final_workflow_outputs_dir/my_output_picture.jpg
+final_workflow_outputs_dir/created_subdir/submarine.txt
+```
+
+This will create file collisions in `final_workflow_outputs_dir` when a workflow is run twice. When cromwell
+detects file collisions it will throw an error and report the workflow as failed.
 
 ## Call Caching Options
 

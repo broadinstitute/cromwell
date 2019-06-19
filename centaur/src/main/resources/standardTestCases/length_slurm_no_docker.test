@@ -1,0 +1,16 @@
+name: length_slurm_no_docker
+testFormat: workflowsuccess
+backends: [SlurmNoDocker]
+
+files {
+  workflow: length/length.wdl
+  options: length/length_slurm_no_docker.options
+}
+
+metadata {
+  workflowName: length
+  status: Succeeded
+  "outputs.length.someStringsLength": 3
+  "outputs.length.someIntsLength": 3
+  "outputs.length.emptyLength": 0
+}

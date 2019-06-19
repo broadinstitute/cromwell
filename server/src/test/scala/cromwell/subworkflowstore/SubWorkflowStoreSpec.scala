@@ -1,11 +1,10 @@
 package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
-import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestKitWordSpec
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
+import cromwell.engine.MockCromwellTerminator
 import cromwell.engine.workflow.CoordinatedWorkflowStoreBuilder
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
@@ -14,6 +13,7 @@ import cromwell.services.EngineServicesStore
 import cromwell.subworkflowstore.SubWorkflowStoreActor._
 import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import cromwell.util.WomMocks
+import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import mouse.all._
 import org.scalatest.Matchers
 import org.specs2.mock.Mockito
@@ -35,8 +35,18 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       val subWorkflowStoreService = system.actorOf(SubWorkflowStoreActor.props(subWorkflowStore))
 
       lazy val workflowStore = SqlWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-      val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
-      val workflowStoreService = system.actorOf(WorkflowStoreActor.props(workflowStore, workflowStore |> access, TestProbe().ref, abortAllJobsOnTerminate = false, workflowHeartbeatConfig))
+      val workflowHeartbeatConfig = WorkflowHeartbeatConfig(CromwellTestKitSpec.DefaultConfig)
+      val workflowStoreService = system.actorOf(
+        WorkflowStoreActor.props(
+          workflowStore,
+          workflowStore |> access,
+          TestProbe("ServiceRegistryProbe-Work").ref,
+          MockCromwellTerminator,
+          abortAllJobsOnTerminate = false,
+          workflowHeartbeatConfig
+        ),
+        "WorkflowStoreActor-Work"
+      )
 
       val parentWorkflowId = WorkflowId.randomId()
       val subWorkflowId = WorkflowId.randomId()

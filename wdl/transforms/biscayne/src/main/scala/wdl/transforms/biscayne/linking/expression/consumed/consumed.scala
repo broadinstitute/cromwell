@@ -17,6 +17,8 @@ package object consumed {
   implicit val expressionElementUnlinkedValueConsumer: ExpressionValueConsumer[ExpressionElement] = new ExpressionValueConsumer[ExpressionElement] {
     override def expressionConsumedValueHooks(a: ExpressionElement)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = a match {
       case _: PrimitiveLiteralExpressionElement | _: StringLiteral => Set.empty[UnlinkedConsumedValueHook]
+      case a: NoneLiteralElement.type => a.expressionConsumedValueHooks(expressionValueConsumer)
+
       case a: StringExpression => a.expressionConsumedValueHooks(expressionValueConsumer)
       case a: ObjectLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)
       case a: PairLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)

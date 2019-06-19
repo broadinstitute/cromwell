@@ -32,7 +32,7 @@ object StructEvaluation {
 
     val elementsValidation: ErrorOr[List[(String, WomType)]] = next.entries.toList.traverse(convertStructEntryElement)
 
-    current + (next.name -> (elementsValidation map { elements => WomCompositeType(elements.toMap) } ))
+    current + (next.name -> (elementsValidation map { elements => WomCompositeType(elements.toMap, Option(next.name)) } ))
   }
 
   case class StructEvaluationInputs(structSections: Seq[StructElement], knownTypeAliases: Map[String, WomType])

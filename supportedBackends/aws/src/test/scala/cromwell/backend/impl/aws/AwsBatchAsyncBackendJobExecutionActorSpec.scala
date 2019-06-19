@@ -766,9 +766,6 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     backend.callPaths.stderr should be(a[S3Path])
     backend.callPaths.stderr.pathAsString shouldBe
       "s3://path/to/root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello-stderr.log"
-    backend.callPaths.logPath should be(a[S3Path])
-    backend.callPaths.logPath.pathAsString shouldBe
-      "s3://path/to/root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
   it should "return log paths for scattered call" taggedAs AwsTest ignore {
@@ -799,9 +796,6 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     backend.callPaths.stderr should be(a[S3Path])
     backend.callPaths.stderr.pathAsString shouldBe
       "s3://path/to/root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
-    backend.callPaths.logPath should be(a[S3Path])
-    backend.callPaths.logPath.pathAsString shouldBe
-      "s3://path/to/root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

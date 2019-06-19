@@ -22,16 +22,17 @@ object Publishing {
     versions.
 
     `sbt 'show docker::imageNames'` returns:
-      ArrayBuffer(broadinstitute/womtool:30, broadinstitute/womtool:30-c33be41-SNAP)
-      ArrayBuffer(broadinstitute/cromwell:30, broadinstitute/cromwell:30-c33be41-SNAP)
+      ArrayBuffer(broadinstitute/womtool:30-c33be41-SNAP)
+      ArrayBuffer(broadinstitute/cromwell:30-c33be41-SNAP)
 
     `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
       ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
     */
-    dockerTags := sys.env
-      .getOrElse("CROMWELL_SBT_DOCKER_TAGS", s"$cromwellVersion,${version.value}")
-      .split(","),
+    dockerTags := {
+      val versionsCsv = if (Version.isSnapshot) version.value else s"$cromwellVersion,${version.value}"
+      sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
+    },
     imageNames in docker := dockerTags.value map { tag =>
       ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
     },

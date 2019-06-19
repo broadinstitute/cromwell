@@ -1,0 +1,17 @@
+name: localize_file_larger_than_disk_space
+testFormat: workflowfailure
+backends: [Papiv2]
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: input_localization/localize_file_larger_than_disk_space.wdl
+}
+
+metadata {
+  workflowName: localize_file_larger_than_disk_space
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "Task localize_file_larger_than_disk_space.localize_file:NA:1 failed. The job was stopped before the command finished. PAPI error code 9. Please check the log file for more details: gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/localize_file_larger_than_disk_space/<<UUID>>/call-localize_file/localize_file.log."
+}

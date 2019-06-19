@@ -17,7 +17,7 @@ abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomVal
 
   forAll(goodCoercionTable) { (fromValue, toValue) =>
 
-    it should s"Allow coercion from ${fromValue.displayString} (${fromValue.typeDisplayString}) to ${toValue.toWomString} (${toValue.womType.toDisplayString})" in {
+    it should s"Allow coercion from ${fromValue.displayString} (${fromValue.typeDisplayString}) to ${toValue.toWomString} (${toValue.womType.stableName})" in {
       toValue.womType.coercionDefined(fromValue) should be(true)
       fromValue match {
         case wv: WomValue => 
@@ -26,14 +26,14 @@ abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomVal
       }
     }
 
-    it should s"correctly coerce ${fromValue.displayString} (${fromValue.typeDisplayString}) to ${toValue.toWomString} (${toValue.womType.toDisplayString})" in {
+    it should s"correctly coerce ${fromValue.displayString} (${fromValue.typeDisplayString}) to ${toValue.toWomString} (${toValue.womType.stableName})" in {
       toValue.womType.coerceRawValue(fromValue) should be(Success(toValue))
     }
   }
 
   forAll(badCoercionTable) { (fromValue, toType) =>
 
-    it should s"Not allow coercion from ${fromValue.displayString} to ${toType.toDisplayString}" in {
+    it should s"Not allow coercion from ${fromValue.displayString} to ${toType.stableName}" in {
       toType.coercionDefined(fromValue) should be(false)
       fromValue match {
         case wv: WomValue => toType.isCoerceableFrom(wv.womType) should be(false)
@@ -41,7 +41,7 @@ abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomVal
       }
     }
 
-    it should s"Fail when coercing ${fromValue.displayString} to ${toType.toDisplayString}" in {
+    it should s"Fail when coercing ${fromValue.displayString} to ${toType.stableName}" in {
       toType.coerceRawValue(fromValue) match {
         case Failure(_) => // great!
         case Success(v) => fail(s"Incorrectly coerced $fromValue to $v")
@@ -58,7 +58,7 @@ private object WomCoercionSpec {
     }
 
     def typeDisplayString: String = a match {
-      case wv: WomValue => wv.womType.toDisplayString
+      case wv: WomValue => wv.womType.stableName
       case other => other.getClass.getSimpleName
     }
   }

@@ -50,7 +50,8 @@ class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRout
         swaggerMessages should be(empty)
 
         resultWithInfo.getSwagger.getDefinitions.asScala foreach {
-          case (defKey, defVal) => defVal.getProperties.asScala foreach {
+          // If no properties, `getProperties` returns `null` instead of an empty map
+          case (defKey, defVal) => Option(defVal.getProperties).map(_.asScala).getOrElse(Map.empty) foreach {
             /*
             Two against one.
             Swagger parser implementation lets a RefProperty have descriptions.

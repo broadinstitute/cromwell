@@ -5,18 +5,21 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.unmarshalling._
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import cats.Monad
+import cats.effect.IO
 import com.softwaremill.sttp.{StatusCodes => _, _}
 import cromiam.auth.{Collection, User}
 import cromiam.instrumentation.CromIamInstrumentation
 import cromiam.sam.SamClient._
 import cromiam.sam.SamResourceJsonSupport._
 import cromiam.server.status.StatusCheckedSubsystem
+import cromwell.api.model._
 import mouse.boolean._
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.ExecutionContextExecutor
 
 /*
   TODO: There exists a swagger codegen Sam client somewhere, and there also exists a Scala wrapper for it in Leo.
@@ -35,11 +38,14 @@ class SamClient(scheme: String,
   override val statusUri = uri"$samBaseUri/status"
   override val serviceRegistryActor: ActorRef = serviceRegistryActorRef
 
-  def isSubmitWhitelisted(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
-    checkSubmitWhitelist.fold(isSubmitWhitelistedSam(user, cromIamRequest), Future.successful(true))
+  def isSubmitWhitelisted(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
+    checkSubmitWhitelist.fold(
+      isSubmitWhitelistedSam(user, cromIamRequest),
+      FailureResponseOrT.pure(true)
+    )
   }
 
-  def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): Future[Boolean] = {
+  def isSubmitWhitelistedSam(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[Boolean] = {
     val request = HttpRequest(
       method = HttpMethods.GET,
       uri = samSubmitWhitelistUri,
@@ -47,21 +53,35 @@ class SamClient(scheme: String,
     )
 
     for {
-      response <- instrumentRequest(() => Http().singleRequest(request), cromIamRequest, instrumentationPrefixForSam(getWhitelistPrefix))
+      response <- instrumentRequest(
+        () => Http().singleRequest(request).asFailureResponseOrT,
+        cromIamRequest,
+        instrumentationPrefixForSam(getWhitelistPrefix)
+      )
       whitelisted <- response.status match {
-        case StatusCodes.OK => Unmarshal(response.entity).to[String].map(_.toBoolean)
-        case _ => Future.successful(false)
+        case StatusCodes.OK =>
+          // Does not seem to be already provided?
+          implicit val entityToBooleanUnmarshaller : Unmarshaller[HttpEntity, Boolean] =
+            (Unmarshaller.stringUnmarshaller flatMap Unmarshaller.booleanFromStringUnmarshaller).asScala
+          val unmarshal = IO.fromFuture(IO(Unmarshal(response.entity).to[Boolean]))
+          FailureResponseOrT.right[HttpResponse](unmarshal)
+        case _ => FailureResponseOrT.pure[IO, HttpResponse](false)
       }
       _ = if (!whitelisted) log.error("Submit Access Denied for user {}", user.userId)
     } yield whitelisted
   }
 
-  def collectionsForUser(user: User, cromIamRequest: HttpRequest): Future[List[Collection]] = {
+  def collectionsForUser(user: User, cromIamRequest: HttpRequest): FailureResponseOrT[List[Collection]] = {
     val request = HttpRequest(method = HttpMethods.GET, uri = samBaseCollectionUri, headers = List[HttpHeader](user.authorization))
 
     for {
-      response <- instrumentRequest(() => Http().singleRequest(request), cromIamRequest, instrumentationPrefixForSam(userCollectionPrefix))
-      resources <- Unmarshal(response.entity).to[List[SamResource]]
+      response <- instrumentRequest(
+        () => Http().singleRequest(request).asFailureResponseOrT,
+        cromIamRequest,
+        instrumentationPrefixForSam(userCollectionPrefix)
+      )
+      futureIO = IO.fromFuture(IO(Unmarshal(response.entity).to[List[SamResource]]))
+      resources <- FailureResponseOrT.right(futureIO)
     } yield resources.map(r => Collection(r.resourceId))
   }
 
@@ -69,15 +89,17 @@ class SamClient(scheme: String,
     * Requests authorization for the authenticated user to perform an action from the Sam service for a collection
     * @return Successful future if the auth is accepted, a Failure otherwise.
     */
-  def requestAuth(authorizationRequest: CollectionAuthorizationRequest, cromIamRequest: HttpRequest): Future[Unit] = {
+  def requestAuth(authorizationRequest: CollectionAuthorizationRequest,
+                  cromIamRequest: HttpRequest): FailureResponseOrT[Unit] = {
     val logString = authorizationRequest.action + " access for user " + authorizationRequest.user.userId +
       " on a request to " + authorizationRequest.action +  " for collection " + authorizationRequest.collection.name
 
-    def validateEntityBytes(byteString: ByteString): Future[Unit] = {
-      if (byteString.utf8String == "true") Future.successful(())
-      else {
+    def validateEntityBytes(byteString: ByteString): FailureResponseOrT[Unit] = {
+      if (byteString.utf8String == "true") {
+        Monad[FailureResponseOrT].unit
+      } else {
         log.warning("Sam denied " + logString)
-        Future.failed(new SamDenialException)
+        FailureResponseOrT[IO, HttpResponse, Unit](IO.raiseError(new SamDenialException))
       }
     }
 
@@ -88,8 +110,13 @@ class SamClient(scheme: String,
       headers = List[HttpHeader](authorizationRequest.user.authorization))
 
     for {
-      response <- instrumentRequest(() => Http().singleRequest(request), cromIamRequest, instrumentationPrefixForSam(authCollectionPrefix))
-      entityBytes <- response.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+      response <- instrumentRequest(
+        () => Http().singleRequest(request).asFailureResponseOrT,
+        cromIamRequest,
+        instrumentationPrefixForSam(authCollectionPrefix)
+      )
+      futureIO = IO.fromFuture(IO(response.entity.dataBytes.runFold(ByteString(""))(_ ++ _)))
+      entityBytes <- FailureResponseOrT.right(futureIO)
       _ <- validateEntityBytes(entityBytes)
     } yield ()
   }
@@ -101,21 +128,32 @@ class SamClient(scheme: String,
             - If user has the 'add' permission we're ok
         - else fail the future
    */
-  def requestSubmission(user: User, collection: Collection, cromIamRequest: HttpRequest): Future[Unit] = {
+  def requestSubmission(user: User,
+                        collection: Collection,
+                        cromIamRequest: HttpRequest
+                       ): FailureResponseOrT[Unit] = {
     log.info("Verifying user " + user.userId + " can submit a workflow to collection " + collection.name)
     val createCollection = registerCreation(user, collection, cromIamRequest)
 
     createCollection flatMap {
+      case r if r.status == StatusCodes.NoContent => Monad[FailureResponseOrT].unit
+      case r => FailureResponseOrT[IO, HttpResponse, Unit](IO.raiseError(SamRegisterCollectionException(r.status)))
+    } recoverWith {
       case r if r.status == StatusCodes.Conflict => requestAuth(CollectionAuthorizationRequest(user, collection, "add"), cromIamRequest)
-      case r if r.status == StatusCodes.NoContent => Future.successful(())
-      case r => Future.failed(SamRegisterCollectionException(r.status))
+      case r => FailureResponseOrT[IO, HttpResponse, Unit](IO.raiseError(SamRegisterCollectionException(r.status)))
     }
   }
 
-  private def registerCreation(user: User, collection: Collection, cromIamRequest: HttpRequest): Future[HttpResponse] = {
+  protected def registerCreation(user: User,
+                                 collection: Collection,
+                                 cromIamRequest: HttpRequest): FailureResponseOrT[HttpResponse] = {
     val request = HttpRequest(method = HttpMethods.POST, uri = samRegisterUri(collection), headers = List[HttpHeader](user.authorization))
 
-    instrumentRequest(() => Http().singleRequest(request), cromIamRequest, instrumentationPrefixForSam(registerCollectionPrefix))
+    instrumentRequest(
+      () => Http().singleRequest(request).asFailureResponseOrT,
+      cromIamRequest,
+      instrumentationPrefixForSam(registerCollectionPrefix)
+    )
   }
 
   private def samAuthorizeActionUri(authorizationRequest: CollectionAuthorizationRequest) = {

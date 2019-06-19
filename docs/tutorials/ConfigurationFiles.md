@@ -60,7 +60,11 @@ When you then run Cromwell updated config file, cromwell will now be listening o
 
 #### Finding more configuration properties
 
-In addition to the common configuration properties listed on the [configuration](../Configuring) page, there are also a large number of example configuration stanzas commented in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+In addition to the common configuration properties listed on the [configuration](../Configuring) page, there are also a large number of example configuration stanzas commented in [cromwell.examples.conf][cromwell-examples-conf], and
+backend provider examples in [cromwell.example.backends][cromwell-examples-folder].
+
+
+[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
 
 ### Next Steps
 
@@ -68,3 +72,6 @@ After completing this tutorial you might find the following page interesting:
 
 * [Configuring the Local Backend](LocalBackendIntro)
 * [Server Mode](ServerMode.md)
+
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

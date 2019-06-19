@@ -155,7 +155,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 
     def arrayLength(value: WomValue): Try[WomInteger] = value match {
       case WomArray(_, arrayValues) => Success(WomInteger(arrayValues.length))
-      case bad => Failure(new UnsupportedOperationException(s"length() expects one parameter of type Array but got one parameter of type ${bad.womType.toDisplayString}"))
+      case bad => Failure(new UnsupportedOperationException(s"length() expects one parameter of type Array but got one parameter of type ${bad.womType.stableName}"))
     }
 
     extractArguments flatMap arrayLength
@@ -164,7 +164,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = {
     def getFlatValues(v: WomValue): Try[Seq[WomValue]] = v match {
       case WomArrayLike(WomArray(_, values)) => Success(values.toList)
-      case other => Failure(new IllegalArgumentException(s"Invalid argument to flatten: ${other.womType.toDisplayString}, flatten requires an Array[Array[_]]"))
+      case other => Failure(new IllegalArgumentException(s"Invalid argument to flatten: ${other.womType.stableName}, flatten requires an Array[Array[_]]"))
     }
 
     val arg: Try[WomValue] = extractSingleArgument("flatten", params)
@@ -173,7 +173,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
         val llt: Try[Seq[Seq[WomValue]]] = TryUtil.sequence(arrayValues.map(getFlatValues))
         llt.map(ll => WomArray(WomArrayType(elemType), ll.flatten))
       case bad =>
-        Failure(new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.toDisplayString}"))
+        Failure(new UnsupportedOperationException(s"flatten() expects one parameter of type Array[Array[T]] but got one parameter of type ${bad.womType.stableName}"))
     }
   }
 
@@ -188,7 +188,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
         val result = es map { e => WomString(p + e.valueString) }
         Success(WomArray(WomArrayType(WomStringType), result))
       case (_, _) =>
-        Failure(new UnsupportedOperationException(s"The function prefix expect arguments (String, Array[X]) where X is a primitive type, but got (${prefixString.womType.toDisplayString}, ${elements.womType.toDisplayString})"))
+        Failure(new UnsupportedOperationException(s"The function prefix expect arguments (String, Array[X]) where X is a primitive type, but got (${prefixString.womType.stableName}, ${elements.womType.stableName})"))
     }
 
     extractTwoArguments flatMap makePrefixedString.tupled
@@ -240,7 +240,7 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
         case womValue if memberType.isCoerceableFrom(womValue.womType) =>
           memberType.coerceRawValue(womValue).get}).map(Success(_)).getOrElse(Failure(new IllegalArgumentException("select_first failed. All provided values were empty.")))
     case WomArray(WomArrayType(_), arrayValue) => if (arrayValue.isEmpty) SelectFirstEmptyInput else Success(arrayValue.head)
-    case other => Failure(new IllegalArgumentException(s"select_first must take an array but got ${other.womType.toDisplayString}: ${other.toWomString}"))
+    case other => Failure(new IllegalArgumentException(s"select_first must take an array but got ${other.womType.stableName}: ${other.toWomString}"))
   }
 
   def select_all(params: Seq[Try[WomValue]]): Try[WomArray] = extractSingleArgument("select_all", params) flatMap {
@@ -328,7 +328,7 @@ object WdlStandardLibraryFunctions {
           case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
           case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
           case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0l)
-          case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.toDisplayString}."))
+          case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.stableName}."))
         }
 
         // Inner function: get the file size and convert into the requested memory unit
@@ -378,15 +378,15 @@ trait PureStandardLibraryFunctionsLike extends WdlStandardLibraryFunctions {
 
   def className = this.getClass.getCanonicalName
 
-  override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError(s"readFile not available in $className.")
-  override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError(s"writeFile not available in $className.")
-  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError(s"read_json not available in $className."))
-  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"write_json not available in $className."))
-  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError(s"size not available in $className."))
-  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"write_tsv not available in $className."))
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stdout not available in $className."))
-  override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError(s"glob not available in $className.")
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError(s"stderr not available in $className."))
+  override def readFile(path: String, sizeLimit: Int): String = throw new UnsupportedOperationException(s"readFile not available in $className.")
+  override def writeFile(path: String, content: String): Try[WomFile] = throw new UnsupportedOperationException(s"writeFile not available in $className.")
+  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new UnsupportedOperationException(s"read_json not available in $className."))
+  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException(s"write_json not available in $className."))
+  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new UnsupportedOperationException(s"size not available in $className."))
+  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException(s"write_tsv not available in $className."))
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException(s"stdout not available in $className."))
+  override def globHelper(pattern: String): Seq[String] = throw new UnsupportedOperationException(s"glob not available in $className.")
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException(s"stderr not available in $className."))
   override def fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.default
 }
 
@@ -422,7 +422,7 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
     params.toList match {
       case Success(f) :: Nil if isGoodFirstSizeParam(f) => Success(WomFloatType)
       case Success(f) :: Success(WomStringType) :: Nil if isGoodFirstSizeParam(f) => Success(WomFloatType)
-      case other => Failure(new Exception(s"Unexpected arguments to function `size`. Expected 'size(file: File [, unit: String])' but got 'size(${other.map(_.map(_.toDisplayString)).mkString(", ")})'"))
+      case other => Failure(new Exception(s"Unexpected arguments to function `size`. Expected 'size(file: File [, unit: String])' but got 'size(${other.map(_.map(_.stableName)).mkString(", ")})'"))
     }
   }
   def length(params: Seq[Try[WomType]]): Try[WomType] = params.toList match {
@@ -462,11 +462,11 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
   }
   def select_first(params: Seq[Try[WomType]]): Try[WomType] = extractSingleArgument("select_first", params) flatMap {
     case WomArrayType(WomOptionalType(innerType)) => Success(innerType)
-    case other => Failure(new IllegalArgumentException(s"select_first failed. It expects an array of optional values but got ${other.toDisplayString}."))
+    case other => Failure(new IllegalArgumentException(s"select_first failed. It expects an array of optional values but got ${other.stableName}."))
   }
   def select_all(params: Seq[Try[WomType]]): Try[WomType] = extractSingleArgument("select_all", params) flatMap {
     case WomArrayType(WomOptionalType(innerType)) => Success(WomArrayType(innerType))
-    case other => Failure(new IllegalArgumentException(s"select_all failed. It expects an array of optional values but got ${other.toDisplayString}."))
+    case other => Failure(new IllegalArgumentException(s"select_all failed. It expects an array of optional values but got ${other.stableName}."))
   }
   def defined(params: Seq[Try[WomType]]): Try[WomType] = extractSingleArgument("defined", params).map(_ => WomBooleanType)
   def zip(params: Seq[Try[WomType]]): Try[WomType] = {
@@ -480,32 +480,32 @@ class WdlStandardLibraryFunctionsType extends WdlFunctions[WomType] {
 
   def flatten(params: Seq[Try[WomType]]): Try[WomType] = extractSingleArgument("flatten", params) flatMap {
     case WomArrayType(inner @ WomArrayType(_)) => Success(inner)
-    case otherType => Failure(new Exception(s"flatten requires an Array[Array[_]] argument but instead got ${otherType.toDisplayString}"))
+    case otherType => Failure(new Exception(s"flatten requires an Array[Array[_]] argument but instead got ${otherType.stableName}"))
   }
 }
 
 case object NoFunctions extends WdlStandardLibraryFunctions {
-  override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError()
-  override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError()
-  override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError()
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
-  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
-  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
-  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new NotImplementedError())
-  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new NotImplementedError())
-  override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
-  override def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new NotImplementedError())
-  override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())
-  override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
-  override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
-  override def select_first(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
-  override def select_all(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
-  override def zip(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
-  override def cross(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new NotImplementedError())
-  override def basename(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new NotImplementedError())
-  override def floor(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
-  override def round(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
-  override def ceil(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new NotImplementedError())
+  override def globHelper(pattern: String): Seq[String] = throw new UnsupportedOperationException()
+  override def readFile(path: String, sizeLimit: Int): String = throw new UnsupportedOperationException()
+  override def writeFile(path: String, content: String): Try[WomFile] = throw new UnsupportedOperationException()
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException())
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException())
+  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new UnsupportedOperationException())
+  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException())
+  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = Failure(new UnsupportedOperationException())
+  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = Failure(new UnsupportedOperationException())
+  override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new UnsupportedOperationException())
+  override def flatten(params: Seq[Try[WomValue]]): Try[WomValue] = Failure(new UnsupportedOperationException())
+  override def sub(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new UnsupportedOperationException())
+  override def range(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
+  override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
+  override def select_first(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
+  override def select_all(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
+  override def zip(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
+  override def cross(params: Seq[Try[WomValue]]): Try[WomArray] = Failure(new UnsupportedOperationException())
+  override def basename(params: Seq[Try[WomValue]]): Try[WomString] = Failure(new UnsupportedOperationException())
+  override def floor(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new UnsupportedOperationException())
+  override def round(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new UnsupportedOperationException())
+  override def ceil(params: Seq[Try[WomValue]]): Try[WomInteger] = Failure(new UnsupportedOperationException())
   override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.default
 }

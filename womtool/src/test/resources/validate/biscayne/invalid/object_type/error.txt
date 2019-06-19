@@ -1,0 +1,2 @@
+Failed to process workflow definition 'object_type' (reason 1 of 2): No struct definition for 'Object' found in available structs: []
+Failed to process workflow definition 'object_type' (reason 2 of 2): No struct definition for 'Object' found in available structs: []

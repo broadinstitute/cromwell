@@ -17,7 +17,7 @@ import wdl.model.draft3.elements._
 import wdl.model.draft3.graph._
 import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{InputDefinition, OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNode.GraphNodeSetter
@@ -55,7 +55,7 @@ object ScatterElementToGraphNode {
     val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
       case a: WomArrayType => a.memberType.validNel
       case WomAnyType => WomAnyType.validNel
-      case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.toDisplayString}".invalidNel
+      case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.stableName}".invalidNel
     }
 
     final case class RequiredOuterPorts(valueGeneratorPorts: Map[String, OutputPort], completionPorts: Map[String, CallNode])
@@ -124,7 +124,14 @@ object ScatterElementToGraphNode {
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
 
-    val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph => WorkflowDefinition(a.node.scatterName, subWorkflowGraph, Map.empty, Map.empty) }
+    val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph =>
+      WorkflowDefinition(a.node.scatterName,
+                         subWorkflowGraph,
+                         Map.empty,
+                         Map.empty,
+                         None // no lexical information, because this doesn't map to a source workflow
+      )
+    }
 
     val scatterableGraphValidation = subWorkflowDefinitionValidation map { subWorkflowDefinition =>
       val callNodeBuilder = new CallNodeBuilder()
@@ -134,7 +141,7 @@ object ScatterElementToGraphNode {
       val newInputNodes: Map[String, ExternalGraphInputNode] = (unsatisfiedInputs collect {
         case i: RequiredInputDefinition => i.name -> RequiredGraphInputNode(WomIdentifier(i.name), i.womType, i.name, Callable.InputDefinition.IdentityValueMapper)
         case i: OptionalInputDefinition => i.name -> OptionalGraphInputNode(WomIdentifier(i.name), i.womType, i.name, Callable.InputDefinition.IdentityValueMapper)
-        case i: InputDefinitionWithDefault => i.name -> OptionalGraphInputNodeWithDefault(WomIdentifier(i.name), i.womType, i.default, i.name, Callable.InputDefinition.IdentityValueMapper)
+        case i: OverridableInputDefinitionWithDefault => i.name -> OptionalGraphInputNodeWithDefault(WomIdentifier(i.name), i.womType, i.default, i.name, Callable.InputDefinition.IdentityValueMapper)
       }).toMap
 
       val mappingAndPorts: List[((InputDefinition, InputDefinitionPointer), InputPort)] = subWorkflowDefinition.inputs map { i =>
@@ -144,7 +151,12 @@ object ScatterElementToGraphNode {
       }
       val mapping = mappingAndPorts.map(_._1)
       val inputPorts = mappingAndPorts.map(_._2).toSet
-      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), Set.empty, (_, localName) => WomIdentifier(localName))
+      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName),
+                                         subWorkflowDefinition,
+                                         InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts),
+                                         Set.empty,
+                                         a.node.sourceLocation,
+                                         (_, localName) => WomIdentifier(localName))
       graphNodeSetter._graphNode = result.node
       result.copy(newInputs = result.newInputs ++ newInputNodes.values)
     }

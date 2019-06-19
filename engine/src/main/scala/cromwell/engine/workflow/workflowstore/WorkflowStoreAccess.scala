@@ -15,7 +15,8 @@ import scala.concurrent.{ExecutionContext, Future}
   * Interface for workflow store operations that read or write multiple rows in a single transaction.
   */
 sealed trait WorkflowStoreAccess {
-  def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)])
+  def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
+                              heartbeatDateTime: OffsetDateTime)
                              (implicit ec: ExecutionContext): Future[Int]
 
   def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
@@ -28,9 +29,10 @@ sealed trait WorkflowStoreAccess {
   */
 case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends WorkflowStoreAccess {
 
-  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)])
+  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
+                                       heartbeatDateTime: OffsetDateTime)
                                       (implicit ec: ExecutionContext): Future[Int] = {
-    store.writeWorkflowHeartbeats(workflowIds.toVector.toSet)
+    store.writeWorkflowHeartbeats(workflowIds.toVector.toSet, heartbeatDateTime)
   }
 
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
@@ -44,10 +46,11 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
   * that runs its operations sequentially.
   */
 case class CoordinatedWorkflowStoreAccess(actor: ActorRef) extends WorkflowStoreAccess {
-  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)])
+  override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
+                                       heartbeatDateTime: OffsetDateTime)
                                       (implicit ec: ExecutionContext): Future[Int] = {
     implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
-    actor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds)).mapTo[Int]
+    actor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds, heartbeatDateTime)).mapTo[Int]
   }
 
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)

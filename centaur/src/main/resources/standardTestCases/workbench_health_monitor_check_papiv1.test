@@ -1,0 +1,13 @@
+name: workbench_health_monitor_check_papiv1
+testFormat: workflowsuccess
+backends: [Papiv1]
+
+files {
+  workflow: workbench_health_monitor_check/workbench_health_monitor_check.wdl
+}
+
+metadata {
+  workflowName: workbench_health_monitor_check
+  status: Succeeded
+  "outputs.workbench_health_monitor_check.out": """{"DockerHub":{"ok":true},"Engine Database":{"ok":true},"GCS":{"ok":true},"Papi":{"ok":true},"Papi-Caching-No-Copy":{"ok":true},"Papi-Refresh":{"ok":true},"Papiv1":{"ok":true}}"""
+}

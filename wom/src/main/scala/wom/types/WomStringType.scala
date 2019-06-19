@@ -6,7 +6,7 @@ import wom.values.{WomPrimitive, WomPrimitiveFile, WomString}
 import scala.util.{Success, Try}
 
 case object WomStringType extends WomPrimitiveType {
-  val toDisplayString: String = "String"
+  val stableName: String = "String"
 
   override protected def coercion = {
     case s: String => WomString(s)

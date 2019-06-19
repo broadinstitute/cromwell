@@ -73,11 +73,11 @@ class WdlPairTypeSpec extends FlatSpec with Matchers {
     val notString = coercedValue map { _ => "" } getOrElse "not "
     val coercionDefined = coercedValue.isDefined
 
-    it should s"${notString}allow coercion from ${fromValue.womType.toDisplayString} to ${toType.toDisplayString}" in {
+    it should s"${notString}allow coercion from ${fromValue.womType.stableName} to ${toType.stableName}" in {
       toType.isCoerceableFrom(fromValue.womType) should be(coercionDefined)
     }
 
-    it should s"generate the expected result when converting from ${fromValue.toWomString} to ${toType.toDisplayString}" in {
+    it should s"generate the expected result when converting from ${fromValue.toWomString} to ${toType.stableName}" in {
       val actual = toType.coerceRawValue(fromValue)
       (actual, coercedValue) match {
         case (Success(actualValue), Some(expectedValue)) => actualValue should be(expectedValue)

@@ -1,10 +1,9 @@
 package cromiam.webservice
 
 import akka.event.NoLogging
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader}
-import akka.http.scaladsl.model.headers.{OAuth2BearerToken, RawHeader}
 import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader}
 import akka.http.scaladsl.server.MissingHeaderRejection
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.Config
@@ -16,9 +15,9 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
 
   val log = NoLogging
 
-  override def rootConfig: Config = throw new NotImplementedError("This spec shouldn't need to access the real config")
+  override def rootConfig: Config = throw new UnsupportedOperationException("This spec shouldn't need to access the real config")
 
-  override def configuration = throw new NotImplementedError("This spec shouldn't need to access the real interface/port")
+  override def configuration = throw new UnsupportedOperationException("This spec shouldn't need to access the real interface/port")
 
   override lazy val cromwellClient = new MockCromwellClient()
   override lazy val cromwellAbortClient = new MockCromwellClient()
@@ -37,6 +36,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/status").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -44,6 +44,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/status").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -51,6 +52,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/status").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -58,6 +60,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/status").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -73,6 +76,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/outputs").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -80,6 +84,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/outputs").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -87,6 +92,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/outputs").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -94,6 +100,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/outputs").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -109,6 +116,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/metadata").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -116,6 +124,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/metadata").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -123,6 +132,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/metadata").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -130,6 +140,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/metadata").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -145,6 +156,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/logs").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -152,6 +164,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/logs").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -159,6 +172,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/logs").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -166,6 +180,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/logs").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -181,6 +196,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/labels").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -188,6 +204,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/labels").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -195,6 +212,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/labels").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -202,6 +220,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/labels").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -219,6 +238,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Patch(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/labels").withHeaders(goodAuthHeaders).withEntity(labelEntity) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -229,6 +249,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Patch(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/labels").withHeaders(goodAuthHeaders).withEntity(labelEntity) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe "Submitted labels contain the key caas-collection-name, which is not allowed\n"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -239,6 +260,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Patch(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/labels").withHeaders(goodAuthHeaders).withEntity(labelEntity) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe "Labels must be a valid JSON object, received: \"key-1\":\"foo\"\n"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -248,6 +270,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Patch(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/labels").withHeaders(goodAuthHeaders).withEntity(labelEntity) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -257,6 +280,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Patch(s"/api/workflows/$version/${cromwellClient.subworkflowId}/labels").withHeaders(badAuthHeaders).withEntity(labelEntity) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -274,6 +298,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/backends").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -289,6 +314,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Post(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/releaseHold").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -296,6 +322,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Post(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/releaseHold").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -303,6 +330,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Post(s"/api/workflows/$version/${cromwellClient.subworkflowId}/releaseHold").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -318,6 +346,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Post(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/abort").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -325,6 +354,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Post(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/abort").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -332,6 +362,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Post(s"/api/workflows/$version/${cromwellClient.subworkflowId}/abort").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -348,6 +379,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/callcaching/diff?$callCacheDiffParams").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe OK
       responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -356,6 +388,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/callcaching/diff?$callCacheDiffParams").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe BadRequest
       responseAs[String] shouldBe "Must supply both workflowA and workflowB to the /callcaching/diff endpoint"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -364,6 +397,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/callcaching/diff?$callCacheDiffParams").withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
       status shouldBe InternalServerError
       responseAs[String] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 
@@ -372,6 +406,7 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
     Get(s"/api/workflows/$version/callcaching/diff?$callCacheDiffParams").withHeaders(badAuthHeaders) ~> allRoutes ~> check {
       status shouldBe Forbidden
       responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
     }
   }
 

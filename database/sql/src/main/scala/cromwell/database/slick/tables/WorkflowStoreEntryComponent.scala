@@ -182,4 +182,11 @@ trait WorkflowStoreEntryComponent {
       if workflowStoreEntry.workflowState === "Aborting" && workflowStoreEntry.cromwellId === cromwellId
     } yield workflowStoreEntry.workflowExecutionUuid
   )
+
+  val findWorkflows = Compiled(
+    (cromwellId: Rep[String]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.cromwellId === cromwellId
+    } yield workflowStoreEntry.workflowExecutionUuid
+  )
 }

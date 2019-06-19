@@ -63,7 +63,7 @@ class WomArrayTypeSpec extends FlatSpec with Matchers  {
     }
   }
   it should "stringify its type" in {
-    intArray.womType.toDisplayString shouldEqual "Array[Int]"
+    intArray.womType.stableName shouldEqual "Array[Int]"
   }
   it should "detect invalid array construction if there are uncoerceable types" in {
     try {

@@ -25,7 +25,7 @@ docker run -p 3306:3306 --name NameOfTheContainer -e MYSQL_ROOT_PASSWORD=YourPas
 database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://localhost/DatabaseName?rewriteBatchedStatements=true&useSSL=false"
     user = "ChooseAName"
     password = "YourOtherPassword"

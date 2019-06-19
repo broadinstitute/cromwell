@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpec, Matchers}
 class EngineFunctionsSpec extends FlatSpec with Matchers {
 // TODO WOM: move to wdl4s ?
 //  trait WdlStandardLibraryImpl extends  ReadLikeFunctions with WriteFunctions with PureStandardLibraryFunctionsLike {
-//    private def fail(name: String) = Failure(new NotImplementedError(s"$name() not implemented yet"))
+//    private def fail(name: String) = Failure(new UnsupportedOperationException(s"$name() not implemented yet"))
 //
 //    override def stdout(params: Seq[Try[WomValue]]): Try[WdlFile] = fail("stdout")
 //    override def stderr(params: Seq[Try[WomValue]]): Try[WdlFile] = fail("stderr")
@@ -28,9 +28,9 @@ class EngineFunctionsSpec extends FlatSpec with Matchers {
 //
 //  "sub" should "replace a string according to a pattern" in {
 //    class TestEngineFn extends WdlStandardLibraryImpl {
-//      override def glob(path: String, pattern: String): Seq[String] = throw new NotImplementedError
+//      override def glob(path: String, pattern: String): Seq[String] = throw new UnsupportedOperationException
 //      override def pathBuilders: List[PathBuilder] = List(DefaultPathBuilder)
-//      override def writeDirectory: Path = throw new NotImplementedError
+//      override def writeDirectory: Path = throw new UnsupportedOperationException
 //    }
 //
 //    val engineFn = new TestEngineFn

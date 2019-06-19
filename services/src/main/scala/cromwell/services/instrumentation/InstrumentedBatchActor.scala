@@ -5,6 +5,7 @@ import cromwell.core.actor.BatchActor
 import cromwell.services.instrumentation.InstrumentedBatchActor.{QueueSizeTimerAction, QueueSizeTimerKey}
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 object InstrumentedBatchActor {
   case object QueueSizeTimerKey
@@ -26,6 +27,7 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     instrumentationPath.concatNel(NonEmptyList.one(name))
 
   private val processedPath = makePath("processed")
+  private val failurePath = makePath("failure")
   private val queueSizePath = makePath("queue")
 
   timers.startSingleTimer(QueueSizeTimerKey, QueueSizeTimerAction, CromwellInstrumentation.InstrumentationRate)
@@ -49,7 +51,10 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     */
   protected def instrumentedProcess(f: => Future[Int]) = {
     val action = f
-    action foreach { n => count(processedPath, n.toLong, instrumentationPrefix) }
+    action onComplete {
+      case Success(numProcessed) => count(processedPath, numProcessed.toLong, instrumentationPrefix)
+      case Failure(_) => count(failurePath, 1L, instrumentationPrefix)
+    }
     action
   }
 }

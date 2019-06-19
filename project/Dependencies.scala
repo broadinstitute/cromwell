@@ -20,6 +20,7 @@ object Dependencies {
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8.1"
+  private val commonsMathV = "3.2"
   private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.10"
@@ -28,11 +29,15 @@ object Dependencies {
   private val googleApiClientV = "1.28.0"
   private val googleCloudCoreV = "1.61.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
+  private val googleCloudMonitoringV = "1.70.0"
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleHttpClientApacheV = "2.1.1"
+  private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
-  private val grpcV = "1.18.0"
+  private val googleCloudResourceManagerV = "0.87.0-alpha"
+  private val grpcV = "1.20.0"
   private val guavaV = "27.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
@@ -44,14 +49,14 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "1.2.0"
   private val liquibaseSlf4jV = "2.0.0"
-  private val liquibaseV = "3.6.3"
+  private val liquibaseV = "3.5.5" // https://github.com/broadinstitute/cromwell/issues/4618
   private val logbackV = "1.2.3"
   private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.1"
   private val mouseV = "0.20"
-  private val mysqlV = "5.1.47"
+  private val mysqlV = "8.0.15"
   private val nettyV = "4.1.33.Final"
   private val owlApiV = "5.1.9"
   private val paradiseV = "2.1.1"
@@ -86,6 +91,11 @@ object Dependencies {
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
+
+  private val slf4jFacadeDependencies = List(
+    "org.slf4j" % "slf4j-api" % slf4jV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+  )
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
 
@@ -122,19 +132,17 @@ object Dependencies {
     "com.google.api-client" % "google-api-client-java6" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5")
+      exclude("com.google.guava", "guava-jdk5"),
+    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
   )
 
   val spiDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
-  ) ++ googleApiClientDependencies
+  ) ++ googleApiClientDependencies ++ slf4jFacadeDependencies
 
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "org.scalatest" %% "scalatest" % scalatestV % Test
   )
 
   val implFtpDependencies = List(
@@ -173,15 +181,16 @@ object Dependencies {
    */
   private val slf4jBindingDependencies = List(
     // http://logback.qos.ch/dependencies.html
-    "ch.qos.logback" % "logback-classic" % logbackV,
     "ch.qos.logback" % "logback-access" % logbackV,
+    "ch.qos.logback" % "logback-classic" % logbackV,
+    "ch.qos.logback" % "logback-core" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "io.sentry" % "sentry-logback" % sentryLogbackV,
     "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
     "org.slf4j" % "log4j-over-slf4j" % slf4jV
-  )
+  ) ++ slf4jFacadeDependencies
 
   private val slickDependencies = List(
     "com.typesafe.slick" %% "slick" % slickV,
@@ -312,14 +321,6 @@ object Dependencies {
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
-    /*
-    When going to 6.0.x, will need to change the jdbc driver to com.mysql.cj.jdbc.Driver
-    - https://dev.mysql.com/doc/connector-j/6.0/en/connector-j-api-changes.html
-
-    The url may also need the parameters:
-    - serverTimezone=UTC via http://stackoverflow.com/a/36793896/3320205
-    - nullNamePatternMatchesAll=true via https://liquibase.jira.com/browse/CORE-2723
-     */
     "mysql" % "mysql-connector-java" % mysqlV
   )
 
@@ -330,15 +331,10 @@ object Dependencies {
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
   val commonDependencies = List(
-    "org.slf4j" % "slf4j-api" % slf4jV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
-    "ch.qos.logback" % "logback-access" % logbackV,
-    "ch.qos.logback" % "logback-classic" % logbackV,
-    "ch.qos.logback" % "logback-core" % logbackV,
-  ) ++ catsDependencies ++ configDependencies
+  ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
@@ -348,6 +344,10 @@ object Dependencies {
   val statsDDependencies = List(
     "nl.grons" %% "metrics-scala" % metrics3ScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
+  )
+
+  val stackdriverDependencies = List(
+    "com.google.cloud" % "google-cloud-monitoring" % googleCloudMonitoringV
   )
 
   val gcsFileSystemDependencies = akkaHttpDependencies
@@ -439,7 +439,7 @@ object Dependencies {
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
-    slf4jBindingDependencies
+    slf4jBindingDependencies ++ stackdriverDependencies
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
@@ -447,10 +447,12 @@ object Dependencies {
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
-  ) ++ akkaHttpDependencies ++ betterFilesDependencies
+  ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies = List(
+    "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
@@ -474,7 +476,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
-  ) ++ akkaHttpDependencies ++ catsDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
+  ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies = coreDependencies ++ akkaHttpDependencies
 
@@ -547,6 +549,19 @@ object Dependencies {
   Older versions have known vulnerabilities, ex: CVE-2017-7525
    */
 
+  val googleHttpClientDependencies = List(
+    /*
+    Move the google-http-client versions past https://github.com/googleapis/google-http-java-client/issues/606
+    This created a situation where com/google/api/client/http/apache/ApacheHttpTransport.class was in *both*
+    transitive dependencies causing an assembly merge conflict.
+
+    At the time of this comment older versions are being pulled in via
+    https://mvnrepository.com/artifact/com.google.api-client/google-api-client/1.28.0
+     */
+    "com.google.http-client" % "google-http-client-apache" % googleHttpClientApacheV,
+    "com.google.http-client" % "google-http-client" % googleHttpClientV,
+  )
+
   val nettyDependencyOverrides = List(
     "buffer",
     "codec",
@@ -591,12 +606,27 @@ object Dependencies {
     "util",
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
+  // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
+  val grpcDependencyOverrides = List(
+    "alts",
+    "auth",
+    "context",
+    "core",
+    "grpclb",
+    "netty-shaded",
+    "protobuf-lite",
+    "protobuf",
+    "stub",
+  ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
+
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
    */
   val cromwellDependencyOverrides =
     allProjectDependencies ++
+      googleHttpClientDependencies ++
       nettyDependencyOverrides ++
-      rdf4jDependencyOverrides
+      rdf4jDependencyOverrides ++
+      grpcDependencyOverrides
 }

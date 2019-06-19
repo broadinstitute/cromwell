@@ -2,7 +2,6 @@ package cromwell.database.slick.tables
 
 import java.sql.{Clob, Timestamp}
 
-import cats.data.NonEmptyList
 import cromwell.database.sql.tables.MetadataEntry
 
 trait MetadataEntryComponent {
@@ -47,14 +46,6 @@ trait MetadataEntryComponent {
 
     // TODO: rename index via liquibase
     def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
-
-    // TODO: rename index via liquibase
-    def ixMetadataEntryWeuCfqnJiJa = index("METADATA_JOB_IDX",
-      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
-
-    // TODO: rename index via liquibase, and change column order from WEU_[MK]_CFQN_JI_JA to WEU_CFQN_JI_JA_[MK]
-    def ixMetadataEntryWeuCfqnJiJaMk = index("METADATA_JOB_AND_KEY_IDX",
-      (workflowExecutionUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt), unique = false)
   }
 
   val metadataEntries = TableQuery[MetadataEntries]
@@ -119,20 +110,40 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  // This is only used for metadata summary which should not require metadata sorting if rows are committed
-  // with monotonically increasing IDs. The metadata summary logic records the maximum ID it last saw and uses
-  // that last ID + 1 as the minimum ID for the next query iteration.
-  val metadataEntriesForIdGreaterThanOrEqual = Compiled(
-    (metadataEntryId: Rep[Long], startMetadataKey: Rep[String], endMetadataKey: Rep[String], nameMetadataKey: Rep[String],
-     statusMetadataKey: Rep[String], likeLabelMetadataKey: Rep[String], submissionMetadataKey: Rep[String]) => for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.metadataEntryId >= metadataEntryId
-      if (metadataEntry.metadataKey === startMetadataKey || metadataEntry.metadataKey === endMetadataKey ||
-        metadataEntry.metadataKey === nameMetadataKey || metadataEntry.metadataKey === statusMetadataKey ||
-        metadataEntry.metadataKey.like(likeLabelMetadataKey) || metadataEntry.metadataKey === submissionMetadataKey) &&
-        (metadataEntry.callFullyQualifiedName.isEmpty && metadataEntry.jobIndex.isEmpty &&
-          metadataEntry.jobAttempt.isEmpty)
-    } yield metadataEntry
+  val metadataEntriesForIdRange = Compiled(
+    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long],
+     startMetadataKey: Rep[String], endMetadataKey: Rep[String],
+     nameMetadataKey: Rep[String], statusMetadataKey: Rep[String], submissionMetadataKey: Rep[String],
+     parentWorkflowIdMetadataKey: Rep[String], rootWorkflowIdMetadataKey: Rep[String],
+     likeLabelMetadataKey: Rep[String]) => {
+      for {
+        metadataEntry <- metadataEntries
+        if metadataEntry.metadataEntryId >= minMetadataEntryId
+        if metadataEntry.metadataEntryId <= maxMetadataEntryId
+        if metadataEntry.metadataKey === startMetadataKey ||
+          metadataEntry.metadataKey === endMetadataKey ||
+          metadataEntry.metadataKey === nameMetadataKey ||
+          metadataEntry.metadataKey === statusMetadataKey ||
+          metadataEntry.metadataKey === submissionMetadataKey ||
+          metadataEntry.metadataKey === parentWorkflowIdMetadataKey ||
+          metadataEntry.metadataKey === rootWorkflowIdMetadataKey ||
+          // http://slick.lightbend.com/doc/3.2.3/queries.html#expressions
+          metadataEntry.metadataKey.like(likeLabelMetadataKey ++ ("%": Rep[String]))
+        if metadataEntry.callFullyQualifiedName.isEmpty
+        if metadataEntry.jobIndex.isEmpty
+        if metadataEntry.jobAttempt.isEmpty
+      } yield metadataEntry
+    }
+  )
+
+  val existsMetadataEntriesGreaterThanMetadataEntryId = Compiled(
+    (metadataEntryId: Rep[Long]) => {
+      val query = for {
+        metadataEntry <- metadataEntries
+        if metadataEntry.metadataEntryId > metadataEntryId
+      } yield metadataEntry.metadataEntryId
+      query.exists
+    }
   )
 
   /**
@@ -140,12 +151,14 @@ trait MetadataEntryComponent {
     * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level
     * keys are returned.
     */
-  def metadataEntriesLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
-                                      requireEmptyJobKey: Boolean) = {
+  def metadataEntriesWithKeyConstraints(workflowExecutionUuid: String,
+                                        metadataKeysToFilterFor: List[String],
+                                        metadataKeysToFilterOut: List[String],
+                                        requireEmptyJobKey: Boolean) = {
     (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
+      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
       if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
@@ -154,59 +167,43 @@ trait MetadataEntryComponent {
     * Returns metadata entries that are "like" metadataKeys for the specified call.
     * If jobAttempt has no value, all metadata keys for all attempts are returned.
     */
-  def metadataEntriesLikeMetadataKeysWithJob(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
-                                             callFqn: String, jobIndex: Option[Int], jobAttempt: Option[Int]) = {
+  def metadataEntriesForJobWithKeyConstraints(workflowExecutionUuid: String,
+                                              metadataKeysToFilterFor: List[String],
+                                              metadataKeysToFilterOut: List[String],
+                                              callFqn: String,
+                                              jobIndex: Option[Int],
+                                              jobAttempt: Option[Int]) = {
     (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
+      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
       if metadataEntry.callFullyQualifiedName === callFqn
       if hasSameIndex(metadataEntry, jobIndex)
       // Assume that every metadata entry for a call should have a non null attempt value
-      // Because of that, if the jobAttempt paramater is Some(_), make sure it matches, otherwise take all entries
+      // Because of that, if the jobAttempt parameter is Some(_), make sure it matches, otherwise take all entries
       // regardless of the attempt
       if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
 
-  /**
-    * Returns metadata entries that are NOT "like" metadataKeys for the specified workflow.
-    * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level
-    * keys are returned.
-    */
-  def metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
-                                         requireEmptyJobKey: Boolean) = {
-    (for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if !metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
-      if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
-    } yield metadataEntry).sortBy(_.metadataTimestamp)
-  }
-
-  /**
-    * Returns metadata entries that are NOT "like" metadataKeys for the specified call.
-    * If jobIndex (resp. jobAttempt) has no value, all metadata keys for all indices (resp. attempt)
-    * are returned.
-    */
-  def metadataEntriesNotLikeMetadataKeysWithJob(workflowExecutionUuid: String, metadataKeys: NonEmptyList[String],
-                                                callFqn: String, jobIndex: Option[Int], jobAttempt: Option[Int]) = {
-    (for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if !metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeys)
-      if metadataEntry.callFullyQualifiedName === callFqn
-      if hasSameIndex(metadataEntry, jobIndex)
-        // Assume that every metadata entry for a call should have a non null attempt value
-        // Because of that, if the jobAttempt parameter is Some(_), make sure it matches, otherwise take all entries
-        // regardless of the attempt
-      if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
-    } yield metadataEntry).sortBy(_.metadataTimestamp)
-  }
-
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
-                                                     metadataKeys: NonEmptyList[String]): Rep[Boolean] = {
-    metadataKeys.toList.map(metadataEntry.metadataKey like _).reduce(_ || _)
+                                                     metadataKeysToFilterFor: List[String],
+                                                     metadataKeysToFilterOut: List[String]): Rep[Boolean] = {
+
+    def containsKey(key: String): Rep[Boolean] = metadataEntry.metadataKey like key
+
+    val positiveFilter: Option[Rep[Boolean]] = metadataKeysToFilterFor.map(containsKey).reduceOption(_ || _)
+    val negativeFilter: Option[Rep[Boolean]] = metadataKeysToFilterOut.map(containsKey).reduceOption(_ || _)
+
+    (positiveFilter, negativeFilter) match {
+      case (Some(pf), Some(nf)) => pf && !nf
+      case (Some(pf), None) => pf
+      case (None, Some(nf)) => !nf
+
+      // We should never get here, but there's no reason not to handle it:
+      // ps: is there a better literal "true" in slick?
+      case (None, None) => true: Rep[Boolean]
+    }
   }
 
   private[this] def hasSameIndex(metadataEntry: MetadataEntries, jobIndex: Rep[Option[Int]]) = {

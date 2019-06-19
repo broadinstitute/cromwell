@@ -1,5 +1,7 @@
 package cromwell.core.actor
 
+import java.time.OffsetDateTime
+
 import akka.actor.{ActorRef, FSM, Timers}
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyVector
@@ -72,14 +74,28 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
 
   def commandToData(snd: ActorRef): PartialFunction[Any, C]
 
+  // If work has arrived 'recently' - ie within this duration - ignore any periodic 'ScheduledProcessAction' messages
+  val recentArrivalThreshold: Option[FiniteDuration] = None
+  var mostRecentArrival: Option[OffsetDateTime] = None
+  def suitableIntervalSinceLastArrival(): Boolean = (for {
+    threshold <- recentArrivalThreshold
+    mostRecent <- mostRecentArrival
+    now = OffsetDateTime.now
+  } yield mostRecent.plusNanos(threshold.toNanos).isBefore(now)).getOrElse(true)
+
   when(WaitingToProcess) {
     // On a regular event, only process if the batch size has been reached.
     case Event(command, data) if commandToData(sender).isDefinedAt(command) =>
+      recentArrivalThreshold foreach { _ => mostRecentArrival = Option(OffsetDateTime.now()) }
       processIfBatchSizeReached(data.enqueue(commandToData(sender)(command)))
     // On a scheduled process, always process
     case Event(ScheduledProcessAction, data) =>
-      gossip(QueueWeight(data.weight))
-      processHead(data)
+      if (suitableIntervalSinceLastArrival()) {
+        gossip(QueueWeight(data.weight))
+        processHead(data)
+      } else {
+        stay()
+      }
     case Event(ShutdownCommand, data) =>
       logger.info(s"{} Shutting down: ${data.weight} queued messages to process", self.path.name)
       shuttingDown = true

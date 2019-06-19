@@ -2,16 +2,17 @@ package cromwell
 
 import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown.JvmExitReason
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.GracefulStopSupport
 import akka.stream.ActorMaterializer
 import cats.data.Validated._
+import cats.effect.IO
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
-import cromwell.CommandLineArguments.ValidSubmission
-import cromwell.CommandLineArguments.WorkflowSourceOrUrl
+import cromwell.CommandLineArguments.{ValidSubmission, WorkflowSourceOrUrl}
 import cromwell.CromwellApp._
 import cromwell.api.CromwellClient
 import cromwell.api.model.{Label, LabelsJsonFormatter, WorkflowSingleSubmission}
@@ -59,7 +60,14 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = cromwellSystem.actorSystem
 
     val sources = validateRunArguments(args)
-    val runnerProps = SingleWorkflowRunnerActor.props(sources, args.metadataOutput, gracefulShutdown, abortJobsOnTerminate.getOrElse(true))(cromwellSystem.materializer)
+    val runnerProps = SingleWorkflowRunnerActor.props(
+      source = sources,
+      metadataOutputFile = args.metadataOutput,
+      terminator = cromwellSystem,
+      gracefulShutdown = gracefulShutdown,
+      abortJobsOnTerminate = abortJobsOnTerminate.getOrElse(true),
+      config = cromwellSystem.config
+    )(cromwellSystem.materializer)
 
     val runner = cromwellSystem.actorSystem.actorOf(runnerProps, "SingleWorkflowRunnerActor")
 
@@ -78,13 +86,26 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val cromwellClient = new CromwellClient(args.host, "v2")
 
     val singleSubmission = validateSubmitArguments(args)
-    val submissionFuture = () => cromwellClient.submit(singleSubmission).andThen({
-      case Success(submitted) =>
-        Log.info(s"Workflow ${submitted.id} submitted to ${args.host}")
-      case Failure(t) =>
-        Log.error(s"Failed to submit workflow to cromwell server at ${args.host}")
-        Log.error(t.getMessage)
-    })
+    val submissionFuture = () => {
+      val io = cromwellClient.submit(singleSubmission).value.attempt flatMap {
+        case Right(Right(submitted)) =>
+          IO {
+            Log.info(s"Workflow ${submitted.id} submitted to ${args.host}")
+          }
+        case Right(Left(httpResponse)) =>
+          IO.fromFuture(IO {
+            Unmarshal(httpResponse.entity).to[String] map { stringEntity =>
+              Log.error(s"Workflow failed to submit to ${args.host}: $stringEntity")
+            }
+          })
+        case Left(exception: Exception) =>
+          IO {
+            Log.error(s"Workflow failed to submit to ${args.host}: ${exception.getMessage}", exception)
+          }
+        case Left(throwable) => throw throwable
+      }
+      io.unsafeToFuture()
+    }
 
     waitAndExit(submissionFuture, () => actorSystem.terminate())
   }
@@ -93,7 +114,9 @@ object CromwellEntryPoint extends GracefulStopSupport {
     initLogging(command)
     lazy val Log = LoggerFactory.getLogger("cromwell")
     Try {
-      new CromwellSystem {}
+      new CromwellSystem {
+        override lazy val config = CromwellEntryPoint.config
+      }
     } recoverWith {
       case t: Throwable =>
         Log.error(s"Failed to instantiate Cromwell System. Shutting down Cromwell.", t)

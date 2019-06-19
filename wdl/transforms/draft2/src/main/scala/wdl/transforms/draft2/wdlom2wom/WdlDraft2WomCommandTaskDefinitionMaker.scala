@@ -2,9 +2,10 @@ package wdl.transforms.draft2.wdlom2wom
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
-import wdl.draft2.model.WdlTask
-import wdl.draft2.model.{WdlTask, WdlWomExpression}
-import wom.callable.Callable.{InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wdl.draft2.model.{AstTools, WdlTask, WdlWomExpression}
+import wdl.draft2.parser.WdlParser.Terminal
+import wom.SourceFileLocation
+import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, CommandTaskDefinition}
 import wom.graph.LocalName
 import wom.transforms.WomCommandTaskDefinitionMaker
@@ -20,8 +21,11 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
       case d if d.expression.isEmpty && d.womType.isInstanceOf[WomOptionalType] =>
         OptionalInputDefinition(LocalName(d.unqualifiedName), d.womType.asInstanceOf[WomOptionalType])
       case d if d.expression.nonEmpty =>
-        InputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, wdlTask))
+        OverridableInputDefinitionWithDefault(LocalName(d.unqualifiedName), d.womType, WdlWomExpression(d.expression.get, wdlTask))
     }).toList
+
+    // Figure out the start line of the workflow in the source file
+    val t: Option[Terminal] = AstTools.findTerminals(wdlTask.ast).headOption
 
     CallableTaskDefinition(
       name = wdlTask.fullyQualifiedName,
@@ -32,7 +36,8 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
       outputs = wdlTask.outputs.map(_.womOutputDefinition).toList,
       inputs = womInputs,
       adHocFileCreation = Set.empty,
-      environmentExpressions = Map.empty
+      environmentExpressions = Map.empty,
+      sourceLocation = t.map(x => SourceFileLocation(x.getLine))
     ).valid
   }
 }

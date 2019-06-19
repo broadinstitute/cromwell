@@ -3,6 +3,7 @@ package centaur.test.standard
 import better.files._
 import cats.data.Validated._
 import cats.implicits._
+import centaur.CromwellTracker
 import centaur.test._
 import centaur.test.formulas.TestFormulas
 import centaur.test.standard.CentaurTestFormat._
@@ -17,7 +18,9 @@ import scala.util.{Failure, Success, Try}
 case class CentaurTestCase(workflow: Workflow,
                            testFormat: CentaurTestFormat,
                            testOptions: TestOptions,
-                           submitResponseOption: Option[SubmitHttpResponse]) {
+                           submitResponseOption: Option[SubmitHttpResponse])(
+                           implicit cromwellTracker: Option[CromwellTracker]) {
+
   def testFunction: Test[SubmitResponse] = this.testFormat match {
     case WorkflowSuccessTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
@@ -51,21 +54,21 @@ case class CentaurTestCase(workflow: Workflow,
 }
 
 object CentaurTestCase {
-  def fromFile(file: File): ErrorOr[CentaurTestCase] = {
+  def fromFile(cromwellTracker: Option[CromwellTracker])(file: File): ErrorOr[CentaurTestCase] = {
     Try(ConfigFactory.parseFile(file.toJava)) match {
       case Success(c) =>
-        CentaurTestCase.fromConfig(c, file.parent) flatMap validateTestCase leftMap { s"Error in test file '$file'." :: _ }
+        CentaurTestCase.fromConfig(c, file.parent, cromwellTracker) flatMap validateTestCase leftMap { s"Error in test file '$file'." :: _ }
       case Failure(f) => invalidNel(s"Invalid test config: $file (${f.getMessage})")
     }
   }
 
-  def fromConfig(conf: Config, configFile: File): ErrorOr[CentaurTestCase] = {
+  def fromConfig(conf: Config, configFile: File, cromwellTracker: Option[CromwellTracker]): ErrorOr[CentaurTestCase] = {
     val workflow = Workflow.fromConfig(conf, configFile)
     val format: ErrorOr[CentaurTestFormat] = CentaurTestFormat.fromConfig(conf).toValidated
     val options = TestOptions.fromConfig(conf)
     val submit = SubmitHttpResponse.fromConfig(conf)
     (workflow, format, options, submit) mapN {
-      CentaurTestCase(_, _, _, _)
+      CentaurTestCase(_, _, _, _)(cromwellTracker)
     }
   }
 

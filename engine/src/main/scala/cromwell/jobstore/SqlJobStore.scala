@@ -47,7 +47,7 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
           jobOutputs.outputs.simplify.map {
             womValueSimpleton => JobStoreSimpletonEntry(
               womValueSimpleton.simpletonKey, womValueSimpleton.simpletonValue.valueString.toClobOption,
-              womValueSimpleton.simpletonValue.womType.toDisplayString)
+              womValueSimpleton.simpletonValue.womType.stableName)
           }
         JobStoreJoin(entry, jobStoreResultSimpletons.toSeq)
       case JobCompletion(key, JobResultFailure(returnCode, throwable, retryable)) =>

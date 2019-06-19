@@ -1,0 +1,18 @@
+{
+    "Mutect2.preemptible_attempts": 0,
+    "Mutect2.normal_bam": "s3://cromwell-integration-tests/somatic-b37/HCC1143_normal.bam",
+    "Mutect2.tumor_bam": "s3://cromwell-integration-tests/somatic-b37/HCC1143.bam",
+    "Mutect2.normal_bai": "s3://cromwell-integration-tests/somatic-b37/HCC1143_normal.bai",
+    "Mutect2.run_oncotator": true,
+    "Mutect2.ref_fasta": "s3://cromwell-integration-tests/somatic-b37/Homo_sapiens_assembly19.fasta",
+    "Mutect2.gatk_docker": "us.gcr.io/broad-gatk/gatk:4.0.9.0",
+    "Mutect2.intervals": "s3://cromwell-integration-tests/somatic-b37/whole_exome_agilent_1.1_refseq_plus_3_boosters.Homo_sapiens_assembly19.baits.interval_list",
+    "Mutect2.tumor_bai": "s3://cromwell-integration-tests/somatic-b37/HCC1143.bai",
+    "Mutect2.oncotator_docker": "broadinstitute/oncotator:1.9.6.1",
+    "Mutect2.ref_fai": "s3://cromwell-integration-tests/somatic-b37/Homo_sapiens_assembly19.fasta.fai",
+    "Mutect2.default_config_file": "s3://cromwell-integration-tests/somatic-b37/onco_config.txt",
+    "Mutect2.ref_dict": "s3://cromwell-integration-tests/somatic-b37/Homo_sapiens_assembly19.dict",
+    "Mutect2.artifact_modes": ["G/T", "C/T"],
+    "Mutect2.onco_ds_tar_gz": "s3://cromwell-integration-tests/somatic-b37/oncotator_v1_ds_April052016.tar.gz",
+    "Mutect2.scatter_count": 50
+}

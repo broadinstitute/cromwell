@@ -8,7 +8,7 @@ import womtool.cmdline.WomtoolCommandLineParser._
 
 object WomtoolCommandLineParser {
 
-  lazy val cromwellVersion = VersionUtil.getVersion("cromwell")
+  lazy val womtoolVersion = VersionUtil.getVersion("womtool")
 
   lazy val instance: scopt.OptionParser[PartialWomtoolCommandLineArguments] = new WomtoolCommandLineParser()
 
@@ -50,7 +50,7 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
     .optional
     .action((b, c) => c.copy(displayOptionalInputs = Some(b)))
 
-  head("womtool", cromwellVersion)
+  head("womtool", womtoolVersion)
 
   help("help")
 

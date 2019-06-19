@@ -15,7 +15,24 @@ cromwell:
   ports:
     - "8000:8000"
   environment:
-    JAVA_OPTS: -Dscala.concurrent.context.minThreads=50 -Dscala.concurrent.context.numThreads=50 -Dscala.concurrent.context.maxThreads=50 -Xmx20g -Xms20g -Dbackend.defaultBackend=local -Ddatabase.config=main.default -Ddatabase.main.default.db.url=jdbc:mysql://mysql:3306/cromwell -Ddatabase.main.default.db.driver=com.mysql.jdbc.Driver -Ddatabase.main.default.driver=slick.driver.MySQLDriver$$ -Ddatabase.main.default.db.user=cromwell -Ddatabase.main.default.db.password=cromwell -Dgoogle.applicationName=cromwell -Dgoogle.cromwellAuthenticationScheme=service_account -Dgoogle.serviceAuth.pemFile=/etc/cromwell-account.pem -Dgoogle.serviceAuth.serviceAccountId=cromwell@broad-dsde-cromwell-dev.iam.gserviceaccount.com -Dkamon.auto-start=true
+    JAVA_OPTS: >-
+      -Dscala.concurrent.context.minThreads=50
+      -Dscala.concurrent.context.numThreads=50
+      -Dscala.concurrent.context.maxThreads=50
+      -Xmx20g
+      -Xms20g
+      -Dbackend.defaultBackend=local
+      -Ddatabase.config=main.default
+      -Ddatabase.main.default.db.url=jdbc:mysql://mysql:3306/cromwell
+      -Ddatabase.main.default.db.driver=com.mysql.jdbc.Driver  # Change to `com.mysql.cj.jdbc.Driver` when `broadinstitute/cloud-cromwell:dev` updates
+      -Ddatabase.main.default.driver=slick.driver.MySQLDriver$$
+      -Ddatabase.main.default.db.user=cromwell
+      -Ddatabase.main.default.db.password=cromwell
+      -Dgoogle.applicationName=cromwell
+      -Dgoogle.cromwellAuthenticationScheme=service_account
+      -Dgoogle.serviceAuth.pemFile=/etc/cromwell-account.pem
+      -Dgoogle.serviceAuth.serviceAccountId=cromwell@broad-dsde-cromwell-dev.iam.gserviceaccount.com
+      -Dkamon.auto-start=true
   log_driver: "syslog"
   log_opt:
     syslog-tag: "cromwell"

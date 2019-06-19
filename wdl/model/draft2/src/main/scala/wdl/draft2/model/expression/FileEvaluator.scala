@@ -124,7 +124,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
               case Success(v) => Success(v.flatten)
               case f => f.map(_.flatten)
             }
-          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Array literal but anticipated a ${anticipatedType.toDisplayString}"))
+          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Array literal but anticipated a ${anticipatedType.stableName}"))
         }
       case a: Ast if a.isTupleLiteral =>
         val unevaluatedElements = a.getAttribute("values").astListAsVector
@@ -137,7 +137,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
                 left <- evaluate(unevaluatedElements.head, leftType)
                 right <- evaluate(unevaluatedElements(1), rightType)
               } yield left ++ right
-            case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Pair literal but anticipated a ${anticipatedType.toDisplayString}"))
+            case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Pair literal but anticipated a ${anticipatedType.stableName}"))
           }
 
         } else {
@@ -160,7 +160,7 @@ case class FileEvaluator(valueEvaluator: ValueEvaluator, coerceTo: WomType = Wom
               case (successes, _) =>
                 Success(successes.flatMap(_.get))
             }
-          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Map literal but anticipated a ${anticipatedType.toDisplayString}"))
+          case _ => Failure(new WomExpressionException(s"Failed to parse $a for files. Found an unexpected Map literal but anticipated a ${anticipatedType.stableName}"))
         }
 
 

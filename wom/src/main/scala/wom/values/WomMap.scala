@@ -21,7 +21,7 @@ object WomMap {
     val failures = coerced flatMap { case(k,v) => Seq(k,v) } collect { case f:Failure[_] => f }
     failures match {
       case f: Iterable[Failure[_]] if f.nonEmpty =>
-        throw new UnsupportedOperationException(s"Failed to coerce one or more keys or values for creating a ${womMapType.toDisplayString}:\n${TryUtil.stringifyFailures(f)}}")
+        throw new UnsupportedOperationException(s"Failed to coerce one or more keys or values for creating a ${womMapType.stableName}:\n${TryUtil.stringifyFailures(f)}}")
       case _ =>
         val mapCoerced = coerced map { case (k, v) => k.get -> v.get }
 
@@ -52,18 +52,18 @@ final case class WomMap private(womType: WomMapType, value: Map[WomValue, WomVal
   val typesUsedInKey = value.map { case (k, _) => k.womType }.toSet
 
   if (typesUsedInKey.size == 1 && typesUsedInKey.head != womType.keyType)
-    throw new UnsupportedOperationException(s"Could not construct a $womType with this value: $value")
+    throw new UnsupportedOperationException(s"Could not construct a $womType with map keys of unexpected type: [${value.keys.mkString(", ")}]")
 
   if (typesUsedInKey.size > 1)
-    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
+    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types in map keys: [${value.keys.mkString(", ")}]")
 
   val typesUsedInValue = value.map { case (_, v) => v.womType }.toSet
 
   if (typesUsedInValue.size == 1 && typesUsedInValue.head != womType.valueType)
-    throw new UnsupportedOperationException(s"Could not construct a $womType as this value: $value")
+    throw new UnsupportedOperationException(s"Could not construct a $womType with map values of unexpected type: [${value.values.mkString(", ")}]")
 
   if (typesUsedInValue.size > 1)
-    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types: $value")
+    throw new UnsupportedOperationException(s"Cannot construct $womType with mixed types in map values: [${value.values.mkString(", ")}]")
 
   override def toWomString: String =
     "{" + value.map {case (k,v) => s"${k.toWomString}: ${v.toWomString}"}.mkString(", ") + "}"

@@ -2,7 +2,6 @@ package cromwell.services.metadata.impl
 
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
@@ -18,7 +17,7 @@ import scala.util.{Failure, Success}
 
 object MetadataSummaryRefreshActor {
   sealed trait MetadataSummaryActorMessage
-  final case class SummarizeMetadata(respondTo: ActorRef) extends MetadataSummaryActorMessage
+  final case class SummarizeMetadata(limit: Int, respondTo: ActorRef) extends MetadataSummaryActorMessage
   case object MetadataSummarySuccess extends MetadataSummaryActorMessage
   final case class MetadataSummaryFailure(t: Throwable) extends MetadataSummaryActorMessage
 
@@ -36,15 +35,19 @@ class MetadataSummaryRefreshActor()
   extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type]
     with MetadataDatabaseAccess with MetadataServicesStore {
 
-  val config = ConfigFactory.load
   implicit val ec = context.dispatcher
 
   startWith(WaitingForRequest, SummaryRefreshData)
 
   when (WaitingForRequest) {
-    case (Event(SummarizeMetadata(respondTo), _)) =>
-      refreshWorkflowMetadataSummaries() onComplete {
-        case Success(_) =>
+    case Event(SummarizeMetadata(limit, respondTo), _) =>
+      refreshWorkflowMetadataSummaries(limit) onComplete {
+        case Success(summaryResult) =>
+          log.debug(
+            "Summarized metadata: increasing = {}, decreasing = {}",
+            summaryResult.increasingResult,
+            summaryResult.decreasingResult
+          )
           respondTo ! MetadataSummarySuccess
           self ! MetadataSummaryComplete
         case Failure(t) =>

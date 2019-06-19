@@ -6,14 +6,14 @@ import cats.Monad
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
-import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur._
 import centaur.api.CentaurCromwellClient
-import centaur.api.CentaurCromwellClient.LogFailures
 import centaur.test.metadata.WorkflowFlatMetadata
+import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
-import com.google.api.services.genomics.Genomics
+import com.google.api.services.genomics.{Genomics, GenomicsScopes}
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.ServiceAccountCredentials
@@ -22,9 +22,10 @@ import com.typesafe.config.Config
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import io.circe.parser._
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -86,9 +87,10 @@ object Operations {
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
+  lazy val genomicsAndStorageScopes = List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, GenomicsScopes.GENOMICS)
   lazy val credentials: Credentials = configuration.auth(authName)
     .unsafe
-    .pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)
+    .credentials(genomicsAndStorageScopes)
   lazy val credentialsProjectOption: Option[String] = {
     Option(credentials) collect {
       case serviceAccountCredentials: ServiceAccountCredentials => serviceAccountCredentials.getProjectId
@@ -171,10 +173,51 @@ object Operations {
   }
 
   /**
-    * Polls until a specific status is reached. If a terminal status which wasn't expected is returned, the polling
-    * stops with a failure.
+    * Polls until a valid status is reached.
+    * If an unexpected terminal status is returned, the polling stops with a failure.
+    * If none of the expected statuses are returned in time, the polling also stops with a failure.
     */
-  def pollUntilStatus(workflow: SubmittedWorkflow, testDefinition: Workflow, expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
+  def expectSomeProgress(workflow: SubmittedWorkflow,
+                         testDefinition: Workflow,
+                         expectedStatuses: Set[WorkflowStatus],
+                         timeout: FiniteDuration): Test[SubmittedWorkflow] = {
+    new Test[SubmittedWorkflow] {
+      def status(remainingTimeout: FiniteDuration): IO[SubmittedWorkflow] = {
+        for {
+          workflowStatus <- CentaurCromwellClient.status(workflow)
+          mappedStatus <- workflowStatus match {
+            case s if expectedStatuses.contains(s) => IO.pure(workflow)
+            case s: TerminalStatus =>
+              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+                val message = s"Unexpected terminal status $s while waiting for one of [${expectedStatuses.mkString(", ")}] (workflow ID: ${workflow.id})"
+                IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
+              }
+            case _ if remainingTimeout > 0.seconds =>
+              for {
+                _ <- IO.sleep(10.seconds)
+                s <- status(remainingTimeout - 10.seconds)
+              } yield s
+            case other =>
+              val message = s"Cromwell failed to progress into any of the statuses [${expectedStatuses.mkString(", ")}]. Was still '$other' after $timeout (workflow ID: ${workflow.id})"
+              IO.raiseError(CentaurTestException(message, testDefinition, workflow))
+          }
+        } yield mappedStatus
+      }
+
+
+      override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
+
+    }
+  }
+
+  /**
+    * Polls until a specific status is reached.
+    * If a terminal status which wasn't expected is returned, the polling stops with a failure.
+    * If the workflow does not become either (a) Running or (b) terminal within 1 minute, the polling stops with a failure.
+    */
+  def pollUntilStatus(workflow: SubmittedWorkflow,
+                      testDefinition: Workflow,
+                      expectedStatus: WorkflowStatus): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       def status: IO[SubmittedWorkflow] = {
         for {
@@ -183,7 +226,17 @@ object Operations {
             case s if s == expectedStatus => IO.pure(workflow)
             case s: TerminalStatus =>
               CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
-                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus"
+                val failuresString = if (expectedStatus == Succeeded) {
+                  (for {
+                    metadataJson <- parse(metadata.value).toOption
+                    asObject <- metadataJson.asObject
+                    failures <- asObject.toMap.get("failures")
+                  } yield s" Metadata 'failures' content: ${failures.spaces2}").getOrElse("No additional failure information found in metadata.")
+                } else {
+                  ""
+                }
+
+                val message = s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString"
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ => for {
@@ -193,7 +246,6 @@ object Operations {
           }
         } yield mappedStatus
       }
-
 
       override def run: IO[SubmittedWorkflow] = status.timeout(CentaurConfig.maxWorkflowLength)
     }
@@ -233,7 +285,7 @@ object Operations {
           result <- if (!(done && aborted)) {
             CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
               val message = s"Underlying JES job was not aborted properly. " +
-                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")}"
+                s"Done = $done. Error = ${operationError.map(_.getMessage).getOrElse("N/A")} (workflow ID: ${workflow.id})"
               IO.raiseError(CentaurTestException(message, workflowDefinition, workflow, metadata))
             }
           } else IO.unit
@@ -347,7 +399,6 @@ object Operations {
         validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
-            _ = if (LogFailures) Console.err.println(s"Metadata mismatch for ${submittedWorkflow.id} - retrying")
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
         })

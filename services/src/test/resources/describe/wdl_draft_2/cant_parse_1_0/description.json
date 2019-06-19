@@ -1,0 +1,25 @@
+{
+  "valid" : false,
+  "errors" : [
+    "ERROR: Finished parsing without consuming all tokens.\n\nversion 1.0\n^\n     "
+  ],
+  "validWorkflow" : false,
+  "name" : "",
+  "inputs" : [
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

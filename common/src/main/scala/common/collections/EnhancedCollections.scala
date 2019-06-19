@@ -71,9 +71,9 @@ object EnhancedCollections {
             case (element, dequeued) => (element, weightFunction(element), dequeued)
           }) match {
           // If the element's weight is > maxWeight and strict is true, drop the element
-          case Some((_, elementWeight, dequeued)) if c.gt(elementWeight, maxWeight) && strict => takeWhileWeightedRec(dequeued, head, weight)
+          case Some((_, elementWeight, dequeued)) if c.gteq(elementWeight, maxWeight) && strict => takeWhileWeightedRec(dequeued, head, weight)
           // If we're under the max weight, add the element to the head and recurse
-          case Some((element, elementWeight, dequeued)) if c.lt(elementWeight + weight, maxWeight) => takeWhileWeightedRec(dequeued, head :+ element, weight + elementWeight)
+          case Some((element, elementWeight, dequeued)) if c.lteq(elementWeight + weight, maxWeight) => takeWhileWeightedRec(dequeued, head :+ element, weight + elementWeight)
           // Otherwise stop here (make sure to return the original queue so we don't lose the last dequeued element)
           case _ => head -> tail
         }

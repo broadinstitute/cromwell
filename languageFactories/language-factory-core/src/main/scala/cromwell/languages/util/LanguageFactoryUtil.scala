@@ -89,12 +89,12 @@ object LanguageFactoryUtil {
   }
 
   def simpleLooksParseable(startsWithOptions: List[String], commentIndicators: List[String])(content: String): Boolean = {
-    val trimStart = content.lines.dropWhile { l =>
+    val fileWithoutInitialWhitespace = content.lines.toList.dropWhile { l =>
       l.forall(_.isWhitespace) || commentIndicators.exists(l.dropWhile(_.isWhitespace).startsWith(_))
     }
-    val start = trimStart.next.dropWhile(_.isWhitespace)
-    startsWithOptions.exists(start.startsWith)
 
+    val firstCodeLine = fileWithoutInitialWhitespace.headOption.map(_.dropWhile(_.isWhitespace))
+    firstCodeLine.exists { line => startsWithOptions.exists(line.startsWith) }
   }
 
   def chooseFactory(workflowSource: WorkflowSource, wsfc: WorkflowSourceFilesCollection): ErrorOr[LanguageFactory] = {

@@ -9,6 +9,7 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
+import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Finished
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
 import cromwell.core.path.{PathBuilder, PathFactory}
@@ -410,6 +411,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       setWorkflowTimePerState(terminalState.workflowState, (System.currentTimeMillis() - startTime).millis)
       workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
       pushWorkflowEnd(workflowId)
+      WorkflowProcessingEventPublishing.publish(workflowId, workflowHeartbeatConfig.cromwellId, Finished, serviceRegistryActor)
       subWorkflowStoreActor ! WorkflowComplete(workflowId)
       terminalState match {
         case WorkflowFailedState =>
@@ -439,11 +441,10 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
             pathBuilders.map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
-          case None if WorkflowLogger.isTemporary => workflowLogger.close(andDelete = true) match {
+          case None => workflowLogger.close(andDelete = WorkflowLogger.isTemporary) match {
             case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>
           }
-          case _ =>
         }
       }
       context stop self

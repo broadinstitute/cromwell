@@ -11,15 +11,16 @@ pages:
 #    - Tutorial Map: tutorials/Overview.md
     - Quick Introduction: tutorials/FiveMinuteIntro.md
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
-    - Getting started with Pipelines API: tutorials/PipelinesApi101.md
+    - Getting started with Google Cloud: tutorials/PipelinesApi101.md
     - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
-    - Getting started with AWS Batch: tutorials/AwsBatch101.md
+    - Getting started with AWS (beta): tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
     - Server Mode: tutorials/ServerMode.md
     - Configuring the Local backend: tutorials/LocalBackendIntro.md
     - Viewing Metadata: tutorials/MetadataEndpoint.md
+    - Getting started with Containers: tutorials/Containers.md
 #    - Introduction to Call Caching: tutorials/CallCaching101.md
 #    - Common Errors: tutorials/FrequentErrors.md
 #    - General Debugging Tips: tutorials/GeneralDebuggingTips.md
@@ -50,7 +51,9 @@ pages:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Google Cloud: backends/Google.md
+    - AWS Batch: backends/AWSBatch.md
     - Alibaba Cloud: backends/BCS.md
+    - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md
     - Spark: backends/Spark.md
     - HPC: backends/HPC.md
@@ -60,8 +63,10 @@ pages:
     - HTCondor: backends/HTcondor.md
 - Filesystems:
     - Overview: filesystems/Filesystems.md
+    - File Transfer Protocol (FTP): filesystems/FileTransferProtocol.md
     - Google Cloud Storage: filesystems/GoogleCloudStorage.md
     - HTTP: filesystems/HTTP.md
+    - Data Repository Service: filesystems/DataRepositoryService.md
 - REST API:
     - Overview: api/RESTAPI.md
     - Errors: api/ErrorHandling.md

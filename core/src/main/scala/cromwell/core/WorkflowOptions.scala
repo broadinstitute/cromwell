@@ -55,6 +55,7 @@ object WorkflowOptions {
   case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
+  case object UseRelativeOutputPaths extends WorkflowOption(name="use_relative_output_paths")
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
@@ -64,6 +65,7 @@ object WorkflowOptions {
   private lazy val EncryptedFields: Seq[String] = WorkflowOptionsConf.getStringList("encrypted-fields").asScala
   private lazy val EncryptionKey: String = WorkflowOptionsConf.getString("base64-encryption-key")
   private lazy val defaultRuntimeOptionKey: String = DefaultRuntimeOptions.name
+  private lazy val validObjectKeys: Set[String] = Set(DefaultRuntimeOptions.name, "google_labels")
 
   def encryptField(value: JsString): Try[JsObject] = {
     Aes256Cbc.encrypt(value.value.getBytes("utf-8"), SecretKey(EncryptionKey)) match {
@@ -93,7 +95,7 @@ object WorkflowOptions {
       case (k, v: JsString) if EncryptedFields.contains(k) => k -> encryptField(v)
       case (k, v: JsString) => k -> Success(v)
       case (k, v: JsBoolean) => k -> Success(v)
-      case (k, v: JsObject) if defaultRuntimeOptionKey.equals(k) => k -> Success(v)
+      case (k, v: JsObject) if validObjectKeys.contains(k) => k -> Success(v)
       case (k, v: JsNumber) => k -> Success(v)
       case (k, v) if isEncryptedField(v) => k -> Success(v)
       case (k, v: JsArray) => k -> Success(v)

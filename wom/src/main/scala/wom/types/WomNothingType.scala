@@ -10,5 +10,5 @@ case object WomNothingType extends WomType {
   override protected def coercion: PartialFunction[Any, WomValue] = {
     case WomOptionalValue(WomNothingType, None) => WomOptionalValue(WomNothingType, None)
   }
-  override def toDisplayString: String = "Nothing"
+  override def stableName: String = "Nothing"
 }

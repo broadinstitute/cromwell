@@ -41,7 +41,7 @@ object ContinuousIntegration {
         "-e", "ENVIRONMENT=not_used",
         "-e", s"INPUT_PATH=${srcCiResources.value}",
         "-e", s"OUT_PATH=${targetCiResources.value}",
-        "broadinstitute/dsde-toolbox", "render-templates.sh"
+        "broadinstitute/dsde-toolbox:dev", "render-templates.sh"
       )
       val result = cmd ! log
       if (result != 0) {

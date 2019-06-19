@@ -52,7 +52,7 @@ cromwell::private::bcs::try_bcs_login() {
 cromwell::private::bcs::try_bcs_create_cluster() {
     local cluster_name
 
-    cluster_name=$(printf "cromwell_build_${CROMWELL_BUILD_PROVIDER}_${CROMWELL_BUILD_NUMBER}" | tr -c a-zA-Z0-9_- _)
+    cluster_name=$(echo "cromwell_build_${CROMWELL_BUILD_PROVIDER}_${CROMWELL_BUILD_NUMBER}" | tr -c a-zA-Z0-9_- _)
 
     echo "Creating BCS cluster name: '${cluster_name}'"
 
@@ -61,7 +61,7 @@ cromwell::private::bcs::try_bcs_create_cluster() {
             create_cluster \
             "${cluster_name}" \
             --image img-ubuntu \
-            --type ecs.sn1.medium \
+            --type ecs.sn1ne.large \
             --nodes 8 \
             --vpc_cidr_block 192.168.1.0/24 \
             --no_cache_support \

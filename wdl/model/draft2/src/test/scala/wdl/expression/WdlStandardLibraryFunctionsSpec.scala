@@ -52,20 +52,20 @@ class WdlStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
 case object TestableFunctions extends WdlStandardLibraryFunctions {
   // No need to test the ones that are overridden anyway:
   // TODO: Can replace with "OnlyPureFunctions when that branch merges..."
-  override def readFile(path: String, sizeLimit: Int): String = throw new NotImplementedError
-  override def writeFile(path: String, content: String): Try[WomFile] = throw new NotImplementedError
-  override def range(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedError
-  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = throw new NotImplementedError
-  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
-  override def sub(params: Seq[Try[WomValue]]): Try[WomString] = throw new NotImplementedError
-  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = throw new NotImplementedError
-  override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = throw new NotImplementedError
-  override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = throw new NotImplementedError
-  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
-  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
-  override def globHelper(pattern: String): Seq[String] = throw new NotImplementedError
-  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new NotImplementedError
-  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new NotImplementedError
+  override def readFile(path: String, sizeLimit: Int): String = throw new UnsupportedOperationException
+  override def writeFile(path: String, content: String): Try[WomFile] = throw new UnsupportedOperationException
+  override def range(params: Seq[Try[WomValue]]): Try[WomArray] = throw new UnsupportedOperationException
+  override def read_json(params: Seq[Try[WomValue]]): Try[WomValue] = throw new UnsupportedOperationException
+  override def write_json(params: Seq[Try[WomValue]]): Try[WomFile] = throw new UnsupportedOperationException
+  override def sub(params: Seq[Try[WomValue]]): Try[WomString] = throw new UnsupportedOperationException
+  override def size(params: Seq[Try[WomValue]]): Try[WomFloat] = throw new UnsupportedOperationException
+  override def length(params: Seq[Try[WomValue]]): Try[WomInteger] = throw new UnsupportedOperationException
+  override def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = throw new UnsupportedOperationException
+  override def write_tsv(params: Seq[Try[WomValue]]): Try[WomFile] = throw new UnsupportedOperationException
+  override def stdout(params: Seq[Try[WomValue]]): Try[WomFile] = throw new UnsupportedOperationException
+  override def globHelper(pattern: String): Seq[String] = throw new UnsupportedOperationException
+  override def stderr(params: Seq[Try[WomValue]]): Try[WomFile] = throw new UnsupportedOperationException
+  override protected def fileSizeLimitationConfig: FileSizeLimitationConfig = throw new UnsupportedOperationException
 }
 
 case object TestableFunctionTypes extends WdlStandardLibraryFunctionsType

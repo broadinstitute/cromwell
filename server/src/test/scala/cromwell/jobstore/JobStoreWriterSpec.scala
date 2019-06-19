@@ -130,7 +130,7 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
     writePromise.future
   }
 
-  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new NotImplementedError()
+  override def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit ec: ExecutionContext): Future[Option[JobResult]] = throw new UnsupportedOperationException()
 }
 
 object WriteCountingJobStore {

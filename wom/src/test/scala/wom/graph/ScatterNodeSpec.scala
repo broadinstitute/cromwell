@@ -17,7 +17,8 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
   behavior of "ScatterNode"
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)
-  val task_foo = CallableTaskDefinition(name = "foo",
+  val task_foo = CallableTaskDefinition(
+    name = "foo",
     commandTemplateBuilder = null,
     runtimeAttributes = RuntimeAttributes(Map.empty),
     meta = Map.empty,
@@ -25,7 +26,8 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     outputs = List(OutputDefinition("out", WomStringType, PlaceholderWomExpression(Set.empty, WomStringType))),
     inputs = List(fooInputDef),
     adHocFileCreation = Set.empty,
-    environmentExpressions = Map.empty
+    environmentExpressions = Map.empty,
+    sourceLocation = None
   )
 
   /**
@@ -56,7 +58,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
     val xsExpressionAsInput = AnonymousExpressionNode
       .fromInputMapping(WomIdentifier("x"), xsExpression, Map("xs" -> xs_inputNode.singleOutputPort), PlainAnonymousExpressionNode.apply)
       .valueOr(failures => fail(s"Failed to create expression node: ${failures.toList.mkString(", ")}"))
-    
+
     val x_inputNode = ScatterVariableNode(WomIdentifier("x"), xsExpressionAsInput, WomArrayType(WomIntegerType))
     val fooNodeBuilder = new CallNodeBuilder()
     val fooInputFold = InputDefinitionFold(
@@ -68,7 +70,7 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       ),
       newGraphInputNodes = Set.empty
     )
-    val CallNodeAndNewNodes(foo_callNode, _, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold, Set.empty)
+    val CallNodeAndNewNodes(foo_callNode, _, _, _) = fooNodeBuilder.build(WomIdentifier("foo"), task_foo, fooInputFold, Set.empty, None)
     val foo_call_outNode = PortBasedGraphOutputNode(WomIdentifier("foo.out"), WomStringType, foo_callNode.outputByName("foo.out").getOrElse(fail("foo CallNode didn't contain the expected 'out' output")))
     val scatterGraph = Graph.validateAndConstruct(Set(foo_callNode, x_inputNode, foo_call_outNode)) match {
       case Valid(sg) => sg
@@ -79,10 +81,10 @@ class ScatterNodeSpec extends FlatSpec with Matchers {
       scatterGraph,
       x_inputNode
     )
-    
+
     val scatterNode = scatterNodeWithInputs.node
     scatterNodeWithInputs.newInputs.size should be(0)
-    
+
     val workflowGraphValidation = for {
       foo_scatterOutput <- scatterNode.outputByName("foo.out")
       z_workflowOutput = PortBasedGraphOutputNode(WomIdentifier("z"), WomArrayType(WomStringType), foo_scatterOutput)

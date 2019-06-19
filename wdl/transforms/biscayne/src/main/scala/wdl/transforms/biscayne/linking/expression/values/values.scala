@@ -30,6 +30,8 @@ package object values {
       a match {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+        case a: NoneLiteralElement.type => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+
         case a: StringLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: StringExpression => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: ObjectLiteral => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)

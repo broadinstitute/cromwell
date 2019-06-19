@@ -8,6 +8,8 @@ trait ExpressionElement
 object ExpressionElement {
   final case class PrimitiveLiteralExpressionElement(value: WomPrimitive) extends ExpressionElement
 
+  case object NoneLiteralElement extends ExpressionElement
+
   final case class StringExpression(pieces: Seq[StringPiece]) extends ExpressionElement
   sealed trait StringPiece
   final case class StringLiteral(value: String) extends StringPiece with ExpressionElement

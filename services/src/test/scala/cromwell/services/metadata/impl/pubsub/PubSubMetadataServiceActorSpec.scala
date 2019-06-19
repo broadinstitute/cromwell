@@ -143,13 +143,13 @@ object PubSubMetadataServiceActorSpec {
     override def publishMessages(topicName: String, messages: Seq[String]): Future[Unit]
 
     // The following aren't used so leaving them empty
-    override def deleteTopic(topicName: String): Future[Boolean] = ???
-    override def getTopic(topicName: String)(implicit executionContext: ExecutionContext): Future[Option[Topic]] = ???
-    override def deleteSubscription(subscriptionName: String): Future[Boolean] = ???
-    override def acknowledgeMessages(subscriptionName: String, messages: Seq[PubSubMessage]): Future[Unit] = ???
-    override def acknowledgeMessagesById(subscriptionName: String, ackIds: Seq[String]): Future[Unit] = ???
-    override def pullMessages(subscriptionName: String, maxMessages: Int): Future[Seq[PubSubMessage]] = ???
-    override def setTopicIamPermissions(topicName: String, permissions: Map[WorkbenchEmail, String]): Future[Unit] = ???
+    override def deleteTopic(topicName: String): Future[Boolean] = throw new UnsupportedOperationException
+    override def getTopic(topicName: String)(implicit executionContext: ExecutionContext): Future[Option[Topic]] = throw new UnsupportedOperationException
+    override def deleteSubscription(subscriptionName: String): Future[Boolean] = throw new UnsupportedOperationException
+    override def acknowledgeMessages(subscriptionName: String, messages: Seq[PubSubMessage]): Future[Unit] = throw new UnsupportedOperationException
+    override def acknowledgeMessagesById(subscriptionName: String, ackIds: Seq[String]): Future[Unit] = throw new UnsupportedOperationException
+    override def pullMessages(subscriptionName: String, maxMessages: Int): Future[Seq[PubSubMessage]] = throw new UnsupportedOperationException
+    override def setTopicIamPermissions(topicName: String, permissions: Map[WorkbenchEmail, String]): Future[Unit] = throw new UnsupportedOperationException
   }
 
   class SuccessfulMockGooglePubSubDao extends MockGooglePubSubDao {

@@ -110,7 +110,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
                 .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${womValue.asArray.value.size}")
             case None => s"Unsharded execution key references a scatter variable: ${p.identifier.fullyQualifiedName}".invalidNel
           }
-        case Some(other) => s"Value for scatter collection ${p.identifier.fullyQualifiedName} is not an array: ${other.womType.toDisplayString}".invalidNel
+        case Some(other) => s"Value for scatter collection ${p.identifier.fullyQualifiedName} is not an array: ${other.womType.stableName}".invalidNel
         case None => s"Can't find a value for scatter collection ${p.identifier.fullyQualifiedName} (looking for index $index)".invalidNel
       }
     }

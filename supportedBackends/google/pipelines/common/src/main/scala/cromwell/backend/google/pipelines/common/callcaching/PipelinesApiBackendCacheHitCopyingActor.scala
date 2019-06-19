@@ -20,7 +20,7 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
   override protected val commandBuilder = GcsBatchCommandBuilder
   private val cachingStrategy = BackendInitializationData
     .as[PipelinesApiBackendInitializationData](standardParams.backendInitializationDataOption)
-    .papiConfiguration.jesAttributes.duplicationStrategy
+    .papiConfiguration.papiAttributes.cacheHitDuplicationStrategy
   
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path) = cachingStrategy match {
     case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)

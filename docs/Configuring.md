@@ -6,8 +6,8 @@ Check out the tutorial on [How to Configure Cromwell](tutorials/ConfigurationFil
 
 ### Configuration examples
 
-You can find a description of options and example stanzas in the [file
-`cromwell.examples.conf`](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+You can find a description of options and example stanzas in the [Cromwell Example Configuration][cromwell-examples-conf],
+along with backend provider examples in the [Example Providers Folder][cromwell-examples-folder].
 
 ### Custom configuration files
 
@@ -190,7 +190,7 @@ Then, edit your configuration file `database` stanza, as follows:
 database {
   profile = "slick.jdbc.MySQLProfile$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
@@ -242,7 +242,8 @@ For more information about docker compose: [Docker compose doc](https://docs.doc
 
 **Insert Batch Size**
 
-Cromwell queues up and then inserts batches of records into the database for increased performance. You can adjust the number of database rows batch inserted by cromwell as follows:
+Cromwell queues up and then inserts batches of records into the database for increased performance. You can adjust the
+number of database rows batch inserted by Cromwell as follows:
 
 ```hocon
 database {
@@ -273,6 +274,28 @@ database {
 ```
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
+
+**Database Time Zones**
+
+Cromwell's default configuration assumes that its MySQL database is set to UTC.
+
+The following MySQL configurations typically default to UTC and work with Cromwell out of the box:
+- Google CloudSQL
+- An official MySQL image running in Docker
+
+These configurations may use the system, or local, time zone instead:
+- MySQL installed natively on a workstation or server
+
+If Cromwell fails to start with a message like
+```
+The server time zone value 'XXX' is unrecognized or represents more than one time zone.
+```
+you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL:
+```hocon
+url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=UTC"
+```
+
+Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
 
 ## Abort
 
@@ -395,3 +418,108 @@ per-backend basis with `<config-key-for-backend>.job-shell`. For example:
 
 For the Config backend the value of the job shell will be available in the `${job_shell}` variable. See Cromwell's `reference.conf` for an example
 of how this is used for the default configuration of the `Local` backend.
+
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends
+
+### Workflow Heartbeats
+
+**Cromwell ID**
+
+Each Cromwell instance is given a `cromwell_id` that is either randomly generated or configured.
+
+By default, the Cromwell ID is `cromid-<7_digit_random_hex>`.
+
+A custom identifier may replace the "cromid" portion of the string. For example:
+
+```hocon
+system {
+  cromwell_id = "main"
+}
+```
+
+This would generates a `cromwell_id` of `main-<7_digit_random_hex>`. Each time Cromwell restarts the random part of the
+ID will change, however the `main` prefix would remain the same.
+
+If the random part of the Cromwell ID should not be generated, set the configuration value:
+
+```hocon
+system {
+  cromwell_id_random_suffix = false
+}
+```
+
+**Heartbeat TTL**
+
+When a Cromwell instance begins running or resuming a workflow it stores the above `cromwell_id` within the database row
+for the workflow, along with a timestamp called the "heartbeat". As the workflow continues to run the Cromwell instance
+will intermittently update the heartbeat for the running workflow.  If the Cromwell dies, after some time-to-live (TTL),
+the workflow has been abandoned, and will be resumed by another available Cromwell instance.
+
+Adjust the heartbeat TTL via the configuration value:
+
+```hocon
+system.workflow-heartbeats {
+  ttl = 10 minutes
+}
+```
+
+The default TTL is 10 minutes. The shortest the TTL option is 10 seconds.
+
+**Heartbeat Interval**
+
+The interval for writing heartbeats may be adjusted via:
+
+```hocon
+system.workflow-heartbeats {
+  heartbeat-interval = 2 minutes
+}
+```
+
+The default interval is 2 minutes. The shortest interval option is 3.333 seconds. The interval may not be greater than
+the TTL.
+
+**Heartbeat Failure Shutdown**
+
+Cromwell will automatically shutdown when unable to write heartbeats for a period of time. This period of time may be
+adjusted via:
+
+```hocon
+system.workflow-heartbeats {
+  write-failure-shutdown-duration = 5 minutes
+}
+```
+
+The default shutdown duration is 5 minutes. The maximum allowed shutdown duration is the TTL.
+
+**Heartbeat Batch Size**
+
+Workflow heartbeats are internally queued by Cromwell and written in batches. When the configurable batch size is
+reached, all of the heartbeats within the batch will be written at the same time, even if the heartbeat interval has not
+elapsed.
+
+This batch threshold may be adjusted via:
+
+```hocon
+system.workflow-heartbeats {
+  write-batch-size = 100
+}
+```
+
+The default batch size is 100.
+
+**Heartbeat Threshold**
+
+Cromwell writes one batch of workflow heartbeats at a time. While the internal queue of heartbeats-to-write passes above
+a configurable threshold then [instrumentation](developers/Instrumentation.md) may send a metric signal that the
+heartbeat load is above normal.
+
+This threshold may be configured the configuration value:
+
+```hocon
+system.workflow-heartbeats {
+  write-threshold = 100
+}
+```
+
+The default threshold value is 100, just like the default for the heartbeat batch size.

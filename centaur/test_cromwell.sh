@@ -20,10 +20,10 @@ Builds and runs specified branch of Cromwell and runs Centaur against it.
 Arguments:
     -h    Displays this help message and exits
     -b    Branch of Cromwell to test. Mutually exclusive with -j
-    -j    Path of a cromwell jar to use. Mutually exclusive with -b
+    -j    Path of a Cromwell jar to use. Mutually exclusive with -b
     -r    Directory where script is run (defaults to current directory)
     -l    Directory where logs are written (defaults to logs under the current directory)
-    -g    Generate code coverage output for the centaur main classes
+    -g    Generate code coverage output for the Centaur main classes
     -c    If supplied, the config file to pass to Cromwell
     -n    If supplied, the config file to pass to Centaur
     -t    If supplied, the timeout for request-plus-response from Centaur to Cromwell
@@ -113,6 +113,8 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     echo "Building Cromwell"
     sbt assembly >> "${ASSEMBLY_LOG}" 2>&1
     cd ..
+    # This is the "branch" logic but sets the CROMWELL_JAR to be used in either the "branch" or "jar" use cases.
+    # Note that this may not be necessary in the docker-compose use case.
     CROMWELL_JAR=$(find "${RUN_DIR}"/cromwell/target/scala-2.* -name "cromwell-*.jar")
 fi
 
@@ -132,6 +134,7 @@ fi
 # Add the it-classes folder to the classpath to ensure logback configuration files are picked up.
 CP="${CP}:${RUN_DIR}/centaur/target/scala-2.12/it-classes"
 
+# This is set in cromwell::private::create_centaur_variables
 if [ -n "${CENTAUR_CONFIG_STRING}" ]; then
     CENTAUR_CONF="-Dconfig.file=${CENTAUR_CONFIG_STRING}"
 else
@@ -139,6 +142,8 @@ else
         RUN_SPECIFIED_TEST_DIR_CMD="-Dcentaur.standardTestCasePath=${TEST_CASE_DIR}"
     fi
 
+    # Regardless of whether this script was invoked with the "branch" or "jar" option, Centaur is always run in "jar" mode.
+    # "branch" or "jar" only controls whether this script was handed a jar or had to build one above.
     CENTAUR_CROMWELL_MODE="-Dcentaur.cromwell.mode=jar"
     CENTAUR_CROMWELL_JAR="-Dcentaur.cromwell.jar.path=${CROMWELL_JAR}"
     CENTAUR_CROMWELL_CONF="-Dcentaur.cromwell.jar.conf=${CROMWELL_CONFIG_STRING}"

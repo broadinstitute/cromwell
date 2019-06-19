@@ -19,11 +19,6 @@ addVar() {
 # Make sure ip forwarding is enabled by default so that docker doesn't loses connectivity
 echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
 
-addVar CROMWELL_ROOT=/app
-addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
-
-source ${PERF_ROOT}/helper.inc.sh
-
 # Set up env variables
 addVar TEST_CASE_DIRECTORY=$(extract_metadata TEST_CASE_DIRECTORY)
 addVar CROMWELL_UNDER_TEST=$(extract_metadata CROMWELL_UNDER_TEST)
@@ -35,11 +30,15 @@ addVar CLEAN_UP=true
 
 addVar REPORT_BUCKET="cromwell-perf-test-reporting"
 addVar TEST_WORKFLOW_ROOT="${PERF_ROOT}/test_cases"
-
 addVar CROMWELL_UNDER_TEST="localhost"
+
+addVar CROMWELL_ROOT=/app
 
 # Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
 git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
+
+addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+source ${PERF_ROOT}/helper.inc.sh
 
 if [ -n "${TEST_CASE_DIRECTORY}" ]
 then

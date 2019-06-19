@@ -36,9 +36,8 @@ gcloud_run_as_service_account "perf_centaur_test_runner_${BUILD_NUMBER}" \
     --metadata \
         $(join ${metadata[@]})"  | tee startupResult.txt
 
-typeset CENTAUR_TEST_RUNNER=$(cat dockerResult.txt | tail -n1 | awk '{print $5}' )
+typeset CENTAUR_TEST_RUNNER=$(cat startupResult.txt | tail -n1 | awk '{print $5}' )
 
 echo "Determined that CENTAUR_TEST_RUNNER=${CENTAUR_TEST_RUNNER}"
 
 wait_for_ping_to_start_then_stop ${CENTAUR_TEST_RUNNER}
-

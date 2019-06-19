@@ -433,7 +433,10 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(sources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
         val system = context.system
         val ec = context.system.dispatcher
-        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system)
+        def bruteForcePathBuilders: Future[List[PathBuilder]] = {
+          // Protect against path builders that may throw an exception instead of returning a failed future
+          Future(EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system))(ec).flatten
+        }
 
         val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
           case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))

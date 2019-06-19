@@ -63,7 +63,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
 
-  private def createWorkflowActor(state: WorkflowActorState) = {
+  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None) = {
     val actor = TestFSMRef(
       factory = new WorkflowActorWithTestAddons(
         finalizationProbe = finalizationProbe,
@@ -82,7 +82,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         jobTokenDispenserActor = TestProbe().ref,
         workflowStoreActor = system.actorOf(Props.empty),
         workflowHeartbeatConfig = workflowHeartbeatConfig,
-        totalJobsByRootWf = initialJobCtByRootWf
+        totalJobsByRootWf = initialJobCtByRootWf,
+        extraPathBuilderFactory = extraPathBuilderFactory
       ),
       supervisor = supervisorProbe.ref)
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
@@ -187,18 +188,29 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     }
 
     "log an error when a path builder factory initialization fails" in {
-      EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Crashing as requested.*", occurrences = 1).intercept {
-        val _ = createWorkflowActor(WorkflowSucceededState)
+      EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Failing as requested.*", occurrences = 1).intercept {
+        val _ = createWorkflowActor(WorkflowSucceededState, Option(new FailingPathBuilderFactory()))
+      }
+    }
+
+    "log an error when a path builder factory initialization throws" in {
+      EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Throwing as requested.*", occurrences = 1).intercept {
+        val _ = createWorkflowActor(WorkflowSucceededState, Option(new ThrowingPathBuilderFactory()))
       }
     }
   }
 }
 
-class ExceptionJustForThisTest extends Exception("Crashing as requested")
+class FailingPathBuilderFactory() extends PathBuilderFactory {
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+    Future(throw new Exception("Failing as requested"))
+  }
+}
 
-class CrashingPathBuilderFactory() extends PathBuilderFactory {
-  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] =
-    Future(throw new ExceptionJustForThisTest)
+class ThrowingPathBuilderFactory() extends PathBuilderFactory {
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+    throw new Exception("Throwing as requested")
+  }
 }
 
 class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
@@ -217,7 +229,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   jobTokenDispenserActor: ActorRef,
                                   workflowStoreActor: ActorRef,
                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-                                  totalJobsByRootWf: AtomicInteger) extends WorkflowActor(
+                                  totalJobsByRootWf: AtomicInteger,
+                                  extraPathBuilderFactory: Option[PathBuilderFactory]) extends WorkflowActor(
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,
@@ -240,7 +253,10 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   fileHashCacheActor = None,
   blacklistCache = None) {
 
-  override val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories :+ new CrashingPathBuilderFactory()
+  override val pathBuilderFactories: List[PathBuilderFactory] = extraPathBuilderFactory match {
+    case Some(pbf) => EngineFilesystems.configuredPathBuilderFactories :+ pbf
+    case None => EngineFilesystems.configuredPathBuilderFactories
+  }
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

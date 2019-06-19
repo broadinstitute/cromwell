@@ -2,6 +2,19 @@
 
 ## 43 Release Notes
 
+### Call caching database refactoring
+
+Cromwell's `CALL_CACHING_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 100,000 `CALL_CACHING_HASH_ENTRY`
+rows per second. In deployments with millions or billions of `CALL_CACHING_HASH_ENTRY` rows the migration may require  
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+select max(CALL_CACHING_HASH_ENTRY_ID) from CALL_CACHING_HASH_ENTRY
+```
+
 ### Stackdriver Instrumentation
 
 Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 

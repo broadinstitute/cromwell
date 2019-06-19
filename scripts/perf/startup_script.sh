@@ -28,15 +28,11 @@ addVar CLOUD_SQL_INSTANCE=$(extract_metadata CLOUD_SQL_INSTANCE)
 addVar CROMWELL_DOCKER_IMAGE=$(extract_metadata CROMWELL_DOCKER_IMAGE)
 addVar CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
 addVar CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
-addVar CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
-addVar CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
 addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
 addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
 addVar BUILD_ID=$(extract_metadata BUILD_TAG)
 addVar CLEAN_UP=$(extract_metadata CLEAN_UP)
 
-# Use the instance name as statsd prefix to avoid metrics collisions
-addVar CROMWELL_STATSD_PREFIX=${BUILD_ID}
 addVar REPORT_BUCKET=cromwell-perf-test-reporting
 
 addVar CROMWELL_ROOT=/app
@@ -82,7 +78,6 @@ then
 fi
 
 # Start cromwell and cloud sql proxy
-prepare_statsd_proxy
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d
 
 if [ -n "$CENTAUR_TEST_FILE" ]

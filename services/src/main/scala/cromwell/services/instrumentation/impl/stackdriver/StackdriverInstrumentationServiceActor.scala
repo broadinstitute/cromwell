@@ -165,7 +165,8 @@ object StackdriverInstrumentationServiceActor {
     /**
       * Transforms a CromwellBucket to a Stackdriver path
       */
-    def toStackdriverString = (CromwellMetricPrefix ++ cromwellBucket.prefix ++ cromwellBucket.path.toList).mkString("/").replace(" ", "_")
+    def toStackdriverString = (CromwellMetricPrefix ++ cromwellBucket.prefix ++
+        cromwellBucket.path.toList).mkString("/").replaceAll(" ", "_").replaceAll("\\[|\\]", "")
   }
 }
 

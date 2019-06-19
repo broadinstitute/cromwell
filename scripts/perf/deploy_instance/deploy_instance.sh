@@ -3,8 +3,6 @@ set -euo pipefail
 
 source scripts/perf/helper.inc.sh
 
-GCS_BUCKET=gs://cromwell-perf-test/
-
 DB_PASS=$(read_path_from_vault_json "secret/dsp/cromwell/perf" '.data.db_pass')
 
 read_service_account_from_vault

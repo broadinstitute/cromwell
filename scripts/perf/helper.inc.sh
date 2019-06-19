@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
 # Set some global constants:
+typeset GCS_BUCKET=gs://cromwell-perf-test/
+
+
 typeset DOCKER_ETC_PATH="/usr/share/etc"
+typeset CROMWELL_PERF_PROJECT=broad-dsde-cromwell-perf
 
 if test -f "/etc/vault-token-dsde"
 then
@@ -118,6 +122,8 @@ shutdown() {
     clean_up
 }
 
+function join() { local IFS=","; echo "$*"; }
+
 read_path_from_vault_json() {
   local path=$1
   local field=$2
@@ -137,4 +143,41 @@ gcloud_run_as_service_account() {
   docker run --name $name -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm google/cloud-sdk:slim /bin/bash -c "\
     gcloud auth activate-service-account --key-file ${DOCKER_ETC_PATH}/sa.json 2> /dev/null &&\
     ${command}"
+}
+
+# Waits for a remote machine to stop responding to PINGs
+wait_for_ping_to_start_then_stop() {
+  local address="$1"
+
+  set +e
+
+  RESULT=1
+  ATTEMPTS=0
+  MAX_ATTEMPTS=20
+
+  while [ "${ATTEMPTS}" -le "${MAX_ATTEMPTS}" -a "${RESULT}" -gt "0" ]
+  do
+    echo "[$(date)] Waiting for ${address} to respond to pings (tried ${ATTEMPTS} times so far)"
+    sleep 30
+    ATTEMPTS=$((ATTEMPTS + 1))
+
+    ping -c 1 35.194.33.189 &> /dev/null
+    RESULT=$?
+  done
+
+  if [ "${RESULT}" -gt "0" ]
+  then
+    echo "[$(date)] ${address} never came up after ${ATTEMPTS} attempts"
+    exit 1
+  else
+    echo "[$(date)] ${address} came up after ${ATTEMPTS} attempts"
+  fi
+
+  while ping -c 1 35.194.33.189 &> /dev/null
+  do
+    echo "${address} is still responding to pings. Pausing before next ping"
+    sleep 30
+  done
+
+  set -e
 }

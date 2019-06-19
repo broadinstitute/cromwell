@@ -28,12 +28,18 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case _: WorkflowFailureRestartWithoutRecover => "survive a Cromwell restart when a workflow was failing"
     case other => s"unrecognized format $other"
   }
+
+  def isParallel: Boolean = true
 }
 
 object CentaurTestFormat {
   import common.validation.Checked._
+
+  sealed trait SequentialTestFormat extends CentaurTestFormat {
+    override def isParallel: Boolean = false
+  }
  
-  sealed trait RestartFormat extends CentaurTestFormat
+  sealed trait RestartFormat extends SequentialTestFormat
   sealed trait WithCallMarker { this: CentaurTestFormat => val build: CallMarker => CentaurTestFormat }
   
   case object WorkflowSuccessTest extends CentaurTestFormat("WorkflowSuccess")
@@ -43,7 +49,7 @@ object CentaurTestFormat {
   case object RunTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunTwiceExpectingNoCallCaching")
   case object RunFailingTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunFailingTwiceExpectingNoCallCaching")
   case object SubmitFailureTest extends CentaurTestFormat("SubmitFailure")
-  case object InstantAbort extends CentaurTestFormat("InstantAbort")
+  case object InstantAbort extends CentaurTestFormat("InstantAbort") with SequentialTestFormat
 
   object CromwellRestartWithRecover extends CentaurTestFormat("CromwellRestartWithRecover") with WithCallMarker {
     val build = CromwellRestartWithRecover.apply _
@@ -58,7 +64,7 @@ object CentaurTestFormat {
   object ScheduledAbort extends CentaurTestFormat("ScheduledAbort") with WithCallMarker {
     val build = ScheduledAbort.apply _
   }
-  case class ScheduledAbort(callMarker: CallMarker) extends CentaurTestFormat(ScheduledAbort.name)
+  case class ScheduledAbort(callMarker: CallMarker) extends CentaurTestFormat(ScheduledAbort.name) with SequentialTestFormat
 
   object ScheduledAbortWithRestart extends CentaurTestFormat("ScheduledAbortWithRestart") with WithCallMarker {
     val build = ScheduledAbortWithRestart.apply _

@@ -17,11 +17,11 @@ class: CommandLineTool
 cwlVersion: v1.0
 hints:
 - class: DockerRequirement
-  dockerImageId: quay.io/bcbio/bcbio-vc
-  dockerPull: quay.io/bcbio/bcbio-vc
+  dockerImageId: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
+  dockerPull: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1083
+  outdirMin: 10299
   ramMin: 3072
   tmpdirMin: 30
 - class: dx:InputResourceRequirement
@@ -65,8 +65,8 @@ inputs:
     type: array
 - id: reference__fasta__base
   secondaryFiles:
-  - .fai
   - ^.dict
+  - .fai
   type:
     items: File
     type: array

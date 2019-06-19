@@ -25,7 +25,7 @@ trait WomObjectTypeLike extends WomType {
 }
 
 case object WomObjectType extends WomObjectTypeLike {
-  val toDisplayString: String = "Object"
+  val stableName: String = "Object"
 
   private def handleCoercionFailures(tries: Try[_]*) = {
     val errorMessages = tries collect {

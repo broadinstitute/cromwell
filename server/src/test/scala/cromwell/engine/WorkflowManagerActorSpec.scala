@@ -78,7 +78,7 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
           )
       }
 
-      val config = CromwellTestKitSpec.DefaultConfig.
+      val config = CromwellTestKitSpec.NooPServiceActorConfig.
         withValue("system.max-concurrent-workflows", ConfigValueFactory.fromAnyRef(2)).
         withValue("system.new-workflow-poll-rate", ConfigValueFactory.fromAnyRef(1))
 

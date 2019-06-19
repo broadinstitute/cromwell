@@ -84,6 +84,6 @@ case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, e
       case Some(separator) => InstantiatedCommand(commandString = arrayValue.map(valueMapper(_).valueString).mkString(separator), createdFiles = value.sideEffectFiles.toList).validNel
       case None => "Array value was given but no 'sep' attribute was provided".invalidNel
     }
-    case other => s"Cannot interpolate ${other.womType.toDisplayString} into a command string with attribute set [$attributes]".invalidNel
+    case other => s"Cannot interpolate ${other.womType.stableName} into a command string with attribute set [$attributes]".invalidNel
   }
 }

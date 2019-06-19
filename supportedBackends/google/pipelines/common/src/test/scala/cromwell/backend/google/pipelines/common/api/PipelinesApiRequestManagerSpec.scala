@@ -1,15 +1,17 @@
 package cromwell.backend.google.pipelines.common.api
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.testkit.{TestActorRef, TestProbe, _}
+import cats.data.NonEmptyList
 import com.google.api.client.googleapis.batch.BatchRequest
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{PipelinesApiRunCreationQueryFailed, PAPIRunCreationRequest, PAPIStatusPollRequest}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.TestPipelinesApiRequestManagerSpec._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.util.AkkaTestUtil
+import cromwell.util.AkkaTestUtil.DeathTestActor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 import org.scalatest.concurrent.Eventually
@@ -132,9 +134,11 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
       - That statusPoller is the second ActorRef (and artifact of TestJesApiQueryManager)
      */
     it should s"catch polling actors if they $name, recreate them and add work back to the queue" in {
-      val statusPoller1 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
-      val statusPoller2 = TestActorRef(Props(new AkkaTestUtil.DeathTestActor()), TestActorRef(new AkkaTestUtil.StoppingSupervisor()))
-      val jaqmActor: TestActorRef[TestPipelinesApiRequestManager] = TestActorRef(TestPipelinesApiRequestManager.props(registryProbe, statusPoller1, statusPoller2), s"TestJesApiQueryManager-${Random.nextInt()}")
+
+      val statusPoller1 = TestActorRef[TestPapiWorkerActor](Props(new TestPapiWorkerActor(1)), TestActorRef(new AkkaTestUtil.StoppingSupervisor()), "statusPoller1")
+      val statusPoller2 = TestActorRef[TestPapiWorkerActor](Props(new TestPapiWorkerActor(1)), TestActorRef(new AkkaTestUtil.StoppingSupervisor()), "statusPoller2")
+      val statusPoller3 = TestActorRef[TestPapiWorkerActor](Props(new TestPapiWorkerActor(1)), TestActorRef(new AkkaTestUtil.StoppingSupervisor()), "statusPoller3")
+      val jaqmActor: TestActorRef[TestPipelinesApiRequestManager] = TestActorRef(TestPipelinesApiRequestManager.props(registryProbe, statusPoller1, statusPoller2, statusPoller3), s"TestJesApiQueryManager-${Random.nextInt()}")
 
       val emptyActor = system.actorOf(Props.empty)
 
@@ -144,14 +148,52 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
         jaqmActor.tell(msg = request, sender = emptyActor)
       }
 
-      jaqmActor.tell(msg = PipelinesApiRequestManager.PipelinesWorkerRequestWork(BatchSize), sender = statusPoller1)
+      // The work queue should be filled and the manager should have one poller active:
+      eventually {
+        jaqmActor.underlyingActor.queueSize should be (BatchSize)
+        jaqmActor.underlyingActor.testPollerCreations should be (1)
+        jaqmActor.underlyingActor.statusPollers.size should be(1)
+        jaqmActor.underlyingActor.statusPollers.head should be(statusPoller1)
+      }
 
+      // Status poller 1 should get some work:
+      jaqmActor ! SpecOnly_TriggerRequestForWork(jaqmActor, BatchSize)
+
+      // Therefore, there's no work left in the work queue because it's all been given to the worker:
+      eventually {
+        jaqmActor.underlyingActor.queueSize should be (0)
+        statusPoller1.underlyingActor.workToDo.map(_.size) should be(Some(BatchSize))
+      }
+
+      // Uh oh, something happens to status poller 1:
       stopMethod(statusPoller1)
 
+      // The work queue receives all the work that couldn't be completed, and a new poller is created:
       eventually {
-        jaqmActor.underlyingActor.testPollerCreations should be (2)
         jaqmActor.underlyingActor.queueSize should be (BatchSize)
-        jaqmActor.underlyingActor.statusPollerEquals(statusPoller2) should be (true)
+        jaqmActor.underlyingActor.testPollerCreations should be (2)
+        jaqmActor.underlyingActor.statusPollers.size should be(1)
+        jaqmActor.underlyingActor.statusPollers.head should be(statusPoller2)
+      }
+
+      // Next, status poller 2 should be able to get some work:
+      jaqmActor ! SpecOnly_TriggerRequestForWork(jaqmActor, BatchSize)
+
+      // The queue is emptied again and this time statusPoller2 has it:
+      eventually {
+        jaqmActor.underlyingActor.queueSize should be (0)
+        statusPoller2.underlyingActor.workToDo.map(_.size) should be(Some(BatchSize))
+      }
+
+      // Uh oh, something *also* happens to status poller 2!!
+      stopMethod(statusPoller2)
+
+      // The work queue receives all the work that couldn't be completed *again*, and a new poller is created *again*:
+      eventually {
+        jaqmActor.underlyingActor.queueSize should be (BatchSize)
+        jaqmActor.underlyingActor.testPollerCreations should be (3)
+        jaqmActor.underlyingActor.statusPollers.size should be(1)
+        jaqmActor.underlyingActor.statusPollers.head should be(statusPoller3)
       }
     }
   }
@@ -171,7 +213,7 @@ class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestMa
     // abort workflow A
     jaqmActor ! BackendSingletonActorAbortWorkflow(workflowIdA)
 
-    // It should remove all and only run requests for workflow A 
+    // It should remove all and only run requests for workflow A
     eventually {
       jaqmActor.underlyingActor.queueSize shouldBe 1
       jaqmActor.underlyingActor.workQueue.head.asInstanceOf[PipelinesApiRequestManager.PAPIRunCreationRequest].workflowId shouldBe workflowIdB
@@ -189,26 +231,35 @@ object TestPipelinesApiRequestManagerSpec {
 /**
   * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
   */
-class TestPipelinesApiRequestManager(qps: Int Refined Positive, requestWorkers: Int Refined Positive, registry: ActorRef, statusPollerProbes: ActorRef*)
+class TestPipelinesApiRequestManager(qps: Int Refined Positive,
+                                     requestWorkers: Int Refined Positive,
+                                     registry: ActorRef,
+                                     availableRequestWorkers: ActorRef*)
   extends PipelinesApiRequestManager(qps, requestWorkers, registry)(new MockPipelinesRequestHandler) {
-  var testProbes: Queue[ActorRef] = _
+
+  var testProbeQueue: Queue[ActorRef] = _
   var testPollerCreations: Int = _
 
+  private def askForWorkReceive: PartialFunction[Any, Unit] = {
+    case afw: SpecOnly_TriggerRequestForWork => statusPollers.head ! afw
+  }
+
+  override def receive: PartialFunction[Any, Unit] = askForWorkReceive orElse super.receive
+
   private def init() = {
-    testProbes = Queue(statusPollerProbes: _*)
+    testProbeQueue = Queue(availableRequestWorkers: _*)
     testPollerCreations = 0
   }
 
   override private[api] lazy val nbWorkers = 1
   override private[api] def resetAllWorkers() = {
-    val pollers = Vector.fill(1) { makeWorkerActor() }
-    pollers.foreach(context.watch)
+    val pollers = Vector.fill(1) { makeAndWatchWorkerActor() }
     pollers
   }
 
   override private[api] def makeWorkerActor(): ActorRef = {
     // Initialize the queue, if necessary:
-    if (testProbes == null) {
+    if (testProbeQueue == null) {
       init()
     }
 
@@ -216,8 +267,8 @@ class TestPipelinesApiRequestManager(qps: Int Refined Positive, requestWorkers: 
     testPollerCreations += 1
 
     // Pop the queue to get the next test probe:
-    val (probe, newQueue) = testProbes.dequeue
-    testProbes = newQueue
+    val (probe, newQueue) = testProbeQueue.dequeue
+    testProbeQueue = newQueue
     probe
   }
 
@@ -225,10 +276,35 @@ class TestPipelinesApiRequestManager(qps: Int Refined Positive, requestWorkers: 
   def statusPollerEquals(otherStatusPoller: ActorRef) = statusPollers sameElements Array(otherStatusPoller)
 }
 
+/**
+  * Grabs some work but doesn't ever work on it (let alone completing it!)
+  */
+class TestPapiWorkerActor(maxBatchSize: Int) extends DeathTestActor with ActorLogging {
+
+  var workToDo: Option[NonEmptyList[PAPIApiRequest]] = None
+
+  override def receive = stoppingReceive orElse {
+
+    case PipelinesApiWorkBatch(work) =>
+      log.info(s"received ${work.size} requests from ${sender().path.name}")
+      workToDo = Some(work)
+    case NoWorkToDo =>
+      log.info(s"received 0 requests from ${sender().path.name}")
+      workToDo = None
+    case SpecOnly_TriggerRequestForWork(manager, batchSize) => requestWork(manager, batchSize)
+  }
+
+  def requestWork(papiRequestManager: ActorRef, batchSize: Int): Unit = {
+    papiRequestManager ! PipelinesWorkerRequestWork(batchSize)
+  }
+}
+
+case class SpecOnly_TriggerRequestForWork(papiRequestManager: ActorRef, batchSize: Int)
+
 class MockPipelinesRequestHandler extends PipelinesApiRequestHandler {
-  override def makeBatchRequest = ???
+  override def makeBatchRequest = throw new UnsupportedOperationException
   override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)
-                                                                      (implicit ec: ExecutionContext)= ???
+                                                                      (implicit ec: ExecutionContext)= throw new UnsupportedOperationException
 }
 
 object TestPipelinesApiRequestManager {
@@ -236,8 +312,8 @@ object TestPipelinesApiRequestManager {
 
   def props(registryProbe: ActorRef, statusPollers: ActorRef*): Props = {
     Props(new TestPipelinesApiRequestManager(
-      papiConfiguration.jesAttributes.qps,
-      papiConfiguration.jesAttributes.requestWorkers,
+      papiConfiguration.papiAttributes.qps,
+      papiConfiguration.papiAttributes.requestWorkers,
       registryProbe,
       statusPollers: _*)
     )

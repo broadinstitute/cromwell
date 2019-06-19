@@ -2,11 +2,11 @@ package cromwell.backend.google.pipelines.common.api
 
 import com.google.api.client.http.HttpRequest
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.VirtualPrivateCloudConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.standard.StandardAsyncJob
-import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
@@ -70,12 +70,13 @@ object PipelinesApiRequestFactory {
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,
                                       computeServiceAccount: String,
-                                      labels: Labels,
+                                      googleLabels: Seq[GoogleLabel],
                                       preemptible: Boolean,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
-                                      adjustedSizeDisks: Seq[PipelinesApiAttachedDisk]) {
+                                      adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
+                                      virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

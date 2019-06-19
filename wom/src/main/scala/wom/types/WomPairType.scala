@@ -45,9 +45,9 @@ case class WomPairType(leftType: WomType, rightType: WomType) extends WomType {
         case Seq(Success(left), Success(right)) => WomPair(left, right)
       }
     } else {
-      throw new UnsupportedOperationException(s"Failed to coerce one or more values for creating a ${womPairType.toDisplayString}:\n${failures.toList.mkString("\n")}")
+      throw new UnsupportedOperationException(s"Failed to coerce one or more values for creating a ${womPairType.stableName}:\n${failures.toList.mkString("\n")}")
     }
   }
 
-  override def toDisplayString: String = s"Pair[${leftType.toDisplayString}, ${rightType.toDisplayString}]"
+  override def stableName: String = s"Pair[${leftType.stableName}, ${rightType.stableName}]"
 }

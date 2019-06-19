@@ -6,7 +6,7 @@ import wom.values._
 import scala.util.{Success, Try}
 
 sealed trait WomFileType extends WomType {
-  override def toDisplayString: String = s"$getClass"
+  override def stableName: String = s"$getClass"
 
   override protected def coercion: PartialFunction[Any, WomFile] = PartialFunction.empty
 }
@@ -14,7 +14,7 @@ sealed trait WomFileType extends WomType {
 sealed trait WomPrimitiveFileType extends WomFileType with WomPrimitiveType
 
 case object WomUnlistedDirectoryType extends WomPrimitiveFileType {
-  override val toDisplayString: String = "Directory"
+  override val stableName: String = "Directory"
 
   override protected def coercion: PartialFunction[Any, WomUnlistedDirectory] = {
     case s: String => WomUnlistedDirectory(s)
@@ -38,7 +38,7 @@ case object WomUnlistedDirectoryType extends WomPrimitiveFileType {
 }
 
 case object WomSingleFileType extends WomPrimitiveFileType {
-  override val toDisplayString: String = "File"
+  override val stableName: String = "File"
 
   override protected def coercion: PartialFunction[Any, WomSingleFile] = {
     case s: String =>
@@ -67,7 +67,7 @@ case object WomSingleFileType extends WomPrimitiveFileType {
 }
 
 case object WomGlobFileType extends WomPrimitiveFileType {
-  override val toDisplayString: String = "Glob"
+  override val stableName: String = "Glob"
 
   override protected def coercion: PartialFunction[Any, WomGlobFile] = {
     case s: String => WomGlobFile(s)

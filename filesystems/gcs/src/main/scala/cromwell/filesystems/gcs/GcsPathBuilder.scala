@@ -8,6 +8,7 @@ import akka.http.scaladsl.model.ContentTypes
 import better.files.File.OpenOptions
 import cats.effect.IO
 import com.google.api.gax.retrying.RetrySettings
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.cloud.storage.Storage.BlobTargetOption
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
@@ -100,7 +101,7 @@ object GcsPathBuilder {
                    cloudStorageConfiguration: CloudStorageConfiguration,
                    options: WorkflowOptions,
                    defaultProject: Option[String])(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
-    authMode.retryPipelinesApiCredentials(options) map { credentials =>
+    authMode.retryCredentials(options, List(StorageScopes.DEVSTORAGE_FULL_CONTROL)) map { credentials =>
       fromCredentials(credentials,
         applicationName,
         retrySettings,

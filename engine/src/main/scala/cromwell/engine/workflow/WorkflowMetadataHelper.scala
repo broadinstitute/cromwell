@@ -12,12 +12,18 @@ trait WorkflowMetadataHelper {
   def serviceRegistryActor: ActorRef
   
   def pushWorkflowStart(workflowId: WorkflowId) = {
-    val startEvent = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime), MetadataValue(OffsetDateTime.now.toString))
+    val startEvent = MetadataEvent(
+      MetadataKey(workflowId, None, WorkflowMetadataKeys.StartTime),
+      MetadataValue(OffsetDateTime.now)
+    )
     serviceRegistryActor ! PutMetadataAction(startEvent)
   }
   
   def pushWorkflowEnd(workflowId: WorkflowId) = {
-    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime), MetadataValue(OffsetDateTime.now.toString))
+    val metadataEventMsg = MetadataEvent(
+      MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime),
+      MetadataValue(OffsetDateTime.now)
+    )
     serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
   }
   

@@ -22,8 +22,8 @@ object AstNodeToTypeElement {
         case a: GenericAst if a.getName == "NonEmptyType" => a.getAttributeAs[TypeElement]("innerType") map NonEmptyTypeElement
         case a: GenericAst if a.getName == "Type" => compoundType(a)
         case unknownAst: GenericAst => s"No rule available to create TypeElement from Ast: '${unknownAst.getName}'".invalidNelCheck
-        case t: GenericTerminal if fullTypeMap.contains(t.getSourceString) => PrimitiveTypeElement(fullTypeMap(t.getSourceString)).validNelCheck
-        case t: GenericTerminal if t.getSourceString == "Object" => ObjectTypeElement.validNelCheck
+        case t: GenericTerminal if t.getTerminalStr == "type" && fullTypeMap.contains(t.getSourceString) => PrimitiveTypeElement(fullTypeMap(t.getSourceString)).validNelCheck
+        case t: GenericTerminal if t.getTerminalStr == "type" && t.getSourceString == "Object" => ObjectTypeElement.validNelCheck
         case t: GenericTerminal if t.getTerminalStr == "identifier" => TypeAliasElement(t.getSourceString).validNelCheck
         case t: GenericTerminal => s"No rule available to create TypeElement from '${t.getTerminalStr}' Terminal with value '${t.getSourceString}'".invalidNelCheck
         case _ => s"No rule available to create TypeElement from AstNode: ${astNode.getClass.getSimpleName}".invalidNelCheck

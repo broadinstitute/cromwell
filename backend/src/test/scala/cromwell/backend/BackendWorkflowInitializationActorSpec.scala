@@ -187,20 +187,20 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override val serviceRegistryActor: ActorRef = context.system.deadLetters
 
-  override def calls: Set[CommandCallNode] = throw new NotImplementedError("calls")
+  override def calls: Set[CommandCallNode] = throw new UnsupportedOperationException("calls")
 
   override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] =
-    throw new NotImplementedError("runtimeAttributeValidators")
+    throw new UnsupportedOperationException("runtimeAttributeValidators")
 
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] =
-    throw new NotImplementedError("coerceDefaultRuntimeAttributes")
+    throw new UnsupportedOperationException("coerceDefaultRuntimeAttributes")
 
-  override def beforeAll(): Future[Option[BackendInitializationData]] = throw new NotImplementedError("beforeAll")
+  override def beforeAll(): Future[Option[BackendInitializationData]] = throw new UnsupportedOperationException("beforeAll")
 
-  override def validate(): Future[Unit] = throw new NotImplementedError("validate")
+  override def validate(): Future[Unit] = throw new UnsupportedOperationException("validate")
 
   override protected def workflowDescriptor: BackendWorkflowDescriptor =
-    throw new NotImplementedError("workflowDescriptor")
+    throw new UnsupportedOperationException("workflowDescriptor")
 
   override protected def configurationDescriptor: BackendConfigurationDescriptor = BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty())
 

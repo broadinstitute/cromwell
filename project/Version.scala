@@ -5,7 +5,15 @@ import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "37"
+  val cromwellVersion = "43"
+
+  /**
+    * Returns true if this project should be considered a snapshot.
+    *
+    * The value is read in directly from the system property `project.isSnapshot` as there were confusing issues with
+    * the multi-project and sbt.Keys#isSnapshot().
+    */
+  val isSnapshot = sys.props.get("project.isSnapshot").forall(_.toBoolean)
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
@@ -70,9 +78,6 @@ object Version {
 
     //Now we fall through the potential version numbers...
     val version = overrideVersion orElse commitVersion getOrElse unknownVersion
-
-    // The project isSnapshot string passed in via command line settings, if desired.
-    val isSnapshot = sys.props.get("project.isSnapshot").forall(_.toBoolean)
 
     // For now, obfuscate SNAPSHOTs from sbt's developers: https://github.com/sbt/sbt/issues/2687#issuecomment-236586241
     if (isSnapshot) s"$version-SNAP" else version

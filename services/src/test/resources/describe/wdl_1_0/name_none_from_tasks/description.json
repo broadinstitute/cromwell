@@ -1,0 +1,27 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "validWorkflow" : true,
+  "name" : "",
+  "inputs" : [
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+    "\"docker image\"",
+    "((\"expression\" + \"based\") + \"image\")"
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "1.0"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

@@ -27,7 +27,7 @@ import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.transforms.base.linking.typemakers._
 
 
-object TaskDefinitionElementToWomTaskDefinition {
+object TaskDefinitionElementToWomTaskDefinition extends Util {
 
   final case class TaskDefinitionElementToWomInputs(taskDefinitionElement: TaskDefinitionElement, typeAliases: Map[String, WomType])
 
@@ -57,8 +57,10 @@ object TaskDefinitionElementToWomTaskDefinition {
         }.map(_.toSeq)
       }
 
+      val (meta, parameterMeta) = processMetaSections(a.taskDefinitionElement.metaSection, a.taskDefinitionElement.parameterMetaSection)
+
       (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
-        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, Map.empty, Map.empty, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty)
+        CallableTaskDefinition(a.taskDefinitionElement.name, Function.const(command.validNel), runtime, meta, parameterMeta, taskGraph.outputs, taskGraph.inputs, Set.empty, Map.empty, sourceLocation = a.taskDefinitionElement.sourceLocation)
       }
     }
 
@@ -196,7 +198,7 @@ object TaskDefinitionElementToWomTaskDefinition {
           val expressionValidation: ErrorOr[WomExpression] = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
-            accumulator.copy(inputs = accumulator.inputs :+ FixedInputDefinition(name, womType, womExpression))
+            accumulator.copy(inputs = accumulator.inputs :+ FixedInputDefinitionWithDefault(name, womType, womExpression))
           }
         case InputDeclarationElement(womTypeElement, name, None) =>
           womTypeElement.determineWomType(linked.typeAliases) map { womType =>
@@ -211,7 +213,7 @@ object TaskDefinitionElementToWomTaskDefinition {
           val expressionValidation: ErrorOr[WomExpression] = expression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
 
           (typeValidation, expressionValidation) mapN { (womType, womExpression) =>
-            accumulator.copy(inputs = accumulator.inputs :+ InputDefinitionWithDefault(name, womType, womExpression, findParameterMeta(name)))
+            accumulator.copy(inputs = accumulator.inputs :+ OverridableInputDefinitionWithDefault(name, womType, womExpression, findParameterMeta(name)))
           }
 
         // In this case, the expression has upstream dependencies. Since WOM won't allow that, make this an optional input and fixed declaration pair:
@@ -225,7 +227,7 @@ object TaskDefinitionElementToWomTaskDefinition {
 
             val intermediateWomExpression: ErrorOr[WomExpression] = intermediateExpression.makeWomExpression(linked.typeAliases, linked.consumedValueLookup)
             intermediateWomExpression map { womExpression =>
-              val intermediateDefinition = FixedInputDefinition(name, womType, womExpression, findParameterMeta(name))
+              val intermediateDefinition = FixedInputDefinitionWithDefault(name, womType, womExpression, findParameterMeta(name))
 
               accumulator.copy(inputs = accumulator.inputs :+ newInputDefinition :+ intermediateDefinition)
             }

@@ -44,7 +44,7 @@ sealed trait WomArrayType extends WomType {
   }
 
   override def typeSpecificIsCoerceableFrom(otherType: WomType): Boolean = otherType match {
-    case WomArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType) || otherMemberType == WomNothingType
+    case WomArrayType(otherMemberType) => memberType.isCoerceableFrom(otherMemberType)
     case mapType: WomMapType => isCoerceableFrom(mapType.equivalentArrayType)
     case _ => false
   }
@@ -53,7 +53,7 @@ sealed trait WomArrayType extends WomType {
 }
 
 case class WomMaybeEmptyArrayType(memberType: WomType) extends WomArrayType {
-  override val toDisplayString: String = s"Array[${memberType.toDisplayString}]"
+  override val stableName: String = s"Array[${memberType.stableName}]"
   override val guaranteedNonEmpty = false
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {
@@ -67,7 +67,7 @@ object WomMaybeEmptyArrayType {
 }
 
 case class WomNonEmptyArrayType(memberType: WomType) extends WomArrayType {
-  override val toDisplayString: String = s"Array[${memberType.toDisplayString}]+"
+  override val stableName: String = s"Array[${memberType.stableName}]+"
   override val guaranteedNonEmpty = true
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {

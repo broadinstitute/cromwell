@@ -82,7 +82,7 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionAc
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+        throwable.getMessage should be("AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
     }
   }
 
@@ -128,7 +128,7 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionAc
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+        throwable.getMessage should be("AwsBatchAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
     }
   }
 }

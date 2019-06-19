@@ -1,10 +1,18 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.ActorRef
+import com.google.api.services.cloudkms.v1.model.EncryptRequest
+import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
+import com.google.api.services.genomics.GenomicsScopes
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.OAuth2Credentials
+import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.{httpTransport, jsonFactory}
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
 import cromwell.core.Dispatcher
 import cromwell.core.io.AsyncIoActorClient
@@ -40,12 +48,31 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(pipelinesConfiguration)
 
   // Credentials object for the GCS API
-  private lazy val gcsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.gcs.retryPipelinesApiCredentials(workflowOptions)
+  private lazy val gcsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.gcs
+      .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
   // Credentials object for the Genomics API
-  private lazy val genomicsCredentials: Future[Credentials] =
-    pipelinesConfiguration.jesAttributes.auths.genomics.retryPipelinesApiCredentials(workflowOptions)
+  private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
+    .retryCredentials(workflowOptions, List(
+      GenomicsScopes.GENOMICS,
+      /*
+      Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for v2alpha1.
+       */
+      GenomicsScopes.COMPUTE,
+      /*
+      Used to write so-called "auth" files. The `gcsAuthFilePath` could probably be refactored such that *this* created
+      `genomicsCredentials` doesn't actually need DEVSTORAGE_FULL_CONTROL, but it's also not clear how the magic
+      Genomics Pipelines API parameter "__extra_config_gcs_path" works nor where it's documented.
+
+      See also:
+      - cromwell.backend.google.pipelines.common.PipelinesApiWorkflowPaths#gcsAuthFilePath
+      - https://github.com/broadinstitute/cromwell/pull/2435
+      - cromwell.backend.google.pipelines.common.PipelinesApiConfiguration#needAuthFileUpload
+      - cromwell.cloudsupport.gcp.auth.GoogleAuthMode#requiresAuthFile
+      - cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor#gcsAuthParameter
+       */
+      StorageScopes.DEVSTORAGE_FULL_CONTROL,
+    ))
 
   // Genomics object to access the Genomics API
   private lazy val genomics: Future[PipelinesApiRequestFactory] = {
@@ -97,8 +124,9 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       plain <- unencrypted
       auth <- effectiveAuth
       key <- privateDockerEncryptionKeyName
-      cred <- auth.apiClientGoogleCredential(k => workflowOptions.get(k).get)
-    } yield GoogleAuthMode.encryptKms(key, cred, plain)
+      credentials = auth.credentials(workflowOptions.get(_).get, List(CloudKMSScopes.CLOUD_PLATFORM))
+      encrypted = encryptKms(key, credentials, plain)
+    } yield encrypted
   }
 
   override lazy val workflowPaths: Future[PipelinesApiWorkflowPaths] = for {
@@ -125,6 +153,8 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
+      // Validate the google-labels workflow options, and only succeed initialization if they're good:
+      _ <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowOptions))
       data <- initializationData
     } yield Option(data)
   }
@@ -138,4 +168,15 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
 object PipelinesApiInitializationActor {
   // For metadata publishing purposes default to using the name of a standard stream as the stream's filename.
   def defaultStandardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String = streamName
+
+  def encryptKms(keyName: String, credentials: OAuth2Credentials, plainText: String): String = {
+    val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
+    val kms = new CloudKMS.Builder(httpTransport, jsonFactory, httpCredentialsAdapter)
+      .setApplicationName("cromwell")
+      .build()
+
+    val request = new EncryptRequest().encodePlaintext(plainText.toCharArray.map(_.toByte))
+    val response = kms.projects.locations.keyRings.cryptoKeys.encrypt(keyName, request).execute
+    response.getCiphertext
+  }
 }

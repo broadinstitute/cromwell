@@ -13,7 +13,7 @@ class WomArrayTypeSpec extends FlatSpec with Matchers  {
   behavior of "WomArrayType"
 
   List(WomStringType, WomArrayType(WomIntegerType), WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), WomOptionalType(WomStringType)) foreach { desiredMemberType =>
-    it should s"be able to construct an empty Array[${desiredMemberType.toDisplayString}] value" in {
+    it should s"be able to construct an empty Array[${desiredMemberType.stableName}] value" in {
 
       val desiredArrayType = WomArrayType(desiredMemberType)
       WdlExpression.fromString("[]").evaluate(noLookup, NoFunctions) match {
@@ -30,7 +30,7 @@ class WomArrayTypeSpec extends FlatSpec with Matchers  {
 
     val arrayType = WomArrayType(desiredMemberType)
     val optionalArrayType = WomArrayType(WomOptionalType(desiredMemberType))
-    it should s"be able to coerce ${arrayType.toDisplayString} to ${optionalArrayType.toDisplayString} and vice versa" in {
+    it should s"be able to coerce ${arrayType.stableName} to ${optionalArrayType.stableName} and vice versa" in {
 
       // If the inner type is already an optional, we can use the flatten coercion to go backwards (eg from Array[String??] to Array[String?])
       val backwardsCoerceable = arrayType.memberType.isInstanceOf[WomOptionalType]
@@ -42,13 +42,13 @@ class WomArrayTypeSpec extends FlatSpec with Matchers  {
   val nonEmptyLiteral = "[1, 2, 3]"
 
   List(WomNonEmptyArrayType(WomIntegerType), WomOptionalType(WomNonEmptyArrayType(WomIntegerType))) foreach { targetType =>
-    it should s"be able to coerce an array literal into ${targetType.toDisplayString}" in {
+    it should s"be able to coerce an array literal into ${targetType.stableName}" in {
 
       val evaluatedLiteral: WomValue = WdlExpression.fromString(nonEmptyLiteral).evaluate(noLookup, NoFunctions).getOrElse(fail(s"Unable to evaluate non-empty literal $nonEmptyLiteral"))
 
       targetType.coerceRawValue(evaluatedLiteral) match {
         case Success(womValue) => womValue.womType should be(targetType)
-        case Failure(e) => fail(s"Unable to coerce $evaluatedLiteral (${evaluatedLiteral.womType.toDisplayString}) into ${targetType.toDisplayString}", e)
+        case Failure(e) => fail(s"Unable to coerce $evaluatedLiteral (${evaluatedLiteral.womType.stableName}) into ${targetType.stableName}", e)
       }
     }
   }

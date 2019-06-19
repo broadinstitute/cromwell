@@ -1,0 +1,25 @@
+{
+  "valid" : false,
+  "errors" : [
+    "ERROR: Unexpected end of file"
+  ],
+  "validWorkflow" : false,
+  "name" : "",
+  "inputs" : [
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  }
+}

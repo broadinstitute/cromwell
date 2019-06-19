@@ -18,7 +18,7 @@ object JobResultJsonFormatter extends DefaultJsonProtocol {
 
   implicit object CallOutputsFormat extends RootJsonFormat[CallOutputs] {
     def write(value: CallOutputs) = value.outputs.map({case (port, v) => port.identifier.fullyQualifiedName.value -> v }).toJson
-    def read(value: JsValue): CallOutputs = throw new NotImplementedError("Cannot deserialize outputs to output ports")
+    def read(value: JsValue): CallOutputs = throw new UnsupportedOperationException("Cannot deserialize outputs to output ports")
   }
 
   implicit val JobResultSuccessFormat = jsonFormat2(JobResultSuccess)

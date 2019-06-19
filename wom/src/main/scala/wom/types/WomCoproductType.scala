@@ -36,17 +36,17 @@ case class WomCoproductType(types: NonEmptyList[WomType]) extends WomType {
   def typeExists(tpe: WomType): Try[WomBooleanType.type] =
     types.exists(_.equals(tpe)) match {
       case true => Success(WomBooleanType)
-      case _ => Failure(new WomExpressionException(s"Type equality assertion failed because $tpe was not found in the coproduct of ${toDisplayString}"))
+      case _ => Failure(new WomExpressionException(s"Type equality assertion failed because $tpe was not found in the coproduct of ${stableName}"))
     }
 
-  override def toDisplayString: String =
-    types.map(_.toDisplayString).toList.mkString("Coproduct[",", ", "]")
+  override def stableName: String =
+    types.map(_.stableName).toList.mkString("Coproduct[",", ", "]")
 
   override def equalsType(rhs: WomType): Try[WomType] =
     rhs match {
       case WomCoproductType(tpes) if types.equals(tpes) => Success(WomBooleanType)
       case _ if types.exists(_.equals(rhs)) =>  Success(WomBooleanType)
-      case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was found in the coproduct of $toDisplayString"))
+      case _ => Failure(new WomExpressionException(s"Type equality could not be asserted because $rhs was found in the coproduct of $stableName"))
     }
 
 

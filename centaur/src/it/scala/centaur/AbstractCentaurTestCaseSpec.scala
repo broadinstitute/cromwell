@@ -15,7 +15,7 @@ import org.scalatest._
 import scala.concurrent.Future
 
 @DoNotDiscover
-abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) extends AsyncFlatSpec with Matchers {
+abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromwellTracker: Option[CromwellTracker] = None) extends AsyncFlatSpec with Matchers {
 
   /*
   NOTE: We need to statically initialize the object so that the exceptions appear here in the class constructor.
@@ -27,7 +27,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
 
   private def testCases(baseFile: File): List[CentaurTestCase] = {
     val files = baseFile.list.filter(_.isRegularFile).toList
-    val testCases = files.traverse(CentaurTestCase.fromFile)
+    val testCases = files.traverse(CentaurTestCase.fromFile(cromwellTracker))
 
     testCases match {
       case Valid(l) => l
@@ -95,7 +95,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String]) exten
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
         data = testCase.workflow.data.copy(
           workflowContent = Option(upgradeResult.stdout.get), // this '.get' catches an error if upgrade fails
-          zippedImports = Option(upgradedImportsDir.zip())))) // An empty zip appears to be completely harmless, so no special handling
+          zippedImports = Option(upgradedImportsDir.zip()))))(cromwellTracker) // An empty zip appears to be completely harmless, so no special handling
 
     rootWorkflowFile.delete(true)
     upgradedImportsDir.delete(true)

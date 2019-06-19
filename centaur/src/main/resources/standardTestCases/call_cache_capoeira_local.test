@@ -1,3 +1,11 @@
+# This test requires some tweaks from the current default Cromwell values to run on the Local backend.
+#
+# Set the following in config. `copy` duplication is required as this test modifies a file and that modification
+# would otherwise manifest in a (sym)linked duplicate which would cause the test to fail.
+#
+# backend.providers.Local.config.filesystems.local.caching.duplication-strategy = ["copy"]
+# backend.providers.Local.config.filesystems.local.localization = ["soft-link", "copy"]
+
 name: call_cache_capoeira_local
 testFormat: workflowsuccess
 backends: [Local]

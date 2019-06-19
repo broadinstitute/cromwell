@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.RuntimeOutputMapping
@@ -71,14 +71,14 @@ trait Delocalization {
       .withFlags(List(ActionFlag.DisableImagePrefetch))
       .withLabels(Map(Key.Tag -> Value.Delocalization))
   }
-  
+
   private def delocalizeRuntimeOutputsScript(fofnPath: String, workflowRoot: Path, cloudCallRoot: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     val gsutilCommand: String => String = { flag =>
-      s"""gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
+      s"""rm -f $$HOME/.config/gcloud/gce && gsutil -m $flag cp -r $$line "${cloudCallRoot.pathAsString.ensureSlashed}$$gcs_path""""
     }
-    
+
     def sedStripPrefix(prefix: String) = s"""sed -e "s/^${prefix.ensureSedEscaped}//""""
-    
+
     // See RuntimeOutputMapping.prefixFilters for more info on why this is needed
     val prefixFilters = RuntimeOutputMapping
       .prefixFilters(workflowRoot)

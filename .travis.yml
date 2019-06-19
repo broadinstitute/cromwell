@@ -2,7 +2,6 @@ sudo: required
 dist: trusty
 services:
   - docker
-  - mysql
 language: scala
 scala:
   - 2.12.6
@@ -22,24 +21,77 @@ before_cache:
 env:
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
-    - BUILD_TYPE=centaurAws
-    - BUILD_TYPE=centaurBcs
-    - BUILD_TYPE=centaurEngineUpgradeLocal
-    - BUILD_TYPE=centaurEngineUpgradePapiV2
-    - BUILD_TYPE=centaurPapiUpgradePapiV1
-    - BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV1
-    - BUILD_TYPE=centaurLocal
-    - BUILD_TYPE=centaurPapiV1
-    - BUILD_TYPE=centaurPapiV2
-    - BUILD_TYPE=centaurTes
-    - BUILD_TYPE=centaurWdlUpgradeLocal
-    - BUILD_TYPE=checkPublish
-    - BUILD_TYPE=conformanceLocal
-    - BUILD_TYPE=conformancePapiV2
-    - BUILD_TYPE=conformanceTesk
-    - BUILD_TYPE=dockerDeadlock
-    - BUILD_TYPE=dockerScripts
-    - BUILD_TYPE=sbt
+    - >-
+      BUILD_TYPE=centaurAws
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurBcs
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurEngineUpgradeLocal
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurEngineUpgradePapiV2
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurHoricromtalPapiV2
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurHoricromtalPapiV2
+      BUILD_MARIADB=10.3
+    - >-
+      BUILD_TYPE=centaurHoricromtalEngineUpgradePapiV2
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurHoricromtalEngineUpgradePapiV2
+      BUILD_MARIADB=10.3
+    - >-
+      BUILD_TYPE=centaurPapiUpgradePapiV1
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV1
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurLocal
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurPapiV1
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurPapiV2
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurSlurm
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurTes
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurWdlUpgradeLocal
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=checkPublish
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=conformanceLocal
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=conformancePapiV2
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=conformanceTesk
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=dockerDeadlock
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=dockerScripts
+      BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_MYSQL=5.7
+      BUILD_POSTGRESQL=11.3
+      BUILD_MARIADB=10.3
 script:
   - src/ci/bin/test.sh
 notifications:

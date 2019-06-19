@@ -1,5 +1,317 @@
 # Cromwell Change Log
 
+## 43 Release Notes
+
+### Call caching database refactoring
+
+Cromwell's `CALL_CACHING_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 100,000 `CALL_CACHING_HASH_ENTRY`
+rows per second. In deployments with millions or billions of `CALL_CACHING_HASH_ENTRY` rows the migration may require  
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+select max(CALL_CACHING_HASH_ENTRY_ID) from CALL_CACHING_HASH_ENTRY
+```
+
+### Stackdriver Instrumentation
+
+Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
+Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### Configuration Changes
+
+#### StatsD Instrumentation
+
+There is a small change in StatsD's configuration path. Originally, the path to the config was `services.Instrumentation.config.statsd`
+which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
+[here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### API Changes
+
+#### Workflow Metadata
+
+* It is now possible to use `includeKey` and `excludeKey` at the same time. If so, the metadata key must match the `includeKey` **and not** match the `excludeKey` to be included.
+* It is now possible to use "`calls`" as one of your `excludeKey`s, to request that only workflow metadata gets returned.
+
+## 42 Release Notes
+
+### Womtool endpoint
+
+The `/describe` endpoint now differentiates between an invalid workflow and a valid workflow with invalid inputs.
+
+Specifically, the new `validWorkflow` key indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
+
+### Configuration Changes
+
+ *  Virtual private networks can now be configured. See the section below for details.
+ 
+#### Batch Request Timeouts
+
+The timeout on Cromwell's requests to PAPIv2 can now be configured. See the sample PAPIv2.conf for more documentation:
+
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        batch-requests {
+          timeouts {
+            read = 10 seconds
+            connect = 10 seconds
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Virtual Private Networks
+
+Cromwell now allows PAPIV2 jobs to run on a private network by adding the network name inside `virtual-private-cloud` in backend configuration.
+More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+### AWS Backend
+
+Now includes background job status polling to hopefully reduce the incidence of 'HTTP 429' errors for large workflows.
+
+## 41 Release Notes
+
+### Workflow Options
+
+* It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).
+
+### AWS backend
+
+It is now possible to use WDL disk attributes with the following formats on AWS.
+```
+disks: "local-disk 20 SSD"
+```
+```
+disks: "/some/mnt 20 SSD"
+```
+Because Cromwell's AWS backend auto-sizes disks, the size specification is simply discarded.
+
+### Time Formatting
+
+In previous versions of Cromwell, times were converted to strings using
+[the default Java formatter](https://docs.oracle.com/javase/8/docs/api/java/time/OffsetDateTime.html#toString--) which
+generates a variety of ISO-8601 formats. String conversions also retained whatever server time zone generated that
+specific time instance.
+
+Going forward, times stored in Cromwell metadata, and later returned via the HTTP endpoint, are now converted to UTC
+then formatted with exactly three digits of milliseconds.
+
+For example:
+- `2017-01-19T12:34:56-04:00` will now be formatted as
+- `2017-01-19T16:34:56.000Z`
+
+This change only affects newly formatted dates. Older dates already formatted and stored by previous versions of
+Cromwell will not be updated however they will still return a
+[valid ISO-8601 format](https://en.wikipedia.org/wiki/ISO_8601). The older format may be in various non-UTC time zones,
+and may or may not include microseconds or even nanoseconds, for example `2017-01-19T12:34:56.123456789-04:00`.
+
+### Config Changes
+
+#### Heartbeat failure shutdown
+
+When a Cromwell instance is unable to write heartbeats for some period of time it will automatically shut down. For more
+information see the docs on [configuring Workflow Hearbeats](https://cromwell.readthedocs.io/en/stable/Configuring/).
+
+NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been configured to be less than `5 minutes`
+then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
+set less than the `ttl`.
+
+#### nVidia Driver Attribute Change
+
+The runtime attribute `nvidia-driver-version` was previously allowed only as a default runtime attribute in configuration.
+Because WDL does not allow attribute names to contain `-` characters, this has been changed to `nvidiaDriverVersion`.
+This field is now accepted within WDL files as well as within the configuration file.
+
+#### Logging long running jobs
+
+All backends can now emit slow job warnings after a configurable time running. 
+NB This example shows how to configure this setting for the PAPIv2 backend:
+```conf
+# Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck.
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        slow-job-warning-time: 24 hours
+      }
+    }
+  }
+}
+```
+
+### Runtime Attributes
+
+#### GPU Attributes
+
+* The `gpuType` attribute is no longer validated against a whitelist at workflow submission time. Instead, validation now happens at runtime. This allows any valid accelerator to be used.
+* The `nvidiaDriverVersion` attribute is now available in WDL `runtime` sections. The default continues to be `390.46` which applies if and only if GPUs are being used.
+* A default `gpuType` ("nvidia-tesla-k80") will now be applied if `gpuCount` is specified but `gpuType` is not.
+* Similarly, a default `gpuCount` (1) will be applied if `gpuType` is specified but `cpuCount` is not. 
+
+### Bug fixes
+
+#### Better validation of workflow heartbeats
+
+An error will be thrown on startup when the `system.workflow-heartbeats.heartbeat-interval` is not less than the
+`system.workflow-heartbeats.ttl`.
+
+
+## 40 Release Notes
+
+### Config Changes
+
+#### Cromwell ID in instrumentation path
+
+When set, the configuration value of `system.cromwell_id` will be prepended to StatsD metrics. More info [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+#### HealthMonitor Configuration
+
+The HealthMonitor configuration has been refactored to provide a simpler interface:
+* You no longer need to specify a monitor class in your `cromwell.conf` as this will now be inherited from the `reference.conf` value.
+* You can now opt-in and opt-out of any combination of status monitors.
+* The PAPI backends to monitor can now be listed in a single field.
+
+##### Upgrading
+
+You are no longer tied to the previous preset combinations of health checks. However if you just want to carry forward
+the exact same set of health checks, you can use one of the following standard recipes:
+
+###### From default, or `NoopHealthMonitorActor`:
+If you're currently using the (default) NoopHealthMonitorActor, no action is required.
+
+###### From `StandardHealthMonitorServiceActor`:
+If you're currently using the `StandardHealthMonitorServiceActor`, replace this stanza:
+```
+services {
+    HealthMonitor {
+        class = "cromwell.services.healthmonitor.impl.standard.StandardHealthMonitorServiceActor"
+    }
+}
+``` 
+With this one:
+```
+services {
+    HealthMonitor {
+        config {
+            check-dockerhub: true
+            check-engine-database: true
+        }
+    }
+}
+``` 
+###### From `WorkbenchHealthMonitorServiceActor`:
+Replace this stanza:
+```
+services {
+    HealthMonitor {
+        class = "cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor"
+
+        config {
+            papi-backend-name = PAPIv1
+            papi-v2-backend-name = PAPIv2
+
+            google-auth-name = service-account
+            gcs-bucket-to-check = "cromwell-ping-me-bucket"
+        }
+    }
+}
+``` 
+With this one:
+```
+services {
+    HealthMonitor {
+        config {
+            check-dockerhub: true
+            check-engine-database: true
+            check-gcs: true
+            check-papi-backends: [PAPIv1, PAPIv2]
+
+            google-auth-name = service-account
+            gcs-bucket-to-check = "cromwell-ping-me-bucket"
+    }
+  }
+}
+``` 
+### Workflow options changes
+
+A new workflow option is added. If the `final_workflow_outputs_dir` is set 
+`use_relative_output_paths` can be used. When set to `true` this will copy 
+all the outputs relative to their execution directory. 
+my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest.
+More information can be found in [the workflow options documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Overview/#output-copying).
+
+### Bug fixes
+
+#### WDL 1.0 strings can contain escaped quotes
+
+For example, the statement `String s = "\""` is now supported, whereas previously it produced a syntax error.
+
+#### Empty call blocks in WDL 1.0
+
+Cromwell's WDL 1.0 implementation now allows empty call blocks, e.g. `call task_with_no_inputs {}`. This brings 1.0 in line with draft-2, which has always supported this syntax.
+
+#### Packed CWL bugfix
+
+Fixed a bug that caused an error like `Custom type was referred to but not found` to be issued when using an imported type as a `SchemaDefRequirement` in packed CWL.
+
+## 39 Release Notes
+
+### Cromwell ID changes
+
+When set, the configuration value of `system.cromwell_id` will now have a random suffix appended, unless the
+configuration key `system.cromwell_id_random_suffix` is set to `false`.
+
+The generated id also appears more places in the logs, including when picking up workflows from the database and during
+shutdown.
+
+### Bug fixes
+
+#### Format fix for `write_map()` 
+
+Fixed an issue that caused the `write_map()` function in Cromwell's WDL 1.0 implementation to produce output in the wrong format. Specifically, the output's rows and columns were swapped. WDL draft-2 was not affected.
+  
+Incorrect `write_map()` output in Cromwell 38 and earlier:
+```
+key1    key2    key3
+value1  value2  value3
+```
+Corrected `write_map()` output in Cromwell 39 and later:
+```
+key1  value1
+key2  value2
+key3  value3
+```
+
+## 38 Release Notes
+
+### HPC paths with Docker
+
+The `ConfigBackendLifecycleActorFactory` path variables `script`, `out` and `err` are now consistent when running with
+and without docker. Similarly, when killing a docker task the `kill-docker` configuration key is now used instead of
+`kill`. For more information see the [online documentation](https://cromwell.readthedocs.io/en/stable/backends/SGE/).
+
+### No-op Health Monitor is now the default health monitor
+
+Previous versions of Cromwell defaulted to using a health monitor service that checked Docker Hub and engine database status.
+Neither check was useful if the `status` endpoint was never consulted as is likely the case in most deployments. Cromwell 38
+now defaults to a `NoopHealthMonitorServiceActor` which does nothing. The previous health service implementation is still
+available as `StandardHealthMonitorServiceActor`.
+
+### Bug fixes
+- Fixed an issue that could cause Cromwell to consume disk space unnecessarily when using zipped dependencies
+
+#### HTTP responses
+
+- When returning errors as json the `Content-Type` header is set to `application/json`.
+
 ## 37 Release Notes
 
 ### Docker
@@ -610,7 +922,7 @@ database {
   #driver = "slick.driver.MySQLDriver$" #old
   profile = "slick.jdbc.MySQLProfile$"  #new
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true"
     user = "user"
     password = "pass"
@@ -1051,7 +1363,7 @@ For example:
 database {
   driver = "slick.driver.MySQLDriver$"
   db {
-    driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.cj.jdbc.Driver"
     url = "jdbc:mysql://host/cromwell"
     user = "user"
     password = "pass"

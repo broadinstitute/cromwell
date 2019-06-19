@@ -1,0 +1,25 @@
+name: aws_disk
+testFormat: workflowsuccess
+backends: [ AWSBATCH ]
+
+files {
+  workflow: wdl_draft3/custom_mount_point/custom_mount_point.wdl
+  # https://github.com/broadinstitute/cromwell/issues/3998
+  options: wdl_draft3/custom_mount_point/custom_mount_point.options
+}
+
+metadata {
+  "calls.custom_mount_point.local_and_custom.backend": "AWSBATCH"
+  "calls.custom_mount_point.local_and_custom.backendStatus": "Succeeded"
+
+  "calls.custom_mount_point.local_only.backend": "AWSBATCH"
+  "calls.custom_mount_point.local_only.backendStatus": "Succeeded"
+
+  "calls.custom_mount_point.custom_only.backend": "AWSBATCH"
+  "calls.custom_mount_point.custom_only.backendStatus": "Succeeded"
+
+  "outputs.custom_mount_point.o1": "local disk contents"
+  "outputs.custom_mount_point.o2": "custom mount contents"
+  "outputs.custom_mount_point.o3": "local disk contents"
+  "outputs.custom_mount_point.o4": "custom mount contents"
+}

@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.common
 
-import akka.actor.Actor
 import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.labels.Labels
@@ -11,7 +10,7 @@ import cromwell.services.metadata.CallMetadataKeys
 import scala.language.postfixOps
 
 trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
-  this: Actor with JobLogging =>
+  this: PipelinesApiAsyncBackendJobExecutionActor with JobLogging =>
 
   lazy val initializationData: PipelinesApiBackendInitializationData = {
     backendInitializationDataAs[PipelinesApiBackendInitializationData]
@@ -33,7 +32,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean
 
-  lazy val jesAttributes: PipelinesApiAttributes = pipelinesConfiguration.jesAttributes
+  lazy val jesAttributes: PipelinesApiConfigurationAttributes = pipelinesConfiguration.papiAttributes
 
   lazy val defaultLabels: Labels = {
     val workflow = jobDescriptor.workflowDescriptor
@@ -58,11 +57,9 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val originalLabels: Labels = defaultLabels
 
-  lazy val backendLabels: Labels = GoogleLabels.toLabels(originalLabels.asTuple :_*)
+  lazy val backendLabels: Seq[GoogleLabel] = GoogleLabels.safeLabels(originalLabels.asTuple :_*)
 
   lazy val originalLabelEvents: Map[String, String] = originalLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
-
-  lazy val backendLabelEvents: Map[String, String] = backendLabels.value map { l => s"${CallMetadataKeys.BackendLabels}:${l.key}" -> l.value } toMap
 
   override protected def nonStandardMetadata: Map[String, Any] = {
     val googleProject = initializationData
@@ -77,6 +74,6 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
       PipelinesApiMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
       PipelinesApiMetadataKeys.EndpointUrl -> jesAttributes.endpointUrl,
       "preemptible" -> preemptible
-    ) ++ backendLabelEvents ++ originalLabelEvents
+    ) ++ originalLabelEvents
   }
 }

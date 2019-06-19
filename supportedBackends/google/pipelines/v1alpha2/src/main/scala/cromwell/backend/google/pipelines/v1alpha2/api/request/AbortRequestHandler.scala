@@ -6,7 +6,7 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.{GoogleJsonError, GoogleJsonErrorContainer}
 import com.google.api.client.http.{HttpHeaders, HttpRequest}
 import com.google.api.services.genomics.model.Operation
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{GoogleJsonException, PipelinesApiAbortQueryFailed, PAPIAbortRequest, PAPIApiException}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient.{PAPIAbortRequestSuccessful, PAPIOperationAlreadyCancelled, PAPIOperationHasAlreadyFinished}
 
 import scala.concurrent.{Future, Promise}
@@ -29,7 +29,7 @@ trait AbortRequestHandler { this: RequestHandler =>
         originalRequest.requester ! PAPIOperationHasAlreadyFinished(originalRequest.jobId.jobId)
         completionPromise.trySuccess(Success(()))
       } else {
-        pollingManager ! PipelinesApiAbortQueryFailed(originalRequest, new PAPIApiException(GoogleJsonException(e, responseHeaders)))
+        pollingManager ! PipelinesApiAbortQueryFailed(originalRequest, new SystemPAPIApiException(GoogleJsonException(e, responseHeaders)))
         completionPromise.trySuccess(Failure(new Exception(mkErrorString(e))))
       }
 

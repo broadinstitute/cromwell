@@ -273,9 +273,9 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_map"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomMap, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { mapToWrite: WomMap =>
         val tryResult = for {
-          serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
+          serialized <- ValueEvaluation.serializeWomValue(functionName, mapToWrite, defaultIfOptionalEmpty = WomMap(Map.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)
         } yield written
 
@@ -291,7 +291,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_object"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite: WomObject =>
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)
@@ -523,7 +523,7 @@ object EngineFunctionEvaluators {
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0l.validNel
         case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) => values.toList.traverse(optionalSafeFileSize).map(_.sum)
-        case _ => s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.toDisplayString}.".invalidNel
+        case _ => s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel
       }
 
       // Inner function: get the file size and convert into the requested memory unit
@@ -628,7 +628,7 @@ object EngineFunctionEvaluators {
                                                                        (implicit coercer: WomTypeCoercer[A]): ErrorOr[EvaluatedValue[B]] = {
     arg flatMap {
       case EvaluatedValue(a: WomValue, previousSideEffectFiles) if a.coercionDefined[A] => a.coerceToType[A] flatMap { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles) }
-      case other => s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.toDisplayString}".invalidNel
+      case other => s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.stableName}".invalidNel
     }
   }
 
@@ -639,7 +639,7 @@ object EngineFunctionEvaluators {
     (arg1, arg2) flatMapN {
       case (EvaluatedValue(a: WomValue, previousSideEffectFilesA), EvaluatedValue(b: WomValue, previousSideEffectFilesB)) if a.coercionDefined[A] && b.coercionDefined[B] =>
         (a.coerceToType[A], b.coerceToType[B]) flatMapN { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFilesA ++ previousSideEffectFilesB) }
-      case (otherA, otherB) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.toDisplayString}, ${otherB.value.womType.toDisplayString})".invalidNel
+      case (otherA, otherB) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.stableName}, ${otherB.value.womType.stableName})".invalidNel
     }
   }
 
@@ -651,7 +651,7 @@ object EngineFunctionEvaluators {
     (arg1, arg2, arg3) flatMapN {
       case (EvaluatedValue(a, previousSideEffectFilesA), EvaluatedValue(b, previousSideEffectFilesB), EvaluatedValue(c, previousSideEffectFilesC)) if a.coercionDefined[A] && b.coercionDefined[B] && c.coercionDefined[C] =>
         (a.coerceToType[A], b.coerceToType[B], c.coerceToType[C]) flatMapN { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFilesA ++ previousSideEffectFilesB ++ previousSideEffectFilesC) }
-      case (otherA, otherB, otherC) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.toDisplayString}, ${otherB.value.womType.toDisplayString}, ${otherC.value.womType.toDisplayString})".invalidNel
+      case (otherA, otherB, otherC) => s"Expected (${coercerA.toDisplayString}, ${coercerB.toDisplayString}, ${coercerB.toDisplayString}) argument but got (${otherA.value.womType.stableName}, ${otherB.value.womType.stableName}, ${otherC.value.womType.stableName})".invalidNel
     }
   }
 }

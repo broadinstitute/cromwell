@@ -20,6 +20,7 @@ import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.OutputEvaluator._
+import cromwell.backend.SlowJobWarning.{WarnAboutSlownessAfter, WarnAboutSlownessIfNecessary}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
@@ -73,7 +74,8 @@ case class DefaultStandardAsyncExecutionActorParams
   * NOTE: Unlike the parent trait `AsyncBackendJobExecutionActor`, this trait is subject to even more frequent updates
   * as the common behavior among the backends adjusts in unison.
   */
-trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIoActorClient with KvClient {
+trait StandardAsyncExecutionActor
+  extends AsyncBackendJobExecutionActor with StandardCachingActorHelper with AsyncIoActorClient with KvClient with SlowJobWarning {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
@@ -356,7 +358,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         s"""(
            |# add a .file in every empty directory to facilitate directory delocalization on the cloud
            |cd $cwd
-           |find . -type d -empty -print0 | xargs -0 -I % touch %/.file
+           |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
            |)""".stripMargin)
 
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
@@ -625,7 +627,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return the execution handle for the job.
     */
   def execute(): ExecutionHandle = {
-    throw new NotImplementedError(s"Neither execute() nor executeAsync() implemented by $getClass")
+    throw new UnsupportedOperationException(s"Neither execute() nor executeAsync() implemented by $getClass")
   }
 
   /**
@@ -685,7 +687,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
     * @return The status of the job.
     */
   def pollStatus(handle: StandardAsyncPendingExecutionHandle): StandardAsyncRunState = {
-    throw new NotImplementedError(s"Neither pollStatus nor pollStatusAsync implemented by $getClass")
+    throw new UnsupportedOperationException(s"Neither pollStatus nor pollStatusAsync implemented by $getClass")
   }
 
   /**
@@ -922,7 +924,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private var missedAbort = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
-  context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse receive)
+  context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse slowJobWarningReceive orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
@@ -964,6 +966,9 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
   private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): Future[ExecutionHandle] = {
     executionHandle match {
       case handle: PendingExecutionHandle[StandardAsyncJob@unchecked, StandardAsyncRunInfo@unchecked, StandardAsyncRunState@unchecked] =>
+
+        configurationDescriptor.slowJobWarningAfter foreach { duration => self ! WarnAboutSlownessAfter(handle.pendingJob.jobId, duration) }
+
         tellKvJobId(handle.pendingJob) map { _ =>
           jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
@@ -988,6 +993,7 @@ trait StandardAsyncExecutionActor extends AsyncBackendJobExecutionActor with Sta
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
         pollStatusAsync(handle) flatMap {
           backendRunStatus =>
+            self ! WarnAboutSlownessIfNecessary
             handlePollSuccess(handle, backendRunStatus)
         } recover {
           case throwable =>

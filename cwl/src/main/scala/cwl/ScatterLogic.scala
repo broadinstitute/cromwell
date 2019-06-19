@@ -61,7 +61,7 @@ object ScatterLogic {
   private [cwl] def scatterExpressionItemType(expressionNode: ExpressionNode) = {
     expressionNode.womType match {
       case WomArrayType(itemType) => itemType.validNelCheck // Covers maps because this is a custom unapply (see WomArrayType)
-      case other => s"Cannot scatter over a non-traversable type ${other.toDisplayString}".invalidNelCheck
+      case other => s"Cannot scatter over a non-traversable type ${other.stableName}".invalidNelCheck
     }
   }
 

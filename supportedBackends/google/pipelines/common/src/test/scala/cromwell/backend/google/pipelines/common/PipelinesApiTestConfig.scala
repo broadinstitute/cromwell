@@ -103,14 +103,14 @@ object PipelinesApiTestConfig {
   val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(PapiBackendNoDefaultConfig, PapiGlobalConfig)
   val genomicsFactory = new PipelinesApiFactoryInterface {
     override def build(httpRequestInitializer: HttpRequestInitializer) = new PipelinesApiRequestFactory {
-      override def cancelRequest(job: StandardAsyncJob) = ???
-      override def getRequest(job: StandardAsyncJob) = ???
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = ???
+      override def cancelRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
+      override def getRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = throw new UnsupportedOperationException
     }
     override def usesEncryptedDocker: Boolean = false
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(PapiBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val googleConfiguration = GoogleConfiguration(PapiGlobalConfig)
-  val papiAttributes = PipelinesApiAttributes(googleConfiguration, PapiBackendConfig)
+  val papiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig)
   val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
 }

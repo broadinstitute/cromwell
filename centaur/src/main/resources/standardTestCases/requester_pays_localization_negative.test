@@ -14,5 +14,5 @@ metadata {
   workflowName: requester_pays_localization
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": ~~"does not have serviceusage.services.use access"
+  "failures.0.causedBy.0.message": "Task requester_pays_localization.localize:NA:1 failed. The job was stopped before the command finished. PAPI error code 9. Please check the log file for more details: gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/requester_pays_localization/<<UUID>>/call-localize/localize.log."
 }

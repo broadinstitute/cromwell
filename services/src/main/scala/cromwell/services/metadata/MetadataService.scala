@@ -24,7 +24,8 @@ object MetadataService {
                                        start: Option[OffsetDateTime],
                                        end: Option[OffsetDateTime],
                                        labels: Option[Map[String, String]],
-                                       parentWorkflowId: Option[String])
+                                       parentWorkflowId: Option[String],
+                                       rootWorkflowId: Option[String])
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult], totalResultsCount: Int)
 
@@ -70,17 +71,21 @@ object MetadataService {
   }
 
   sealed trait MetadataWriteAction extends MetadataServiceAction {
+    def maxAttempts: Int
     def events: Iterable[MetadataEvent]
     def size: Int = events.size
   }
-  final case class PutMetadataAction(events: Iterable[MetadataEvent]) extends MetadataWriteAction 
-  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef) extends MetadataWriteAction
+
+  val MaximumMetadataWriteAttempts = 10
+  final case class PutMetadataAction(events: Iterable[MetadataEvent], maxAttempts: Int = MaximumMetadataWriteAttempts) extends MetadataWriteAction
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef, maxAttempts: Int = MaximumMetadataWriteAttempts) extends MetadataWriteAction
 
   final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 
-  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId, includeKeysOption: Option[NonEmptyList[String]],
-                                             excludeKeysOption: Option[NonEmptyList[String]],
-                                             expandSubWorkflows: Boolean)
+  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId,
+                                                   includeKeysOption: Option[NonEmptyList[String]],
+                                                   excludeKeysOption: Option[NonEmptyList[String]],
+                                                   expandSubWorkflows: Boolean)
     extends ReadAction
   final case class GetMetadataQueryAction(key: MetadataQuery) extends ReadAction
   final case class GetStatus(workflowId: WorkflowId) extends ReadAction
@@ -96,7 +101,8 @@ object MetadataService {
     def onFailure(possibleWorkflowId: String, throwable: Throwable): Unit
   }
 
-  final case class ValidateWorkflowId(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
+  final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
+  final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses

@@ -12,7 +12,7 @@ import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{Graph, TaskCall}
 import wom.values.{WomEvaluatedCallInputs, WomGlobFile, WomValue}
-import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes}
+import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes, SourceFileLocation}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -31,7 +31,7 @@ object CommandTaskDefinition {
 
   // Function definition to evaluate task outputs
   type OutputEvaluationFunction = (Set[OutputPort], Map[String, WomValue], IoFunctionSet, ExecutionContext) => OutputFunctionResponse
-  
+
   object OutputEvaluationFunction {
     val none: OutputEvaluationFunction = { case (_ ,_, _, _) => OptionT[Future, EvaluatedOutputs](Future.successful(None)) }
   }
@@ -151,7 +151,8 @@ final case class CallableTaskDefinition(name: String,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none,
                                         homeOverride: Option[RuntimeEnvironment => String] = None,
-                                        dockerOutputDirectory: Option[String] = None
+                                        dockerOutputDirectory: Option[String] = None,
+                                        override val sourceLocation : Option[SourceFileLocation]
                                        ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
 }

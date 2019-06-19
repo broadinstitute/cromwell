@@ -50,12 +50,38 @@ object LinkedGraphMaker {
     graph.topologicalSort match {
       case Left(_) =>
         graph.findCycle match {
-          case Some(cycle) =>
-            val edgeStrings = cycle.value.edges map { case graph.EdgeT(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+          case Some(cycle) if cycle.nonEmpty =>
+            // we need to sort the edges lexicographically to make results deterministic. This helps testing.
+            // In a cycle like:
+            //   b -> d
+            //   d -> c
+            //   c -> a
+            //   a -> b
+            // we want to start the cycle with the edge "a -> b"
+            val edgeDict : Map[String, String] =
+              cycle.value.edges.map{
+                case graph.EdgeT(from, to) => nodeName(from) -> nodeName(to)
+              }.toMap
+            val startPoint = edgeDict.keys.toVector.sorted.head
+            var cursor = startPoint
+
+            val cycleReport = scala.collection.mutable.Queue.empty[String]
+            // The cycle has the same number of edges as the size of the graph. This gives
+            // a clear and simple stopping condition. We do not want to risk
+            // a bug that causes an inifinite loop here.
+            for (_ <- edgeDict.keys) {
+              val next = edgeDict(cursor)
+              cycleReport += s""""${cursor}" -> "${next}""""
+              cursor = next
+            }
+
             s"""This workflow contains a cyclic dependency:
-               |${edgeStrings.mkString(System.lineSeparator)}""".stripMargin.invalidNel
-          case None =>
-            val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+               |${cycleReport.mkString(System.lineSeparator)}""".stripMargin.invalidNel
+
+          case _ =>
+            val edgeStrings = linkedGraph.edges map { case LinkedGraphEdge(from, to) => s""""${nodeName(from)}" -> "${nodeName(to)}"""" }
+            // sort the edges for determinism
+            val edges = edgeStrings.toVector.sorted
             s"""This workflow contains an elusive cyclic dependency amongst these edges:
                |${edges.mkString(System.lineSeparator)}""".stripMargin.invalidNel
         }

@@ -9,7 +9,7 @@ import better.files.File._
 import scala.concurrent.{ExecutionContext, Future}
 
 class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncIo: AsyncIo, override val ec: ExecutionContext) extends ReadLikeFunctions with WorkflowCorePathFunctions {
-  override def glob(pattern: String): Future[Seq[String]] = throw new NotImplementedError(s"glob(path, pattern) not implemented yet")
+  override def glob(pattern: String): Future[Seq[String]] = throw new UnsupportedOperationException(s"glob(path, pattern) not implemented yet")
 
   // TODO: This is not suited for multi backend / multi filesystem use. Keep local for now to not break local CWL conf tests
   override def writeFile(path: String, content: String): Future[WomSingleFile] = Future.successful {
@@ -25,9 +25,9 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder], override val asyncI
     Future.failed(new Exception("Cromwell does not support copying files from a workflow context"))
 
   override def listAllFilesUnderDirectory(dirPath: String): Nothing =
-    throw new NotImplementedError(s"listAllFilesUnderDirectory not implemented yet")
+    throw new UnsupportedOperationException(s"listAllFilesUnderDirectory not implemented yet")
 
-  override def listDirectory(path: String)(visited: Vector[String]) = throw new NotImplementedError(s"listDirectory not implemented yet")
+  override def listDirectory(path: String)(visited: Vector[String]) = throw new UnsupportedOperationException(s"listDirectory not implemented yet")
 
   override def isDirectory(path: String) = Future.successful(buildPath(path).isDirectory)
 

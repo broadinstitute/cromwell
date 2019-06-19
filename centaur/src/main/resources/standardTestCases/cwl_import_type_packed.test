@@ -1,0 +1,10 @@
+name: cwl_import_type_packed
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: main
+
+files {
+  workflow: cwl_import_type_packed/test_pack.cwl
+  inputs: cwl_import_type_packed/test_wf_inputs.json
+}

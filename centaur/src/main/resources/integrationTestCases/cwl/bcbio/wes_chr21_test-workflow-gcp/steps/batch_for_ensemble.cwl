@@ -16,15 +16,15 @@ class: CommandLineTool
 cwlVersion: v1.0
 hints:
 - class: DockerRequirement
-  dockerImageId: quay.io/bcbio/bcbio-vc
-  dockerPull: quay.io/bcbio/bcbio-vc
+  dockerImageId: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
+  dockerPull: quay.io/bcbio/bcbio-vc:1.1.4a-741877e
 - class: ResourceRequirement
   coresMin: 1
-  outdirMin: 1024
+  outdirMin: 10240
   ramMin: 3072
   tmpdirMin: 0
 - class: dx:InputResourceRequirement
-  indirMin: 60000
+  indirMin: 0
 inputs:
 - id: vc_rec
   type:

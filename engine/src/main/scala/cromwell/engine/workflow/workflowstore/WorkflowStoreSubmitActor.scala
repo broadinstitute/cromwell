@@ -166,7 +166,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
     processSource(_.clearEncryptedValues)(originalSourceFiles) map { sourceFiles =>
       val submissionEvents: List[MetadataEvent] = List(
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now.toString)),
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.Status), MetadataValue(actualWorkflowState)),

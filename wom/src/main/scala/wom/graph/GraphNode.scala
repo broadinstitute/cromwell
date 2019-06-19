@@ -75,8 +75,8 @@ object GraphNode {
 
   def inputPortNamesMatch(required: Set[InputPort], provided: Set[InputPort]): ErrorOr[Unit] = {
     def requiredInputFound(r: InputPort): ErrorOr[Unit] = provided.find(_.name == r.name) match {
-      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.toDisplayString} to the input ${r.name}: ${r.womType}".invalidNel
-      case None => s"The required input ${r.name}: ${r.womType.toDisplayString} was not provided.".invalidNel
+      case Some(p) => if (r.womType.isCoerceableFrom(p.womType)) ().validNel else s"Cannot link a ${p.womType.stableName} to the input ${r.name}: ${r.womType}".invalidNel
+      case None => s"The required input ${r.name}: ${r.womType.stableName} was not provided.".invalidNel
     }
 
     required.toList.traverse(requiredInputFound).void
@@ -99,7 +99,7 @@ object GraphNode {
     def inputDefinitions: Set[_ <: Callable.InputDefinition] = nodes collect {
       case required: RequiredGraphInputNode => RequiredInputDefinition(required.identifier.localName, required.womType)
       case optional: OptionalGraphInputNode => OptionalInputDefinition(optional.identifier.localName, optional.womType)
-      case withDefault: OptionalGraphInputNodeWithDefault => InputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
+      case withDefault: OptionalGraphInputNodeWithDefault => OverridableInputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
     }
 
     def outputDefinitions: Set[_ <: Callable.OutputDefinition] = nodes collect {

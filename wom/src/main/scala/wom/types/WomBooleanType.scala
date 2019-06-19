@@ -6,7 +6,7 @@ import wom.values.WomBoolean
 import scala.util.{Success, Try}
 
 case object WomBooleanType extends WomPrimitiveType {
-  val toDisplayString: String = "Boolean"
+  val stableName: String = "Boolean"
 
   override protected def coercion = {
     case b: Boolean => WomBoolean(b)

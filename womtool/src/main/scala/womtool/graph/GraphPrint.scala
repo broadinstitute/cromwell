@@ -80,7 +80,7 @@ object GraphPrint {
 
   private def graphName(g: WdlGraphNode): String = dotSafe(g match {
     case d: Declaration =>
-      s"${d.womType.toDisplayString} ${d.unqualifiedName}"
+      s"${d.womType.stableName} ${d.unqualifiedName}"
     case c: WdlCall =>
       s"call ${c.unqualifiedName}"
     case i: If =>

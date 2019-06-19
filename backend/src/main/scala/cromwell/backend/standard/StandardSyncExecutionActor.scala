@@ -10,6 +10,7 @@ import cromwell.core.Dispatcher
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{Future, Promise}
+import scala.util.control.NoStackTrace
 
 trait StandardSyncExecutionActorParams extends StandardJobExecutionActorParams {
   /** The class for creating an async backend. */
@@ -173,14 +174,14 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   }
 
   override def abort(): Unit = {
-    throw new NotImplementedError("Abort is implemented via a custom receive of the message AbortJobCommand.")
+    throw new UnsupportedOperationException("Abort is implemented via a custom receive of the message AbortJobCommand.")
   }
 
   // Supervision strategy: if the async actor throws an exception, stop the actor and fail the job.
   def jobFailingDecider: Decider = {
     case exception: Exception =>
       completionPromise.tryFailure(
-        new RuntimeException(s"${createAsyncRefName()} failed and didn't catch its exception.", exception))
+        new RuntimeException(s"${createAsyncRefName()} failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.", exception) with NoStackTrace)
       Stop
   }
 

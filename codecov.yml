@@ -26,4 +26,4 @@ coverage:
         target: 50%
         threshold: 5%
 
-comment: false
+comment: off

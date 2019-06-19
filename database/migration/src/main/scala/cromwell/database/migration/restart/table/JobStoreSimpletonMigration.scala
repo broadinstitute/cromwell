@@ -50,9 +50,9 @@ class JobStoreSimpletonMigration extends AbstractRestartMigration {
     case class JobStoreSimpletonEntry(name: String, valueString: String, typeString: String)
 
     def buildJobStoreSimpletonEntries(name: String, womValue: WomValue, womType: WomType) = Option(womValue) match {
-      case None => List(JobStoreSimpletonEntry(name, null, womType.toDisplayString))
+      case None => List(JobStoreSimpletonEntry(name, null, womType.stableName))
       case Some(_) => womValue.simplify(name) map { s =>
-        JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.valueString, s.simpletonValue.womType.toDisplayString)
+        JobStoreSimpletonEntry(s.simpletonKey, s.simpletonValue.valueString, s.simpletonValue.womType.stableName)
       }
     }
 

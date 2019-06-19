@@ -1,0 +1,4 @@
+Failed to read declaration (reason 1 of 1): Failed to parse expression (reason 1 of 1): write_object is no longer available in this WDL version. Consider using write_json instead
+Failed to read declaration (reason 1 of 1): Failed to parse expression (reason 1 of 1): write_objects is no longer available in this WDL version. Consider using write_json instead
+Failed to read declaration (reason 1 of 1): Failed to parse expression (reason 1 of 1): read_object is no longer available in this WDL version. Consider using read_json instead
+Failed to read declaration (reason 1 of 1): Failed to parse expression (reason 1 of 1): read_objects is no longer available in this WDL version. Consider using read_json instead

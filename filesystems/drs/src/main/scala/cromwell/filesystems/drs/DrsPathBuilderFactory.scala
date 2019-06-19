@@ -16,9 +16,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import org.apache.http.impl.client.HttpClientBuilder
 
-import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
-
 
 /**
   * Cromwell Wrapper around DrsFileSystems to load the configuration.
@@ -54,10 +52,9 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private def inputReadChannel(url: String, urlScheme: String, serviceAccount: String): IO[ReadableByteChannel] =  {
     urlScheme match {
-      case GcsScheme => {
+      case GcsScheme =>
         val Array(bucket, fileToBeLocalized) = url.replace(s"$GcsScheme://", "").split("/", 2)
         gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccount)
-      }
       case otherScheme => IO.raiseError(new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
     }
   }
@@ -82,8 +79,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       // Profile and Email scopes are requirements for interacting with Martha v2
       Oauth2Scopes.USERINFO_EMAIL,
       Oauth2Scopes.USERINFO_PROFILE
-    ).asJavaCollection
-    val authCredentials = googleAuthMode.credentials((key: String) => options.get(key).get, marthaScopes)
+    )
+    val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
 
     Future.successful(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials, httpClientBuilder, drsReadInterpreter)))
   }

@@ -6,7 +6,7 @@ import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.draft2.model
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.parser.WdlParser.{Ast, AstNode}
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{InputDefinition, OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 import wom.types.{WomArrayType, WomOptionalType, WomType}
@@ -78,20 +78,20 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
       Some(RequiredInputDefinition(fullyQualifiedName, nonOptionalType))
     // We only make declarations with expressions into inputs if they don't depend on previous tasks or decls:
     case (Some(expr), other) if upstreamAncestry.isEmpty =>
-      Some(InputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, this)))
+      Some(OverridableInputDefinitionWithDefault(fullyQualifiedName, other, WdlWomExpression(expr, this)))
     case _ =>
       None
   }
 
   def toWdlString: String = {
     val expr = expression.map(e => s" = ${e.toWomString}").getOrElse("")
-    s"${womType.toDisplayString} $unqualifiedName$expr"
+    s"${womType.stableName} $unqualifiedName$expr"
   }
 
   final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences(this))
 
   override def toString: String = {
-    s"[Declaration type=${womType.toDisplayString} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
+    s"[Declaration type=${womType.stableName} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
   }
 }
 
@@ -148,7 +148,7 @@ object Declaration {
     def asWorkflowInput(inputDefinition: InputDefinition): GraphInputNode = inputDefinition match {
       case RequiredInputDefinition(_, womType, _, _) => RequiredGraphInputNode(decl.womIdentifier, womType, decl.womIdentifier.fullyQualifiedName.value)
       case OptionalInputDefinition(_, optionalType, _, _) => OptionalGraphInputNode(decl.womIdentifier, optionalType, decl.womIdentifier.fullyQualifiedName.value)
-      case InputDefinitionWithDefault(_, womType, default, _, _) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default, decl.womIdentifier.fullyQualifiedName.value)
+      case OverridableInputDefinitionWithDefault(_, womType, default, _, _) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default, decl.womIdentifier.fullyQualifiedName.value)
       case other => throw new RuntimeException(s"Programmer Error! If you got here you probably changed draft 2 to try to do some draft 3 like things, but this draft 2 function isn't set up to produce or handle ${other.getClass.getSimpleName} yet!")
     }
 

@@ -156,8 +156,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             // Monitoring scope as POC
             GenomicsFactory.MonitoringWrite,
             // Allow read/write with BigQuery
-            BigqueryScopes.BIGQUERY,
-            BigqueryScopes.BIGQUERY_INSERTDATA
+            BigqueryScopes.BIGQUERY
           ).asJava
         )
 

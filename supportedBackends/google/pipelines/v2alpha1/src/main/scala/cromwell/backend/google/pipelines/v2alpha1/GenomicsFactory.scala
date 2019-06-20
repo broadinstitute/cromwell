@@ -99,7 +99,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             subnetworkLabelOption foreach { case(_, subnet) => network.setSubnetwork(subnet) }
             network
           case None =>
-            // Falling back to running the job on default network since the project does not have high security network configured
+            // Falling back to running the job on default network since the project does not provide the custom network
+            // specifying keys in its metadata
             new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
       }

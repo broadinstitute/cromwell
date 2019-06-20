@@ -13,7 +13,7 @@ import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import common.exception.{AggregatedMessageException, MessageAggregation}
 import common.validation.Checked._
 import common.validation.ErrorOr._
@@ -26,7 +26,7 @@ import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.PathBuilder
+import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -137,7 +137,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
-                                         ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with LazyLogging with WorkflowLogging {
+                                         ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with StrictLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
   val tag = self.path.name
@@ -147,6 +147,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
   implicit val ec = context.dispatcher
+
+  protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
   startWith(ReadyToMaterializeState, ())
 
@@ -221,7 +223,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
     val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
     workflowOptionsValidation map { workflowOptions =>
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions)(context.system)
+      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions, pathBuilderFactories)(context.system)
       (workflowOptions, pathBuilders)
     }
   }

@@ -18,12 +18,14 @@ object EngineFilesystems {
       .filter(_ => config.as[Boolean]("engine.filesystems.local.enabled"))
       .toMap
 
-  private val pathBuilderFactories = {
+  private val pathBuilderFactories: Map[String, PathBuilderFactory] = {
     CromwellFileSystems.instance.factoriesFromConfig(config.as[Config]("engine"))
       .unsafe("Failed to instantiate engine filesystem") ++ defaultFileSystemFactory
   }
 
-  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions)(implicit as: ActorSystem): Future[List[PathBuilder]] = {
-    PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, workflowOptions)
+  def configuredPathBuilderFactories: List[PathBuilderFactory] = pathBuilderFactories.values.toList
+
+  def pathBuildersForWorkflow(workflowOptions: WorkflowOptions, factories: List[PathBuilderFactory])(implicit as: ActorSystem): Future[List[PathBuilder]] = {
+    PathBuilderFactory.instantiatePathBuilders(factories, workflowOptions)
   }
 }

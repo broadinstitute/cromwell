@@ -3,14 +3,14 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.testkit.{TestActorRef, TestFSMRef, TestProbe}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
-import cromwell.core.path.DefaultPathBuilder
-import cromwell.engine.EngineWorkflowDescriptor
+import cromwell.core.path.{DefaultPathBuilder, PathBuilder, PathBuilderFactory}
+import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -24,10 +24,16 @@ import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
-  override implicit val actorSystem = system
+
+  // https://doc.akka.io/docs/akka/current/testing.html#expecting-log-messages
+  override implicit val actorSystem = ActorSystem(
+    "testsystem",
+    ConfigFactory.parseString("""akka.loggers = ["akka.testkit.TestEventListener"]""")
+  )
 
   val mockServiceRegistryActor = TestActorRef(new Actor {
     override def receive = {
@@ -57,9 +63,9 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
 
-  private def createWorkflowActor(state: WorkflowActorState) = {
+  private def createWorkflowActor(state: WorkflowActorState, extraPathBuilderFactory: Option[PathBuilderFactory] = None) = {
     val actor = TestFSMRef(
-      factory = new MockWorkflowActor(
+      factory = new WorkflowActorWithTestAddons(
         finalizationProbe = finalizationProbe,
         workflowId = currentWorkflowId,
         startState = Submitted,
@@ -76,7 +82,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         jobTokenDispenserActor = TestProbe().ref,
         workflowStoreActor = system.actorOf(Props.empty),
         workflowHeartbeatConfig = workflowHeartbeatConfig,
-        totalJobsByRootWf = initialJobCtByRootWf
+        totalJobsByRootWf = initialJobCtByRootWf,
+        extraPathBuilderFactory = extraPathBuilderFactory
       ),
       supervisor = supervisorProbe.ref)
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
@@ -179,26 +186,51 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
     }
+
+    "log an error when a path builder factory initialization fails" in {
+      EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Failing as requested.*", occurrences = 1).intercept {
+        val _ = createWorkflowActor(WorkflowSucceededState, Option(new FailingPathBuilderFactory()))
+      }
+    }
+
+    "log an error when a path builder factory initialization throws" in {
+      EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Throwing as requested.*", occurrences = 1).intercept {
+        val _ = createWorkflowActor(WorkflowSucceededState, Option(new ThrowingPathBuilderFactory()))
+      }
+    }
   }
 }
 
-class MockWorkflowActor(val finalizationProbe: TestProbe,
-                        workflowId: WorkflowId,
-                        startState: StartableState,
-                        workflowSources: WorkflowSourceFilesCollection,
-                        conf: Config,
-                        ioActor: ActorRef,
-                        serviceRegistryActor: ActorRef,
-                        workflowLogCopyRouter: ActorRef,
-                        jobStoreActor: ActorRef,
-                        subWorkflowStoreActor: ActorRef,
-                        callCacheReadActor: ActorRef,
-                        callCacheWriteActor: ActorRef,
-                        dockerHashActor: ActorRef,
-                        jobTokenDispenserActor: ActorRef,
-                        workflowStoreActor: ActorRef,
-                        workflowHeartbeatConfig: WorkflowHeartbeatConfig,
-                        totalJobsByRootWf: AtomicInteger) extends WorkflowActor(
+class FailingPathBuilderFactory() extends PathBuilderFactory {
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+    Future(throw new Exception("Failing as requested"))
+  }
+}
+
+class ThrowingPathBuilderFactory() extends PathBuilderFactory {
+  override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
+    throw new Exception("Throwing as requested")
+  }
+}
+
+class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
+                                  workflowId: WorkflowId,
+                                  startState: StartableState,
+                                  workflowSources: WorkflowSourceFilesCollection,
+                                  conf: Config,
+                                  ioActor: ActorRef,
+                                  serviceRegistryActor: ActorRef,
+                                  workflowLogCopyRouter: ActorRef,
+                                  jobStoreActor: ActorRef,
+                                  subWorkflowStoreActor: ActorRef,
+                                  callCacheReadActor: ActorRef,
+                                  callCacheWriteActor: ActorRef,
+                                  dockerHashActor: ActorRef,
+                                  jobTokenDispenserActor: ActorRef,
+                                  workflowStoreActor: ActorRef,
+                                  workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+                                  totalJobsByRootWf: AtomicInteger,
+                                  extraPathBuilderFactory: Option[PathBuilderFactory]) extends WorkflowActor(
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,
@@ -220,6 +252,11 @@ class MockWorkflowActor(val finalizationProbe: TestProbe,
   totalJobsByRootWf = totalJobsByRootWf,
   fileHashCacheActor = None,
   blacklistCache = None) {
+
+  override val pathBuilderFactories: List[PathBuilderFactory] = extraPathBuilderFactory match {
+    case Some(pbf) => EngineFilesystems.configuredPathBuilderFactories :+ pbf
+    case None => EngineFilesystems.configuredPathBuilderFactories
+  }
 
   override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
 }

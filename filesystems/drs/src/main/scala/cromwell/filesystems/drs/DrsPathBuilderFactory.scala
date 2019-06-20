@@ -82,7 +82,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     )
     val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
 
-    Future.successful(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials, httpClientBuilder, drsReadInterpreter)))
+    Future(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials, httpClientBuilder, drsReadInterpreter)))
   }
 }
 

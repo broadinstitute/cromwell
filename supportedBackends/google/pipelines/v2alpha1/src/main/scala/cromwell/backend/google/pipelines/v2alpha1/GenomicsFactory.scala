@@ -4,6 +4,7 @@ import java.net.URL
 
 import cats.effect.IO
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer, HttpResponse}
+import com.google.api.services.bigquery.BigqueryScopes
 import com.google.api.services.cloudresourcemanager.CloudResourceManager
 import com.google.api.services.compute.ComputeScopes
 import com.google.api.services.genomics.v2alpha1.model._
@@ -154,6 +155,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             Oauth2Scopes.USERINFO_PROFILE,
             // Monitoring scope as POC
             GenomicsFactory.MonitoringWrite,
+            // Allow read/write with BigQuery
+            BigqueryScopes.BIGQUERY
           ).asJava
         )
 

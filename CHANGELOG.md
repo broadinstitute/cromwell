@@ -20,6 +20,10 @@ select max(CALL_CACHING_HASH_ENTRY_ID) from CALL_CACHING_HASH_ENTRY
 Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
 Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
+### BigQuery in PAPI
+
+Cromwell now allows a user to specify BigQuery jobs when using the PAPIv2 backend
+
 ### Configuration Changes
 
 #### StatsD Instrumentation

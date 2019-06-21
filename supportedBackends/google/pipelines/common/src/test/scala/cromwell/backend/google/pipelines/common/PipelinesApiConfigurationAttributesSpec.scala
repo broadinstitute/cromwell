@@ -132,6 +132,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.name should be("my-network")
+    pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.subnetwork should be(None)
     pipelinesApiAttributes.virtualPrivateCloudConfiguration.get.auth.name should be("application-default")
   }
 

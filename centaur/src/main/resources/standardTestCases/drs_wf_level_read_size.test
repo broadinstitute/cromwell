@@ -1,0 +1,17 @@
+name: drs_wf_level_read_size
+testFormat: workflowsuccess
+backends: [Papiv2-with-DRS]
+
+files {
+  workflow: drs_tests/wf_level_read_and_size.wdl
+}
+
+metadata {
+  workflowName: wf_level_read_and_size
+  status: Succeeded
+
+  "outputs.wf_level_read_and_size.fileSize1": 43.0
+  "outputs.wf_level_read_and_size.fileContents1": "This file is used for testing by Cromwell."
+  "outputs.wf_level_read_and_size.fileSize2": 45.0
+  "outputs.wf_level_read_and_size.fileContents2": "This is some text that exists inside a file."
+}

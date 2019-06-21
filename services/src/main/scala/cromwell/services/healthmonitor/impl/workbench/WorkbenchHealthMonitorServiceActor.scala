@@ -8,6 +8,8 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
+import com.google.api.services.genomics.v2alpha1.GenomicsScopes
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.typesafe.config.Config
@@ -42,11 +44,11 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
   protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
 
-  val googleConfig = GoogleConfiguration(globalConfig)
+  lazy val googleConfig = GoogleConfiguration(globalConfig)
 
-  val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
+  lazy val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
 
-  val googleAuth = googleConfig.auth(googleAuthName) match {
+  lazy val googleAuth = googleConfig.auth(googleAuthName) match {
     case Valid(a) => a
     case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
   }
@@ -57,25 +59,22 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   private def checkGcs(): Future[SubsystemStatus] = {
     // For any expected production usage of this check, the GCS bucket should be public read */
     val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storage = Future(googleAuth.pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)) map { credentials =>
+    val storageScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
+    val storage = Future(googleAuth.credentials(storageScopes)) map { credentials =>
       GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
     }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 
   private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {
-    checkPapi(papiConfiguration.papiConfig, papiConfiguration.papiProviderConfig)
-  }
+    val papiConfig = papiConfiguration.papiConfig
+    val papiProviderConfig = papiConfiguration.papiProviderConfig
 
-  /**
-    * Demonstrates connectivity to Google Pipelines API (PAPI) by making sure it can access an authenticated endpoint
-    */
-  private def checkPapi(papiConfig: Config, papiProviderConfig: Config): Future[SubsystemStatus] = {
     val endpointUrl = new URL(papiConfig.as[String]("genomics.endpoint-url"))
     val papiProjectId = papiConfig.as[String]("project")
 
     val check = for {
-      credentials <- Future(googleAuth.pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup))
+      credentials <- Future(googleAuth.credentials(List(GenomicsScopes.GENOMICS)))
       genomicsChecker = if (papiProviderConfig.as[String]("actor-factory").contains("v2alpha1"))
         GenomicsCheckerV2(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
       else

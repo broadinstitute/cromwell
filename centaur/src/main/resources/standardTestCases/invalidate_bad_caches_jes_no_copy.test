@@ -2,14 +2,23 @@ name: invalidate_bad_caches_jes_no_copy
 testFormat: workflowsuccess
 backends: [Papi-Caching-No-Copy]
 
+# No point retrying failures since they'll just end up colliding with previous results:
+retryTestFailures: false
+
 files {
   workflow: invalidate_bad_caches/invalidate_bad_caches_no_copy.wdl
 }
 
 metadata {
-    "calls.invalidate_bad_caches.make_file.callCaching.result": "Cache Miss"
-    "calls.invalidate_bad_caches.make_file.callCaching.allowResultReuse": false
-    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.callCaching.allowResultReuse": true
-    "calls.invalidate_bad_caches.delete_file_in_gcs.callCaching.result": "Cache Miss"
-    "calls.invalidate_bad_caches.invalidate_cache_and_remake_file.callCaching.result": "Cache Miss"
+    "calls.invalidate_bad_caches_no_copy.make_file.callCaching.result": "Cache Miss"
+    "calls.invalidate_bad_caches_no_copy.make_file.callCaching.allowResultReuse": false
+
+    "calls.invalidate_bad_caches_no_copy.make_file_again.callCaching.result": "Cache Hit: <<UUID>>:invalidate_bad_caches_no_copy.make_file:-1"
+
+    "calls.invalidate_bad_caches_no_copy.delete_file_in_gcs.callCaching.result": "Cache Miss"
+
+    "calls.invalidate_bad_caches_no_copy.invalidate_cache_and_remake_file.callCaching.result": "Cache Miss"
+    "calls.invalidate_bad_caches_no_copy.invalidate_cache_and_remake_file.callCaching.allowResultReuse": true
+
+    "outputs.invalidate_bad_caches_no_copy.woohoo": "woohoo"
 }

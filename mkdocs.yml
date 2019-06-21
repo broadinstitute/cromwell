@@ -11,9 +11,9 @@ pages:
 #    - Tutorial Map: tutorials/Overview.md
     - Quick Introduction: tutorials/FiveMinuteIntro.md
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
-    - Getting started with Pipelines API: tutorials/PipelinesApi101.md
+    - Getting started with Google Cloud: tutorials/PipelinesApi101.md
     - Getting started with Alibaba Cloud: tutorials/BCSIntro.md
-    - Getting started with AWS Batch (beta): tutorials/AwsBatch101.md
+    - Getting started with AWS (beta): tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
     - Getting started on HPC Clusters: tutorials/HPCIntro.md
@@ -51,7 +51,9 @@ pages:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
     - Google Cloud: backends/Google.md
+    - AWS Batch: backends/AWSBatch.md
     - Alibaba Cloud: backends/BCS.md
+    - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md
     - Spark: backends/Spark.md
     - HPC: backends/HPC.md

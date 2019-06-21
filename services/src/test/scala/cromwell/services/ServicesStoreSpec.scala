@@ -251,6 +251,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
   "SlickDatabase (mysql)" should behave like testWith("database-test-mysql")
 
+  "SlickDatabase (mariadb)" should behave like testWith("database-test-mariadb")
+
   def testWith(configPath: String): Unit = {
     import ServicesStore.EnhancedSqlDatabase
 

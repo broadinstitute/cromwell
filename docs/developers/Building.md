@@ -35,6 +35,9 @@ Finally build the Cromwell jar:
 $ sbt assembly
 ```
 
+NOTE: This command will run for a long time the first time.  
+NOTE: Compiling will not succeed on directories encrypted with ecryptfs (ubuntu encrypted home dirs for example), due to long file paths.
+
 `sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.12/` with a name like `cromwell-<VERSION>.jar`.
 
 To build a [Docker](https://www.docker.com/) image, run:

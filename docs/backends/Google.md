@@ -262,3 +262,40 @@ This filesystem has two required configuration options:
   documentation](https://www.ncbi.nlm.nih.gov/books/NBK63512/#Download.are_downloaded_files_encrypted)
   for more information on obtaining your NGC.  The `ngc` value provided above
   is the sample credential file.
+
+### Virtual Private Network
+
+To run your jobs in a private network add the `virtual-private-cloud` stanza in the `config` stanza of the PAPI v2 backend:
+
+```
+backend {
+  ...
+  providers {
+  	...
+  	PapiV2 {
+  	  actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+  	  config {
+  		...
+  		virtual-private-cloud {
+  	          network-label-key = "my-private-network"
+  	          auth = "reference-to-auth-scheme"
+  	        }
+  	    ...
+  	  }  
+      }
+  }
+}
+```
+
+
+The `network-label-key` should reference the key in the label in your project whose value is the name of your private network.
+ `auth` should reference an auth scheme in the `google` stanza which should be used to the project metadata from Google Cloud.
+For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
+
+```
+"my-private-network" = "vpc-network"
+```
+
+Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
+Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
+If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.

@@ -9,8 +9,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 # Setting these variables should cause the associated config values to be rendered into centaur_application_horicromtal.conf
 # There should probably be more indirections in CI scripts but that can wait.
 export TEST_CROMWELL_TAG=just-testing-horicromtal
-export TEST_CROMWELL_CONF=horicromtal_application.conf
-export CROMWELL_BUILD_MYSQL_USERNAME=travis
+export TEST_CROMWELL_CONF=papi_v2_horicromtal_application.conf
 
 cromwell::build::setup_common_environment
 
@@ -42,7 +41,5 @@ cromwell::build::run_centaur \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
-    "${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS:-""}" \
-    -d "${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}"
 
 cromwell::build::generate_code_coverage

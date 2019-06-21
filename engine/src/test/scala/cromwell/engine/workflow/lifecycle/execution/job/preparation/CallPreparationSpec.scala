@@ -21,7 +21,7 @@ class CallPreparationSpec extends FlatSpec with Matchers with Mockito {
     val inputs: InputDefinitionMappings = List(
       (RequiredInputDefinition("inputVal", WomSingleFileType), inputExpressionPointer)
     )
-    val node = CommandCallNode(null, null, null, inputs, Set.empty, null)
+    val node = CommandCallNode(null, null, null, inputs, Set.empty, null, None)
 
     callKey.node returns node
 

@@ -42,27 +42,28 @@ class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
     val callNodeBuilder = new CallNodeBuilder()
 
     val inputDefinition = CommandTaskDefinitionSpec.oneInputTask.inputs.head
-    
+
     val inputDefinitionFold = InputDefinitionFold(
       mappings = List(inputDefinition -> expressionNode.inputDefinitionPointer),
       callInputPorts = Set(callNodeBuilder.makeInputPort(inputDefinition, expressionNode.singleOutputPort)),
       newExpressionNodes = Set(expressionNode)
     )
-    
+
     val callNodeWithInputs = callNodeBuilder.build(
       WomIdentifier("foo"),
       CommandTaskDefinitionSpec.oneInputTask,
       inputDefinitionFold,
-      Set.empty
+      Set.empty,
+      None
     )
 
     def validateCallResult(callWithInputs: CallNodeAndNewNodes) = {
       callWithInputs.newInputs should be(Set.empty)
       callWithInputs.node.upstream should be(Set(expressionNode))
     }
-    
+
     validateCallResult(callNodeWithInputs)
-    
+
     val graph = Graph.validateAndConstruct(Set(iInputNode, jInputNode, callNodeWithInputs.node, expressionNode))
 
     graph match {

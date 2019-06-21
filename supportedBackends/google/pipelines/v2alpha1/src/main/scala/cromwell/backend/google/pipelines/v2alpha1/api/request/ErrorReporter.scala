@@ -58,7 +58,12 @@ class ErrorReporter(machineType: Option[String],
   import ErrorReporter._
 
   def toUnsuccessfulRunStatus(error: Status, events: List[Event]) = {
-    val status = GStatus.fromCodeValue(error.getCode)
+    // If for some reason the status is null, set it as UNAVAILABLE
+    val statusOption = for {
+      errorValue <- Option(error)
+      code <- Option(errorValue.getCode)
+    } yield GStatus.fromCodeValue(code.toInt)
+    val status = statusOption.getOrElse(GStatus.UNAVAILABLE)
     val builder = status match {
       case GStatus.UNAVAILABLE if wasPreemptible => Preempted.apply _
       case GStatus.CANCELLED => Cancelled.apply _
@@ -89,7 +94,7 @@ class ErrorReporter(machineType: Option[String],
   private def unexpectedStatusErrorString(event: Event, stderr: Option[String], labelTag: Option[String], inputNameTag: Option[String]) = {
     labelTag.map("[" + _ + "] ").getOrElse("") +
       inputNameTag.map("Input name: " +  _ + " - ").getOrElse("") +
-      event.getDescription +
+      Option(event).flatMap(eventValue => Option(eventValue.getDescription)).getOrElse("") +
       stderr.map(": " + _).getOrElse("")
   }
 
@@ -107,7 +112,10 @@ class ErrorReporter(machineType: Option[String],
       .map(_.getStderr)
   }
 
-  private def actionLabelValue(action: Action, k: String) = action.getLabels.asScala.get(k)
+  private def actionLabelValue(action: Action, k: String): Option[String] = {
+    Option(action).flatMap(actionValue => Option(actionValue.getLabels)).map(_.asScala).flatMap(_.get(k))
+  }
+
   private def actionLabelTag(action: Action) = actionLabelValue(action, Key.Tag)
   private def actionLabelInputName(action: Action) = actionLabelValue(action, Key.InputName)
 }

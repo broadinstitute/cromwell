@@ -13,6 +13,33 @@
 # into the CI config files.
 version: '2.3'
 services:
+  # Runs the database initialization but is NOT a workflow-running backend.
+  cromwell_database_master:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    network_mode: host
+    working_dir: /cromwell-working-dir
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG}
+        -Dwebservice.port=8080
+        -Dsystem.cromwell_id=master
+        -Dsystem.max-workflow-launch-count=0
+        -Dsystem.new-workflow-poll-rate=999999
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_USERNAME
+      - CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
   # Runs the summarizer and is also a regular Cromwell workflow-running backend.
   cromwell_summarizer_plus_backend:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
@@ -22,8 +49,19 @@ services:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
     command: ["server"]
     environment:
-      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8000 -Dsystem.max-workflow-launch-count=1 -Dsystem.new-workflow-poll-rate=10 -Dsystem.max-concurrent-workflows=30
-      - CROMWELL_BUILD_RESOURCES_DIRECTORY=${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG}
+        -Dwebservice.port=8000
+        -Dsystem.cromwell_id=summarizer
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_USERNAME
+      - CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+    depends_on:
+      cromwell_database_master:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 2s
@@ -37,9 +75,23 @@ services:
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
     depends_on:
-      cromwell_summarizer_plus_backend:
+      cromwell_database_master:
         condition: service_healthy
     command: ["server"]
     environment:
-      - JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG} -Dwebservice.port=8008 -Dsystem.max-workflow-launch-count=1 -Dsystem.new-workflow-poll-rate=10 -Dsystem.max-concurrent-workflows=30 -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-      - CROMWELL_BUILD_RESOURCES_DIRECTORY=${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_CONFIG}
+        -Dwebservice.port=${MANAGED_CROMWELL_PORT-8008}
+        -Dsystem.cromwell_id=frontend
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_USERNAME
+      - CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008"]
+      interval: 2s
+      timeout: 30s
+      retries: 60

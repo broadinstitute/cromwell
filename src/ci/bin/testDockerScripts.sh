@@ -7,6 +7,8 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
+cromwell::build::setup_docker_environment
+
 # When running locally, an `ADD .` in the Dockerfile might pull in files the local developer does not expect.
 # Until there is further review of what goes into the docker image (ex: rendered vault secrets!) do not push it yet.
 docker_tag="broadinstitute/cromwell-docker-develop:test-only-do-not-push"

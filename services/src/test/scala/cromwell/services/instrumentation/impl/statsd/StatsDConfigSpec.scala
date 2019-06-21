@@ -9,12 +9,11 @@ class StatsDConfigSpec extends FlatSpec with Matchers {
   
   it should "parse correct service configuration" in {
     val config = ConfigFactory.parseString(
-      """statsd {
+      """
         |hostname = "localhost"
         |port = 8125
         |prefix = "prefix_value" # can be used to prefix all metrics with an api key for example
         |flush-rate = 1 second # rate at which aggregated metrics will be sent to statsd
-        |}
       """.stripMargin
     )
 
@@ -27,7 +26,7 @@ class StatsDConfigSpec extends FlatSpec with Matchers {
   }
 
   it should "not parse incorrect service configuration" in {
-    val config = ConfigFactory.parseString("statsd {}")
+    val config = ConfigFactory.parseString("{}")
 
     val exception = the[IllegalArgumentException] thrownBy StatsDConfig(config)
 

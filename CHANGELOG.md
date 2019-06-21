@@ -1,5 +1,86 @@
 # Cromwell Change Log
 
+## 43 Release Notes
+
+### Call caching database refactoring
+
+Cromwell's `CALL_CACHING_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 100,000 `CALL_CACHING_HASH_ENTRY`
+rows per second. In deployments with millions or billions of `CALL_CACHING_HASH_ENTRY` rows the migration may require  
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+select max(CALL_CACHING_HASH_ENTRY_ID) from CALL_CACHING_HASH_ENTRY
+```
+
+### Stackdriver Instrumentation
+
+Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
+Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### BigQuery in PAPI
+
+Cromwell now allows a user to specify BigQuery jobs when using the PAPIv2 backend
+
+### Configuration Changes
+
+#### StatsD Instrumentation
+
+There is a small change in StatsD's configuration path. Originally, the path to the config was `services.Instrumentation.config.statsd`
+which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
+[here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### API Changes
+
+#### Workflow Metadata
+
+* It is now possible to use `includeKey` and `excludeKey` at the same time. If so, the metadata key must match the `includeKey` **and not** match the `excludeKey` to be included.
+* It is now possible to use "`calls`" as one of your `excludeKey`s, to request that only workflow metadata gets returned.
+
+## 42 Release Notes
+
+### Womtool endpoint
+
+The `/describe` endpoint now differentiates between an invalid workflow and a valid workflow with invalid inputs.
+
+Specifically, the new `validWorkflow` key indicates whether the workflow file is valid by itself. If inputs are provided, they are not considered when calculating this field; if inputs are not provided, the value is identical to `valid`.
+
+### Configuration Changes
+
+ *  Virtual private networks can now be configured. See the section below for details.
+ 
+#### Batch Request Timeouts
+
+The timeout on Cromwell's requests to PAPIv2 can now be configured. See the sample PAPIv2.conf for more documentation:
+
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        batch-requests {
+          timeouts {
+            read = 10 seconds
+            connect = 10 seconds
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Virtual Private Networks
+
+Cromwell now allows PAPIV2 jobs to run on a private network by adding the network name inside `virtual-private-cloud` in backend configuration.
+More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+### AWS Backend
+
+Now includes background job status polling to hopefully reduce the incidence of 'HTTP 429' errors for large workflows.
+
 ## 41 Release Notes
 
 ### Config changes
@@ -10,6 +91,87 @@ More information can be found in the [documentation on localization](https://cro
 ### Workflow Options
 
 * It is now possible to supply custom `google-labels` in [workflow options](https://cromwell.readthedocs.io/en/stable/wf_options/Google/).
+
+### AWS backend
+
+It is now possible to use WDL disk attributes with the following formats on AWS.
+```
+disks: "local-disk 20 SSD"
+```
+```
+disks: "/some/mnt 20 SSD"
+```
+Because Cromwell's AWS backend auto-sizes disks, the size specification is simply discarded.
+
+### Time Formatting
+
+In previous versions of Cromwell, times were converted to strings using
+[the default Java formatter](https://docs.oracle.com/javase/8/docs/api/java/time/OffsetDateTime.html#toString--) which
+generates a variety of ISO-8601 formats. String conversions also retained whatever server time zone generated that
+specific time instance.
+
+Going forward, times stored in Cromwell metadata, and later returned via the HTTP endpoint, are now converted to UTC
+then formatted with exactly three digits of milliseconds.
+
+For example:
+- `2017-01-19T12:34:56-04:00` will now be formatted as
+- `2017-01-19T16:34:56.000Z`
+
+This change only affects newly formatted dates. Older dates already formatted and stored by previous versions of
+Cromwell will not be updated however they will still return a
+[valid ISO-8601 format](https://en.wikipedia.org/wiki/ISO_8601). The older format may be in various non-UTC time zones,
+and may or may not include microseconds or even nanoseconds, for example `2017-01-19T12:34:56.123456789-04:00`.
+
+### Config Changes
+
+#### Heartbeat failure shutdown
+
+When a Cromwell instance is unable to write heartbeats for some period of time it will automatically shut down. For more
+information see the docs on [configuring Workflow Hearbeats](https://cromwell.readthedocs.io/en/stable/Configuring/).
+
+NOTE: In the remote chance that the `system.workflow-heartbeats.ttl` has been configured to be less than `5 minutes`
+then the new configuration value `system.workflow-heartbeats.write-failure-shutdown-duration` must also be explicitly
+set less than the `ttl`.
+
+#### nVidia Driver Attribute Change
+
+The runtime attribute `nvidia-driver-version` was previously allowed only as a default runtime attribute in configuration.
+Because WDL does not allow attribute names to contain `-` characters, this has been changed to `nvidiaDriverVersion`.
+This field is now accepted within WDL files as well as within the configuration file.
+
+#### Logging long running jobs
+
+All backends can now emit slow job warnings after a configurable time running. 
+NB This example shows how to configure this setting for the PAPIv2 backend:
+```conf
+# Emit a warning if jobs last longer than this amount of time. This might indicate that something got stuck.
+backend {
+  providers {
+    PAPIv2 {
+      config { 
+        slow-job-warning-time: 24 hours
+      }
+    }
+  }
+}
+```
+
+### Runtime Attributes
+
+#### GPU Attributes
+
+* The `gpuType` attribute is no longer validated against a whitelist at workflow submission time. Instead, validation now happens at runtime. This allows any valid accelerator to be used.
+* The `nvidiaDriverVersion` attribute is now available in WDL `runtime` sections. The default continues to be `390.46` which applies if and only if GPUs are being used.
+* A default `gpuType` ("nvidia-tesla-k80") will now be applied if `gpuCount` is specified but `gpuType` is not.
+* Similarly, a default `gpuCount` (1) will be applied if `gpuType` is specified but `cpuCount` is not. 
+
+### Bug fixes
+
+#### Better validation of workflow heartbeats
+
+An error will be thrown on startup when the `system.workflow-heartbeats.heartbeat-interval` is not less than the
+`system.workflow-heartbeats.ttl`.
+
 
 ## 40 Release Notes
 
@@ -87,7 +249,13 @@ services {
   }
 }
 ``` 
+### Workflow options changes
 
+A new workflow option is added. If the `final_workflow_outputs_dir` is set 
+`use_relative_output_paths` can be used. When set to `true` this will copy 
+all the outputs relative to their execution directory. 
+my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest.
+More information can be found in [the workflow options documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Overview/#output-copying).
 
 ### Bug fixes
 

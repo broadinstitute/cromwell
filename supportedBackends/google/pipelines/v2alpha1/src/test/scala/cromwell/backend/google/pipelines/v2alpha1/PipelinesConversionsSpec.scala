@@ -6,7 +6,7 @@ import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.google.pipelines.common.PipelinesApiAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
@@ -50,11 +50,11 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     val logging = actions.head
 
     logging.keySet.asScala should contain theSameElementsAs
-      Set("commands", "flags", "imageUri", "labels", "mounts")
+      Set("commands", "flags", "imageUri", "labels", "mounts", "timeout")
 
     logging.get("commands") should be(a[java.util.List[_]])
     logging.get("commands").asInstanceOf[java.util.List[_]] should contain(
-      """printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
+      """sleep 5 && printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
         """Localizing\ input\ dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba\ """ +
         """-\>\ /cromwell_root/path/to/file.bai"""
     )

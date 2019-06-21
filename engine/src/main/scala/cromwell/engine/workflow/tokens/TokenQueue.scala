@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.ActorRef
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.JobExecutionToken
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.TokenQueue._
@@ -17,7 +18,7 @@ import scala.collection.immutable.Queue
 final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
                             queueOrder: Vector[String],
                             eventLogger: TokenEventLogger,
-                            private [tokens] val pool: UnhoggableTokenPool) {
+                            private [tokens] val pool: UnhoggableTokenPool) extends StrictLogging {
   val tokenType = pool.tokenType
 
   /**
@@ -47,7 +48,14 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     * Returns a dequeue'd actor if one exists and there's a token available for it
     * Returns an updated token queue based on this request (successful queuees get removed, hogs get sent to the back)
     */
-  def dequeue: DequeueResult = recursingDequeue(queues, Vector.empty, queueOrder)
+  def dequeue: DequeueResult = {
+    val guaranteedNonEmptyQueues = queues.filterNot { case (hogGroup, q: Queue[_]) =>
+      val empty = q.isEmpty
+      if (empty) logger.warn(s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup")
+      empty
+    }
+    recursingDequeue(guaranteedNonEmptyQueues, Vector.empty, queueOrder)
+  }
 
   private def recursingDequeue(queues: Map[String, Queue[TokenQueuePlaceholder]], queuesTried: Vector[String], queuesRemaining: Vector[String]): DequeueResult = {
     if (queuesRemaining.isEmpty) {
@@ -57,32 +65,48 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
       val remainingHogGroups = queuesRemaining.tail
       val leaseTry = pool.tryAcquire(hogGroup)
 
-      leaseTry match {
-        case thl: TokenHoggingLease =>
-          val oldQueue = queues(hogGroup)
-          val (placeholder, newQueue) = oldQueue.dequeue
-          val (newQueues, newQueueOrder) = if (newQueue.isEmpty) {
-            (queues - hogGroup, remainingHogGroups ++ queuesTried)
-          } else {
-            (queues + (hogGroup -> newQueue), remainingHogGroups ++ queuesTried :+ hogGroup)
-          }
-          DequeueResult(Some(LeasedActor(placeholder, thl)), TokenQueue(newQueues, newQueueOrder, eventLogger, pool))
-        case TokenTypeExhausted =>
-          // The pool is completely full right now, so there's no benefit trying the other hog groups:
-          eventLogger.outOfTokens(tokenType.backend)
-          DequeueResult(None, this)
-        case HogLimitExceeded =>
-          eventLogger.flagTokenHog(hogGroup)
-          recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
+      val oldQueue = queues(hogGroup)
+
+      if (oldQueue.isEmpty) {
+        // We should have caught this above. But just in case:
+        logger.warn(s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup *and* made it through into recursiveDequeue(!): $hogGroup")
+        recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
+      } else {
+        leaseTry match {
+          case thl: TokenHoggingLease =>
+            val (placeholder, newQueue) = oldQueue.dequeue
+            val (newQueues, newQueueOrder) = if (newQueue.isEmpty) {
+              (queues - hogGroup, remainingHogGroups ++ queuesTried)
+            } else {
+              (queues + (hogGroup -> newQueue), remainingHogGroups ++ queuesTried :+ hogGroup)
+            }
+            DequeueResult(Option(LeasedActor(placeholder, thl)), TokenQueue(newQueues, newQueueOrder, eventLogger, pool))
+          case TokenTypeExhausted =>
+            // The pool is completely full right now, so there's no benefit trying the other hog groups:
+            eventLogger.outOfTokens(tokenType.backend)
+            DequeueResult(None, this)
+          case HogLimitExceeded =>
+            eventLogger.flagTokenHog(hogGroup)
+            recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
+        }
       }
     }
   }
 
-  def removeLostActor(lostActor: ActorRef): TokenQueue = this.copy(
-    queues = queues.map { case (hogGroup, queue) =>
-      hogGroup -> queue.filterNot(_.actor == lostActor)
+  def removeTokenlessActor(actor: ActorRef): TokenQueue = {
+    val actorRemovedQueues = queues.map { case (hogGroup, queue) =>
+      hogGroup -> queue.filterNot(_.actor == actor)
     }
-  )
+
+    val (emptyQueues, nonEmptyQueues) = actorRemovedQueues partition { case (_, q) => q.isEmpty }
+    val emptyHogGroups = emptyQueues.keys.toSet
+
+    this.copy(
+      // Filter out hog group mappings with empty queues
+      queues = nonEmptyQueues,
+      queueOrder = queueOrder filterNot emptyHogGroups.contains
+    )
+  }
 
   /**
     * Returns true if there's at least on element that can be dequeued, false otherwise.

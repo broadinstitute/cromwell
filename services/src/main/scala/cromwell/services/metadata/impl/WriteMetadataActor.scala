@@ -37,14 +37,36 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction onComplete {
       case Success(_) =>
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
-      case Failure(regerts) =>
-        val workflowMetadataFailureCounts = e.toVector.flatMap(_.events).groupBy(x => x.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }
-        log.error("Metadata events permanently dropped for the following workflows: " + workflowMetadataFailureCounts.mkString(","))
+      case Failure(cause) =>
 
-        putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteFailure(regerts, ev) }
+        val (outOfTries, stillGood) = e.toVector.partition(_.maxAttempts <= 1)
+
+        handleOutOfTries(outOfTries, cause)
+        handleEventsToReconsider(stillGood)
     }
 
     dbAction.map(_ => allPutEvents.size)
+  }
+
+  private def enumerateWorkflowWriteFailures(writeActions: Vector[MetadataWriteAction]): String =
+    writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (wfid, list) => s"$wfid: ${list.size}" }.mkString(", ")
+
+  private def handleOutOfTries(writeActions: Vector[MetadataWriteAction], reason: Throwable): Unit = if (writeActions.nonEmpty) {
+    log.error(reason, "Metadata event writes have failed irretrievably for the following workflows. They will be lost: " + enumerateWorkflowWriteFailures(writeActions))
+
+    writeActions foreach {
+      case PutMetadataActionAndRespond(ev, replyTo, _) => replyTo ! MetadataWriteFailure(reason, ev)
+      case _: PutMetadataAction => () // We need to satisfy the exhaustive match but there's nothing special to do here
+    }
+  }
+
+  private def handleEventsToReconsider(writeActions: Vector[MetadataWriteAction]): Unit = if (writeActions.nonEmpty) {
+    log.warning("Metadata event writes have failed for the following workflows. They will be retried: " + enumerateWorkflowWriteFailures(writeActions))
+
+    writeActions foreach {
+      case action: PutMetadataAction => self ! action.copy(maxAttempts = action.maxAttempts - 1)
+      case action: PutMetadataActionAndRespond => self ! action.copy(maxAttempts = action.maxAttempts - 1)
+    }
   }
 
   // EnhancedBatchActor overrides

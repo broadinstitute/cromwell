@@ -51,7 +51,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
     }
   }
 
@@ -97,7 +97,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
 
     parent.expectMsgPF(max = TimeoutDuration) {
       case JobFailedNonRetryableResponse(_, throwable, _) =>
-        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception.")
+        throwable.getMessage should be("PipelinesApiAsyncBackendJobExecutionActor failed and didn't catch its exception. This condition has been handled and the job will be marked as failed.")
     }
   }
 }

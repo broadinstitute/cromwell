@@ -19,9 +19,31 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     links:
       - mysql-db
+      - mariadb-db
+      - postgresql-db
   mysql-db:
     image: "mysql:5.7"
     environment:
-      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
-      - MYSQL_ROOT_PASSWORD=
+      - MYSQL_ROOT_PASSWORD=private
+      - MYSQL_USER=cromwell
+      - MYSQL_PASSWORD=test
       - MYSQL_DATABASE=cromwell_test
+    volumes:
+      - ./mysql-conf.d:/etc/mysql/conf.d
+  mariadb-db:
+    image: "mariadb:10.3"
+    environment:
+      - MYSQL_ROOT_PASSWORD=private
+      - MYSQL_USER=cromwell
+      - MYSQL_PASSWORD=test
+      - MYSQL_DATABASE=cromwell_test
+    volumes:
+      - ./mariadb-conf.d:/etc/mysql/conf.d
+  postgresql-db:
+    image: "postgres:11.3"
+    environment:
+      - POSTGRES_USER=cromwell
+      - POSTGRES_PASSWORD=test
+      - POSTGRES_DB=cromwell_test
+    volumes:
+      - ./postgresql-initdb.d:/docker-entrypoint-initdb.d

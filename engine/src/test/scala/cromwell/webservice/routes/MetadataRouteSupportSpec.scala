@@ -1,13 +1,11 @@
 package cromwell.webservice.routes
 
 import akka.actor.{ActorSystem, Props}
-import akka.http.scaladsl.coding.{Decoder, Gzip}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.headers.{HttpEncodings, `Accept-Encoding`}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.http.scaladsl.unmarshalling.Unmarshal
 import cromwell.core.WorkflowMetadataKeys
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
@@ -144,10 +142,11 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1", "testKey2")
+        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
         result.fields.keys shouldNot contain("testKey3")
-        result.fields("testKey1") should be(JsString("myValue1"))
-        result.fields("testKey2") should be(JsString("myValue2"))
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
       }
   }
 
@@ -182,35 +181,29 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   }
 
   it should "return with excluded metadata from the metadata route" in {
-    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?excludeKey=testKey2b&excludeKey=testKey3") ~>
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?excludeKey=testKey2&excludeKey=testKey3") ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)
         val result = responseAs[JsObject]
-        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
-        result.fields.keys should contain noneOf("testKey2b", "testKey3")
+        result.fields.keys should contain allOf("testKey1a", "testKey1b")
+        result.fields.keys should contain noneOf("testKey2a", "testKey3")
         result.fields("testKey1a") should be(JsString("myValue1a"))
         result.fields("testKey1b") should be(JsString("myValue1b"))
-        result.fields("testKey2a") should be(JsString("myValue2a"))
       }
   }
 
-  it should "return an error when included and excluded metadata requested from the metadata route" in {
-    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey2") ~>
+  it should "correctly include and exclude metadata keys in workflow details requests" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata?includeKey=testKey1&excludeKey=testKey1a") ~>
       akkaHttpService.metadataRoutes ~>
       check {
-        assertResult(StatusCodes.BadRequest) {
-          status
-        }
-
-        val decoder: Decoder = Gzip
-        Unmarshal(decoder.decodeMessage(response)).to[String] map { r =>
-          assertResult(
-            s"""{
-               |  "status": "fail",
-               |  "message": "includeKey and excludeKey may not be specified together"
-               |}""".stripMargin
-          ) { r }
+        val r = responseAs[String]
+        withClue(s"From response $r") {
+          status should be(StatusCodes.OK)
+          val result = responseAs[JsObject]
+          result.fields.keys should contain allElementsOf(List("testKey1b"))
+          result.fields.keys should contain noneOf("testKey1a", "testKey2")
+          result.fields("testKey1b") should be(JsString("myValue1b"))
         }
       }
   }

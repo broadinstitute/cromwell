@@ -312,8 +312,8 @@ object TestPipelinesApiRequestManager {
 
   def props(registryProbe: ActorRef, statusPollers: ActorRef*): Props = {
     Props(new TestPipelinesApiRequestManager(
-      papiConfiguration.jesAttributes.qps,
-      papiConfiguration.jesAttributes.requestWorkers,
+      papiConfiguration.papiAttributes.qps,
+      papiConfiguration.papiAttributes.requestWorkers,
       registryProbe,
       statusPollers: _*)
     )

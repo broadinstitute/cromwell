@@ -124,7 +124,14 @@ object ScatterElementToGraphNode {
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
 
-    val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph => WorkflowDefinition(a.node.scatterName, subWorkflowGraph, Map.empty, Map.empty) }
+    val subWorkflowDefinitionValidation = subWorkflowGraphValidation map { subWorkflowGraph =>
+      WorkflowDefinition(a.node.scatterName,
+                         subWorkflowGraph,
+                         Map.empty,
+                         Map.empty,
+                         None // no lexical information, because this doesn't map to a source workflow
+      )
+    }
 
     val scatterableGraphValidation = subWorkflowDefinitionValidation map { subWorkflowDefinition =>
       val callNodeBuilder = new CallNodeBuilder()
@@ -144,7 +151,12 @@ object ScatterElementToGraphNode {
       }
       val mapping = mappingAndPorts.map(_._1)
       val inputPorts = mappingAndPorts.map(_._2).toSet
-      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName), subWorkflowDefinition, InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts), Set.empty, (_, localName) => WomIdentifier(localName))
+      val result = callNodeBuilder.build(WomIdentifier(a.node.scatterName),
+                                         subWorkflowDefinition,
+                                         InputDefinitionFold(mappings = mapping, callInputPorts = inputPorts),
+                                         Set.empty,
+                                         a.node.sourceLocation,
+                                         (_, localName) => WomIdentifier(localName))
       graphNodeSetter._graphNode = result.node
       result.copy(newInputs = result.newInputs ++ newInputNodes.values)
     }

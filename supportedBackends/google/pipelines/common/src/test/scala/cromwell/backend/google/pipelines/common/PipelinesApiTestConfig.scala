@@ -111,6 +111,6 @@ object PipelinesApiTestConfig {
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(PapiBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val googleConfiguration = GoogleConfiguration(PapiGlobalConfig)
-  val papiAttributes = PipelinesApiAttributes(googleConfiguration, PapiBackendConfig)
+  val papiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig)
   val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
 }

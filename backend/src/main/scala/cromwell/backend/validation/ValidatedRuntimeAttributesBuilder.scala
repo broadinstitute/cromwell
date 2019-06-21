@@ -10,6 +10,8 @@ import wom.expression.WomExpression
 import wom.types.WomType
 import wom.values.WomValue
 
+import scala.util.control.NoStackTrace
+
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
 
 /**
@@ -36,7 +38,7 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
-  final lazy val validatorMap: Map[String, (Option[WomExpression]) => Boolean] = {
+  final lazy val validatorMap: Map[String, Option[WomExpression] => Boolean] = {
     validations.map(validation =>
       validation.key -> validation.validateOptionalWomExpression _
     ).toMap
@@ -59,7 +61,7 @@ trait ValidatedRuntimeAttributesBuilder {
     val runtimeAttributesErrorOr: ErrorOr[ValidatedRuntimeAttributes] = validate(attrs)
     runtimeAttributesErrorOr match {
       case Valid(runtimeAttributes) => runtimeAttributes
-      case Invalid(nel) => throw new RuntimeException with MessageAggregation {
+      case Invalid(nel) => throw new RuntimeException with MessageAggregation with NoStackTrace {
         override def exceptionContext: String = "Runtime attribute validation failed"
 
         override def errorMessages: Traversable[String] = nel.toList

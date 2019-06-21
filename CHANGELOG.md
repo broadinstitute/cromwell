@@ -32,6 +32,11 @@ There is a small change in StatsD's configuration path. Originally, the path to 
 which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
 [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
+#### cached-copy
+
+A new experimental feature, the `cached-copy` localization strategy is available for the shared filesystem. 
+More information can be found in the [documentation on localization](https://cromwell.readthedocs.io/en/stable/backends/HPC).
+
 ### API Changes
 
 #### Workflow Metadata

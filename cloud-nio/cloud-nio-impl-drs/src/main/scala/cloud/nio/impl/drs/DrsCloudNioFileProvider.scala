@@ -39,6 +39,9 @@ class DrsCloudNioFileProvider(scheme: String,
 
 
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
+    // Unlike other cloud providers where directories are identified with a trailing slash at the end like `gs://bucket/dir/`,
+    // DRS has a concept of bundles for directories (not supported yet). Hence for method `checkDirectoryExists` which appends a trailing '/'
+    // to see if the current path is a directory, return false
     if (drsPath.endsWith("/")) IO(false)
     else {
       drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>

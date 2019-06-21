@@ -10,6 +10,6 @@ submit {
   statusCode: 400
   message: """{
   "status": "fail",
-  "message": "Error(s): Input file is not a valid yaml or json. Inputs data: ''. Error: MatchError: null."
+  "message": "Error(s): Input file is not a valid yaml or json. Inputs data: ''. Error: ParsingFailure: null."
 }"""
 }

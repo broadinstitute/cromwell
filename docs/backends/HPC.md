@@ -23,7 +23,7 @@ Any input files to a call need to be localized into the `<call_dir>/inputs` dire
 * `hard-link` - This will create a hard link to the file
 * `soft-link` - Create a symbolic link to the file. This strategy is not applicable for tasks which specify a Docker image and will be ignored.
 * `copy` - Make a copy the file
-* `cached-copy` introduced in cromwell 41 as an experimental feature. This copies files to a file cache in 
+* `cached-copy` An experimental feature. This copies files to a file cache in 
 `<workflow_root>/cached-inputs` and then hard links them in the `<call_dir>/inputs` directory. 
 
 `cached-copy` is intended for a shared filesystem that runs on multiple physical disks, where docker containers are used. 

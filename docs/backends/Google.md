@@ -278,6 +278,7 @@ backend {
   		...
   		virtual-private-cloud {
   	          network-label-key = "my-private-network"
+  	          subnetwork-label-key = "my-private-subnetwork"
   	          auth = "reference-to-auth-scheme"
   	        }
   	    ...
@@ -288,8 +289,10 @@ backend {
 ```
 
 
-The `network-label-key` should reference the key in the label in your project whose value is the name of your private network.
- `auth` should reference an auth scheme in the `google` stanza which should be used to the project metadata from Google Cloud.
+The `network-label-key` and `subnetwork-label-key` should reference the keys in your project's labels whose value is the name of your private network
+and subnetwork within that network respectively. `auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
+The `subnetwork-label-key` is an optional config.
+
 For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
 
 ```

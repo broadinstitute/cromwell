@@ -89,15 +89,19 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       def networkFromLabels(vpcConfig: VirtualPrivateCloudConfiguration, projectLabels: ProjectLabels): Network = {
         val networkLabelOption = projectLabels.labels.find(l => l._1.equals(vpcConfig.name))
+        val subnetworkLabelOption = vpcConfig.subnetwork.flatMap(s => projectLabels.labels.find(l => l._1.equals(s)))
 
         networkLabelOption match {
           case Some(networkLabel) =>
-            new Network()
+            val network = new Network()
               .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
               .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
+
+            subnetworkLabelOption foreach { case(_, subnet) => network.setSubnetwork(subnet) }
+            network
           case None =>
-            jobLogger.debug("Project `{}` does not have high security network configured. " +
-              "Project metadata does not have network label key `{}`. Falling back to running the job on default network.", createPipelineParameters.projectId: Any, vpcConfig.name: Any)
+            // Falling back to running the job on default network since the project does not provide the custom network
+            // specifying keys in its metadata
             new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
       }

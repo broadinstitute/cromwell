@@ -18,8 +18,8 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider) ext
   /**
     * Unlike other cloud providers where directories are identified with a trailing slash at the end like `gs://bucket/dir/`,
     * DRS has a concept of bundles for directories (not supported yet). This sanitizes the path by removing the trailing '/'(s)
-    * so that the CloudNioFileSystemProvider & CloudNioPath does not treat a DRS path ending with '/' as a directory and
-    * return it's size as 0
+    * so that the CloudNioFileSystemProvider & CloudNioPath does not treat a DRS path ending with '/' as a directory, otherwise
+    * it's size is returned as 0
     */
   private def removeTrailingSlashes(path: String): String = {
     if (path.length > (drsScheme.length + 3)) { //3: length of '://'

@@ -17,6 +17,7 @@ import wom.callable.{Callable, CallableTaskDefinition, ContainerizedInputExpress
 import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
+import wom.util.YamlUtils
 import wom.values.{WomArray, WomEvaluatedCallInputs, WomGlobFile, WomInteger, WomString, WomValue}
 import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 
@@ -167,8 +168,9 @@ case class CommandLineTool private(
 
     // Parse content as json and return output values for each output port
     def parseContent(content: String): EvaluatedOutputs = {
+      val yaml = YamlUtils.parse(content)
       for {
-        parsed <- io.circe.yaml.parser.parse(content).flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
+        parsed <- yaml.flatMap(_.as[Map[String, Json]]).leftMap(error => NonEmptyList.one(error.getMessage))
         jobOutputsMap <- jsonToOutputs(parsed)
       } yield jobOutputsMap.toMap
     }

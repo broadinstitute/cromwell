@@ -297,7 +297,7 @@ url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=U
 
 Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
 
-## Abort
+### Abort
 
 **Control-C (SIGINT) abort handler**
 
@@ -514,7 +514,7 @@ Cromwell writes one batch of workflow heartbeats at a time. While the internal q
 a configurable threshold then [instrumentation](developers/Instrumentation.md) may send a metric signal that the
 heartbeat load is above normal.
 
-This threshold may be configured the configuration value:
+This threshold may be configured via the configuration value:
 
 ```hocon
 system.workflow-heartbeats {
@@ -523,3 +523,19 @@ system.workflow-heartbeats {
 ```
 
 The default threshold value is 100, just like the default for the heartbeat batch size.
+
+### YAML
+
+Cromwell will throw an error when detecting cyclic loops in Yaml inputs. However one can craft small acyclic YAML
+documents that consume significant amounts of memory or cpu. To limit the amount of processing during parsing, there is
+a limit on the number of nodes parsed per YAML document.
+
+This limit may be configured via the configuration value:
+
+```hocon
+yaml {
+  max-nodes = 1000000
+}
+```
+
+The default limit is 1,000,000 nodes.

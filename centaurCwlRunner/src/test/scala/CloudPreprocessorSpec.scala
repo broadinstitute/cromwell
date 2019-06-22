@@ -1,6 +1,7 @@
 import centaur.cwl.CloudPreprocessor
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FlatSpec, Matchers}
+import wom.util.YamlUtils
 
 class CloudPreprocessorSpec extends FlatSpec with Matchers {
   behavior of "PAPIPreProcessor"
@@ -8,8 +9,8 @@ class CloudPreprocessorSpec extends FlatSpec with Matchers {
   val pAPIPreprocessor = new CloudPreprocessor(ConfigFactory.load(), "papi.default-input-gcs-prefix")
   
   def validate(result: String, expectation: String) = {
-    val parsedResult = io.circe.yaml.parser.parse(result).right.get
-    val parsedExpectation = io.circe.yaml.parser.parse(expectation).right.get
+    val parsedResult = YamlUtils.parse(result).right.get
+    val parsedExpectation = YamlUtils.parse(expectation).right.get
 
     // This is an actual Json comparison from circe
     parsedResult shouldBe parsedExpectation

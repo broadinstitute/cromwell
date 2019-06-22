@@ -42,6 +42,12 @@ which now has been updated to `services.Instrumentation.config`. More info on it
 A new experimental feature, the `cached-copy` localization strategy is available for the shared filesystem. 
 More information can be found in the [documentation on localization](https://cromwell.readthedocs.io/en/stable/backends/HPC).
 
+#### Yaml node limits
+
+Yaml parsing now checks for cycles, and limits the maximum number of parsed nodes to a configurable value. See
+[the documentation on configuring Yaml](https://cromwell.readthedocs.io/en/stable/Configuring/#yaml) for more
+information.
+
 ### API Changes
 
 #### Workflow Metadata

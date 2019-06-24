@@ -44,9 +44,9 @@ More information can be found in the [documentation on localization](https://cro
 
 #### Yaml node limits
 
-Yaml parsing now checks for cycles, and limits the maximum number of parsed nodes to a configurable value. See
-[the documentation on configuring Yaml](https://cromwell.readthedocs.io/en/stable/Configuring/#yaml) for more
-information.
+Yaml parsing now checks for cycles, and limits the maximum number of parsed nodes to a configurable value. It also
+limits the nesting depth of sequences and mappings. See [the documentation on configuring
+YAML](https://cromwell.readthedocs.io/en/stable/Configuring/#yaml) for more information.
 
 ### API Changes
 

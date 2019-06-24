@@ -53,6 +53,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
       httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))
+      _ = println(s"FIND ME: Inside executeMarthaRequest(). httpresponse: $httpResponse")
     } yield httpResponse
   }
 
@@ -67,6 +68,8 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
     * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
   def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): IO[MarthaResponse] = {
+    println(s"FIND ME: Inside resolveDrsThroughMartha(). DRS path: $drsPath. serviceAccount: $serviceAccount")
+    println(s"FIND ME: Inside resolveDrsThroughMartha(). Martha url: ${drsConfig.marthaUri}")
     rawMarthaResponse(drsPath, serviceAccount).use(httpResponseToMarthaResponse)
   }
 }

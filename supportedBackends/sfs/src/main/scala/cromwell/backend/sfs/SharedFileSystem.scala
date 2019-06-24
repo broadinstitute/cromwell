@@ -14,6 +14,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory}
 import cromwell.filesystems.http.HttpPathBuilder
+import net.ceedubs.ficus.Ficus._
 import wom.WomFileMapper
 import wom.values._
 
@@ -110,9 +111,8 @@ object SharedFileSystem extends StrictLogging {
 trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
 
-  lazy val maxHardLinks: Int = 950  // Windows limit 1024. Keep a safe margin.
   def sharedFileSystemConfig: Config
-
+  lazy val maxHardLinks: Int = sharedFileSystemConfig.getOrElse[Int]("max-hardlinks",950)  // Windows limit 1024. Keep a safe margin.
   lazy val cachedCopyDir: Option[Path] = None
 
   private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {

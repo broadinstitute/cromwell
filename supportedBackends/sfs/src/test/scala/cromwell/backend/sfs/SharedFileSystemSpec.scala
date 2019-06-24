@@ -20,6 +20,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
   val softLinkLocalization = ConfigFactory.parseString(""" localization: [soft-link] """)
   val cachedCopyLocalization = ConfigFactory.parseString(""" localization: [cached-copy] """)
+  val cachedCopyLocalizationMaxHardlinks = ConfigFactory.parseString("""{localization: [cached-copy], max-hardlinks: 3 }""")
   val localPathBuilder = List(DefaultPathBuilder)
 
 
@@ -149,10 +150,9 @@ it should "copy the file again when the copy-cached file has exceeded the maximu
     val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
     val sharedFS = new SharedFileSystem {
       override val pathBuilders = localPathBuilder
-      override val sharedFileSystemConfig = cachedCopyLocalization
+      override val sharedFileSystemConfig = cachedCopyLocalizationMaxHardlinks
       override implicit def actorContext: ActorContext = null
       override lazy val cachedCopyDir = Some(DefaultPathBuilder.createTempDirectory("cached-copy"))
-      override lazy val maxHardLinks = 3
     }
     val cachedFile: Option[Path] = sharedFS.cachedCopyDir.map(
       _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name))

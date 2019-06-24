@@ -174,12 +174,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[Long] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryId <- summarizeMetadata(
+      maximumMetadataEntryIdConsidered <- summarizeMetadata(
         minMetadataEntryId = previousMaxMetadataEntryId + 1L,
         maxMetadataEntryId = nextMaxMetadataEntryId,
         startMetadataKey = startMetadataKey,
@@ -208,7 +208,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           },
         summaryName = summarizeNameIncreasing
       )
-    } yield maximumMetadataEntryId
+      maximumMetadataEntryIdInTableOption <- dataAccess.metadataEntries.map(_.metadataEntryId).max.result
+      maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
+        // TODO: Add a logging framework to this 'database' project and log this weirdness.
+        maximumMetadataEntryIdConsidered
+      }
+    } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
 
     runTransaction(action)
   }
@@ -227,7 +232,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[Long] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
       previousExistingMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summaryNameDecreasing)
       previousInitializedMetadataEntryIdOption <- previousExistingMetadataEntryIdOption match {
@@ -254,7 +259,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
             summaryName = summaryNameDecreasing
           )
       }
-    } yield newMinimumMetadataEntryId
+      rowsProcessed = previousExistingMetadataEntryIdOption.map(_ - newMinimumMetadataEntryId).getOrElse(0L)
+    } yield (rowsProcessed, newMinimumMetadataEntryId)
 
     runTransaction(action)
   }

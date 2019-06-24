@@ -10,22 +10,16 @@ import eu.timepit.refined.refineV
 import io.circe.{Json, ParsingFailure}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
+import org.yaml.snakeyaml.composer.Composer
+import org.yaml.snakeyaml.constructor.Constructor
+import org.yaml.snakeyaml.nodes.Node
+import org.yaml.snakeyaml.parser.ParserImpl
+import org.yaml.snakeyaml.reader.StreamReader
+import org.yaml.snakeyaml.resolver.Resolver
 
 import scala.collection.JavaConverters._
 
 object YamlUtils {
-
-  private[util] implicit val refinedNonNegativeReader: ValueReader[Int Refined NonNegative] = {
-    (config: Config, path: String) => {
-      val int = config.getInt(path)
-      refineV[NonNegative](int) match {
-        case Left(error) => throw new BadValue(path, error)
-        case Right(refinedInt) => refinedInt
-      }
-    }
-  }
-
-  private val defaultMaxNodes = ConfigFactory.load().as[Int Refined NonNegative]("yaml.max-nodes")
 
   /**
     * Parses the yaml, detecting loops, and a maximum number of nodes.
@@ -34,12 +28,19 @@ object YamlUtils {
     *
     * @param yaml     The yaml string.
     * @param maxNodes Maximum number of yaml nodes to parse.
+    * @param maxDepth Maximum nested depth of yaml to parse.
     * @return The parsed yaml.
     */
-  def parse(yaml: String, maxNodes: Int Refined NonNegative = defaultMaxNodes): Either[ParsingFailure, Json] = {
+  def parse(yaml: String,
+            maxNodes: Int Refined NonNegative = defaultMaxNodes,
+            maxDepth: Int Refined NonNegative = defaultMaxDepth
+           ): Either[ParsingFailure, Json] = {
     try {
-      val snakeYamlParser = new org.yaml.snakeyaml.Yaml()
-      val parsed = snakeYamlParser.load[AnyRef](new StringReader(yaml))
+      val yamlConstructor = new Constructor()
+      val yamlComposer = new MaxDepthComposer(yaml, maxDepth)
+      yamlConstructor.setComposer(yamlComposer)
+      val parsed = yamlConstructor.getSingleData(classOf[AnyRef])
+
       // Use identity comparisons to check if two nodes are the same and do NOT recurse into them checking equality
       val identityHashMap = new java.util.IdentityHashMap[AnyRef, java.lang.Boolean]()
       // Since we don't actually need the values, wrap the Map in a Set
@@ -52,9 +53,64 @@ object YamlUtils {
     }
   }
 
+  private[util] implicit val refinedNonNegativeReader: ValueReader[Int Refined NonNegative] = {
+    (config: Config, path: String) => {
+      val int = config.getInt(path)
+      refineV[NonNegative](int) match {
+        case Left(error) => throw new BadValue(path, error)
+        case Right(refinedInt) => refinedInt
+      }
+    }
+  }
+
+  private lazy val composerRecursiveNodesField = {
+    val field = classOf[Composer].getDeclaredField("recursiveNodes")
+    field.setAccessible(true)
+    field
+  }
+
+  private val yamlConfig = ConfigFactory.load().getConfig("yaml")
+  private val defaultMaxNodes = yamlConfig.as[Int Refined NonNegative]("max-nodes")
+  private val defaultMaxDepth = yamlConfig.as[Int Refined NonNegative]("max-depth")
+
+  /** Extends SnakeYaml's Composer checking for a maximum depth before a StackOverflowError occurs. */
+  private class MaxDepthComposer(yaml: String, maxDepth: Int Refined NonNegative)
+    extends Composer(
+      new ParserImpl(new StreamReader(new StringReader(yaml))),
+      new Resolver()
+    ) {
+
+    private lazy val composerRecursiveFields: java.util.Set[Node] = getRecursiveNodeSet(this)
+
+    private def checkDepth(): Unit = {
+      if (composerRecursiveFields.size > maxDepth.value)
+        throw new IllegalArgumentException(s"Parsing halted at node depth $maxDepth")
+    }
+
+    override def composeScalarNode(anchor: String): Node = {
+      checkDepth()
+      super.composeScalarNode(anchor)
+    }
+
+    override def composeSequenceNode(anchor: String): Node = {
+      checkDepth()
+      super.composeSequenceNode(anchor)
+    }
+
+    override def composeMappingNode(anchor: String): Node = {
+      checkDepth()
+      super.composeMappingNode(anchor)
+    }
+  }
+
   /** A "pointer" reference to a mutable count. */
   private class Counter {
     var count = 0L
+  }
+
+  /** Use reflection to access the existing but private Set of nested nodes */
+  private def getRecursiveNodeSet(composer: Composer): java.util.Set[Node] = {
+    composerRecursiveNodesField.get(composer).asInstanceOf[java.util.Set[Node]]
   }
 
   /**

@@ -3,7 +3,7 @@ package cromwell.util
 import java.util.UUID
 
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
 import spray.json._
 import wom.core.{ExecutableInputMap, WorkflowJson, WorkflowSource}
 import wom.values._
@@ -38,7 +38,7 @@ trait SampleWdl extends TestFileUtil {
           workflowUrl = None,
           workflowRoot = None,
           inputsJson = workflowJson,
-          workflowOptionsJson = workflowOptions,
+          workflowOptions = WorkflowOptions.fromJsonString(workflowOptions).get,
           labelsJson = labels,
           workflowType = workflowType,
           workflowTypeVersion = workflowTypeVersion,
@@ -51,7 +51,7 @@ trait SampleWdl extends TestFileUtil {
           workflowUrl = None,
           workflowRoot = None,
           inputsJson = workflowJson,
-          workflowOptionsJson = workflowOptions,
+          workflowOptions = WorkflowOptions.fromJsonString(workflowOptions).get,
           labelsJson = labels,
           workflowType = workflowType,
           workflowTypeVersion = workflowTypeVersion,

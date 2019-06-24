@@ -41,8 +41,10 @@ trait WorkflowStoreEntryComponent {
 
     def heartbeatTimestamp = column[Option[Timestamp]]("HEARTBEAT_TIMESTAMP")
 
+    def hogGroup = column[Option[String]]("HOG_GROUP")
+
     override def * = (workflowExecutionUuid, workflowDefinition, workflowUrl, workflowRoot, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
-      submissionTime, importsZip, customLabels, cromwellId, heartbeatTimestamp, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
+      submissionTime, importsZip, customLabels, cromwellId, heartbeatTimestamp, hogGroup, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 

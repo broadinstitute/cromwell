@@ -430,7 +430,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
           * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
           * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
           */
-        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(sources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
+        def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
         val system = context.system
         val ec = context.system.dispatcher
         def bruteForcePathBuilders: Future[List[PathBuilder]] = {

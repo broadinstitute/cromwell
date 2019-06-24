@@ -157,7 +157,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       val replyTo = sender()
 
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
-        case Valid((workflowOptions, pathBuilders)) =>
+        case (workflowOptions, pathBuilders) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
             buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
@@ -171,9 +171,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
           // of replyTo in the data
           pipe(futureDescriptor).to(self, replyTo)
           goto(MaterializingState)
-        case Invalid(error) =>
-          workflowInitializationFailed(error, replyTo)
-          goto(MaterializationFailedState)
       }
     case Event(MaterializeWorkflowDescriptorAbortCommand, _) =>
       goto(MaterializationAbortedState)
@@ -220,12 +217,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       })
   }
 
-  private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): ErrorOr[(WorkflowOptions, Future[List[PathBuilder]])] = {
-    val workflowOptionsValidation = validateWorkflowOptions(sourceFiles.workflowOptionsJson)
-    workflowOptionsValidation map { workflowOptions =>
-      val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions, pathBuilderFactories)(context.system)
-      (workflowOptions, pathBuilders)
-    }
+  private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): (WorkflowOptions, Future[List[PathBuilder]]) = {
+    sourceFiles.workflowOptions
+    val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(sourceFiles.workflowOptions, pathBuilderFactories)(context.system)
+    (sourceFiles.workflowOptions, pathBuilders)
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,
@@ -436,13 +431,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         // TODO WOM: need access to a "source string" for WomExpressions
         // TODO WOM: ErrorOrify this ?
         throw AggregatedMessageException(s"Dynamic backends are not currently supported! Cannot assign backend '$backendNameAsExp' for Call: $callName", errors.toList)
-    }
-  }
-
-  private def validateWorkflowOptions(workflowOptions: String): ErrorOr[WorkflowOptions] = {
-    WorkflowOptions.fromJsonString(workflowOptions) match {
-      case Success(opts) => opts.validNel
-      case Failure(e) => s"Workflow contains invalid options JSON: ${e.getMessage}".invalidNel
     }
   }
 

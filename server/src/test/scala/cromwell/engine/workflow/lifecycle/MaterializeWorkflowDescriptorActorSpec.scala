@@ -41,7 +41,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       |}
     """.stripMargin)
   val unstructuredFile = "fubar badness!"
-  val validOptionsFile =""" { "write_to_cache": "true" } """
+  val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": "true" } """).get
   val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2", "Label1": "valu£1" }"""
   val badCustomLabelsFile="""{ "key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas": "value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa" }"""
 
@@ -69,7 +69,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -112,7 +112,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = inputs.toJson.toString(),
-        workflowOptionsJson = "{}",
+        workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -167,7 +167,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
-        workflowOptionsJson = "{}",
+        workflowOptions = WorkflowOptions.empty,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
@@ -211,7 +211,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
-        workflowOptionsJson = "{}",
+        workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
@@ -239,7 +239,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -268,7 +268,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = inputs.toJson.toString(),
-        workflowOptionsJson = "{}",
+        workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -304,7 +304,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = validInputsJson,
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -313,33 +313,6 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
             reason.getMessage should startWith("Workflow input processing failed:\nNamespace does not have a local workflow to run")
-          case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
-          case unknown =>
-            fail(s"Unexpected materialization response: $unknown")
-        }
-      }
-
-      system.stop(materializeWfActor)
-    }
-
-    "reject an invalid options file" in {
-      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor))
-      val sources = WorkflowSourceFilesWithoutImports(
-        workflowSource = Option(workflowSourceNoDocker),
-        workflowUrl = None,
-        workflowRoot = None,
-        workflowType = Option("WDL"),
-        workflowTypeVersion = None,
-        inputsJson = validInputsJson,
-        workflowOptionsJson = unstructuredFile,
-        labelsJson = validCustomLabelsFile,
-        warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
-
-      within(Timeout) {
-        expectMsgPF() {
-          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
-            reason.getMessage should startWith("Workflow input processing failed:\nWorkflow contains invalid options JSON")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown =>
             fail(s"Unexpected materialization response: $unknown")
@@ -358,7 +331,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = unstructuredFile,
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -386,7 +359,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = noInputsJson,
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf)
@@ -421,7 +394,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
@@ -465,7 +438,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = jsonInput,
-        workflowOptionsJson = validOptionsFile,
+        workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
       materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)

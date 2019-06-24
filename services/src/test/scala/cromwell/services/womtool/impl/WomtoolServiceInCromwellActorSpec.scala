@@ -3,7 +3,7 @@ package cromwell.services.womtool.impl
 import akka.pattern._
 import akka.testkit.TestProbe
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.ServicesSpec
 import cromwell.services.womtool.WomtoolServiceMessages._
@@ -327,7 +327,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,
       inputsJson = inputsJson,
-      workflowOptionsJson = "",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,

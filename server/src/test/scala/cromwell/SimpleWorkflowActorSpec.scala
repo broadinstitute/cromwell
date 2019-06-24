@@ -9,7 +9,7 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -46,7 +46,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       workflowType = Option("WDL"),
       workflowTypeVersion = None,
       inputsJson = rawInputsOverride,
-      workflowOptionsJson = "{}",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "{}",
       warnings = Vector.empty
     )

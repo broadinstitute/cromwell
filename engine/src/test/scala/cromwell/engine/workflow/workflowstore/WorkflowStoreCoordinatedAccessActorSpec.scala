@@ -7,7 +7,7 @@ import akka.pattern._
 import akka.testkit._
 import akka.util.Timeout
 import cats.data.NonEmptyVector
-import cromwell.core.{TestKitSuite, WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.{TestKitSuite, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{FetchStartableWorkflows, WriteHeartbeats}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
@@ -53,7 +53,7 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
       workflowType = None,
       workflowTypeVersion = None,
       inputsJson = "input",
-      workflowOptionsJson = "option",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "string",
       importsFile = None,
       workflowOnHold = true,
@@ -83,7 +83,7 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
       workflowType = None,
       workflowTypeVersion = None,
       inputsJson = "",
-      workflowOptionsJson = "",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,

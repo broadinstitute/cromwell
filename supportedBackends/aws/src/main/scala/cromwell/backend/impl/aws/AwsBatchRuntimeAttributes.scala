@@ -212,7 +212,7 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[AwsBatchVolume]] 
 
   private def addDefault(disksNel: ErrorOr[Seq[AwsBatchVolume]]): ErrorOr[Seq[AwsBatchVolume]] = {
     disksNel map {
-      case disks if disks.exists(_.name == AwsBatchWorkingDisk.Name) => disks
+      case disks if disks.exists(_.name == AwsBatchWorkingDisk.Name)|| disks.exists(_.fsType == "efs") => disks
       case disks => disks :+ AwsBatchWorkingDisk.Default
     }
   }

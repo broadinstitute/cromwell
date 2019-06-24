@@ -68,9 +68,9 @@ object AwsBatchAttributes {
     "dockerhub",
     "dockerhub.account",
     "dockerhub.token",
-    "filesystems",
-    "filesystems.s3.auth",
-    "filesystems.s3.caching.duplication-strategy",
+    "filesystems.local",
+    "filesystems.local.auth",
+    "filesystems.local.caching.duplication-strategy",
     "default-runtime-attributes",
     "default-runtime-attributes.disks",
     "default-runtime-attributes.memory",
@@ -104,14 +104,14 @@ object AwsBatchAttributes {
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
     val filesystemAuthMode: ErrorOr[AwsAuthMode] =
       (for {
-        authName <- validate { backendConfig.as[String]("filesystems.s3.auth") }.toEither
+        authName <- validate { backendConfig.as[String]("filesystems.local.auth") }.toEither
         validAuth <- awsConfig.auth(authName).toEither
       } yield validAuth).toValidated
 
     val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
       validate {
         backendConfig.
-          as[Option[String]]("filesystems.s3.caching.duplication-strategy").
+          as[Option[String]]("filesystems.local.caching.duplication-strategy").
           getOrElse("copy") match {
             case "copy" => CopyCachedOutputs
             case "reference" => UseOriginalCachedOutputs

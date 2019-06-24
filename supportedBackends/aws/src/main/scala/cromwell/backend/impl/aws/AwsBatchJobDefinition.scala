@@ -37,9 +37,10 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import software.amazon.awssdk.services.batch.model.{ContainerProperties, KeyValuePair}
 import wdl4s.parser.MemoryUnit
+import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
-
+import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 import com.google.common.io.BaseEncoding
@@ -59,6 +60,8 @@ sealed trait AwsBatchJobDefinition {
 }
 
 trait AwsBatchJobDefinitionBuilder {
+  val Log = LoggerFactory.getLogger(this.getClass)
+
   /** Gets a builder, seeded with appropriate portions of the container properties
    *
    *  @param commandLine command line to execute within the container. Will be run in a shell context
@@ -71,6 +74,7 @@ trait AwsBatchJobDefinitionBuilder {
 
   def buildKVPair(key: String, value: String): KeyValuePair =
     KeyValuePair.builder.name(key).value(value).build
+
 
   def buildResources(builder: ContainerProperties.Builder,
                      context: AwsBatchJobDefinitionContext): ContainerProperties.Builder = {
@@ -97,11 +101,19 @@ trait AwsBatchJobDefinitionBuilder {
     environment.append(gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo))
     environment.append(buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))
 
+    def getVolPath(d:AwsBatchVolume) : Option[String] =  {
+        d.fsType match {
+          case "efs"  => None
+          case _ => {Log.info(s" Vol details ${d.name} : ${d.fsType}")
+            Option(context.uniquePath) }
+        }
+    }
+
     builder
       .command(packCommand("/bin/bash", "-c", context.commandText).asJava)
       .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(context.runtimeAttributes.cpu##)
-      .volumes(context.runtimeAttributes.disks.map(_.toVolume(context.uniquePath)).asJava)
+      .volumes(context.runtimeAttributes.disks.map(d => d.toVolume(getVolPath(d))).asJava)
       .mountPoints(context.runtimeAttributes.disks.map(_.toMountPoint).asJava)
       .environment(environment.asJava)
   }

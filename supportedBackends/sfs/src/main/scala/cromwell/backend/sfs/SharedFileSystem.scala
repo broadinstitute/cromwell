@@ -101,11 +101,16 @@ object SharedFileSystem extends StrictLogging {
       Thread.sleep(1)
     }
   }
+
+  private def countLinks(path: Path): Int = {
+    path.getAttribute("unix:nlink").asInstanceOf[Int]
+  }
 }
 
 trait SharedFileSystem extends PathFactory {
   import SharedFileSystem._
 
+  val maxHardLinks: Int = 950  // Windows limit 1024. Keep a safe margin.
   def sharedFileSystemConfig: Config
 
   lazy val cachedCopyDir: Option[Path] = None
@@ -124,7 +129,7 @@ trait SharedFileSystem extends PathFactory {
       val cachedCopyPath: Path = cachedCopySubDir./(pathAndModTime)
       val cachedCopyPathLockFile: Path = cachedCopyPath.plusSuffix(".lock")
 
-      if (!cachedCopyPath.exists) {
+      if (!cachedCopyPath.exists || countLinks(cachedCopyPath) > maxHardLinks) {
         // This variable is used so we can release the lock before we start with the copying.
         var shouldCopy = false
 
@@ -133,10 +138,11 @@ trait SharedFileSystem extends PathFactory {
         // decisions which are not time consuming.
         SharedFileSystem.synchronized {
 
-          // We check again if cachedCopyPath is there. It may have been created while waiting on the lock.
-          // If it is not there, is it already being copied by another thread?
+          // We check again if cachedCopyPath is there or if the number of Hardlinks is still exceeded.
+          // The copying may have been started while waiting on the lock.
+          // If it is not there or the maxHardLinks are exceeded, is it already being copied by another thread?
           // if not copied by another thread, is it copied by another cromwell process? (Lock file present)
-          if (!cachedCopyPath.exists &&
+          if ((!cachedCopyPath.exists || countLinks(cachedCopyPath) > maxHardLinks) &&
             !SharedFileSystem.beingCopied.getOrElse(cachedCopyPath, false) &&
             !cachedCopyPathLockFile.exists) {
             // Create a lock file so other cromwell processes know copying has started
@@ -163,7 +169,9 @@ trait SharedFileSystem extends PathFactory {
         if (shouldCopy) {
           try {
             val cachedCopyTmpPath = cachedCopyPath.plusExt("tmp")
-            originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath)
+            // CachedCopyPath is overwritten. It is possible that the number of hardlinks is exceeded. In which case
+            // the file is already there.
+            originalPath.copyTo(cachedCopyTmpPath, overwrite = true).moveTo(cachedCopyPath, overwrite = true)
           } catch {
             case e: Exception => throw e
           }

@@ -43,10 +43,8 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
 
 
   override def size(): Long = {
-    println(s"FIND ME: Inside size()")
     val sizeIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      _ = println(s"FIND ME: Inside size(). Raw martha response: $marthaResponse")
       size <- IO.fromEither(marthaResponse.dos.data_object.size.toRight(throwRuntimeException("size")))
     } yield size
 

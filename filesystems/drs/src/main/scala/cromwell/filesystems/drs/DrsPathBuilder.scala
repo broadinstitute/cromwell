@@ -32,11 +32,11 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider) ext
 
   override def build(pathAsString: String): Try[Path] = {
     if (pathAsString.startsWith(s"$drsScheme://")) {
-      Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(removeTrailingSlashes(pathAsString)))) flatMap { uri =>
+      val pathWithoutTrailingSlashes = removeTrailingSlashes(pathAsString)
+      Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(pathWithoutTrailingSlashes))) flatMap { uri =>
         if (!Option(uri.getScheme).exists(_.equalsIgnoreCase(fileSystemProvider.getScheme))) {
           Failure(new IllegalArgumentException(s"$pathAsString does not have a $drsScheme scheme."))
         } else {
-          println(s"FIND ME: Inside path builder. Path: $pathAsString")
           Try(DrsPath(fileSystemProvider.getPath(uri)))
         }
       }

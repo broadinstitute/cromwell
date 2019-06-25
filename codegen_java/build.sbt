@@ -4,7 +4,7 @@ import Version._
 lazy val root = (project in file(".")).
   settings(
     Seq(organization := "org.broadinstitute.cromwell",
-    name := "waas-client",
+    name := "cromwell-client",
     version := createVersion("0.1"),
     scalaVersion := "2.12.8",
     scalacOptions ++= Seq("-feature"),

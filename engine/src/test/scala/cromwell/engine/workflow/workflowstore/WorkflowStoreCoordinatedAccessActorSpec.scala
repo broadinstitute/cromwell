@@ -7,7 +7,7 @@ import akka.pattern._
 import akka.testkit._
 import akka.util.Timeout
 import cats.data.NonEmptyVector
-import cromwell.core.{TestKitSuite, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
+import cromwell.core._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{FetchStartableWorkflows, WriteHeartbeats}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
@@ -60,7 +60,7 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
       warnings = Seq.empty
     )
     val now = OffsetDateTime.now()
-    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted))
+    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
     val workflowStore = new InMemoryWorkflowStore {
       override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                           (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
@@ -90,7 +90,7 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
       warnings = Seq.empty
     )
     val now = OffsetDateTime.now()
-    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted))
+    val expected: List[WorkflowToStart] = List(WorkflowToStart(WorkflowId.randomId(), now, collection, Submitted, HogGroup("foo")))
     val workflowStore = new InMemoryWorkflowStore {
       override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                           (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {

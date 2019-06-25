@@ -6,7 +6,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions}
 import common.exception.AggregatedException
 import org.scalatest.Matchers
 import org.scalatest.concurrent.{ScalaFutures, ScaledTimeSpans}
@@ -45,7 +45,10 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
       executable.entryPoint,
       executable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }}),
       options,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
   }
 

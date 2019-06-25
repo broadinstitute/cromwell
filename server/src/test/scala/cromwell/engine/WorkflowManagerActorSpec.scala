@@ -2,7 +2,7 @@ package cromwell.engine
 
 import com.typesafe.config.ConfigValueFactory
 import cromwell.core._
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
 import cromwell.util.{SampleWdl, WorkflowImport}
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import wom.core.{ExecutableInputMap, WorkflowSource}
@@ -11,7 +11,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder {
+class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs {
   override implicit val actorSystem = system
 
   "A WorkflowManagerActor" should {

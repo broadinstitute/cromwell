@@ -141,7 +141,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 2
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, HogGroup("foo")) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloWorldSourceFiles
               state shouldBe Submitted
@@ -154,7 +154,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 1
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, HogGroup("foo")) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloCwlWorldSourceFiles
               state shouldBe Submitted
@@ -198,7 +198,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size should be(1)
           checkDistinctIds(workflowNel.toList) should be(true)
           workflowNel.toList.foreach {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, HogGroup("foo")) =>
               insertedIds.contains(id) should be(true)
               sources.workflowSource should be(optionedSourceFiles.workflowSource)
               sources.inputsJson should be(optionedSourceFiles.inputsJson)
@@ -250,7 +250,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 3
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, HogGroup("foo")) =>
               insertedIds.contains(id) shouldBe true
               sources shouldBe helloWorldSourceFiles
               state shouldBe Submitted

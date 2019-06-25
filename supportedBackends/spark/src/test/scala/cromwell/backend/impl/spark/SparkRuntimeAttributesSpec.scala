@@ -4,7 +4,7 @@ import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions}
 import org.scalatest.{Matchers, WordSpecLike}
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespaceWithWorkflow}
@@ -137,7 +137,10 @@ class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
       wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("Cannot build Wom Workflow")),
       inputs,
       options,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
   }
 

@@ -3,7 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.{HogGroup, WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
@@ -38,7 +38,9 @@ class InMemoryWorkflowStore extends WorkflowStore {
     workflowStore = workflowStore ++ updatedWorkflows
 
     val workflowsToStart = startableWorkflows map {
-      case (workflow, WorkflowStoreState.Submitted) => WorkflowToStart(workflow.id, OffsetDateTime.now, workflow.sources, Submitted)
+      case (workflow, WorkflowStoreState.Submitted) =>
+        val hogGroup = HogGroup.decide(workflow.sources.workflowOptions, workflow.id)
+        WorkflowToStart(workflow.id, OffsetDateTime.now, workflow.sources, Submitted, hogGroup)
       case _ => throw new IllegalArgumentException("This workflow is not currently in a startable state")
     }
 

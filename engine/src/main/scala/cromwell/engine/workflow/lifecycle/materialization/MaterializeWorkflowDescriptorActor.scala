@@ -21,7 +21,7 @@ import common.validation.IOChecked._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
-import cromwell.core._
+import cromwell.core.{HogGroup, _}
 import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
@@ -61,8 +61,8 @@ object MaterializeWorkflowDescriptorActor {
   private def cromwellBackends = CromwellBackends.instance.get
 
   def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends,
-            importLocalFilesystem: Boolean, ioActorProxy: ActorRef): Props = {
-    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem, ioActorProxy)).withDispatcher(EngineDispatcher)
+            importLocalFilesystem: Boolean, ioActorProxy: ActorRef, hogGroup: HogGroup): Props = {
+    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem, ioActorProxy, hogGroup)).withDispatcher(EngineDispatcher)
   }
 
   /*
@@ -137,7 +137,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
-                                         ioActorProxy: ActorRef) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with StrictLogging with WorkflowLogging {
+                                         ioActorProxy: ActorRef,
+                                         hogGroup: HogGroup) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit] with StrictLogging with WorkflowLogging {
 
   import MaterializeWorkflowDescriptorActor._
   val tag = self.path.name
@@ -383,7 +384,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation) mapN {
       case (failureMode, backendAssignments, callCachingMode) =>
         val callable = womNamespace.executable.entryPoint
-        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, outputRuntimeExtractor)
+        val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, hogGroup, List.empty, outputRuntimeExtractor)
         EngineWorkflowDescriptor(callable, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)
     }
   }

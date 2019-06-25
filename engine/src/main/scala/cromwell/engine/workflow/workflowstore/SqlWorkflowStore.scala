@@ -6,7 +6,7 @@ import cats.data.NonEmptyList
 import cats.syntax.apply._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
+import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
@@ -165,11 +165,16 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
         workflowOnHold = false
       )
 
+      val id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid)
+      val hogGroup: HogGroup = workflowStoreEntry.hogGroup.map(HogGroup(_)).getOrElse(HogGroup.decide(workflowOptions, id))
+
       WorkflowToStart(
-        id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
+        id = id,
         submissionTime = workflowStoreEntry.submissionTime.toSystemOffsetDateTime,
         sources = sources,
-        state = startableState)
+        state = startableState,
+        hogGroup = hogGroup
+      )
     }
   }
 
@@ -187,7 +192,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     val actualWorkflowState = workflowSubmissionState(workflowSourceFiles)
 
     val workflowId = WorkflowId.randomId()
-    val hogGroup = workflowSourceFiles.workflowOptions.inferHogGroup(workflowId)
+    val hogGroup = HogGroup.decide(workflowSourceFiles.workflowOptions, workflowId)
 
     WorkflowStoreEntry(
       workflowExecutionUuid = workflowId.toString,
@@ -204,7 +209,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       heartbeatTimestamp = None,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
       importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption,
-      hogGroup = Option(hogGroup)
+      hogGroup = Option(hogGroup.value)
     )
   }
 

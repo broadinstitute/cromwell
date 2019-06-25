@@ -196,20 +196,6 @@ case class WorkflowOptions(jsObject: JsObject) {
 
     WorkflowOptions(revoke(jsObject))
   }
-
-  def inferHogGroup(workflowId: WorkflowId): String = {
-    val config = ConfigFactory.load
-
-    if (config.hasPath("system.hog-safety.workflow-option")) {
-      val hogGroupField = config.getString("system.hog-safety.workflow-option")
-      this.get(hogGroupField) match {
-        case Success(hg) => hg
-        case Failure(_) => workflowId.shortString
-      }
-    } else {
-      workflowId.shortString
-    }
-  }
 }
 
 case class OptionNotFoundException(message: String) extends Exception(message)

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="kshakir" id="standardize_column_names_patches">
+    <changeSet author="kshakir" id="standardize_column_names_patches" dbms="mysql,hsqldb">
         <comment>
             Columns now all match standardized naming.
             FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID must be dropped and re-added so that

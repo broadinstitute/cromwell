@@ -253,6 +253,8 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
 
   "SlickDatabase (mariadb)" should behave like testWith("database-test-mariadb")
 
+  "SlickDatabase (postgresql)" should behave like testWith("database-test-postgresql")
+
   def testWith(configPath: String): Unit = {
     import ServicesStore.EnhancedSqlDatabase
 
@@ -300,14 +302,14 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val future = for {
         product <- dataAccess.database.run(getProduct)
         _ <- product match {
-          case "HSQL Database Engine" =>
-            // HSQLDB doesn't crash because it calls getCharacterStream instead of getSubString.
-            dataAccess.addJobStores(jobStoreJoins, 1)
           case "MySQL" =>
+            // MySQL crashes because it calls SerialClob's getSubString instead of getCharacterStream
             dataAccess.addJobStores(jobStoreJoins, 1).failed map { exception =>
               exception should be(a[SerialException])
               exception.getMessage should be("Invalid position in SerialClob object set")
             }
+          case "HSQL Database Engine" | "PostgreSQL" =>
+            dataAccess.addJobStores(jobStoreJoins, 1)
         }
       } yield ()
 
@@ -343,15 +345,15 @@ class ServicesStoreSpec extends FlatSpec with Matchers with ScalaFutures with St
       val future = for {
         product <- dataAccess.database.run(getProduct)
         _ <- product match {
-          case "HSQL Database Engine" =>
-            // HSQLDB doesn't crash because it calls getBinaryStream instead of getBytes.
-            dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
           case "MySQL" =>
+            // MySQL crashes because it calls SerialBlob's getBytes instead of getBinaryStream
             dataAccess.addWorkflowStoreEntries(workflowStoreEntries).failed map { exception =>
               exception should be(a[SerialException])
               exception.getMessage should
                 be("Invalid arguments: position cannot be less than 1 or greater than the length of the SerialBlob")
             }
+          case _ =>
+            dataAccess.addWorkflowStoreEntries(workflowStoreEntries)
         }
       } yield ()
 

@@ -2,7 +2,7 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
-    <changeSet author="scottfrazer" id="db_schema_other_table_alldb">
+    <changeSet author="scottfrazer" id="db_schema_other_table_alldb" dbms="mysql,hsqldb">
         <createTable tableName="WORKFLOW_EXECUTION">
             <column autoIncrement="true" name="WORKFLOW_EXECUTION_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_EXECUTION"/>
@@ -104,7 +104,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet id="db_schema_symbol_table_otherdb" author="scottfrazer" dbms="!mysql">
+    <changeSet id="db_schema_symbol_table_otherdb" author="scottfrazer" dbms="hsqldb">
         <createTable tableName="SYMBOL">
             <column autoIncrement="true" name="SYMBOL_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_SYMBOL"/>
@@ -131,7 +131,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet author="scottfrazer" id="db_schema_constraints">
+    <changeSet author="scottfrazer" id="db_schema_constraints" dbms="mysql,hsqldb">
         <createIndex indexName="STATUS_IDX"
                      tableName="WORKFLOW_EXECUTION" unique="false">
             <column name="STATUS"/>

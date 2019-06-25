@@ -31,6 +31,8 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
 
   "SqlWorkflowStore (mariadb)" should behave like testWith("database-test-mariadb")
 
+  "SqlWorkflowStore (postgresql)" should behave like testWith("database-test-postgresql")
+
   def testWith(configPath: String): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
 

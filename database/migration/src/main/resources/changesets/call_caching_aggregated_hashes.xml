@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="call_caching_aggregation_entry">
+    <changeSet author="tjeandet" id="call_caching_aggregation_entry" dbms="mysql,hsqldb">
         <comment>
             Holds an aggregated version of the hashes for each cache entry.
             Split into "BaseAggregation" and "InputFilesAggregation"
@@ -28,7 +28,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet author="tjeandet" id="call_caching_aggregation_entry_keys_and_indexes">
+    <changeSet author="tjeandet" id="call_caching_aggregation_entry_keys_and_indexes" dbms="mysql,hsqldb">
         <addForeignKeyConstraint baseColumnNames="CALL_CACHING_ENTRY_ID"
                                  baseTableName="CALL_CACHING_AGGREGATION_ENTRY"
                                  constraintName="FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID"

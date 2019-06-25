@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="change_execution_unique_constraint">
+    <changeSet author="tjeandet" id="change_execution_unique_constraint" dbms="mysql,hsqldb">
         <comment>
             Change unique constraint for Execution Table to include IDX column.  For MySQL this requires
             first dropping the foreign key constraint, which we then restore after adding back the enhanced

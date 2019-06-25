@@ -9,6 +9,7 @@ import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.JobKeyValueEntry
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
+import org.postgresql.util.PSQLException
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers, RecoverMethods}
@@ -35,6 +36,11 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
   "SlickDatabase (mariadb)" should behave like testWith[BatchUpdateException](
     "database-test-mariadb",
     "Column 'STORE_VALUE' cannot be null"
+  )
+
+  "SlickDatabase (postgresql)" should behave like testWith[PSQLException](
+    "database-test-postgresql",
+    """ERROR: null value in column "STORE_VALUE" violates not-null constraint"""
   )
 
   def testWith[E <: Throwable](configPath: String, failureMessage: String)(implicit classTag: ClassTag[E]): Unit = {

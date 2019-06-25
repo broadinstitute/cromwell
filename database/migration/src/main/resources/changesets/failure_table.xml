@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="chrisl" id="failure_table">
+    <changeSet author="chrisl" id="failure_table" dbms="mysql,hsqldb">
         <createTable tableName="FAILURE_EVENT">
             <column autoIncrement="true" name="FAILURE_EVENT_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_FAILURE_EVENT"/>

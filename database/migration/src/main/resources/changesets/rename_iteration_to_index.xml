@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="rename-iteration-to-index">
+    <changeSet author="tjeandet" id="rename-iteration-to-index" dbms="mysql,hsqldb">
         <renameColumn columnDataType="INT"
                       newColumnName="INDEX"
                       oldColumnName="ITERATION"

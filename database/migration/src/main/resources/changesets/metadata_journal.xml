@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="mcovarr" id="metadata_journal">
+    <changeSet author="mcovarr" id="metadata_journal" dbms="mysql,hsqldb">
         <createTable tableName="METADATA_JOURNAL">
             <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INT">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
@@ -36,14 +36,14 @@
         </modifySql>
     </changeSet>
 
-    <changeSet id="metadata_workflow_index" author="mcovarr">
+    <changeSet id="metadata_workflow_index" author="mcovarr" dbms="mysql,hsqldb">
         <createIndex indexName="METADATA_WORKFLOW_IDX"
                      tableName="METADATA_JOURNAL" unique="false">
             <column name="WORKFLOW_EXECUTION_UUID"/>
         </createIndex>
     </changeSet>
 
-    <changeSet id="metadata_job_index" author="mcovarr">
+    <changeSet id="metadata_job_index" author="mcovarr" dbms="mysql,hsqldb">
         <createIndex indexName="METADATA_JOB_IDX"
                      tableName="METADATA_JOURNAL" unique="false">
             <column name="WORKFLOW_EXECUTION_UUID"/>
@@ -53,7 +53,7 @@
         </createIndex>
     </changeSet>
 
-    <changeSet id="metadata_job_and_key_index" author="mcovarr">
+    <changeSet id="metadata_job_and_key_index" author="mcovarr" dbms="mysql,hsqldb">
         <createIndex indexName="METADATA_JOB_AND_KEY_IDX"
                      tableName="METADATA_JOURNAL" unique="false">
             <column name="WORKFLOW_EXECUTION_UUID"/>

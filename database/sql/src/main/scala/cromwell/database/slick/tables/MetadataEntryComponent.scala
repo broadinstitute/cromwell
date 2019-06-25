@@ -1,6 +1,7 @@
 package cromwell.database.slick.tables
 
-import java.sql.{Clob, Timestamp}
+import java.sql.Timestamp
+import javax.sql.rowset.serial.SerialClob
 
 import cromwell.database.sql.tables.MetadataEntry
 
@@ -35,7 +36,7 @@ trait MetadataEntryComponent {
 
     def metadataKey = column[String]("METADATA_KEY", O.Length(255))
 
-    def metadataValue = column[Option[Clob]]("METADATA_VALUE")
+    def metadataValue = column[Option[SerialClob]]("METADATA_VALUE")
 
     def metadataValueType = column[Option[String]]("METADATA_VALUE_TYPE", O.Length(10))
 

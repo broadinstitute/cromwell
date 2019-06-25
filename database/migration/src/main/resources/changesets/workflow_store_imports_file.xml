@@ -6,7 +6,7 @@
     <property name="blob.type" value="LONGBLOB" dbms="mysql"/>
     <property name="blob.type" value="BLOB" dbms="hsqldb"/>
 
-    <changeSet author="cjllanwarne" id="workflow-store-imports-file">
+    <changeSet author="cjllanwarne" id="workflow-store-imports-file" dbms="mysql,hsqldb">
         <addColumn
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="IMPORTS_ZIP" type="${blob.type}" />

@@ -2,7 +2,7 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
-    <changeSet author="scottfrazer" id="sge">
+    <changeSet author="scottfrazer" id="sge" dbms="mysql,hsqldb">
 
         <createTable tableName="SGE_JOB">
             <column autoIncrement="true" name="SGE_JOB_ID" type="INT">
@@ -21,7 +21,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="scottfrazer" id="db_schema_constraints">
+    <changeSet author="scottfrazer" id="db_schema_constraints" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="FK_SGE_JOB_EXECUTION_ID"
                                  baseTableName="SGE_JOB" baseColumnNames="EXECUTION_ID"
                                  referencedTableName="EXECUTION" referencedColumnNames="EXECUTION_ID"/>

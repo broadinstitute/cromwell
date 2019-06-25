@@ -55,6 +55,13 @@ YAML](https://cromwell.readthedocs.io/en/stable/Configuring/#yaml) for more info
 * It is now possible to use `includeKey` and `excludeKey` at the same time. If so, the metadata key must match the `includeKey` **and not** match the `excludeKey` to be included.
 * It is now possible to use "`calls`" as one of your `excludeKey`s, to request that only workflow metadata gets returned.
 
+### PostgreSQL support
+
+Cromwell now supports PostgreSQL (version 9.6 or higher, with the Large Object
+extension installed) as a database backend.
+See [here](https://cromwell.readthedocs.io/en/stable/Configuring/#database) for
+instructions for configuring the database connection.
+
 ## 42 Release Notes
 
 ### Womtool endpoint

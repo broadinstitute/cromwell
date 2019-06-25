@@ -77,6 +77,7 @@
     <include file="changesets/change_max_size_workflow_url.xml" relativeToChangelogFile="true" />
     <include file="changesets/docker_hash_store_add_size_column.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_call_caching_hash_entry_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/postgresql_engine_schema.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!--
 

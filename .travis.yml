@@ -55,6 +55,9 @@ env:
       BUILD_TYPE=centaurLocal
       BUILD_MYSQL=5.7
     - >-
+      BUILD_TYPE=centaurLocal
+      BUILD_POSTGRESQL=11.3
+    - >-
       BUILD_TYPE=centaurPapiV1
       BUILD_MYSQL=5.7
     - >-

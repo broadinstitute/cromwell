@@ -20,6 +20,7 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
   val hardLinkLocalization = ConfigFactory.parseString(""" localization: [hard-link] """)
   val softLinkLocalization = ConfigFactory.parseString(""" localization: [soft-link] """)
   val cachedCopyLocalization = ConfigFactory.parseString(""" localization: [cached-copy] """)
+  val cachedCopyLocalizationMaxHardlinks = ConfigFactory.parseString("""{localization: [cached-copy], max-hardlinks: 3 }""")
   val localPathBuilder = List(DefaultPathBuilder)
 
 
@@ -137,6 +138,33 @@ class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with Tabl
 
     cachedFile.foreach(_.exists shouldBe true)
     cachedFile.foreach(countLinks(_) shouldBe 4)
+    orig.delete(swallowIOExceptions = true)
+    dests.foreach(_.delete(swallowIOExceptions = true))
+  }
+
+it should "copy the file again when the copy-cached file has exceeded the maximum number of hardlinks" in {
+    val callDirs: IndexedSeq[Path] = 1 to 3 map { _ => DefaultPathBuilder.createTempDirectory("SharedFileSystem") }
+    val orig = DefaultPathBuilder.createTempFile("inputFile")
+    val dests = callDirs.map(_./(orig.parent.pathAsString.hashCode.toString())./(orig.name))
+    orig.touch()
+    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
+    val sharedFS = new SharedFileSystem {
+      override val pathBuilders = localPathBuilder
+      override val sharedFileSystemConfig = cachedCopyLocalizationMaxHardlinks
+      override implicit def actorContext: ActorContext = null
+      override lazy val cachedCopyDir = Some(DefaultPathBuilder.createTempDirectory("cached-copy"))
+    }
+    val cachedFile: Option[Path] = sharedFS.cachedCopyDir.map(
+      _./(orig.parent.pathAsString.hashCode.toString)./(orig.lastModifiedTime.toEpochMilli.toString + orig.name))
+
+    val results = callDirs.map(sharedFS.localizeInputs(_, docker = true)(inputs))
+
+    results.foreach(_.isSuccess shouldBe true)
+    dests.foreach(_.exists shouldBe true)
+    dests.foreach(countLinks(_) should be <= 3)
+
+    cachedFile.foreach(_.exists shouldBe true)
+    cachedFile.foreach(countLinks(_) should be <= 3)
     orig.delete(swallowIOExceptions = true)
     dests.foreach(_.delete(swallowIOExceptions = true))
   }

@@ -32,7 +32,7 @@ class WorkflowOptionsSpec extends Matchers with WordSpecLike {
           options.clearEncryptedValues shouldEqual """{
                                                 |  "key": "value",
                                                 |  "refresh_token": "cleared"
-                                                |}""".stripMargin
+                                                |}""".stripMargin.parseJson
         case _ => fail("Expecting workflow options to be parseable")
       }
     }

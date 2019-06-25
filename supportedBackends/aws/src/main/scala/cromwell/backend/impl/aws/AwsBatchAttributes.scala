@@ -68,8 +68,10 @@ object AwsBatchAttributes {
     "dockerhub",
     "dockerhub.account",
     "dockerhub.token",
-    "filesystems.local",
+    "filesystems",
     "filesystems.local.auth",
+    "filesystems.s3.auth",
+    "filesystems.local.caching.duplication-strategy",
     "filesystems.local.caching.duplication-strategy",
     "default-runtime-attributes",
     "default-runtime-attributes.disks",
@@ -102,16 +104,25 @@ object AwsBatchAttributes {
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
-    val filesystemAuthMode: ErrorOr[AwsAuthMode] =
+
+    val fileSysStr = backendConfig.hasPath("filesystems.s3") match {
+      case true => "filesystems.s3"
+      case false => "filesystems.local"
+    }
+    val filesystemAuthMode: ErrorOr[AwsAuthMode] = {
       (for {
-        authName <- validate { backendConfig.as[String]("filesystems.local.auth") }.toEither
+        authName <- validate {
+          backendConfig.as[String](s"${fileSysStr}.auth")
+        }.toEither
         validAuth <- awsConfig.auth(authName).toEither
       } yield validAuth).toValidated
+    }
+
 
     val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
       validate {
         backendConfig.
-          as[Option[String]]("filesystems.local.caching.duplication-strategy").
+          as[Option[String]](s"${fileSysStr}.caching.duplication-strategy").
           getOrElse("copy") match {
             case "copy" => CopyCachedOutputs
             case "reference" => UseOriginalCachedOutputs

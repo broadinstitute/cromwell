@@ -25,3 +25,4 @@ lazy val root = (project in file(".")).
       "com.novocode" % "junit-interface" % "0.10" % "test"
     )) ++ publishSettings:_*
   )
+  

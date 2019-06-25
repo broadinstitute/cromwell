@@ -111,7 +111,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   private lazy val jobScriptMountPath =  configuration.fileSystem match  {
     case "s3" =>  AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
-    //case _ =>  DefaultPathBuilder.get(configuration.root).resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
     case _ =>  jobPaths.script.pathWithoutScheme
   }
 

@@ -5,7 +5,7 @@
 
     <changeSet id="add_hog_group_in_workflow_store" author="cjllanwarne">
         <addColumn tableName="WORKFLOW_STORE_ENTRY">
-            <column name="HOG_GROUP" type="VARCHAR(100)" defaultValue="NULL">
+            <column name="HOG_GROUP" type="VARCHAR(100)">
                 <constraints nullable="true" />
             </column>
         </addColumn>

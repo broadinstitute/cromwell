@@ -62,8 +62,8 @@ final case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescrip
     case _ => Set.empty
   }
 
-  val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
-  val taskCall = key.call
+  lazy val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
+  lazy val taskCall = key.call
   override lazy val toString = key.mkTag(workflowDescriptor.id)
 }
 

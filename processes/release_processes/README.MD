@@ -30,3 +30,26 @@ This performance testing process happens as part of the release into FireCloud.
 
 ![caas-prod](caas-prod.dot.png)
 
+## How to Generate and Publish Swagger Client Library
+
+The first step is to generate the client library.  From the root of the repo run
+
+```
+./scripts/gen_java_client.sh
+```
+
+This generates the client library and runs the generated tests as well.  A successful run should end with something similar to
+
+```
+[debug] Test run finished: 0 failed, 0 ignored, 7 total, 0.007s
+[info] Passed: Total 103, Failed 0, Errors 0, Passed 100, Skipped 3
+[success] Total time: 4 s, completed Jun 26, 2019 3:01:19 PM
+```
+
+To publish to artifactory, first obtain the artifactory username and credentials.  Then run
+
+```
+export ARTIFACTORY_USERNAME=<the-username>
+export ARTIFACTORY_PASSWORD=<the-password>
+./scripts/publish-client.sh
+```

@@ -1,0 +1,17 @@
+name: drs_wf_level_read_size
+testFormat: workflowsuccess
+backends: [Papiv2NoDockerHubConfig]
+
+files {
+  workflow: drs_tests/wf_level_file_size.wdl
+}
+
+metadata {
+  workflowName: wf_level_file_size
+  status: Succeeded
+
+  "outputs.wf_level_file_size.fileSize1": 43.0
+  "outputs.wf_level_file_size.fileSize2": 45.0
+}
+
+

@@ -29,6 +29,7 @@ object Dependencies {
   private val googleApiClientV = "1.28.0"
   private val googleCloudCoreV = "1.61.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
+  private val googleCloudMonitoringV = "1.70.0"
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
@@ -36,7 +37,7 @@ object Dependencies {
   private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.18.0"
+  private val grpcV = "1.20.0"
   private val guavaV = "27.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
@@ -60,8 +61,9 @@ object Dependencies {
   private val owlApiV = "5.1.9"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
+  private val postgresV = "42.2.5"
   private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.4"
+  private val refinedV = "0.9.8"
   private val rhinoV = "1.7.10"
   private val scalaGraphV = "1.12.5"
   private val scalaLoggingV = "3.9.2"
@@ -320,7 +322,8 @@ object Dependencies {
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
-    "mysql" % "mysql-connector-java" % mysqlV
+    "mysql" % "mysql-connector-java" % mysqlV,
+    "org.postgresql" % "postgresql" % postgresV
   )
 
   private val refinedTypeDependenciesList = List(
@@ -337,12 +340,17 @@ object Dependencies {
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
-  val databaseSqlDependencies = configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++
-    refinedTypeDependenciesList
+  val databaseSqlDependencies = List(
+    "commons-io" % "commons-io" % commonsIoV,
+  ) ++ configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val statsDDependencies = List(
     "nl.grons" %% "metrics-scala" % metrics3ScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
+  )
+
+  val stackdriverDependencies = List(
+    "com.google.cloud" % "google-cloud-monitoring" % googleCloudMonitoringV
   )
 
   val gcsFileSystemDependencies = akkaHttpDependencies
@@ -365,8 +373,7 @@ object Dependencies {
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "com.github.mpilquist" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
-    "eu.timepit" %% "refined" % refinedV
-  )
+  ) ++ circeDependencies ++ refinedTypeDependenciesList
 
   val wdlDependencies = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -416,15 +423,14 @@ object Dependencies {
     "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
     "commons-io" % "commons-io" % commonsIoV % Test
-  ) ++ circeDependencies ++ womDependencies ++ refinedTypeDependenciesList ++ betterFilesDependencies ++
-    owlApiDependencies
+  ) ++ betterFilesDependencies ++ owlApiDependencies
 
   val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
 
   val centaurCwlRunnerDependencies = List(
     "com.github.scopt" %% "scopt" % scoptV,
     "io.circe" %% "circe-optics" % circeOpticsV
-  ) ++ slf4jBindingDependencies ++ circeDependencies
+  ) ++ slf4jBindingDependencies
 
   val coreDependencies = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
@@ -434,7 +440,7 @@ object Dependencies {
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
-    slf4jBindingDependencies
+    slf4jBindingDependencies ++ stackdriverDependencies
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
@@ -601,6 +607,19 @@ object Dependencies {
     "util",
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
+  // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
+  val grpcDependencyOverrides = List(
+    "alts",
+    "auth",
+    "context",
+    "core",
+    "grpclb",
+    "netty-shaded",
+    "protobuf-lite",
+    "protobuf",
+    "stub",
+  ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
+
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
@@ -609,5 +628,6 @@ object Dependencies {
     allProjectDependencies ++
       googleHttpClientDependencies ++
       nettyDependencyOverrides ++
-      rdf4jDependencyOverrides
+      rdf4jDependencyOverrides ++
+      grpcDependencyOverrides
 }

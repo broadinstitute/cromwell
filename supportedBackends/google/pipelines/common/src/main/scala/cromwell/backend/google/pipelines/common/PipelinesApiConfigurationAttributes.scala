@@ -47,7 +47,7 @@ object PipelinesApiConfigurationAttributes {
     */
   case class LocalizationConfiguration(localizationAttempts: Int Refined Positive)
 
-  final case class VirtualPrivateCloudConfiguration(name: String, auth: GoogleAuthMode)
+  final case class VirtualPrivateCloudConfiguration(name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
 
 
@@ -90,6 +90,7 @@ object PipelinesApiConfigurationAttributes {
     "default-runtime-attributes.zones",
     "virtual-private-cloud",
     "virtual-private-cloud.network-label-key",
+    "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth"
   )
 
@@ -101,16 +102,18 @@ object PipelinesApiConfigurationAttributes {
 
   def apply(googleConfig: GoogleConfiguration, backendConfig: Config): PipelinesApiConfigurationAttributes = {
 
-    def validateVPCConfig(networkOption: Option[String], authOption: Option[String]): ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
-      (networkOption, authOption) match {
-        case (Some(network), Some(auth)) =>
-          googleConfig.auth(auth) match {
-            case Valid(validAuth) => Option(VirtualPrivateCloudConfiguration(network, validAuth)).validNel
-            case Invalid(error) => s"Auth $auth is not valid for Virtual Private Cloud configuration. Reason: $error" .invalidNel
-          }
-        case (Some(_), None) => "Auth scheme not provided for Virtual Private Cloud configuration.".invalidNel
-        case (None, Some(_)) => "Network label key not provided for Virtual Private Cloud configuration.".invalidNel
-        case (None, None) => None.validNel
+    def vpcErrorMessage(missingKeys: List[String]) = s"Virtual Private Cloud configuration is invalid. Missing keys: `${missingKeys.mkString(",")}`.".invalidNel
+
+    def validateVPCConfig(networkOption: Option[String], subnetworkOption: Option[String], authOption: Option[String]): ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
+      (networkOption,subnetworkOption, authOption) match {
+        case (Some(network), _, Some(auth)) => googleConfig.auth(auth) match {
+          case Valid(validAuth) => Option(VirtualPrivateCloudConfiguration(network, subnetworkOption, validAuth)).validNel
+          case Invalid(error) => s"Auth $auth is not valid for Virtual Private Cloud configuration. Reason: $error" .invalidNel
+        }
+        case (Some(_), _, None) => vpcErrorMessage(List("auth"))
+        case (None, _, Some(_)) => vpcErrorMessage(List("network-label-key"))
+        case (None, Some(_), None) => vpcErrorMessage(List("network-label-key", "auth"))
+        case (None, None, None) => None.validNel
       }
     }
 
@@ -154,12 +157,11 @@ object PipelinesApiConfigurationAttributes {
         .getOrElse(LocalizationConfiguration(DefaultLocalizationAttempts).validNel)
 
     val vpcNetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.network-label-key") }
+    val vpcSubnetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.subnetwork-label-key") }
     val vpcAuth: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.auth")}
 
     val virtualPrivateCloudConfiguration: ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
-      (vpcNetworkLabel, vpcAuth) flatMapN  {
-        case (network, auth) => validateVPCConfig(network, auth)
-      }
+      (vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN  validateVPCConfig
     }
 
     val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")
@@ -201,8 +203,19 @@ object PipelinesApiConfigurationAttributes {
           )
     }
 
-    (project, executionBucket, endpointUrl, genomicsAuthName, genomicsRestrictMetadataAccess, gcsFilesystemAuthName,
-      qpsValidation, duplicationStrategy, requestWorkers, localizationConfiguration, virtualPrivateCloudConfiguration, batchRequestTimeoutConfigurationValidation) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
+    (project,
+      executionBucket,
+      endpointUrl,
+      genomicsAuthName,
+      genomicsRestrictMetadataAccess,
+      gcsFilesystemAuthName,
+      qpsValidation,
+      duplicationStrategy,
+      requestWorkers,
+      localizationConfiguration,
+      virtualPrivateCloudConfiguration,
+      batchRequestTimeoutConfigurationValidation
+    ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
         throw new IllegalArgumentException with MessageAggregation {

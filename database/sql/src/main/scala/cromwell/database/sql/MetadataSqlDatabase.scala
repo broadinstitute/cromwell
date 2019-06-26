@@ -2,7 +2,6 @@ package cromwell.database.sql
 
 import java.sql.Timestamp
 
-import cats.data.NonEmptyList
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
@@ -51,21 +50,17 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            jobAttempt: Option[Int])
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
-                                           metadataKeys: NonEmptyList[String],
+  def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                           metadataKeysToFilterFor: List[String],
+                                           metadataKeysToFilterAgainst: List[String],
                                            metadataJobQueryValue: MetadataJobQueryValue)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
-
-  def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
-                                            metadataKeys: NonEmptyList[String],
-                                            metadataJobQueryValue: MetadataJobQueryValue)
-                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
   def summarizeIncreasing(summaryNameIncreasing: String,
                           startMetadataKey: String,
@@ -80,13 +75,13 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[Long]
+                         (implicit ec: ExecutionContext): Future[(Long, Long)]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    * @return A `Future` with the number of rows summarized by this invocation, and the number of rows still to summarize.
     */
   def summarizeDecreasing(summaryNameDecreasing: String,
                           summaryNameIncreasing: String,
@@ -102,7 +97,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[Long]
+                         (implicit ec: ExecutionContext): Future[(Long, Long)]
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 

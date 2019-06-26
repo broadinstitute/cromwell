@@ -4,7 +4,7 @@ import java.sql.{Connection, Timestamp}
 
 import akka.actor.ActorRef
 import akka.testkit.{TestFSMRef, TestProbe}
-import cats.data.{NonEmptyList, NonEmptyVector}
+import cats.data.NonEmptyVector
 import com.typesafe.config.ConfigFactory
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
@@ -13,14 +13,14 @@ import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
 import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 import scala.util.control.NoStackTrace
-import org.scalatest.concurrent.Eventually
-import org.scalatest.time.{Millis, Seconds, Span}
+import scala.util.{Failure, Success}
 
 class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
 
@@ -151,34 +151,24 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
-                                      metadataKey: String)(implicit ec: ExecutionContext): Nothing = {
-      notImplemented()
-    }
+                                      metadataKey: String)(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
-                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
-      notImplemented()
-    }
+                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowUuid: String,
                                       metadataKey: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
-                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = {
-      notImplemented()
-    }
+                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
-                                                      metadataKeys: NonEmptyList[String],
-                                                      metadataJobQueryValue: MetadataJobQueryValue)
-                                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
-
-    override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
-                                                       metadataKeys: NonEmptyList[String],
-                                                       metadataJobQueryValue: MetadataJobQueryValue)
-                                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                             metadataKeysToFilterFor: List[String],
+                                             metadataKeysToFilterAgainst: List[String],
+                                             metadataJobQueryValue: MetadataJobQueryValue)
+                                            (implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def summarizeIncreasing(summaryNameIncreasing: String,
                                      startMetadataKey: String,

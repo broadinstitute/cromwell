@@ -4,6 +4,7 @@ backends: [Papiv2-Virtual-Private-Cloud]
 
 files {
   workflow: virtual_private_cloud/check_network_in_vpc.wdl
+  options: virtual_private_cloud/wf_zone_options.json
 }
 
 metadata {
@@ -11,4 +12,6 @@ metadata {
   status: Succeeded
 
   "outputs.check_network_in_vpc.network_used": "cromwell-ci-vpc-network"
+  "outputs.check_network_in_vpc.subnetwork_used": "cromwell-ci-vpc-network"
+  "outputs.check_network_in_vpc.zone_used": "us-east1-c"
 }

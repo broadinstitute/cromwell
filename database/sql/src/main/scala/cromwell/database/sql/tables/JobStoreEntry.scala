@@ -1,6 +1,6 @@
 package cromwell.database.sql.tables
 
-import java.sql.Clob
+import javax.sql.rowset.serial.SerialClob
 
 case class JobStoreEntry
 (
@@ -10,7 +10,7 @@ case class JobStoreEntry
   jobAttempt: Int,
   jobSuccessful: Boolean,
   returnCode: Option[Int],
-  exceptionMessage: Option[Clob],
+  exceptionMessage: Option[SerialClob],
   retryableFailure: Option[Boolean],
   jobStoreEntryId: Option[Int] = None
 )

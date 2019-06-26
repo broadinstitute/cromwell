@@ -1,5 +1,67 @@
 # Cromwell Change Log
 
+## 43 Release Notes
+
+### Virtual Private Cloud with Subnetworks
+
+Cromwell now allows PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the subnetwork key 
+`subnetwork-label-key` inside `virtual-private-cloud` in backend configuration. More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+### Call caching database refactoring
+
+Cromwell's `CALL_CACHING_HASH_ENTRY` primary key has been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 100,000 `CALL_CACHING_HASH_ENTRY`
+rows per second. In deployments with millions or billions of `CALL_CACHING_HASH_ENTRY` rows the migration may require  
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+select max(CALL_CACHING_HASH_ENTRY_ID) from CALL_CACHING_HASH_ENTRY
+```
+
+### Stackdriver Instrumentation
+
+Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
+Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+### BigQuery in PAPI
+
+Cromwell now allows a user to specify BigQuery jobs when using the PAPIv2 backend
+
+### Configuration Changes
+
+#### StatsD Instrumentation
+
+There is a small change in StatsD's configuration path. Originally, the path to the config was `services.Instrumentation.config.statsd`
+which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
+[here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
+
+#### cached-copy
+
+A new experimental feature, the `cached-copy` localization strategy is available for the shared filesystem. 
+More information can be found in the [documentation on localization](https://cromwell.readthedocs.io/en/stable/backends/HPC).
+
+#### Yaml node limits
+
+Yaml parsing now checks for cycles, and limits the maximum number of parsed nodes to a configurable value. It also
+limits the nesting depth of sequences and mappings. See [the documentation on configuring
+YAML](https://cromwell.readthedocs.io/en/stable/Configuring/#yaml) for more information.
+
+### API Changes
+
+#### Workflow Metadata
+
+* It is now possible to use `includeKey` and `excludeKey` at the same time. If so, the metadata key must match the `includeKey` **and not** match the `excludeKey` to be included.
+* It is now possible to use "`calls`" as one of your `excludeKey`s, to request that only workflow metadata gets returned.
+
+### PostgreSQL support
+
+Cromwell now supports PostgreSQL (version 9.6 or higher, with the Large Object
+extension installed) as a database backend.
+See [here](https://cromwell.readthedocs.io/en/stable/Configuring/#database) for
+instructions for configuring the database connection.
+
 ## 42 Release Notes
 
 ### Womtool endpoint

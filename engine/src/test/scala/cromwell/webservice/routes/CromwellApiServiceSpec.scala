@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.stream.ActorMaterializer
+import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
@@ -15,6 +16,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowOnHoldToSubmittedFailure, WorkflowOnHoldToSubmittedSuccess}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess}
@@ -472,7 +474,6 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
           assertResult("<html>") {
             responseAs[String].substring(0, 6)
           }
-          assert(responseAs[String].contains("var metadataJson = {\"testKey1b\":\"myValue1b\",\"calls\":{},\"testKey1a\":\"myValue1a\",\"id\":\"c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5\",\"testKey2a\":\"myValue2a\"};"))
         }
     }
 
@@ -533,14 +534,20 @@ object CromwellApiServiceSpec {
   }
 
   object MockServiceRegistryActor {
-    def fullMetadataResponse(workflowId: WorkflowId) = {
-      List(MetadataEvent(MetadataKey(workflowId, None, "testKey1"), MetadataValue("myValue1", MetadataString)),
-        MetadataEvent(MetadataKey(workflowId, None, "testKey2"), MetadataValue("myValue2", MetadataString)))
-    }
-    def filteredMetadataResponse(workflowId: WorkflowId) = {
-      List(MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a", MetadataString)),
+
+    private def fullMetadataResponse(workflowId: WorkflowId) = {
+      List(
+        MetadataEvent(MetadataKey(workflowId, None, "testKey1a"), MetadataValue("myValue1a", MetadataString)),
         MetadataEvent(MetadataKey(workflowId, None, "testKey1b"), MetadataValue("myValue1b", MetadataString)),
-        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString)))
+        MetadataEvent(MetadataKey(workflowId, None, "testKey2a"), MetadataValue("myValue2a", MetadataString))
+      )
+    }
+
+    def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]) = {
+      def keyFilter(keys: List[String])(m: MetadataEvent) = keys.exists(k => m.key.key.startsWith(k))
+      fullMetadataResponse(workflowId)
+        .filter(m => withKeys.isEmpty || keyFilter(withKeys)(m))
+        .filter(m => withoutKeys.isEmpty || !keyFilter(withoutKeys)(m))
     }
 
     def metadataQuery(workflowId: WorkflowId) =
@@ -554,8 +561,9 @@ object CromwellApiServiceSpec {
     }
   }
 
-  class MockServiceRegistryActor extends Actor {
+  class MockServiceRegistryActor extends Actor with StrictLogging {
     import MockServiceRegistryActor._
+
     override def receive = {
       case WorkflowQuery(parameters) =>
         val labels: Option[Map[String, String]] = {
@@ -589,9 +597,10 @@ object CromwellApiServiceSpec {
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! WorkflowOutputsResponse(id, event)
       case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
-      case GetSingleWorkflowMetadataAction(id, None, None, _) => sender ! MetadataLookupResponse(metadataQuery(id), fullMetadataResponse(id))
-      case GetSingleWorkflowMetadataAction(id, Some(_), None, _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
-      case GetSingleWorkflowMetadataAction(id, None, Some(_), _) => sender ! MetadataLookupResponse(metadataQuery(id), filteredMetadataResponse(id))
+      case GetSingleWorkflowMetadataAction(id, withKeys, withoutKeys, _) =>
+        val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
+        val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
+        sender ! MetadataLookupResponse(metadataQuery(id), responseMetadataValues(id, withKeysList, withoutKeysList))
       case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)
@@ -617,7 +626,8 @@ object CromwellApiServiceSpec {
 
             sender ! DescribeSuccess(description = WorkflowDescription(valid = true, errors = readBack, validWorkflow = true))
         }
-
+      case _: InstrumentationServiceMessage => // Do nothing.
+      case m => logger.error("Unexpected message received by MockServiceRegistryActor: {}", m)
     }
   }
 

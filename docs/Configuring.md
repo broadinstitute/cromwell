@@ -297,7 +297,34 @@ url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=U
 
 Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
 
-## Abort
+**Using Cromwell with Postgresql**
+
+To use Postgresql as the database, you will need to install and enable the
+Large Object extension.  If the extension is present, setting up the database
+requires just these commands:
+
+```
+$ createdb cromwell
+$ psql -d cromwell -c "create extension lo;"
+```
+
+Postgresql configuration in Cromwell is very similar to MySQL.  An example:
+
+```hocon
+database {
+  profile = "slick.jdbc.PostgresProfile$"
+  db {
+    driver = "org.postgresql.Driver"
+    url = "jdbc:postgresql//localhost:5432/cromwell"
+    user = "user"
+    password = "pass"
+    port = 5432
+    connectionTimeout = 5000
+  }
+}
+```
+
+### Abort
 
 **Control-C (SIGINT) abort handler**
 
@@ -514,7 +541,7 @@ Cromwell writes one batch of workflow heartbeats at a time. While the internal q
 a configurable threshold then [instrumentation](developers/Instrumentation.md) may send a metric signal that the
 heartbeat load is above normal.
 
-This threshold may be configured the configuration value:
+This threshold may be configured via the configuration value:
 
 ```hocon
 system.workflow-heartbeats {
@@ -523,3 +550,37 @@ system.workflow-heartbeats {
 ```
 
 The default threshold value is 100, just like the default for the heartbeat batch size.
+
+### YAML
+
+**Maximum number of nodes**
+
+Cromwell will throw an error when detecting cyclic loops in Yaml inputs. However one can craft small acyclic YAML
+documents that consume significant amounts of memory or cpu. To limit the amount of processing during parsing, there is
+a limit on the number of nodes parsed per YAML document.
+
+This limit may be configured via the configuration value:
+
+```hocon
+yaml {
+  max-nodes = 1000000
+}
+```
+
+The default limit is 1,000,000 nodes.
+
+**Maximum nesting depth**
+
+There is a limit on the maximum depth of nested YAML. If you decide to increase this value, you will likely need to also
+increase the Java Virtual Machine's thread stack size as well using
+[either `-Xss` or `-XX:ThreadStackSize`](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/java.html).
+
+This limit may be configured via the configuration value:
+
+```hocon
+yaml {
+  max-depth = 1000
+}
+```
+
+The default limit is a maximum nesting depth of 1,000.

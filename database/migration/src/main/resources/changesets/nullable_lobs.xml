@@ -2,7 +2,7 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
-    <changeSet author="kshakir" id="nullable_lobs">
+    <changeSet author="kshakir" id="nullable_lobs" dbms="mysql,hsqldb">
         <dropNotNullConstraint columnDataType="LONGTEXT"
                                tableName="CALL_CACHING_DETRITUS_ENTRY" columnName="DETRITUS_VALUE"/>
         <dropNotNullConstraint columnDataType="LONGTEXT"

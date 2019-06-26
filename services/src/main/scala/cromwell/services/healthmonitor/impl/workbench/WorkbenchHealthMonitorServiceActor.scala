@@ -8,6 +8,8 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
+import com.google.api.services.genomics.v2alpha1.GenomicsScopes
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.typesafe.config.Config
@@ -57,7 +59,8 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   private def checkGcs(): Future[SubsystemStatus] = {
     // For any expected production usage of this check, the GCS bucket should be public read */
     val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storage = Future(googleAuth.pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup)) map { credentials =>
+    val storageScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
+    val storage = Future(googleAuth.credentials(storageScopes)) map { credentials =>
       GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
     }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
@@ -71,7 +74,7 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
     val papiProjectId = papiConfig.as[String]("project")
 
     val check = for {
-      credentials <- Future(googleAuth.pipelinesApiCredentials(GoogleAuthMode.NoOptionLookup))
+      credentials <- Future(googleAuth.credentials(List(GenomicsScopes.GENOMICS)))
       genomicsChecker = if (papiProviderConfig.as[String]("actor-factory").contains("v2alpha1"))
         GenomicsCheckerV2(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
       else

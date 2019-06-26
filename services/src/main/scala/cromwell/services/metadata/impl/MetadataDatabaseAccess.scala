@@ -77,7 +77,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(increasingResult: Long, decreasingResult: Long)
+  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
 }
 
 trait MetadataDatabaseAccess {
@@ -115,6 +115,9 @@ trait MetadataDatabaseAccess {
   }
 
   def queryMetadataEvents(query: MetadataQuery)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
+
+    def listKeyRequirements(keyRequirementsInput: Option[NonEmptyList[String]]): List[String] = keyRequirementsInput.map(_.toList).toList.flatten.map(_ + "%")
+
     val uuid = query.workflowId.id.toString
 
     val futureMetadata: Future[Seq[MetadataEntry]] = query match {
@@ -124,21 +127,13 @@ trait MetadataDatabaseAccess {
         metadataDatabaseInterface.queryMetadataEntries(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt)
       case MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
         metadataDatabaseInterface.queryMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt)
-      case MetadataQuery(_, None, None, Some(includeKeys), None, _) =>
-        metadataDatabaseInterface.
-          queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), CallOrWorkflowQuery)
-      case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, Some(includeKeys), None, _) =>
-        metadataDatabaseInterface.
-          queryMetadataEntriesLikeMetadataKeys(uuid, includeKeys.map(_ + "%"), CallQuery(callFqn, index, attempt))
-      case MetadataQuery(_, None, None, None, Some(excludeKeys), _) =>
-        metadataDatabaseInterface.
-          queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), CallOrWorkflowQuery)
-      case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, None, Some(excludeKeys), _) =>
-        metadataDatabaseInterface.
-          queryMetadataEntryNotLikeMetadataKeys(uuid, excludeKeys.map(_ + "%"), CallQuery(callFqn, index, attempt))
-      case MetadataQuery(_, None, None, Some(includeKeys), Some(excludeKeys), _) => Future.failed(
-        new IllegalArgumentException(
-          s"Include/Exclude keys may not be mixed: include = $includeKeys, exclude = $excludeKeys"))
+      case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
+        val excludeKeyRequirements = listKeyRequirements(excludeKeys)
+        val queryType = if (excludeKeyRequirements.contains("calls%")) WorkflowQuery else CallOrWorkflowQuery
+
+        metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), excludeKeyRequirements, queryType)
+      case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>
+        metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt))
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }
 
@@ -148,8 +143,8 @@ trait MetadataDatabaseAccess {
   def queryWorkflowOutputs(id: WorkflowId)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
-    metadataDatabaseInterface.queryMetadataEntriesLikeMetadataKeys(
-      uuid, NonEmptyList.of(s"${WorkflowMetadataKeys.Outputs}:%"), WorkflowQuery).
+    metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(
+      uuid, List(s"${WorkflowMetadataKeys.Outputs}:%"), List.empty, WorkflowQuery).
       map(metadataToMetadataEvents(id))
   }
 
@@ -157,14 +152,14 @@ trait MetadataDatabaseAccess {
                (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     import cromwell.services.metadata.CallMetadataKeys._
 
-    val keys = NonEmptyList.of(Stdout, Stderr, BackendLogsPrefix + ":%")
-    metadataDatabaseInterface.queryMetadataEntriesLikeMetadataKeys(id.id.toString, keys, CallOrWorkflowQuery) map
+    val keys = List(Stdout, Stderr, BackendLogsPrefix + ":%")
+    metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(id.id.toString, keys, List.empty, CallOrWorkflowQuery) map
       metadataToMetadataEvents(id)
   }
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
-      increasing <- metadataDatabaseInterface.summarizeIncreasing(
+      (increasingProcessed, increasingGap) <- metadataDatabaseInterface.summarizeIncreasing(
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
         startMetadataKey = WorkflowMetadataKeys.StartTime,
         endMetadataKey = WorkflowMetadataKeys.EndTime,
@@ -176,7 +171,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-      decreasing <- metadataDatabaseInterface.summarizeDecreasing(
+      (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
         startMetadataKey = WorkflowMetadataKeys.StartTime,
@@ -189,7 +184,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasing, decreasing)
+    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
   }
 
   def getWorkflowStatus(id: WorkflowId)

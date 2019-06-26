@@ -69,15 +69,10 @@ trait MetadataRouteSupport extends HttpInstrumentation {
             val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
             val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
 
-            (includeKeysOption, excludeKeysOption) match {
-              case (Some(_), Some(_)) =>
-                val e = new IllegalArgumentException("includeKey and excludeKey may not be specified together")
-                e.failRequest(StatusCodes.BadRequest)
-              case (_, _) =>
-                metadataLookup(possibleWorkflowId,
-                  (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
-                  serviceRegistryActor, metadataBuilderRegulatorActor)
-            }
+            metadataLookup(possibleWorkflowId,
+              (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
+              serviceRegistryActor,
+              metadataBuilderRegulatorActor)
           }
         }
       }

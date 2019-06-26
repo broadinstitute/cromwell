@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="kshakir" id="summary_status_table">
+    <changeSet author="kshakir" id="summary_status_table" dbms="mysql,hsqldb">
         <createTable tableName="SUMMARY_STATUS">
             <column name="SUMMARY_STATUS_ID" type="INT" autoIncrement="true">
                 <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_STATUS"/>
@@ -24,7 +24,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet author="kshakir" id="summary_status_summarized_table_name_index">
+    <changeSet author="kshakir" id="summary_status_summarized_table_name_index" dbms="mysql,hsqldb">
         <addUniqueConstraint tableName="SUMMARY_STATUS"
                              columnNames="SUMMARY_TABLE_NAME, SUMMARIZED_TABLE_NAME"
                              constraintName="SUMMARY_STATUS_SUMMARY_TABLE_NAME_SUMMARIZED_TABLE_NAME_INDEX"/>

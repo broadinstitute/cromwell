@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="add-attempt-in-execution">
+    <changeSet author="tjeandet" id="add-attempt-in-execution" dbms="mysql,hsqldb">
         <addColumn
                 tableName="EXECUTION">
             <column name="ATTEMPT" type="INT" />

@@ -10,6 +10,9 @@ engine {
       auth = "service_account"
       project = "broad-dsde-cromwell-dev"
     }
+    drs {
+      auth = "service_account"
+    }
   }
 }
 
@@ -61,5 +64,14 @@ services {
 	  google-auth-name = "service_account"
 	  gcs-bucket-to-check = "cloud-cromwell-dev"
 	}
+  }
+}
+
+filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v2"
+
+drs {
+  localization {
+    docker-image = "broadinstitute/cromwell-dos:34-d8acfe3"
+    command-template = "mkdir -p $(dirname ${containerPath}) && /scripts/dosUrlLocalizer.sc ${drsPath} ${containerPath}"
   }
 }

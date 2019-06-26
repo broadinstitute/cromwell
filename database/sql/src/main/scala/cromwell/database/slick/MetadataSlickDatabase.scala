@@ -2,7 +2,6 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
-import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
@@ -35,7 +34,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[Unit] = {
     val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
-    runAction(action)
+    runLobAction(action)
   }
 
   override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -83,29 +82,18 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def queryMetadataEntriesLikeMetadataKeys(workflowExecutionUuid: String,
-                                                    metadataKeys: NonEmptyList[String],
+  override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                                    metadataKeysToFilterFor: List[String],
+                                                    metadataKeysToFilterOut: List[String],
                                                     metadataJobQueryValue: MetadataJobQueryValue)
                                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = metadataJobQueryValue match {
       case CallQuery(callFqn, jobIndex, jobAttempt) =>
-        dataAccess.metadataEntriesLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
-      case WorkflowQuery => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
-      case CallOrWorkflowQuery => dataAccess.metadataEntriesLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
-    }
-
-    runTransaction(action)
-  }
-
-  override def queryMetadataEntryNotLikeMetadataKeys(workflowExecutionUuid: String,
-                                                     metadataKeys: NonEmptyList[String],
-                                                     metadataJobQueryValue: MetadataJobQueryValue)
-                                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
-    val action = metadataJobQueryValue match {
-      case CallQuery(callFqn, jobIndex, jobAttempt) =>
-        dataAccess.metadataEntriesNotLikeMetadataKeysWithJob(workflowExecutionUuid, metadataKeys, callFqn, jobIndex, jobAttempt).result
-      case WorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = true).result
-      case CallOrWorkflowQuery => dataAccess.metadataEntriesNotLikeMetadataKeys(workflowExecutionUuid, metadataKeys, requireEmptyJobKey = false).result
+        dataAccess.metadataEntriesForJobWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, callFqn, jobIndex, jobAttempt).result
+      case WorkflowQuery =>
+        dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = true).result
+      case CallOrWorkflowQuery =>
+        dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = false).result
     }
     runTransaction(action)
   }
@@ -186,12 +174,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[Long] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryId <- summarizeMetadata(
+      maximumMetadataEntryIdConsidered <- summarizeMetadata(
         minMetadataEntryId = previousMaxMetadataEntryId + 1L,
         maxMetadataEntryId = nextMaxMetadataEntryId,
         startMetadataKey = startMetadataKey,
@@ -220,7 +208,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           },
         summaryName = summarizeNameIncreasing
       )
-    } yield maximumMetadataEntryId
+      maximumMetadataEntryIdInTableOption <- dataAccess.metadataEntries.map(_.metadataEntryId).max.result
+      maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
+        // TODO: Add a logging framework to this 'database' project and log this weirdness.
+        maximumMetadataEntryIdConsidered
+      }
+    } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
 
     runTransaction(action)
   }
@@ -239,7 +232,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[Long] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
       previousExistingMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summaryNameDecreasing)
       previousInitializedMetadataEntryIdOption <- previousExistingMetadataEntryIdOption match {
@@ -266,7 +259,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
             summaryName = summaryNameDecreasing
           )
       }
-    } yield newMinimumMetadataEntryId
+      rowsProcessed = previousExistingMetadataEntryIdOption.map(_ - newMinimumMetadataEntryId).getOrElse(0L)
+    } yield (rowsProcessed, newMinimumMetadataEntryId)
 
     runTransaction(action)
   }

@@ -10,6 +10,7 @@ import cromwell.core.labels.{Label, Labels}
 import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata._
+import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.ScalaFutures
@@ -38,6 +39,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
   "MetadataDatabaseAccess (hsqldb)" should behave like testWith("database")
 
   "MetadataDatabaseAccess (mysql)" should behave like testWith("database-test-mysql")
+
+  "MetadataDatabaseAccess (mariadb)" should behave like testWith("database-test-mariadb")
+
+  "MetadataDatabaseAccess (postgresql)" should behave like testWith("database-test-postgresql")
 
   implicit val ec = ExecutionContext.global
 
@@ -117,6 +122,12 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     }
 
     it should "sort metadata events by timestamp from older to newer" taggedAs DbmsTest in {
+
+      if (configPath == "database-test-mariadb") {
+        // Do NOT want to change the test. Instead should fix it so that MariaDB is storing at least milliseconds.
+        cancel("Having issues with MariaDB and fractional seconds. https://broadworkbench.atlassian.net/browse/BA-5692")
+      }
+
       def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
         val now = OffsetDateTime.now()
@@ -140,6 +151,16 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         response <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false))
         _ = response shouldBe expected
       } yield()).futureValue
+    }
+
+    def assertRowsProcessedAndSummarizationComplete(summaryResult: SummaryResult) = {
+      withClue(s"asserting correctness of $summaryResult") {
+        summaryResult.rowsProcessedIncreasing should be > 0L
+        summaryResult.rowsProcessedDecreasing should be(0L)
+
+        summaryResult.increasingGap should be(0L)
+        summaryResult.decreasingGap should be(0L)
+      }
     }
 
     it should "create and query a workflow" taggedAs DbmsTest in {
@@ -168,12 +189,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name, Set(testLabel2, testLabel3))
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map { summaryResult =>
-          withClue("summaryResult") {
-            summaryResult.increasingResult should be > 0L
-            summaryResult.decreasingResult should be >= 0L
-          }
-        }
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map assertRowsProcessedAndSummarizationComplete
 
         // Query with no filters
         (workflowQueryResult, workflowQueryResult2) <-
@@ -273,7 +289,9 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          withClue("Filter by exclude label using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
+          withClue("Filter by exclude label using AND") {
+            resultByName.keys.toSet.flatten should contain(Workflow1Name)
+          }
         }
         // Filter by multiple exclude labels using AND
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
@@ -281,30 +299,31 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             .map(label => WorkflowQueryKey.ExcludeLabelAndKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          withClue("Filter by multiple exclude labels using AND") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
-          response.totalResultsCount match {
-            case 3 => //good
-            case ct => fail(s"totalResultsCount for multiple exclude labels using AND query is expected to be 3 but is actually $ct. " +
-              s"Something has gone horribly wrong!")
+          val ids = response.results.map(_.id)
+          withClue("Filter by multiple exclude labels using AND") {
+            resultByName.keys.toSet.flatten should contain(Workflow1Name)
+            ids should contain(workflow1Id.toString)
+            ids shouldNot contain(workflow2Id.toString)
           }
         }
         // Filter by exclude label using OR
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${testLabel2.key}:${testLabel2.value}"))) map { case (response, _) =>
           val resultByName = response.results groupBy (_.name)
-          withClue("Filter to exclude label using OR") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
+          withClue("Filter to exclude label using OR") {
+            resultByName.keys.toSet.flatten should contain(Workflow1Name)
+          }
         }
         // Filter by multiple exclude labels using OR
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(
           Seq(testLabel2, testLabel3)
             .map(label => WorkflowQueryKey.ExcludeLabelOrKeyValue.name -> s"${label.key}:${label.value}"))
         ) map { case (response, _) =>
-          val resultByName = response.results groupBy (_.name)
-          withClue("Filter by multiple exclude labels using OR") { resultByName.keys.toSet.flatten should equal(Set(Workflow1Name)) }
-          response.totalResultsCount match {
-            case 2 => //good
-            case ct => fail(s"totalResultsCount is for multiple exclude labels using OR query is expected to be 2 but is actually $ct. " +
-              s"Something has gone horribly wrong!")
+          // NOTE: On persistent databases other workflows will be returned. Just verify that our two workflows are not.
+          val ids = response.results.map(_.id)
+          withClue("Filter by multiple exclude labels using OR") {
+            ids shouldNot contain(workflow1Id.toString)
+            ids shouldNot contain(workflow2Id.toString)
           }
         }
         // Filter by start date
@@ -345,7 +364,9 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           WorkflowQueryKey.AdditionalQueryResultFields.name -> "labels"))) map {
           case (response, _) =>
-            response.results partition { r => r.labels.isDefined} match {
+            response.results filter {
+              workflowQueryResult => List(workflow1Id.toString, workflow1Id.toString).contains(workflowQueryResult.id)
+            } partition { r => r.labels.isDefined } match {
               case (y, n) if y.nonEmpty && n.isEmpty => //good
               case (y, n) => fail(s"Something went horribly wrong since labels were populated for ${y.size} and were missing for ${n.size} workflow(s)!")
             }
@@ -359,10 +380,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map { summaryResult =>
-          summaryResult.increasingResult should be > 0L
-          summaryResult.decreasingResult should be >= 0L
-        }
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map assertRowsProcessedAndSummarizationComplete
         //get totalResultsCount when page and pagesize are specified
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           // name being added to the query parameters so as to exclude workflows being populated by the other tests in this spec
@@ -384,10 +402,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           MetadataEvent.labelsToMetadataEvents(Labels(customLabelKey -> customLabelValue), workflowId)
         for {
           _ <- dataAccess.addMetadataEvents(metadataEvents)
-          _ <- dataAccess.refreshWorkflowMetadataSummaries(1000).map { summaryResult =>
-            summaryResult.increasingResult should be > 0L
-            summaryResult.decreasingResult should be >= 0L
-          }
+          _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map assertRowsProcessedAndSummarizationComplete
           _ <- dataAccess.getWorkflowLabels(workflowId).map(_.toList should contain(customLabelKey -> customLabelValue))
         } yield ()
       }

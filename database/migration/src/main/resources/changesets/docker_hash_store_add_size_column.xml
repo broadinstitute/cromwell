@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="tjeandet" id="docker_hash_store_entry_add_size_column">
+    <changeSet author="tjeandet" id="docker_hash_store_entry_add_size_column" dbms="mysql,hsqldb">
         <comment>
             Add a size column corresponding to the sum of all the layers size from the manifest
         </comment>

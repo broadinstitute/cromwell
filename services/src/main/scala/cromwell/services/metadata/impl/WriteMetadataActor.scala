@@ -80,7 +80,6 @@ class WriteMetadataActor(override val batchSize: Int,
 }
 
 object WriteMetadataActor {
-  val MetadataWritePath = MetadataServiceActor.MetadataInstrumentationPrefix.::("writes")
 
   def props(dbBatchSize: Int,
             flushRate: FiniteDuration,

@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="kshakir" id="add_unique_constraints">
+    <changeSet author="kshakir" id="add_unique_constraints" dbms="mysql,hsqldb">
         <comment>
             Adds unique constraints to other tables besides the existing
             key WORKFLOW_EXECUTION_AUX.UK_WE_AUX_WORKFLOW_EXECUTION_ID.

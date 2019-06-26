@@ -17,12 +17,11 @@ class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLi
   behavior of "StatsDInstrumentationServiceActor"
 
   val config = ConfigFactory.parseString(
-    """statsd {
+    """
       |hostname = "localhost"
       |port = 8125
       |prefix = "prefix_value" # can be used to prefix all metrics with an api key for example
       |flush-rate = 100 ms # rate at which aggregated metrics will be sent to statsd
-      |}
     """.stripMargin
   )
 

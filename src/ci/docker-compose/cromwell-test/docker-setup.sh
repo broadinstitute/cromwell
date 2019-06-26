@@ -13,8 +13,9 @@ apt-get install -y \
     curl \
     gnupg \
     gnupg2 \
-    python-dev \
     mysql-client \
+    postgresql-client \
+    python-dev \
     software-properties-common \
     sudo \
 

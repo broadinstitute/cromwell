@@ -1,12 +1,14 @@
 package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CustomLabelEntry
+import shapeless.syntax.std.tuple._
 import slick.model.ForeignKeyAction.Cascade
 
 trait CustomLabelEntryComponent {
 
   this: DriverComponent with WorkflowMetadataSummaryEntryComponent =>
 
+  import driver.api.TupleMethods._
   import driver.api._
 
   class CustomLabelEntries(tag: Tag)
@@ -19,8 +21,14 @@ trait CustomLabelEntryComponent {
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(100))
 
-    override def * = (customLabelKey, customLabelValue, workflowExecutionUuid,
-    customLabelEntryId.?) <> (CustomLabelEntry.tupled, CustomLabelEntry.unapply)
+    def baseProjection = (customLabelKey, customLabelValue, workflowExecutionUuid)
+
+    override def * = baseProjection ~ customLabelEntryId.? <> (CustomLabelEntry.tupled, CustomLabelEntry.unapply)
+
+    def forUpdate = baseProjection.shaped <> (
+      tuple => CustomLabelEntry.tupled(tuple :+ None),
+      CustomLabelEntry.unapply(_: CustomLabelEntry).map(_.reverse.tail.reverse)
+    )
 
     def fkCustomLabelEntryWorkflowExecutionUuid = foreignKey("FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID",
       workflowExecutionUuid, workflowMetadataSummaryEntries)(_.workflowExecutionUuid, onDelete = Cascade)
@@ -41,7 +49,7 @@ trait CustomLabelEntryComponent {
       customLabelEntry <- customLabelEntries
       if customLabelEntry.workflowExecutionUuid === workflowExecutionUuid &&
         customLabelEntry.customLabelKey === labelKey
-    } yield customLabelEntry)
+    } yield customLabelEntry.forUpdate)
 
   def existsWorkflowIdLabelKeyAndValue(workflowId: Rep[String],
                                        labelKey: Rep[String],

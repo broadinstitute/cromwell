@@ -25,6 +25,10 @@ class CallCachingSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutu
 
   "SlickDatabase (mysql)" should behave like testWith("database-test-mysql")
 
+  "SlickDatabase (mariadb)" should behave like testWith("database-test-mariadb")
+
+  "SlickDatabase (postgresql)" should behave like testWith("database-test-postgresql")
+
   def testWith(configPath: String): Unit = {
     lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
     lazy val dataAccess = new EngineSlickDatabase(databaseConfig)

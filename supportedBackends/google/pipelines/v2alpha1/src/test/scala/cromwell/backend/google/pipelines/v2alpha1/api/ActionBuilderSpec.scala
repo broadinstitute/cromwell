@@ -12,18 +12,18 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
 
   val dockerRunActions = Table(
     ("description", "action", "command"),
-    ("a cloud sdk action", ActionBuilder.cloudSdkAction, "docker run google/cloud-sdk:slim"),
+    ("a cloud sdk action", ActionBuilder.cloudSdkAction, s"docker run ${ActionBuilder.cloudSdkImage}"),
     ("a cloud sdk action with args",
       ActionBuilder.cloudSdkAction.setCommands(List("bash", "-c", "echo hello").asJava),
-      "docker run google/cloud-sdk:slim bash -c echo\\ hello"
+      s"docker run ${ActionBuilder.cloudSdkImage} bash -c echo\\ hello"
     ),
     ("a cloud sdk action with quotes in the args",
       ActionBuilder.cloudSdkAction.setCommands(List("bash", "-c", "echo hello m'lord").asJava),
-      "docker run google/cloud-sdk:slim bash -c echo\\ hello\\ m\\'lord"
+      s"docker run ${ActionBuilder.cloudSdkImage} bash -c echo\\ hello\\ m\\'lord"
     ),
     ("a cloud sdk action with a newline in the args",
       ActionBuilder.cloudSdkAction.setCommands(List("bash", "-c", "echo hello\\\nworld").asJava),
-      "docker run google/cloud-sdk:slim bash -c echo\\ hello\\\\world"
+      s"docker run ${ActionBuilder.cloudSdkImage} bash -c echo\\ hello\\\\world"
     ),
     ("an action with multiple args",
       new Action()

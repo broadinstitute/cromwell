@@ -12,13 +12,6 @@ then
   typeset VAULT_TOKEN=$(cat /etc/vault-token-dsde)
 fi
 
-# Exports an env var and also adds it to the root bashrc. This way if there is a need to ssh onto the machine
-# for debugging one will have the env variables already set when using root
-addVar() {
-  export $1
-  echo "export $1" >> /root/.bashrc
-}
-
 wait_for_cromwell() {
   git clone https://github.com/vishnubob/wait-for-it.git /wait-for-it
   chmod u+x /wait-for-it/wait-for-it.sh

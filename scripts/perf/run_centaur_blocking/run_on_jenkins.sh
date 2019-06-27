@@ -4,9 +4,9 @@ set -euo pipefail
 
 source scripts/perf/helper.inc.sh
 
-addVar CROMWELL_ROOT=$(pwd)
-addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
-addVar TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
+export CROMWELL_ROOT=$(pwd)
+export PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+export TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
 
 if [ -n "${TEST_CASE_DIRECTORY}" ]
 then
@@ -16,26 +16,26 @@ then
     # If it contains a custom cromwell configuration, use that
     if [ -f "${TEST_WORKFLOW_DIR}/cromwell.conf" ]
     then
-        addVar CROMWELL_CONF_DIR=${TEST_WORKFLOW_DIR}re
+        export CROMWELL_CONF_DIR=${TEST_WORKFLOW_DIR}re
         # copy the default one next to it so we can include it
         cp ${PERF_ROOT}/vm_scripts/cromwell/cromwell.conf ${CROMWELL_CONF_DIR}/cromwell_default.conf
     else
         # Otherwise use the default one
-        addVar CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
+        export CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
     fi
 
     # If it contains a custom centaur configuration, use that
     if [ -f "${TEST_WORKFLOW_DIR}/centaur.conf" ]
     then
-        addVar CENTAUR_CONF_DIR=${TEST_WORKFLOW_DIR}
+        export CENTAUR_CONF_DIR=${TEST_WORKFLOW_DIR}
         # copy the default one next to it so we can include it
         cp ${PERF_ROOT}/vm_scripts/centaur/centaur.conf ${CENTAUR_CONF_DIR}/centaur_default.conf
     else
         # Otherwise use the default one
-        addVar CENTAUR_CONF_DIR=${PERF_ROOT}/vm_scripts/centaur
+        export CENTAUR_CONF_DIR=${PERF_ROOT}/vm_scripts/centaur
     fi
 
-    addVar CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
+    export CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
     sed -i "s/\$BRANCH/${CROMWELL_BRANCH}/" ${CENTAUR_TEST_FILE}
 fi
 

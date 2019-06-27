@@ -341,7 +341,7 @@ Since no `local-disk` entry is specified, Cromwell will automatically add `local
 
 This runtime attribute adds support to disable assigning external IP addresses to VMs provisioned by the Google backend. If set to true, the VM will NOT be provided with a public IP address, and only contain an internal IP. If this option is enabled, the associated job can only load docker images from Google Container Registry, and the job executable cannot use external services other than Google APIs.
 
-Note well!  You must enable "Private Google Access" for this feature to work see "How To Setup" below.
+Note well!  You must enable "Private Google Access" for this feature to work. See "How To Setup" below.
 
 For example, the task below will succeed:
 ```

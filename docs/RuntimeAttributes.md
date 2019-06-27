@@ -375,7 +375,7 @@ runtime {
 
 Configure your Google network to use "Private Google Access". This will allow your VMs to access Google Services including Google Container Registry, as well as Dockerhub images.
 
-1. `gcloud compute networks subnets list`, pick the subnet and region you using w/ Cromwell. If multiple, run the next step for each region & subnet you wish to use.
+1. Using `gcloud compute networks subnets list`, identify the subnet and region you will be using with Cromwell. If multiple, run the next step for each region and subnet you wish to use.
 1. `gcloud compute networks subnets update [SUBNET-NAME] --region [REGION]  --enable-private-ip-google-access`
 
 That's it!  You can now run with `noAddress` runtime attribute and it will work as expected.

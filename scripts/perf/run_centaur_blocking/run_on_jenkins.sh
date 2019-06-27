@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 source scripts/perf/helper.inc.sh
+
+addVar CROMWELL_ROOT=$(pwd)
+addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+addVar TEST_WORKFLOW_ROOT=${PERF_ROOT}/test_cases
 
 if [ -n "${TEST_CASE_DIRECTORY}" ]
 then

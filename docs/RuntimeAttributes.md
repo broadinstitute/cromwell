@@ -373,7 +373,7 @@ runtime {
 
 #### How to Setup
 
-Configure your Google network to use "Private Google Access".  This will allow your VM's to access Google Services including Google Container Registry, as well as Dockerhub.
+Configure your Google network to use "Private Google Access". This will allow your VMs to access Google Services including Google Container Registry, as well as Dockerhub images.
 
 1. `gcloud compute networks subnets list`, pick the subnet and region you using w/ Cromwell. If multiple, run the next step for each region & subnet you wish to use.
 1. `gcloud compute networks subnets update [SUBNET-NAME] --region [REGION]  --enable-private-ip-google-access`

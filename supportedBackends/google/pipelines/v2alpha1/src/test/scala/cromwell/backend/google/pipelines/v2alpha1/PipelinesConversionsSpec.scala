@@ -9,6 +9,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
 import eu.timepit.refined.refineMV
@@ -65,7 +66,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     logging.get("mounts") should be(a[java.util.List[_]])
     logging.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
 
-    logging.get("imageUri") should be("google/cloud-sdk:slim")
+    logging.get("imageUri") should be(ActionBuilder.cloudSdkImage)
 
     val loggingLabels = logging.get("labels").asInstanceOf[java.util.Map[_, _]]
     loggingLabels.keySet.asScala should contain theSameElementsAs List("logging", "inputName")

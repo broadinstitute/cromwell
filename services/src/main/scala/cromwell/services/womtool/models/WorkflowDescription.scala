@@ -7,6 +7,8 @@ import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, Outpu
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement, WorkflowDefinition}
 import wom.executable.WomBundle
 
+import MetaValueElementJsonSupport._
+
 // `meta`, `parameterMeta` will need updating to support compound types - issue #4746
 case class WorkflowDescription(
                                 valid: Boolean,

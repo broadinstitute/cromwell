@@ -1,5 +1,7 @@
 #! /bin/bash
 
+set -euo pipefail
+
 ### /!\ This script assumes docker and docker compose are already installed on the host
 
 # Utility function to extract values from instance metadata

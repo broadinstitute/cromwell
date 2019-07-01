@@ -3,18 +3,16 @@ package cromwell.webservice
 import java.nio.file.Paths
 import java.time.OffsetDateTime
 
+import better.files.File
+import common.util.TimeUtil._
 import cromwell.core._
 import cromwell.engine._
-import cromwell.services.metadata.MetadataService
-import MetadataService._
-import cromwell.util.JsonFormatting.WomValueJsonFormatter
-import WomValueJsonFormatter._
-import better.files.File
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
-import cromwell.webservice.routes.CromwellApiService.BackendResponse
+import cromwell.services.metadata.MetadataService._
+import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.webservice.metadata.MetadataBuilderActor.BuiltMetadataResponse
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
-import common.util.TimeUtil._
+import cromwell.webservice.routes.CromwellApiService.BackendResponse
+import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, RootJsonFormat}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -26,6 +24,15 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val BackendResponseFormat = jsonFormat2(BackendResponse)
   implicit val BuiltStatusResponseFormat = jsonFormat1(BuiltMetadataResponse)
   implicit val callAttempt = jsonFormat2(CallAttempt)
+
+  implicit val workflowOptionsFormatter: JsonFormat[WorkflowOptions] = new JsonFormat[WorkflowOptions]  {
+    override def read(json: JsValue): WorkflowOptions = json match {
+      case str: JsString => WorkflowOptions.fromJsonString(str.value).get
+      case other => throw new UnsupportedOperationException(s"Cannot use ${other.getClass.getSimpleName} value. Expected a workflow options String")
+    }
+    override def write(obj: WorkflowOptions): JsValue = JsString(obj.asPrettyJson)
+  }
+
   implicit val workflowSourceData = jsonFormat10(WorkflowSourceFilesWithoutImports)
   implicit val subsystemStatusFormat = jsonFormat2(SubsystemStatus)
   implicit val statusCheckResponseFormat = jsonFormat2(StatusCheckResponse)

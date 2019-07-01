@@ -179,18 +179,22 @@ case class WorkflowOptions(jsObject: JsObject) {
 
   /**
     * Returns a JSON representation of these workflow options where the encrypted values
-    * have been replaced by the string "cleared". This will be called on the workflow
-    * options (and subsequently stored back in the database) once a workflow finishes
-    * and the encrypted values aren't needed anymore. This protects us in case the
-    * database and private key become compromised, the attacker will not be able to
-    * decrypt values for completed workflows.
+    * have been replaced by the string "cleared".
+    *
+    * Used to protect encrypted values from being stored in metadata
     */
-  def clearEncryptedValues: String = {
-    val revoked = jsObject.fields map {
-      case (k, v: JsObject) if isEncryptedField(v) => k -> JsString("cleared")
-      case (k, v) => k -> v
+  def clearEncryptedValues: WorkflowOptions = {
+
+    def revoke(o: JsObject): JsObject = {
+      val newFields = o.fields map {
+        case (k, v: JsObject) if isEncryptedField(v) => k -> JsString("cleared")
+        case (k, v: JsObject) => k -> revoke(v)
+        case (k, v) => k -> v
+      }
+      JsObject(newFields)
     }
-    JsObject(revoked).prettyPrint
+
+    WorkflowOptions(revoke(jsObject))
   }
 }
 

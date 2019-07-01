@@ -27,7 +27,7 @@ import org.scalatest.concurrent.Eventually
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilder with BeforeAndAfter with Eventually {
+class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs with BeforeAndAfter with Eventually {
 
   // https://doc.akka.io/docs/akka/current/testing.html#expecting-log-messages
   override implicit val actorSystem = ActorSystem(
@@ -234,7 +234,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   workflowToStart = WorkflowToStart(id = workflowId,
     submissionTime = OffsetDateTime.now,
     state = startState,
-    sources = workflowSources),
+    sources = workflowSources,
+    hogGroup = HogGroup("foo")),
   conf = conf,
   ioActor = ioActor,
   serviceRegistryActor = serviceRegistryActor,

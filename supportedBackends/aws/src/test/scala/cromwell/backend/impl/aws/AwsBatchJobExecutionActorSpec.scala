@@ -54,8 +54,8 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionAc
   private val TimeoutDuration = 10.seconds.dilated
   implicit val ec: ExecutionContext = system.dispatcher
 
-  it should "catch failures in JABJEA initialization and fail the job accordingly" in {
-    val jobDescriptor = mock[BackendJobDescriptor]
+  it should "catch failures in execution actor initialization and fail the job accordingly" in {
+    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val workflowInfo = mock[AwsBatchConfiguration]
     val initializationData = mock[AwsBatchBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty)
@@ -86,8 +86,8 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionAc
     }
   }
 
-  it should "catch failures at a random point during JABJEA processing and fail the job accordingly" in {
-    val jobDescriptor = mock[BackendJobDescriptor]
+  it should "catch failures at a random point during execution actor processing and fail the job accordingly" in {
+    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val workflowInfo = mock[AwsBatchConfiguration]
     val initializationData = mock[AwsBatchBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty)

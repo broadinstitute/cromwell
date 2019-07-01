@@ -61,11 +61,6 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
     list.foldLeft((List.empty[WorkflowToStart], true))(folderFunction)._2
   }
 
-  private def prettyOptions(workflowSourceFiles: WorkflowSourceFilesCollection): WorkflowSourceFilesCollection = {
-    import spray.json._
-    workflowSourceFiles.copyOptions(workflowSourceFiles.workflowOptionsJson.parseJson.prettyPrint)
-  }
-
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(rootConfig)
 
   "The WorkflowStoreActor" should {
@@ -146,9 +141,9 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 2
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, _) =>
               insertedIds.contains(id) shouldBe true
-              sources shouldBe prettyOptions(helloWorldSourceFiles)
+              sources shouldBe helloWorldSourceFiles
               state shouldBe Submitted
           }
       }
@@ -159,9 +154,9 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 1
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, _) =>
               insertedIds.contains(id) shouldBe true
-              sources shouldBe prettyOptions(helloCwlWorldSourceFiles)
+              sources shouldBe helloCwlWorldSourceFiles
               state shouldBe Submitted
           }
       }
@@ -203,7 +198,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size should be(1)
           checkDistinctIds(workflowNel.toList) should be(true)
           workflowNel.toList.foreach {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, _) =>
               insertedIds.contains(id) should be(true)
               sources.workflowSource should be(optionedSourceFiles.workflowSource)
               sources.inputsJson should be(optionedSourceFiles.inputsJson)
@@ -211,7 +206,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
               import spray.json._
 
-              val encryptedJsObject = sources.workflowOptionsJson.parseJson.asJsObject
+              val encryptedJsObject = sources.workflowOptions.jsObject
               encryptedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
               encryptedJsObject.fields("key") should be(JsString("value"))
               encryptedJsObject.fields("refresh_token").asJsObject.fields.keys should contain theSameElementsAs
@@ -255,9 +250,9 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
           workflowNel.toList.size shouldBe 3
           checkDistinctIds(workflowNel.toList) shouldBe true
           workflowNel map {
-            case WorkflowToStart(id, _, sources, state) =>
+            case WorkflowToStart(id, _, sources, state, _) =>
               insertedIds.contains(id) shouldBe true
-              sources shouldBe prettyOptions(helloWorldSourceFiles)
+              sources shouldBe helloWorldSourceFiles
               state shouldBe Submitted
           }
       }

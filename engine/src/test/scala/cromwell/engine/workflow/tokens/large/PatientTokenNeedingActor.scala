@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.tokens.large
 
 import akka.actor.{Actor, ActorRef, Props}
+import cromwell.core.HogGroup
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.{AllDone, Begin, ImBusy, RequestToken}
@@ -35,7 +36,7 @@ class PatientTokenNeedingActor(tokenDispenser: ActorRef, tokenType: JobExecution
       context.system.scheduler.scheduleOnce(requestDelay.millis, self, RequestToken)(context.dispatcher)
       ()
     case RequestToken =>
-      tokenDispenser ! JobExecutionTokenRequest(hogGroup, tokenType)
+      tokenDispenser ! JobExecutionTokenRequest(HogGroup(hogGroup), tokenType)
       startTime = DateTime.now()
     case JobExecutionTokenDispensed =>
       context.system.scheduler.scheduleOnce(1.seconds, self, AllDone)(context.dispatcher)

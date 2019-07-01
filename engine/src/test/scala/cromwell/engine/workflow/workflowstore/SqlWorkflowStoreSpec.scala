@@ -5,7 +5,7 @@ import java.time.OffsetDateTime
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Tags.DbmsTest
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStoreSpec._
@@ -23,7 +23,7 @@ import scala.util.Try
 class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
-  val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", "option", "string", None, workflowOnHold = true, Seq.empty))
+  val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", WorkflowOptions.empty, "string", None, workflowOnHold = true, Seq.empty))
 
   "SqlWorkflowStore (hsqldb)" should behave like testWith("database")
 

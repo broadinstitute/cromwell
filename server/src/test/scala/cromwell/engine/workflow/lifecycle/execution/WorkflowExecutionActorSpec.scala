@@ -9,7 +9,7 @@ import cromwell._
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.WorkflowDescriptorBuilder
+import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
@@ -22,7 +22,7 @@ import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
-class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilder {
+class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilderForSpecs {
 
   override implicit val actorSystem = system
   implicit val DefaultDuration = 20.seconds.dilated

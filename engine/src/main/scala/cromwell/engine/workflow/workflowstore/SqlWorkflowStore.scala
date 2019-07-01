@@ -3,8 +3,10 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
+import cats.syntax.apply._
 import common.validation.ErrorOr.ErrorOr
-import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import common.validation.Validation._
+import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
@@ -143,26 +145,36 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
-    val sources = WorkflowSourceFilesCollection(
-      workflowSource = workflowStoreEntry.workflowDefinition.toRawStringOption,
-      workflowUrl = workflowStoreEntry.workflowUrl,
-      workflowRoot = workflowStoreEntry.workflowRoot,
-      workflowType = workflowStoreEntry.workflowType,
-      workflowTypeVersion = workflowStoreEntry.workflowTypeVersion,
-      inputsJson = workflowStoreEntry.workflowInputs.toRawString,
-      workflowOptionsJson = workflowStoreEntry.workflowOptions.toRawString,
-      labelsJson = workflowStoreEntry.customLabels.toRawString,
-      importsFile = workflowStoreEntry.importsZip.toBytesOption,
-      warnings = Vector.empty,
-      workflowOnHold = false
-    )
 
-    workflowStoreStateToStartableState(workflowStoreEntry) map { startableState =>
+    val workflowOptionsValidation: ErrorOr[WorkflowOptions] = WorkflowOptions.fromJsonString(workflowStoreEntry.workflowOptions.toRawString).toErrorOr
+    val startableStateValidation = workflowStoreStateToStartableState(workflowStoreEntry)
+
+    (startableStateValidation, workflowOptionsValidation) mapN { (startableState, workflowOptions) =>
+
+      val sources = WorkflowSourceFilesCollection(
+        workflowSource = workflowStoreEntry.workflowDefinition.toRawStringOption,
+        workflowUrl = workflowStoreEntry.workflowUrl,
+        workflowRoot = workflowStoreEntry.workflowRoot,
+        workflowType = workflowStoreEntry.workflowType,
+        workflowTypeVersion = workflowStoreEntry.workflowTypeVersion,
+        inputsJson = workflowStoreEntry.workflowInputs.toRawString,
+        workflowOptions = workflowOptions,
+        labelsJson = workflowStoreEntry.customLabels.toRawString,
+        importsFile = workflowStoreEntry.importsZip.toBytesOption,
+        warnings = Vector.empty,
+        workflowOnHold = false
+      )
+
+      val id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid)
+      val hogGroup: HogGroup = workflowStoreEntry.hogGroup.map(HogGroup(_)).getOrElse(HogGroup.decide(workflowOptions, id))
+
       WorkflowToStart(
-        id = WorkflowId.fromString(workflowStoreEntry.workflowExecutionUuid),
+        id = id,
         submissionTime = workflowStoreEntry.submissionTime.toSystemOffsetDateTime,
         sources = sources,
-        state = startableState)
+        state = startableState,
+        hogGroup = hogGroup
+      )
     }
   }
 
@@ -179,21 +191,25 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
 
     val actualWorkflowState = workflowSubmissionState(workflowSourceFiles)
 
+    val workflowId = WorkflowId.randomId()
+    val hogGroup = HogGroup.decide(workflowSourceFiles.workflowOptions, workflowId)
+
     WorkflowStoreEntry(
-      workflowExecutionUuid = WorkflowId.randomId().toString,
+      workflowExecutionUuid = workflowId.toString,
       workflowDefinition = workflowSourceFiles.workflowSource.toClobOption,
       workflowUrl = workflowSourceFiles.workflowUrl,
       workflowRoot = workflowSourceFiles.workflowRoot,
       workflowType = workflowSourceFiles.workflowType,
       workflowTypeVersion = workflowSourceFiles.workflowTypeVersion,
       workflowInputs = workflowSourceFiles.inputsJson.toClobOption,
-      workflowOptions = workflowSourceFiles.workflowOptionsJson.toClobOption,
+      workflowOptions = workflowSourceFiles.workflowOptions.asPrettyJson.toClobOption,
       customLabels = workflowSourceFiles.labelsJson.toClob(default = nonEmptyJsonString),
       workflowState = actualWorkflowState.toString,
       cromwellId = None,
       heartbeatTimestamp = None,
       submissionTime = OffsetDateTime.now.toSystemTimestamp,
-      importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption
+      importsZip = workflowSourceFiles.importsZipFileOption.toBlobOption,
+      hogGroup = Option(hogGroup.value)
     )
   }
 

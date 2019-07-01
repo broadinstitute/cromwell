@@ -21,6 +21,10 @@ echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
 
 addVar CROMWELL_ROOT=/app
 addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
+
+# Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
+git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
+
 source ${PERF_ROOT}/helper.inc.sh
 
 # Set up env variables
@@ -35,11 +39,6 @@ addVar CLEAN_UP=true
 addVar REPORT_BUCKET="cromwell-perf-test-reporting"
 addVar TEST_WORKFLOW_ROOT="${PERF_ROOT}/test_cases"
 addVar CROMWELL_UNDER_TEST="localhost"
-
-# Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
-git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
-
-
 
 if [ -n "${TEST_CASE_DIRECTORY}" ]
 then

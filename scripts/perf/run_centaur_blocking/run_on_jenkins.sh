@@ -41,7 +41,7 @@ fi
 
 if [ -n "${CENTAUR_TEST_FILE}" ]
 then
-    wait_for_cromwell
+    custom_wait_for_cromwell
     run_test
 else
     echo "No workflow provided, shutting down"

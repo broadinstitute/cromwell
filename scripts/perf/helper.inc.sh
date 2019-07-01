@@ -3,7 +3,6 @@
 # Set some global constants:
 typeset GCS_BUCKET=gs://cromwell-perf-test/
 
-
 typeset DOCKER_ETC_PATH="/usr/share/etc"
 typeset CROMWELL_PERF_PROJECT=broad-dsde-cromwell-perf
 
@@ -144,11 +143,13 @@ gcloud_run_as_service_account() {
     ${command}"
 }
 
-# Waits for a remote machine to stop responding to PINGs
+# Waits for a remote machine to start, and then stop, responding to PINGs
 wait_for_ping_to_start_then_stop() {
   local address="$1"
 
+  # Turn off "fail on exit code" and "debug logging":
   set +e
+  set +x
 
   RESULT=1
   ATTEMPTS=0
@@ -174,9 +175,11 @@ wait_for_ping_to_start_then_stop() {
 
   while ping -c 1 ${address} &> /dev/null
   do
-    echo "${address} is still responding to pings. Pausing before next ping"
+    echo "[$(date)] ${address} is still responding to pings. Pausing before next ping"
     sleep 30
   done
+
+  echo "[$(date)] ${address} has stopped responding to pings."
 
   set -e
 }

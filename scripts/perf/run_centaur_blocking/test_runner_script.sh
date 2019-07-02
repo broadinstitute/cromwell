@@ -25,6 +25,7 @@ addVar CROMWELL_UNDER_TEST=$(extract_metadata CROMWELL_UNDER_TEST)
 addVar CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
 addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
 addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
+addVar REPORT_URL="gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}"
 addVar BUILD_ID=$(extract_metadata BUILD_TAG)
 addVar CROMWELL_PERF_SCRIPTS_BRANCH=$(extract_metadata CROMWELL_PERF_SCRIPTS_BRANCH)
 
@@ -80,5 +81,5 @@ else
     echo "No workflow provided, shutting down"
 fi
 
-export_logs
+export_centaur_logs
 clean_up_instance

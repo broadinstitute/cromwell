@@ -73,17 +73,23 @@ custom_wait_for_cromwell() {
   fi
 }
 
+export_centaur_logs() {
+    # Copy centaur log
+    gsutil -h "Content-Type:text/plain" cp "${CROMWELL_ROOT}/centaur.log" "${REPORT_URL}/centaur.log" || true
+
+    # Copy test_rc.log
+    echo "${TEST_RC}" > test_rc.txt && gsutil -h "Content-Type:text/plain" cp "test_rc.txt" "${REPORT_URL}/test_rc.txt" || true
+}
+
 export_logs() {
     export REPORT_URL="gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}"
 
     # Copy the cromwell container logs
-    gsutil -h "Content-Type:text/plain" cp $(docker inspect --format='{{.LogPath}}' cromwell) "${REPORT_URL}/cromwell.log" || true
+    gsutil -h "Content-Type:text/plain" cp "$(docker inspect --format='{{.LogPath}}' cromwell)" "${REPORT_URL}/cromwell.log" || true
     # Copy the docker daemon logs
-    gsutil -h "Content-Type:text/plain" cp /var/log/daemon.log "${REPORT_URL}/daemon.log" || true
-    # Copy centaur log
-    gsutil -h "Content-Type:text/plain" cp "${CROMWELL_ROOT}/centaur.log" "${REPORT_URL}/centaur.log" || true
-    # Copy test_rc.log
-    echo $TEST_RC > test_rc.txt && gsutil -h "Content-Type:text/plain" cp test_rc.txt "${REPORT_URL}/test_rc.txt" || true
+    gsutil -h "Content-Type:text/plain" cp "/var/log/daemon.log" "${REPORT_URL}/daemon.log" || true
+
+    export_centaur_logs
 }
 
 clean_up() {

@@ -40,7 +40,6 @@ addVar CLEAN_UP=true
 
 addVar REPORT_BUCKET="cromwell-perf-test-reporting"
 addVar TEST_WORKFLOW_ROOT="${PERF_ROOT}/test_cases"
-addVar CROMWELL_UNDER_TEST="localhost"
 
 if [ -n "${TEST_CASE_DIRECTORY}" ]
 then

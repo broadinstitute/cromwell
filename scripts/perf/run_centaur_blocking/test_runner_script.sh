@@ -19,6 +19,15 @@ addVar() {
 # Make sure ip forwarding is enabled by default so that docker doesn't loses connectivity
 echo "net.ipv4.ip_forward = 1" > /etc/sysctl.conf
 
+# Extract env variables from instance metadata:
+addVar TEST_CASE_DIRECTORY=$(extract_metadata TEST_CASE_DIRECTORY)
+addVar CROMWELL_UNDER_TEST=$(extract_metadata CROMWELL_UNDER_TEST)
+addVar CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
+addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
+addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
+addVar BUILD_ID=$(extract_metadata BUILD_TAG)
+addVar CROMWELL_PERF_SCRIPTS_BRANCH=$(extract_metadata CROMWELL_PERF_SCRIPTS_BRANCH)
+
 addVar CROMWELL_ROOT=/app
 addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
 
@@ -27,13 +36,6 @@ git clone -b ${CROMWELL_PERF_SCRIPTS_BRANCH} --depth 1 --single-branch https://g
 
 source ${PERF_ROOT}/helper.inc.sh
 
-# Set up env variables
-addVar TEST_CASE_DIRECTORY=$(extract_metadata TEST_CASE_DIRECTORY)
-addVar CROMWELL_UNDER_TEST=$(extract_metadata CROMWELL_UNDER_TEST)
-addVar CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
-addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
-addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
-addVar BUILD_ID=$(extract_metadata BUILD_TAG)
 addVar CLEAN_UP=true
 
 addVar REPORT_BUCKET="cromwell-perf-test-reporting"

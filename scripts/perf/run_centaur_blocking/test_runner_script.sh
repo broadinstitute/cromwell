@@ -23,7 +23,7 @@ addVar CROMWELL_ROOT=/app
 addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
 
 # Clone cromwell to get the perf scripts. Use https to avoid ssh fingerprint prompt when the script runs
-git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
+git clone -b ${CROMWELL_PERF_SCRIPTS_BRANCH} --depth 1 --single-branch https://github.com/broadinstitute/cromwell.git ${CROMWELL_ROOT}
 
 source ${PERF_ROOT}/helper.inc.sh
 
@@ -68,7 +68,7 @@ then
     fi
     
     addVar CENTAUR_TEST_FILE=$(ls ${TEST_WORKFLOW_DIR}/*.test | head)
-    sed -i "s/\$BRANCH/${CROMWELL_BRANCH}/" ${CENTAUR_TEST_FILE}
+    sed -i "s/\$BRANCH/${CROMWELL_PERF_SCRIPTS_BRANCH}/" ${CENTAUR_TEST_FILE}
 fi
 
 if [ -n "${CENTAUR_TEST_FILE}" ]

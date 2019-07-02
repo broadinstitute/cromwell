@@ -1012,12 +1012,16 @@ definitions:
     required:
       - name
       - valueType
+      - typeDisplayName
     properties:
       name:
         type: string
         description: The name of this input value (formatted as expected by the tool)
       valueType:
         $ref: '#/definitions/ValueType'
+      typeDisplayName:
+        type: string
+        description: An easy-to-read display name for the type of the output
   ValueType:
     description: The type expected for a given value.
     type: object

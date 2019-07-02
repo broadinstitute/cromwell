@@ -35,7 +35,7 @@ gcloud_run_as_service_account "perf_centaur_test_runner_${BUILD_NUMBER}" \
     create ${BUILD_TAG} \
     --zone us-central1-c \
     --source-instance-template ${INSTANCE_TEMPLATE} \
-    --tags cromwell-perf-centaur-runner
+    --tags cromwell-perf-centaur-runner \
     --metadata-from-file startup-script=${DOCKER_ETC_PATH}/test_runner_script.sh \
     --metadata \
         $(join ${metadata[@]})"  | tee startupResult.txt

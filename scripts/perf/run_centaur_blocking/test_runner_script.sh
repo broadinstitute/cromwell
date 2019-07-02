@@ -80,4 +80,5 @@ else
     echo "No workflow provided, shutting down"
 fi
 
-shutdown
+export_logs
+clean_up_instance

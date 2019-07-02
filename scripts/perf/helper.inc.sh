@@ -74,6 +74,8 @@ custom_wait_for_cromwell() {
 }
 
 export_centaur_logs() {
+    echo "Exporting centaur logs to ${REPORT_URL}"
+
     # Copy centaur log
     gsutil -h "Content-Type:text/plain" cp "${CROMWELL_ROOT}/centaur.log" "${REPORT_URL}/centaur.log" || true
 

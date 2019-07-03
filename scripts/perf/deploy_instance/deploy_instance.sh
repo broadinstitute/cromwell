@@ -22,6 +22,8 @@ metadata=(
   "CROMWELL_STATSD_HOST=10.128.0.4"
   "CROMWELL_STATSD_PORT=8125"
   "CROMWELL_PERF_SCRIPTS_BRANCH=${REPO_BRANCH}"
+  "GCS_REPORT_PATH=${GCS_REPORT_PATH}"
+  "GCS_REPORT_BUCKET=${GCS_REPORT_BUCKET}"
 )
 
 cp scripts/perf/deploy_instance/run_on_instance.sh mnt/

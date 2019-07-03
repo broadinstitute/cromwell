@@ -25,7 +25,6 @@ addVar CROMWELL_UNDER_TEST=$(extract_metadata CROMWELL_UNDER_TEST)
 addVar CROMWELL_PROJECT=$(extract_metadata CROMWELL_PROJECT)
 addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
 addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
-addVar REPORT_URL="gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}"
 addVar BUILD_ID=$(extract_metadata BUILD_TAG)
 addVar CROMWELL_PERF_SCRIPTS_BRANCH=$(extract_metadata CROMWELL_PERF_SCRIPTS_BRANCH)
 
@@ -41,6 +40,7 @@ addVar CLEAN_UP=true
 
 addVar REPORT_BUCKET="cromwell-perf-test-reporting"
 addVar TEST_WORKFLOW_ROOT="${PERF_ROOT}/test_cases"
+addVar REPORT_URL="$(strip_trailing_slash "gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}")"
 
 if [ -n "${TEST_CASE_DIRECTORY}" ]
 then
@@ -82,4 +82,4 @@ else
 fi
 
 export_centaur_logs
-clean_up_instance
+self_destruct_instance

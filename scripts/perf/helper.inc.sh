@@ -83,14 +83,20 @@ export_centaur_logs() {
     echo "${TEST_RC}" > test_rc.txt && gsutil -h "Content-Type:text/plain" cp "test_rc.txt" "${REPORT_URL}/test_rc.txt" || true
 }
 
+export_cromwell_logs() {
+    echo "Exporting Cromwell logs to ${REPORT_URL} as $(hostname)"
+
+    # Copy the cromwell container logs
+    gsutil -h "Content-Type:text/plain" cp "$(docker inspect --format='{{.LogPath}}' cromwell)" "${REPORT_URL}/cromwell_$(hostname).log" || true
+    # Copy the docker daemon logs
+    gsutil -h "Content-Type:text/plain" cp "/var/log/daemon.log" "${REPORT_URL}/daemon_$(hostname).log" || true
+}
+
+
 export_logs() {
     export REPORT_URL="gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}"
 
-    # Copy the cromwell container logs
-    gsutil -h "Content-Type:text/plain" cp "$(docker inspect --format='{{.LogPath}}' cromwell)" "${REPORT_URL}/cromwell.log" || true
-    # Copy the docker daemon logs
-    gsutil -h "Content-Type:text/plain" cp "/var/log/daemon.log" "${REPORT_URL}/daemon.log" || true
-
+    export_cromwell_logs
     export_centaur_logs
 }
 
@@ -98,11 +104,11 @@ clean_up() {
     if [ "${CLEAN_UP}" = true ]
     then
         gcloud sql instances delete ${CLOUD_SQL_INSTANCE}
-        clean_up_instance
+        self_destruct_instance
     fi
 }
 
-clean_up_instance() {
+self_destruct_instance() {
     gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
 }
 
@@ -190,4 +196,9 @@ wait_for_ping_to_start_then_stop() {
   echo "[$(date)] ${address} has stopped responding to pings."
 
   set -e
+}
+
+strip_trailing_slash() {
+  local path=$1
+  echo "${path}" | sed 's/\/$//'
 }

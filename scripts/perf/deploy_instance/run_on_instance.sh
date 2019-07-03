@@ -30,10 +30,11 @@ addVar CROMWELL_EXECUTION_ROOT=$(extract_metadata CROMWELL_BUCKET)
 addVar CROMWELL_STATSD_HOST=$(extract_metadata CROMWELL_STATSD_HOST)
 addVar CROMWELL_STATSD_PORT=$(extract_metadata CROMWELL_STATSD_PORT)
 addVar BUILD_ID=$(extract_metadata BUILD_TAG)
+addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
+addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
 
 # Use the instance name as statsd prefix to avoid metrics collisions
 addVar CROMWELL_STATSD_PREFIX=${BUILD_ID}
-addVar REPORT_BUCKET=cromwell-perf-test-reporting
 
 addVar CROMWELL_ROOT=/app
 addVar PERF_ROOT=${CROMWELL_ROOT}/scripts/perf
@@ -45,7 +46,15 @@ git clone -b ${CROMWELL_BRANCH} --depth 1 --single-branch https://github.com/bro
 source ${PERF_ROOT}/helper.inc.sh
 
 addVar CROMWELL_CONF_DIR=${PERF_ROOT}/vm_scripts/cromwell
+addVar REPORT_URL="$(strip_trailing_slash "gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}")"
 
 # Start cromwell and cloud sql proxy
 prepare_statsd_proxy
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d
+
+# Intermittently upload Cromwell logs to the bucket
+while true
+do
+    export_cromwell_logs
+    sleep 60
+done

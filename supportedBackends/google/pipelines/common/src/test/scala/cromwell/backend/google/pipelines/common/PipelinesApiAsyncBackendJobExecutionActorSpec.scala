@@ -184,7 +184,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womDefinition,
           inputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job = workflowDescriptor.callable.taskCallNodes.head
@@ -411,7 +414,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t }).get
@@ -484,7 +490,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -532,7 +541,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == callName).get
@@ -600,7 +612,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -635,7 +650,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -684,7 +702,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -718,7 +739,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -741,7 +765,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val job: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({case t: CommandCallNode => t}).get
@@ -764,7 +791,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
@@ -797,7 +827,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get
@@ -868,7 +901,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
             |}
             |""".stripMargin
       ).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "goodbye").get

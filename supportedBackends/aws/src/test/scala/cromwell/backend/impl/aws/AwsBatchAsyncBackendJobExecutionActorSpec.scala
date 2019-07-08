@@ -213,7 +213,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           womDefinition,
           inputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job = workflowDescriptor.callable.taskCallNodes.head
@@ -439,7 +442,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t }).get
@@ -512,7 +518,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -560,7 +569,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == callName).get
@@ -627,7 +639,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -662,7 +677,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -711,7 +729,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -746,7 +767,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"aws_s3_root": "s3://path/to/root"} """).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
@@ -776,7 +800,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"root": "s3://path/to/root"} """).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get

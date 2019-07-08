@@ -12,6 +12,7 @@ import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.CommandLineArguments._
 import cromwell.CromwellApp.Command
+import cromwell.core.WorkflowOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.webservice.PartialWorkflowSources
 import cwl.preprocessor.CwlFileReference
@@ -24,11 +25,11 @@ object CommandLineArguments {
   val DefaultCromwellHost = new URL("http://localhost:8000")
   case class ValidSubmission(workflowSource: Option[String],
                              workflowUrl: Option[String],
-                              workflowRoot: Option[String],
-                              worflowInputs: String,
-                              workflowOptions: String,
-                              workflowLabels: String,
-                              dependencies: Option[File])
+                             workflowRoot: Option[String],
+                             worflowInputs: String,
+                             workflowOptions: WorkflowOptions,
+                             workflowLabels: String,
+                             dependencies: Option[File])
 
   case class WorkflowSourceOrUrl(source: Option[String], url: Option[String])
 }
@@ -97,7 +98,9 @@ case class CommandLineArguments(command: Option[Command] = None,
       workflowInputs.map(preProcessCwlInputFile).getOrElse(readOptionContent("Workflow inputs", workflowInputs))
     } else readOptionContent("Workflow inputs", workflowInputs)
 
-    val optionsJson = readOptionContent("Workflow options", workflowOptions)
+    import common.validation.ErrorOr.ShortCircuitingFlatMap
+    val optionsJson = readOptionContent("Workflow options", workflowOptions).flatMap { WorkflowOptions.fromJsonString(_).toErrorOr }
+
     val labelsJson = readOptionContent("Workflow labels", workflowLabels)
 
     val workflowImports: Option[File] = imports.map(p => File(p.pathAsString))

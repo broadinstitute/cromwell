@@ -231,7 +231,7 @@ object PartialWorkflowSources {
               workflowType = partialSource.workflowType,
               workflowTypeVersion = partialSource.workflowTypeVersion,
               inputsJson = inputsJson,
-              workflowOptionsJson = wfOptions.asPrettyJson,
+              workflowOptions = wfOptions,
               labelsJson = workflowLabels,
               importsFile = partialSource.zippedImports,
               warnings = partialSource.warnings,

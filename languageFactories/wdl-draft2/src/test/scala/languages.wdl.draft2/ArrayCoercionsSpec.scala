@@ -54,7 +54,7 @@ class ArrayCoercionsSpec extends FlatSpec with Matchers {
 
   private def createExecutable(workflowSource: WorkflowSource): Unit = {
     val result = for {
-      bundle <- factory.getWomBundle(workflowSource, "{}", List.empty, List.empty)
+      bundle <- factory.getWomBundle(workflowSource, None, "{}", List.empty, List.empty)
       _ <- factory.createExecutable(bundle, inputs = "{}", ioFunctions = new EmptyIoFunctionSet)
     } yield ()
 

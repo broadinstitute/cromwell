@@ -19,6 +19,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import java.nio.file.{Path => NioPath}
 
 import cromwell.core.WorkflowId
+import wom.ResolvedImportRecord
 import wom.core.WorkflowSource
 
 import scala.concurrent.duration._
@@ -28,7 +29,7 @@ import scala.util.{Failure, Success, Try}
 object ImportResolver {
 
   case class ImportResolutionRequest(toResolve: String, currentResolvers: List[ImportResolver])
-  case class ResolvedImportBundle(source: WorkflowSource, newResolvers: List[ImportResolver])
+  case class ResolvedImportBundle(source: WorkflowSource, newResolvers: List[ImportResolver], resolvedImportRecord: ResolvedImportRecord)
 
   trait ImportResolver {
     def name: String
@@ -96,7 +97,7 @@ object ImportResolver {
         absolutePathToFile <- makeAbsolute(resolvedPath)
         fileContents <- fetchContentFromAbsolutePath(absolutePathToFile)
         updatedResolvers = updatedResolverSet(directory, resolvedPath.parent, currentResolvers)
-      } yield ResolvedImportBundle(fileContents, updatedResolvers)
+      } yield ResolvedImportBundle(fileContents, updatedResolvers, ResolvedImportRecord(absolutePathToFile.toString))
 
       errorOr.toEither
     }
@@ -183,7 +184,7 @@ object ImportResolver {
           val result: Checked[String] = Await.result(responseIO.unsafeToFuture, 15.seconds).body.leftMap(NonEmptyList(_, List.empty))
 
           result map {
-            ResolvedImportBundle(_, newResolverList(toLookup))
+            ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))
           }
         } match {
           case Success(result) => result

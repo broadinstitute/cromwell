@@ -2,10 +2,11 @@ package cromwell.languages
 
 import com.typesafe.config.Config
 import common.Checked
-import common.validation.IOChecked.IOChecked
 import common.validation.Checked._
+import common.validation.IOChecked.IOChecked
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
+import wom.ResolvedImportRecord
 import wom.core._
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
@@ -34,6 +35,7 @@ trait LanguageFactory {
   }
 
   def getWomBundle(workflowSource: WorkflowSource,
+                   workflowSourceOrigin: Option[ResolvedImportRecord],
                    workflowOptionsJson: WorkflowOptionsJson,
                    importResolvers: List[ImportResolver],
                    languageFactories: List[LanguageFactory],

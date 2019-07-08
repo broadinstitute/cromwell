@@ -4,8 +4,10 @@ import wdl.draft2.parser.WdlParser.SyntaxError
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.WdlNamespace
 import wdl.util.StringUtil
+import wom.ResolvedImportRecord
 import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}
@@ -33,10 +35,10 @@ class SyntaxErrorSpec extends FlatSpec with Matchers {
      |  }
      |}""".stripMargin
 
-  private def resolver(importUri: String): WorkflowSource = {
+  private def resolver(importUri: String): Draft2ResolvedImportBundle = {
     importUri match {
-      case "ps" => psTaskWdl
-      case "cgrep" => cgrepTaskWdl
+      case "ps" => Draft2ResolvedImportBundle(psTaskWdl, ResolvedImportRecord("ps"))
+      case "cgrep" => Draft2ResolvedImportBundle(cgrepTaskWdl, ResolvedImportRecord("cgrep"))
       case _ => throw new RuntimeException(s"Can't resolve $importUri")
     }
   }

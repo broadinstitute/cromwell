@@ -13,13 +13,13 @@ object WomtoolCommandLineParser {
   lazy val instance: scopt.OptionParser[PartialWomtoolCommandLineArguments] = new WomtoolCommandLineParser()
 
   def validateCommandLine(args: PartialWomtoolCommandLineArguments): Option[ValidatedWomtoolCommandLine] = args match {
-    case PartialWomtoolCommandLineArguments(Some(Validate), Some(mainFile), inputs, None, None) => Option(ValidateCommandLine(mainFile, inputs))
-    case PartialWomtoolCommandLineArguments(Some(Inputs), Some(mainFile), None, showOptionals, None) => Option(InputsCommandLine(mainFile, !showOptionals.contains(false)))
-    case PartialWomtoolCommandLineArguments(Some(Parse), Some(mainFile), None, None, None) => Option(ParseCommandLine(mainFile))
-    case PartialWomtoolCommandLineArguments(Some(Highlight), Some(mainFile), None, None, Some(mode)) => Option(HighlightCommandLine(mainFile, mode))
-    case PartialWomtoolCommandLineArguments(Some(Graph), Some(mainFile), None, None, None) => Option(WomtoolGraphCommandLine(mainFile))
-    case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None, None) => Option(WomtoolWomGraphCommandLine(mainFile))
-    case PartialWomtoolCommandLineArguments(Some(Upgrade), Some(mainFile), None, None, None) => Option(WomtoolWdlUpgradeCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(Validate), Some(mainFile), inputs, None, None, listDependencies) => Option(ValidateCommandLine(mainFile, inputs, listDependencies.getOrElse(false)))
+    case PartialWomtoolCommandLineArguments(Some(Inputs), Some(mainFile), None, showOptionals, None, None) => Option(InputsCommandLine(mainFile, !showOptionals.contains(false)))
+    case PartialWomtoolCommandLineArguments(Some(Parse), Some(mainFile), None, None, None, None) => Option(ParseCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(Highlight), Some(mainFile), None, None, Some(mode), None) => Option(HighlightCommandLine(mainFile, mode))
+    case PartialWomtoolCommandLineArguments(Some(Graph), Some(mainFile), None, None, None, None) => Option(WomtoolGraphCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None, None, None) => Option(WomtoolWomGraphCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(Upgrade), Some(mainFile), None, None, None, None) => Option(WomtoolWdlUpgradeCommandLine(mainFile))
     case _ => None
   }
 }
@@ -49,6 +49,11 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
     .text("If set, optional inputs are also included in the inputs set. Default is 'true' (used only with the inputs command)")
     .optional
     .action((b, c) => c.copy(displayOptionalInputs = Some(b)))
+
+  opt[Unit]('l', name = "list-dependencies")
+    .text("An optional flag to list files referenced in import statements (used only with 'validate' command)")
+    .optional
+    .action((_, c) => c.copy(listDependencies = Option(true)))
 
   head("womtool", womtoolVersion)
 

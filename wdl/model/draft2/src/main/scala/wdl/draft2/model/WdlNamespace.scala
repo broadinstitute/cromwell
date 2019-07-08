@@ -4,6 +4,7 @@ import java.nio.file.{Path, Paths}
 
 import better.files._
 import common.util.TryUtil
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.AstTools.{AstNodeName, EnhancedAstNode}
 import wdl.draft2.model.command.ParameterCommandPart
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions
@@ -13,6 +14,7 @@ import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctionsType
 import wdl.draft2.model.types.WdlNamespaceType
 import wdl.draft2.parser.WdlParser
 import wdl.draft2.parser.WdlParser._
+import wom.ResolvedImportRecord
 import wom.core._
 import wom.types._
 import wom.values.WomValue
@@ -57,6 +59,7 @@ sealed trait WdlNamespace extends WomValue with Scope {
   }
   def sourceString: String
   def importUri: Option[String] // URI under which this namespace was imported
+  def resolvedImportRecords: Set[ResolvedImportRecord]
 }
 
 /**
@@ -69,7 +72,8 @@ case class WdlNamespaceWithoutWorkflow(importedAs: Option[String],
                                        terminalMap: Map[Terminal, WorkflowSource],
                                        ast: Ast,
                                        sourceString: String,
-                                       importUri: Option[String] = None) extends WdlNamespace {
+                                       importUri: Option[String] = None,
+                                       resolvedImportRecords: Set[ResolvedImportRecord] = Set.empty[ResolvedImportRecord]) extends WdlNamespace {
   val workflows = Seq.empty[WdlWorkflow]
 
 }
@@ -86,7 +90,8 @@ case class WdlNamespaceWithWorkflow(importedAs: Option[String],
                                     wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
                                     ast: Ast,
                                     sourceString: String,
-                                    importUri: Option[String] = None) extends WdlNamespace {
+                                    importUri: Option[String] = None,
+                                    resolvedImportRecords: Set[ResolvedImportRecord] = Set.empty[ResolvedImportRecord]) extends WdlNamespace {
 
   override val workflows = Seq(workflow)
 
@@ -156,25 +161,36 @@ object WdlNamespace {
     load(workflowSource, resource.getOrElse(WorkflowResourceString), importResolver.getOrElse(Seq(fileResolver)), None)
   }
 
-  private def load(workflowSource: WorkflowSource, resource: String, importResolver: Seq[Draft2ImportResolver], importedAs: Option[String], root: Boolean = true): Try[WdlNamespace] = Try {
+  private def load(workflowSource: WorkflowSource,
+                   resource: String,
+                   importResolver: Seq[Draft2ImportResolver],
+                   importedAs: Option[String],
+                   resolvedImportRecords: Set[ResolvedImportRecord] = Set.empty[ResolvedImportRecord],
+                   root: Boolean = true): Try[WdlNamespace] = Try {
     val maybeAst = Option(AstTools.getAst(workflowSource, resource))
 
     maybeAst match {
       case Some(ast) =>
-        WdlNamespace(ast, resource, workflowSource, importResolver, importedAs, root = root)
+        WdlNamespace(ast, resource, workflowSource, importResolver, importedAs, resolvedImportRecords, root = root)
       case None =>
         throw new IllegalArgumentException("Could not build AST from workflow source. Source is empty or contains only comments and whitespace.")
     }
   }
 
-  def apply(ast: Ast, uri: String, source: WorkflowSource, importResolvers: Seq[Draft2ImportResolver], namespaceName: Option[String], root: Boolean = false): WdlNamespace = {
+  def apply(ast: Ast,
+            uri: String,
+            source: WorkflowSource,
+            importResolvers: Seq[Draft2ImportResolver],
+            namespaceName: Option[String],
+            resolvedImportRecords: Set[ResolvedImportRecord],
+            root: Boolean = false): WdlNamespace = {
 
     val imports = for {
       importAst <- Option(ast).map(_.getAttribute("imports")).toSeq
       importStatement <- importAst.astListAsVector.map(Import(_))
     } yield importStatement
 
-    def tryResolve(str: String, remainingResolvers: Seq[Draft2ImportResolver], errors: List[Throwable]): WorkflowSource = {
+    def tryResolve(str: String, remainingResolvers: Seq[Draft2ImportResolver], errors: List[Throwable]): Draft2ResolvedImportBundle = {
       remainingResolvers match {
         case resolver :: tail =>
           Try(resolver(str)) match {
@@ -192,8 +208,15 @@ object WdlNamespace {
     // Translates all import statements to sub-namespaces
     val namespaces: Seq[WdlNamespace] = for {
       imp <- imports
-      source = tryResolve(imp.uri, importResolvers, List.empty)
-    } yield WdlNamespace.load(source, imp.uri, importResolvers, Option(imp.namespaceName), root = false).get
+      draft2ResolvedImportBundle = tryResolve(imp.uri, importResolvers, List.empty)
+    } yield WdlNamespace.load(
+      draft2ResolvedImportBundle.source,
+      imp.uri,
+      importResolvers,
+      Option(imp.namespaceName),
+      resolvedImportRecords + draft2ResolvedImportBundle.resolvedImportRecord,
+      root = false
+    ).get
 
     // Map of Terminal -> WDL Source Code so the syntax error formatter can show line numbers
     val terminalMap = AstTools.terminalMap(ast, source)
@@ -280,10 +303,33 @@ object WdlNamespace {
 
     val children = topLevelTasks ++ namespaces ++ workflows ++ topLevelDeclarationScopes.map(ast => getScope(ast, parent = None))
 
-    val namespace = workflows match {
-      case Nil => WdlNamespaceWithoutWorkflow(namespaceName, imports, namespaces, topLevelTasks, terminalMap, ast, source, Option(uri))
-      case Seq(w) => WdlNamespaceWithWorkflow(ast, w, namespaceName, imports, namespaces, topLevelTasks, terminalMap, wdlSyntaxErrorFormatter, source, Option(uri))
+    val newResolvedImportRecordsSet = resolvedImportRecords ++ namespaces.flatMap(_.resolvedImportRecords).toSet
 
+    val namespace = workflows match {
+      case Nil => WdlNamespaceWithoutWorkflow(
+        importedAs = namespaceName,
+        imports = imports,
+        namespaces = namespaces,
+        tasks = topLevelTasks,
+        terminalMap = terminalMap,
+        ast = ast,
+        sourceString = source,
+        importUri = Option(uri),
+        resolvedImportRecords = newResolvedImportRecordsSet
+      )
+      case Seq(w) => WdlNamespaceWithWorkflow(
+        ast = ast,
+        workflow = w,
+        namespace = namespaceName,
+        imports = imports,
+        namespaces = namespaces,
+        tasks = topLevelTasks,
+        terminalMap = terminalMap,
+        wdlSyntaxErrorFormatter = wdlSyntaxErrorFormatter,
+        sourceString = source,
+        importUri = Option(uri),
+        resolvedImportRecords = newResolvedImportRecordsSet
+      )
       case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.tooManyWorkflows(ast.findAsts(AstNodeName.Workflow).asJava))
     }
 
@@ -563,9 +609,12 @@ object WdlNamespace {
 
   private def readFile(wdlFile: Path): WorkflowSource = File(wdlFile).contentAsString
 
-  def fileResolver(str: String): WorkflowSource = readFile(Paths.get(str))
+  def fileResolver(str: String): Draft2ResolvedImportBundle = {
+    val path = Paths.get(str)
+    Draft2ResolvedImportBundle(readFile(path), ResolvedImportRecord(path.toAbsolutePath.toString))
+  }
 
-  def directoryResolver(directory: File)(str: String): WorkflowSource = {
+  def directoryResolver(directory: File)(str: String): Draft2ResolvedImportBundle = {
     val absolutePathToFile = Paths.get(directory.path.resolve(str).toFile.getCanonicalPath)
     val absolutePathToImports = Paths.get(directory.toJava.getCanonicalPath)
     if (absolutePathToFile.startsWith(absolutePathToImports)) {
@@ -610,9 +659,17 @@ object WdlNamespaceWithWorkflow {
     }
   }
 
-  def apply(ast: Ast, workflow: WdlWorkflow, namespace: Option[String], imports: Seq[Import],
-            namespaces: Seq[WdlNamespace], tasks: Seq[WdlTask], terminalMap: Map[Terminal, WorkflowSource],
-            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, sourceString: String, importUri: Option[String]): WdlNamespaceWithWorkflow = {
-    new WdlNamespaceWithWorkflow(namespace, workflow, imports, namespaces, tasks, terminalMap, wdlSyntaxErrorFormatter, ast, sourceString, importUri)
+  def apply(ast: Ast,
+            workflow: WdlWorkflow,
+            namespace: Option[String],
+            imports: Seq[Import],
+            namespaces: Seq[WdlNamespace],
+            tasks: Seq[WdlTask],
+            terminalMap: Map[Terminal, WorkflowSource],
+            wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
+            sourceString: String,
+            importUri: Option[String],
+            resolvedImportRecords: Set[ResolvedImportRecord]): WdlNamespaceWithWorkflow = {
+    new WdlNamespaceWithWorkflow(namespace, workflow, imports, namespaces, tasks, terminalMap, wdlSyntaxErrorFormatter, ast, sourceString, importUri, resolvedImportRecords)
   }
 }

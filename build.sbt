@@ -1,5 +1,28 @@
 import Dependencies._
 import Settings._
+import scala.sys.process._
+
+// Pre-sbt checks:
+
+lazy val preCompile = taskKey[Unit]("Execute pre-compile scripts")
+
+preCompile := {
+  val s: TaskStreams = streams.value
+  val checkHooksDir: Seq[String] = Seq("bash", "-c", "git config core.hooksPath | grep -q 'hooks/'")
+  s.log.info("Executing pre-compile script...")
+  if((checkHooksDir !) == 0) {
+    s.log.success("Pre compile script ran successfully!")
+  } else {
+    s.log.error("Pre compile script failed.")
+    s.log.error("Git hooks directory is not configured.")
+    s.log.error("Run before continuing: git config --add core.hooksPath hooks/")
+    System.exit(1)
+//    throw new sbt.MessageOnlyException("Git hooks directory is not configured. Run 'git config --add core.hooksPath hooks/' before continuing.")
+
+  }
+}
+
+(Compile / compile) := (Compile / compile dependsOn preCompile).value
 
 // Libraries
 

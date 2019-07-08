@@ -6,6 +6,6 @@ set -o errexit -o nounset -o pipefail
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 # Make sure our hooks are configured before building:
-git config core.hooksPath | grep -q 'hooks/'
+git config --add core.hooksPath hooks/
 
 cromwell::build::exec_test_script

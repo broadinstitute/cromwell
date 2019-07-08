@@ -10,7 +10,6 @@ import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder, PathBuilderFactory}
-import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -20,12 +19,13 @@ import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
+import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs with BeforeAndAfter with Eventually {
 

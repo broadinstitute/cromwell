@@ -8,6 +8,7 @@ import common.validation.Validation._
 import cromwell.core.path.Path
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
+import cromwell.languages.util.ResolvedImportsStore
 import languages.cwl.CwlV1_0LanguageFactory
 import languages.wdl.biscayne.WdlBiscayneLanguageFactory
 import languages.wdl.draft2.WdlDraft2LanguageFactory
@@ -21,11 +22,14 @@ import scala.util.Try
 
 object WomGraphMaker {
 
-  def getBundle(mainFile: Path): Checked[WomBundle] = getBundleAndFactory(mainFile).map(_._1)
+  def getBundle(mainFile: Path, listDependencies: Boolean = false): Checked[(WomBundle, ResolvedImportsStore)] =
+    getBundleAndFactory(mainFile, listDependencies).map(x => (x._1, x._3))
 
-  private def getBundleAndFactory(mainFile: Path): Checked[(WomBundle, LanguageFactory)] = {
+  private def getBundleAndFactory(mainFile: Path, listDependencies: Boolean): Checked[(WomBundle, LanguageFactory, ResolvedImportsStore)] = {
+    val resolvedImportsStoreObj = new ResolvedImportsStore
+
     lazy val importResolvers: List[ImportResolver] =
-      DirectoryResolver.localFilesystemResolvers(Some(mainFile)) :+ HttpResolver(relativeTo = None)
+      DirectoryResolver.localFilesystemResolvers(Some(mainFile), resolvedImportsStoreObj) :+ HttpResolver(resolvedImportsStoreObj, relativeTo = None)
 
     readFile(mainFile.toAbsolutePath.pathAsString) flatMap { mainFileContents =>
       val languageFactory =
@@ -36,24 +40,24 @@ object WomGraphMaker {
           .find(_.looksParsable(mainFileContents))
           .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))
 
-      val bundle = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory))
+      val bundle = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory), listDependencies)
       // Return the pair with the languageFactory
-      bundle map ((_, languageFactory))
+      bundle.map(bd => (bd, languageFactory, resolvedImportsStoreObj))
     }
   }
 
-  def fromFiles(mainFile: Path, inputs: Option[Path]): Checked[Graph] = {
-    getBundleAndFactory(mainFile) flatMap { case (womBundle, languageFactory) =>
+  def fromFiles(mainFile: Path, inputs: Option[Path], listDependencies: Boolean = false): Checked[(Graph, ResolvedImportsStore)] = {
+    getBundleAndFactory(mainFile, listDependencies) flatMap { case (womBundle, languageFactory, workflowDependencies) =>
       inputs match {
         case None =>
           for {
             executableCallable <- womBundle.toExecutableCallable
-          } yield executableCallable.graph
+          } yield (executableCallable.graph, workflowDependencies)
         case Some(inputsFile) =>
           for {
             inputsContents <- readFile(inputsFile.toAbsolutePath.pathAsString)
             validatedWomNamespace <- languageFactory.createExecutable(womBundle, inputsContents, NoIoFunctionSet)
-          } yield validatedWomNamespace.executable.graph
+          } yield (validatedWomNamespace.executable.graph, workflowDependencies)
       }
     }
   }

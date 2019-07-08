@@ -1,0 +1,3 @@
+Success!
+List of Workflow dependencies is:
+{REPLACE_WITH_ROOT_PATH}/womtool/src/test/resources/validate/wdl_draft3/valid/task_only/task_only.wdl

@@ -18,7 +18,7 @@ import common.validation.IOChecked.IOChecked
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.languages.util.ImportResolver.{ImportResolutionRequest, ImportResolver}
-import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
+import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil, ResolvedImportsStore}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import languages.wdl.draft2.WdlDraft2LanguageFactory._
 import mouse.all._
@@ -113,12 +113,13 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     }
   }
 
+
   override def getWomBundle(workflowSource: WorkflowSource,
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory],
-                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
-    for {
+                            convertNestedScatterToSubworkflow : Boolean = true,
+                            listDependencies: Boolean = false): Checked[WomBundle] = {for {
       _ <- enabledCheck
       namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked
       womBundle <- namespace.toWomBundle
@@ -158,6 +159,6 @@ object WdlDraft2LanguageFactory {
     case Left(errors) => throw new RuntimeException(s"Bad import $str: ${errors.toList.mkString(System.lineSeparator)}")
   }
 
-  val httpResolver = resolverConverter(ImportResolver.HttpResolver())
-  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.HttpResolver(headers = headers))
+  val httpResolver = resolverConverter(ImportResolver.HttpResolver(new ResolvedImportsStore))
+  def httpResolverWithHeaders(headers: Map[String, String]) = resolverConverter(ImportResolver.HttpResolver(new ResolvedImportsStore, headers = headers))
 }

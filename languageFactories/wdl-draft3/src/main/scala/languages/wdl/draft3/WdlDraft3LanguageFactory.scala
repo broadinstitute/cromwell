@@ -44,14 +44,14 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
     } yield executable
 
     fromEither[IO](checked)
-
   }
 
   override def getWomBundle(workflowSource: WorkflowSource,
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory],
-                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
+                            convertNestedScatterToSubworkflow : Boolean = true,
+                            listDependencies: Boolean = false): Checked[WomBundle] = {
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => enabledCheck map(_ => x))
     val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))

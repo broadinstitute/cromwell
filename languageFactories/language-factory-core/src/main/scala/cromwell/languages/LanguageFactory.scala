@@ -2,8 +2,8 @@ package cromwell.languages
 
 import com.typesafe.config.Config
 import common.Checked
-import common.validation.IOChecked.IOChecked
 import common.validation.Checked._
+import common.validation.IOChecked.IOChecked
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
 import wom.core._
@@ -37,7 +37,8 @@ trait LanguageFactory {
                    workflowOptionsJson: WorkflowOptionsJson,
                    importResolvers: List[ImportResolver],
                    languageFactories: List[LanguageFactory],
-                   convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle]
+                   convertNestedScatterToSubworkflow : Boolean = true,
+                   listDependencies: Boolean = false): Checked[WomBundle]
 
   def createExecutable(womBundle: WomBundle,
                        inputs: WorkflowJson,

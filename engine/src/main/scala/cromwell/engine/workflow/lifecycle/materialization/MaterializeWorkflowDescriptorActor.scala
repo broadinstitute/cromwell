@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.Monad
 import cats.data.EitherT._
-import cats.data.Validated.{Invalid, Valid}
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.apply._
@@ -21,12 +21,12 @@ import common.validation.IOChecked._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
-import cromwell.core.{HogGroup, _}
 import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
+import cromwell.core.{HogGroup, _}
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -60,9 +60,20 @@ object MaterializeWorkflowDescriptorActor {
   // exception if not initialized yet.
   private def cromwellBackends = CromwellBackends.instance.get
 
-  def props(serviceRegistryActor: ActorRef, workflowId: WorkflowId, cromwellBackends: => CromwellBackends = cromwellBackends,
-            importLocalFilesystem: Boolean, ioActorProxy: ActorRef, hogGroup: HogGroup): Props = {
-    Props(new MaterializeWorkflowDescriptorActor(serviceRegistryActor, workflowId, cromwellBackends, importLocalFilesystem, ioActorProxy, hogGroup)).withDispatcher(EngineDispatcher)
+  def props(serviceRegistryActor: ActorRef,
+            workflowId: WorkflowId,
+            cromwellBackends: => CromwellBackends = cromwellBackends,
+            importLocalFilesystem: Boolean,
+            ioActorProxy: ActorRef,
+            hogGroup: HogGroup): Props = {
+    Props(new MaterializeWorkflowDescriptorActor(
+      serviceRegistryActor,
+      workflowId,
+      cromwellBackends,
+      importLocalFilesystem,
+      ioActorProxy,
+      hogGroup)
+    ).withDispatcher(EngineDispatcher)
   }
 
   /*
@@ -256,7 +267,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
 
     val localFilesystemResolvers =
-      if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(None)
+      if (importLocalFilesystem) DirectoryResolver.localFilesystemResolvers(baseWdl = None)
       else List.empty
 
     val zippedResolverCheck: IOChecked[Option[DirectoryResolver]] = fromEither[IO](sourceFiles.importsZipFileOption match {
@@ -269,7 +280,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       _ <- publishLabelsToMetadata(id, labels)
       zippedImportResolver <- zippedResolverCheck
-      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver()
       sourceAndResolvers <- fromEither[IO](LanguageFactoryUtil.findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
       _ = if(sourceFiles.workflowUrl.isDefined) publishWorkflowSourceToMetadata(id, sourceAndResolvers._1)
       factory <- findFactory(sourceAndResolvers._1).toIOChecked

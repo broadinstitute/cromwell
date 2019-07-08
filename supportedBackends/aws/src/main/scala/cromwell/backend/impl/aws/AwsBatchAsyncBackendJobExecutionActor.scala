@@ -345,6 +345,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     disk.mountPoint
   }
 
+  override def adHocCwd = runtimeEnvironment.outputPath
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true

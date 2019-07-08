@@ -268,6 +268,12 @@ trait StandardAsyncExecutionActor
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
+  /**
+    * Directory where workflow user commands will be executed.
+    * It's overridden in AwsBatchAsyncBackendJobExecutionActor in order to allow Cromwell find adHoc files.
+    * */
+  def adHocCwd: String = cwd.pathAsString
+
   // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
   // the command, but the standard input file will never be accessed after the command completes. standard output and
   // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
@@ -383,7 +389,7 @@ trait StandardAsyncExecutionActor
         |tee $stdoutRedirection < "$$$out" &
         |tee $stderrRedirection < "$$$err" >&2 &
         |(
-        |cd $cwd
+        |cd $adHocCwd
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
         |) $stdinRedirection > "$$$out" 2> "$$$err"

@@ -28,6 +28,8 @@ object WdlDraft2WomCommandTaskDefinitionMaker extends WomCommandTaskDefinitionMa
     // Figure out the start line of the workflow in the source file
     val t: Option[Terminal] = AstTools.findTerminals(wdlTask.ast).headOption
 
+    // Draft-2 only support string values. It does not support composite values, or
+    // anything
     def stringifyMetaValues(meta: Map[String, String]): Map[String, MetaValueElement] = {
       meta map {
         case (key, value) =>

@@ -1,31 +1,52 @@
 package cromwell.services.womtool.models
 
-import cats.syntax.functor._
-//import io.circe.{Encoder, Json}
-import io.circe.{ Decoder, Encoder }, io.circe.generic.auto._
-import io.circe.syntax._
+import io.circe.{Encoder, Json}
 
 import wom.callable.MetaValueElement
 import wom.callable.MetaValueElement._
 
 object MetaValueElementJsonSupport {
 
-  implicit val metaValueElementEncoder: Encoder[MetaValueElement] = Encoder.instance {
-    case MetaValueElementNull => throw new Exception("null not supported yet")
-    case a @ MetaValueElementBoolean(_) => a.asJson
-    case a @ MetaValueElementFloat(_) => a.asJson
-    case a @ MetaValueElementInteger(_) => a.asJson
-    case a @ MetaValueElementString(_) => a.asJson
-    case MetaValueElementObject(_) => throw new Exception("object not supported yet")
-    case MetaValueElementArray(_) => throw new Exception("array not supported yet")
-  }
+  // We only implement the encoder, because currently, limited query functionality is required
+  // for the meta sections. Even in the encoder, we only support the type, and not the actual value.
+  implicit val metaValueElementEncoder: Encoder[MetaValueElement] = new Encoder[MetaValueElement] {
+    final def apply(a : MetaValueElement) : Json = {
+      a match {
+        case MetaValueElementNull =>
+          Json.obj(
+            ("typeName", Json.fromString("Null"))
+          )
 
-  implicit val metaValueElementDecoder: Decoder[MetaValueElement] =
-    List[Decoder[MetaValueElement]](
-//      Decoder[MetaValueElementNull].widen,
-      Decoder[MetaValueElementBoolean].widen,
-      Decoder[MetaValueElementFloat].widen,
-      Decoder[MetaValueElementInteger].widen,
-      Decoder[MetaValueElementString].widen,
-    ).reduceLeft(_ or _)
+        case MetaValueElementBoolean(_) =>
+          Json.obj(
+            ("typeName", Json.fromString("Boolean"))
+          )
+
+        case MetaValueElementFloat(_) =>
+          Json.obj(
+            ("typeName", Json.fromString("Float"))
+          )
+
+        case MetaValueElementInteger(_) =>
+          Json.obj(
+            ("typeName", Json.fromString("Int"))
+          )
+
+        case MetaValueElementString(_) =>
+          Json.obj(
+            ("typeName", Json.fromString("String"))
+          )
+
+        case MetaValueElementArray(_) =>
+          Json.obj(
+            ("typeName", Json.fromString("Array"))
+          )
+
+        case MetaValueElementObject(_) =>
+          Json.obj(
+            ("typeName", Json.fromString("Object"))
+          )
+      }
+    }
+  }
 }

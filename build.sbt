@@ -1,26 +1,58 @@
 import Dependencies._
 import Settings._
+import com.typesafe.config.ConfigFactory
+import complete.DefaultParsers._
+
 import scala.sys.process._
 
 // Pre-sbt checks:
 
 lazy val preCompile = taskKey[Unit]("Execute pre-compile scripts")
 
+val demo = inputKey[Unit]("A demo input task.")
+
+demo := {
+  // get the result of parsing
+  val args: Seq[String] = spaceDelimited("<arg>").parsed
+  // Here, we also use the value of the `scalaVersion` setting
+  println("The current Scala version is " + scalaVersion.value)
+  println("The arguments to demo were:")
+  args foreach println
+}
+
 preCompile := {
   val s: TaskStreams = streams.value
-  val checkHooksDir: Seq[String] = Seq("bash", "-c", "git config core.hooksPath | grep -q 'hooks/'")
-  s.log.info("Executing pre-compile script...")
-  if((checkHooksDir !) == 0) {
-    s.log.success("Pre compile script ran successfully!")
-  } else {
-    s.log.error("Pre compile script failed.")
-    s.log.error("Git hooks directory is not configured.")
-    s.log.error("Run before continuing: git config --add core.hooksPath hooks/")
-    System.exit(1)
-//    throw new sbt.MessageOnlyException("Git hooks directory is not configured. Run 'git config --add core.hooksPath hooks/' before continuing.")
 
+  val configureHooksCommandString = "git config --add core.hooksPath hooks/"
+  val configureHooksCommand = Seq("bash", "-c", configureHooksCommandString)
+
+  s.log.info("Executing pre-compile script...")
+
+  def checkHooksDir() = Seq("bash", "-c", "git config core.hooksPath | grep -q 'hooks/'").!
+  def configureHooks() = configureHooksCommand.!
+
+  def ignoreHookCheck: Boolean = {
+    val config = ConfigFactory.load()
+    if (config.hasPath("ignore-hooks-check")) {
+      config.getBoolean("ignore-hooks-check")
+    } else false
+  }
+
+  if(checkHooksDir() == 0) {
+    s.log.success("Pre compile script ran successfully")
+  } else {
+    val message = s"You are not running our custom git commit hooks. If you are making changes to the codebase, we recommend doing this (by running '$configureHooksCommandString') to ensure that your cryptographic secrets are not committed to our repository by accident."
+    
+    if (ignoreHookCheck) {
+      s.log.warn(message)
+    } else {
+      s.log.error(message)
+      s.log.error("If you don't want to set up hooks (if you never intend to commit to the cromwell repo, can be sure that you won't commit secrets by accident, or have already installed git-secrets in this repo separately), you can suppress this error by compiling with: 'sbt -Dignore-hooks-check=true compile'")
+      System.exit(1)
+    }
   }
 }
+
 
 (Compile / compile) := (Compile / compile dependsOn preCompile).value
 

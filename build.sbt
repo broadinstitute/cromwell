@@ -35,7 +35,7 @@ preCompile := {
       s.log.warn(message)
     } else {
       s.log.error(message)
-      s.log.error("If you don't want to set up hooks (if you never intend to commit to the cromwell repo, can be sure that you won't commit secrets by accident, or have already installed git-secrets in this repo separately), you can suppress this error by compiling with: 'sbt -Dignore-hooks-check=true compile'")
+      s.log.error("If you don't want to set up hooks (if you never intend to commit to the cromwell repo, can be sure that you won't commit secrets by accident, or have already installed git-secrets in this repo separately), you can suppress this error by running with: 'sbt -Dignore-hooks-check=true [...]'")
       System.exit(1)
     }
   }
@@ -43,6 +43,7 @@ preCompile := {
 
 
 (Compile / compile) := (Compile / compile dependsOn preCompile).value
+(Test / test) := (Test / test dependsOn preCompile).value
 
 // Libraries
 

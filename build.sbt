@@ -1,24 +1,12 @@
 import Dependencies._
 import Settings._
 import com.typesafe.config.ConfigFactory
-import complete.DefaultParsers._
 
 import scala.sys.process._
 
 // Pre-sbt checks:
 
 lazy val preCompile = taskKey[Unit]("Execute pre-compile scripts")
-
-val demo = inputKey[Unit]("A demo input task.")
-
-demo := {
-  // get the result of parsing
-  val args: Seq[String] = spaceDelimited("<arg>").parsed
-  // Here, we also use the value of the `scalaVersion` setting
-  println("The current Scala version is " + scalaVersion.value)
-  println("The arguments to demo were:")
-  args foreach println
-}
 
 preCompile := {
   val s: TaskStreams = streams.value

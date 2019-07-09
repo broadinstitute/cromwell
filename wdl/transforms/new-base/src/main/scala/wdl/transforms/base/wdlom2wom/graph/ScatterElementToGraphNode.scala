@@ -25,7 +25,7 @@ import wom.graph.GraphNodePort.{ConnectedInputPort, InputPort, OutputPort}
 import wom.graph._
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.{WomAnyType, WomArrayType, WomType}
-import wom.util.YamlUtils
+import wom.util.WomParseConfig
 
 object ScatterElementToGraphNode {
   def convert(a: ScatterNodeMakerInputs)
@@ -33,7 +33,7 @@ object ScatterElementToGraphNode {
               fileEvaluator: FileEvaluator[ExpressionElement],
               typeEvaluator: TypeEvaluator[ExpressionElement],
               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] =
-    if (YamlUtils.innerOuterScatter) {
+    if (WomParseConfig.innerOuterScatter) {
       // Create a sub-workflow from the inner scatter.
       if (a.insideAnotherScatter) {
         convertInnerScatter(a)

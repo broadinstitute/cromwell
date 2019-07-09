@@ -72,7 +72,6 @@ object YamlUtils {
   private val yamlConfig = ConfigFactory.load().getConfig("yaml")
   private val defaultMaxNodes = yamlConfig.as[Int Refined NonNegative]("max-nodes")
   private val defaultMaxDepth = yamlConfig.as[Int Refined NonNegative]("max-depth")
-  val innerOuterScatter = yamlConfig.as[Boolean]("inner-outer-scatter")
 
   /** Extends SnakeYaml's Composer checking for a maximum depth before a StackOverflowError occurs. */
   private class MaxDepthComposer(yaml: String, maxDepth: Int Refined NonNegative)

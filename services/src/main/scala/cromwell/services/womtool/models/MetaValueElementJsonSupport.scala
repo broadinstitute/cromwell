@@ -13,39 +13,27 @@ object MetaValueElementJsonSupport {
     final def apply(a : MetaValueElement) : Json = {
       a match {
         case MetaValueElementNull =>
-          Json.obj(
-            ("typeName", Json.fromString("Null"))
-          )
+          Json.Null
 
-        case MetaValueElementBoolean(_) =>
-          Json.obj(
-            ("typeName", Json.fromString("Boolean"))
-          )
+        case MetaValueElementBoolean(b) =>
+          Json.fromBoolean(b)
 
-        case MetaValueElementFloat(_) =>
-          Json.obj(
-            ("typeName", Json.fromString("Float"))
-          )
+        case MetaValueElementFloat(x) =>
+          Json.fromDouble(x).get
 
-        case MetaValueElementInteger(_) =>
-          Json.obj(
-            ("typeName", Json.fromString("Int"))
-          )
+        case MetaValueElementInteger(a) =>
+          Json.fromInt(a)
 
-        case MetaValueElementString(_) =>
-          Json.obj(
-            ("typeName", Json.fromString("String"))
-          )
+        case MetaValueElementString(s) =>
+          Json.fromString(s)
 
-        case MetaValueElementArray(_) =>
-          Json.obj(
-            ("typeName", Json.fromString("Array"))
-          )
+        case MetaValueElementArray(vec) =>
+          Json.fromValues(vec.map(apply(_)))
 
-        case MetaValueElementObject(_) =>
-          Json.obj(
-            ("typeName", Json.fromString("Object"))
-          )
+        case MetaValueElementObject(m) =>
+          Json.fromFields(m.map{ case (key, value) =>
+                            key -> apply(value)
+                          })
       }
     }
   }

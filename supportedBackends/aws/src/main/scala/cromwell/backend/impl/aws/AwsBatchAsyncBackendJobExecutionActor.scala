@@ -340,6 +340,17 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val commandDirectory: Path = AwsBatchWorkingDisk.MountPoint
 
+  /**
+    * Generates a script that moves all adhoc files to an execution directory ("/cromwell_root")
+    */
+  override lazy val scriptPreamble = (for {
+    adHocFiles <- evaluatedAdHocFiles.toList
+    adHocFile <- adHocFiles
+    adHocFilePath <- getPath(adHocFile.womValue.value).toOption
+  } yield {
+    s"""mv "${adHocFilePath.pathWithoutScheme}" ."""
+  }).mkString(System.lineSeparator)
+
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
     val (_, disk) = relativePathAndVolume(womGlobFile.value, runtimeAttributes.disks)
     disk.mountPoint

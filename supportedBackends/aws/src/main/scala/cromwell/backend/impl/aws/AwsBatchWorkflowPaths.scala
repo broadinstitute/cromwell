@@ -36,11 +36,8 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-//import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
-//import cromwell.core.path.{Path, PathBuilder}
 import cromwell.core.path.PathBuilder
-//import cromwell.filesystems.s3.S3PathBuilder
 import cromwell.filesystems.s3.S3PathBuilderFactory
 
 object AwsBatchWorkflowPaths {
@@ -52,35 +49,12 @@ case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                             credentials: AwsCredentials,
                             configuration: AwsBatchConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {
 
-  //override lazy val executionRootString: String =
-   // workflowDescriptor.workflowOptions.getOrElse(AwsBatchWorkflowPaths.RootOptionKey, configuration.root)
   override lazy val executionRootString: String =  configuration.fileSystem match {
     case "s3" => workflowDescriptor.workflowOptions.getOrElse(AwsBatchWorkflowPaths.RootOptionKey, configuration.root)
     case _ => configuration.root
   }
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
-  //private val pathBuilder: S3PathBuilder = configuration.pathBuilderFactory.fromCredentials(workflowOptions, credentials)
-
- /* val authFilePath: Path = {
-    // The default auth file bucket is always at the root of the root workflow
-    val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.name).resolve(workflowDescriptor.rootWorkflowId.toString)
-    val bucket = workflowDescriptor.workflowOptions.get(AwsBatchWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
-
-    val pathBuilderWithAuth = S3PathBuilder.fromCredentials(
-      credentials,
-      S3Storage.DefaultConfiguration,
-      workflowOptions,
-      configuration.awsConfig.region
-    )
-
-    val authBucket = pathBuilderWithAuth.build(bucket) recover {
-      case ex => throw new Exception(s"Invalid s3 auth_bucket path $bucket", ex)
-    } get
-
-    authBucket.resolve(s"${workflowDescriptor.rootWorkflowId}_auth.json")
-  }
-*/
   override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): AwsBatchJobPaths = {
     new AwsBatchJobPaths(workflowPaths.asInstanceOf[AwsBatchWorkflowPaths], jobKey)
   }
@@ -88,11 +62,10 @@ case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
   override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)
 
   override def config: Config = configuration.configurationDescriptor.backendConfig
-  //override def pathBuilders: List[PathBuilder] = List(pathBuilder)
   override def pathBuilders: List[PathBuilder] = {
-    if (configuration.fileSystem == "s3")
+    if (configuration.fileSystem == "s3") {
       List(configuration.pathBuilderFactory.asInstanceOf[S3PathBuilderFactory].fromCredentials(workflowOptions, credentials))
-    else
-      WorkflowPaths.DefaultPathBuilders
+    }else {
+      WorkflowPaths.DefaultPathBuilders}
   }
 }

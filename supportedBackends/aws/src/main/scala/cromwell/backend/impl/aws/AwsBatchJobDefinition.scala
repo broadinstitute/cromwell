@@ -81,25 +81,34 @@ trait AwsBatchJobDefinitionBuilder {
     // The initial buffer should only contain one item - the hostpath of the
     // local disk mount point, which will be needed by the docker container
     // that copies data around
+    val outputinfo = context.outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
+      .mkString(";")
+    val inputinfo = context.inputs.collect{case i: AwsBatchFileInput => i}
+      .map(i => "%s,%s,%s,%s".format(i.name, i.s3key, i.local, i.mount))
+      .mkString(";")
+
     val environment =
       context.runtimeAttributes.disks.collect{
-        case d if d.name == "local-disk" =>
-          buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString)
-      }.toBuffer
-    val outputinfo = context.outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
-                            .mkString(";")
-    val inputinfo = context.inputs.collect{case i: AwsBatchFileInput => i}
-                          .map(i => "%s,%s,%s,%s".format(i.name, i.s3key, i.local, i.mount))
-                          .mkString(";")
+        case d if d.name == "local-disk" =>  // this has s3 fiel system, needs all the env for the ecs-proxy
+          List(buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString),
+          buildKVPair("AWS_CROMWELL_PATH",context.uniquePath),
+          buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath),
+          buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath),
+          buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath),
+          buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString),
+          buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString),
+          gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo),
+          buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))
+      }.flatten
 
-    environment.append(buildKVPair("AWS_CROMWELL_PATH",context.uniquePath))
+    /*environment.append(buildKVPair("AWS_CROMWELL_PATH",context.uniquePath))
     environment.append(buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath))
     environment.append(buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath))
     environment.append(buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath))
     environment.append(buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString))
     environment.append(buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString))
     environment.append(gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo))
-    environment.append(buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))
+    environment.append(buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))*/
 
     def getVolPath(d:AwsBatchVolume) : Option[String] =  {
         d.fsType match {
@@ -132,6 +141,7 @@ trait AwsBatchJobDefinitionBuilder {
     val packedCommand = mainCommand.length() match {
       case len if len <= lim => mainCommand
       case len if len > lim => {
+        Log.info(s"Command size greater than 1k size: ${len}, compressing : ${mainCommand}")
         rc += "gzipdata" // This is hard coded in our agent and must be the first item
         gzip(mainCommand)
       }

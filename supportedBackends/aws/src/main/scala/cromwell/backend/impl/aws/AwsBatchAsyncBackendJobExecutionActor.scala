@@ -80,7 +80,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AwsBatchJobCachingActorHelper
     with KvClient with AskSupport {
 
-  //override lazy val ioCommandBuilder = S3BatchCommandBuilder
   override lazy val ioCommandBuilder = configuration.fileSystem match  {
     case "s3" => S3BatchCommandBuilder
     case _ =>  DefaultIoCommandBuilder

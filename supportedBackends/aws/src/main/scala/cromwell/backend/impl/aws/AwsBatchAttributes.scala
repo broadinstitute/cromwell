@@ -53,14 +53,15 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
-case class AwsBatchAttributes(auth: AwsAuthMode,
+case class AwsBatchAttributes(fileSystem: String,
+                              auth: AwsAuthMode,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
                               createDefinitionAttempts: Int Refined Positive)
 
 object AwsBatchAttributes {
-  lazy val Logger = LoggerFactory.getLogger("AwsBatchAttributes")
+  lazy val Logger = LoggerFactory.getLogger(this.getClass)
 
   private val availableConfigKeys = Set(
     "concurrent-job-limit",
@@ -71,7 +72,7 @@ object AwsBatchAttributes {
     "filesystems",
     "filesystems.local.auth",
     "filesystems.s3.auth",
-    "filesystems.local.caching.duplication-strategy",
+    "filesystems.s3.caching.duplication-strategy",
     "filesystems.local.caching.duplication-strategy",
     "default-runtime-attributes",
     "default-runtime-attributes.disks",
@@ -105,14 +106,19 @@ object AwsBatchAttributes {
 
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
 
-    val fileSysStr = backendConfig.hasPath("filesystems.s3") match {
+    val fileSysStr:ErrorOr[String] =  validate {backendConfig.hasPath("filesystems.s3") match {
+      case true => "s3"
+      case false => "local"
+    }}
+
+    val fileSysPath = backendConfig.hasPath("filesystems.s3") match {
       case true => "filesystems.s3"
       case false => "filesystems.local"
     }
     val filesystemAuthMode: ErrorOr[AwsAuthMode] = {
       (for {
         authName <- validate {
-          backendConfig.as[String](s"${fileSysStr}.auth")
+          backendConfig.as[String](s"${fileSysPath}.auth")
         }.toEither
         validAuth <- awsConfig.auth(authName).toEither
       } yield validAuth).toValidated
@@ -122,15 +128,18 @@ object AwsBatchAttributes {
     val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
       validate {
         backendConfig.
-          as[Option[String]](s"${fileSysStr}.caching.duplication-strategy").
+          as[Option[String]](s"${fileSysPath}.caching.duplication-strategy").
           getOrElse("copy") match {
-            case "copy" => CopyCachedOutputs
-            case "reference" => UseOriginalCachedOutputs
+            case "copy" => {Logger.info("Cache Method:Copy ")
+              CopyCachedOutputs}
+            case "reference" => {Logger.info("Cache Method:Reference")
+              UseOriginalCachedOutputs}
             case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
           }
       }
 
     (
+      fileSysStr,
       filesystemAuthMode,
       executionBucket,
       duplicationStrategy,

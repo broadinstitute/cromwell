@@ -54,7 +54,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                 queueArn: String,
                                 failOnStderr: Boolean,
                                 continueOnReturnCode: ContinueOnReturnCode,
-                                noAddress: Boolean)
+                                noAddress: Boolean,
+                                     fileSystem:String= "s3")
 
 object AwsBatchRuntimeAttributes {
 
@@ -72,6 +73,7 @@ object AwsBatchRuntimeAttributes {
   private val DisksDefaultValue = WomString(s"${AwsBatchWorkingDisk.Name}")
 
   private val MemoryDefaultValue = "2 GB"
+
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)

@@ -49,6 +49,7 @@ class AwsBatchExpressionFunctions(standardParams: StandardExpressionFunctionsPar
     }
   }
 }
+
 class AwsBatchExpressionFunctionsForFS(standardParams: StandardExpressionFunctionsParams)
   extends StandardExpressionFunctions(standardParams) {
 

@@ -130,10 +130,8 @@ object AwsBatchAttributes {
         backendConfig.
           as[Option[String]](s"${fileSysPath}.caching.duplication-strategy").
           getOrElse("copy") match {
-            case "copy" => {Logger.info("Cache Method:Copy ")
-              CopyCachedOutputs}
-            case "reference" => {Logger.info("Cache Method:Reference")
-              UseOriginalCachedOutputs}
+            case "copy" => CopyCachedOutputs
+            case "reference" => UseOriginalCachedOutputs
             case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
           }
       }

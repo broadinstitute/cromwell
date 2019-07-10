@@ -40,7 +40,6 @@ import wdl4s.parser.MemoryUnit
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
-import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 import com.google.common.io.BaseEncoding
@@ -60,7 +59,6 @@ sealed trait AwsBatchJobDefinition {
 }
 
 trait AwsBatchJobDefinitionBuilder {
-  val Log = LoggerFactory.getLogger(this.getClass)
 
   /** Gets a builder, seeded with appropriate portions of the container properties
    *
@@ -101,20 +99,12 @@ trait AwsBatchJobDefinitionBuilder {
           buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))
       }.flatten
 
-    /*environment.append(buildKVPair("AWS_CROMWELL_PATH",context.uniquePath))
-    environment.append(buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath))
-    environment.append(buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath))
-    environment.append(buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath))
-    environment.append(buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString))
-    environment.append(buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString))
-    environment.append(gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo))
-    environment.append(buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))*/
+
 
     def getVolPath(d:AwsBatchVolume) : Option[String] =  {
         d.fsType match {
           case "efs"  => None
-          case _ => {Log.info(s" Vol details ${d.name} : ${d.fsType}")
-            Option(context.uniquePath) }
+          case _ =>  Option(context.uniquePath)
         }
     }
 
@@ -141,7 +131,6 @@ trait AwsBatchJobDefinitionBuilder {
     val packedCommand = mainCommand.length() match {
       case len if len <= lim => mainCommand
       case len if len > lim => {
-        Log.info(s"Command size greater than 1k size: ${len}, compressing : ${mainCommand}")
         rc += "gzipdata" // This is hard coded in our agent and must be the first item
         gzip(mainCommand)
       }

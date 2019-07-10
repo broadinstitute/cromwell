@@ -19,7 +19,8 @@ case class WorkflowDescription(
                                 submittedDescriptorType: Map[String, String],
                                 importedDescriptorTypes: List[Map[String, String]],
                                 meta: Map[String, String],
-                                parameterMeta: Map[String, String]
+                                parameterMeta: Map[String, String],
+                                isRunnableWorkflow: Boolean
                               )
 
 case object WorkflowDescription {
@@ -53,21 +54,21 @@ case object WorkflowDescription {
 
     (bundle.allCallables.values.toList, bundle.primaryCallable) match {
 
-      // There is a primary callable in the form of a task
-      case (_, Some(primaryCallable: WorkflowDefinition)) =>
-        fromBundleInner(inputErrors, primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
-
       // There is a primary callable in the form of a workflow
+      case (_, Some(primaryCallable: WorkflowDefinition)) =>
+        fromBundleInner(inputErrors, primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, isRunnableWorkflow = true)
+
+      // There is a primary callable in the form of a task
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
-        fromBundleInner(inputErrors, primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images)
+        fromBundleInner(inputErrors, primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, isRunnableWorkflow = false)
 
       // WDL draft-2: a solo task is not primary, but we should still use its name and IO
       case ((soloNonPrimaryTask: CallableTaskDefinition) :: Nil, None) =>
-        fromBundleInner(inputErrors, soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images)
+        fromBundleInner(inputErrors, soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images, isRunnableWorkflow = false)
 
       // Multiple tasks
       case _ =>
-        fromBundleInner(inputErrors, "", sdt, List.empty, List.empty, Map.empty, Map.empty, images)
+        fromBundleInner(inputErrors, "", sdt, List.empty, List.empty, Map.empty, Map.empty, images, isRunnableWorkflow = false)
     }
   }
 
@@ -77,7 +78,8 @@ case object WorkflowDescription {
                                inputs: List[InputDefinition], outputs: List[OutputDefinition],
                                meta: Map[String, String],
                                parameterMeta: Map[String, String],
-                               images: List[String]
+                               images: List[String],
+                               isRunnableWorkflow: Boolean
                              ): WorkflowDescription = {
     val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
       input match {
@@ -120,7 +122,8 @@ case object WorkflowDescription {
       submittedDescriptorType = submittedDescriptorType,
       importedDescriptorTypes = List.empty,
       meta = meta,
-      parameterMeta = parameterMeta
+      parameterMeta = parameterMeta,
+      isRunnableWorkflow = isRunnableWorkflow
     )
   }
 
@@ -134,8 +137,9 @@ case object WorkflowDescription {
             submittedDescriptorType: Map[String, String] = Map.empty,
             importedDescriptorTypes: List[Map[String, String]] = List.empty,
             meta: Map[String, String] = Map.empty,
-            parameterMeta: Map[String, String] = Map.empty): WorkflowDescription = {
-    new WorkflowDescription(valid, errors, validWorkflow, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta)
+            parameterMeta: Map[String, String] = Map.empty,
+            isRunnableWorkflow: Boolean = false): WorkflowDescription = {
+    new WorkflowDescription(valid, errors, validWorkflow, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta, isRunnableWorkflow)
   }
 
   implicit val workflowDescriptionEncoder: Encoder[WorkflowDescription] = deriveEncoder[WorkflowDescription]

@@ -33,7 +33,7 @@ object ScatterElementToGraphNode {
               fileEvaluator: FileEvaluator[ExpressionElement],
               typeEvaluator: TypeEvaluator[ExpressionElement],
               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] =
-    if (WomParseConfig.innerOuterScatter) {
+    if (WomParseConfig.convertNestedScatterToSubworkflow) {
       // Create a sub-workflow from the inner scatter.
       if (a.insideAnotherScatter) {
         convertInnerScatter(a)

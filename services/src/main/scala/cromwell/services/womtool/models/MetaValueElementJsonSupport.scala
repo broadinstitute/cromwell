@@ -7,8 +7,7 @@ import wom.callable.MetaValueElement._
 
 object MetaValueElementJsonSupport {
 
-  // We only implement the encoder, because currently, limited query functionality is required
-  // for the meta sections. Even in the encoder, we only support the type, and not the actual value.
+  // We only implement the encoder, because currently, the decoder is not required.
   implicit val metaValueElementEncoder: Encoder[MetaValueElement] = new Encoder[MetaValueElement] {
     final def apply(a : MetaValueElement) : Json = {
       a match {
@@ -28,7 +27,7 @@ object MetaValueElementJsonSupport {
           Json.fromString(s)
 
         case MetaValueElementArray(vec) =>
-          Json.fromValues(vec.map(apply(_)))
+          Json.fromValues(vec.map(apply))
 
         case MetaValueElementObject(m) =>
           Json.fromFields(m.map{ case (key, value) =>

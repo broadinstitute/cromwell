@@ -32,8 +32,6 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
       private val stopCommand = composeCommand("down -v")
       private val rmCommand = composeCommand("rm -fsv")
 
-      override def displayString: String = startCommand.mkString(" ")
-
       private var process: Option[Process] = None
 
       override def start(): Unit = {

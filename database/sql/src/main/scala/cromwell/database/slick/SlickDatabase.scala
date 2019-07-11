@@ -11,7 +11,7 @@ import net.ceedubs.ficus.Ficus._
 import org.postgresql.util.{PSQLException, ServerErrorMessage}
 import org.slf4j.LoggerFactory
 import slick.basic.DatabaseConfig
-import slick.jdbc.{JdbcCapabilities, JdbcProfile, TransactionIsolation}
+import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -59,7 +59,6 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
   protected val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
-  lazy val isPostgresql = databaseConfig.getOrElse("db.driver", "unknown") == "org.postgresql.Driver"
 
   /*
   Not a def because we need to have a "stable identifier" for the imports below.
@@ -182,7 +181,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
    * https://stackoverflow.com/questions/3164072/large-objects-may-not-be-used-in-auto-commit-mode#answer-3164352
    */
   protected[this] def runLobAction[R](action: DBIO[R]): Future[R] = {
-    if (isPostgresql) runTransaction(action) else runAction(action)
+    dataAccess.driver match {
+      case PostgresProfile => runTransaction(action)
+      case _ => runAction(action)
+    }
   }
 
   private def runActionInternal[R](action: DBIO[R]): Future[R] = {

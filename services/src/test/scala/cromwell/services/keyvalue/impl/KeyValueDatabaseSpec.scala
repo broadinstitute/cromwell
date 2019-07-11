@@ -2,13 +2,11 @@ package cromwell.services.keyvalue.impl
 
 import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
 
-import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
-import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.JobKeyValueEntry
-import cromwell.services.EngineServicesStore
-import cromwell.services.ServicesStore.EnhancedSqlDatabase
+import cromwell.services.database._
+import cromwell.services.keyvalue.impl.KeyValueDatabaseSpec._
 import org.postgresql.util.PSQLException
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -16,37 +14,16 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers, RecoverMethods}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.reflect.ClassTag
 
 class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with RecoverMethods {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
 
-  "SlickDatabase (hsqldb)" should behave like testWith[SQLIntegrityConstraintViolationException](
-    "database",
-    "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
-  )
+  DatabaseSystem.All foreach { databaseSystem =>
+    behavior of s"KeyValueDatabase on ${databaseSystem.shortName}"
 
-  "SlickDatabase (mysql)" should behave like testWith[BatchUpdateException](
-    "database-test-mysql",
-    "Column 'STORE_VALUE' cannot be null"
-  )
-
-  "SlickDatabase (mariadb)" should behave like testWith[BatchUpdateException](
-    "database-test-mariadb",
-    "Column 'STORE_VALUE' cannot be null"
-  )
-
-  "SlickDatabase (postgresql)" should behave like testWith[PSQLException](
-    "database-test-postgresql",
-    """ERROR: null value in column "STORE_VALUE" violates not-null constraint"""
-  )
-
-  def testWith[E <: Throwable](configPath: String, failureMessage: String)(implicit classTag: ClassTag[E]): Unit = {
-    lazy val databaseConfig = ConfigFactory.load.getConfig(configPath)
-    lazy val dataAccess = new EngineSlickDatabase(databaseConfig)
-      .initialized(EngineServicesStore.EngineLiquibaseSettings)
+    lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"
 
@@ -59,7 +36,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
       storeValue = "myValueA"
     )
 
-    val keyValueEntryA2= JobKeyValueEntry(
+    val keyValueEntryA2 = JobKeyValueEntry(
       workflowExecutionUuid = workflowId,
       callFullyQualifiedName = callFqn,
       jobIndex = 0,
@@ -105,7 +82,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
     }
 
     it should "fail if one of the inserts fails" taggedAs DbmsTest in {
-      val futureEx = recoverToExceptionIf[E] {
+      val futureEx = recoverToExceptionIf[Exception] {
         dataAccess.addJobKeyValueEntries(Seq(keyValueEntryA, wrongKeyValueEntryB))
       }
 
@@ -119,8 +96,30 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
       } yield ()
 
       (futureEx map { ex =>
-        assert(ex.getMessage == failureMessage)
+        ex.getMessage should fullyMatch regex getFailureRegex(databaseSystem)
+        ex.getClass should be(getFailureClass(databaseSystem))
       }).flatMap(_ => verifyValues).futureValue
+    }
+  }
+}
+
+object KeyValueDatabaseSpec {
+  private def getFailureRegex(databaseSystem: DatabaseSystem): String = {
+    databaseSystem match {
+      case HsqldbDatabaseSystem =>
+        "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
+      case MariadbDatabaseSystem => """\(conn=\d+\) Column 'STORE_VALUE' cannot be null"""
+      case MysqlDatabaseSystem => "Column 'STORE_VALUE' cannot be null"
+      case PostgresqlDatabaseSystem => """ERROR: null value in column "STORE_VALUE" violates not-null constraint"""
+    }
+  }
+
+  private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
+    databaseSystem match {
+      case HsqldbDatabaseSystem => classOf[SQLIntegrityConstraintViolationException]
+      case MariadbDatabaseSystem => classOf[BatchUpdateException]
+      case MysqlDatabaseSystem => classOf[BatchUpdateException]
+      case PostgresqlDatabaseSystem => classOf[PSQLException]
     }
   }
 }

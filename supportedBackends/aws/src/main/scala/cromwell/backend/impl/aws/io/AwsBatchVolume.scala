@@ -113,11 +113,11 @@ case class AwsBatchEmptyMountedDisk(mountPoint: Path,ftype:String="ebs") extends
   val fsType = ftype.toLowerCase
   override def toString: String = s"$name $mountPoint"
 }
-case class AwsBatchMountedDisk(mountPoint: Path,ftype:String) extends AwsBatchVolume {
+/*case class AwsBatchMountedDisk(mountPoint: Path,ftype:String) extends AwsBatchVolume {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   val fsType = ftype
   override def toString: String = s"$name $mountPoint"
-}
+}*/
 object AwsBatchWorkingDisk {
   val MountPoint: Path = DefaultPathBuilder.get("/cromwell_root")
   val Name = "local-disk"

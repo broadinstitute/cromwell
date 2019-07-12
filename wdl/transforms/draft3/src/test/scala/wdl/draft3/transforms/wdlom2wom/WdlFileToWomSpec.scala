@@ -16,7 +16,9 @@ import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementO
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
+import wom.graph.{ScatterNode, WorkflowCallNode}
 import wom.types._
+import wom.util.WomParseConfig
 
 class WdlFileToWomSpec extends FlatSpec with Matchers {
   behavior of "WDL File to WOM"
@@ -68,6 +70,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "simple_scatter" -> anyWomWillDo,
     "ogin_scatter" -> anyWomWillDo,
     "nested_scatter" -> anyWomWillDo,
+    "two_level_scatter" -> validateTwoLevelScatter,
     "simple_conditional" -> anyWomWillDo,
     "lots_of_nesting" -> anyWomWillDo,
     "standalone_task" -> anyWomWillDo,
@@ -166,5 +169,35 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
 
     task.meta should be (Map("author" -> "John Doe",
                              "email" -> "john.doe@yahoo.com"))
+  }
+
+  // There is a scatter within a scatter
+  //
+  // scatter(a in indices) {
+  //   scatter(b in indices) {
+  //     Int x = a + b
+  //   }
+  // }
+  //
+  private def validateTwoLevelScatter(b : WomBundle) : Assertion = {
+    val wf = b.primaryCallable.get.asInstanceOf[WorkflowDefinition]
+    val graph = wf.innerGraph
+
+    // get the top scatter node
+    graph.scatters.size shouldBe(1)
+    val topScatter : ScatterNode = graph.scatters.toVector.head
+    val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
+
+    if (WomParseConfig.convertNestedScatterToSubworkflow) {
+      // There should be a call to a generated sub-workflow in the graph
+      wfCalls.size shouldBe(1)
+    } else {
+      // don't generate any sub-workflows
+      wfCalls.size shouldBe(0)
+
+      // there should be one scatter inside the top scatter
+      val innerGraph = topScatter.innerGraph
+      innerGraph.scatters.size shouldBe(1)
+    }
   }
 }

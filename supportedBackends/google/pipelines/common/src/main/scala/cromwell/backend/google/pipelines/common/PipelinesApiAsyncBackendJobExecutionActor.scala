@@ -70,6 +70,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 
   // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
+  val FailedV2Style = "The assigned worker has failed to complete the operation"
 
   def StandardException(errorCode: Status,
                         message: String,

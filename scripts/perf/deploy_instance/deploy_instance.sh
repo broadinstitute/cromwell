@@ -41,23 +41,22 @@ gcloud_run_as_service_account "perf_deploy_instance_${BUILD_NUMBER}" \
     --metadata \
         $(join ${metadata[@]})" | tee dockerResult.txt
 
-
 AWK_STRING_PREFIX='{print$'
 AWK_STRING_SUFFIX='}'
 AWK_STRING="${AWK_STRING_PREFIX}${FIELD_NO_TO_RETURN}${AWK_STRING_SUFFIX}"
 
-typeset CROMWELL_CHECK_IP=$(cat dockerResult.txt | tail -n1 | awk '{print $5}' )
-typeset CROMWELL_UNDER_TEST=$(cat dockerResult.txt | tail -n1 | awk ${AWK_STRING} )
+typeset CROMWELL_UNDER_TEST=$(cat dockerResult.txt | tail -n1 | awk '{print $5}' )
+typeset CROMWELL_VALUE_TO_RETURN=$(cat dockerResult.txt | tail -n1 | awk ${AWK_STRING} )
 
 if test -z "CROMWELL_CHECK_IP"
 then
   echo "\CROMWELL_CHECK_IP is empty"
   exit 1
 else
-  echo "Determined that CROMWELL_CHECK_IP=${CROMWELL_CHECK_IP}, CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}"
+  echo "Determined that CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}, CROMWELL_VALUE_TO_RETURN=${CROMWELL_VALUE_TO_RETURN}"
 fi
 
 custom_wait_for_cromwell
 
 mkdir -p output
-echo "CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}" > output/cromwell.properties
+echo "CROMWELL_UNDER_TEST=${CROMWELL_VALUE_TO_RETURN}" > output/cromwell.properties

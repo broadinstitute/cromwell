@@ -1,0 +1,127 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+    <changeSet author="kshakir" id="mariadb-metadata-init" dbms="mariadb">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <changeSetExecuted
+                        author="mcovarr"
+                        id="metadata_index_removals"
+                        changeLogFile="metadata_changesets/metadata_index_removals.xml"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="CUSTOM_LABEL_ENTRY">
+            <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
+            </column>
+            <column name="CUSTOM_LABEL_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CUSTOM_LABEL_VALUE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="METADATA_ENTRY">
+            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="METADATA_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FQN" type="VARCHAR(255)"/>
+            <column name="JOB_SCATTER_INDEX" type="INT"/>
+            <column name="JOB_RETRY_ATTEMPT" type="INT"/>
+            <column name="METADATA_VALUE" type="CLOB"/>
+            <column name="METADATA_TIMESTAMP" type="DATETIME(6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)"/>
+        </createTable>
+
+        <createTable tableName="SUMMARY_STATUS_ENTRY">
+            <column autoIncrement="true" name="SUMMARY_STATUS_ENTRY_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_STATUS_ENTRY"/>
+            </column>
+            <column name="SUMMARY_NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SUMMARY_POSITION" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_NAME" type="VARCHAR(100)"/>
+            <column name="WORKFLOW_STATUS" type="VARCHAR(50)"/>
+            <column name="START_TIMESTAMP" type="DATETIME(6)"/>
+            <column name="END_TIMESTAMP" type="DATETIME(6)"/>
+            <column name="SUBMISSION_TIMESTAMP" type="DATETIME(6)"/>
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+        </createTable>
+
+        <addUniqueConstraint
+                columnNames="CUSTOM_LABEL_KEY, WORKFLOW_EXECUTION_UUID"
+                constraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU"
+                tableName="CUSTOM_LABEL_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="SUMMARY_NAME"
+                constraintName="UC_SUMMARY_STATUS_ENTRY_SN"
+                tableName="SUMMARY_STATUS_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID"
+                constraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU"
+                tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+
+        <createIndex indexName="IX_CUSTOM_LABEL_ENTRY_CLK_CLV" tableName="CUSTOM_LABEL_ENTRY">
+            <column name="CUSTOM_LABEL_KEY"/>
+            <column name="CUSTOM_LABEL_VALUE"/>
+        </createIndex>
+
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_PWEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WN" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="WORKFLOW_NAME"/>
+        </createIndex>
+
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WS" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="WORKFLOW_STATUS"/>
+        </createIndex>
+
+        <createIndex indexName="METADATA_WORKFLOW_IDX" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+
+        <addForeignKeyConstraint baseColumnNames="WORKFLOW_EXECUTION_UUID"
+                                 baseTableName="CUSTOM_LABEL_ENTRY"
+                                 constraintName="FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID"
+                                 onDelete="CASCADE"
+                                 referencedColumnNames="WORKFLOW_EXECUTION_UUID"
+                                 referencedTableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+    </changeSet>
+</databaseChangeLog>

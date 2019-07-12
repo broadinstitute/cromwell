@@ -2,13 +2,18 @@ package cromwell.database.migration.liquibase
 
 import java.sql.Connection
 
+import liquibase.changelog.{ChangeLogParameters, ChangeSet, DatabaseChangeLog}
 import liquibase.database.jvm.{HsqlConnection, JdbcConnection}
-import liquibase.database.{Database, DatabaseConnection, DatabaseFactory}
+import liquibase.database.{Database, DatabaseConnection, DatabaseFactory, ObjectQuotingStrategy}
 import liquibase.diff.compare.CompareControl
 import liquibase.diff.{DiffGeneratorFactory, DiffResult}
+import liquibase.parser.ChangeLogParserFactory
 import liquibase.resource.ClassLoaderResourceAccessor
+import liquibase.snapshot.{DatabaseSnapshot, SnapshotControl, SnapshotGeneratorFactory}
 import liquibase.{Contexts, LabelExpression, Liquibase}
 import org.hsqldb.persist.HsqlDatabaseProperties
+
+import scala.collection.JavaConverters._
 
 object LiquibaseUtils {
   // Paranoia: Create our own mutex. https://stackoverflow.com/questions/442564/avoid-synchronizedthis-in-java
@@ -129,6 +134,60 @@ object LiquibaseUtils {
       connection.close()
     } finally {
       /* ignore */
+    }
+  }
+
+  /**
+    * Returns the changelog for a liquibase setting.
+    *
+    * @param settings The liquibase settings.
+    * @return The database changelog.
+    */
+  private def getChangeLog(settings: LiquibaseSettings): DatabaseChangeLog = {
+    val changeLogFile: String = settings.changeLogResourcePath
+    val resourceAccessor = new ClassLoaderResourceAccessor()
+    val changeLogParameters = new ChangeLogParameters()
+    val parser = ChangeLogParserFactory.getInstance.getParser(changeLogFile, resourceAccessor)
+    val databaseChangeLog = parser.parse(changeLogFile, changeLogParameters, resourceAccessor)
+    databaseChangeLog
+  }
+
+  /**
+    * Returns the change sets for a liquibase setting.
+    *
+    * @param settings The liquibase settings.
+    * @return The database change sets.
+    */
+  def getChangeSets(settings: LiquibaseSettings): Seq[ChangeSet] = {
+    mutex.synchronized {
+      getChangeLog(settings).getChangeSets.asScala
+    }
+  }
+
+  /**
+    * Returns a schema snapshot.
+    *
+    * @param jdbcConnection A jdbc connection to the database.
+    * @return The database change sets.
+    */
+  def getSnapshot(jdbcConnection: Connection): DatabaseSnapshot = {
+    mutex.synchronized {
+      withConnection(jdbcConnection) { referenceLiquibase =>
+        val database = toDatabase(referenceLiquibase)
+        val objectQuotingStrategy = database.getObjectQuotingStrategy
+        try {
+          // Quote all objects for PostgreSQL
+          database.setObjectQuotingStrategy(ObjectQuotingStrategy.QUOTE_ALL_OBJECTS)
+
+          SnapshotGeneratorFactory.getInstance.createSnapshot(
+            database.getDefaultSchema,
+            database,
+            new SnapshotControl(database)
+          )
+        } finally {
+          database.setObjectQuotingStrategy(objectQuotingStrategy)
+        }
+      }
     }
   }
 }

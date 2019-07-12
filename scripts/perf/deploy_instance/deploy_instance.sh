@@ -48,9 +48,9 @@ AWK_STRING="${AWK_STRING_PREFIX}${FIELD_NO_TO_RETURN}${AWK_STRING_SUFFIX}"
 typeset CROMWELL_UNDER_TEST=$(cat dockerResult.txt | tail -n1 | awk '{print $5}' )
 typeset CROMWELL_VALUE_TO_RETURN=$(cat dockerResult.txt | tail -n1 | awk ${AWK_STRING} )
 
-if test -z "CROMWELL_CHECK_IP"
+if test -z "CROMWELL_UNDER_TEST" -o -z "CROMWELL_VALUE_TO_RETURN"
 then
-  echo "\CROMWELL_CHECK_IP is empty"
+  echo "One of CROMWELL_UNDER_TEST or CROMWELL_VALUE_TO_RETURN are empty ('${CROMWELL_UNDER_TEST}', '${CROMWELL_VALUE_TO_RETURN}')"
   exit 1
 else
   echo "Determined that CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}, CROMWELL_VALUE_TO_RETURN=${CROMWELL_VALUE_TO_RETURN}"

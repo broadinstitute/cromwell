@@ -997,11 +997,13 @@ definitions:
   WorkflowDescription:
     required:
       - valid
+      - validWorkflow
       - errors
       - name
       - inputs
       - outputs
       - submittedDescriptorType
+      - isRunnableWorkflow
     properties:
       valid:
         type: boolean
@@ -1133,6 +1135,9 @@ definitions:
             typeDisplayName: Pair[Int, String]
       submittedDescriptorType:
         $ref: '#/definitions/DescriptorTypeAndVersion'
+      isRunnableWorkflow:
+        description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
+        type: boolean
   ToolInputParameter:
     type: object
     description: >-

@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 44 Release Notes
+
+### Improved PAPI v2 Preemptible VM Support
+
+In some cases PAPI v2 will report the preemption of a VM in a way that differs from PAPI v1. This novel means of reporting
+preemption was not recognized by Cromwell's PAPI v2 backend and would result in preemptions being miscategorized as call failures.
+Cromwell's PAPI v2 backend will now handle this type of preemption.
+
 ## 43 Release Notes
 
 ### Virtual Private Cloud with Subnetworks

@@ -153,7 +153,7 @@ object DiffResultFilter {
     databaseObject match {
       case table: Table => table.getName.contains("DATABASECHANGELOG")
       case column: Column => isChangeLog(database, column.getRelation)
-      case index: Index => isChangeLog(database, index.getTable)
+      case index: Index => isChangeLog(database, index.getRelation)
       case key: PrimaryKey => isChangeLog(database, key.getTable)
       case _ => false
     }

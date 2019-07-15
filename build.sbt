@@ -259,6 +259,7 @@ lazy val engine = project
   .dependsOn(common % "test->test")
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
+  .dependsOn(services % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
   // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
   .dependsOn(sfsBackend % "test->compile")

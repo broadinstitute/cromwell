@@ -26,8 +26,6 @@ case class JarCromwellConfiguration(jar: String, conf: String, logFile: String) 
 
       private var process: Option[Process] = None
 
-      override def displayString: String = command.mkString(" ")
-
       override def start(): Unit = {
         process = Option(runProcess(command))
       }

@@ -899,6 +899,13 @@ parameters:
     type: string
     enum: ["draft-2", "1.0", "v1.0"]
     in: formData
+  versionParam:
+    name: version
+    description: Cromwell API Version
+    required: true
+    type: string
+    in: path
+    default: v1 # This really should be an enum but swagger-ui seems to not like it
 
 definitions:
   WorkflowSubmitResponse:

@@ -160,7 +160,7 @@ class WomGraph(graphName: String, graph: Graph) {
 }
 
 object WomGraph {
-  
+
   implicit val cwlPreProcessor = CwlPreProcessor.noLogging
 
   final case class WorkflowDigraph(workflowName: String, digraph: NodesAndLinks)
@@ -188,7 +188,7 @@ object WomGraph {
       firstLine.startsWith("version 1.0")
     }
     val womBundle: Checked[WomBundle] = if (version1) {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, "{}", convertNestedScatterToSubworkflow = true, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
       converter.run(File(filePath))
     } else {
 

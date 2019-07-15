@@ -46,7 +46,10 @@ object FileElementToWomBundle {
           val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
             a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
-              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
+              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition,
+                                                                  allStructs,
+                                                                  localTaskMapping ++ imports.flatMap(_.allCallables),
+                                                                  a.convertNestedScatterToSubworkflow)
               a.workflowConverter.run(convertInputs).toValidated
             }
           }
@@ -129,6 +132,7 @@ object FileElementToWomBundle {
 
 final case class FileElementToWomBundleInputs(fileElement: FileElement,
                                               workflowOptionsJson: WorkflowOptionsJson,
+                                              convertNestedScatterToSubworkflow : Boolean,
                                               importResolvers: List[ImportResolver],
                                               languageFactories: List[LanguageFactory],
                                               workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition],

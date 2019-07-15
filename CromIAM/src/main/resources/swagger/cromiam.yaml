@@ -284,8 +284,6 @@ paths:
       parameters:
         - name: version
           description: API Version
-        - name: version
-          description: API Version
           required: true
           type: string
           in: path

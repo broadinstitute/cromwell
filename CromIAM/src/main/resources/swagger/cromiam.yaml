@@ -270,12 +270,7 @@ paths:
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
-        - name: version
-          description: API Version
-          required: true
-          type: string
-          in: path
-          default: v1
+        - $ref: '#/parameters/versionParam'
         - name: id
           description: Workflow ID
           required: true

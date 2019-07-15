@@ -282,10 +282,10 @@ paths:
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
-#        - $ref: '#/parameters/versionParam'
-        - version:
-          name: version
-          description: Cromwell API Version
+        - name: version
+          description: API Version
+        - name: version
+          description: API Version
           required: true
           type: string
           in: path

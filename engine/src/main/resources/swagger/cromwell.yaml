@@ -436,7 +436,7 @@ paths:
             type: string
           collectionFormat: multi
           description: >
-            Currently only 'labels' and `parentWorkflowId` are valid values here. Use it to include a list of labels and/or parent workflow IDs with each result.
+            Currently only 'labels' is a valid value here. Use it to include a list of labels with each result.
         - name : includeSubworkflows
           required: false
           type: boolean

@@ -283,7 +283,7 @@ Query for workflows which match various criteria. When a combination of criteria
 |Type|Name|Description|Schema|Default|
 |---|---|---|---|---|
 |**Path**|**version**  <br>*required*|Cromwell API Version|string|`"v1"`|
-|**Query**|**additionalQueryResultFields**  <br>*optional*|Currently only 'labels' and `parentworkflowId` are valid values here. Use it to include a list of labels and/or parent workflow IDs with each result.|< string > array(multi)||
+|**Query**|**additionalQueryResultFields**  <br>*optional*|Currently only 'labels' is a valid value here. Use it to include a list of labels with each result.|< string > array(multi)||
 |**Query**|**end**  <br>*optional*|Returns only workflows with an equal or earlier end datetime.  Can be specified at most once. If both start and end date are specified, start date must be before or equal to end date.|string (date-time)||
 |**Query**|**excludeLabelAnd**  <br>*optional*|Excludes workflows with the specified label.  If specified multiple times, excludes workflows with all of the specified label keys. Specify the label key and label value pair as separated with "label-key:label-value"|< string > array(multi)||
 |**Query**|**excludeLabelOr**  <br>*optional*|Excludes workflows with the specified label.  If specified multiple times, excludes workflows with any of the specified label keys. Specify the label key and label value pair as separated with "label-key:label-value"|< string > array(multi)||

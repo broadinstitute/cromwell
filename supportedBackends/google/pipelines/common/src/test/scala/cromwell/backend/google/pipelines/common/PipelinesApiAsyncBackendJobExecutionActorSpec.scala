@@ -362,6 +362,21 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
   }
 
+  it should "treat a PAPI v2 style error message as preemptible if the VM was preemptible" in {
+    val actorRef = buildPreemptibleTestActorRef(1, 2)
+    val jesBackend = actorRef.underlyingActor
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
+    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    retryableHandle.returnCode shouldBe None
+    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
+  }
+
   it should "handle Failure Status for various errors" in {
     val actorRef = buildPreemptibleTestActorRef(1, 1)
     val jesBackend = actorRef.underlyingActor

@@ -4,12 +4,12 @@ import io.circe.{Decoder, Encoder, HCursor}
 import io.circe.generic.semiauto.deriveEncoder
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OutputDefinition}
-import wom.callable.{Callable, CallableTaskDefinition, WorkflowDefinition}
+import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement, WorkflowDefinition}
 import wom.executable.WomBundle
 
-// `meta`, `parameterMeta` will need updating to support compound types - issue #4746
-case class WorkflowDescription(
-                                valid: Boolean,
+import MetaValueElementJsonSupport._
+
+case class WorkflowDescription( valid: Boolean,
                                 errors: List[String],
                                 validWorkflow: Boolean,
                                 name: String,
@@ -18,10 +18,9 @@ case class WorkflowDescription(
                                 images: List[String],
                                 submittedDescriptorType: Map[String, String],
                                 importedDescriptorTypes: List[Map[String, String]],
-                                meta: Map[String, String],
-                                parameterMeta: Map[String, String],
-                                isRunnableWorkflow: Boolean
-                              )
+                                meta: Map[String, MetaValueElement],
+                                parameterMeta: Map[String, MetaValueElement],
+                                isRunnableWorkflow: Boolean)
 
 case object WorkflowDescription {
 
@@ -76,8 +75,8 @@ case object WorkflowDescription {
                                inputErrors: List[String],
                                name: String, submittedDescriptorType: Map[String, String],
                                inputs: List[InputDefinition], outputs: List[OutputDefinition],
-                               meta: Map[String, String],
-                               parameterMeta: Map[String, String],
+                               meta: Map[String, MetaValueElement],
+                               parameterMeta: Map[String, MetaValueElement],
                                images: List[String],
                                isRunnableWorkflow: Boolean
                              ): WorkflowDescription = {
@@ -136,8 +135,8 @@ case object WorkflowDescription {
             images: List[String] = List.empty,
             submittedDescriptorType: Map[String, String] = Map.empty,
             importedDescriptorTypes: List[Map[String, String]] = List.empty,
-            meta: Map[String, String] = Map.empty,
-            parameterMeta: Map[String, String] = Map.empty,
+            meta: Map[String, MetaValueElement] = Map.empty,
+            parameterMeta: Map[String, MetaValueElement] = Map.empty,
             isRunnableWorkflow: Boolean = false): WorkflowDescription = {
     new WorkflowDescription(valid, errors, validWorkflow, name, inputs, outputs, images, submittedDescriptorType, importedDescriptorTypes, meta, parameterMeta, isRunnableWorkflow)
   }

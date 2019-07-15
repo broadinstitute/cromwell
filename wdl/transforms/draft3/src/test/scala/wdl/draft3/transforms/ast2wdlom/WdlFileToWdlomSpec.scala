@@ -385,7 +385,17 @@ object WdlFileToWdlomSpec {
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(
               Map("author" -> MetaValueElementString("John Doe"),
-                  "email" -> MetaValueElementString("john.doe@yahoo.com")))),
+                  "email" -> MetaValueElementString("john.doe@yahoo.com"),
+                  "b" -> MetaValueElementBoolean(true),
+                  "zipcode" -> MetaValueElementInteger(94043),
+                  "f" -> MetaValueElementFloat(1.3),
+                  "numbers" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
+                                                            MetaValueElementInteger(2),
+                                                            MetaValueElementInteger(3))),
+                  "extras" -> MetaValueElementObject(
+                    Map( "house" -> MetaValueElementString("With porch"),
+                         "cat" -> MetaValueElementString("Lucy")))
+              ))),
             parameterMetaSection = None,
             sourceLocation = Some(SourceFileLocation(3))
           ))),

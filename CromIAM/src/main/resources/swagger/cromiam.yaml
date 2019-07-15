@@ -252,8 +252,20 @@ paths:
       operationId: labels
       summary: Retrieves the current labels for a workflow
       parameters:
-        - $ref: '#/parameters/versionParam'
-        - $ref: '#/parameters/singleId'
+      - version:
+        name: version
+        description: Cromwell API Version
+        required: true
+        type: string
+        in: path
+        default: v1
+      - id:
+        name: id
+        description: A workflow ID
+        required: true
+        type: string
+        in: path
+        pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
       tags:
         - Workflows
       responses:
@@ -270,7 +282,14 @@ paths:
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
-        - $ref: '#/parameters/versionParam'
+#        - $ref: '#/parameters/versionParam'
+        - version:
+          name: version
+          description: Cromwell API Version
+          required: true
+          type: string
+          in: path
+          default: v1
         - name: id
           description: Workflow ID
           required: true
@@ -868,13 +887,6 @@ responses:
     description: Internal Error
 
 parameters:
-  singleId:
-    name: id
-    description: A workflow ID
-    required: true
-    type: string
-    in: path
-    pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
   workflowTypeParam:
     name: workflowType
     type: string
@@ -889,13 +901,6 @@ parameters:
     type: string
     enum: ["draft-2", "1.0", "v1.0"]
     in: formData
-  versionParam:
-    name: version
-    description: Cromwell API Version
-    required: true
-    type: string
-    in: path
-    default: v1 # This really should be an enum but swagger-ui seems to not like it
 
 definitions:
   WorkflowSubmitResponse:

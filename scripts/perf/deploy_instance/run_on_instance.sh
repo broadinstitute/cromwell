@@ -50,6 +50,9 @@ if [ -f "${PERF_ROOT}/test_cases/${TEST_CASE_DIRECTORY}/cromwell.conf" ]
 then
     echo "Using ${PERF_ROOT}/test_cases/${TEST_CASE_DIRECTORY} as the Cromwell configuration directory"
     addVar CROMWELL_CONF_DIR="${PERF_ROOT}/test_cases/${TEST_CASE_DIRECTORY}"
+
+    # Also copy the default one next to it so we can include it
+    cp ${PERF_ROOT}/vm_scripts/cromwell/cromwell.conf ${CROMWELL_CONF_DIR}/cromwell_default.conf
 else
     echo "Using ${PERF_ROOT}/vm_scripts/cromwell as the Cromwell configuration directory"
     addVar CROMWELL_CONF_DIR="${PERF_ROOT}/vm_scripts/cromwell"

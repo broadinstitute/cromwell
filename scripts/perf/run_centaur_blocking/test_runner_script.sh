@@ -1,6 +1,9 @@
 #! /bin/bash
 
-set -euo pipefail
+# Deliberately don't set these options. The script must continue to run (and clean itself up) even if the centaur tests
+# fail.
+#set -euo pipefail
+set +x
 
 ### /!\ This script assumes docker and docker compose are already installed on the host
 

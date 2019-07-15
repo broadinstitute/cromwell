@@ -74,7 +74,6 @@ object AwsBatchRuntimeAttributes {
 
   private val MemoryDefaultValue = "2 GB"
 
-
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
@@ -96,7 +95,6 @@ object AwsBatchRuntimeAttributes {
       RuntimeAttributesKeys.MemoryKey,
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue)
   }
-
 
   private def memoryMinValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] = {
     MemoryValidation.withDefaultMemory(

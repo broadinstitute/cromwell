@@ -109,6 +109,38 @@ class AwsBatchConfigurationSpec extends FlatSpec with Matchers with TableDrivenP
       |
     """.stripMargin)
 
+  val backendConfigFS = ConfigFactory.parseString(
+    """
+      |  // Base bucket for workflow executions
+      |  root = "s3://my-cromwell-workflows-bucket"
+      |
+      |  auth = "application-default"
+      |   numSubmitAttempts = 6
+      |   numCreateDefinitionAttempts = 6
+      |
+      |  default-runtime-attributes {
+      |      failOnStderr: false
+      |      continueOnReturnCode: 0
+      |      cpu: 1
+      |      memory: "2 GB"
+      |      disks: "local-disk"
+      |      noAddress: false
+      |      zones:["us-east-1a", "us-east-1b"]
+      |  }
+      |
+      |  dockerhub {
+      |    account = "dockerAccount"
+      |    token = "dockerToken"
+      |  }
+      |
+      |  filesystems {
+      |    local {
+      |      // A reference to a potentially different auth for manipulating files via engine functions.
+      |      auth = "application-default"
+      |    }
+      |  }
+      |
+    """.stripMargin)
   it should "fail to instantiate if any required configuration is missing" in {
 
     val configs = Table(
@@ -126,14 +158,35 @@ class AwsBatchConfigurationSpec extends FlatSpec with Matchers with TableDrivenP
       }
     }
   }
+  it should "fail to instantiate if any required configuration is missing for Local File system" in {
+
+    val configsLocal = Table(
+      ("backendConfig", "globalConfig"),
+      (backendConfig, globalConfig.withoutPath("aws")),
+      (backendConfig.withoutPath("root"), globalConfig),
+      (backendConfig.withoutPath("filesystems"), globalConfig),
+      (backendConfig.withoutPath("filesystems.local"), globalConfig),
+      (backendConfig.withoutPath("filesystems.local.auth"), globalConfig)
+    )
+
+    forAll(configsLocal) { (backendFS, global) =>
+      an[Exception] shouldBe thrownBy {
+        new AwsBatchConfiguration(BackendConfigurationDescriptor(backendFS, global))
+      }
+    }
+  }
 
   it should "have correct root" in {
     new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).root shouldBe "s3://my-cromwell-workflows-bucket"
+    new  AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfigFS, globalConfig)).root shouldBe "/my-cromwell-workflows-root"
   }
 
   it should "have correct docker" in {
     val dockerConf = new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig)).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
+    val dockerConfLocal = new AwsBatchConfiguration(BackendConfigurationDescriptor(backendConfigFS, globalConfig)).dockerCredentials
+    dockerConfLocal shouldBe defined
+    dockerConfLocal.get.token shouldBe "dockerToken"
   }
 }

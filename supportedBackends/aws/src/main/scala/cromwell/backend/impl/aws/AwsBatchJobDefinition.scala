@@ -99,8 +99,6 @@ trait AwsBatchJobDefinitionBuilder {
           buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))
       }.flatten
 
-
-
     def getVolPath(d:AwsBatchVolume) : Option[String] =  {
         d.fsType match {
           case "efs"  => None
@@ -125,6 +123,7 @@ trait AwsBatchJobDefinitionBuilder {
 
     BaseEncoding.base64().encode(byteArrayOutputStream.toByteArray())
   }
+
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {
     val rc = new ListBuffer[String]()
     val lim = 1024

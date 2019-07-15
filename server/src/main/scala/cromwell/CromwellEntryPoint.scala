@@ -213,7 +213,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = Option(i),
-          options = Option(o),
+          options = Option(o.asPrettyJson),
           labels = Option(l.parseJson.convertTo[List[Label]]),
           zippedImports = z)
     }
@@ -222,6 +222,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
   }
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
+
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
       case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
         //noinspection RedundantDefaultArgument
@@ -232,7 +233,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
-          workflowOptionsJson = o,
+          workflowOptions = o,
           labelsJson = l,
           importsZip = z.loadBytes,
           warnings = Vector.empty,
@@ -246,7 +247,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
           inputsJson = i,
-          workflowOptionsJson = o,
+          workflowOptions = o,
           labelsJson = l,
           warnings = Vector.empty,
           workflowOnHold = false)

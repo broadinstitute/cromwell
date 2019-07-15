@@ -3,7 +3,7 @@ package cromwell.engine.workflow.tokens
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.JobExecutionToken._
-import cromwell.core.{ExecutionStatus, JobExecutionToken}
+import cromwell.core.{ExecutionStatus, HogGroup, JobExecutionToken}
 import cromwell.engine.instrumentation.JobInstrumentation
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.TokensAvailable
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor._
@@ -70,7 +70,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
   override def receive: Actor.Receive = tokenDistributionReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
 
   private def tokenDistributionReceive: Receive = {
-    case JobExecutionTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup, tokenType)
+    case JobExecutionTokenRequest(hogGroup, tokenType) => enqueue(sender, hogGroup.value, tokenType)
     case JobExecutionTokenReturn => release(sender)
     case TokensAvailable(n) => distribute(n)
     case Terminated(terminee) => onTerminate(terminee)
@@ -179,7 +179,7 @@ object JobExecutionTokenDispenserActor {
 
   def props(serviceRegistryActor: ActorRef, rate: DynamicRateLimiter.Rate, logInterval: Option[FiniteDuration]) = Props(new JobExecutionTokenDispenserActor(serviceRegistryActor, rate, logInterval)).withDispatcher(EngineDispatcher)
 
-  case class JobExecutionTokenRequest(hogGroup: String, jobExecutionTokenType: JobExecutionTokenType)
+  case class JobExecutionTokenRequest(hogGroup: HogGroup, jobExecutionTokenType: JobExecutionTokenType)
 
   case object JobExecutionTokenReturn
   case object JobExecutionTokenDispensed

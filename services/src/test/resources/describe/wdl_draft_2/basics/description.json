@@ -61,5 +61,6 @@
     "i" : "an integer",
     "j" : "another integer",
     "f" : "a file"
-  }
+  },
+  "isRunnableWorkflow" : true
 }

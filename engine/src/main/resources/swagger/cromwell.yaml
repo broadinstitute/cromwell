@@ -843,11 +843,13 @@ definitions:
   WorkflowDescription:
     required:
       - valid
+      - validWorkflow
       - errors
       - name
       - inputs
       - outputs
       - submittedDescriptorType
+      - isRunnableWorkflow
     properties:
       valid:
         type: boolean
@@ -979,6 +981,9 @@ definitions:
             typeDisplayName: Pair[Int, String]
       submittedDescriptorType:
         $ref: '#/definitions/DescriptorTypeAndVersion'
+      isRunnableWorkflow:
+        description: Indicates whether this file can be run on its own (e.g. a WDL workflow)
+        type: boolean
   ToolInputParameter:
     type: object
     description: >-
@@ -988,6 +993,7 @@ definitions:
       - valueType
       - optional
       - default
+      - typeDisplayName
     properties:
       name:
         type: string
@@ -1001,6 +1007,9 @@ definitions:
         type: string
         description: The in-language expression used to evaluate a default value for this parameter, if
           none is supplied.
+      typeDisplayName:
+        type: string
+        description: An easy-to-read display name for the type of the input
   ToolOutputParameter:
     type: object
     description: >-
@@ -1008,12 +1017,16 @@ definitions:
     required:
       - name
       - valueType
+      - typeDisplayName
     properties:
       name:
         type: string
         description: The name of this input value (formatted as expected by the tool)
       valueType:
         $ref: '#/definitions/ValueType'
+      typeDisplayName:
+        type: string
+        description: An easy-to-read display name for the type of the output
   ValueType:
     description: The type expected for a given value.
     type: object

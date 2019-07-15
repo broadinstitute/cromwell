@@ -38,7 +38,7 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
 
     val checked: Checked[ValidatedWomNamespace] = for {
       _ <- enabledCheck
-      bundle <- getWomBundle(workflowSource, source.workflowOptionsJson, importResolvers, factories)
+      bundle <- getWomBundle(workflowSource, source.workflowOptions.asPrettyJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 

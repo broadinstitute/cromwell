@@ -146,7 +146,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   * Holds the status of all job keys in the workflow
   * @param statusStore status of job keys
   * @param needsUpdate This is a boolean meant to tell the WEA whether or not it should call "update".
-  *                    The idea is to avoid unnecessary calls to "update" which is an expansive method.
+  *                    The idea is to avoid unnecessary calls to "update" which is an expensive method.
   *
   *                    when true, something happened since the last update that could yield new runnable keys, so update should be called
   *                    when false, nothing happened between the last update and now that will yield different results so no need to call the update method
@@ -156,8 +156,8 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
-  def keysForNode(node: GraphNode): Iterable[JobKey] = {
-    statusStore.keys collect { case k if k.node eq node => k }
+  def backendJobDescriptorKeyForNode(node: GraphNode): Option[BackendJobDescriptorKey] = {
+    statusStore.keys collectFirst { case k: BackendJobDescriptorKey if k.node eq node => k }
   }
 
   /**

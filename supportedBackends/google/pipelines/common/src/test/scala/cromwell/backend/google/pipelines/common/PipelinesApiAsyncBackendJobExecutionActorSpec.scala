@@ -184,7 +184,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womDefinition,
           inputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job = workflowDescriptor.callable.taskCallNodes.head
@@ -362,6 +365,21 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
   }
 
+  it should "treat a PAPI v2 style error message as preemptible if the VM was preemptible" in {
+    val actorRef = buildPreemptibleTestActorRef(1, 2)
+    val jesBackend = actorRef.underlyingActor
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
+    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    retryableHandle.returnCode shouldBe None
+    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
+  }
+
   it should "handle Failure Status for various errors" in {
     val actorRef = buildPreemptibleTestActorRef(1, 1)
     val jesBackend = actorRef.underlyingActor
@@ -411,7 +429,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t }).get
@@ -484,7 +505,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -532,7 +556,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == callName).get
@@ -600,7 +627,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -635,7 +665,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           womWorkflow,
           wdlInputs,
           NoOptions,
-          Labels.empty
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
         )
 
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -684,7 +717,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -718,7 +754,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString("""{"monitoring_script": "gs://path/to/script"}""").get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
@@ -741,7 +780,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val job: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({case t: CommandCallNode => t}).get
@@ -764,7 +806,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
@@ -797,7 +842,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"jes_gcs_root": "gs://path/to/gcs_root"} """).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get
@@ -868,7 +916,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
             |}
             |""".stripMargin
       ).get,
-      Labels.empty
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
     )
 
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "goodbye").get

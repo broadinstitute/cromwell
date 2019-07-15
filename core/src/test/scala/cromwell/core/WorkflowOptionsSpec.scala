@@ -29,10 +29,10 @@ class WorkflowOptionsSpec extends Matchers with WordSpecLike {
           refreshTokenEncrypted shouldBe a [JsObject]
           refreshTokenEncrypted.asInstanceOf[JsObject].fields.keys shouldEqual Set("iv", "ciphertext")
 
-          options.clearEncryptedValues shouldEqual """{
-                                                |  "key": "value",
-                                                |  "refresh_token": "cleared"
-                                                |}""".stripMargin
+          options.clearEncryptedValues.asPrettyJson shouldEqual """{
+                                                         |  "key": "value",
+                                                         |  "refresh_token": "cleared"
+                                                         |}""".stripMargin
         case _ => fail("Expecting workflow options to be parseable")
       }
     }

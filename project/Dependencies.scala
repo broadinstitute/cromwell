@@ -49,8 +49,9 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "1.2.0"
   private val liquibaseSlf4jV = "2.0.0"
-  private val liquibaseV = "3.5.5" // https://github.com/broadinstitute/cromwell/issues/4618
+  private val liquibaseV = "3.6.3"
   private val logbackV = "1.2.3"
+  private val mariadbV = "2.4.2"
   private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
@@ -322,6 +323,7 @@ object Dependencies {
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
+    "org.mariadb.jdbc" % "mariadb-java-client" % mariadbV,
     "mysql" % "mysql-connector-java" % mysqlV,
     "org.postgresql" % "postgresql" % postgresV
   )

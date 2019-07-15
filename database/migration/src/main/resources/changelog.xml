@@ -78,6 +78,13 @@
     <include file="changesets/docker_hash_store_add_size_column.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_call_caching_hash_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/postgresql_engine_schema.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_hog_group_in_workflow_store.xml" relativeToChangelogFile="true" />
+    <include file="changesets/mariadb_engine_schema.xml" relativeToChangelogFile="true" />
+    <include file="changesets/resync_engine_schema.xml" relativeToChangelogFile="true" />
+    <!-- REMINDER!
+      Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
+    -->
+
 </databaseChangeLog>
 <!--
 

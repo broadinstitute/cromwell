@@ -49,7 +49,7 @@ class NamespaceCacheSpec extends FlatSpec with BeforeAndAfterAll with Matchers {
       workflowType = None,
       workflowTypeVersion = None,
       inputsJson = EmptyJson,
-      workflowOptionsJson = EmptyJson,
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = EmptyJson,
       importsFile = None,
       workflowOnHold = false,

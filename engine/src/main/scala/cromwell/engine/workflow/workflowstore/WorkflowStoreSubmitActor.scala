@@ -6,9 +6,6 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.Monad
 import cats.data.EitherT._
 import cats.data.NonEmptyList
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.traverse._
 import common.validation.IOChecked._
 import cromwell.core.Dispatcher._
 import cromwell.core._
@@ -21,7 +18,6 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{Workflow
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import spray.json._
-import wom.core.WorkflowOptionsJson
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -38,7 +34,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
       val futureResponse = for {
         submissionResponses <- storeWorkflowSources(NonEmptyList.of(cmd.source))
         id = submissionResponses.head.id
-        _ <- registerSubmission(id, cmd.source)
+        _ = registerSubmission(id, cmd.source)
       } yield WorkflowSubmissionResponse(submissionResponses.head.state, id)
 
       futureResponse onComplete {
@@ -65,7 +61,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
       val futureResponses = for {
         submissionResponses <- storeWorkflowSources(cmd.sources)
-        _ <- (submissionResponses.toList.map(res => res.id) zip cmd.sources.toList) traverse (registerSubmission _).tupled
+        _ = (submissionResponses.toList.map(res => res.id) zip cmd.sources.toList) foreach (registerSubmission _).tupled
       } yield submissionResponses
 
       futureResponses onComplete {
@@ -98,17 +94,8 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
   private def storeWorkflowSources(sources: NonEmptyList[WorkflowSourceFilesCollection]): Future[NonEmptyList[WorkflowSubmissionResponse]] = {
     for {
-      processedSources <- processSources(sources, _.asPrettyJson)
-      workflowSubmissionResponses <- store.add(processedSources)
+      workflowSubmissionResponses <- store.add(sources)
     } yield workflowSubmissionResponses
-  }
-
-  private def processSources(sources: NonEmptyList[WorkflowSourceFilesCollection],
-                             processOptions: WorkflowOptions => WorkflowOptionsJson): Future[NonEmptyList[WorkflowSourceFilesCollection]] = {
-    val nelFutures: NonEmptyList[Future[WorkflowSourceFilesCollection]] = sources map processSource(processOptions)
-    val listFutures: List[Future[WorkflowSourceFilesCollection]] = nelFutures.toList
-    val futureLists: Future[List[WorkflowSourceFilesCollection]] = Future.sequence(listFutures)
-    futureLists.map(seq => NonEmptyList.fromList(seq).get)
   }
 
   private def convertJsonToLabelsMap(json: String): Map[String, String] = {
@@ -138,16 +125,10 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     * @param source         Original workflow source
     * @return Attempted updated workflow source
     */
-  private def processSource(processOptions: WorkflowOptions => WorkflowOptionsJson)
-                           (source: WorkflowSourceFilesCollection): Future[WorkflowSourceFilesCollection] = {
-    val options = Future {
-      WorkflowOptions.fromJsonString(source.workflowOptionsJson)
-    }.flatMap {
-      case Success(s) => Future.successful(s)
-      case Failure(regrets) => Future.failed(regrets)
-    }
+  private def processSource(processOptions: WorkflowOptions => WorkflowOptions)
+                           (source: WorkflowSourceFilesCollection): WorkflowSourceFilesCollection = {
 
-    options map {o => source.copyOptions(processOptions(o)) }
+    source.setOptions(processOptions(source.workflowOptions))
   }
 
   /**
@@ -155,7 +136,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     */
   private def registerSubmission(
       id: WorkflowId,
-      originalSourceFiles: WorkflowSourceFilesCollection): Future[Unit] = {
+      originalSourceFiles: WorkflowSourceFilesCollection): Unit = {
     // Increment the workflow submitted count
     incrementWorkflowState(WorkflowSubmitted)
 
@@ -164,7 +145,8 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
     else
       WorkflowSubmitted
 
-    processSource(_.clearEncryptedValues)(originalSourceFiles) map { sourceFiles =>
+    val sourceFiles = processSource(_.clearEncryptedValues)(originalSourceFiles)
+
       val submissionEvents: List[MetadataEvent] = List(
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionTime), MetadataValue(OffsetDateTime.now)),
         MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Inputs)),
@@ -175,7 +157,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_WorkflowUrl), MetadataValue(sourceFiles.workflowUrl.orNull)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Root), MetadataValue(sourceFiles.workflowRoot.orNull)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Inputs), MetadataValue(sourceFiles.inputsJson)),
-        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptionsJson)),
+        MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Options), MetadataValue(sourceFiles.workflowOptions.asPrettyJson)),
         MetadataEvent(MetadataKey(id, None, WorkflowMetadataKeys.SubmissionSection, WorkflowMetadataKeys.SubmissionSection_Labels), MetadataValue(sourceFiles.labelsJson))
       )
 
@@ -187,7 +169,6 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
 
       serviceRegistryActor ! PutMetadataAction(submissionEvents ++ workflowTypeAndVersionEvents.flatten)
       ()
-    }
   }
 }
 

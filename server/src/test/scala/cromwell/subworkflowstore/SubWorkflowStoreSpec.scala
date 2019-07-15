@@ -2,7 +2,7 @@ package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
 import cromwell.core.ExecutionIndex._
-import cromwell.core.{JobKey, WorkflowId, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{JobKey, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.MockCromwellTerminator
 import cromwell.engine.workflow.CoordinatedWorkflowStoreBuilder
@@ -66,7 +66,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
         workflowType = Option("WDL"),
         workflowTypeVersion = None,
         inputsJson = "{}",
-        workflowOptionsJson = "{}",
+        workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
       )

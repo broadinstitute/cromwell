@@ -6,7 +6,7 @@ import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, RecoverJobC
 import cromwell.backend._
 import cromwell.backend.standard.callcaching._
 import cromwell.core.callcaching._
-import cromwell.core.{CallOutputs, WorkflowId, WorkflowOptions}
+import cromwell.core.{CallOutputs, HogGroup, WorkflowId, WorkflowOptions}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
@@ -16,7 +16,7 @@ import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressi
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
-import wom.callable.Callable.{OverridableInputDefinitionWithDefault, OutputDefinition}
+import wom.callable.Callable.{OutputDefinition, OverridableInputDefinitionWithDefault}
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types.{WomIntegerType, WomStringType}
@@ -46,7 +46,10 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
     callable = null,
     knownValues = null,
     workflowOptions = WorkflowOptions.empty,
-    customLabels = null)
+    customLabels = null,
+    hogGroup = HogGroup("foo"),
+    List.empty,
+    None)
   val backendJobDescriptor = BackendJobDescriptor(backendWorkflowDescriptor, jobDescriptorKey, runtimeAttributes = Map.empty, evaluatedTaskInputs = Map.empty, FloatingDockerTagWithoutHash("ubuntu:latest"), None, Map.empty)
 
   var fetchCachedResultsActorCreations: ExpectOne[(CallCachingEntryId, Seq[OutputDefinition])] = NothingYet

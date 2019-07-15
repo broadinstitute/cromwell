@@ -1,0 +1,14 @@
+name: sub_workflow_name_length
+testFormat: workflowsuccess
+tags: [localdockertest]
+
+files {
+  workflow: workflow_name_length/importer_ok.wdl
+  imports: [
+    workflow_name_length/workflow_name_length_ok.wdl
+  ]
+}
+
+metadata {
+    status: Succeeded
+}

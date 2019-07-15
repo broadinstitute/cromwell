@@ -1,0 +1,53 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+    <changeSet author="kshakir" id="add_hog_group_in_workflow_store_mariadb" dbms="mariadb">
+        <!--
+        There are multiple reasons the HOG_GROUP could already be present:
+        1. The database was being run as "mysql" instead of "mariadb" and already added the column
+        2. A clean database was being run as "mariadb" and the new schema added the column
+
+        Due to prior changesets also using onFail="MARK_RAN", checking for the existence of the column is simpler than
+        attempting to figure out if the changesets *actually* ran.
+        -->
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="WORKFLOW_STORE_ENTRY" columnName="HOG_GROUP"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="WORKFLOW_STORE_ENTRY">
+            <column name="HOG_GROUP" type="VARCHAR(100)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet author="kshakir" id="restore_auto_increment_call_caching_hash_entry_id_postgresql" dbms="postgresql">
+        <!--
+        Ensure that the sequence also generates bigint values:
+        https://stackoverflow.com/questions/52195303/postgresql-primary-key-id-datatype-from-serial-to-bigserial#answer-52195920
+        -->
+        <sql>alter sequence "CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq" as bigint;</sql>
+
+        <modifyDataType
+                tableName="CALL_CACHING_HASH_ENTRY"
+                columnName="CALL_CACHING_HASH_ENTRY_ID"
+                newDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet author="kshakir" id="resync-engine-schema" dbms="hsqldb,mariadb,mysql,postgresql">
+        <!--
+        Use DateTime for client side generated dates.
+        https://stackoverflow.com/questions/409286/should-i-use-the-datetime-or-timestamp-data-type-in-mysql#answer-409305
+        -->
+        <modifyDataType tableName="WORKFLOW_STORE_ENTRY" columnName="HEARTBEAT_TIMESTAMP" newDataType="DATETIME(6)"/>
+        <modifyDataType tableName="WORKFLOW_STORE_ENTRY" columnName="SUBMISSION_TIME" newDataType="DATETIME(6)"/>
+        <addNotNullConstraint
+                tableName="WORKFLOW_STORE_ENTRY"
+                columnName="SUBMISSION_TIME"
+                columnDataType="DATETIME(6)"/>
+    </changeSet>
+
+</databaseChangeLog>

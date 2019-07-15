@@ -1,7 +1,7 @@
 package cromwell.services.womtool
 
 import better.files.File
-import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
 import io.circe.Json
@@ -39,7 +39,7 @@ class DescriberSpec extends FlatSpec with Matchers {
           workflowType = workflowType,
           workflowTypeVersion = workflowTypeVersion,
           inputsJson = "",
-          workflowOptionsJson = "",
+          workflowOptions = WorkflowOptions.empty,
           labelsJson = "",
           importsFile = None,
           workflowOnHold = false,

@@ -3,7 +3,7 @@ package cromwell.services.womtool.impl
 import akka.pattern._
 import akka.testkit.TestProbe
 import com.typesafe.config.ConfigFactory
-import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.ServicesSpec
 import cromwell.services.womtool.WomtoolServiceMessages._
@@ -113,7 +113,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       ),
       importedDescriptorTypes = List.empty,
       meta = Map.empty,
-      parameterMeta = Map.empty
+      parameterMeta = Map.empty,
+      isRunnableWorkflow = true
     )
   }
 
@@ -159,7 +160,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
     }
 
     "return valid = false, validWorkflow = true for a valid inputs-requiring workflow with an empty inputs JSON" in {
@@ -167,7 +168,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.emptyInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("wf_hello.hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
     }
 
     "return valid for a valid no-inputs workflow with empty inputs" in {
@@ -191,7 +192,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
             ),
             importedDescriptorTypes = List.empty,
             meta = Map.empty,
-            parameterMeta = Map.empty
+            parameterMeta = Map.empty,
+            isRunnableWorkflow = true
           )
         )
       )
@@ -202,7 +204,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValidNoInputs), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = false, errors = List("WARNING: Unexpected input provided: foo.bar"), validWorkflow = true, name = "wf_hello", inputs = List.empty, submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"))))
+        description = WorkflowDescription(valid = false, errors = List("WARNING: Unexpected input provided: foo.bar"), validWorkflow = true, name = "wf_hello", inputs = List.empty, submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
     }
 
     // In draft-2 we allow extraneous inputs for legacy reasons - e.g. users put comments in them
@@ -227,7 +229,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
             ),
             importedDescriptorTypes = List.empty,
             meta = Map.empty,
-            parameterMeta = Map.empty
+            parameterMeta = Map.empty,
+            isRunnableWorkflow = true
           )
         )
       )
@@ -254,7 +257,8 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
             ),
             importedDescriptorTypes = List.empty,
             meta = Map.empty,
-            parameterMeta = Map.empty
+            parameterMeta = Map.empty,
+            isRunnableWorkflow = true
           )
         )
       )
@@ -327,7 +331,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       workflowType = workflowType,
       workflowTypeVersion = workflowTypeVersion,
       inputsJson = inputsJson,
-      workflowOptionsJson = "",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "",
       importsFile = None,
       workflowOnHold = false,

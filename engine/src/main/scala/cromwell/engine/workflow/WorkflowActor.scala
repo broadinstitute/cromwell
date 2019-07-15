@@ -206,7 +206,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
-  private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState) = workflowToStart
+  private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState, hogGroup) = workflowToStart
   override val workflowIdForLogging = workflowId.toPossiblyNotRoot
   override val rootWorkflowIdForLogging = workflowId.toRoot
 
@@ -248,7 +248,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor),
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor, hogGroup = hogGroup),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
       actor ! MaterializeWorkflowDescriptorCommand(sources, conf)
@@ -430,7 +430,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
           * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
           * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
           */
-        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(sources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
+        def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
         val system = context.system
         val ec = context.system.dispatcher
         def bruteForcePathBuilders: Future[List[PathBuilder]] = {

@@ -9,9 +9,9 @@ digraph {
 
   download_submission_print_out [shape=oval label="Download submission_print_out.sh from github repo dsp-scripts/cromwell"];
   make_sure_gcloud_use_firecloud [shape=oval label="Make sure gcloud is using a firecloud.org account configuration"];
-  determine_submissions_of_interest [shape=oval label="Determine a submission of interest at a time right before alerts are generated.\n\nRun the script as\n\n./submission_print_out.sh <env>\n\nSubstitute <env> with environment { dev, prod }."];
+  determine_submissions_of_interest [shape=oval label="Determine a submission of interest at a time right before alerts are generated"];
 
-  place_submissions_on_hold [shape=oval label="Place all workflows from that submission on hold in the database.\nRestart cromwell."];
+  place_submissions_on_hold [shape=oval label="Place all workflows from that submission on hold in the database."];
 
 
   go_to_sleep [shape=oval label="Great!\nYour work here is done."];

@@ -2,16 +2,15 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
-import com.typesafe.config.ConfigFactory
 import common.util.TimeUtil._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
 import cromwell.core.labels.{Label, Labels}
-import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
-import cromwell.services.ServicesStore.EnhancedSqlDatabase
+import cromwell.database.slick.MetadataSlickDatabase
+import cromwell.services.MetadataServicesStore
+import cromwell.services.database._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
-import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -19,6 +18,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.{ExecutionContext, Future}
+
 object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
   val AllowTrue = Seq(QueryParameter("allow", "true"))
@@ -36,29 +36,18 @@ object MetadataDatabaseAccessSpec {
 class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   import MetadataDatabaseAccessSpec._
 
-  "MetadataDatabaseAccess (hsqldb)" should behave like testWith("database")
-
-  "MetadataDatabaseAccess (mysql)" should behave like testWith("database-test-mysql")
-
-  "MetadataDatabaseAccess (mariadb)" should behave like testWith("database-test-mariadb")
-
-  "MetadataDatabaseAccess (postgresql)" should behave like testWith("database-test-postgresql")
-
   implicit val ec = ExecutionContext.global
 
   implicit val defaultPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(100, Millis)))
 
-  def testWith(configPath: String): Unit = {
+  DatabaseSystem.All foreach { databaseSystem =>
+    behavior of s"MetadataDatabaseAccess on ${databaseSystem.shortName}"
+
     lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
-      override val metadataDatabaseInterface = {
-        val databaseConfig = ConfigFactory.load.getConfig(configPath)
-
+      override val metadataDatabaseInterface: MetadataSlickDatabase = {
         // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        new EngineSlickDatabase(databaseConfig)
-          .initialized(EngineServicesStore.EngineLiquibaseSettings)
-
-        new MetadataSlickDatabase(databaseConfig)
-          .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
+        DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+        DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
       }
     }
 
@@ -123,11 +112,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
     it should "sort metadata events by timestamp from older to newer" taggedAs DbmsTest in {
 
-      if (configPath == "database-test-mariadb") {
-        // Do NOT want to change the test. Instead should fix it so that MariaDB is storing at least milliseconds.
-        cancel("Having issues with MariaDB and fractional seconds. https://broadworkbench.atlassian.net/browse/BA-5692")
-      }
-
       def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
         val now = OffsetDateTime.now()
@@ -137,11 +121,11 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         val yesterdayEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("A")), yesterday)
         val nowEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("B")), now)
         val tomorrowEvent = MetadataEvent(workflowKey.copy(key = WorkflowMetadataKeys.WorkflowRoot), Option(MetadataValue("C")), tomorrow)
-        
+
         val events = Vector(tomorrowEvent, yesterdayEvent, nowEvent)
-        
+
         val expectedEvents = Vector(yesterdayEvent, nowEvent, tomorrowEvent)
-        
+
         dataAccess.addMetadataEvents(events) map { _ => expectedEvents }
       }
 

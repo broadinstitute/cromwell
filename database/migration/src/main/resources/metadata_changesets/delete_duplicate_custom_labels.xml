@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="kshakir" id="delete_duplicate_custom_labels">
+    <changeSet author="kshakir" id="delete_duplicate_custom_labels" dbms="mysql,hsqldb">
         <comment>
             Delete the rows from CUSTOM_LABEL_ENTRY with duplicate (CLK, WEU) entries keeping only the rows with the
             largest primary key. Then drop the unique constraint that expands over the columns (CLK, CLV, WEU),

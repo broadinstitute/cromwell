@@ -113,7 +113,11 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     }
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource, workflowOptionsJson: WorkflowOptionsJson, importResolvers: List[ImportResolver], languageFactories: List[LanguageFactory]): Checked[WomBundle] = {
+  override def getWomBundle(workflowSource: WorkflowSource,
+                            workflowOptionsJson: WorkflowOptionsJson,
+                            importResolvers: List[ImportResolver],
+                            languageFactories: List[LanguageFactory],
+                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
     for {
       _ <- enabledCheck
       namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked

@@ -179,9 +179,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     /*
      Responses from services
      */
-    /*
-     BA-5800: Reduce sentry logging, downgrade log level from error to info
-     */
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), _) =>
       log.info(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()

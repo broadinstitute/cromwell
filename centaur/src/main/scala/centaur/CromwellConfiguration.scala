@@ -1,17 +1,19 @@
 package centaur
 
 import java.lang.ProcessBuilder.Redirect
-import better.files.File
 
-trait CromwellProcess {
+import better.files.File
+import com.typesafe.scalalogging.StrictLogging
+
+trait CromwellProcess extends StrictLogging {
   def logFile: String
-  def displayString: String
   def start(): Unit
   def stop(): Unit
   def isAlive: Boolean
   def cromwellConfiguration: CromwellConfiguration
 
   protected def runProcess(command: Array[String]): Process = {
+    logger.info(s"Running: ${command.mkString(" ")}")
     val processBuilder = new java.lang.ProcessBuilder()
       .command(command: _*)
       .redirectOutput(Redirect.appendTo(File(logFile).toJava))

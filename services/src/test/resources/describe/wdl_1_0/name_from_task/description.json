@@ -40,5 +40,6 @@
   },
   "parameterMeta" : {
 
-  }
+  },
+  "isRunnableWorkflow" : false
 }

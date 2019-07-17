@@ -55,8 +55,8 @@ object CommandTaskDefinition {
   */
 sealed trait TaskDefinition extends Callable {
   def runtimeAttributes: RuntimeAttributes
-  def meta: Map[String, String]
-  def parameterMeta: Map[String, String]
+  def meta: Map[String, MetaValueElement]
+  def parameterMeta: Map[String, MetaValueElement]
 
   /**
     * Transform the Callable TaskDefinition to an ExecutableCallable that can be executed on its own.
@@ -137,8 +137,8 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
 final case class CallableTaskDefinition(name: String,
                                         commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]],
                                         runtimeAttributes: RuntimeAttributes,
-                                        meta: Map[String, String],
-                                        parameterMeta: Map[String, String],
+                                        meta: Map[String, MetaValueElement],
+                                        parameterMeta: Map[String, MetaValueElement],
                                         outputs: List[Callable.OutputDefinition],
                                         inputs: List[_ <: Callable.InputDefinition],
                                         adHocFileCreation: Set[ContainerizedInputExpression],
@@ -198,8 +198,8 @@ sealed trait ExpressionTaskDefinition extends TaskDefinition {
 final case class CallableExpressionTaskDefinition(name: String,
                                                   evaluate: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]],
                                                   runtimeAttributes: RuntimeAttributes,
-                                                  meta: Map[String, String],
-                                                  parameterMeta: Map[String, String],
+                                                  meta: Map[String, MetaValueElement],
+                                                  parameterMeta: Map[String, MetaValueElement],
                                                   outputs: List[Callable.OutputDefinition],
                                                   inputs: List[_ <: Callable.InputDefinition],
                                                   prefixSeparator: String = ".",

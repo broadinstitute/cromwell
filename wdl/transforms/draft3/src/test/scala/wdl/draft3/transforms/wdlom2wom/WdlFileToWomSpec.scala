@@ -12,7 +12,7 @@ import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.transforms.base.wdlom2wom._
 import wom.callable.Callable.{FixedInputDefinitionWithDefault, OptionalInputDefinition}
-import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import wom.callable.MetaValueElement._
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
@@ -164,7 +164,16 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
   private def validateMetaSection(b: WomBundle): Assertion = {
     val task = b.primaryCallable.get.asInstanceOf[CallableTaskDefinition]
 
-    task.meta should be (Map("author" -> "John Doe",
-                             "email" -> "john.doe@yahoo.com"))
+    task.meta should be (Map("author" -> MetaValueElementString("John Doe"),
+                             "email" -> MetaValueElementString("john.doe@yahoo.com"),
+                             "b" -> MetaValueElementBoolean(true),
+                             "zipcode" -> MetaValueElementInteger(94043),
+                             "f" -> MetaValueElementFloat(1.3),
+                             "numbers" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
+                                                                       MetaValueElementInteger(2),
+                                                                       MetaValueElementInteger(3))),
+                             "extras" -> MetaValueElementObject(Map("house" -> MetaValueElementString("With porch"),
+                                                                    "cat" -> MetaValueElementString("Lucy")))
+                         ))
   }
 }

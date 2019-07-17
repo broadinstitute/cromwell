@@ -55,7 +55,7 @@ case class DosObject(data_object: DosDataObject)
 
 case class GoogleServiceAccount(data: JsObject)
 
-case class MarthaResponse(dos: DosObject, googleServiceAccount: GoogleServiceAccount)
+case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[GoogleServiceAccount])
 
 
 @main
@@ -64,7 +64,7 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
     marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
     marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
-    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.data.toString, downloadLoc)
+    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.map(_.data.toString), downloadLoc)
   } yield()
 
   dosResloverObj match {
@@ -120,14 +120,19 @@ def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
 }
 
 
-def downloadFileFromGcs(gcsUrl: String, serviceAccount: String, downloadLoc: String) : Try[Unit] = {
+def downloadFileFromGcs(gcsUrl: String, serviceAccountJsonOption: Option[String], downloadLoc: String) : Try[Unit] = {
   val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
   val fileToBeLocalized = gcsUrlArray(1)
   val gcsBucket = gcsUrlArray(0)
 
   Try {
-    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
-      .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
+    val unscopedCredentials = serviceAccountJsonOption match {
+      case None => GoogleCredentials.getApplicationDefault()
+      case Some(serviceAccountJson) =>
+        GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes()))
+    }
+    val credentials =
+      unscopedCredentials.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
     val blob = storage.get(gcsBucket, fileToBeLocalized)
     val readChannel = blob.reader()

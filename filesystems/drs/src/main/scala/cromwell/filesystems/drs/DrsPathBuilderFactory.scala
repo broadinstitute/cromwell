@@ -12,6 +12,7 @@ import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.StorageOptions
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -39,8 +40,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private val GcsScheme = "gs"
 
 
-  private def gcsInputStream(gcsFile: GcsFilePath, serviceAccount: String): IO[ReadableByteChannel] = {
-    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
+  private def gcsInputStream(gcsFile: GcsFilePath, serviceAccountJson: String): IO[ReadableByteChannel] = {
+    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes()))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
 
     IO.delay {
@@ -50,26 +51,28 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   }
 
 
-  private def inputReadChannel(url: String, urlScheme: String, serviceAccount: String): IO[ReadableByteChannel] =  {
+  private def inputReadChannel(url: String, urlScheme: String, serviceAccountJson: String): IO[ReadableByteChannel] =  {
     urlScheme match {
       case GcsScheme =>
         val Array(bucket, fileToBeLocalized) = url.replace(s"$GcsScheme://", "").split("/", 2)
-        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccount)
+        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccountJson)
       case otherScheme => IO.raiseError(new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
     }
   }
 
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
-    val serviceAccount = marthaResponse.googleServiceAccount match {
-      case Some(googleSA) => googleSA.data.toString
-      case None => throw new GoogleSANotFoundException
+  private def drsReadInterpreter(options: WorkflowOptions)(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
+    val serviceAccountJsonIo = marthaResponse.googleServiceAccount match {
+      case Some(googleSA) => IO.pure(googleSA.data.toString)
+      case None => IO.fromEither(options.get(GoogleAuthMode.UserServiceAccountKey).toEither)
     }
 
     //Currently, Martha only supports resolving DRS paths to GCS paths
-    DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
-      case Right(url) => inputReadChannel(url, GcsScheme, serviceAccount)
-      case Left(e) => IO.raiseError(e)
+    serviceAccountJsonIo flatMap { serviceAccountJson =>
+      DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
+        case Right(url) => inputReadChannel(url, GcsScheme, serviceAccountJson)
+        case Left(e) => IO.raiseError(e)
+      }
     }
   }
 
@@ -82,7 +85,12 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     )
     val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
 
-    Future(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials, httpClientBuilder, drsReadInterpreter)))
+    Future(DrsPathBuilder(new DrsCloudNioFileSystemProvider(
+      singletonConfig.config,
+      authCredentials,
+      httpClientBuilder,
+      drsReadInterpreter(options)
+    )))
   }
 }
 

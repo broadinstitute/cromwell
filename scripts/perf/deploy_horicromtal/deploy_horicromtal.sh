@@ -42,7 +42,7 @@ reader_metadata=(
   "CROMWELL_PERF_SCRIPTS_BRANCH=${REPO_BRANCH}"
   "GCS_REPORT_PATH=${GCS_REPORT_PATH}"
   "GCS_REPORT_BUCKET=${GCS_REPORT_BUCKET}"
-  "TEST_CASE_DIRECTORY=${TEST_CASE_DIRECTORY}"
+  "TEST_CASE_DIRECTORY=reader"
 )
 
 cp scripts/perf/deploy_instance/run_on_instance.sh mnt/

@@ -322,5 +322,8 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter))
+  private lazy val drsPathBuilder = DrsPathBuilder(
+    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+    None,
+  )
 }

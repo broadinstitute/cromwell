@@ -16,9 +16,12 @@ import $ivy.`io.spray::spray-json:1.3.4`
 
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.Storage
+import com.google.cloud.storage.StorageException
 import com.google.cloud.storage.StorageOptions
+import com.google.cloud.storage.Storage.BlobGetOption
 import com.google.common.collect.Lists
 import com.google.cloud.ReadChannel
+import com.google.cloud.storage.Blob
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -62,9 +65,15 @@ case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[GoogleSer
 def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
   val dosResloverObj = for {
     marthaUrl <- Uri.fromString(sys.env("MARTHA_URL")).toTry
+    requesterPaysProjectIdOption <- Try(sys.env.get("REQUESTER_PAYS_PROJECT_ID"))
     marthaResObj <- resolveDosThroughMartha(dosUrl, marthaUrl)
     gcsUrl <- extractFirstGcsUrl(marthaResObj.dos.data_object.urls)
-    _ <- downloadFileFromGcs(gcsUrl, marthaResObj.googleServiceAccount.map(_.data.toString), downloadLoc)
+    _ <- downloadFileFromGcs(
+      gcsUrl,
+      marthaResObj.googleServiceAccount.map(_.data.toString),
+      downloadLoc,
+      requesterPaysProjectIdOption,
+    )
   } yield()
 
   dosResloverObj match {
@@ -120,7 +129,10 @@ def extractFirstGcsUrl(urlArray: Array[Url]): Try[String] = {
 }
 
 
-def downloadFileFromGcs(gcsUrl: String, serviceAccountJsonOption: Option[String], downloadLoc: String) : Try[Unit] = {
+def downloadFileFromGcs(gcsUrl: String,
+                        serviceAccountJsonOption: Option[String],
+                        downloadLoc: String,
+                        requesterPaysProjectIdOption: Option[String]) : Try[Unit] = {
   val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
   val fileToBeLocalized = gcsUrlArray(1)
   val gcsBucket = gcsUrlArray(0)
@@ -134,11 +146,18 @@ def downloadFileFromGcs(gcsUrl: String, serviceAccountJsonOption: Option[String]
     val credentials =
       unscopedCredentials.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
-    val blob = storage.get(gcsBucket, fileToBeLocalized)
-    val readChannel = blob.reader()
     Files.createDirectories(Paths.get(downloadLoc).getParent)
-    val fileOuputStream = new FileOutputStream(downloadLoc)
-    fileOuputStream.getChannel().transferFrom(readChannel, 0, Long.MaxValue)
-    fileOuputStream.close()
+    try {
+      val blob = storage.get(gcsBucket, fileToBeLocalized)
+      blob.downloadTo(Paths.get(downloadLoc))
+    } catch {
+      case storageException: StorageException
+        if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." &&
+          requesterPaysProjectIdOption.nonEmpty =>
+        requesterPaysProjectIdOption foreach { requesterPaysProjectId =>
+          val blob = storage.get(gcsBucket, fileToBeLocalized, BlobGetOption.userProject(requesterPaysProjectId))
+          blob.downloadTo(Paths.get(downloadLoc), Blob.BlobSourceOption.userProject(requesterPaysProjectId))
+        }
+    }
   }
 }

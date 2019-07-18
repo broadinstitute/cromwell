@@ -48,20 +48,20 @@ reader_metadata=(
 cp scripts/perf/deploy_instance/run_on_instance.sh mnt/
 
 gcloud_deploy_instance \
-  "perf_deploy_instance_${BUILD_NUMBER}_runner101" \
-   "${CROMWELL_INSTANCE_NAME}_runner101" \
+  "perf_deploy_instance_${BUILD_NUMBER}-runner101" \
+   "${CROMWELL_INSTANCE_NAME}-runner101" \
     "${INSTANCE_TEMPLATE}" \
      "$(join ${runner_metadata[@]})" | tee runner1.txt
 
 gcloud_deploy_instance \
-  "perf_deploy_instance_${BUILD_NUMBER}_runner102" \
-   "${CROMWELL_INSTANCE_NAME}_runner102" \
+  "perf_deploy_instance_${BUILD_NUMBER}-runner102" \
+   "${CROMWELL_INSTANCE_NAME}-runner102" \
    "${INSTANCE_TEMPLATE}" \
    "$(join ${runner_metadata[@]})" | tee runner2.txt
 
 gcloud_deploy_instance \
-  "perf_deploy_instance_${BUILD_NUMBER}_reader101" \
-   "${CROMWELL_INSTANCE_NAME}_reader101" \
+  "perf_deploy_instance_${BUILD_NUMBER}-reader101" \
+   "${CROMWELL_INSTANCE_NAME}-reader101" \
    "${INSTANCE_TEMPLATE}" \
    "$(join ${reader_metadata[@]})" | tee reader1.txt
 

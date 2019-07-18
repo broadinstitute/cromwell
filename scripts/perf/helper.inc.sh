@@ -157,6 +157,50 @@ gcloud_run_as_service_account() {
     ${command}"
 }
 
+gcloud_get_field_from_instance_describe() {
+  local instance="$1"
+  local field="$2"
+
+  INSTANCE_METADATA=$(gcloud_run_as_service_account "perf_read_field_${field}" \
+   "gcloud \
+     --project broad-dsde-cromwell-perf \
+     compute instances describe \
+     --zone us-central1-c \
+     ${instance}
+   ")
+
+   echo "${INSTANCE_METADATA}" | grep "${field}" | awk '{print $2}'
+}
+
+gcloud_deploy_instance() {
+  local taskname=$1
+  local instance_name=$2
+  local instance_template=$3
+  local joined_metadata_string=$4
+
+  gcloud_run_as_service_account "${taskname}" \
+  "gcloud \
+    --verbosity info \
+    --project broad-dsde-cromwell-perf \
+    compute instances create ${instance_name} \
+      --zone us-central1-c \
+      --source-instance-template ${instance_template} \
+      --metadata-from-file startup-script=$DOCKER_ETC_PATH/run_on_instance.sh \
+      --metadata ${joined_metadata_string}"
+}
+
+gcloud_delete_instance() {
+  local taskname=$1
+  local instance_name=$2
+
+  gcloud_run_as_service_account "${taskname}" " \
+  gcloud \
+    --verbosity info \
+    --project broad-dsde-cromwell-perf \
+    compute instances delete ${instance_name} \
+      --zone=us-central1-c -q"
+}
+
 # Waits for a remote machine to start, and then stop, responding to PINGs
 wait_for_ping_to_start_then_stop() {
   local address="$1"

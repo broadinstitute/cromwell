@@ -1049,6 +1049,7 @@ definitions:
           - Tuple
           - Map
           - Object
+          - Pair
       optionalType:
         $ref: '#/definitions/ValueType'
       arrayType:

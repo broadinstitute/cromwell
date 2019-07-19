@@ -71,7 +71,23 @@ filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.c
 
 drs {
   localization {
-    docker-image = "broadinstitute/cromwell-dos:34-d8acfe3"
+
+
+
+
+  #       ///////////////////////////////////////////////////////////////
+  #      ///////////////////////////////////////////////////////////////
+  #     ///////////                                         ///////////
+  #    /////////// TODO: Switch back to the proper docker! ///////////
+  #   ///////////                                         ///////////
+  #  ///////////////////////////////////////////////////////////////
+  # ///////////////////////////////////////////////////////////////
+
+
+
+
+
+    docker-image = "kshakir/cromwell-dos:latest"
     command-template = "mkdir -p $(dirname ${containerPath}) && /scripts/dosUrlLocalizer.sc ${drsPath} ${containerPath}"
   }
 }

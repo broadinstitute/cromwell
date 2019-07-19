@@ -62,6 +62,7 @@ object RunStatus {
       val unsuccessfulStatusBuilder = errorCode match {
         case Status.ABORTED if jesCode.contains(PipelinesApiAsyncBackendJobExecutionActor.JesPreemption) => Preempted.apply _
         case Status.ABORTED if jesCode.contains(PipelinesApiAsyncBackendJobExecutionActor.JesUnexpectedTermination) && wasPreemptible => Preempted.apply _
+        case Status.ABORTED if errorMessage.exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
         case Status.UNKNOWN if errorMessage.exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedToStartDueToPreemptionSubstring)) => Preempted.apply _
         case Status.CANCELLED => Cancelled.apply _
         case _ => Failed.apply _

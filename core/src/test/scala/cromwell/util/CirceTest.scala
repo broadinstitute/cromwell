@@ -25,17 +25,6 @@ class CirceTest extends FlatSpec with Matchers{
        }
       """.stripMargin
 
-  val rawJson =
-    """
-        {
-          "foo": "bar",
-          "other":"baz",
-           "nested": {
-             "inner": "some"
-           }
-         }
-      """.stripMargin
-
   val jsonEither: Either[String, Json] = parse(rawJson).leftMap(_.toString)
 
   def testJson(f: Json => Json): Either[String, Json] =
@@ -57,13 +46,19 @@ class CirceTest extends FlatSpec with Matchers{
       assert(either.right.get.head === "other")
     }
 
+  it should "remove nested keys excludes" in {
+    val either = testJson(excludeJson(_, NonEmptyList.one("deep")))
+    assert(either.right.get.hcursor.downField("nested").downField("inner").keys.get.head === "keepme")
+  }
+
   it should "keep includes" in {
     val either = testJsonAndGetKeys(includeExcludeJson(_, Some(NonEmptyList.one("foo")), None))
     assert(either.right.get.head === "foo")
   }
 
-  it should "remove nested keys includes" in {
-    val either = testJson(excludeJson(_, NonEmptyList.one("deep")))
+  it should "keep nested includes" in {
+    val either = testJson(includeJson(_, NonEmptyList.one("keepme")))
     assert(either.right.get.hcursor.downField("nested").downField("inner").keys.get.head === "keepme")
   }
+
 }

@@ -75,12 +75,7 @@ I have a full metadata JSON without labels, and wish to attach a labels field
       val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
       State.apply[ACursor, Boolean] { cursor =>
         if (keep) {
-          val newCursor = cursor.downField(key)
-          val eval = includeKeys(keys).run(newCursor)
-          //ignoring whether we kept nested values
-          val (output, _) = eval.value
-          //we're in the field, have to go back to the parent for the next field to evaluate
-          (output.up, true)
+          (cursor, true)
         } else {
           val newCursor = cursor.downField(key)
 
@@ -111,4 +106,8 @@ I have a full metadata JSON without labels, and wish to attach a labels field
     val mod: State[ACursor, Unit] = excludeKeys(keys)
     mod.run(cursor).value._1.top.get
   }
+
+  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs"))
+
+  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs"))
 }

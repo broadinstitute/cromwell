@@ -1,8 +1,7 @@
 package cromwell.util
-//import cats.Now
+
 import cats.data.NonEmptyList
 import io.circe.ACursor
-//import io.circe
 import io.circe.Json
 import mouse.all._
 import cats.syntax.traverse._
@@ -11,17 +10,6 @@ import cats.instances.list._
 import cats.data.State
 
 object JsonEditor {
-  /*
-  I have a full metadata JSON, but a user is requesting it rendered with includeKey or excludeKey options, return the desired result
-
-I have a full metadata JSON, but the user is just requesting the outputs or logs (ie the /logs and /outputs endpoints)
-
-I have a full metadata JSON including subworkflows, but wish to exclude subworkflows.
-
-I have a full metadata JSON, but wish to edit the labels field
-
-I have a full metadata JSON without labels, and wish to attach a labels field
-   */
 
   /**
     *
@@ -107,7 +95,13 @@ I have a full metadata JSON without labels, and wish to attach a labels field
     mod.run(cursor).value._1.top.get
   }
 
-  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs"))
+  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id"))
 
-  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs"))
+  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
+
+  def augmentLabels(json: Json, wfIdToLabels: Map[String, String]): Json = {
+    val newData: Json = Json.fromFields(wfIdToLabels.mapValues(Json.fromString))
+    val newObj = Json.fromFields(List(("labels", newData)))
+    json deepMerge newObj
+  }
 }

@@ -2,33 +2,17 @@ package cromwell.util
 
 import JsonEditor._
 import cats.data.NonEmptyList
-import io.circe.Json
+import io.circe.{Json, ParsingFailure}
 import io.circe.parser._
 import org.scalatest.{FlatSpec, Matchers}
 import cats.syntax.either._
 
 class JsonEditSpec extends FlatSpec with Matchers{
-
-  val rawJson =
-    """
-      {
-        "foo": "bar",
-         "other":"baz",
-         "nested": {
-           "inner": {
-             "deep":"some",
-             "keepme": "more",
-             "wildcard": "again"
-           }
-         }
-       }
-      """.stripMargin
-
-  val jsonEither: Either[String, Json] = parse(rawJson).leftMap(_.toString)
+  import JsonEditSpec._
 
   def testJson(f: Json => Json): Either[String, Json] =
     for {
-      json <- jsonEither
+      json <- contrivedJsonEither
       newJson = f(json)
     }  yield newJson
 
@@ -75,17 +59,41 @@ class JsonEditSpec extends FlatSpec with Matchers{
   }
 
   it should "keep outputs only" in {
-    import JsonEditSpec._
-    println(parse(helloWorldJsonOutput).map(outputs).right.get)
     val cursor = parse(helloWorldJsonOutput).map(outputs).right.get.hcursor
     val keys = cursor.keys
-    assert(keys.get.size === 1)
-    assert(keys.get.head === "outputs")
+    println(s"keys $keys")
+    assert(keys.get.size === 2)
+    assert(keys.get.toSet.contains("outputs") === true)
+    assert(keys.get.toSet.contains("id") === true)
     assert(cursor.downField("outputs").keys.get.head === "main_workflow.main_output")
+  }
+
+  it should "add labels" in {
+    val newJson = realJson.map(augmentLabels(_, Map(("new","label")))).right.get
+    val newLabels = newJson.hcursor.downField("labels").keys.get
+    assert(newLabels.size  === 2)
   }
 }
 
 object JsonEditSpec {
+
+  val contrivedJson =
+    """
+      {
+        "foo": "bar",
+         "other":"baz",
+         "nested": {
+           "inner": {
+             "deep":"some",
+             "keepme": "more",
+             "wildcard": "again"
+           }
+         }
+       }
+      """.stripMargin
+
+  val contrivedJsonEither: Either[String, Json] = parse(contrivedJson).leftMap(_.toString)
+
   val helloWorldJsonOutput =
     """
       |{
@@ -158,4 +166,6 @@ object JsonEditSpec {
       |  "start": "2019-07-22T13:32:20.434-04:00"
       |}
     """.stripMargin
+
+  val realJson: Either[ParsingFailure, Json] = parse(helloWorldJsonOutput)
 }

@@ -19,7 +19,8 @@ class CirceTest extends FlatSpec with Matchers{
          "nested": {
            "inner": {
              "deep":"some",
-             "keepme": "more"
+             "keepme": "more",
+             "wildcard": "again"
            }
          }
        }
@@ -51,6 +52,14 @@ class CirceTest extends FlatSpec with Matchers{
     assert(either.right.get.hcursor.downField("nested").downField("inner").keys.get.head === "keepme")
   }
 
+  it should "remove multiple nested keys excludes" in {
+    val either = testJson(excludeJson(_, NonEmptyList.of("deep", "wildcard")))
+    val keys = either.right.get.hcursor.downField("nested").downField("inner").keys.get
+    assert(keys.head === "keepme")
+    assert(keys.size === 1)
+    println(either.right.get)
+  }
+
   it should "keep includes" in {
     val either = testJsonAndGetKeys(includeExcludeJson(_, Some(NonEmptyList.one("foo")), None))
     assert(either.right.get.head === "foo")
@@ -61,4 +70,11 @@ class CirceTest extends FlatSpec with Matchers{
     assert(either.right.get.hcursor.downField("nested").downField("inner").keys.get.head === "keepme")
   }
 
+  it should "keep multiple nested includes" in {
+    val either = testJson(includeJson(_, NonEmptyList.of("keepme", "wildcard")))
+    val keys = either.right.get.hcursor.downField("nested").downField("inner").keys.get
+    assert(keys.head === "keepme")
+    assert(keys.tail.head === "wildcard")
+    println(either.right.get)
+  }
 }

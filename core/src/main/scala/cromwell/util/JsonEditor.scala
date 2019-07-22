@@ -26,22 +26,21 @@ I have a full metadata JSON without labels, and wish to attach a labels field
   /**
     *
     * @param json
-    * @param includeKeys If this is > 0, we will only keep this
+    * @param includeKeys
     * @param excludeKeys
     * @return
     */
   def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json = {
     (includeKeys, excludeKeys) match {
         //Will take includes, and then remove excludes
-      case (Some(includeKeys), Some(excludeKeys)) =>
-        excludeJson(json, excludeKeys) |> (includeJson(_, includeKeys))
+      case (Some(includeKeys), Some(excludeKeys)) => includeJson(json, includeKeys) |> (excludeJson(_, excludeKeys))
       case (None, Some(excludeKeys)) => excludeJson(json, excludeKeys)
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
       case _ => json
     }
   }
 
-  def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify{cursor =>
+  private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify{cursor =>
     val levelKeys: List[String] = cursor.keys.toList.flatMap(keys => keys.toList)
 
     //take each key and turn it into a state operation over a cursor state
@@ -63,7 +62,12 @@ I have a full metadata JSON without labels, and wish to attach a labels field
     }.void
     modifications.run(cursor).value._1
   }
-  def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
+
+  /**
+    * @param keys list of keys to match against field names, using "startsWith"
+    * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
+    */
+  private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
     val levelKeys: List[String] = cursor.keys.toList.flatMap(keys => keys.toList)
 
     //take each key and turn it into a state operation over a cursor state
@@ -78,17 +82,17 @@ I have a full metadata JSON without labels, and wish to attach a labels field
           //we're in the field, have to go back to the parent for the next field to evaluate
           (output.up, true)
         } else {
-          //before deleting, we want to see if any children should be kept
-
           val newCursor = cursor.downField(key)
+
+          //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
           val (output,shouldKeep) = includeKeys(keys).run(newCursor).value
-          //ignoring void output
+
           if (shouldKeep) {
             (output.up, true)
           } else {
+            //go ahead and delete this node and indicate we don't need to keep the parent on account of this node
             (newCursor.delete, false)
           }
-          //we're in the field, have to go back to the parent for the next field to evaluate
         }
       }
     }

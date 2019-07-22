@@ -1,15 +1,13 @@
 package cromwell.util
 
-//import io.circe._
 import JsonEditor._
 import cats.data.NonEmptyList
 import io.circe.Json
 import io.circe.parser._
 import org.scalatest.{FlatSpec, Matchers}
 import cats.syntax.either._
-//import org.scalatest.LoneElement._
 
-class CirceTest extends FlatSpec with Matchers{
+class JsonEditSpec extends FlatSpec with Matchers{
 
   val rawJson =
     """
@@ -57,7 +55,6 @@ class CirceTest extends FlatSpec with Matchers{
     val keys = either.right.get.hcursor.downField("nested").downField("inner").keys.get
     assert(keys.head === "keepme")
     assert(keys.size === 1)
-    println(either.right.get)
   }
 
   it should "keep includes" in {
@@ -75,6 +72,5 @@ class CirceTest extends FlatSpec with Matchers{
     val keys = either.right.get.hcursor.downField("nested").downField("inner").keys.get
     assert(keys.head === "keepme")
     assert(keys.tail.head === "wildcard")
-    println(either.right.get)
   }
 }

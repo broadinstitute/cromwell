@@ -193,7 +193,12 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     //database.run(action) <-- See comment above private val actionThreadPool
     Future {
       try {
-        Await.result(database.run(action), timeout)
+        if (timeout.isFinite()) {
+          // https://stackoverflow.com/a/52569275/818054
+          Await.result(database.run(action.withStatementParameters(statementInit = _.setQueryTimeout(timeout.toSeconds.toInt))), Duration.Inf)
+        } else {
+          Await.result(database.run(action), Duration.Inf)
+        }
       } catch {
         case rollbackException: MySQLTransactionRollbackException =>
           debugExitStatusCodeOption match {

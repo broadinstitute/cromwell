@@ -104,4 +104,6 @@ object JsonEditor {
     val newObj = Json.fromFields(List(("labels", newData)))
     json deepMerge newObj
   }
+
+  def removeSubworkflowData(json: Json): Json = excludeJson(json, NonEmptyList.of("subWorkflowMetadata"))
 }

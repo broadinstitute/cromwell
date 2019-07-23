@@ -164,8 +164,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
 
-  protected[this] def runTransaction[R](action: DBIO[R], isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead): Future[R] = {
-    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel))
+  protected[this] def runTransaction[R](action: DBIO[R],
+                                        isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
+                                        timeout: Duration = Duration.Inf): Future[R] = {
+    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
   }
 
   /* Note that this is only appropriate for actions that do not involve Blob
@@ -187,11 +189,11 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     }
   }
 
-  private def runActionInternal[R](action: DBIO[R]): Future[R] = {
+  private def runActionInternal[R](action: DBIO[R], timeout: Duration = Duration.Inf): Future[R] = {
     //database.run(action) <-- See comment above private val actionThreadPool
     Future {
       try {
-        Await.result(database.run(action), Duration.Inf)
+        Await.result(database.run(action), timeout)
       } catch {
         case rollbackException: MySQLTransactionRollbackException =>
           debugExitStatusCodeOption match {

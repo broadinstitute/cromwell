@@ -11,16 +11,9 @@ import cats.data.State
 
 object JsonEditor {
 
-  /**
-    *
-    * @param json
-    * @param includeKeys
-    * @param excludeKeys
-    * @return
-    */
   def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json = {
     (includeKeys, excludeKeys) match {
-        //Will take includes, and then remove excludes
+      // Take includes, and then remove excludes
       case (Some(includeKeys), Some(excludeKeys)) => includeJson(json, includeKeys) |> (excludeJson(_, excludeKeys))
       case (None, Some(excludeKeys)) => excludeJson(json, excludeKeys)
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
@@ -29,9 +22,9 @@ object JsonEditor {
   }
 
   private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify{cursor =>
-    val levelKeys: List[String] = cursor.keys.toList.flatMap(keys => keys.toList)
+    val levelKeys: List[String] = cursor.keys.toList.flatMap(_.toList)
 
-    //take each key and turn it into a state operation over a cursor state
+    // Take each key in the json level and turn it into a state operation over the cursor
     val modifications: State[ACursor, Unit] = levelKeys.traverse{key =>
       val delete = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
       State.modify[ACursor] { cursor =>
@@ -41,18 +34,20 @@ object JsonEditor {
         else {
           val newCursor = cursor.downField(key)
           val eval = excludeKeys(keys).run(newCursor)
-          //ignoring void output
+          //ignoring unit output
           val (output,_) = eval.value
           //we're in the field, have to go back to the parent for the next field to evaluate
           output.up
         }
       }
     }.void
-    modifications.run(cursor).value._1
+    //run the cursor through the modification and extract the new cursor state
+    val (newCursor, _) = modifications.run(cursor).value
+    newCursor
   }
 
   /**
-    * @param keys list of keys to match against field names, using "startsWith"
+    * @param keys list of keys to match against field names using "startsWith."
     * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
     */
   private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
@@ -60,6 +55,7 @@ object JsonEditor {
 
     //take each key and turn it into a state operation over a cursor state
     val modifications: State[ACursor, List[Boolean]] = levelKeys.traverse{key =>
+      //detect whether any of the json keys match the argument keys
       val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
       State.apply[ACursor, Boolean] { cursor =>
         if (keep) {
@@ -73,7 +69,8 @@ object JsonEditor {
           if (shouldKeep) {
             (output.up, true)
           } else {
-            //go ahead and delete this node and indicate we don't need to keep the parent on account of this node
+            //no need to keep this node on account of a child needing it.
+            //delete this node and indicate to our own parent that we don't need it.
             (newCursor.delete, false)
           }
         }
@@ -83,17 +80,17 @@ object JsonEditor {
     (newCursor, keeps.foldLeft(false)(_ || _))
   }
 
-  def includeJson(json: Json, keys: NonEmptyList[String]) = {
+  private def modifyJson[A](json: Json, keys: NonEmptyList[String],  function: NonEmptyList[String] => State[ACursor, A]) = {
     val cursor = json.hcursor
-    val mod: State[ACursor, Boolean] = includeKeys(keys)
-    mod.run(cursor).value._1.top.get
+    val mod: State[ACursor, A] = function(keys)
+    val (newCursor, _) = mod.run(cursor).value
+    //taking the liberty of assuming the document still has something in it.  Arguable, might warrant further consideration.
+    newCursor.top.get
   }
 
-  def excludeJson(json: Json, keys: NonEmptyList[String]) = {
-    val cursor = json.hcursor
-    val mod: State[ACursor, Unit] = excludeKeys(keys)
-    mod.run(cursor).value._1.top.get
-  }
+  def includeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, includeKeys)
+
+  def excludeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, excludeKeys)
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id"))
 
@@ -101,7 +98,8 @@ object JsonEditor {
 
   def augmentLabels(json: Json, wfIdToLabels: Map[String, String]): Json = {
     val newData: Json = Json.fromFields(wfIdToLabels.mapValues(Json.fromString))
-    val newObj = Json.fromFields(List(("labels", newData)))
+    val newObj: Json = Json.fromFields(List(("labels", newData)))
+    //in the event of a key clash, the values in "newObj" will be favored over "json"
     json deepMerge newObj
   }
 

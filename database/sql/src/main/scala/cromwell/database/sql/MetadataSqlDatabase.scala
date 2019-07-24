@@ -103,6 +103,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
 
+  def isWorkflowArchived(workflowExecutionuuid: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
+
   def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                              workflowStatuses: Set[String],
                              workflowNames: Set[String],

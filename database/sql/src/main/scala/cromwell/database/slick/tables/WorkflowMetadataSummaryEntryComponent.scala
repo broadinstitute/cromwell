@@ -86,6 +86,13 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
+  val isWorkflowUuidArchived = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield workflowMetadataSummaryEntry.isArchived
+  )
+
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {
       a.unitPConv.apply(p, pp)

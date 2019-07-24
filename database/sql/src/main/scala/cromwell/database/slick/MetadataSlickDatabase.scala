@@ -318,8 +318,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.toMap)
   }
 
-
-
   override def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                                       workflowStatuses: Set[String],
                                       workflowNames: Set[String],

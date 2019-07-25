@@ -16,13 +16,11 @@ class JsonEditorSpec extends FlatSpec with Matchers{
       newJson = f(json)
     }  yield newJson
 
-  def testJsonAndGetKeys(f: Json => Json): Either[String, Iterable[String]] = {
+  def testJsonAndGetKeys(f: Json => Json): Either[String, Iterable[String]] =
     for {
       newJson <- testJson(f)
       keys <- newJson.hcursor.keys.toRight("no keys found!")
     }  yield keys
-  }
-
 
   "Json Munger" should "remove excludes" in {
       val either = testJsonAndGetKeys(includeExcludeJson(_, None, Some(NonEmptyList.one("foo"))))

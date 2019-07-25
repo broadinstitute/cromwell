@@ -1,6 +1,7 @@
 package cromwell.util
 
 import cats.data.NonEmptyList
+import common.collections.EnhancedCollections._
 import io.circe.ACursor
 import io.circe.Json
 import mouse.all._
@@ -26,7 +27,7 @@ object JsonEditor {
 
     // Take each key in the json level and turn it into a state operation over the cursor
     val modifications: State[ACursor, Unit] = levelKeys.traverse{key =>
-      val delete = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
+      val delete = keys.foldLeft(false)(_ || key.startsWith(_))
       State.modify[ACursor] { cursor =>
         if (delete)
           //moves cursor back to parent
@@ -96,8 +97,17 @@ object JsonEditor {
 
   def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
 
-  def augmentLabels(json: Json, wfIdToLabels: Map[String, String]): Json = {
-    val newData: Json = Json.fromFields(wfIdToLabels.mapValues(Json.fromString))
+  /**
+    * We only return labels associated with top-level workflows.  Subworkflows don't include labels (as of 7/26/19).
+    *
+    * Thus this method puts the labels as a top-level field.
+    *
+    * @param json json blob with or without "labels" field
+    * @param labels a map of labels one would like to apply to a workflow json
+    * @return json with labels merged in.  Any prior non-object "labels" field will be overwritten and any object fields will be merged together and - again - any existing values overwritten.
+    */
+  def augmentLabels(json: Json, labels: Map[String, String]): Json = {
+    val newData: Json = Json.fromFields(labels.safeMapValues(Json.fromString))
     val newObj: Json = Json.fromFields(List(("labels", newData)))
     //in the event of a key clash, the values in "newObj" will be favored over "json"
     json deepMerge newObj

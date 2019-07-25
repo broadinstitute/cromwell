@@ -99,6 +99,8 @@ object Dependencies {
     "org.slf4j" % "slf4j-api" % slf4jV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
   )
+  
+  val gcsStorage = "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
 
@@ -479,7 +481,7 @@ object Dependencies {
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies + gcsStorage
 
   val serverDependencies = slf4jBindingDependencies
 

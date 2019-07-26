@@ -87,10 +87,15 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
 }
 
 
+/*
+* Note: The printlns introduced are temporary and would help with debugging problems while running this script.
+* They should be replaced by logging messages in ticket: https://broadworkbench.atlassian.net/browse/BA-5821.
+*/
 def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse] = {
   import MarthaResponseJsonSupport._
 
-  println(s"resolving $dosUrl to martha $marthaUrl")
+  println(s"Resolving $dosUrl to martha $marthaUrl")
+
   val requestBody = json"""{"url":$dosUrl}"""
   val scopes = Lists.newArrayList("https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile")
@@ -98,7 +103,6 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
   val credentials = GoogleCredentials.getApplicationDefault()
   val scopedCredentials = credentials.createScoped(scopes)
   val accessToken = scopedCredentials.refreshAccessToken().getTokenValue()
-  println(s"access token $accessToken")
 
   val longTimeoutConfig =
     BlazeClientConfig
@@ -114,7 +118,7 @@ def resolveDosThroughMartha(dosUrl: String, marthaUrl: Uri) : Try[MarthaResponse
       headers = Headers(Header("Authorization", s"bearer $accessToken")))
       .withBody(requestBody)
     httpResponse <- httpClient.expect[String](postRequest)
-    _ = println(s"Martha response: $httpResponse")
+    _ = println("Received successful response from Martha")
     marthaResObj = httpResponse.parseJson.convertTo[MarthaResponse]
   } yield marthaResObj
 
@@ -136,7 +140,8 @@ def downloadFileFromGcs(gcsUrl: String,
                         serviceAccountJsonOption: Option[String],
                         downloadLoc: String,
                         requesterPaysProjectIdOption: Option[String]) : Try[Unit] = {
-  println(s"requester pays project id is $requesterPaysProjectIdOption")
+  println(s"Requester Pays project ID is $requesterPaysProjectIdOption")
+
   val gcsUrlArray = gcsUrl.replace("gs://", "").split("/", 2)
   val fileToBeLocalized = gcsUrlArray(1)
   val gcsBucket = gcsUrlArray(0)
@@ -151,20 +156,26 @@ def downloadFileFromGcs(gcsUrl: String,
       unscopedCredentials.createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService()
     Files.createDirectories(Paths.get(downloadLoc).getParent)
-    println(s"directories created, attempting to download $downloadLoc")
+
+    println(s"Attempting to download $gcsUrl")
+
     try {
       val blob = storage.get(gcsBucket, fileToBeLocalized)
       blob.downloadTo(Paths.get(downloadLoc))
-      println(s"download done $downloadLoc")
+      println(s"Download complete without using Requester Pays $downloadLoc ")
     } catch {
       case storageException: StorageException
         if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." &&
           requesterPaysProjectIdOption.nonEmpty =>
+        println(s"Received StorageException with message stating 'Bucket is requester pays bucket but no user project provided'. " +
+          s"Attempting to download with billing project ID")
+
         requesterPaysProjectIdOption foreach { requesterPaysProjectId =>
           val blob = storage.get(gcsBucket, fileToBeLocalized, BlobGetOption.userProject(requesterPaysProjectId))
           blob.downloadTo(Paths.get(downloadLoc), Blob.BlobSourceOption.userProject(requesterPaysProjectId))
         }
-        println(s"download done with requester pays $downloadLoc")
+
+        println(s"Download complete with Requester Pays $downloadLoc")
     }
   }
 }

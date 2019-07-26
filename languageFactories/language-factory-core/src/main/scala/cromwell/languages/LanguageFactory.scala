@@ -37,8 +37,7 @@ trait LanguageFactory {
                    workflowOptionsJson: WorkflowOptionsJson,
                    importResolvers: List[ImportResolver],
                    languageFactories: List[LanguageFactory],
-                   convertNestedScatterToSubworkflow : Boolean = true,
-                   listDependencies: Boolean = false): Checked[WomBundle]
+                   convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle]
 
   def createExecutable(womBundle: WomBundle,
                        inputs: WorkflowJson,

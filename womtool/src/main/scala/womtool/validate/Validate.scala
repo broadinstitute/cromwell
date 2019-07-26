@@ -24,12 +24,12 @@ object Validate {
     }
 
     if (inputs.isDefined) {
-      WomGraphMaker.fromFiles(main, inputs, listDependencies) match {
+      WomGraphMaker.fromFiles(main, inputs) match {
         case Right(v) => SuccessfulTermination(validationSuccessMsg(v._2))
         case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator))
       }
     } else {
-      WomGraphMaker.getBundle(main, listDependencies) match {
+      WomGraphMaker.getBundle(main) match {
         case Right(v) => SuccessfulTermination(validationSuccessMsg(v._2))
         case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator))
       }

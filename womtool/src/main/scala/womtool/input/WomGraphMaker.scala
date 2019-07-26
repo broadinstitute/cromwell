@@ -22,10 +22,10 @@ import scala.util.Try
 
 object WomGraphMaker {
 
-  def getBundle(mainFile: Path, listDependencies: Boolean = false): Checked[(WomBundle, ResolvedImportsStore)] =
-    getBundleAndFactory(mainFile, listDependencies).map(x => (x._1, x._3))
+  def getBundle(mainFile: Path): Checked[(WomBundle, ResolvedImportsStore)] =
+    getBundleAndFactory(mainFile).map(x => (x._1, x._3))
 
-  private def getBundleAndFactory(mainFile: Path, listDependencies: Boolean): Checked[(WomBundle, LanguageFactory, ResolvedImportsStore)] = {
+  private def getBundleAndFactory(mainFile: Path): Checked[(WomBundle, LanguageFactory, ResolvedImportsStore)] = {
     val resolvedImportsStoreObj = new ResolvedImportsStore
 
     lazy val importResolvers: List[ImportResolver] =
@@ -40,14 +40,14 @@ object WomGraphMaker {
           .find(_.looksParsable(mainFileContents))
           .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))
 
-      val bundle = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory), listDependencies)
+      val bundle = languageFactory.getWomBundle(mainFileContents, "{}", importResolvers, List(languageFactory))
       // Return the pair with the languageFactory
       bundle.map(bd => (bd, languageFactory, resolvedImportsStoreObj))
     }
   }
 
-  def fromFiles(mainFile: Path, inputs: Option[Path], listDependencies: Boolean = false): Checked[(Graph, ResolvedImportsStore)] = {
-    getBundleAndFactory(mainFile, listDependencies) flatMap { case (womBundle, languageFactory, workflowDependencies) =>
+  def fromFiles(mainFile: Path, inputs: Option[Path]): Checked[(Graph, ResolvedImportsStore)] = {
+    getBundleAndFactory(mainFile) flatMap { case (womBundle, languageFactory, workflowDependencies) =>
       inputs match {
         case None =>
           for {

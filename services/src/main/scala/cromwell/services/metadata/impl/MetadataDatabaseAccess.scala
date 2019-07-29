@@ -115,7 +115,7 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def queryMetadataEvents(query: MetadataQuery, timeout: Duration = Duration.Inf)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
+  def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
 
     def listKeyRequirements(keyRequirementsInput: Option[NonEmptyList[String]]): List[String] = keyRequirementsInput.map(_.toList).toList.flatten.map(_ + "%")
 

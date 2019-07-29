@@ -1,17 +1,10 @@
 package org.lerch.s3fs;
 
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Bucket;
-import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectAclRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
+import com.amazonaws.event.ProgressListener;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.transfer.Copy;
+import com.amazonaws.services.s3.transfer.TransferManager;
+import com.amazonaws.services.s3.transfer.TransferManagerBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -21,9 +14,16 @@ import org.lerch.s3fs.attribute.S3BasicFileAttributeView;
 import org.lerch.s3fs.attribute.S3BasicFileAttributes;
 import org.lerch.s3fs.attribute.S3PosixFileAttributeView;
 import org.lerch.s3fs.attribute.S3PosixFileAttributes;
+import org.lerch.s3fs.util.AmazonS3ClientProvider;
 import org.lerch.s3fs.util.AttributesUtils;
 import org.lerch.s3fs.util.Cache;
 import org.lerch.s3fs.util.S3Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,8 +39,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
 import static com.google.common.collect.Sets.difference;
-import static org.lerch.s3fs.AmazonS3Factory.*;
 import static java.lang.String.format;
+import static org.lerch.s3fs.AmazonS3Factory.*;
 
 /**
  * Spec:
@@ -71,7 +71,6 @@ import static java.lang.String.format;
  * </p>
  */
 public class S3FileSystemProvider extends FileSystemProvider {
-
     public static final String CHARSET_KEY = "s3fs_charset";
     public static final String AMAZON_S3_FACTORY_CLASS = "s3fs_amazon_s3_factory";
 
@@ -79,6 +78,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
     private static final List<String> PROPS_TO_OVERLOAD = Arrays.asList(ACCESS_KEY, SECRET_KEY, REQUEST_METRIC_COLLECTOR_CLASS, CONNECTION_TIMEOUT, MAX_CONNECTIONS, MAX_ERROR_RETRY, PROTOCOL, PROXY_DOMAIN,
             PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME, PROXY_WORKSTATION, SOCKET_SEND_BUFFER_SIZE_HINT, SOCKET_RECEIVE_BUFFER_SIZE_HINT, SOCKET_TIMEOUT,
             USER_AGENT, AMAZON_S3_FACTORY_CLASS, SIGNER_OVERRIDE, PATH_STYLE_ACCESS);
+    private static final Logger log = LoggerFactory.getLogger(S3FileSystemProvider.class);
 
     private S3Utils s3Utils = new S3Utils();
     private Cache cache = new Cache();
@@ -419,31 +419,52 @@ public class S3FileSystemProvider extends FileSystemProvider {
         if (isSameFile(source, target))
             return;
 
-        S3Path s3Source = toS3Path(source);
-        S3Path s3Target = toS3Path(target);
-        // TODO: implements support for copying directories
+        final S3Path s3Source = toS3Path(source);
+        final S3Path s3Target = toS3Path(target);
 
-        Preconditions.checkArgument(!Files.isDirectory(source), "copying directories is not yet supported: %s", source);
-        Preconditions.checkArgument(!Files.isDirectory(target), "copying directories is not yet supported: %s", target);
-
-        ImmutableSet<CopyOption> actualOptions = ImmutableSet.copyOf(options);
+        final ImmutableSet<CopyOption> actualOptions = ImmutableSet.copyOf(options);
         verifySupportedOptions(EnumSet.of(StandardCopyOption.REPLACE_EXISTING), actualOptions);
 
         if (exists(s3Target) && !actualOptions.contains(StandardCopyOption.REPLACE_EXISTING)) {
             throw new FileAlreadyExistsException(format("target already exists: %s", target));
         }
 
-        String bucketNameOrigin = s3Source.getFileStore().name();
-        String keySource = s3Source.getKey();
-        String bucketNameTarget = s3Target.getFileStore().name();
-        String keyTarget = s3Target.getKey();
-        s3Source.getFileSystem()
-                .getClient()
-                .copyObject(CopyObjectRequest.builder()
-                                             .copySource(bucketNameOrigin + "/" + keySource)
-                                             .bucket(bucketNameTarget)
-                                             .key(keyTarget)
-                                             .build());
+        final String bucketNameOrigin = s3Source.getFileStore().name();
+        final String keySource = s3Source.getKey();
+        final String bucketNameTarget = s3Target.getFileStore().name();
+        final String keyTarget = s3Target.getKey();
+
+        final AmazonS3 s3Client = AmazonS3ClientProvider.buildAmazonS3Client();
+        final TransferManager manager = TransferManagerBuilder.standard().withS3Client(s3Client).build();
+        final Copy copy = manager.copy(new com.amazonaws.services.s3.model.CopyObjectRequest(
+                bucketNameOrigin,
+                keySource,
+                bucketNameTarget,
+                keyTarget
+        ));
+
+        copy.addProgressListener((ProgressListener) progressEvent ->
+                log.info("Bytes transferred: {},\nsource: {},\ntarget: {}",
+                        progressEvent.getBytesTransferred(),
+                        s3Source.toAbsolutePath(),
+                        s3Target.toAbsolutePath()));
+
+        try {
+            log.info("Starting file transferring:\nsource: {},\ntarget: {}",
+                    s3Source.toAbsolutePath(),
+                    s3Target.toAbsolutePath());
+            copy.waitForCompletion();
+        } catch (InterruptedException e) {
+            log.error("File transferring was interrupted.\nSource path: {},\ndestination path: {},\nerror: {}",
+                    s3Source.toAbsolutePath(),
+                    s3Target.toAbsolutePath(),
+                    e.getMessage()
+            );
+        } finally {
+            manager.shutdownNow();
+        }
+
+        manager.shutdownNow();
     }
 
     @Override

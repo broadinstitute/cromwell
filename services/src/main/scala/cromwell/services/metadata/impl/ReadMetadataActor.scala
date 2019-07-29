@@ -79,7 +79,7 @@ class ReadMetadataActor(metadataReadTimeout: Duration) extends Actor with ActorL
 
   private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
-    queryWorkflowOutputs(id) onComplete {
+    queryWorkflowOutputs(id, metadataReadTimeout) onComplete {
       case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
       case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
     }
@@ -87,7 +87,7 @@ class ReadMetadataActor(metadataReadTimeout: Duration) extends Actor with ActorL
 
   private def queryLogsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
-    queryLogs(id) onComplete {
+    queryLogs(id, metadataReadTimeout) onComplete {
       case Success(s) => replyTo ! LogsResponse(id, s)
       case Failure(t) => replyTo ! LogsFailure(id, t)
     }

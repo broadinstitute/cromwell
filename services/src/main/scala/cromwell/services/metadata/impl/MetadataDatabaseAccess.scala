@@ -143,20 +143,22 @@ trait MetadataDatabaseAccess {
     futureMetadata map metadataToMetadataEvents(query.workflowId)
   }
 
-  def queryWorkflowOutputs(id: WorkflowId)
+  def queryWorkflowOutputs(id: WorkflowId,
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val uuid = id.id.toString
     metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(
-      uuid, List(s"${WorkflowMetadataKeys.Outputs}:%"), List.empty, WorkflowQuery).
+      uuid, List(s"${WorkflowMetadataKeys.Outputs}:%"), List.empty, WorkflowQuery, timeout).
       map(metadataToMetadataEvents(id))
   }
 
-  def queryLogs(id: WorkflowId)
+  def queryLogs(id: WorkflowId,
+                timeout: Duration)
                (implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     import cromwell.services.metadata.CallMetadataKeys._
 
     val keys = List(Stdout, Stderr, BackendLogsPrefix + ":%")
-    metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(id.id.toString, keys, List.empty, CallOrWorkflowQuery) map
+    metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(id.id.toString, keys, List.empty, CallOrWorkflowQuery, timeout) map
       metadataToMetadataEvents(id)
   }
 

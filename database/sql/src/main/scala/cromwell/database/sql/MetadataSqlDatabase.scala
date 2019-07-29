@@ -59,7 +59,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                            metadataKeysToFilterFor: List[String],
                                            metadataKeysToFilterAgainst: List[String],
                                            metadataJobQueryValue: MetadataJobQueryValue,
-                                           timeout: Duration = Duration.Inf)
+                                           timeout: Duration)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**

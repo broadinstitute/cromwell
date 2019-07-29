@@ -120,6 +120,4 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 
 
-class GoogleSANotFoundException extends Exception(s"Error finding Google Service Account associated with DRS path through Martha.")
-
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")

@@ -12,6 +12,7 @@ object Dependencies {
   private val apacheCommonNetV = "3.6"
   private val apacheHttpClientV = "4.5.7"
   private val awsSdkV = "2.3.9"
+  private val amazonAwsV = "1.11.500"
   private val betterFilesV = "2.17.1"
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
@@ -263,6 +264,7 @@ object Dependencies {
 
   private val awsCloudDependencies = List(
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "com.amazonaws" % "aws-java-sdk-s3" % amazonAwsV
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",

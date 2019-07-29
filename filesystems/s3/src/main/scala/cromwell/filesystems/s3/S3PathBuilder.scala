@@ -41,7 +41,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
-import org.lerch.s3fs.util.S3Utils
+import org.lerch.s3fs.util.{AmazonS3ClientProvider, S3Utils}
 import software.amazon.awssdk.regions.Region
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -130,12 +130,13 @@ object S3PathBuilder {
                       configuration: S3Configuration,
                       options: WorkflowOptions,
                       storageRegion: Option[Region]): S3PathBuilder = {
+    AmazonS3ClientProvider.init(credentials, storageRegion.getOrElse(Region.US_EAST_2))
     new S3PathBuilder(S3Storage.s3Client(credentials, storageRegion), configuration)
   }
 }
 
 class S3PathBuilder(client: S3Client,
-                     configuration: S3Configuration
+                    configuration: S3Configuration
                      ) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
   def build(string: String): Try[S3Path] = {

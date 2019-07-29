@@ -33,7 +33,6 @@ class CopyWorkflowLogsActor(override val serviceRegistryActor: ActorRef, overrid
   implicit val ec = context.dispatcher
   
   def copyLog(src: Path, dest: Path, workflowId: WorkflowId) = {
-    dest.parent.createPermissionedDirectories()
     // Send the workflowId as context along with the copy so we can update metadata when the response comes back
     sendIoCommandWithContext(GcsBatchCommandBuilder.copyCommand(src, dest, overwrite = true), workflowId)
     // In order to keep "copy and then delete" operations atomic as far as monitoring is concerned, removeWork will only be called

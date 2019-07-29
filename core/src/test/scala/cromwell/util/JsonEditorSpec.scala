@@ -78,6 +78,17 @@ class JsonEditorSpec extends FlatSpec with Matchers{
     val keys = sub.hcursor.downField("calls").downField("sub_workflow_interactions.countEvens").downArray.keys
     assert(keys.contains("subWorkflowMetadata") === false)
   }
+
+  def removeDeepNested(json: Json): Json = excludeJson(json, NonEmptyList.of("deep"))
+
+  it should "remove multiple nested keys excludes in array" in {
+    println(contrivedJsonWithArrayEither.map(removeDeepNested))
+    val sub = contrivedJsonWithArrayEither.map(removeDeepNested).right.get
+    val keys_nested = sub.hcursor.downField("nested").keys
+    assert(keys_nested.contains("deep") === false) // simple nested key "deep" removed
+    val keys_arrayed = sub.hcursor.downField("nested").downField("inner").downArray.keys // nested key "deep" in array not removed
+    assert(keys_arrayed.exists(itr => itr.count(s => s == "deep") > 0) === false)
+  }
 }
 
 object JsonEditorSpec {
@@ -98,6 +109,32 @@ object JsonEditorSpec {
       """.stripMargin
 
   val contrivedJsonEither: Either[String, Json] = parse(contrivedJson).leftMap(_.toString)
+
+  val contrivedJsonWithArray =
+    """
+      {
+        "foo": "bar",
+         "other":"baz",
+         "nested": {
+           "deep": "removed",
+           "inner": [
+             {
+               "deep":"not removed",
+               "keepme": "more",
+               "wildcard": "again"
+             },
+             {
+                "deep":"not removed",
+                "keepme": "more 2",
+                "wildcard": "again 2"
+             }
+           ]
+         },
+         "deep1": "card"
+       }
+      """.stripMargin
+
+  val contrivedJsonWithArrayEither: Either[String, Json] = parse(contrivedJsonWithArray).leftMap(_.toString)
 
   val helloWorldJsonOutput =
     """

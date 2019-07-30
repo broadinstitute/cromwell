@@ -414,6 +414,37 @@ trait StandardAsyncExecutionActor
   }
 
   /**
+   * Turns WomFiles into relative paths.  These paths are relative to the working disk.
+   *
+   * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
+   * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+   * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+   * etc
+   */
+  protected def relativeLocalizationPath(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(path) => path.pathWithoutScheme
+        case _ => value
+      }
+    )
+  }
+
+  protected def fileName(file: WomFile): WomFile = {
+    file.mapFile(value =>
+      getPath(value) match {
+        case Success(path) => path.name
+        case _ => value
+      }
+    )
+  }
+
+  protected def localizationPath(f: CommandSetupSideEffectFile): WomFile = {
+    val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
+    f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
+  }
+
+  /**
     * By default, ad hoc values get localized to the call directory.
     * This way if running locally with docker they get mounted with the rest of the inputs in the container.
     * The PAPI backend overrides this to a noop since the localization happens on the VM directly, so there's no need

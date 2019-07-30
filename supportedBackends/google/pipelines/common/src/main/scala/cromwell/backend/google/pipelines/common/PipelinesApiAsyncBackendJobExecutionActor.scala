@@ -37,7 +37,6 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
-import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
@@ -168,7 +167,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
-  protected def relativeLocalizationPath(file: WomFile): WomFile = {
+  override protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
@@ -178,7 +177,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  protected def fileName(file: WomFile): WomFile = {
+  override protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) => DefaultPathBuilder.get(DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()).name
@@ -211,11 +210,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           case womFile: WomFile => womFile
         }
     }
-  }
-
-  protected def localizationPath(f: CommandSetupSideEffectFile) = {
-    val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
-    f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
   }
 
   private[pipelines] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiInput] = {

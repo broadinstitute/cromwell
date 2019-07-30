@@ -56,7 +56,6 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
-import wom.CommandSetupSideEffectFile
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
 import wom.expression.NoIoFunctionSet
@@ -185,26 +184,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
-  /**
-    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
-    *
-    * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
-    * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-    */
-  private def relativeLocalizationPath(file: WomFile): WomFile = {
-    file.mapFile(value =>
-      getPath(value) match {
-        case Success(path) => path.pathWithoutScheme
-        case _ => value
-      }
-    )
-  }
-
   private[aws] def generateAwsBatchInputs(jobDescriptor: BackendJobDescriptor): Set[AwsBatchInput] = {
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
-    def localizationPath(f: CommandSetupSideEffectFile) =
-      f.relativeLocalPath.fold(ifEmpty = relativeLocalizationPath(f.file))(WomFile(f.file.womFileType, _))
     val writeFunctionInputs = writeFunctionFiles flatMap {
       case (name, files) => inputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
     }

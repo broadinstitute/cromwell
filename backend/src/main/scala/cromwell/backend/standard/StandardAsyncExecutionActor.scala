@@ -1096,7 +1096,10 @@ trait StandardAsyncExecutionActor
             case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
               Future.successful(AbortedExecutionHandle)
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
+              // Read stderr content only if there is need to get detailed info about failure
+              // Should not read large files completely
+              val errorMessageAsString = stderr.annotatedContentAsStringWithLimit(limitBytes = 1024)
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption, Option(errorMessageAsString)), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)

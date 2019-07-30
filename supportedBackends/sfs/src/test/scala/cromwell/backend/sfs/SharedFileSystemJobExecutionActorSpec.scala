@@ -61,7 +61,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse =
-      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
+      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None, Some("")), Option(1))
     val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)

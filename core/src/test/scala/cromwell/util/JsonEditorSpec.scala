@@ -600,7 +600,6 @@ object JsonEditorSpec {
                                           |  "end": "2019-07-23T07:43:43.711Z",
                                           |  "start": "2019-07-23T07:42:46.352Z"
                                           |}
-                                          |
                                           |""".stripMargin
 
   val subWorkflowJson: Either[ParsingFailure, Json] = parse(metadataWithSubWorkflowMetadata)

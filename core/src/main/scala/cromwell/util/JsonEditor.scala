@@ -28,8 +28,7 @@ object JsonEditor {
       _ <- State.set(arrayFirstElement)
       out <- arrayFirstElement match {
         case _: FailedCursor => State.set(cursor)
-        case _ =>
-          excludeKeysArray(keys) <* State.modify[ACursor](_.up)
+        case _ => excludeKeysArray(keys) <* State.modify[ACursor](_.up)
       }
     } yield out
 
@@ -49,9 +48,9 @@ object JsonEditor {
       else {
         for {
           _ <- State.modify[ACursor](_.downField(key))
-          _ <-  excludeKeys(keys)
-          _ <- State.modify[ACursor](_.up)
+          _ <- excludeKeys(keys)
           //we're in the field, have to go back to the parent for the next field to evaluate
+          _ <- State.modify[ACursor](_.up)
         } yield ()
       }
     }.void

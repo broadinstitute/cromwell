@@ -2,7 +2,7 @@ package cromwell.util
 
 import JsonEditor._
 import cats.data.NonEmptyList
-import io.circe.{Json, ParsingFailure}
+import io.circe.{HCursor, Json, ParsingFailure}
 import io.circe.parser._
 import org.scalatest.{FlatSpec, Matchers}
 import cats.syntax.either._
@@ -57,7 +57,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
   }
 
   it should "keep outputs only" in {
-    val cursor = parse(helloWorldJsonOutput).map(outputs).right.get.hcursor
+    val cursor: HCursor = parse(helloWorldJsonOutput).map(outputs).right.get.hcursor
     val keys = cursor.keys
     assert(keys.get.size === 2)
     assert(keys.get.toSet.contains("outputs") === true)
@@ -90,6 +90,19 @@ class JsonEditorSpec extends FlatSpec with Matchers{
     val keys_nested2 = arrayCursor.right.keys
     assert(keys_nested2.get.toSet.contains("deep") === false) // simple nested key "deep" removed
     assert(keys_nested2.get.size === 2) // simple nested key "deep" removed
+  }
+
+  it should "keep multiple nested keys includes in array" in {
+    val sub = contrivedJsonWithArrayEither.map(includeJson(_, NonEmptyList.of("keepme"))).right.get
+    val arrayCursor = sub.hcursor.downField("inner").downArray
+    val keys_nested1 = arrayCursor.keys
+    assert(keys_nested1.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
+    assert(keys_nested1.get.size === 1) // simple nested key "deep" removed
+
+
+    val keys_nested2 = arrayCursor.right.keys
+    assert(keys_nested2.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
+    assert(keys_nested2.get.size === 1) // simple nested key "deep" removed
   }
 }
 

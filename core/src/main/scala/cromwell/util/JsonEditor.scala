@@ -71,33 +71,52 @@ object JsonEditor {
     * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
     */
   private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
-    val levelKeys: List[String] = cursor.keys.toList.flatMap(keys => keys.toList)
+    cursor.keys match {
+      case Some(levelKeys) =>
+        val modifications: State[ACursor, List[Boolean]] = levelKeys.toList.traverse { key =>
+          //detect whether any of the json keys match the argument keys
+          val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
+          State.apply[ACursor, Boolean] { cursor =>
+            if (keep) {
+              (cursor, true)
+            } else {
+              val newCursor = cursor.downField(key)
 
-    //take each key and turn it into a state operation over a cursor state
-    val modifications: State[ACursor, List[Boolean]] = levelKeys.traverse{key =>
-      //detect whether any of the json keys match the argument keys
-      val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
-      State.apply[ACursor, Boolean] { cursor =>
-        if (keep) {
-          (cursor, true)
-        } else {
-          val newCursor = cursor.downField(key)
+              //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
+              val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
 
-          //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
-          val (output,shouldKeep) = includeKeys(keys).run(newCursor).value
-
-          if (shouldKeep) {
-            (output.up, true)
-          } else {
-            //no need to keep this node on account of a child needing it.
-            //delete this node and indicate to our own parent that we don't need it.
-            (newCursor.delete, false)
+              if (shouldKeep) {
+                (output.up, true)
+              } else {
+                //no need to keep this node on account of a child needing it.
+                //delete this node and indicate to our own parent that we don't need it.
+                (newCursor.delete, false)
+              }
+            }
           }
         }
-      }
+        val (newCursor, keeps) = modifications.run(cursor).value
+        (newCursor, keeps.foldLeft(false)(_ || _))
+      case None =>
+        val arrayFirstElement = cursor.downArray
+        arrayFirstElement match {
+          case _:FailedCursor => (cursor, false)
+          case _ =>
+            val (nextState,keep) = includeKeysArray(keys).run(arrayFirstElement).value
+            (nextState.up, keep)
+        }
     }
-    val (newCursor, keeps) = modifications.run(cursor).value
-    (newCursor, keeps.foldLeft(false)(_ || _))
+  }
+
+  private def includeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean] {
+    cursor =>
+      val (newCursor,keep) = includeKeys(keys).run(cursor).value
+      newCursor.right match {
+        case _:FailedCursor => (newCursor, keep)
+        case rightCursor =>
+          val (nextState,keep2) = includeKeysArray(keys).run(rightCursor).value
+          (nextState, keep || keep2)
+      }
   }
 
   private def modifyJson[A](json: Json, keys: NonEmptyList[String],  function: NonEmptyList[String] => State[ACursor, A]) = {
@@ -112,7 +131,7 @@ object JsonEditor {
 
   def excludeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, excludeKeys)
 
-  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id"))
+  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
   def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
 

@@ -1,6 +1,6 @@
 package cromwell.util
 
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, State}
 import common.collections.EnhancedCollections._
 import io.circe.{ACursor, FailedCursor}
 import io.circe.Json
@@ -8,11 +8,11 @@ import mouse.all._
 import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.instances.list._
-import cats.data.State
+import cats.syntax.apply._
 
 object JsonEditor {
 
-  def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json = {
+  def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json =
     (includeKeys, excludeKeys) match {
       // Take includes, and then remove excludes
       case (Some(includeKeys), Some(excludeKeys)) => includeJson(json, includeKeys) |> (excludeJson(_, excludeKeys))
@@ -20,51 +20,51 @@ object JsonEditor {
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
       case _ => json
     }
-  }
 
-  private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify{cursor =>
-    cursor.keys match {
-      case Some(levelKeys) =>
-        val modifications = levelKeys.toList.traverse{key =>
-          val delete = keys.foldLeft(false)(_ || key.startsWith(_))
-          State.modify[ACursor] { cursor =>
-            if (delete)
-              //moves cursor back to parent
-              cursor.downField(key).delete
-            else {
-              val newCursor = cursor.downField(key)
-              val eval = excludeKeys(keys).run(newCursor)
-              //ignoring unit output
-              val (output,_) = eval.value
-              //we're in the field, have to go back to the parent for the next field to evaluate
-              output.up
-            }
-          }
-        }.void
-        val (newCursor, _) = modifications.run(cursor).value
-        newCursor
-      case _ =>
-        val arrayFirstElement = cursor.downArray
-        arrayFirstElement match {
-          case _: FailedCursor => cursor
-          case _ =>
-            val (newCursor,_) = excludeKeysArray(keys).run(arrayFirstElement).value
-            //go back to our parent as above
-            newCursor.up
-        }
-
-    }
-  }
-  private def excludeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify {
-    cursor =>
-      val (newCursor,_) = excludeKeys(keys).run(cursor).value
-      newCursor.right match {
-        case _:FailedCursor => newCursor
-        case rightCursor =>
-          val (nextState,_) = excludeKeysArray(keys).run(rightCursor).value
-          nextState
+  private def excludeArray(keys: NonEmptyList[String]): State[ACursor, Unit] =
+    for {
+      cursor <- State.get[ACursor]
+      arrayFirstElement = cursor.downArray
+      _ <- State.set(arrayFirstElement)
+      out <- arrayFirstElement match {
+        case _: FailedCursor => State.set(cursor)
+        case _ =>
+          excludeKeysArray(keys) <* State.modify[ACursor](_.up)
       }
-  }
+    } yield out
+
+
+  private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] =
+    for {
+      cursor <- State.get[ACursor]
+      _ <- (cursor.keys).fold(excludeArray(keys))(excludeObject(keys))
+    } yield ()
+
+  private def excludeObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Unit] =
+    levelKeys.toList.traverse{key =>
+      val delete = keys.foldLeft(false)(_ || key.startsWith(_))
+      if (delete)
+      //moves cursor back to parent
+        State.modify[ACursor](_.downField(key).delete)
+      else {
+        for {
+          _ <- State.modify[ACursor](_.downField(key))
+          _ <-  excludeKeys(keys)
+          _ <- State.modify[ACursor](_.up)
+          //we're in the field, have to go back to the parent for the next field to evaluate
+        } yield ()
+      }
+    }.void
+
+  private def excludeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Unit] =
+    for {
+      _ <- excludeKeys(keys)
+      newCursor <- State.get[ACursor]
+      _ <- newCursor.right match {
+        case _:FailedCursor => State.set(newCursor)
+        case rightCursor => State.set(rightCursor) <* excludeKeysArray(keys)
+      }
+    } yield ()
 
   /**
     * @param keys list of keys to match against field names using "startsWith."

@@ -1,0 +1,8 @@
+{{with $cromwellServiceAccount := vault (printf "secret/dsde/cromwell/common/cromwell-service-account.json")}}
+{
+   "google_compute_service_account": "{{$cromwellServiceAccount.Data.client_email}}",
+   "google_project": "{{$cromwellServiceAccount.Data.project_id }}",
+   "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis",
+   "user_service_account_json": "{{$cromwellServiceAccount.Data | toJSON | replaceAll "\\" "\\\\" | replaceAll "\"" "\\\"" }}"
+}
+{{end}}

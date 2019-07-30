@@ -2,7 +2,7 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import common.collections.EnhancedCollections._
-import io.circe.ACursor
+import io.circe.{ACursor, FailedCursor}
 import io.circe.Json
 import mouse.all._
 import cats.syntax.traverse._
@@ -23,28 +23,50 @@ object JsonEditor {
   }
 
   private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify{cursor =>
-    val levelKeys: List[String] = cursor.keys.toList.flatMap(_.toList)
+    cursor.keys match {
+      case Some(levelKeys) =>
+        val modifications = levelKeys.toList.traverse{key =>
+          val delete = keys.foldLeft(false)(_ || key.startsWith(_))
+          State.modify[ACursor] { cursor =>
+            if (delete)
+            //moves cursor back to parent
+              cursor.downField(key).delete
+            else {
+              val newCursor = cursor.downField(key)
+              val eval = excludeKeys(keys).run(newCursor)
+              //ignoring unit output
+              val (output,_) = eval.value
+              //we're in the field, have to go back to the parent for the next field to evaluate
+              output.up
+            }
+          }
+        }.void
+        val (newCursor, _) = modifications.run(cursor).value
+        newCursor
 
-    // Take each key in the json level and turn it into a state operation over the cursor
-    val modifications: State[ACursor, Unit] = levelKeys.traverse{key =>
-      val delete = keys.foldLeft(false)(_ || key.startsWith(_))
-      State.modify[ACursor] { cursor =>
-        if (delete)
-          //moves cursor back to parent
-          cursor.downField(key).delete
-        else {
-          val newCursor = cursor.downField(key)
-          val eval = excludeKeys(keys).run(newCursor)
-          //ignoring unit output
-          val (output,_) = eval.value
-          //we're in the field, have to go back to the parent for the next field to evaluate
-          output.up
+        // Take each key in the json level and turn it into a state operation over the cursor
+
+        //run the cursor through the modification and extract the new cursor state
+      case _ =>
+        val arrayFirstElement = cursor.downArray
+        arrayFirstElement match {
+          case _: FailedCursor => cursor
+          case _ =>
+            val (newCursor,_) = excludeKeys(keys).run(arrayFirstElement).value
+            newCursor
         }
+
+    }
+  }
+  private def excludeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify {
+    cursor =>
+      val (newCursor,_) = excludeKeys(keys).run(cursor).value
+      newCursor.right match {
+        case _:FailedCursor => newCursor
+        case rightCursor =>
+          val (nextState,_) = excludeKeysArray(keys).run(rightCursor).value
+          nextState
       }
-    }.void
-    //run the cursor through the modification and extract the new cursor state
-    val (newCursor, _) = modifications.run(cursor).value
-    newCursor
   }
 
   /**

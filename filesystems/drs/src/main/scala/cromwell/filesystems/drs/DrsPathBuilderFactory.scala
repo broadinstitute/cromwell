@@ -84,13 +84,12 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       case None => IO.fromEither(options.get(GoogleAuthMode.UserServiceAccountKey).toEither)
     }
 
-    serviceAccountJsonIo flatMap { serviceAccountJson =>
+    for {
+      serviceAccountJson <- serviceAccountJsonIo
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
-        case Right(url) => inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
-        case Left(e) => IO.raiseError(e)
-      }
-    }
+      url <- IO.fromEither(DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme))
+      readableByteChannel <- inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
+    } yield readableByteChannel
   }
 
 

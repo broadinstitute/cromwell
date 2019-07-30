@@ -72,7 +72,7 @@ def dosUrlResolver(dosUrl: String, downloadLoc: String) : Unit = {
       gcsUrl,
       marthaResObj.googleServiceAccount.map(_.data.toString),
       downloadLoc,
-      requesterPaysProjectIdOption,
+      requesterPaysProjectIdOption
     )
   } yield()
 

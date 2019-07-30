@@ -84,8 +84,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       case None => IO.fromEither(options.get(GoogleAuthMode.UserServiceAccountKey).toEither)
     }
 
-    //Currently, Martha only supports resolving DRS paths to GCS paths
     serviceAccountJsonIo flatMap { serviceAccountJson =>
+      //Currently, Martha only supports resolving DRS paths to GCS paths
       DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
         case Right(url) => inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
         case Left(e) => IO.raiseError(e)
@@ -102,7 +102,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     )
     val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
 
-    // Unlike google we're not going to fall back to a "default" project from the backend config.
+    // Unlike PAPI we're not going to fall back to a "default" project from the backend config.
     // ONLY use the project id from the User Service Account for requester pays
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 

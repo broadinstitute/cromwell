@@ -81,7 +81,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
 
   it should "remove multiple nested keys excludes in array" in {
     val sub = contrivedJsonWithArrayEither.map(removeDeepNested).right.get
-    val arrayCursor = sub.hcursor.downField("nested").downField("inner").downArray
+    val arrayCursor = sub.hcursor.downField("inner").downArray
     val keys_nested1 = arrayCursor.keys
     assert(keys_nested1.get.toSet.contains("deep") === false) // simple nested key "deep" removed
     assert(keys_nested1.get.size === 2) // simple nested key "deep" removed
@@ -94,7 +94,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
 
   it should "keep multiple nested keys includes in array" in {
     val sub = contrivedJsonWithArrayEither.map(includeJson(_, NonEmptyList.of("keepme"))).right.get
-    val arrayCursor = sub.hcursor.downField("nested").downField("inner").downArray
+    val arrayCursor = sub.hcursor.downField("inner").downArray
     val keys_nested1 = arrayCursor.keys
     assert(keys_nested1.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
     assert(keys_nested1.get.size === 1) // simple nested key "deep" removed

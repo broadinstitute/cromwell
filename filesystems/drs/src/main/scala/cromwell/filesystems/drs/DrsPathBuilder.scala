@@ -9,7 +9,8 @@ import cromwell.core.path.{Path, PathBuilder}
 import scala.util.{Failure, Try}
 
 
-case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider) extends PathBuilder {
+case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
+                          requesterPaysProjectIdOption: Option[String]) extends PathBuilder {
 
   private val drsScheme: String = fileSystemProvider.getScheme
 
@@ -37,7 +38,7 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider) ext
         if (!Option(uri.getScheme).exists(_.equalsIgnoreCase(fileSystemProvider.getScheme))) {
           Failure(new IllegalArgumentException(s"$pathAsString does not have a $drsScheme scheme."))
         } else {
-          Try(DrsPath(fileSystemProvider.getPath(uri)))
+          Try(DrsPath(fileSystemProvider.getPath(uri), requesterPaysProjectIdOption))
         }
       }
     } else {

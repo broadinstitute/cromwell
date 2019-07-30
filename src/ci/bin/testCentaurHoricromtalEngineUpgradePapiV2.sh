@@ -37,6 +37,7 @@ export TEST_CROMWELL_COMPOSE_FILE="${CROMWELL_BUILD_ROOT_DIRECTORY}/scripts/dock
 # Copy rendered files
 mkdir -p "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
 cp \
+    "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_usa.options.json" \
     "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/private_docker_papi_v2_usa.options" \
     "${TEST_CROMWELL_COMPOSE_FILE}" \
     "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"

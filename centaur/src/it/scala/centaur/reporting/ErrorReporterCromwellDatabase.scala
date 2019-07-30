@@ -4,6 +4,7 @@ import cats.effect.IO
 import centaur.CromwellDatabase
 import cromwell.database.sql.tables.{JobKeyValueEntry, MetadataEntry}
 
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 class ErrorReporterCromwellDatabase(cromwellDatabase: CromwellDatabase) {
@@ -25,7 +26,7 @@ class ErrorReporterCromwellDatabase(cromwellDatabase: CromwellDatabase) {
 
   def metadataEntriesIo(workflowExecutionUuid: String)
                        (implicit executionContext: ExecutionContext): IO[Seq[MetadataEntry]] = {
-    IO.fromFuture(IO(cromwellDatabase.metadataDatabase.queryMetadataEntries(workflowExecutionUuid)))
+    IO.fromFuture(IO(cromwellDatabase.metadataDatabase.queryMetadataEntries(workflowExecutionUuid, 5.seconds)))
   }
 
 }

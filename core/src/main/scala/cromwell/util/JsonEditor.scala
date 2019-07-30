@@ -29,7 +29,7 @@ object JsonEditor {
           val delete = keys.foldLeft(false)(_ || key.startsWith(_))
           State.modify[ACursor] { cursor =>
             if (delete)
-            //moves cursor back to parent
+              //moves cursor back to parent
               cursor.downField(key).delete
             else {
               val newCursor = cursor.downField(key)
@@ -43,17 +43,14 @@ object JsonEditor {
         }.void
         val (newCursor, _) = modifications.run(cursor).value
         newCursor
-
-        // Take each key in the json level and turn it into a state operation over the cursor
-
-        //run the cursor through the modification and extract the new cursor state
       case _ =>
         val arrayFirstElement = cursor.downArray
         arrayFirstElement match {
           case _: FailedCursor => cursor
           case _ =>
-            val (newCursor,_) = excludeKeys(keys).run(arrayFirstElement).value
-            newCursor
+            val (newCursor,_) = excludeKeysArray(keys).run(arrayFirstElement).value
+            //go back to our parent as above
+            newCursor.up
         }
 
     }

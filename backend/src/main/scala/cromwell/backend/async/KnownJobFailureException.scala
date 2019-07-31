@@ -22,7 +22,7 @@ object KnownJobFailureException {
 
 final case class WrongReturnCode(jobTag: String, returnCode: Int, stderrPath: Option[Path], errorMessage: Option[String] = None) extends KnownJobFailureException {
   val explanation = errorMessage match {
-    case Some(message) => s"Possibly caused by: '$message'"
+    case Some(message) => message
     case None => "No additional info can be provided by now"
   }
   override def getMessage =

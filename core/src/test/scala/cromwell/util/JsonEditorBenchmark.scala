@@ -23,7 +23,7 @@ object JsonEditorBenchmark extends Bench[Double] {
     .getCanonicalPath, fileName)))
 
   val jsonStrs = jsonPool map { case (sz, fn) => sz → loadJson(fn) }
-  val jsonTree = jsonStrs map { case (sz, fn) => sz → parse(jsonStrs(sz)).leftMap(_.toString) }
+  val jsonTree = jsonStrs map { case (sz, fn) => sz → parse(fn).leftMap(_.toString) }
 
   /* Benchmark configuration */
   lazy val measurer = new Measurer.Default
@@ -61,7 +61,7 @@ object JsonEditorBenchmark extends Bench[Double] {
         exec.maxWarmupRuns -> 1,
         exec.benchRuns -> 1
       ) in { sz =>
-          val augmented = jsonTree(sz).map(augmentLabels(_, Map(("new","label")))).right.get // traversal
+        jsonTree(sz).map(augmentLabels(_, Map(("new","label")))).right.get // traversal
       }
     }
   }

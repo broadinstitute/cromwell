@@ -21,22 +21,22 @@ object JsonEditor {
       case _ => json
     }
 
-  private def excludeArray(keys: NonEmptyList[String]): State[ACursor, Unit] =
+  def modifyArray[A](default: A, modify: => State[ACursor, A]): State[ACursor, A] = {
     for {
       cursor <- State.get[ACursor]
       arrayFirstElement = cursor.downArray
       _ <- State.set(arrayFirstElement)
-      out <- arrayFirstElement match {
-        case _: FailedCursor => State.set(cursor)
-        case _ => excludeKeysArray(keys) <* State.modify[ACursor](_.up)
+      a <- arrayFirstElement match {
+        case _:FailedCursor => State.set(cursor).map(_ => default)
+        case _ => modify <* State.modify[ACursor](_.up)
       }
-    } yield out
-
+    } yield a
+  }
 
   private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] =
     for {
       cursor <- State.get[ACursor]
-      _ <- (cursor.keys).fold(excludeArray(keys))(excludeObject(keys))
+      _ <- cursor.keys.fold(modifyArray((), excludeKeysArray(keys)))(excludeObject(keys))
     } yield ()
 
   private def excludeObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Unit] =
@@ -69,51 +69,47 @@ object JsonEditor {
     * @param keys list of keys to match against field names using "startsWith."
     * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
     */
-  private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
-    cursor.keys match {
-      case Some(levelKeys) =>
-        val modifications: State[ACursor, List[Boolean]] = levelKeys.toList.traverse { key =>
-          //detect whether any of the json keys match the argument keys
-          val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
-          State.apply[ACursor, Boolean] { cursor =>
-            if (keep) {
-              (cursor, true)
-            } else {
-              val newCursor = cursor.downField(key)
+  private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] =
+    for {
+      cursor <- State.get[ACursor]
+      keep <- cursor.keys.fold(modifyArray(false, includeKeysArrayRecursive(keys)))(includeKeysObject(keys))
+    } yield keep
 
-              //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
-              val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
+  def includeKeysObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Boolean] = {
+    val modifications: State[ACursor, List[Boolean]] = levelKeys.toList.traverse { key =>
+      //detect whether any of the json keys match the argument keys
+      val keep = keys.foldLeft(false)(_ || key.startsWith(_))
+      State.apply[ACursor, Boolean] { cursor =>
+        if (keep) {
+          (cursor, true)
+        } else {
+          val newCursor = cursor.downField(key)
 
-              if (shouldKeep) {
-                (output.up, true)
-              } else {
-                //no need to keep this node on account of a child needing it.
-                //delete this node and indicate to our own parent that we don't need it.
-                (newCursor.delete, false)
-              }
-            }
+          //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
+          val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
+
+          if (shouldKeep) {
+            //return cursor to the parent object, and indicate that the parent should not be deleted
+            (output.up, true)
+          } else {
+            //no need to keep this node on account of a child needing it.
+            //delete this node and indicate to our own parent that we don't need it.
+            (newCursor.delete, false)
           }
         }
-        val (newCursor, keeps) = modifications.run(cursor).value
-        (newCursor, keeps.foldLeft(false)(_ || _))
-      case None =>
-        val arrayFirstElement = cursor.downArray
-        arrayFirstElement match {
-          case _:FailedCursor => (cursor, false)
-          case _ =>
-            val (nextState,keep) = includeKeysArray(keys).run(arrayFirstElement).value
-            (nextState.up, keep)
-        }
+      }
     }
+    modifications.map(_.foldLeft(false)(_ || _))
   }
 
-  private def includeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean] {
+
+  private def includeKeysArrayRecursive(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean] {
     cursor =>
       val (newCursor,keep) = includeKeys(keys).run(cursor).value
       newCursor.right match {
         case _:FailedCursor => (newCursor, keep)
         case rightCursor =>
-          val (nextState,keep2) = includeKeysArray(keys).run(rightCursor).value
+          val (nextState, keep2) = includeKeysArrayRecursive(keys).run(rightCursor).value
           (nextState, keep || keep2)
       }
   }

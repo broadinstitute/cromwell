@@ -327,12 +327,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     reasons map {
       case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
-        val stderrMessage = reason.stderrPath map { path => 
-          val content = Try(path.annotatedContentAsStringWithLimit(300)).recover({
-            case e => s"Could not retrieve content: ${e.getMessage}"
-          }).get
-          s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
-        } getOrElse ""
+        val stderrMessage = KnownJobFailureException.stderrExplanation(reason.stderrPath)
         reason.getMessage + stderrMessage
       case reason => ExceptionUtils.getStackTrace(reason)
     } mkString "\n"

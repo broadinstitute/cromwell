@@ -4,8 +4,20 @@ import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
+import scala.concurrent.ExecutionContext
+import scala.util.Try
+
 abstract class KnownJobFailureException extends Exception {
   def stderrPath: Option[Path]
+}
+
+object KnownJobFailureException {
+  def stderrExplanation(stderrPath: Option[Path])(implicit ec: ExecutionContext): Option[String] = stderrPath map { path =>
+    val content = Try(path.annotatedContentAsStringWithLimit(limitBytes = 300)).recover({
+      case e => s"Could not retrieve content: ${e.getMessage}"
+    }).get
+    s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content"
+  }
 }
 
 final case class WrongReturnCode(jobTag: String, returnCode: Int, stderrPath: Option[Path], errorMessage: Option[String] = None) extends KnownJobFailureException {

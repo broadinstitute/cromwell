@@ -6,7 +6,6 @@ import io.circe.{ACursor, FailedCursor}
 import io.circe.Json
 import mouse.all._
 import cats.syntax.traverse._
-import cats.syntax.functor._
 import cats.instances.list._
 import cats.syntax.apply._
 
@@ -33,38 +32,6 @@ object JsonEditor {
     } yield a
   }
 
-  private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] =
-    for {
-      cursor <- State.get[ACursor]
-      _ <- cursor.keys.fold(modifyArray((), excludeKeysArray(keys)))(excludeObject(keys))
-    } yield ()
-
-  private def excludeObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Unit] =
-    levelKeys.toList.traverse{key =>
-      val delete = keys.foldLeft(false)(_ || key.startsWith(_))
-      if (delete)
-      //moves cursor back to parent
-        State.modify[ACursor](_.downField(key).delete)
-      else {
-        for {
-          _ <- State.modify[ACursor](_.downField(key))
-          _ <- excludeKeys(keys)
-          //we're in the field, have to go back to the parent for the next field to evaluate
-          _ <- State.modify[ACursor](_.up)
-        } yield ()
-      }
-    }.void
-
-  private def excludeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Unit] =
-    for {
-      _ <- excludeKeys(keys)
-      newCursor <- State.get[ACursor]
-      _ <- newCursor.right match {
-        case _:FailedCursor => State.set(newCursor)
-        case rightCursor => State.set(rightCursor) <* excludeKeysArray(keys)
-      }
-    } yield ()
-
   /**
     * @param keys list of keys to match against field names using "startsWith."
     * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
@@ -84,6 +51,7 @@ object JsonEditor {
           (cursor, true)
         } else {
           val newCursor = cursor.downField(key)
+
 
           //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
           val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
@@ -124,7 +92,17 @@ object JsonEditor {
 
   def includeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, includeKeys)
 
-  def excludeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, excludeKeys)
+  def excludeJson(json: Json, keys: NonEmptyList[String]): Json = {
+    json.withObject{obj =>
+      val keysFiltered = obj.filterKeys(key => !keys.foldLeft(false)(_ || key.startsWith(_)))
+      val childrenMapped = keysFiltered.mapValues(excludeJson(_, keys))
+      Json.fromJsonObject(childrenMapped)
+    }.withArray{
+      array =>
+        val newArray = array.map(excludeJson(_, keys))
+        Json.fromValues(newArray)
+    }
+  }
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id")) |> (excludeJson(_, NonEmptyList.one("calls")))
 

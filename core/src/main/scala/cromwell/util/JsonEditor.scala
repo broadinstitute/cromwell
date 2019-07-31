@@ -36,7 +36,7 @@ object JsonEditor {
   private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] =
     for {
       cursor <- State.get[ACursor]
-      _ <- (cursor.keys).fold(excludeArray(keys))(excludeObject(keys))
+      _ <- cursor.keys.fold(excludeArray(keys))(excludeObject(keys))
     } yield ()
 
   private def excludeObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Unit] =
@@ -69,51 +69,64 @@ object JsonEditor {
     * @param keys list of keys to match against field names using "startsWith."
     * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
     */
-  private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
-    cursor.keys match {
-      case Some(levelKeys) =>
-        val modifications: State[ACursor, List[Boolean]] = levelKeys.toList.traverse { key =>
-          //detect whether any of the json keys match the argument keys
-          val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
-          State.apply[ACursor, Boolean] { cursor =>
-            if (keep) {
-              (cursor, true)
-            } else {
-              val newCursor = cursor.downField(key)
+  private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] =
+    for {
+      cursor <- State.get[ACursor]
+      _ = println(s"cursor ${cursor.focus}")
+      _ = println(s"cursor keys ${cursor.keys}")
+      keep <- cursor.keys.fold(includeKeysArray(keys))(includeKeysObject(keys))
+    } yield keep
 
-              //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
-              val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
+  def includeKeysObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Boolean] = {
+    val modifications: State[ACursor, List[Boolean]] = levelKeys.toList.traverse { key =>
+      //detect whether any of the json keys match the argument keys
+      val keep = keys.foldLeft(false)(_ || key.startsWith(_))
+      State.apply[ACursor, Boolean] { cursor =>
+        if (keep) {
+          (cursor, true)
+        } else {
+          val newCursor = cursor.downField(key)
 
-              if (shouldKeep) {
-                (output.up, true)
-              } else {
-                //no need to keep this node on account of a child needing it.
-                //delete this node and indicate to our own parent that we don't need it.
-                (newCursor.delete, false)
-              }
-            }
+          //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
+          val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
+
+          if (shouldKeep) {
+            (output.up, true)
+          } else {
+            //no need to keep this node on account of a child needing it.
+            //delete this node and indicate to our own parent that we don't need it.
+            (newCursor.delete, false)
           }
         }
-        val (newCursor, keeps) = modifications.run(cursor).value
-        (newCursor, keeps.foldLeft(false)(_ || _))
-      case None =>
-        val arrayFirstElement = cursor.downArray
-        arrayFirstElement match {
-          case _:FailedCursor => (cursor, false)
-          case _ =>
-            val (nextState,keep) = includeKeysArray(keys).run(arrayFirstElement).value
-            (nextState.up, keep)
-        }
+      }
     }
+    modifications.map(_.foldLeft(false)(_ || _))
   }
 
-  private def includeKeysArray(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean] {
+  def includeKeysArray(keys: NonEmptyList[String]): State[ACursor, Boolean] = {
+    println("called include keys array on ")
+    for {
+      state <- State.get[ACursor]
+      _ = println(s" current cursor ${state.focus}")
+      cursor <- State.inspect[ACursor, ACursor](_.downArray)
+      _ = println(s" cursor ${cursor.focus}")
+      keep <- cursor.downArray match {
+        case _:FailedCursor => State.pure[ACursor, Boolean](false)
+        case arrayFirstElement => State.set(arrayFirstElement) *>  includeKeysArrayRecursive(keys) <* State.modify[ACursor](_.up)
+      }
+    } yield keep
+  }
+
+
+  private def includeKeysArrayRecursive(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean] {
     cursor =>
+      println(s"running ")
       val (newCursor,keep) = includeKeys(keys).run(cursor).value
       newCursor.right match {
         case _:FailedCursor => (newCursor, keep)
         case rightCursor =>
-          val (nextState,keep2) = includeKeysArray(keys).run(rightCursor).value
+          println(s"running recursively on")
+          val (nextState, keep2) = includeKeysArrayRecursive(keys).run(rightCursor).value
           (nextState, keep || keep2)
       }
   }

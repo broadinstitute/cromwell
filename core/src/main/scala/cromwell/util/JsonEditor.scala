@@ -21,22 +21,22 @@ object JsonEditor {
       case _ => json
     }
 
-  private def excludeArray(keys: NonEmptyList[String]): State[ACursor, Unit] =
+  def modifyArray[A](default: A, modify: => State[ACursor, A]): State[ACursor, A] = {
     for {
       cursor <- State.get[ACursor]
       arrayFirstElement = cursor.downArray
       _ <- State.set(arrayFirstElement)
-      out <- arrayFirstElement match {
-        case _: FailedCursor => State.set(cursor)
-        case _ => excludeKeysArray(keys) <* State.modify[ACursor](_.up)
+      a <- arrayFirstElement match {
+        case _:FailedCursor => State.set(cursor).map(_ => default)
+        case _ => modify <* State.modify[ACursor](_.up)
       }
-    } yield out
-
+    } yield a
+  }
 
   private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] =
     for {
       cursor <- State.get[ACursor]
-      _ <- cursor.keys.fold(excludeArray(keys))(excludeObject(keys))
+      _ <- cursor.keys.fold(modifyArray((), excludeKeysArray(keys)))(excludeObject(keys))
     } yield ()
 
   private def excludeObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Unit] =
@@ -72,9 +72,7 @@ object JsonEditor {
   private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] =
     for {
       cursor <- State.get[ACursor]
-      _ = println(s"cursor ${cursor.focus}")
-      _ = println(s"cursor keys ${cursor.keys}")
-      keep <- cursor.keys.fold(includeKeysArray(keys))(includeKeysObject(keys))
+      keep <- cursor.keys.fold(modifyArray(false, includeKeysArrayRecursive(keys)))(includeKeysObject(keys))
     } yield keep
 
   def includeKeysObject(keys: NonEmptyList[String])(levelKeys: Iterable[String]): State[ACursor, Boolean] = {
@@ -91,6 +89,7 @@ object JsonEditor {
           val (output, shouldKeep) = includeKeys(keys).run(newCursor).value
 
           if (shouldKeep) {
+            //return cursor to the parent object, and indicate that the parent should not be deleted
             (output.up, true)
           } else {
             //no need to keep this node on account of a child needing it.
@@ -103,29 +102,13 @@ object JsonEditor {
     modifications.map(_.foldLeft(false)(_ || _))
   }
 
-  def includeKeysArray(keys: NonEmptyList[String]): State[ACursor, Boolean] = {
-    println("called include keys array on ")
-    for {
-      state <- State.get[ACursor]
-      _ = println(s" current cursor ${state.focus}")
-      cursor <- State.inspect[ACursor, ACursor](_.downArray)
-      _ = println(s" cursor ${cursor.focus}")
-      keep <- cursor.downArray match {
-        case _:FailedCursor => State.pure[ACursor, Boolean](false)
-        case arrayFirstElement => State.set(arrayFirstElement) *>  includeKeysArrayRecursive(keys) <* State.modify[ACursor](_.up)
-      }
-    } yield keep
-  }
-
 
   private def includeKeysArrayRecursive(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean] {
     cursor =>
-      println(s"running ")
       val (newCursor,keep) = includeKeys(keys).run(cursor).value
       newCursor.right match {
         case _:FailedCursor => (newCursor, keep)
         case rightCursor =>
-          println(s"running recursively on")
           val (nextState, keep2) = includeKeysArrayRecursive(keys).run(rightCursor).value
           (nextState, keep || keep2)
       }

@@ -38,9 +38,9 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     val database: MetadataSlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
 
-    val runTransactionMethod = PrivateMethod[Future[Seq[MetadataEntry]]]('runTransaction)
+    val runTransactionMethod = PrivateMethod[Future[Seq[MetadataEntry]]]('runActionInternal)
 
-    val transactionFuture = database invokePrivate runTransactionMethod(sqlu"$sleepCommand", TransactionIsolation.RepeatableRead, 5.seconds)
+    val transactionFuture = database invokePrivate runTransactionMethod(sqlu"$sleepCommand", 5.seconds)
     implicit val ec = ExecutionContext.global
 
     transactionFuture onComplete {

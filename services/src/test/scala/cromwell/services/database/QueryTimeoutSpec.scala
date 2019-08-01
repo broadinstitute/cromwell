@@ -5,24 +5,27 @@ import cromwell.database.slick.{MetadataSlickDatabase, SlickDatabase}
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
+//import org.scalatest.{Assertion, FlatSpec, Matchers, PrivateMethodTester}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+//import scala.util.{Failure, Success}
 
 class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with StringNormalizations with PrivateMethodTester {
 
   // HSQL does not document a SLEEP() function, which is essential for this test
   // The functionality being tested is not relevant to an HSQL user, so the omission is probably acceptable
-  val insomniacDatabases = Seq(HsqldbDatabaseSystem)
+//  val insomniacDatabases = Seq(HsqldbDatabaseSystem)
 
-  val databasesToTest = DatabaseSystem.All diff insomniacDatabases
+//  val databasesToTest = DatabaseSystem.All diff insomniacDatabases
+  val databasesToTest = Seq(MysqlDatabaseSystem)
 
-  val sleepCommands = Seq(
-    "select sleep(10);",
-    "select sleep(10);",
-    "select pg_sleep(10);"
-  )
+//  val sleepCommands = Seq(
+//    "select sleep(10);",
+//    "select sleep(10);",
+//    "select pg_sleep(10);"
+//  )
+  val sleepCommands = Seq("select sleep(10);")
 
   for ((db, sleepCommand) <- databasesToTest zip sleepCommands) {
     behavior of s"${db.productName}"
@@ -46,13 +49,15 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
 
     import scala.language.reflectiveCalls // The compiler said to do this, I do not fully understand why
 
-    testAdapter.runTestQuery(sqlu"$sleepCommand", 5.seconds) onComplete {
-      case Success(a) =>
-        println(a)
-        fail // TODO: make sure we're failing for the right reason, i.e. timeout, not that the DB is unavailable
-      case Failure(t: Throwable) =>
-        println(t)
-        succeed
+    val f: Future[Unit] = testAdapter.runTestQuery(sql"""#$sleepCommand""".as[Int], 5.seconds) map {
+      _ =>
+        fail("This query should have timed out!")
+    } recover {
+      case t =>
+        assert(t.getMessage == "Statement cancelled due to timeout or client request")
+        ()
     }
+
+    Await.result(f, 15.seconds)
   }
 }

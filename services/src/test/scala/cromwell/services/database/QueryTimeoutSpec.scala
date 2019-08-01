@@ -1,13 +1,12 @@
 package cromwell.services.database
 
 import cromwell.core.Tags.DbmsTest
-import cromwell.database.slick.SlickDatabase
-import cromwell.database.sql.tables.MetadataEntry
+import cromwell.database.slick.{MetadataSlickDatabase, SlickDatabase}
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
@@ -36,13 +35,18 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
   private def checkDatabaseSystem(databaseSystem: DatabaseSystem, sleepCommand: String) = {
     val database: SlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
-
-    val runActionMethod = PrivateMethod[Future[Seq[MetadataEntry]]]('runActionInternal)
-
-    val actionFuture = database invokePrivate runActionMethod(sqlu"$sleepCommand", 5.seconds)
+    import slick.dbio.DBIO
     implicit val ec = ExecutionContext.global
 
-    actionFuture onComplete {
+    val testAdapter = new MetadataSlickDatabase(database.originalDatabaseConfig) {
+      def runTestQuery[R](action: DBIO[R], timeout: Duration = Duration.Inf) = {
+        runTransaction(action, timeout = timeout)
+      }
+    }
+
+    import scala.language.reflectiveCalls // The compiler said to do this, I do not fully understand why
+
+    testAdapter.runTestQuery(sqlu"$sleepCommand", 5.seconds) onComplete {
       case Success(a) =>
         println(a)
         fail // TODO: make sure we're failing for the right reason, i.e. timeout, not that the DB is unavailable

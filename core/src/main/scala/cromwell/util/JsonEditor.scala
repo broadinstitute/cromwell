@@ -27,8 +27,8 @@ object JsonEditor {
       override def onString(value: String): (Json, Boolean) = (Json.fromString(value), false)
       override def onArray(value: Vector[Json]): (Json, Boolean) = {
         val newArrayAndKeeps: immutable.Seq[(Json, Boolean)] = value.map(_.foldWith(folder))
-        val keep: Boolean = newArrayAndKeeps.map(_._2).foldLeft(false)(_ || _)
-        (Json.fromValues(newArrayAndKeeps.map(_._1)), keep)
+        val keep: Boolean = newArrayAndKeeps.map{ case (_, keep) => keep}.foldLeft(false)(_ || _)
+        (Json.fromValues(newArrayAndKeeps.map{ case (newJson, _) => newJson}), keep)
       }
 
       override def onObject(value: JsonObject): (Json, Boolean) = {
@@ -39,15 +39,21 @@ object JsonEditor {
               List[(String,Json)]((key,value))
             else {
               //run against children, if none of the children need it we can throw it away
-              val newJson: (Json, Boolean) = value.foldWith(folder)
-              if (newJson._2) List((key,newJson._1)) else List.empty[(String,Json)]
+              val newJsonAndKeep: (Json, Boolean) = value.foldWith(folder)
+              val (newJson, keepChildren) = newJsonAndKeep
+              if (keepChildren)
+                List((key,newJson))
+              else
+                List.empty[(String,Json)]
             }
         }
-        (Json.fromJsonObject(JsonObject.fromIterable(modified)), modified.size > 0)
+        val jsonObject = Json.fromJsonObject(JsonObject.fromIterable(modified))
+        val keep = modified.size > 0
+        (jsonObject, keep)
       }
     }
-    json.foldWith(folder)._1
-
+    val (newJson,_) = json.foldWith(folder)
+    newJson
   }
 
   def excludeJson(json: Json, keys: NonEmptyList[String]): Json = {

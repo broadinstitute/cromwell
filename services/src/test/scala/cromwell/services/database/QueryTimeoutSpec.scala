@@ -20,9 +20,9 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
   val databasesToTest = DatabaseSystem.All diff insomniacDatabases
 
   val sleepCommands = Seq(
-    "select pg_sleep(10);",
     "select sleep(10);",
-    "select sleep(10);"
+    "select sleep(10);",
+  "select pg_sleep(10);"
   )
 
   for ((db, sleepCommand) <- databasesToTest zip sleepCommands) {

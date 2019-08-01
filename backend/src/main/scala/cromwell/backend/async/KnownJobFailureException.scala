@@ -21,10 +21,7 @@ object KnownJobFailureException {
 }
 
 final case class WrongReturnCode(jobTag: String, returnCode: Int, stderrPath: Option[Path], errorMessage: Option[String] = None) extends KnownJobFailureException {
-  val explanation = errorMessage match {
-    case Some(message) => message
-    case None => "No additional info can be provided by now"
-  }
+  val explanation = errorMessage.getOrElse("No additional info can be provided by now")
   override def getMessage =
     s"Job $jobTag exited with return code $returnCode which has not been declared as a valid return code. $explanation. See 'continueOnReturnCode' runtime attribute for more details."
 }

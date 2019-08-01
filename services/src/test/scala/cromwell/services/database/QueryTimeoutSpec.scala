@@ -1,7 +1,7 @@
 package cromwell.services.database
 
 import cromwell.core.Tags.DbmsTest
-import cromwell.database.slick.MetadataSlickDatabase
+import cromwell.database.slick.SlickDatabase
 import cromwell.database.sql.tables.MetadataEntry
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.ScalaFutures
@@ -34,7 +34,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
   }
 
   private def checkDatabaseSystem(databaseSystem: DatabaseSystem, sleepCommand: String) = {
-    val database: MetadataSlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
+    val database: SlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
 
     val runActionMethod = PrivateMethod[Future[Seq[MetadataEntry]]]('runActionInternal)

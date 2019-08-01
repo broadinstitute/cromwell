@@ -2,6 +2,7 @@ package cromwell.services.database
 
 import cromwell.core.Tags.DbmsTest
 import cromwell.database.slick.MetadataSlickDatabase
+import cromwell.database.sql.tables.MetadataEntry
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
@@ -37,9 +38,9 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     val database: MetadataSlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
 
-    val runTransactionMethod = PrivateMethod[MetadataSlickDatabase]('runTransaction)
+    val runTransactionMethod = PrivateMethod[Future[Seq[MetadataEntry]]]('runTransaction)
 
-    val transactionFuture = runTransactionMethod(sqlu"$sleepCommand", TransactionIsolation.RepeatableRead, 5.seconds).asInstanceOf[Future[_]]
+    val transactionFuture = database invokePrivate runTransactionMethod(sqlu"$sleepCommand", TransactionIsolation.RepeatableRead, 5.seconds)
     implicit val ec = ExecutionContext.global
 
     transactionFuture onComplete {

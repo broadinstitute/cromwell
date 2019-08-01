@@ -6,7 +6,6 @@ import cromwell.database.sql.tables.MetadataEntry
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers, PrivateMethodTester}
-import slick.jdbc.TransactionIsolation
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._

@@ -28,7 +28,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     behavior of s"${db.productName}"
 
     it should "fail with a timeout" taggedAs DbmsTest in {
-      checkDatabaseSystem(PostgresqlDatabaseSystem, sleepCommand)
+      checkDatabaseSystem(db, sleepCommand)
     }
   }
 

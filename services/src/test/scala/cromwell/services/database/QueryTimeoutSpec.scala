@@ -15,11 +15,9 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
 
   // HSQL does not document a SLEEP() function, which is essential for this test
   // The functionality being tested is not relevant to an HSQL user, so the omission is probably acceptable
-  val databases = Seq(
-    PostgresqlDatabaseSystem,
-    MysqlDatabaseSystem,
-    MariadbDatabaseSystem
-  )
+  val insomniacDatabases = Seq(HsqldbDatabaseSystem)
+
+  val databasesToTest = DatabaseSystem.All diff insomniacDatabases
 
   val sleepCommands = Seq(
     "select pg_sleep(10);",
@@ -27,7 +25,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     "select sleep(10);"
   )
 
-  for ((db, sleepCommand) <- databases zip sleepCommands) {
+  for ((db, sleepCommand) <- databasesToTest zip sleepCommands) {
     behavior of s"${db.productName}"
 
     it should "fail with a timeout" taggedAs DbmsTest in {

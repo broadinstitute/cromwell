@@ -44,9 +44,11 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     implicit val ec = ExecutionContext.global
 
     transactionFuture onComplete {
-      case Success(_) =>
+      case Success(a) =>
+        println(a)
         fail // TODO: make sure we're failing for the right reason, i.e. timeout, not that the DB is unavailable
-      case Failure(_) =>
+      case Failure(t: Throwable) =>
+        println(t)
         succeed
     }
   }

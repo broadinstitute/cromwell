@@ -48,7 +48,7 @@ final case class Workflow private(testName: String,
 object Workflow {
 
   def fromPath(path: Path): ErrorOr[Workflow] = {
-    Try(ConfigFactory.parseFile(path.toFile)) match {
+    Try(ConfigFactory.parseFile(path.toFile).resolve()) match {
       case Success(c) => Workflow.fromConfig(c, path.getParent)
       case Failure(_) => invalidNel(s"Invalid test config: $path")
     }

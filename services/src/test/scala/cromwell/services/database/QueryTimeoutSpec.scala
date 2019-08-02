@@ -15,16 +15,18 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
   // The functionality being tested is not relevant to an HSQL user, so the omission is probably acceptable
   val insomniacDatabases = Seq(HsqldbDatabaseSystem)
 
-  val databasesToTest = DatabaseSystem.All diff insomniacDatabases
+  // MariaDB driver does not appear to send the cancel command; there is not currently a requirement for this
+  // feature to work for MariaDB customers
+  val disobedientDatabases = Seq(MariadbDatabaseSystem)
+
+  val databasesToTest = DatabaseSystem.All diff (insomniacDatabases union disobedientDatabases)
 
   val sleepCommands = Seq(
-    "select sleep(10);",
     "select sleep(10);",
     "select pg_sleep(10);"
   )
 
   val expectedErrors = Seq(
-    "Statement cancelled due to timeout or client request",
     "Statement cancelled due to timeout or client request",
     "ERROR: canceling statement due to user request"
   )

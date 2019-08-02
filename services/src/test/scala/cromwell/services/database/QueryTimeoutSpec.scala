@@ -29,7 +29,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     "ERROR: canceling statement due to user request"
   )
 
-  for ((db, sleepCommand, errorMsg) <- databasesToTest zip sleepCommands zip expectedErrors) {
+  for (((db, sleepCommand), errorMsg) <- databasesToTest zip sleepCommands zip expectedErrors) {
     behavior of s"${db.productName}"
 
     it should "fail with a timeout" taggedAs DbmsTest in {

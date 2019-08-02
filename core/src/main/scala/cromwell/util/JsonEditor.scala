@@ -2,17 +2,15 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import common.collections.EnhancedCollections._
-import io.circe.ACursor
-import io.circe.Json
+import io.circe.{Json, JsonNumber, JsonObject}
 import mouse.all._
-import cats.syntax.traverse._
-import cats.syntax.functor._
-import cats.instances.list._
-import cats.data.State
+import io.circe.Json.Folder
+
+import scala.collection.immutable
 
 object JsonEditor {
 
-  def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json = {
+  def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json =
     (includeKeys, excludeKeys) match {
       // Take includes, and then remove excludes
       case (Some(includeKeys), Some(excludeKeys)) => includeJson(json, includeKeys) |> (excludeJson(_, excludeKeys))
@@ -20,80 +18,57 @@ object JsonEditor {
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
       case _ => json
     }
-  }
 
-  private def excludeKeys(keys: NonEmptyList[String]) : State[ACursor, Unit] = State.modify{cursor =>
-    val levelKeys: List[String] = cursor.keys.toList.flatMap(_.toList)
-
-    // Take each key in the json level and turn it into a state operation over the cursor
-    val modifications: State[ACursor, Unit] = levelKeys.traverse{key =>
-      val delete = keys.foldLeft(false)(_ || key.startsWith(_))
-      State.modify[ACursor] { cursor =>
-        if (delete)
-          //moves cursor back to parent
-          cursor.downField(key).delete
-        else {
-          val newCursor = cursor.downField(key)
-          val eval = excludeKeys(keys).run(newCursor)
-          //ignoring unit output
-          val (output,_) = eval.value
-          //we're in the field, have to go back to the parent for the next field to evaluate
-          output.up
-        }
+  def includeJson(json: Json, keys: NonEmptyList[String]): Json = {
+    def folder: Folder[(Json, Boolean)] = new Folder[(Json, Boolean)] {
+      override def onNull: (Json, Boolean) = (Json.Null, false)
+      override def onBoolean(value: Boolean): (Json, Boolean) = (Json.fromBoolean(value), false)
+      override def onNumber(value: JsonNumber): (Json, Boolean) = (Json.fromJsonNumber(value), false)
+      override def onString(value: String): (Json, Boolean) = (Json.fromString(value), false)
+      override def onArray(value: Vector[Json]): (Json, Boolean) = {
+        val newArrayAndKeeps: immutable.Seq[(Json, Boolean)] = value.map(_.foldWith(folder))
+        val keep: Boolean = newArrayAndKeeps.map{ case (_, keep) => keep}.foldLeft(false)(_ || _)
+        (Json.fromValues(newArrayAndKeeps.map{ case (newJson, _) => newJson}), keep)
       }
-    }.void
-    //run the cursor through the modification and extract the new cursor state
-    val (newCursor, _) = modifications.run(cursor).value
-    newCursor
-  }
 
-  /**
-    * @param keys list of keys to match against field names using "startsWith."
-    * @return A state transition that will tell whether or not to keep this path in order to keep a nested value.
-    */
-  private def includeKeys(keys: NonEmptyList[String]) : State[ACursor, Boolean] = State.apply[ACursor, Boolean]{cursor =>
-    val levelKeys: List[String] = cursor.keys.toList.flatMap(keys => keys.toList)
-
-    //take each key and turn it into a state operation over a cursor state
-    val modifications: State[ACursor, List[Boolean]] = levelKeys.traverse{key =>
-      //detect whether any of the json keys match the argument keys
-      val keep = keys.foldLeft(false)((acc, i) => acc || key.startsWith(i))
-      State.apply[ACursor, Boolean] { cursor =>
-        if (keep) {
-          (cursor, true)
-        } else {
-          val newCursor = cursor.downField(key)
-
-          //before deleting, we want to see if any children should be kept.  The boolean output will tell us that
-          val (output,shouldKeep) = includeKeys(keys).run(newCursor).value
-
-          if (shouldKeep) {
-            (output.up, true)
-          } else {
-            //no need to keep this node on account of a child needing it.
-            //delete this node and indicate to our own parent that we don't need it.
-            (newCursor.delete, false)
-          }
+      override def onObject(value: JsonObject): (Json, Boolean) = {
+        val modified: immutable.List[(String, Json)] = value.toList.flatMap{
+          case (key, value) =>
+            val keep =  keys.foldLeft(false)(_ || key.startsWith(_))
+            if (keep)
+              List[(String,Json)]((key,value))
+            else {
+              //run against children, if none of the children need it we can throw it away
+              val newJsonAndKeep: (Json, Boolean) = value.foldWith(folder)
+              val (newJson, keepChildren) = newJsonAndKeep
+              if (keepChildren)
+                List((key,newJson))
+              else
+                List.empty[(String,Json)]
+            }
         }
+        val jsonObject = Json.fromJsonObject(JsonObject.fromIterable(modified))
+        val keep = modified.size > 0
+        (jsonObject, keep)
       }
     }
-    val (newCursor, keeps) = modifications.run(cursor).value
-    (newCursor, keeps.foldLeft(false)(_ || _))
+    val (newJson,_) = json.foldWith(folder)
+    newJson
   }
 
-  private def modifyJson[A](json: Json, keys: NonEmptyList[String],  function: NonEmptyList[String] => State[ACursor, A]) = {
-    val cursor = json.hcursor
-    val mod: State[ACursor, A] = function(keys)
-    val (newCursor, _) = mod.run(cursor).value
-    //taking the liberty of assuming the document still has something in it.  Arguable, might warrant further consideration.
-    newCursor.top.get
+  def excludeJson(json: Json, keys: NonEmptyList[String]): Json = {
+    json.withObject{obj =>
+      val keysFiltered = obj.filterKeys(key => !keys.foldLeft(false)(_ || key.startsWith(_)))
+      val childrenMapped = keysFiltered.mapValues(excludeJson(_, keys))
+      Json.fromJsonObject(childrenMapped)
+    }.withArray{
+      array =>
+        val newArray = array.map(excludeJson(_, keys))
+        Json.fromValues(newArray)
+    }
   }
 
-  def includeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, includeKeys)
-
-  def excludeJson(json: Json, keys: NonEmptyList[String]) = modifyJson(json, keys, excludeKeys)
-
-  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id"))
+  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
   def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
 

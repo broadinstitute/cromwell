@@ -447,6 +447,7 @@ object Dependencies {
   val coreDependencies = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
+    "com.storm-enroute" %% "scalameter" % scalameterV % Test,
     "com.github.scopt" %% "scopt" % scoptV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++

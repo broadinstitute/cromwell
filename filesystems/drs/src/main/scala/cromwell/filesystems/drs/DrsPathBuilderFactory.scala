@@ -9,9 +9,11 @@ import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GcsFilePath, MarthaResponse}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.storage.StorageOptions
+import com.google.cloud.storage.Storage.BlobGetOption
+import com.google.cloud.storage.{Blob, StorageException, StorageOptions}
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -39,38 +41,55 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private val GcsScheme = "gs"
 
 
-  private def gcsInputStream(gcsFile: GcsFilePath, serviceAccount: String): IO[ReadableByteChannel] = {
-    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccount.getBytes()))
+  private def gcsInputStream(gcsFile: GcsFilePath,
+                             serviceAccountJson: String,
+                             requesterPaysProjectIdOption: Option[String]): IO[ReadableByteChannel] = {
+    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes()))
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
 
     IO.delay {
       val blob = storage.get(gcsFile.bucket, gcsFile.file)
       blob.reader()
+    } handleErrorWith { throwable =>
+      (requesterPaysProjectIdOption, throwable) match {
+        case (Some(requesterPaysProjectId), storageException: StorageException)
+          if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." =>
+          IO.delay {
+            val blob = storage.get(gcsFile.bucket, gcsFile.file, BlobGetOption.userProject(requesterPaysProjectId))
+            blob.reader(Blob.BlobSourceOption.userProject(requesterPaysProjectId))
+          }
+        case _ => IO.raiseError(throwable)
+      }
     }
   }
 
 
-  private def inputReadChannel(url: String, urlScheme: String, serviceAccount: String): IO[ReadableByteChannel] =  {
+  private def inputReadChannel(url: String,
+                               urlScheme: String,
+                               serviceAccountJson: String,
+                               requesterPaysProjectIdOption: Option[String]): IO[ReadableByteChannel] =  {
     urlScheme match {
       case GcsScheme =>
         val Array(bucket, fileToBeLocalized) = url.replace(s"$GcsScheme://", "").split("/", 2)
-        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccount)
+        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccountJson, requesterPaysProjectIdOption)
       case otherScheme => IO.raiseError(new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
     }
   }
 
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
-    val serviceAccount = marthaResponse.googleServiceAccount match {
-      case Some(googleSA) => googleSA.data.toString
-      case None => throw new GoogleSANotFoundException
+  private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
+                                (marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
+    val serviceAccountJsonIo = marthaResponse.googleServiceAccount match {
+      case Some(googleSA) => IO.pure(googleSA.data.toString)
+      case None => IO.fromEither(options.get(GoogleAuthMode.UserServiceAccountKey).toEither)
     }
 
-    //Currently, Martha only supports resolving DRS paths to GCS paths
-    DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme) match {
-      case Right(url) => inputReadChannel(url, GcsScheme, serviceAccount)
-      case Left(e) => IO.raiseError(e)
-    }
+    for {
+      serviceAccountJson <- serviceAccountJsonIo
+      //Currently, Martha only supports resolving DRS paths to GCS paths
+      url <- IO.fromEither(DrsResolver.extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme))
+      readableByteChannel <- inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
+    } yield readableByteChannel
   }
 
 
@@ -82,12 +101,22 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     )
     val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
 
-    Future(DrsPathBuilder(new DrsCloudNioFileSystemProvider(singletonConfig.config, authCredentials, httpClientBuilder, drsReadInterpreter)))
+    // Unlike PAPI we're not going to fall back to a "default" project from the backend config.
+    // ONLY use the project id from the User Service Account for requester pays
+    val requesterPaysProjectIdOption = options.get("google_project").toOption
+
+    Future(DrsPathBuilder(
+      new DrsCloudNioFileSystemProvider(
+        singletonConfig.config,
+        authCredentials,
+        httpClientBuilder,
+        drsReadInterpreter(options, requesterPaysProjectIdOption)
+      ),
+      requesterPaysProjectIdOption,
+    ))
   }
 }
 
 
-
-class GoogleSANotFoundException extends Exception(s"Error finding Google Service Account associated with DRS path through Martha.")
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")

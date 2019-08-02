@@ -23,15 +23,21 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     "select pg_sleep(10);"
   )
 
-  for ((db, sleepCommand) <- databasesToTest zip sleepCommands) {
+  val expectedErrors = Seq(
+    "Statement cancelled due to timeout or client request",
+    "Statement cancelled due to timeout or client request",
+    "ERROR: canceling statement due to user request"
+  )
+
+  for ((db, sleepCommand, errorMsg) <- databasesToTest zip sleepCommands zip expectedErrors) {
     behavior of s"${db.productName}"
 
     it should "fail with a timeout" taggedAs DbmsTest in {
-      checkDatabaseSystem(db, sleepCommand)
+      checkDatabaseSystem(db, sleepCommand, errorMsg)
     }
   }
 
-  private def checkDatabaseSystem(databaseSystem: DatabaseSystem, sleepCommand: String) = {
+  private def checkDatabaseSystem(databaseSystem: DatabaseSystem, sleepCommand: String, errorMsg: String) = {
     val database: SlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
     import slick.dbio.DBIO
@@ -50,7 +56,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
         fail("This query should have timed out!")
     } recover {
       case t =>
-        assert(t.getMessage == "Statement cancelled due to timeout or client request")
+        assert(t.getMessage == errorMsg)
         ()
     }
 

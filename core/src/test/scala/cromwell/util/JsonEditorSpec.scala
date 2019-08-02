@@ -2,7 +2,7 @@ package cromwell.util
 
 import JsonEditor._
 import cats.data.NonEmptyList
-import io.circe.{Json, ParsingFailure}
+import io.circe.{HCursor, Json, ParsingFailure}
 import io.circe.parser._
 import org.scalatest.{FlatSpec, Matchers}
 import cats.syntax.either._
@@ -57,9 +57,8 @@ class JsonEditorSpec extends FlatSpec with Matchers{
   }
 
   it should "keep outputs only" in {
-    val cursor = parse(helloWorldJsonOutput).map(outputs).right.get.hcursor
+    val cursor: HCursor = parse(helloWorldJsonOutput).map(outputs).right.get.hcursor
     val keys = cursor.keys
-    println(s"keys $keys")
     assert(keys.get.size === 2)
     assert(keys.get.toSet.contains("outputs") === true)
     assert(keys.get.toSet.contains("id") === true)
@@ -73,10 +72,37 @@ class JsonEditorSpec extends FlatSpec with Matchers{
   }
 
   it should "remove subworkflow info" in {
-    println(subWorkflowJson.map(removeSubworkflowData))
     val sub = subWorkflowJson.map(removeSubworkflowData).right.get
     val keys = sub.hcursor.downField("calls").downField("sub_workflow_interactions.countEvens").downArray.keys
     assert(keys.contains("subWorkflowMetadata") === false)
+  }
+
+  def removeDeepNested(json: Json): Json = excludeJson(json, NonEmptyList.of("deep"))
+
+  it should "remove multiple nested keys excludes in array" in {
+    val sub = contrivedJsonWithArrayEither.map(removeDeepNested).right.get
+    val arrayCursor = sub.hcursor.downField("inner").downArray
+    val keys_nested1 = arrayCursor.keys
+    assert(keys_nested1.get.toSet.contains("deep") === false) // simple nested key "deep" removed
+    assert(keys_nested1.get.size === 2) // simple nested key "deep" removed
+
+
+    val keys_nested2 = arrayCursor.right.keys
+    assert(keys_nested2.get.toSet.contains("deep") === false) // simple nested key "deep" removed
+    assert(keys_nested2.get.size === 2) // simple nested key "deep" removed
+  }
+
+  it should "keep multiple nested keys includes in array" in {
+    val sub = contrivedJsonWithArrayEither.map(includeJson(_, NonEmptyList.of("keepme"))).right.get
+    val arrayCursor = sub.hcursor.downField("inner").downArray
+    val keys_nested1 = arrayCursor.keys
+    assert(keys_nested1.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
+    assert(keys_nested1.get.size === 1) // simple nested key "deep" removed
+
+
+    val keys_nested2 = arrayCursor.right.keys
+    assert(keys_nested2.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
+    assert(keys_nested2.get.size === 1) // simple nested key "deep" removed
   }
 }
 
@@ -98,6 +124,26 @@ object JsonEditorSpec {
       """.stripMargin
 
   val contrivedJsonEither: Either[String, Json] = parse(contrivedJson).leftMap(_.toString)
+
+  val contrivedJsonWithArray =
+    """
+      {
+           "inner": [
+             {
+               "deep":"not removed",
+               "keepme": "more",
+               "wildcard": "again"
+             },
+             {
+                "deep":"not removed",
+                "keepme": "more 2",
+                "wildcard": "again 2"
+             }
+           ]
+       }
+      """.stripMargin
+
+  val contrivedJsonWithArrayEither: Either[String, Json] = parse(contrivedJsonWithArray).leftMap(_.toString)
 
   val helloWorldJsonOutput =
     """
@@ -174,7 +220,8 @@ object JsonEditorSpec {
 
   val realJson: Either[ParsingFailure, Json] = parse(helloWorldJsonOutput)
 
-  val metadataWithSubWorkflowMetadata = """{
+  val metadataWithSubWorkflowMetadata = """
+                                          |{
                                           |  "workflowName": "sub_workflow_interactions",
                                           |  "workflowProcessingEvents": [
                                           |    {
@@ -342,6 +389,159 @@ object JsonEditorSpec {
                                           |    "sub_workflow_interactions.countEvens": [
                                           |      {
                                           |        "executionStatus": "Done",
+                                          |        "subWorkflowMetadata": {
+                                          |          "workflowName": "countEvens",
+                                          |          "rootWorkflowId": "2f070026-0186-4c8b-a577-59d818b5ac7c",
+                                          |          "calls": {
+                                          |            "countEvens.countTo": [
+                                          |              {
+                                          |                "executionStatus": "Done",
+                                          |                "stdout": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-countTo/execution/stdout",
+                                          |                "backendStatus": "Done",
+                                          |                "compressedDockerSize": 26720871,
+                                          |                "commandLine": "seq 0 1 4",
+                                          |                "shardIndex": -1,
+                                          |                "outputs": {
+                                          |                  "range": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-countTo/execution/stdout"
+                                          |                },
+                                          |                "runtimeAttributes": {
+                                          |                  "maxRetries": "0",
+                                          |                  "continueOnReturnCode": "0",
+                                          |                  "failOnStderr": "false",
+                                          |                  "docker": "ubuntu:latest"
+                                          |                },
+                                          |                "callCaching": {
+                                          |                  "allowResultReuse": false,
+                                          |                  "effectiveCallCachingMode": "CallCachingOff"
+                                          |                },
+                                          |                "inputs": {
+                                          |                  "value": 4
+                                          |                },
+                                          |                "returnCode": 0,
+                                          |                "jobId": "17733",
+                                          |                "backend": "Local",
+                                          |                "end": "2019-07-23T07:43:27.331Z",
+                                          |                "dockerImageUsed": "ubuntu@sha256:9b1702dcfe32c873a770a32cfd306dd7fc1c4fd134adfb783db68defc8894b3c",
+                                          |                "stderr": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-countTo/execution/stderr",
+                                          |                "callRoot": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-countTo",
+                                          |                "attempt": 1,
+                                          |                "executionEvents": [
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:21.385Z",
+                                          |                    "description": "WaitingForValueStore",
+                                          |                    "endTime": "2019-07-23T07:43:21.387Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "endTime": "2019-07-23T07:43:21.385Z",
+                                          |                    "description": "RequestingExecutionToken",
+                                          |                    "startTime": "2019-07-23T07:43:21.194Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:21.387Z",
+                                          |                    "description": "PreparingJob",
+                                          |                    "endTime": "2019-07-23T07:43:21.403Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:21.190Z",
+                                          |                    "description": "Pending",
+                                          |                    "endTime": "2019-07-23T07:43:21.194Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:21.403Z",
+                                          |                    "description": "RunningJob",
+                                          |                    "endTime": "2019-07-23T07:43:26.412Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:26.412Z",
+                                          |                    "description": "UpdatingJobStore",
+                                          |                    "endTime": "2019-07-23T07:43:27.329Z"
+                                          |                  }
+                                          |                ],
+                                          |                "start": "2019-07-23T07:43:21.189Z"
+                                          |              }
+                                          |            ],
+                                          |            "countEvens.filterEvens": [
+                                          |              {
+                                          |                "executionStatus": "Done",
+                                          |                "stdout": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens/execution/stdout",
+                                          |                "backendStatus": "Done",
+                                          |                "compressedDockerSize": 26720871,
+                                          |                "commandLine": "grep '[02468]$' /cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens/inputs/2037602463/stdout > evens",
+                                          |                "shardIndex": -1,
+                                          |                "outputs": {
+                                          |                  "evens": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens/execution/evens"
+                                          |                },
+                                          |                "runtimeAttributes": {
+                                          |                  "docker": "ubuntu:latest",
+                                          |                  "failOnStderr": "false",
+                                          |                  "maxRetries": "0",
+                                          |                  "continueOnReturnCode": "0"
+                                          |                },
+                                          |                "callCaching": {
+                                          |                  "allowResultReuse": false,
+                                          |                  "effectiveCallCachingMode": "CallCachingOff"
+                                          |                },
+                                          |                "inputs": {
+                                          |                  "numbers": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-countTo/execution/stdout"
+                                          |                },
+                                          |                "returnCode": 0,
+                                          |                "jobId": "17744",
+                                          |                "backend": "Local",
+                                          |                "end": "2019-07-23T07:43:32.322Z",
+                                          |                "dockerImageUsed": "ubuntu@sha256:9b1702dcfe32c873a770a32cfd306dd7fc1c4fd134adfb783db68defc8894b3c",
+                                          |                "stderr": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens/execution/stderr",
+                                          |                "callRoot": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens",
+                                          |                "attempt": 1,
+                                          |                "executionEvents": [
+                                          |                  {
+                                          |                    "endTime": "2019-07-23T07:43:29.386Z",
+                                          |                    "startTime": "2019-07-23T07:43:29.354Z",
+                                          |                    "description": "RequestingExecutionToken"
+                                          |                  },
+                                          |                  {
+                                          |                    "endTime": "2019-07-23T07:43:29.396Z",
+                                          |                    "startTime": "2019-07-23T07:43:29.387Z",
+                                          |                    "description": "PreparingJob"
+                                          |                  },
+                                          |                  {
+                                          |                    "description": "WaitingForValueStore",
+                                          |                    "endTime": "2019-07-23T07:43:29.387Z",
+                                          |                    "startTime": "2019-07-23T07:43:29.386Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:31.337Z",
+                                          |                    "endTime": "2019-07-23T07:43:32.322Z",
+                                          |                    "description": "UpdatingJobStore"
+                                          |                  },
+                                          |                  {
+                                          |                    "description": "RunningJob",
+                                          |                    "startTime": "2019-07-23T07:43:29.396Z",
+                                          |                    "endTime": "2019-07-23T07:43:31.337Z"
+                                          |                  },
+                                          |                  {
+                                          |                    "startTime": "2019-07-23T07:43:29.351Z",
+                                          |                    "description": "Pending",
+                                          |                    "endTime": "2019-07-23T07:43:29.354Z"
+                                          |                  }
+                                          |                ],
+                                          |                "start": "2019-07-23T07:43:29.351Z"
+                                          |              }
+                                          |            ]
+                                          |          },
+                                          |          "outputs": {
+                                          |            "countEvens.evenFile": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens/execution/evens",
+                                          |            "countEvens.someStringOutput": "I'm an output"
+                                          |          },
+                                          |          "workflowRoot": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c",
+                                          |          "id": "b37615ef-9612-4f8c-95d8-d8ebffb5c287",
+                                          |          "inputs": {
+                                          |            "max": 4
+                                          |          },
+                                          |          "status": "Succeeded",
+                                          |          "parentWorkflowId": "2f070026-0186-4c8b-a577-59d818b5ac7c",
+                                          |          "end": "2019-07-23T07:43:33.546Z",
+                                          |          "start": "2019-07-23T07:43:19.127Z"
+                                          |        },
                                           |        "shardIndex": -1,
                                           |        "outputs": {
                                           |          "evenFile": "/Users/gentrj/projects/cromwell/cromwell-executions/sub_workflow_interactions/2f070026-0186-4c8b-a577-59d818b5ac7c/call-countEvens/counter.countEvens/b37615ef-9612-4f8c-95d8-d8ebffb5c287/call-filterEvens/execution/evens",
@@ -374,8 +574,7 @@ object JsonEditorSpec {
                                           |            "endTime": "2019-07-23T07:43:33.546Z"
                                           |          }
                                           |        ],
-                                          |        "start": "2019-07-23T07:43:19.119Z",
-                                          |        "subWorkflowId": "b37615ef-9612-4f8c-95d8-d8ebffb5c287"
+                                          |        "start": "2019-07-23T07:43:19.119Z"
                                           |      }
                                           |    ]
                                           |  },

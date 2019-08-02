@@ -40,7 +40,10 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   it should "create a DRS input parameter" in {
 
-    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter))
+    val drsPathBuilder = DrsPathBuilder(
+      new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+      None,
+    )
     val drsPath = drsPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)

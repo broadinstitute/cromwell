@@ -47,11 +47,13 @@ trait PipelinesParameterConversions {
             .replace(s"$${drsPath}", fileInput.cloudPath.escape)
             .replace(s"$${containerPath}", fileInput.containerPath.escape)
           val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
+          val requesterPaysEnv = drsPath.requesterPaysProjectIdOption.map("REQUESTER_PAYS_PROJECT_ID" -> _).toMap
+          val environment = marthaEnv ++ requesterPaysEnv
           ActionBuilder
             .withImage(drsDockerImage)
             .withCommand("/bin/sh", "-c", drsCommand)
             .withMounts(mounts)
-            .setEnvironment(marthaEnv.asJava)
+            .setEnvironment(environment.asJava)
             .withLabels(labels)
             .setEntrypoint("")
         case sraPath: SraPath =>

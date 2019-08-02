@@ -65,7 +65,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures with Str
     Await.result(f, 15.seconds)
 
     it should s"close the ${databaseSystem.productName} database" taggedAs DbmsTest in {
-      liquibasedDatabase.close()
+      database.close()
     }
   }
 }

@@ -75,7 +75,7 @@ include_tests=( \
     -i invalid_runtime_attributes \
     -i invalid_wdl \
     -i length \
-    -i long_cmd \
+    # -i long_cmd \ # 2019-08-05 consistently timing out trying to read a < 100KB file in 60 seconds
     -i lots_of_nesting \
     -i member_access \
     -i missing_imports \

@@ -58,7 +58,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
     logging.get("commands") should be(a[java.util.List[_]])
     logging.get("commands").asInstanceOf[java.util.List[_]] should contain(
-      """sleep 5 && printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
+      """printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
         """Localizing\ input\ dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba\ """ +
         """-\>\ /cromwell_root/path/to/file.bai"""
     )

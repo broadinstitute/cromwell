@@ -674,6 +674,32 @@ paths:
           description: At least one subsystem does not have an "ok" status
           schema:
             $ref: '#/definitions/StatusResponse'
+  '/admin/{version}/listSubmissions':
+    get:
+      operationId: engineVersion
+      summary: Return the version of this Cromwell server
+      parameters:
+        - $ref: '#/parameters/versionParam'
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
+  '/admin/{version}/pauseSubmission':
+    get:
+      operationId: engineVersion
+      summary: Return the version of this Cromwell server
+      parameters:
+        - $ref: '#/parameters/versionParam'
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
 responses:
   OkIdAndStatus:
     description: Successful Request

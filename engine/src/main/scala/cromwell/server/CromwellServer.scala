@@ -52,7 +52,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     * actual cromwell+swagger+oauth+/api support is needed.
     */
   val apiRoutes: Route = pathPrefix("api")(concat(workflowRoutes, womtoolRoutes))
-  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute, wesRoutes)
+  val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute, wesRoutes, adminRoutes)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
   val serverBinding = Http().bindAndHandle(allRoutes, interface, port)

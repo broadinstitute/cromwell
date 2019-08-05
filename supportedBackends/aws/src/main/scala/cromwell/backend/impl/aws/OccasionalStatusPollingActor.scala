@@ -3,6 +3,8 @@ package cromwell.backend.impl.aws
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor._
 import cromwell.backend.impl.aws.RunStatus.{Initializing, Running}
+import cromwell.cloudsupport.aws.auth.AwsAuthMode
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model.ListJobsRequest
@@ -25,7 +27,7 @@ import scala.util.{Failure, Success, Try}
   *   - The 'queuesToMonitor' get added to but never cleared out (so on a multi-tenant system, will grow indefinitely)
   *   - We don't track completed jobs - so when a job completes the caller will get a None, and have to fall back to an AWS query anyway.
   */
-class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor with ActorLogging {
+class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -33,6 +35,9 @@ class OccasionalStatusPollingActor(configRegion: Option[Region]) extends Actor w
 
   lazy val client = {
     val builder = BatchClient.builder()
+    optAwsAuthMode.foreach { awsAuthMode =>
+      builder.credentialsProvider(StaticCredentialsProvider.create(awsAuthMode.credential(_ => "")))
+    }
     configRegion.foreach(builder.region)
     builder.build
   }
@@ -132,5 +137,5 @@ object OccasionalStatusPollingActor {
   final case class NotifyOfStatus(queueArn: String, jobId: String, runStatus: Option[RunStatus]) extends OccasionalStatusPollingActorMessage
   final case class WhatsMyStatus(queueArn: String, jobId: String) extends OccasionalStatusPollingActorMessage
 
-  def props(configRegion: Option[Region]) = Props(new OccasionalStatusPollingActor(configRegion))
+  def props(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) = Props(new OccasionalStatusPollingActor(configRegion, optAwsAuthMode))
 }

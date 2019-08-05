@@ -145,7 +145,7 @@ class S3PathBuilder(client: S3Client,
           // TODO: System.getenv needs to turn into a full Auth thingy
           // TODO: This assumes the "global endpoint". Need to handle other endpoints
           val s3Path = new S3FileSystemProvider()
-            .getFileSystem(URI.create("s3:////"), System.getenv)
+            .getFileSystem(URI.create("s3:////"), System.getenv, client)
             .getPath(s"""/$bucket/$path""")
           S3Path(s3Path, bucket, client)
         }

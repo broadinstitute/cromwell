@@ -46,8 +46,10 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
+import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import org.slf4j.LoggerFactory
 import fs2.Stream
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 
 import scala.collection.JavaConverters._
@@ -74,15 +76,19 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              outputs: Set[AwsBatchFileOutput],
                              jobPaths: JobPaths, // Based on config, calculated in Job Paths, key to all things outside container
                              parameters: Seq[AwsBatchParameter],
-                             configRegion: Option[Region]
+                             configRegion: Option[Region],
+                             optAwsAuthMode: Option[AwsAuthMode] = None
                              ) {
 
   val Log = LoggerFactory.getLogger(AwsBatchJob.getClass)
   // TODO: Auth, endpoint
   lazy val client = {
-   val builder = BatchClient.builder()
-   configRegion.foreach(builder.region)
-   builder.build
+    val builder = BatchClient.builder()
+    optAwsAuthMode.foreach { awsAuthMode =>
+      builder.credentialsProvider(StaticCredentialsProvider.create(awsAuthMode.credential(_ => "")))
+    }
+    configRegion.foreach(builder.region)
+    builder.build
   }
   lazy val logsclient = {
     val builder = CloudWatchLogsClient.builder()

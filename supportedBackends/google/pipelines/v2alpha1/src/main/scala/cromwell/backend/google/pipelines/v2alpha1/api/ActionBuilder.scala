@@ -59,11 +59,6 @@ object ActionBuilder {
     }
   }
 
-  object Gsutil {
-    private val contentTypeText = ContentTypes.`text/plain(UTF-8)`.toString()
-    val ContentTypeTextHeader = s"Content-Type: $contentTypeText"
-  }
-
   // TODO revert this to google/cloud-sdk:slim once latest is unbroken
   // TODO https://github.com/GoogleCloudPlatform/gsutil/issues/806
   val cloudSdkImage = "google/cloud-sdk:251.0.0-slim"

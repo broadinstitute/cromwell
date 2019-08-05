@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
-import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}

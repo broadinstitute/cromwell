@@ -676,8 +676,8 @@ paths:
             $ref: '#/definitions/StatusResponse'
   '/admin/{version}/listSubmissions':
     get:
-      operationId: engineVersion
-      summary: Return the version of this Cromwell server
+      operationId: listSubmissions
+      summary: Return list of submissions, their workflows with workflow status
       parameters:
         - $ref: '#/parameters/versionParam'
       tags:

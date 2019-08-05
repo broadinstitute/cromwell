@@ -2,9 +2,9 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 
 import java.util.UUID
 
-import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
+import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
@@ -22,7 +22,6 @@ import scala.concurrent.duration._
 
 object Delocalization {
   private val logsRoot = "/google/logs"
-  val plainTextContentType = Option(ContentTypes.`text/plain(UTF-8)`)
 }
 
 trait Delocalization {
@@ -31,21 +30,21 @@ trait Delocalization {
 
   private def delocalizeLogsAction(gcsLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration) = {
     cloudSdkShellAction(
-    delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, plainTextContentType)
+    delocalizeDirectory(DefaultPathBuilder.build(logsRoot).get, gcsLogPath, PipelinesApiAsyncBackendJobExecutionActor.plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
   }
 
   // Used for the final copy of the logs to make sure we have the most up to date version before terminating the job
   private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     cloudSdkShellAction(
-      delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType)
+      delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, PipelinesApiAsyncBackendJobExecutionActor.plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
   }
 
   // Periodically copies the logs out to GCS
   private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit localizationConfiguration: LocalizationConfiguration): Action = {
     cloudSdkShellAction(
-      every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, plainTextContentType) }
+      every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, PipelinesApiAsyncBackendJobExecutionActor.plainTextContentType) }
     )(flags = List(ActionFlag.RunInBackground), labels = Map(Key.Tag -> Value.Background))
   }
 

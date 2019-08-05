@@ -13,8 +13,12 @@ object AdminServiceMessages {
   case object ListSubmissionsRequest extends AdminServiceMessage
   case object PauseSubmissionRequest extends AdminServiceMessage
 
+  sealed trait PauseSubmissionResult extends AdminServiceMessage
+  case object PauseSubmissionSuccess extends PauseSubmissionResult
+  case class PauseSubmissionFailure(reason: String) extends PauseSubmissionResult
 
-  sealed trait AdminResult extends AdminServiceMessage
-  case object PauseSubmissionSuccess extends AdminResult
+  sealed trait ListSubmissionsResult extends AdminServiceMessage
+  case object ListSubmissionsSuccess extends ListSubmissionsResult
+  case class ListSubmissionsFailure(reason: String) extends ListSubmissionsResult
 }
 

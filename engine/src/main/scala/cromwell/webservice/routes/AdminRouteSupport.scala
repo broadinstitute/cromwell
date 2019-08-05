@@ -3,12 +3,16 @@ package cromwell.webservice.routes
 import akka.actor.{ActorRef, ActorRefFactory}
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
 import akka.pattern.ask
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cromwell.services.admin.AdminServiceMessages.{AdminResult, ListSubmissionsRequest, PauseSubmissionSuccess}
+import cromwell.services.admin.AdminServiceMessages.{ListSubmissionsSuccess, _}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
+import io.circe.Encoder
+import io.circe.generic.semiauto.deriveEncoder
+import io.circe.syntax._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
@@ -22,31 +26,26 @@ trait AdminRouteSupport extends WebServiceUtils {
 
   val serviceRegistryActor: ActorRef
 
-  val adminRoutes = concat(
-    path("admin" / Segment / "listSubmission") { _ =>
-      onComplete(serviceRegistryActor.ask(ListSubmissionsRequest).mapTo[AdminResult]) {
-        case Success(PauseSubmissionSuccess) =>
-          import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionEncoder
-          import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-          import io.circe.syntax._
+  implicit val listSubmissionsEncoder: Encoder[ListSubmissionsSuccess.type] = deriveEncoder[ListSubmissionsSuccess.type]
+  implicit val pauseSubmissionEncoder: Encoder[PauseSubmissionSuccess.type] = deriveEncoder[PauseSubmissionSuccess.type]
 
-          complete(PauseSubmissionSuccess.toString)
-//        case Success(response: DescribeFailure) => ??? fill it in
-//          new Exception(response.reason).failRequest(StatusCodes.BadRequest)
+  val adminRoutes = concat(
+    path("admin" / Segment / "listSubmissions") { _ =>
+      onComplete(serviceRegistryActor.ask(ListSubmissionsRequest).mapTo[ListSubmissionsResult]) {
+        case Success(ListSubmissionsSuccess) =>
+          complete(ListSubmissionsSuccess.asJson)
+        case Success(response: ListSubmissionsFailure) =>
+          new Exception(response.reason).failRequest(StatusCodes.BadRequest)
         case Failure(e) =>
           e.failRequest(StatusCodes.InternalServerError)
       }
     },
     path("admin" / Segment / "pauseSubmission") { _ =>
-      onComplete(serviceRegistryActor.ask(ListSubmissionsRequest).mapTo[AdminResult]) {
+      onComplete(serviceRegistryActor.ask(PauseSubmissionRequest).mapTo[PauseSubmissionResult]) {
         case Success(PauseSubmissionSuccess) =>
-          import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionEncoder
-          import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-          import io.circe.syntax._
-
-          complete(PauseSubmissionSuccess.toString)
-        //        case Success(response: DescribeFailure) => ??? fill it in
-        //          new Exception(response.reason).failRequest(StatusCodes.BadRequest)
+          complete(PauseSubmissionSuccess.asJson)
+        case Success(response: PauseSubmissionFailure) =>
+          new Exception(response.reason).failRequest(StatusCodes.BadRequest)
         case Failure(e) =>
           e.failRequest(StatusCodes.InternalServerError)
       }

@@ -73,6 +73,8 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
   val FailedV2Style = "The assigned worker has failed to complete the operation"
 
+  val plainTextContentType = Option(ContentTypes.`text/plain(UTF-8)`)
+
   def StandardException(errorCode: Status,
                         message: String,
                         jobTag: String,
@@ -361,7 +363,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   lazy val monitoringOutput: Option[PipelinesApiFileOutput] = monitoringScript map { _ =>
     PipelinesApiFileOutput(s"$jesMonitoringParamName-out",
-      pipelinesApiCallPaths.jesMonitoringLogPath, localMonitoringLogPath, workingDisk, optional = false, secondary = false)
+      pipelinesApiCallPaths.jesMonitoringLogPath, localMonitoringLogPath, workingDisk, optional = false, secondary = false,
+      contentType = plainTextContentType)
   }
 
   override lazy val commandDirectory: Path = PipelinesApiWorkingDisk.MountPoint
@@ -480,7 +483,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
 
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
-      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false)
+      val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false,
+        contentType = plainTextContentType)
 
       case class StandardStream(name: String, f: StandardPaths => Path) {
         val filename = f(pipelinesApiCallPaths.standardPaths).name
@@ -491,7 +495,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         StandardStream("stderr", _.error)
       ) map { s =>
         PipelinesApiFileOutput(s.name, returnCodeGcsPath.sibling(s.filename), DefaultPathBuilder.get(s.filename),
-          workingDisk, optional = false, secondary = false, uploadPeriod = jesAttributes.logFlushPeriod, contentType = Option(ContentTypes.`text/plain(UTF-8)`))
+          workingDisk, optional = false, secondary = false, uploadPeriod = jesAttributes.logFlushPeriod, contentType = plainTextContentType)
       }
 
       InputOutputParameters(

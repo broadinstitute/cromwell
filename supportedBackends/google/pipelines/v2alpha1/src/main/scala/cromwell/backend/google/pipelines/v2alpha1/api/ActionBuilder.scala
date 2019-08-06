@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
-import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
@@ -57,11 +56,6 @@ object ActionBuilder {
       } yield keyValue
       list.toMap
     }
-  }
-
-  object Gsutil {
-    private val contentTypeText = ContentTypes.`text/plain(UTF-8)`.toString()
-    val ContentTypeTextHeader = s"Content-Type: $contentTypeText"
   }
 
   // TODO revert this to google/cloud-sdk:slim once latest is unbroken

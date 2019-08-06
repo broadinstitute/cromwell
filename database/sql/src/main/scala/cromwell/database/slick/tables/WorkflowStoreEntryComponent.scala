@@ -195,21 +195,50 @@ trait WorkflowStoreEntryComponent {
 
   val allWorkflowStoreEntries = workflowStoreEntries
 
-  val workflowStateForSubmission = {
-    val result = Compiled(
-      (submissionId: Rep[String],
-       fromState: Rep[String]) => {
+  val workflowStateAccesserForSubmissionAndState = Compiled(
+    (submissionId: Rep[String],
+     fromState: Rep[String],
+     excludeState: Rep[String]) => {
 
-        for {
-          workflowStoreEntry <- workflowStoreEntries
-          if clobToString(workflowStoreEntry.customLabels) like submissionId
-          if workflowStoreEntry.workflowState === fromState
-        } yield workflowStoreEntry.workflowState
-      }
-    )
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if clobToString(workflowStoreEntry.customLabels) like submissionId
+        if workflowStoreEntry.workflowState === fromState
+        if workflowStoreEntry.workflowState =!= excludeState
+      } yield workflowStoreEntry.workflowState
+    }
+  )
 
+  val workflowStateAccesserForSubmission = Compiled(
+    (submissionId: Rep[String],
+     excludeState: Rep[String]) => {
 
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if clobToString(workflowStoreEntry.customLabels) like submissionId
+        if workflowStoreEntry.workflowState =!= excludeState
+      } yield workflowStoreEntry.workflowState
+    }
+  )
 
-    result
-  }
+  val workflowStateAccesserForAGivenState = Compiled(
+    (fromState: Rep[String],
+     excludeState: Rep[String]) => {
+
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowState === fromState
+        if workflowStoreEntry.workflowState =!= excludeState
+      } yield workflowStoreEntry.workflowState
+    }
+  )
+
+  val workflowStateAccesserForEverything = Compiled(
+    (excludeState: Rep[String]) => {
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowState =!= excludeState
+      } yield workflowStoreEntry.workflowState
+    }
+  )
 }

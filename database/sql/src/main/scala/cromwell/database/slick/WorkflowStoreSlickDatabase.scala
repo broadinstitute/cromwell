@@ -160,18 +160,34 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     runTransaction(dataAccess.allWorkflowStoreEntries.result)
   }
 
-  override def updateWorkflowStates(submissionId: String,
-                                    fromWorkflowState: String,
+  override def updateWorkflowStates(submissionId: Option[String],
+                                    fromWorkflowState: Option[String],
                                     toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = {
-
-    dataAccess.workflowStateForSubmission((s"%$submissionId%", fromWorkflowState)).result.statements.foreach(println)
-
-    val action = for {
-      updated <- dataAccess
-        .workflowStateForSubmission((s"%$submissionId%", fromWorkflowState))
-        .update(toWorkflowState)
-    } yield updated
-
-    runTransaction(action)
+    (submissionId, fromWorkflowState) match {
+      case (None, None) =>
+        val action = for {
+          updated <- dataAccess.workflowStateAccesserForEverything(toWorkflowState)
+            .update(toWorkflowState)
+        } yield updated
+        runTransaction(action)
+      case (Some(submission), None) =>
+        val action = for {
+          updated <- dataAccess.workflowStateAccesserForSubmission((s"%$submission%", toWorkflowState))
+            .update(toWorkflowState)
+        } yield updated
+        runTransaction(action)
+      case (None, Some(fromState)) =>
+        val action = for {
+          updated <-  dataAccess.workflowStateAccesserForAGivenState((fromState, toWorkflowState))
+            .update(toWorkflowState)
+        } yield updated
+        runTransaction(action)
+      case (Some(submission), Some(fromState)) =>
+        val action = for {
+          updated <- dataAccess.workflowStateAccesserForSubmissionAndState((s"%$submission%", fromState, toWorkflowState))
+            .update(toWorkflowState)
+        } yield updated
+        runTransaction(action)
+    }
   }
 }

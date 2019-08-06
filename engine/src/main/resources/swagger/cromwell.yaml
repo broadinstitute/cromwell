@@ -707,6 +707,19 @@ paths:
           description: Successful Request
           schema:
             $ref: '#/definitions/VersionResponse'
+  '/admin/{version}/pauseAll':
+    post:
+      operationId: adminPauseAll
+      summary: "Set all workflows to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
   '/admin/{version}/insertTerminalStatusInMetadata':
     post:
       operationId: updateStatusInMetadata

@@ -37,7 +37,7 @@ trait AdminRouteSupport extends WebServiceUtils {
   implicit val listSubmissionsDataEncoder: Encoder[WorkflowsBySubmissionId] = deriveEncoder[WorkflowsBySubmissionId]
   implicit val listSubmissionsEncoder: Encoder[ListSubmissionsResponseSuccess] = deriveEncoder[ListSubmissionsResponseSuccess]
 
-  implicit val pauseResponseEncoder: Encoder[PauseSubmissionResponseSuccess] = deriveEncoder[PauseSubmissionResponseSuccess]
+  implicit val pauseResponseEncoder: Encoder[PauseResponseSuccess] = deriveEncoder[PauseResponseSuccess]
 
   val adminRoutes = concat(
     path("admin" / Segment / "listSubmissions") { _ =>
@@ -53,20 +53,37 @@ trait AdminRouteSupport extends WebServiceUtils {
     path("admin" / Segment / "pauseSubmission") { _ =>
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
-          onComplete(materializeFormData(formData) flatMap { args =>
+          val pauseProcess = materializeFormData(formData) flatMap { args =>
             val submissionId = UUID.fromString(args("submissionId").utf8String)
-
-            workflowStoreActor.ask(PauseSubmission(submissionId, WorkflowSubmitted)).mapTo[PauseSubmissionResponse] }) {
-              case Success(resp: PauseSubmissionResponseSuccess) =>
-                complete(resp.asJson)
-              case Success(response: PauseSubmissionResponseFailure) =>
-                new Exception(response.reason).failRequest(StatusCodes.InternalServerError)
-              case Failure(e) =>
-                e.failRequest(StatusCodes.InternalServerError)
-            }
+            workflowStoreActor.ask(PauseSubmission(submissionId)).mapTo[PauseSubmissionResponse]
+          }
+          onComplete(pauseProcess) {
+            case Success(resp: PauseResponseSuccess) =>
+              complete(resp.asJson)
+            case Success(response: PauseResponseFailure) =>
+              new Exception(response.reason).failRequest(StatusCodes.InternalServerError)
+            case Failure(e) =>
+              e.failRequest(StatusCodes.InternalServerError)
           }
         }
-      },
+      }
+    },
+    path("admin" / Segment / "pauseAll") { _ =>
+      post {
+//        entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
+          val pauseProcess = workflowStoreActor.ask(PauseAll).mapTo[PauseSubmissionResponse]
+
+          onComplete(pauseProcess) {
+            case Success(resp: PauseResponseSuccess) =>
+              complete(resp.asJson)
+            case Success(response: PauseResponseFailure) =>
+              new Exception(response.reason).failRequest(StatusCodes.InternalServerError)
+            case Failure(e) =>
+              e.failRequest(StatusCodes.InternalServerError)
+          }
+//        }
+      }
+    },
     path("admin" / Segment / "insertTerminalStatusInMetadata") { _ =>
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>

@@ -106,6 +106,6 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
   def allWorkflowStoreEntries()(implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 
-  def updateWorkflowStates(submissionId: String, fromWorkflowState: String, toWorkflowState: String)
+  def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String)
                          (implicit ec: ExecutionContext): Future[Int]
 }

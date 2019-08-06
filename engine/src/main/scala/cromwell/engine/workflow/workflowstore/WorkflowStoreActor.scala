@@ -88,10 +88,12 @@ object WorkflowStoreActor {
   case class ListSubmissionsResponseSuccess(submissions: List[WorkflowsBySubmissionId]) extends ListSubmissionsResponse
   case class ListSubmissionsResponseFailure(reason: Throwable) extends ListSubmissionsResponse
 
-  final case class PauseSubmission(submissionId: UUID, fromState: WorkflowState) extends WorkflowStoreActorEngineCommand
+  final case class PauseSubmission(submissionId: UUID) extends WorkflowStoreActorEngineCommand
+  case object PauseAll extends WorkflowStoreActorEngineCommand
+
   sealed trait PauseSubmissionResponse extends WorkflowStoreActorEngineResponse
-  case class PauseSubmissionResponseSuccess(updated: Int) extends PauseSubmissionResponse
-  case class PauseSubmissionResponseFailure(reason: Throwable) extends PauseSubmissionResponse
+  case class PauseResponseSuccess(updated: Int) extends PauseSubmissionResponse
+  case class PauseResponseFailure(reason: Throwable) extends PauseSubmissionResponse
 
   def props(
              workflowStoreDatabase: WorkflowStore,

@@ -175,7 +175,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     }
   }
 
-  override def updateWorkflowStates(submissionId: String, fromWorkflowState: String, toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = {
+  override def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = {
     sqlDatabase.updateWorkflowStates(submissionId, fromWorkflowState, toWorkflowState)
   }
 

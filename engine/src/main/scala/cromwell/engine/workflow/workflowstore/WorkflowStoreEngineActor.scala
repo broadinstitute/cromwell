@@ -169,11 +169,17 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
         } recover {
           case t => sndr ! ListSubmissionsResponseFailure(t)
         }
-      case PauseSubmission(submissionId, fromState) =>
-        store.updateWorkflowStates(submissionId.toString, fromState.toString, toWorkflowState = WorkflowStoreState.OnHold.toString) map {
-          result => sndr ! PauseSubmissionResponseSuccess(result)
+      case PauseSubmission(submissionId) =>
+        store.updateWorkflowStates(submissionId = Option(submissionId.toString), fromWorkflowState = None, toWorkflowState = WorkflowStoreState.OnHold.toString) map {
+          result => sndr ! PauseResponseSuccess(result)
         } recover {
-          case t => sndr ! PauseSubmissionResponseFailure(t)
+          case t => sndr ! PauseResponseFailure(t)
+        }
+      case PauseAll =>
+        store.updateWorkflowStates(submissionId = None, fromWorkflowState = None, toWorkflowState = WorkflowStoreState.OnHold.toString) map {
+          result => sndr ! PauseResponseSuccess(result)
+        } recover {
+          case t => sndr ! PauseResponseFailure(t)
         }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)

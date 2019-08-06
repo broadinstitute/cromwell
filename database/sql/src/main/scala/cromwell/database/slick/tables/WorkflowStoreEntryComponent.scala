@@ -1,8 +1,9 @@
 package cromwell.database.slick.tables
 
 import java.sql.Timestamp
-import javax.sql.rowset.serial.{SerialBlob, SerialClob}
+
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 
 trait WorkflowStoreEntryComponent {
 
@@ -193,4 +194,22 @@ trait WorkflowStoreEntryComponent {
   )
 
   val allWorkflowStoreEntries = workflowStoreEntries
+
+  val workflowStateForSubmission = {
+    val result = Compiled(
+      (submissionId: Rep[String],
+       fromState: Rep[String]) => {
+
+        for {
+          workflowStoreEntry <- workflowStoreEntries
+          if clobToString(workflowStoreEntry.customLabels) like submissionId
+          if workflowStoreEntry.workflowState === fromState
+        } yield workflowStoreEntry.workflowState
+      }
+    )
+
+
+
+    result
+  }
 }

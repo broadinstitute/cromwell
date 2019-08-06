@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.admin.AdminServiceMessages.{PauseSubmissionRequest, PauseSubmissionSuccess}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
@@ -14,7 +13,7 @@ class AdminServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegi
   implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive: Receive = {
-    case PauseSubmissionRequest => sender ! PauseSubmissionSuccess
+//    case PauseSubmissionRequest => sender ! PauseSubmissionSuccess
 //    case ListSubmissionsRequest => sender ! ListSubmissionsSuccess
 
     case ShutdownCommand =>

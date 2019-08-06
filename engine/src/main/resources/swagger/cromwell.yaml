@@ -688,11 +688,18 @@ paths:
           schema:
             $ref: '#/definitions/VersionResponse'
   '/admin/{version}/pauseSubmission':
-    get:
-      operationId: engineVersion
-      summary: Return the version of this Cromwell server
+    post:
+      operationId: adminPauseSubmission
+      summary: "Set all workflows for a submission in the workflow store to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."wo
+      consumes:
+      - multipart/form-data
       parameters:
-        - $ref: '#/parameters/versionParam'
+      - $ref: '#/parameters/versionParam'
+      - name: submissionId
+        description: The Terra submission ID to place on hold
+        required: true
+        type: string
+        in: formData
       tags:
         - Admin
       responses:

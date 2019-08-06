@@ -148,7 +148,6 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     } yield ()
   }
 
-
   override def listSubmissions(implicit ec: ExecutionContext): Future[List[WorkflowsBySubmissionId]] = {
 
     import io.circe._
@@ -176,6 +175,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     }
   }
 
+  override def updateWorkflowStates(submissionId: String, fromWorkflowState: String, toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = {
+    sqlDatabase.updateWorkflowStates(submissionId, fromWorkflowState, toWorkflowState)
+  }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
 

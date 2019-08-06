@@ -159,4 +159,19 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
   override def allWorkflowStoreEntries()(implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]] = {
     runTransaction(dataAccess.allWorkflowStoreEntries.result)
   }
+
+  override def updateWorkflowStates(submissionId: String,
+                                    fromWorkflowState: String,
+                                    toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = {
+
+    dataAccess.workflowStateForSubmission((s"%$submissionId%", fromWorkflowState)).result.statements.foreach(println)
+
+    val action = for {
+      updated <- dataAccess
+        .workflowStateForSubmission((s"%$submissionId%", fromWorkflowState))
+        .update(toWorkflowState)
+    } yield updated
+
+    runTransaction(action)
+  }
 }

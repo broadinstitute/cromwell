@@ -163,6 +163,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
             log.error(message)
             sndr ! WorkflowOnHoldToSubmittedFailure(id, t)
         }
+      case ListSubmissions =>
+        store.listSubmissions map { res =>
+          sndr ! ListSubmissionsResponseSuccess(res)
+        } recover {
+          case t => sndr ! ListSubmissionsResponseFailure(t)
+        }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
         Future.successful(self ! WorkDone)

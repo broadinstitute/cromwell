@@ -6,7 +6,9 @@ import akka.http.scaladsl.server.Directives._
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cromwell.services.admin.AdminServiceMessages.{ListSubmissionsSuccess, _}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowAndState, WorkflowsBySubmissionId}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.{ListSubmissions, ListSubmissionsResponse, ListSubmissionsResponseFailure, ListSubmissionsResponseSuccess}
+import cromwell.services.admin.AdminServiceMessages._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -25,16 +27,19 @@ trait AdminRouteSupport extends WebServiceUtils {
   implicit val timeout: Timeout
 
   val serviceRegistryActor: ActorRef
+  val workflowStoreActor: ActorRef
 
-  implicit val listSubmissionsEncoder: Encoder[ListSubmissionsSuccess.type] = deriveEncoder[ListSubmissionsSuccess.type]
+  implicit val workflowAndStateEncoder: Encoder[WorkflowAndState] = deriveEncoder[WorkflowAndState]
+  implicit val listSubmissionsDataEncoder: Encoder[WorkflowsBySubmissionId] = deriveEncoder[WorkflowsBySubmissionId]
+  implicit val listSubmissionsEncoder: Encoder[ListSubmissionsResponseSuccess] = deriveEncoder[ListSubmissionsResponseSuccess]
   implicit val pauseSubmissionEncoder: Encoder[PauseSubmissionSuccess.type] = deriveEncoder[PauseSubmissionSuccess.type]
 
   val adminRoutes = concat(
     path("admin" / Segment / "listSubmissions") { _ =>
-      onComplete(serviceRegistryActor.ask(ListSubmissionsRequest).mapTo[ListSubmissionsResult]) {
-        case Success(ListSubmissionsSuccess) =>
-          complete(ListSubmissionsSuccess.asJson)
-        case Success(response: ListSubmissionsFailure) =>
+      onComplete(workflowStoreActor.ask(ListSubmissions).mapTo[ListSubmissionsResponse]) {
+        case Success(response: ListSubmissionsResponseSuccess) =>
+          complete(response.asJson)
+        case Success(response: ListSubmissionsResponseFailure) =>
           new Exception(response.reason).failRequest(StatusCodes.BadRequest)
         case Failure(e) =>
           e.failRequest(StatusCodes.InternalServerError)

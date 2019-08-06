@@ -104,4 +104,5 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
   def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[String]]
 
+  def allWorkflowStoreEntries()(implicit ec: ExecutionContext): Future[Seq[WorkflowStoreEntry]]
 }

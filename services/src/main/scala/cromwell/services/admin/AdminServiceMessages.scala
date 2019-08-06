@@ -17,8 +17,7 @@ object AdminServiceMessages {
   case object PauseSubmissionSuccess extends PauseSubmissionResult
   case class PauseSubmissionFailure(reason: String) extends PauseSubmissionResult
 
-  sealed trait ListSubmissionsResult extends AdminServiceMessage
-  case object ListSubmissionsSuccess extends ListSubmissionsResult
-  case class ListSubmissionsFailure(reason: String) extends ListSubmissionsResult
+//  sealed trait ListSubmissionsResult extends AdminServiceMessage
+//  case class ListSubmissionsSuccess(submissions: List[ListSubmissionData]) extends ListSubmissionsResult
+//  case class ListSubmissionsFailure(reason: Throwable) extends ListSubmissionsResult
 }
-

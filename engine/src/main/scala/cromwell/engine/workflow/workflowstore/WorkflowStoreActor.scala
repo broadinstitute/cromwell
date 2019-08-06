@@ -8,6 +8,7 @@ import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core._
 import cromwell.engine.CromwellTerminator
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowAndState, WorkflowsBySubmissionId}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
@@ -80,6 +81,14 @@ object WorkflowStoreActor {
   final case object GetWorkflowStoreStats
 
   case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
+
+  case class ListSubmissionData(submission: Map[String, List[WorkflowAndState]])
+
+  case object ListSubmissions extends WorkflowStoreActorEngineCommand
+
+  sealed trait ListSubmissionsResponse extends WorkflowStoreActorEngineResponse
+  case class ListSubmissionsResponseSuccess(submissions: List[WorkflowsBySubmissionId]) extends ListSubmissionsResponse
+  case class ListSubmissionsResponseFailure(reason: Throwable) extends ListSubmissionsResponse
 
   def props(
              workflowStoreDatabase: WorkflowStore,

@@ -12,7 +12,7 @@ import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
-import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{NotInOnHoldStateException, WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection._
 
@@ -42,6 +42,11 @@ object SqlWorkflowStore {
     val AbortedOnHoldOrSubmitted = Value("AbortedOnHoldOrSubmitted")
     val AbortRequested = Value("AbortRequested")
   }
+
+  case class WorkflowStoreEntrySubmission(submissionId: String, workflowId: WorkflowId, state: WorkflowStoreState)
+
+  case class WorkflowAndState(workflowId: String, state: String)
+  case class WorkflowsBySubmissionId(submissionId: String, totalWorkflowsCount: Int, workflows: List[WorkflowAndState])
 }
 
 case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends WorkflowStore {
@@ -141,6 +146,34 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
       )
       _ <- if (updated == 0) Future.failed(NotInOnHoldStateException(id)) else Future.successful(())
     } yield ()
+  }
+
+
+  override def listSubmissions(implicit ec: ExecutionContext): Future[List[WorkflowsBySubmissionId]] = {
+
+    import io.circe._
+    import io.circe.parser._
+
+    def convertToSubmissionId(label: String): String = {
+      val abc = parse(label).getOrElse(Json.Null)
+
+      abc.asObject.get.apply("submission-id").get.asString.get
+    }
+
+    sqlDatabase.allWorkflowStoreEntries.map { list =>
+      val abc = list.toList map { s => WorkflowStoreEntrySubmission(
+        convertToSubmissionId(s.customLabels.toRawString),
+        WorkflowId.fromString(s.workflowExecutionUuid),
+        WorkflowStoreState.withName(s.workflowState)
+      )}
+
+      abc.groupBy(_.submissionId).toList.map {
+        case (key, value: List[WorkflowStoreEntrySubmission]) => WorkflowsBySubmissionId(
+          key,
+          value.length,
+          value.map(a => WorkflowAndState(a.workflowId.toString, a.state.toString)))
+      }.sortBy(- _.totalWorkflowsCount)
+    }
   }
 
 

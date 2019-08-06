@@ -191,4 +191,6 @@ trait WorkflowStoreEntryComponent {
       if workflowStoreEntry.cromwellId === cromwellId
     } yield workflowStoreEntry.workflowExecutionUuid
   )
+
+  val allWorkflowStoreEntries = workflowStoreEntries
 }

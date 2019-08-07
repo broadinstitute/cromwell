@@ -263,7 +263,7 @@ trait StandardAsyncExecutionActor
   }
 
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
-  def scriptPreamble: String = ""
+  def scriptPreamble: String = """trap "{echo 1 > rc; echo Killed by scheduler. >&2; }" SIGINT SIGTERM """
 
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)

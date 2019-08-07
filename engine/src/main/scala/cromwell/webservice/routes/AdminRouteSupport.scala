@@ -8,9 +8,11 @@ import akka.http.scaladsl.server.Directives.{post, _}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cromwell.core.WorkflowSubmitted
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState, WorkflowSubmitted}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowAndState, WorkflowsBySubmissionId}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -64,6 +66,24 @@ trait AdminRouteSupport extends WebServiceUtils {
             }
           }
         }
+      },
+    path("admin" / Segment / "insertTerminalStatusInMetadata") { _ =>
+      post {
+        entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
+          val futureResult = materializeFormData(formData) map { args =>
+            val workflowId = WorkflowId(UUID.fromString(args("id").utf8String))
+            val terminalWorkflowStatus = WorkflowState.withName(args("terminalWorkflowStatus").utf8String)
+            val event = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(terminalWorkflowStatus))
+            serviceRegistryActor ! PutMetadataAction(event)
+            ()
+          }
+
+          onComplete(futureResult) {
+            case Success(_) => complete(StatusCodes.OK)
+            case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
+          }
+        }
       }
+    }
   )
 }

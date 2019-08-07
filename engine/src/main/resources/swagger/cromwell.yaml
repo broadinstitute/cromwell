@@ -677,7 +677,7 @@ paths:
   '/admin/{version}/listSubmissions':
     get:
       operationId: listSubmissions
-      summary: Return list of submissions, their workflows with workflow status
+      summary: Returns a list of submissions containing the submission ID, workflow ID and it's status
       parameters:
         - $ref: '#/parameters/versionParam'
       tags:
@@ -690,7 +690,7 @@ paths:
   '/admin/{version}/pauseSubmission':
     post:
       operationId: adminPauseSubmission
-      summary: "Set all workflows for a submission in the workflow store to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."wo
+      summary: "Set all workflows for a submission in the workflow store to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."
       consumes:
       - multipart/form-data
       parameters:
@@ -700,6 +700,29 @@ paths:
         required: true
         type: string
         in: formData
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
+  '/admin/{version}/insertTerminalStatusInMetadata':
+    post:
+      operationId: updateStatusInMetadata
+      summary: Inserts a new entry in the METADATA_ENTRY table with updated terminal workflow status for a given workflow ID
+      consumes:
+        - multipart/form-data
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - name: id
+          required: true
+          in: formData
+          type: string
+          collectionFormat: multi
+          pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+          description: Workflow ID
+        - $ref: '#/parameters/terminalWorkflowStatusParam'
       tags:
         - Admin
       responses:
@@ -755,6 +778,13 @@ parameters:
     type: string
     in: path
     default: v1 # This really should be an enum but swagger-ui seems to not like it
+  terminalWorkflowStatusParam:
+    name: terminalWorkflowStatus
+    description: Terminal workflow statuses
+    required: true
+    type: string
+    enum: [Aborted, Failed, Succeeded]
+    in: formData
 definitions:
   WorkflowSubmitResponse:
     required:

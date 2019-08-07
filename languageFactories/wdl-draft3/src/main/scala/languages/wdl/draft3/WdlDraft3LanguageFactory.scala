@@ -16,6 +16,7 @@ import wdl.draft3.transforms.parsing._
 import wdl.draft3.transforms.wdlom2wom._
 import wdl.transforms.base.wdlom2wom.WomBundleToWomExecutable._
 import wdl.transforms.base.wdlom2wom._
+import wom.ResolvedImportRecord
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
@@ -39,15 +40,15 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
 
     val checked: Checked[ValidatedWomNamespace] = for {
       _ <- enabledCheck
-      bundle <- getWomBundle(workflowSource, source.workflowOptions.asPrettyJson, importResolvers, factories)
+      bundle <- getWomBundle(workflowSource, workflowSourceOrigin = None, source.workflowOptions.asPrettyJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable
 
     fromEither[IO](checked)
-
   }
 
   override def getWomBundle(workflowSource: WorkflowSource,
+                            workflowSourceOrigin: Option[ResolvedImportRecord],
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory],
@@ -55,6 +56,7 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
     val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => enabledCheck map(_ => x))
     val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
     converter.run(FileStringParserInput(workflowSource, "input.wdl"))
+      .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin))
   }
 
   override def createExecutable(womBundle: WomBundle, inputsJson: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {

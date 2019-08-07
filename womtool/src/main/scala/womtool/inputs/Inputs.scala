@@ -15,8 +15,8 @@ object Inputs {
   def inputsJson(main: Path, showOptionals: Boolean): Termination = {
 
     WomGraphMaker.fromFiles(main, inputs = None) match {
-      case Right(graph) =>
-        Try(graph.externalInputNodes.toJson(inputNodeWriter(showOptionals)).prettyPrint) match {
+      case Right(graphWithImports) =>
+        Try(graphWithImports.graph.externalInputNodes.toJson(inputNodeWriter(showOptionals)).prettyPrint) match {
           case Success(json) => SuccessfulTermination(json + System.lineSeparator)
           case Failure(error) => UnsuccessfulTermination(error.getMessage)
         }

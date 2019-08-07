@@ -2,6 +2,11 @@
 
 ## 45 Release Notes
 
+### List dependencies flag in Womtool Command Line [(#5098)](https://github.com/broadinstitute/cromwell/pull/5098)
+
+Womtool now outputs the list of files referenced in import statements using `-l` flag for `validate` command.
+More info [here](https://cromwell.readthedocs.io/en/stable/WOMtool/)
+
 ### BCS backend new Features support
 
 #### New docker registry

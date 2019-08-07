@@ -64,7 +64,7 @@ object FileElementToWomBundle {
 
             val bundledCallableMap = (localTaskMapping.values.toSet ++ workflows).map(c => c.name -> c).toMap
 
-            WomBundle(primary, bundledCallableMap, allStructs)
+            WomBundle(primary, bundledCallableMap, allStructs, imports.flatMap(_.resolvedImportRecords).toSet)
           }
         }
       }
@@ -89,7 +89,7 @@ object FileElementToWomBundle {
 
     val languageFactoryKleislis: List[CheckedAtoB[ResolvedImportBundle, WomBundle]] = languageFactories map { factory =>
       CheckedAtoB.fromCheck { resolutionBundle: ResolvedImportBundle =>
-        factory.getWomBundle(resolutionBundle.source, optionsJson, resolutionBundle.newResolvers, languageFactories)
+        factory.getWomBundle(resolutionBundle.source, Option(resolutionBundle.resolvedImportRecord), optionsJson, resolutionBundle.newResolvers, languageFactories)
       }
     }
     val compoundLanguageFactory: CheckedAtoB[ResolvedImportBundle, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")

@@ -1,7 +1,8 @@
 package wdl.draft2.model.examples
 
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.WdlNamespaceWithWorkflow
-import wom.core._
+import wom.ResolvedImportRecord
 
 object ex3 {
   def main(args: Array[String]): Unit = {
@@ -14,9 +15,9 @@ object ex3 {
       | call a
       |}""".stripMargin
 
-    def resolver(importString: String): WorkflowSource = {
+    def resolver(importString: String): Draft2ResolvedImportBundle = {
       importString match {
-        case "some_string" => "task imported { command {ps} }"
+        case "some_string" => Draft2ResolvedImportBundle("task imported { command {ps} }", ResolvedImportRecord("some_string"))
         case _ => throw new UnsupportedOperationException()
       }
     }

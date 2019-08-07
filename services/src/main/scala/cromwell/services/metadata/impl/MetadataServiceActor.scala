@@ -47,7 +47,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
 
   private val metadataReadTimeout: Duration =
-    serviceConfig.getAs[FiniteDuration]("metadata-read-query-timeout").getOrElse(Duration.Inf)
+    serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
 
   val readActor = context.actorOf(ReadMetadataActor.props(metadataReadTimeout), "read-metadata-actor")
 

@@ -2,12 +2,14 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import org.scalatest.{FlatSpec, Matchers}
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
 import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomMaybeEmptyArrayType, WomStringType}
 import wdl.transforms.draft2.wdlom2wom._
+import wom.ResolvedImportRecord
 
 class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
 
@@ -47,7 +49,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
 
-    def innerResolver: Draft2ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
@@ -138,7 +140,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
       """.stripMargin
 
 
-    def innerResolver: Draft2ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,
@@ -200,7 +202,7 @@ class WdlSubworkflowWomSpec extends FlatSpec with Matchers {
         |}
       """.stripMargin
 
-    def innerResolver: Draft2ImportResolver = _ => innerWdl
+    def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
     val namespace = WdlNamespace.loadUsingSource(
       workflowSource = outerWdl,

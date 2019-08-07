@@ -23,10 +23,12 @@ import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import languages.wdl.draft2.WdlDraft2LanguageFactory._
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
+import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespace, WdlNamespaceWithWorkflow}
 import wdl.shared.transforms.wdlom2wom.WdlSharedInputParsing
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomBundleMakers._
 import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wom.ResolvedImportRecord
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
@@ -113,7 +115,9 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
     }
   }
 
+
   override def getWomBundle(workflowSource: WorkflowSource,
+                            workflowSourceOrigin: Option[ResolvedImportRecord],
                             workflowOptionsJson: WorkflowOptionsJson,
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory],
@@ -122,7 +126,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
       _ <- enabledCheck
       namespace <- WdlNamespace.loadUsingSource(workflowSource, None, Some(importResolvers map resolverConverter)).toChecked
       womBundle <- namespace.toWomBundle
-    } yield womBundle
+    } yield womBundle.copyResolvedImportRecord(womBundle, workflowSourceOrigin)
   }
 
   override def createExecutable(womBundle: WomBundle, inputs: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = for {
@@ -154,7 +158,7 @@ class WdlDraft2LanguageFactory(override val config: Config) extends LanguageFact
 
 object WdlDraft2LanguageFactory {
   private def resolverConverter(importResolver: ImportResolver): Draft2ImportResolver = str => importResolver.resolver.run(ImportResolutionRequest(str, List.empty)) match {
-    case Right(imported) => imported.source
+    case Right(imported) => Draft2ResolvedImportBundle(imported.source, imported.resolvedImportRecord)
     case Left(errors) => throw new RuntimeException(s"Bad import $str: ${errors.toList.mkString(System.lineSeparator)}")
   }
 

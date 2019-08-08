@@ -1,6 +1,8 @@
 import Dependencies._
 import Settings._
 
+resolvers := List("Google" at "https://maven-central.storage.googleapis.com/repos/central/data/")
+
 // Libraries
 
 lazy val common = project

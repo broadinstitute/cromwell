@@ -367,7 +367,7 @@ trait StandardAsyncExecutionActor
     (errorOrDirectoryOutputs, errorOrGlobFiles).mapN((directoryOutputs, globFiles) =>
     s"""|#!$jobShell
         |DOCKER_OUTPUT_DIR_LINK
-        |cd $cwd
+        |cd ${cwd.pathAsString}
         |tmpDir=$temporaryDirectory
         |$tmpDirPermissionsAdjustment
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
@@ -381,14 +381,14 @@ trait StandardAsyncExecutionActor
         |tee $stdoutRedirection < "$$$out" &
         |tee $stderrRedirection < "$$$err" >&2 &
         |(
-        |cd $cwd
+        |cd ${cwd.pathAsString}
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
         |) $stdinRedirection > "$$$out" 2> "$$$err"
         |echo $$? > $rcTmpPath
         |$emptyDirectoryFillCommand
         |(
-        |cd $cwd
+        |cd ${cwd.pathAsString}
         |SCRIPT_EPILOGUE
         |${globScripts(globFiles)}
         |${directoryScripts(directoryOutputs)}

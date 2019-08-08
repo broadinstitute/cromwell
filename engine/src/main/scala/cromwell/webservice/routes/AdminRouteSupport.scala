@@ -8,8 +8,9 @@ import akka.http.scaladsl.server.Directives.{post, _}
 import akka.pattern.ask
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState, WorkflowSubmitted}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowAndState, WorkflowsBySubmissionId}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -70,7 +71,6 @@ trait AdminRouteSupport extends WebServiceUtils {
     },
     path("admin" / Segment / "pauseAll") { _ =>
       post {
-//        entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           val pauseProcess = workflowStoreActor.ask(PauseAll).mapTo[PauseSubmissionResponse]
 
           onComplete(pauseProcess) {
@@ -81,7 +81,25 @@ trait AdminRouteSupport extends WebServiceUtils {
             case Failure(e) =>
               e.failRequest(StatusCodes.InternalServerError)
           }
-//        }
+      }
+    },
+    path("admin" / Segment / "releaseHoldAcrossSubmission") { _ =>
+      post {
+        entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
+          val pauseProcess = materializeFormData(formData) flatMap { args =>
+            val submissionId = UUID.fromString(args("submissionId").utf8String)
+            val maxReleases = args.get("maxReleases").map(bytes => bytes.utf8String.toLong)
+            workflowStoreActor.ask(WorkflowStoreActor.ReleaseHoldOnSubmission(submissionId, maxReleases)).mapTo[PauseSubmissionResponse]
+          }
+          onComplete(pauseProcess) {
+            case Success(resp: PauseResponseSuccess) =>
+              complete(resp.asJson)
+            case Success(response: PauseResponseFailure) =>
+              new Exception(response.reason).failRequest(StatusCodes.InternalServerError)
+            case Failure(e) =>
+              e.failRequest(StatusCodes.InternalServerError)
+          }
+        }
       }
     },
     path("admin" / Segment / "insertTerminalStatusInMetadata") { _ =>

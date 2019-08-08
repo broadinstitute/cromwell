@@ -685,8 +685,6 @@ paths:
       responses:
         '200':
           description: Successful Request
-          schema:
-            $ref: '#/definitions/VersionResponse'
   '/admin/{version}/pauseSubmission':
     post:
       operationId: adminPauseSubmission
@@ -705,8 +703,6 @@ paths:
       responses:
         '200':
           description: Successful Request
-          schema:
-            $ref: '#/definitions/VersionResponse'
   '/admin/{version}/pauseAll':
     post:
       operationId: adminPauseAll
@@ -718,8 +714,29 @@ paths:
       responses:
         '200':
           description: Successful Request
-          schema:
-            $ref: '#/definitions/VersionResponse'
+  '/admin/{version}/releaseHoldAcrossSubmission':
+    post:
+      operationId: adminReleaseHoldAcrossSubmission
+      summary: "Marks workflows currently \"On Hold\" as runnable."
+      consumes:
+      - multipart/form-data
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      - name: submissionId
+        description: The Terra submission ID to release from hold
+        required: true
+        type: string
+        in: formData
+      - name: maxReleases
+        description: The maximum number of workflows to release from hold
+        required: false
+        type: integer
+        in: formData
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
   '/admin/{version}/insertTerminalStatusInMetadata':
     post:
       operationId: updateStatusInMetadata

@@ -162,32 +162,25 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
 
   override def updateWorkflowStates(submissionId: Option[String],
                                     fromWorkflowState: Option[String],
-                                    toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = {
-    (submissionId, fromWorkflowState) match {
-      case (None, None) =>
-        val action = for {
-          updated <- dataAccess.workflowStateAccesserForEverything(toWorkflowState)
-            .update(toWorkflowState)
-        } yield updated
-        runTransaction(action)
-      case (Some(submission), None) =>
-        val action = for {
-          updated <- dataAccess.workflowStateAccesserForSubmission((s"%$submission%", toWorkflowState))
-            .update(toWorkflowState)
-        } yield updated
-        runTransaction(action)
-      case (None, Some(fromState)) =>
-        val action = for {
-          updated <-  dataAccess.workflowStateAccesserForAGivenState((fromState, toWorkflowState))
-            .update(toWorkflowState)
-        } yield updated
-        runTransaction(action)
-      case (Some(submission), Some(fromState)) =>
-        val action = for {
-          updated <- dataAccess.workflowStateAccesserForSubmissionAndState((s"%$submission%", fromState, toWorkflowState))
-            .update(toWorkflowState)
-        } yield updated
-        runTransaction(action)
-    }
+                                    toWorkflowState: String,
+                                    maxChanges: Long)(implicit ec: ExecutionContext): Future[Int] = {
+
+    def updateStateByEntryId(id: Int) = for {
+      updated <- dataAccess
+        .workflowStateForStoreEntryId(id)
+          .update(toWorkflowState)
+    } yield updated
+
+    val action = for {
+      workflowStoreEntries <- dataAccess.selectSubmissionWorkflowsForUpdate(submissionId, fromWorkflowState, toWorkflowState, maxChanges).result
+      //          workflowStoreEntries <- dataAccess.workflowStateAccesserForEverything((toWorkflowState, maxChanges)).result
+      _ = println(s"Found ${workflowStoreEntries.size} results")
+      updated <- DBIO.sequence(
+        workflowStoreEntries map { entry =>
+          println(s"Updating: ${entry.workflowStoreEntryId}")
+          updateStateByEntryId(entry.workflowStoreEntryId.get) }
+      )
+    } yield updated.sum
+    runTransaction(action)
   }
 }

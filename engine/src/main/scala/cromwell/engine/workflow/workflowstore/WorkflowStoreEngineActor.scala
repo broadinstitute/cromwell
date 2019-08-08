@@ -170,13 +170,19 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
           case t => sndr ! ListSubmissionsResponseFailure(t)
         }
       case PauseSubmission(submissionId) =>
-        store.updateWorkflowStates(submissionId = Option(submissionId.toString), fromWorkflowState = None, toWorkflowState = WorkflowStoreState.OnHold.toString) map {
+        store.updateWorkflowStates(submissionId = Option(submissionId.toString), fromWorkflowState = None, toWorkflowState = WorkflowStoreState.OnHold.toString, maxChanges = None) map {
           result => sndr ! PauseResponseSuccess(result)
         } recover {
           case t => sndr ! PauseResponseFailure(t)
         }
       case PauseAll =>
-        store.updateWorkflowStates(submissionId = None, fromWorkflowState = None, toWorkflowState = WorkflowStoreState.OnHold.toString) map {
+        store.updateWorkflowStates(submissionId = None, fromWorkflowState = None, toWorkflowState = WorkflowStoreState.OnHold.toString, maxChanges = None) map {
+          result => sndr ! PauseResponseSuccess(result)
+        } recover {
+          case t => sndr ! PauseResponseFailure(t)
+        }
+      case ReleaseHoldOnSubmission(submissionId, maxReleases) =>
+        store.updateWorkflowStates(submissionId = Option(submissionId.toString), fromWorkflowState = Option(WorkflowStoreState.OnHold.toString), toWorkflowState = WorkflowStoreState.Running.toString, maxChanges = maxReleases) map {
           result => sndr ! PauseResponseSuccess(result)
         } recover {
           case t => sndr ! PauseResponseFailure(t)

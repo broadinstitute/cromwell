@@ -195,50 +195,35 @@ trait WorkflowStoreEntryComponent {
 
   val allWorkflowStoreEntries = workflowStoreEntries
 
-  val workflowStateAccesserForSubmissionAndState = Compiled(
-    (submissionId: Rep[String],
-     fromState: Rep[String],
-     excludeState: Rep[String]) => {
-
-      for {
-        workflowStoreEntry <- workflowStoreEntries
-        if clobToString(workflowStoreEntry.customLabels) like submissionId
-        if workflowStoreEntry.workflowState === fromState
-        if workflowStoreEntry.workflowState =!= excludeState
-      } yield workflowStoreEntry.workflowState
-    }
+  val workflowStateForStoreEntryId = Compiled(
+    (storeEntryId: Rep[Int]) => for {
+      workflowStoreEntry <- workflowStoreEntries
+      if workflowStoreEntry.workflowStoreEntryId === storeEntryId
+    } yield workflowStoreEntry.workflowState
   )
 
-  val workflowStateAccesserForSubmission = Compiled(
-    (submissionId: Rep[String],
-     excludeState: Rep[String]) => {
+  def selectSubmissionWorkflowsForUpdate(submission: Option[String],
+                                         fromState: Option[String],
+                                         excludeState: String,
+                                         limit: Long) = {
 
-      for {
-        workflowStoreEntry <- workflowStoreEntries
-        if clobToString(workflowStoreEntry.customLabels) like submissionId
-        if workflowStoreEntry.workflowState =!= excludeState
-      } yield workflowStoreEntry.workflowState
+    def submissionRequirement(workflowStoreEntry: WorkflowStoreEntries) = submission match {
+      case Some(sub) => clobToString(workflowStoreEntry.customLabels) like s"%$sub%"
+      case None => true: Rep[Boolean]
     }
-  )
 
-  val workflowStateAccesserForAGivenState = Compiled(
-    (fromState: Rep[String],
-     excludeState: Rep[String]) => {
-
-      for {
-        workflowStoreEntry <- workflowStoreEntries
-        if workflowStoreEntry.workflowState === fromState
-        if workflowStoreEntry.workflowState =!= excludeState
-      } yield workflowStoreEntry.workflowState
+    def fromStateRequirement(workflowStoreEntry: WorkflowStoreEntries) = fromState match {
+      case Some(from) => workflowStoreEntry.workflowState === from
+      case None => true: Rep[Boolean]
     }
-  )
 
-  val workflowStateAccesserForEverything = Compiled(
-    (excludeState: Rep[String]) => {
-      for {
-        workflowStoreEntry <- workflowStoreEntries
-        if workflowStoreEntry.workflowState =!= excludeState
-      } yield workflowStoreEntry.workflowState
-    }
-  )
+    val row = for {
+      workflowStoreEntry <- workflowStoreEntries
+      if submissionRequirement(workflowStoreEntry)
+      if fromStateRequirement(workflowStoreEntry)
+      if workflowStoreEntry.workflowState =!= excludeState
+    } yield workflowStoreEntry
+
+    row.forUpdate.take(limit)
+  }
 }

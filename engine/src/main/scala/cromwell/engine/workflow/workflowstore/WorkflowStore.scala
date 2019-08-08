@@ -48,7 +48,7 @@ trait WorkflowStore {
 
   def listSubmissions(implicit ec: ExecutionContext): Future[List[WorkflowsBySubmissionId]]
 
-  def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String)
+  def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String, maxChanges: Option[Long])
                           (implicit ec: ExecutionContext): Future[Int]
 
 }

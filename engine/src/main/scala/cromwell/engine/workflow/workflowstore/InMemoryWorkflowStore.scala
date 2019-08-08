@@ -90,7 +90,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def listSubmissions(implicit ec: ExecutionContext): Future[List[WorkflowsBySubmissionId]]= Future.successful(List.empty)
 
-  override def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String)(implicit ec: ExecutionContext): Future[Int] = ???
+  override def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String, maxChanges: Option[Long])(implicit ec: ExecutionContext): Future[Int] = ???
 
 }
 

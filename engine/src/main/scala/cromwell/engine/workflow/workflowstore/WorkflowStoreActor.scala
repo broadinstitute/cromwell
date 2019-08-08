@@ -90,6 +90,7 @@ object WorkflowStoreActor {
 
   final case class PauseSubmission(submissionId: UUID) extends WorkflowStoreActorEngineCommand
   case object PauseAll extends WorkflowStoreActorEngineCommand
+  final case class ReleaseHoldOnSubmission(submissionId: UUID, maxReleases: Option[Long]) extends WorkflowStoreActorEngineCommand
 
   sealed trait PauseSubmissionResponse extends WorkflowStoreActorEngineResponse
   case class PauseResponseSuccess(updated: Int) extends PauseSubmissionResponse

@@ -15,6 +15,11 @@ trait Localization {
   def localizeActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])(implicit localizationConfiguration: LocalizationConfiguration) = {
     val localizationLabel = Map(Key.Tag -> Value.Localization)
 
+    val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+    val localizeGcsTransferLibrary = cloudSdkShellAction(localizeFile(
+      cloudPath = createPipelineParameters.cloudCallRoot / GcsTransferLibraryName,
+      containerPath = gcsTransferLibraryContainerPath))(mounts = mounts, labels = localizationLabel)
+
     val gcsLocalizationContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsLocalizationScriptName)
     val localizeGcsLocalizationScript = cloudSdkShellAction(localizeFile(
       cloudPath = createPipelineParameters.cloudCallRoot / GcsLocalizationScriptName,
@@ -31,7 +36,11 @@ trait Localization {
     // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
     val singletonLocalizations = createPipelineParameters.inputOutputParameters.fileInputParameters.flatMap(_.toActions(mounts).toList)
 
-    val localizations = localizeGcsLocalizationScript :: runGcsLocalizationScript :: localizeGcsDelocalizationScript :: singletonLocalizations
+    val localizations =
+      localizeGcsTransferLibrary ::
+        localizeGcsLocalizationScript :: runGcsLocalizationScript ::
+        localizeGcsDelocalizationScript ::
+        singletonLocalizations
 
     ActionBuilder.annotateTimestampedActions("localization", Value.Localization)(localizations)
   }

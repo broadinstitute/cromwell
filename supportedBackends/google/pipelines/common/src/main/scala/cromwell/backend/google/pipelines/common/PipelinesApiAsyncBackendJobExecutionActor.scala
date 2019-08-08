@@ -15,6 +15,7 @@ import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
@@ -474,9 +475,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(Run(jobForResumption)), previousState = None))
   }
 
-  protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+  protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
 
-  protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+  protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                            cloudPath: Path,
+                                            transferLibraryContainerPath: Path,
+                                            localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+
+  protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                              cloudPath: Path,
+                                              transferLibraryContainerPath: Path,
+                                              localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
 
   private def createNewJob(): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
@@ -530,10 +539,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters, customLabels)
       localizationConfiguration = initializationData.papiConfiguration.papiAttributes.localizationConfiguration
+      gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
+      transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
+      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, localizationConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, localizationConfiguration)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, localizationConfiguration)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
-      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, localizationConfiguration)
+      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, localizationConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)

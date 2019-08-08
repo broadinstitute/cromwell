@@ -139,6 +139,16 @@ object MetadataService {
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
+  final case class FetchWorkflowStatusInSummary(workflowId: WorkflowId) extends ReadAction
+  case class SummaryWorkflowStatus(state: Option[String], startTime: Option[OffsetDateTime], endTime: Option[OffsetDateTime])
+  case class FetchWorkflowStatusInSummaryResponse(summaryStatus: Option[SummaryWorkflowStatus]) extends MetadataServiceResponse
+  case class FetchWorkflowStatusInSummaryFailure(reason: Throwable) extends MetadataServiceFailure
+
+  final case class FetchWorkflowStatusFromMetadata(workflowId: WorkflowId) extends ReadAction
+  case class MetadataWorkflowStatus(state: Option[String], metadataTimestamp: OffsetDateTime)
+  case class FetchWorkflowStatusFromMetadataResponse(metadataTableStatus: Option[List[MetadataWorkflowStatus]]) extends MetadataServiceResponse
+  case class FetchWorkflowStatusFromMetadataFailure(reason: Throwable) extends MetadataServiceFailure
+
   private implicit class EnhancedWomTraversable(val womValues: Traversable[WomValue]) extends AnyVal {
     def toEvents(metadataKey: MetadataKey): List[MetadataEvent] = if (womValues.isEmpty) {
       List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))

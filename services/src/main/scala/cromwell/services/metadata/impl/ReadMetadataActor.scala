@@ -2,12 +2,12 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.core.{WorkflowId, WorkflowSubmitted}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{CallMetadataKeys, MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataQuery, WorkflowQueryParameters}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object ReadMetadataActor {
@@ -30,6 +30,8 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
     case query: WorkflowQuery => queryWorkflowsAndRespond(query.parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
+    case FetchWorkflowStatusInSummary(id) => fetchWorkflowStatus(id)
+    case FetchWorkflowStatusFromMetadata(id) => fetchWorkflowStatusFromMetadata(id)
   }
 
   private def queryAndRespond(query: MetadataQuery): Unit = {
@@ -92,4 +94,34 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
     }
   }
 
+  private def fetchWorkflowStatus(workflowId: WorkflowId)(implicit ec: ExecutionContext): Unit = {
+    val sndr = sender()
+    fetchWorkflowStatusWithTime(workflowId) onComplete {
+      case Success(value) => sndr ! FetchWorkflowStatusInSummaryResponse(value)
+      case Failure(e) => sndr ! FetchWorkflowStatusInSummaryFailure(e)
+    }
+  }
+
+  private def fetchWorkflowStatusFromMetadata(workflowId: WorkflowId)(implicit ec: ExecutionContext): Unit = {
+    def convertMetadataEventToWorkflowStatus(events: List[MetadataEvent]): List[MetadataWorkflowStatus] = {
+      events.map(e => MetadataWorkflowStatus(e.value.map(_.value), e.offsetDateTime))
+    }
+
+    val sndr = sender()
+    val query = MetadataQuery(
+      workflowId = workflowId,
+      jobKey = None,
+      key = Option(WorkflowMetadataKeys.Status),
+      includeKeysOption = None,
+      excludeKeysOption = None,
+      expandSubWorkflows = false
+    )
+    queryMetadataEvents(query) onComplete {
+      case Success(m) => {
+        val resp = if (m.nonEmpty) Option(convertMetadataEventToWorkflowStatus(m.toList)) else None
+        sndr ! FetchWorkflowStatusFromMetadataResponse(resp)
+      }
+      case Failure(t) => sndr ! FetchWorkflowStatusFromMetadataFailure(t)
+    }
+  }
 }

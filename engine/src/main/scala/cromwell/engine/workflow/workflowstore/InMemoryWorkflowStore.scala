@@ -7,6 +7,7 @@ import cromwell.core.{HogGroup, WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState, WorkflowSubmissionResponse, WorkflowsBySubmissionId}
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWorkflowStatus
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -92,6 +93,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String, maxChanges: Option[Long])(implicit ec: ExecutionContext): Future[Int] = ???
 
+  override def fetchWorkflowStatus(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowStoreWorkflowStatus]] = ???
 }
 
 final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

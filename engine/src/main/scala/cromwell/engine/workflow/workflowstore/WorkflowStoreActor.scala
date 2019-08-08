@@ -96,6 +96,14 @@ object WorkflowStoreActor {
   case class PauseResponseSuccess(updated: Int) extends PauseSubmissionResponse
   case class PauseResponseFailure(reason: Throwable) extends PauseSubmissionResponse
 
+  final case class FetchWorkflowStatus(workflowId: WorkflowId) extends WorkflowStoreActorEngineCommand
+
+  case class WorkflowStoreWorkflowStatus(state: String, submissionTime: OffsetDateTime)
+
+  sealed trait FetchWorkflowStatusResponse extends WorkflowStoreActorEngineResponse
+  case class FetchWorkflowStatusResponseSuccess(workflowStoreStatus: Option[WorkflowStoreWorkflowStatus]) extends FetchWorkflowStatusResponse
+  case class FetchWorkflowStatusResponseFailure(reason: Throwable) extends FetchWorkflowStatusResponse
+
   def props(
              workflowStoreDatabase: WorkflowStore,
              workflowStoreAccess: WorkflowStoreAccess,

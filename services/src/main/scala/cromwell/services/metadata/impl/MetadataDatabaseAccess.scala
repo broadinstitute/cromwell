@@ -11,7 +11,7 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.MetadataServicesStore
-import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
+import cromwell.services.metadata.MetadataService.{QueryMetadata, SummaryWorkflowStatus, WorkflowQueryResponse}
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import mouse.boolean._
@@ -286,5 +286,14 @@ trait MetadataDatabaseAccess {
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
 
+  }
+
+  def fetchWorkflowStatusWithTime(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[SummaryWorkflowStatus]] = {
+    metadataDatabaseInterface.fetchWorkflowStatusWithTime(workflowId.toString).map(_.map(s =>
+      SummaryWorkflowStatus(
+        s.workflowStatus,
+        s.startTimestamp map {_.toSystemOffsetDateTime},
+        s.endTimestamp map {_.toSystemOffsetDateTime}
+      )))
   }
 }

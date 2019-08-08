@@ -711,6 +711,15 @@ paths:
       - $ref: '#/parameters/versionParam'
       tags:
       - Admin
+  '/admin/{version}/{id}/workflowStatuses':
+    get:
+      operationId: workflowStatuses
+      summary: Return the status of workflow in WORKFLOW_STORE_ENTRY, METADATA_ENTRY and WORKFLOW_METADATA_SUMMARY_ENTRY tables
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Admin
       responses:
         '200':
           description: Successful Request

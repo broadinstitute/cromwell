@@ -187,6 +187,12 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
         } recover {
           case t => sndr ! PauseResponseFailure(t)
         }
+      case FetchWorkflowStatus(workflowId) =>
+        store.fetchWorkflowStatus(workflowId) map { res =>
+          sndr ! FetchWorkflowStatusResponseSuccess(res)
+        } recover {
+          case t => sndr ! FetchWorkflowStatusResponseFailure(t)
+        }
       case oops =>
         log.error("Unexpected type of start work command: {}", oops.getClass.getSimpleName)
         Future.successful(self ! WorkDone)

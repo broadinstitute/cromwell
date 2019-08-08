@@ -8,7 +8,7 @@ import common.collections.EnhancedCollections._
 import cromwell.webservice.metadata.MetadataComponent._
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.ExecutionIndex.ExecutionIndex
-import cromwell.core._
+import cromwell.core.{WorkflowMetadataKeys, _}
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
@@ -29,6 +29,8 @@ object MetadataBuilderActor {
   case object Idle extends MetadataBuilderActorState
   case object WaitingForMetadataService extends MetadataBuilderActorState
   case object WaitingForSubWorkflows extends MetadataBuilderActorState
+
+  sealed trait FetchWorkflowStatusInSummaryMetadata extends MetadataBuilderActorResponse
 
   case class MetadataBuilderActorData(
                                        originalQuery: MetadataQuery,
@@ -234,6 +236,12 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
       target ! BuiltMetadataResponse(workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))
       allDone
     case Event(MetadataLookupResponse(query, metadata), None) => processMetadataResponse(query, metadata)
+    case Event(FetchWorkflowStatusInSummaryResponse(summaryStatus), _) =>
+      target ! BuiltMetadataResponse(processFetchStatusResponse(summaryStatus))
+      allDone
+    case Event(FetchWorkflowStatusFromMetadataResponse(metadataTableStatus), _) =>
+      target ! BuiltMetadataResponse(processFetchStatusFromMetadataResponse(metadataTableStatus))
+      allDone
     case Event(_: ServiceRegistryFailure, _) =>
       target ! FailedMetadataResponse(new RuntimeException("Can't find metadata service"))
       allDone
@@ -335,10 +343,47 @@ class MetadataBuilderActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Me
     ))
   }
 
+  def processFetchStatusResponse(summaryStatusOption: Option[SummaryWorkflowStatus]): JsObject = {
+
+    def summaryStatusResponseToJson(summaryStatus: SummaryWorkflowStatus) = {
+      JsObject(Map(
+        WorkflowMetadataKeys.Status -> JsString(summaryStatus.state.getOrElse("null")),
+        WorkflowMetadataKeys.StartTime -> JsString(optionDateToString(summaryStatus.startTime)),
+        WorkflowMetadataKeys.EndTime -> JsString(optionDateToString(summaryStatus.endTime)),
+      ))
+    }
+
+    summaryStatusOption match {
+      case Some(s) => summaryStatusResponseToJson(s)
+      case None => JsObject.empty
+    }
+  }
+
+  def processFetchStatusFromMetadataResponse(metadataStatusOption: Option[List[MetadataWorkflowStatus]]): JsObject = {
+    def singleMetadataStatusResponseToJson(metadataStatus: MetadataWorkflowStatus) = {
+      JsObject(Map(
+        WorkflowMetadataKeys.Status -> JsString(metadataStatus.state.getOrElse("null")),
+        "metadataTimestamp" -> JsString(metadataStatus.metadataTimestamp.toString)
+      ))
+    }
+
+    metadataStatusOption match {
+      case Some(list) => JsObject(Map("statuses" -> JsArray(list.toVector.map(singleMetadataStatusResponseToJson))))
+      case None => JsObject.empty
+    }
+  }
+
   private def workflowMetadataResponse(workflowId: WorkflowId,
                                        eventsList: Seq[MetadataEvent],
                                        includeCallsIfEmpty: Boolean,
                                        expandedValues: Map[String, JsValue]): JsObject = {
     JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty, expandedValues)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+  }
+
+  private def optionDateToString(date: Option[OffsetDateTime]) = {
+    date match {
+      case Some(d) => d.toString
+      case None => "null"
+    }
   }
 }

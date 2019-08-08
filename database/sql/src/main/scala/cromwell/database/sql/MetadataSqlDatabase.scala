@@ -131,4 +131,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              endTimestampOption: Option[Timestamp],
                              includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
+
+  def fetchWorkflowStatusWithTime(workflowId: String)(implicit ec: ExecutionContext): Future[Option[WorkflowMetadataSummaryEntry]]
 }

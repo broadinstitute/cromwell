@@ -108,4 +108,6 @@ ____    __    ____  ______   .______       __  ___  _______  __        ______   
 
   def updateWorkflowStates(submissionId: Option[String], fromWorkflowState: Option[String], toWorkflowState: String, maxChanges: Long)
                          (implicit ec: ExecutionContext): Future[Int]
+
+  def workflowStateForWorkflowExecutionUUid(workflowId: String)(implicit ec: ExecutionContext): Future[Option[(String, Timestamp)]]
 }

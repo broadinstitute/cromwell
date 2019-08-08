@@ -183,4 +183,8 @@ trait WorkflowStoreSlickDatabase extends WorkflowStoreSqlDatabase {
     } yield updated.sum
     runTransaction(action)
   }
+
+  override def workflowStateForWorkflowExecutionUUid(workflowId: String)(implicit ec: ExecutionContext): Future[Option[(String, Timestamp)]] = {
+    runTransaction(dataAccess.workflowStateAndTimestampForWorkflowExecutionUUid(workflowId).result.headOption)
+  }
 }

@@ -358,4 +358,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows)
     runTransaction(action)
   }
+
+  override def fetchWorkflowStatusWithTime(workflowId: String)(implicit ec: ExecutionContext): Future[Option[WorkflowMetadataSummaryEntry]] = {
+    runTransaction(dataAccess.summaryEntryForWorkflowExecutionUuid(workflowId).result.headOption)
+  }
 }

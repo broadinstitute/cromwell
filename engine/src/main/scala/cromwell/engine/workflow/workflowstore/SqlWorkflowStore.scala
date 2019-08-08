@@ -13,6 +13,7 @@ import cromwell.database.sql.tables.WorkflowStoreEntry
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore._
+import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWorkflowStatus
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection._
 
@@ -180,6 +181,11 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
                                     toWorkflowState: String,
                                     maxChanges: Option[Long])(implicit ec: ExecutionContext): Future[Int] = {
     sqlDatabase.updateWorkflowStates(submissionId, fromWorkflowState, toWorkflowState, maxChanges.getOrElse(Long.MaxValue))
+  }
+
+  def fetchWorkflowStatus(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Option[WorkflowStoreWorkflowStatus]] = {
+    sqlDatabase.workflowStateForWorkflowExecutionUUid(workflowId.toString).map(_.map( s =>
+      WorkflowStoreWorkflowStatus(s._1, s._2.toSystemOffsetDateTime)))
   }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {

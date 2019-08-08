@@ -3,6 +3,7 @@ package cromwell.webservice.routes
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorRefFactory}
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{Multipart, StatusCodes}
 import akka.http.scaladsl.server.Directives.{post, _}
 import akka.pattern.ask
@@ -12,19 +13,22 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowAndState, WorkflowsBySubmissionId}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.MetadataService.{FetchWorkflowStatusFromMetadata, FetchWorkflowStatusInSummary, PutMetadataAction}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
+import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException}
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
 import io.circe.Encoder
 import io.circe.generic.semiauto.deriveEncoder
 import io.circe.syntax._
+import spray.json.{JsObject, JsString}
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
 
-trait AdminRouteSupport extends WebServiceUtils {
+trait AdminRouteSupport extends WebServiceUtils with MetadataRouteSupport {
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val ec: ExecutionContext
@@ -39,6 +43,9 @@ trait AdminRouteSupport extends WebServiceUtils {
   implicit val listSubmissionsEncoder: Encoder[ListSubmissionsResponseSuccess] = deriveEncoder[ListSubmissionsResponseSuccess]
 
   implicit val pauseResponseEncoder: Encoder[PauseResponseSuccess] = deriveEncoder[PauseResponseSuccess]
+
+  implicit val workflowStatusEncoder: Encoder[WorkflowStoreWorkflowStatus] = deriveEncoder[WorkflowStoreWorkflowStatus]
+  implicit val fetchStatusResponseEncoder: Encoder[FetchWorkflowStatusResponseSuccess] = deriveEncoder[FetchWorkflowStatusResponseSuccess]
 
   val adminRoutes = concat(
     path("admin" / Segment / "listSubmissions") { _ =>
@@ -71,16 +78,16 @@ trait AdminRouteSupport extends WebServiceUtils {
     },
     path("admin" / Segment / "pauseAll") { _ =>
       post {
-          val pauseProcess = workflowStoreActor.ask(PauseAll).mapTo[PauseSubmissionResponse]
+        val pauseProcess = workflowStoreActor.ask(PauseAll).mapTo[PauseSubmissionResponse]
 
-          onComplete(pauseProcess) {
-            case Success(resp: PauseResponseSuccess) =>
-              complete(resp.asJson)
-            case Success(response: PauseResponseFailure) =>
-              new Exception(response.reason).failRequest(StatusCodes.InternalServerError)
-            case Failure(e) =>
-              e.failRequest(StatusCodes.InternalServerError)
-          }
+        onComplete(pauseProcess) {
+          case Success(resp: PauseResponseSuccess) =>
+            complete(resp.asJson)
+          case Success(response: PauseResponseFailure) =>
+            new Exception(response.reason).failRequest(StatusCodes.InternalServerError)
+          case Failure(e) =>
+            e.failRequest(StatusCodes.InternalServerError)
+        }
       }
     },
     path("admin" / Segment / "releaseHoldAcrossSubmission") { _ =>
@@ -99,6 +106,33 @@ trait AdminRouteSupport extends WebServiceUtils {
             case Failure(e) =>
               e.failRequest(StatusCodes.InternalServerError)
           }
+        }
+      }
+    },
+    path("admin" / Segment / Segment / "workflowStatuses") { (_, possibleWorkflowId) =>
+      get {
+        val allResponses = for {
+          workflowId <- CromwellApiService.validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor)
+          responseA <- workflowStoreActor.ask(FetchWorkflowStatus(workflowId)).mapTo[FetchWorkflowStatusResponse]
+          responseB <- metadataBuilderRegulatorActor.ask(FetchWorkflowStatusInSummary(workflowId)).mapTo[MetadataBuilderActorResponse]
+          responseC <- metadataBuilderRegulatorActor.ask(FetchWorkflowStatusFromMetadata(workflowId)).mapTo[MetadataBuilderActorResponse]
+        } yield (responseA, responseB, responseC)
+
+        onComplete(allResponses) {
+          case Success((a, b, c)) => {
+            (a, b, c) match {
+              case (r1: FetchWorkflowStatusResponseSuccess, r2: BuiltMetadataResponse, r3: BuiltMetadataResponse) => {
+                val workflowStoreJsObject: JsObject = convertWorkflowStoreStatusToJsObject(r1.workflowStoreStatus)
+                complete(combineJsObjects(workflowStoreJsObject, r2.response, r3.response))
+              }
+              case (r1: FetchWorkflowStatusResponseFailure, r2: FailedMetadataResponse, r3: FailedMetadataResponse) =>
+                new Exception(r1.reason.getMessage + r2.reason.getMessage + r3.reason.getMessage).errorRequest(StatusCodes.InternalServerError)
+              case (_, _, _) => new Exception("Something went wrong!").errorRequest(StatusCodes.InternalServerError)
+            }
+          }
+          case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
+          case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
+          case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
         }
       }
     },
@@ -121,4 +155,22 @@ trait AdminRouteSupport extends WebServiceUtils {
       }
     }
   )
+
+  private def convertWorkflowStoreStatusToJsObject(statusOption: Option[WorkflowStoreWorkflowStatus]): JsObject = {
+    statusOption match {
+      case Some(s) => JsObject(Map(
+        WorkflowMetadataKeys.Status -> JsString(s.state),
+        WorkflowMetadataKeys.SubmissionTime -> JsString(s.submissionTime.toString)
+      ))
+      case None => JsObject.empty
+    }
+  }
+
+  private def combineJsObjects(js1: JsObject, js2: JsObject, js3: JsObject): JsObject = {
+    JsObject(Map(
+      "workflowStoreStatus" -> js1,
+      "summaryTableStatus" -> js2,
+      "metadataTableStatus" -> js3
+    ))
+  }
 }

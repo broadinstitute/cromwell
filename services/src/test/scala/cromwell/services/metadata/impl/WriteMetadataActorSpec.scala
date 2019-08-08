@@ -251,6 +251,8 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     }
 
     override def close(): Nothing = notImplemented()
+
+    override def fetchWorkflowStatusWithTime(workflowId: String)(implicit ec: ExecutionContext): Nothing = notImplemented()
   }
 }
 

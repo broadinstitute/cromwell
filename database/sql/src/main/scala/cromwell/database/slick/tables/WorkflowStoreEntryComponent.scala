@@ -226,4 +226,22 @@ trait WorkflowStoreEntryComponent {
 
     row.forUpdate.take(limit)
   }
+
+  val workflowStateAccesserForEverything = Compiled(
+    (excludeState: Rep[String]) => {
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowState =!= excludeState
+      } yield workflowStoreEntry.workflowState
+    }
+  )
+
+  val workflowStateAndTimestampForWorkflowExecutionUUid = Compiled(
+    (workflowId: Rep[String]) => {
+      for {
+        workflowStoreEntry <- workflowStoreEntries
+        if workflowStoreEntry.workflowExecutionUuid === workflowId
+      } yield (workflowStoreEntry.workflowState, workflowStoreEntry.submissionTime)
+    }
+  )
 }

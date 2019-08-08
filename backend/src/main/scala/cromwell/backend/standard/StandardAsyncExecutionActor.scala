@@ -263,7 +263,7 @@ trait StandardAsyncExecutionActor
   }
 
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
-  def scriptPreamble: String = """trap "{echo 1 > rc; echo Killed by scheduler. >&2; }" SIGINT SIGTERM """
+  def scriptPreamble: String = """trap "{ echo 1 > rc; echo Killed by scheduler. >&2; }" SIGINT SIGTERM """
 
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
@@ -373,10 +373,8 @@ trait StandardAsyncExecutionActor
         |export _JAVA_OPTIONS=-Djava.io.tmpdir="$$tmpDir"
         |export TMPDIR="$$tmpDir"
         |export HOME="$home"
-        |(
         |cd $cwd
         |SCRIPT_PREAMBLE
-        |)
         |$out="$${tmpDir}/out.$$$$" $err="$${tmpDir}/err.$$$$"
         |mkfifo "$$$out" "$$$err"
         |trap 'rm "$$$out" "$$$err"' EXIT

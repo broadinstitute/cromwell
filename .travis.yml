@@ -4,7 +4,7 @@ services:
   - docker
 language: scala
 scala:
-  - 2.12.6
+  - 2.12.9
 jdk:
   - oraclejdk8
 cache:

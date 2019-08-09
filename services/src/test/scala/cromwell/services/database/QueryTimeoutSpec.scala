@@ -59,7 +59,6 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures {
   }
 }
 
-// TODO: Should be moved to cromwell.services.database with the other database test classes.
 class TestDatabase(config: Config) extends SlickDatabase(config) {
   override lazy val dataAccess: DataAccessComponent = new DataAccessComponent {
     override lazy val driver = slickConfig.profile

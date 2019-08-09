@@ -48,7 +48,7 @@ trait AdminRouteSupport extends WebServiceUtils with MetadataRouteSupport {
   implicit val fetchStatusResponseEncoder: Encoder[FetchWorkflowStatusResponseSuccess] = deriveEncoder[FetchWorkflowStatusResponseSuccess]
 
   val adminRoutes = concat(
-    path("api"/ "admin" / Segment / "listSubmissions") { _ =>
+    path("admin" / Segment / "listSubmissions") { _ =>
       onComplete(workflowStoreActor.ask(ListSubmissions).mapTo[ListSubmissionsResponse]) {
         case Success(response: ListSubmissionsResponseSuccess) =>
           complete(response.asJson)
@@ -58,7 +58,7 @@ trait AdminRouteSupport extends WebServiceUtils with MetadataRouteSupport {
           e.failRequest(StatusCodes.InternalServerError)
       }
     },
-    path("api"/ "admin" / Segment / "pauseSubmission") { _ =>
+    path("admin" / Segment / "pauseSubmission") { _ =>
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           val pauseProcess = materializeFormData(formData) flatMap { args =>
@@ -76,7 +76,7 @@ trait AdminRouteSupport extends WebServiceUtils with MetadataRouteSupport {
         }
       }
     },
-    path("api"/ "admin" / Segment / "pauseAll") { _ =>
+    path("admin" / Segment / "pauseAll") { _ =>
       post {
         val pauseProcess = workflowStoreActor.ask(PauseAll).mapTo[PauseSubmissionResponse]
 
@@ -90,7 +90,7 @@ trait AdminRouteSupport extends WebServiceUtils with MetadataRouteSupport {
         }
       }
     },
-    path("api"/ "admin" / Segment / "releaseHoldAcrossSubmission") { _ =>
+    path("admin" / Segment / "releaseHoldAcrossSubmission") { _ =>
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           val pauseProcess = materializeFormData(formData) flatMap { args =>
@@ -136,7 +136,7 @@ trait AdminRouteSupport extends WebServiceUtils with MetadataRouteSupport {
         }
       }
     },
-    path("api"/ "admin" / Segment / "insertTerminalStatusInMetadata") { _ =>
+    path("admin" / Segment / "insertTerminalStatusInMetadata") { _ =>
       post {
         entity(as[Multipart.FormData]) { formData: Multipart.FormData =>
           val futureResult = materializeFormData(formData) map { args =>

@@ -26,7 +26,7 @@ trait AdminRouteSupport extends RequestSupport {
     }
   }
 
-  val getAdminRoutes = List("listSubmissions")
+  val getAdminRoutes = List("listSubmissions", "workflowStatuses")
   val postAdminRoutes = List("pauseSubmission", "pauseAll", "releaseHoldAcrossSubmission", "insertTerminalStatusInMetadata")
 
   val adminRoutes = concat(
@@ -48,6 +48,11 @@ trait AdminRouteSupport extends RequestSupport {
     },
     path("api"/ "admin" / Segment / "releaseHoldAcrossSubmission") { _ =>
       post {
+        authenticateAdminActionAndForward()
+      }
+    },
+    path("api"/ "admin" / Segment / "workflowStatuses") { _ =>
+      get {
         authenticateAdminActionAndForward()
       }
     },

@@ -10,6 +10,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromiam.server.config.CromIamServerConfig._
 import net.ceedubs.ficus.Ficus._
+import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -18,7 +19,8 @@ final case class CromIamServerConfig(cromIamConfig: CromIamConfig,
                                      cromwellConfig: ServiceConfig,
                                      cromwellAbortConfig: ServiceConfig,
                                      samConfig: SamClientConfig,
-                                     swaggerOauthConfig: SwaggerOauthConfig)
+                                     swaggerOauthConfig: SwaggerOauthConfig,
+                                     adminWhitelist: List[WorkbenchUserId])
 
 object CromIamServerConfig {
   def getFromConfig(conf: Config): ErrorOr[CromIamServerConfig] = {
@@ -28,8 +30,9 @@ object CromIamServerConfig {
     val effectiveCromwellAbortConfig = cromwellAbortConfig.getOrElse(cromwellConfig)
     val samConfig = SamClientConfig.getFromConfig(conf, "sam")
     val googleConfig = SwaggerOauthConfig.getFromConfig(conf, "swagger_oauth")
+    val adminConfig = AdminConfig.getFromConfig(conf, basePath = "admin")
 
-    (cromIamConfig, cromwellConfig, effectiveCromwellAbortConfig, samConfig, googleConfig) mapN CromIamServerConfig.apply
+    (cromIamConfig, cromwellConfig, effectiveCromwellAbortConfig, samConfig, googleConfig, adminConfig) mapN CromIamServerConfig.apply
   }
 
   private[config] def getValidatedConfigPath[A](conf: Config, path: String, getter: (Config, String) => A, default: Option[A] = None): ErrorOr[A] = {
@@ -101,4 +104,11 @@ object SwaggerOauthConfig {
 
     (getValidatedOption("client_id"), getValidatedOption("realm"), getValidatedOption("app_name")) mapN SwaggerOauthConfig.apply
    }
+}
+
+object AdminConfig {
+  private[config] def getFromConfig(conf: Config, basePath: String): ErrorOr[List[WorkbenchUserId]] = {
+    def validatedAdminList = conf.getValidatedStringList(s"$basePath.whitelist")
+    validatedAdminList map { _.map(WorkbenchUserId.apply) }
+  }
 }

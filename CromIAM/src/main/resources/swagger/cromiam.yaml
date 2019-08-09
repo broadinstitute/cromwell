@@ -875,6 +875,92 @@ paths:
               description: At least one subsystem does not have an "ok" status
               schema:
                 $ref: '#/definitions/StatusResponse'
+  '/api/admin/{version}/listSubmissions':
+    get:
+      operationId: listSubmissions
+      summary: Returns a list of submissions containing the submission ID, workflow ID and it's status
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
+  '/api/admin/{version}/pauseSubmission':
+    post:
+      operationId: adminPauseSubmission
+      summary: "Set all workflows for a submission in the workflow store to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."
+      consumes:
+      - multipart/form-data
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      - name: submissionId
+        description: The Terra submission ID to place on hold
+        required: true
+        type: string
+        in: formData
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
+  '/api/admin/{version}/pauseAll':
+    post:
+      operationId: adminPauseAll
+      summary: "Set all workflows to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
+  '/api/admin/{version}/releaseHoldAcrossSubmission':
+    post:
+      operationId: adminReleaseHoldAcrossSubmission
+      summary: "Marks workflows currently \"On Hold\" as runnable."
+      consumes:
+      - multipart/form-data
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      - name: submissionId
+        description: The Terra submission ID to release from hold
+        required: true
+        type: string
+        in: formData
+      - name: maxReleases
+        description: The maximum number of workflows to release from hold
+        required: false
+        type: integer
+        in: formData
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
+  '/api/admin/{version}/insertTerminalStatusInMetadata':
+    post:
+      operationId: updateStatusInMetadata
+      summary: Inserts a new entry in the METADATA_ENTRY table with updated terminal workflow status for a given workflow ID
+      consumes:
+      - multipart/form-data
+      parameters:
+      - $ref: '#/parameters/versionParam'
+      - name: id
+        required: true
+        in: formData
+        type: string
+        collectionFormat: multi
+        pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+        description: Workflow ID
+      - $ref: '#/parameters/terminalWorkflowStatusParam'
+      tags:
+      - Admin
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/VersionResponse'
 
 responses:
   BadRequest:
@@ -906,6 +992,13 @@ parameters:
     type: string
     in: path
     default: v1 # This really should be an enum but swagger-ui seems to not like it
+  terminalWorkflowStatusParam:
+    name: terminalWorkflowStatus
+    description: Terminal workflow statuses
+    required: true
+    type: string
+    enum: [Aborted, Failed, Succeeded]
+    in: formData
 
 definitions:
   WorkflowSubmitResponse:

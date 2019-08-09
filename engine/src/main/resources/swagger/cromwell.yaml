@@ -674,7 +674,7 @@ paths:
           description: At least one subsystem does not have an "ok" status
           schema:
             $ref: '#/definitions/StatusResponse'
-  '/admin/{version}/listSubmissions':
+  '/api/admin/{version}/listSubmissions':
     get:
       operationId: listSubmissions
       summary: Returns a list of submissions containing the submission ID, workflow ID and it's status
@@ -685,7 +685,7 @@ paths:
       responses:
         '200':
           description: Successful Request
-  '/admin/{version}/pauseSubmission':
+  '/api/admin/{version}/pauseSubmission':
     post:
       operationId: adminPauseSubmission
       summary: "Set all workflows for a submission in the workflow store to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."
@@ -703,7 +703,7 @@ paths:
       responses:
         '200':
           description: Successful Request
-  '/admin/{version}/pauseAll':
+  '/api/admin/{version}/pauseAll':
     post:
       operationId: adminPauseAll
       summary: "Set all workflows to the \"On Hold\" state. Warning: Does *NOT* affect engine operation."
@@ -723,7 +723,7 @@ paths:
       responses:
         '200':
           description: Successful Request
-  '/admin/{version}/releaseHoldAcrossSubmission':
+  '/api/admin/{version}/releaseHoldAcrossSubmission':
     post:
       operationId: adminReleaseHoldAcrossSubmission
       summary: "Marks workflows currently \"On Hold\" as runnable."
@@ -746,7 +746,7 @@ paths:
       responses:
         '200':
           description: Successful Request
-  '/admin/{version}/insertTerminalStatusInMetadata':
+  '/api/admin/{version}/insertTerminalStatusInMetadata':
     post:
       operationId: updateStatusInMetadata
       summary: Inserts a new entry in the METADATA_ENTRY table with updated terminal workflow status for a given workflow ID

@@ -522,9 +522,9 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "com.iheart" %% "ficus" % ficusV
-  ) ++ akkaHttpDependencies ++ circeDependencies ++ catsDependencies ++ akkaHttpCirceIntegrationDependency ++
-    slf4jBindingDependencies
+    "com.iheart" %% "ficus" % ficusV,
+    "com.softwaremill.sttp" %% "circe" % sttpV
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
   val allProjectDependencies =
     backendDependencies ++

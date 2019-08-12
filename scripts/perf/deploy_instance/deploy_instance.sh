@@ -42,9 +42,7 @@ gcloud_run_as_service_account "perf_deploy_instance_${BUILD_NUMBER}" \
     --metadata \
         $(join ${metadata[@]})" | tee dockerResult.txt
 
-AWK_STRING_PREFIX='{print$'
-AWK_STRING_SUFFIX='}'
-AWK_STRING="${AWK_STRING_PREFIX}${FIELD_NO_TO_RETURN}${AWK_STRING_SUFFIX}"
+AWK_STRING="'""{print \$${FIELD_NO_TO_RETURN}}""'"
 
 typeset CROMWELL_UNDER_TEST=$(cat dockerResult.txt | tail -n1 | awk '{print $5}' )
 typeset CROMWELL_VALUE_TO_RETURN=$(cat dockerResult.txt | tail -n1 | awk ${AWK_STRING} )

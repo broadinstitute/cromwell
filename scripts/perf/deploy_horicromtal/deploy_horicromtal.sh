@@ -68,9 +68,7 @@ gcloud_deploy_instance \
    "${INSTANCE_TEMPLATE}" \
    "$(join ${reader_metadata[@]})" | tee reader1.txt
 
-AWK_STRING_PREFIX='{print$'
-AWK_STRING_SUFFIX='}'
-AWK_STRING="${AWK_STRING_PREFIX}${FIELD_NO_TO_RETURN}${AWK_STRING_SUFFIX}"
+AWK_STRING="'""{print \$${FIELD_NO_TO_RETURN}}""'"
 
 typeset RUNNER_UNDER_TEST_1=$(cat runner1.txt | tail -n1 | awk '{print $5}')
 typeset RUNNER_UNDER_TEST_2=$(cat runner2.txt | tail -n1 | awk '{print $5}')

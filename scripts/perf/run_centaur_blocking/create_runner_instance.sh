@@ -24,7 +24,7 @@ metadata=(
   "TEST_CASE_DIRECTORY=${TEST_CASE_DIRECTORY}"
 )
 
-# NB: The 'cromwell-perf' tag is required to allow us through cromwell's firewall
+# NB: The 'cromwell-perf' tag is required to give cromwell the 'perf' firewall rules
 
 gcloud_run_as_service_account "perf_centaur_test_runner_${BUILD_NUMBER}" \
   "gcloud \

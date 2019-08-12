@@ -6,8 +6,6 @@ source scripts/perf/helper.inc.sh
 DB_PASS=$(read_path_from_vault_json "secret/dsp/cromwell/perf" '.data.db_pass')
 
 read_service_account_from_vault
-	
-function join() { local IFS=","; echo "$*"; }
 
 runner_metadata=(
   "BUILD_NUMBER=$BUILD_NUMBER"
@@ -25,6 +23,7 @@ runner_metadata=(
   "GCS_REPORT_PATH=${GCS_REPORT_PATH}"
   "GCS_REPORT_BUCKET=${GCS_REPORT_BUCKET}"
   "TEST_CASE_DIRECTORY=${TEST_CASE_DIRECTORY}"
+  "CONFIG_OVERRIDE"="-Dservices.MetadataService.config.metadata-summary-refresh-interval = \"Inf\""
 )
 
 reader_metadata=(
@@ -43,6 +42,7 @@ reader_metadata=(
   "GCS_REPORT_PATH=${GCS_REPORT_PATH}"
   "GCS_REPORT_BUCKET=${GCS_REPORT_BUCKET}"
   "TEST_CASE_DIRECTORY=reader"
+  "CONFIG_OVERRIDE"=""
 )
 
 cp scripts/perf/deploy_instance/run_on_instance.sh mnt/
@@ -58,6 +58,9 @@ gcloud_deploy_instance \
    "${CROMWELL_INSTANCE_NAME}-runner102" \
    "${INSTANCE_TEMPLATE}" \
    "$(join ${runner_metadata[@]})" | tee runner2.txt
+
+# Note: The reader_metadata currently allows the default summarizer to continue running...
+# ... that's fine as long as there's only one reader, but if we add more, we should make the "summarizer" a separate VM.
 
 gcloud_deploy_instance \
   "perf_deploy_instance_${BUILD_NUMBER}-reader101" \

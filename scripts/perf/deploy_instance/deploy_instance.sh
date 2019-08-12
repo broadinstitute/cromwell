@@ -55,7 +55,7 @@ else
   echo "Determined that CROMWELL_UNDER_TEST=${CROMWELL_UNDER_TEST}, CROMWELL_VALUE_TO_RETURN=${CROMWELL_VALUE_TO_RETURN}"
 fi
 
-custom_wait_for_cromwell
+custom_wait_for_cromwell "${CROMWELL_UNDER_TEST}"
 
 mkdir -p output
 echo "CROMWELL_UNDER_TEST=${CROMWELL_VALUE_TO_RETURN}" > output/cromwell.properties

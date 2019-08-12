@@ -84,14 +84,9 @@ else
   echo "Determined that RUNNER_UNDER_TEST_1=${RUNNER_UNDER_TEST_1}, RUNNER_UNDER_TEST_2=${RUNNER_UNDER_TEST_2}, READER_UNDER_TEST_1=${READER_UNDER_TEST_1}"
 fi
 
-CROMWELL_UNDER_TEST="${RUNNER_UNDER_TEST_1}"
-custom_wait_for_cromwell
-
-CROMWELL_UNDER_TEST="${RUNNER_UNDER_TEST_2}"
-custom_wait_for_cromwell
-
-CROMWELL_UNDER_TEST="${READER_UNDER_TEST_1}"
-custom_wait_for_cromwell
+custom_wait_for_cromwell "${RUNNER_UNDER_TEST_1}"
+custom_wait_for_cromwell "${RUNNER_UNDER_TEST_2}"
+custom_wait_for_cromwell "${READER_UNDER_TEST_1}"
 
 mkdir -p output
 echo "CROMWELL_UNDER_TEST=${CROMWELL_VALUE_TO_RETURN}" > output/cromwell.properties

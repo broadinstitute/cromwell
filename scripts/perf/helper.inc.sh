@@ -42,17 +42,19 @@ custom_wait_for_cromwell() {
 
   set +e
 
+  local cromwell_under_test=$1
+
   RESULT=1
   ATTEMPTS=0
   MAX_ATTEMPTS=20
 
   while [ "${ATTEMPTS}" -le "${MAX_ATTEMPTS}" -a "${RESULT}" -gt "0" ]
   do
-    echo "[$(date)] Waiting for Cromwell (http://${CROMWELL_UNDER_TEST}:8000/engine/v1/version) to come up (tried ${ATTEMPTS} times so far)"
+    echo "[$(date)] Waiting for Cromwell (http://${cromwell_under_test}:8000/engine/v1/version) to come up (tried ${ATTEMPTS} times so far)"
     sleep 30
     ATTEMPTS=$((ATTEMPTS + 1))
 
-    CROMWELL_VERSION_JSON=$(curl -X GET "http://${CROMWELL_UNDER_TEST}:8000/engine/v1/version" -H "accept: application/json")
+    CROMWELL_VERSION_JSON=$(curl -X GET "http://${cromwell_under_test}:8000/engine/v1/version" -H "accept: application/json")
     RESULT=$?
 
     CROMWELL_VERSION=$(echo "${CROMWELL_VERSION_JSON}" | jq -r '.cromwell')

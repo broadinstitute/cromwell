@@ -523,7 +523,8 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "com.iheart" %% "ficus" % ficusV
-  ) ++ akkaHttpDependencies ++ circeDependencies ++ catsDependencies ++ akkaHttpCirceIntegrationDependency
+  ) ++ akkaHttpDependencies ++ circeDependencies ++ catsDependencies ++ akkaHttpCirceIntegrationDependency ++
+    slf4jBindingDependencies
 
   val allProjectDependencies =
     backendDependencies ++

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Set some global constants:
-typeset GCS_BUCKET=gs://cromwell-perf-test/
+typeset CROMWELL_EXECUTION_BUCKET=gs://cromwell-perf-test/
 
 typeset DOCKER_ETC_PATH="/usr/share/etc"
 typeset CROMWELL_PERF_PROJECT=broad-dsde-cromwell-perf

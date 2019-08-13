@@ -66,7 +66,9 @@ object Validation {
       Either.fromTry(t).leftMap { ex => NonEmptyList.one(throwableToStringFunction(ex)) }
     }
 
-    def toCheckedWithContext(context: String, throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
+    def toCheckedWithContext(context: String): Checked[A] = toErrorOrWithContext(context, defaultThrowableToString).toEither
+    def toCheckedWithContext(context: String,
+                             throwableToStringFunction: ThrowableToStringFunction): Checked[A] = toErrorOrWithContext(context, throwableToStringFunction).toEither
   }
 
   implicit class ValidationTry[A](val e: ErrorOr[A]) extends AnyVal {

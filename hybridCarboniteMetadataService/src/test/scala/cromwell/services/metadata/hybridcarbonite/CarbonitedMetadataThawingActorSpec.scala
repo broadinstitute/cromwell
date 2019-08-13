@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.stream.ActorMaterializer
 import akka.testkit.{TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
+import common.validation.Validation._
 import cromwell.core.io.IoContentAsStringCommand
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.{TestKitSuite, WorkflowId}
@@ -28,7 +29,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
       |    # A reference to the auth to use for storing and retrieving metadata:
       |    auth = "application-default"
       |  }
-      |}""".stripMargin))
+      |}""".stripMargin)).unsafe("Make config file")
 
   val serviceRegistryActor = TestProbe()
   val ioActor = TestProbe()

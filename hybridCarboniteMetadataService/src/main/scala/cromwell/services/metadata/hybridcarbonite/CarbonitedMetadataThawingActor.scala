@@ -22,9 +22,13 @@ final class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConf
 
   when(CarbonitedMetadataThawingActorPendingState) {
     case Event(ThawCarbonitedMetadata(workflowId), CarbonitedMetadataThawingActorPendingData) =>
-      asyncIo.contentAsStringAsync(carboniterConfig.makePath(workflowId), maxBytes = Option(30 * 1024 * 1024), failOnOverflow = true) flatMap { stringResponse =>
-        Future.fromTry(parse(stringResponse).toTry.map(GcsMetadataResponse.apply))
-      } pipeTo self
+
+      val response = for {
+        rawResponseFromIoActor <- asyncIo.contentAsStringAsync(carboniterConfig.makePath(workflowId), maxBytes = Option(30 * 1024 * 1024), failOnOverflow = true)
+        parsedResponse <- Future.fromTry(parse(rawResponseFromIoActor).toTry.map(GcsMetadataResponse.apply))
+      } yield parsedResponse
+
+      response pipeTo self
       serviceRegistry ! GetLabels(workflowId)
 
       goto(CarbonitedMetadataThawingActorRunningState) using CarbonitedMetadataThawingActorDataNothingYet(sender())

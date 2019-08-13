@@ -131,7 +131,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 
 object MetadataRouteSupport {
   def metadataLookup(possibleWorkflowId: String,
-                     request: WorkflowId => ReadAction,
+                     request: WorkflowId => MetadataReadAction,
                      serviceRegistryActor: ActorRef,
                      metadataBuilderRegulatorActor: ActorRef)
                     (implicit timeout: Timeout,
@@ -145,7 +145,7 @@ object MetadataRouteSupport {
   }
 
   def metadataBuilderActorRequest(possibleWorkflowId: String,
-                                  request: WorkflowId => ReadAction,
+                                  request: WorkflowId => MetadataReadAction,
                                   serviceRegistryActor: ActorRef,
                                   metadataBuilderRegulatorActor: ActorRef)
                                  (implicit timeout: Timeout,

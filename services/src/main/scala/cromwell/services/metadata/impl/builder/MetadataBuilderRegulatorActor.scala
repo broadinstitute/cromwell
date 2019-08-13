@@ -1,4 +1,4 @@
-package cromwell.webservice.metadata
+package cromwell.services.metadata.impl.builder
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher

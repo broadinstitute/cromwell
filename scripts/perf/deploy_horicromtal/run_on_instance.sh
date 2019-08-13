@@ -33,6 +33,7 @@ addVar BUILD_ID=$(extract_metadata BUILD_TAG)
 addVar GCS_REPORT_BUCKET=$(extract_metadata GCS_REPORT_BUCKET)
 addVar GCS_REPORT_PATH=$(extract_metadata GCS_REPORT_PATH)
 addVar TEST_CASE_DIRECTORY=$(extract_metadata TEST_CASE_DIRECTORY)
+addVar CONFIG_OVERRIDE=$(extract_metadata CONFIG_OVERRIDE)
 
 # Use the instance name as statsd prefix to avoid metrics collisions
 addVar CROMWELL_STATSD_PREFIX=${BUILD_ID}
@@ -56,6 +57,11 @@ then
 else
     echo "Using ${PERF_ROOT}/vm_scripts/cromwell as the Cromwell configuration directory"
     addVar CROMWELL_CONF_DIR="${PERF_ROOT}/vm_scripts/cromwell"
+fi
+
+if test -n "${CONFIG_OVERRIDE}"
+then
+    echo "${CONFIG_OVERRIDE}" >> "${CROMWELL_CONF_DIR}/cromwell.conf"
 fi
 
 addVar REPORT_URL="$(strip_trailing_slash "gs://${GCS_REPORT_BUCKET}/${GCS_REPORT_PATH}")"

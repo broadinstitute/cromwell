@@ -4,13 +4,9 @@
 
 ### Improved input and output transfer performance on PAPI v2
 
-Previous versions of Cromwell required two PAPI v2 actions per input or output file or directory. For large numbers of 
-inputs or outputs this was very inefficient and could cause job creation requests to fail for being excessively large.
-Cromwell 45 now consolidates transfers into a single action each for all inputs and all outputs.
+Cromwell now requires only a single PAPI "action" each for the entire localization or delocalization process, rather than two per file or directory.
+This greatly increases execution speed for jobs with large numbers of input or output files.
 In testing, total execution time for a call with 800 inputs improved from more than 70 minutes to less than 20 minutes.
-
-Transfer action consolidation also opens up possibilities for future enhancements to Cromwell to further improve
-transfer performance.
 
 ### List dependencies flag in Womtool Command Line [(#5098)](https://github.com/broadinstitute/cromwell/pull/5098)
 

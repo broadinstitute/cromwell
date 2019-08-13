@@ -24,6 +24,7 @@ object DrsLocalizerMain extends IOApp {
 
   val GcsScheme = "gs://"
   val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
+  val ExtractGcsUrlErrorMsg = "No resolved url starting with 'gs://' found from Martha response!"
 
   val CloudPlatformAuthScope = "https://www.googleapis.com/auth/cloud-platform"
   val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
@@ -48,7 +49,7 @@ object DrsLocalizerMain extends IOApp {
     val response = request.send()
 
     response.body match {
-      // non-2xx status code (https://sttp.readthedocs.io/en/latest/responses/basics.html)
+      // non-2xx status code
       case Left(error) => {
         // Extract response from Sam. Martha usually responds with 502, but the response body does contains
         // response from Sam. Extract that for a more helpful error message
@@ -74,7 +75,7 @@ object DrsLocalizerMain extends IOApp {
 
     urlOption match {
       case Some(url) => IO(url.url)
-      case None => IO.raiseError(new Exception("No resolved url starting with 'gs://' found from Martha response!"))
+      case None => IO.raiseError(new Exception(ExtractGcsUrlErrorMsg))
     }
   }
 
@@ -120,18 +121,36 @@ object DrsLocalizerMain extends IOApp {
   }
 
 
-  //args(0) - dos url
-  //args(1) - download location
-  //args(2) - martha url for now
-  override def run(args: List[String]): IO[ExitCode] = {
+  def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
     val existStateIO = for {
-      marthaUri <- IO(uri"${args(2)}")
-      marthaResponse <- resolveDrsThroughMartha(args.head, marthaUri)
+      marthaUri <- IO(uri"https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v2") //TODO: Saloni- obtain this from ENV variable
+      marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
       _ = httpBackendConnection.close()
+      // Currently Martha only supports resolving DRS paths to GCS paths
       gcsUrl <- extractFirstGcsUrl(marthaResponse.dos.data_object.urls)
-      exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), args(1), None) //TODO: Saloni- this should not be a NONE!!
+      exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
     } yield exitState
 
     existStateIO.map(_ => ExitCode.Success)
+  }
+
+
+  /* This assumes the args are as follows:
+      0: DRS input
+      1: download location
+      2: Optional parameter- Requester Pays Billing project ID
+     Martha URL is passed as an environment variable
+   */
+  override def run(args: List[String]): IO[ExitCode] = {
+    val argsLength = args.length
+
+    argsLength match {
+      case 2 => resolveAndDownload(args.head, args(1), None)
+      case 3 => resolveAndDownload(args.head, args(1), Option(args(2)))
+      case _ => {
+        logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional.")
+        IO(ExitCode.Error)
+      }
+    }
   }
 }

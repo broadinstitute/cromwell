@@ -35,8 +35,11 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   override def getScheme: String = "dos"
 
+  def alternateScheme: String = "drs"
+
   override def getHost(uriAsString: String): String = {
-    require(uriAsString.startsWith(s"$getScheme://"), s"Scheme does not match $getScheme")
+    require(uriAsString.startsWith(getScheme + "://") || uriAsString.startsWith(alternateScheme + "://"),
+      s"Scheme does not match $getScheme or $alternateScheme")
 
     /*
      * In some cases for a URI, the host name is null. For example, for DRS urls like 'dos://dg.123/123-123-123',

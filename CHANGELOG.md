@@ -2,6 +2,12 @@
 
 ## 45 Release Notes
 
+### Improved input and output transfer performance on PAPI v2
+
+Cromwell now requires only a single PAPI "action" each for the entire localization or delocalization process, rather than two per file or directory.
+This greatly increases execution speed for jobs with large numbers of input or output files.
+In testing, total execution time for a call with 800 inputs improved from more than 70 minutes to less than 20 minutes.
+
 ### List dependencies flag in Womtool Command Line [(#5098)](https://github.com/broadinstitute/cromwell/pull/5098)
 
 Womtool now outputs the list of files referenced in import statements using `-l` flag for `validate` command.

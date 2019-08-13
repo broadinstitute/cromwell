@@ -186,7 +186,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         "WorkflowStoreActor-FetchEncryptedWorkflowOptions"
       )
       val readMetadataActor = system.actorOf(
-        ReadMetadataActor.props(),
+        ReadMetadataActor.props(metadataReadTimeout = 30 seconds),
         "ReadMetadataActor-FetchEncryptedOptions"
       )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))

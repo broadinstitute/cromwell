@@ -166,6 +166,12 @@ lazy val services = project
   .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
 
+lazy val hybridCarboniteMetadataService = project
+  .withLibrarySettings("hybrid-carbonite-metadata-service")
+  .dependsOn(services)
+  .dependsOn(engine)
+  .dependsOn(core % "test->test")
+
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project

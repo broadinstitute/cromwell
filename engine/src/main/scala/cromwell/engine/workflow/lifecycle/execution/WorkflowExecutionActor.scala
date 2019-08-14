@@ -546,8 +546,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val taskCallNode = expressionNode.taskCallNodeReceivingInput.get(())
 
     (for {
-      jobKeys <- NonEmptyList.fromList(data.executionStore.keysForNode(taskCallNode).toList).toChecked(s"No job key found for call node $taskCallNode")
-      backendJobDescriptorKey <- jobKeys.toList collectFirst { case k: BackendJobDescriptorKey => k } toChecked s"Job keys included no BackendJobDescriptorKeys: ${jobKeys.toList.mkString(", ")}"
+      backendJobDescriptorKey <- data.executionStore.backendJobDescriptorKeyForNode(taskCallNode) toChecked s"No BackendJobDescriptorKey found for call node $taskCallNode"
       factory <- backendFactoryForTaskCallNode(taskCallNode)
       backendInitializationData = params.initializationData.get(factory.name)
       functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData, params.ioActor, ioEc)

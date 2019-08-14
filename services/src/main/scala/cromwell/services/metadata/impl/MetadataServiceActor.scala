@@ -49,7 +49,8 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
 
-  val readActor = context.actorOf(ReadMetadataActor.props(metadataReadTimeout), "read-metadata-actor")
+  def readMetadataWorkerActorMaker() = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout)
+  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(readMetadataWorkerActorMaker), "read-metadata-actor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)

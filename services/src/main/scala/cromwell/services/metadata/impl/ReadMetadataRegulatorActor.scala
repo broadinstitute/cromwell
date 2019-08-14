@@ -1,13 +1,15 @@
-package cromwell.services.metadata.impl.builder
+package cromwell.services.metadata.impl
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.metadata.MetadataService.MetadataServiceAction
-import cromwell.webservice.metadata.MetadataBuilderActor.MetadataBuilderActorResponse
+import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.ReadMetadataWorkerMaker
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.MetadataBuilderActorResponse
 
 import scala.collection.mutable
 
-class MetadataBuilderRegulatorActor(serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+class ReadMetadataRegulatorActor(readMetadataWorkerMaker: ReadMetadataWorkerMaker) extends Actor with ActorLogging {
   // This actor tracks all requests coming in from the API service and spins up new builders as needed to service them.
   // If the processing of an identical request is already in flight the requester will be added to a set of requesters
   // to notify when the response from the first request becomes available.
@@ -24,10 +26,9 @@ class MetadataBuilderRegulatorActor(serviceRegistryActor: ActorRef) extends Acto
       val currentRequesters = apiRequests.getOrElse(action, Set.empty)
       apiRequests.put(action, currentRequesters + sender())
       if (currentRequesters.isEmpty) {
-        val metadataBuilderActor = context.actorOf(
-          MetadataBuilderActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName)
-        builderRequests.put(metadataBuilderActor, action)
-        metadataBuilderActor ! action
+        val readMetadataActor = context.actorOf(readMetadataWorkerMaker.apply().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName)
+        builderRequests.put(readMetadataActor, action)
+        readMetadataActor ! action
       }
     case response: MetadataBuilderActorResponse =>
       val sndr = sender()
@@ -50,8 +51,11 @@ class MetadataBuilderRegulatorActor(serviceRegistryActor: ActorRef) extends Acto
   }
 }
 
-object MetadataBuilderRegulatorActor {
-  def props(serviceRegistryActor: ActorRef): Props = {
-    Props(new MetadataBuilderRegulatorActor(serviceRegistryActor))
+object ReadMetadataRegulatorActor {
+
+  type ReadMetadataWorkerMaker = () => Props
+
+  def props(readMetadataWorkerMaker: ReadMetadataWorkerMaker): Props = {
+    Props(new ReadMetadataRegulatorActor(readMetadataWorkerMaker))
   }
 }

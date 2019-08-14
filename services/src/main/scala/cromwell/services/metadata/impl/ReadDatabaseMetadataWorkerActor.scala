@@ -11,11 +11,11 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-object ReadMetadataActor {
-  def props(metadataReadTimeout: Duration) = Props(new ReadMetadataActor(metadataReadTimeout)).withDispatcher(ApiDispatcher)
+object ReadDatabaseMetadataWorkerActor {
+  def props(metadataReadTimeout: Duration) = Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout)).withDispatcher(ApiDispatcher)
 }
 
-class ReadMetadataActor(metadataReadTimeout: Duration) extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore {
+class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore {
 
   implicit val ec = context.dispatcher
 

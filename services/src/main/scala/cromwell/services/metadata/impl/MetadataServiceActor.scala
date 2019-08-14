@@ -10,6 +10,7 @@ import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
@@ -49,8 +50,10 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
 
-  def readMetadataWorkerActorMaker() = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout)
-  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(readMetadataWorkerActorMaker), "read-metadata-actor")
+  def readMetadataWorkerActorProps(): Props = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout).withDispatcher(ServiceDispatcher)
+  def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps).withDispatcher(ServiceDispatcher)
+
+  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps), "read-metadata-actor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)

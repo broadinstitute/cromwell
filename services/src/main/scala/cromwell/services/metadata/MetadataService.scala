@@ -116,20 +116,20 @@ object MetadataService {
   final case class MetadataLookupJsonResponse(query: MetadataQuery, result: Json) extends MetadataServiceResponse
   final case class MetadataLookupFailed(query: MetadataQuery, reason: Throwable)
 
-//  final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
-//  final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
+  final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure
 
-//  final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
-//  final case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+  final case class StatusLookupResponse(workflowId: WorkflowId, status: WorkflowState) extends MetadataServiceResponse
+  final case class StatusLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-//  final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String]) extends MetadataServiceResponse
-//  final case class LabelLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+  final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String]) extends MetadataServiceResponse
+  final case class LabelLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-//  final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
-//  final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+  final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-//  final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
-//  final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+  final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class MetadataWriteSuccess(events: Iterable[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataWriteFailure(reason: Throwable, events: Iterable[MetadataEvent]) extends MetadataServiceFailure

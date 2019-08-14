@@ -3,10 +3,10 @@
 # The trace logging of `set -x` must be turned off for the `papi_v2_log` test to pass.
 set +x
 
-gsutil_log="gsutil_output.txt"
+gsutil_log=$(mktemp /tmp/gsutil.XXXXXXXXXXXXXXXX)
 
 
-localize_file() {
+private::localize_file() {
   local cloud="$1"
   local container="$2"
   local rpflag="$3"
@@ -14,7 +14,7 @@ localize_file() {
   rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m cp "$cloud" "$container" > "$gsutil_log" 2>&1
 }
 
-localize_directory() {
+private::localize_directory() {
   local cloud="$1"
   local container="$2"
   local rpflag="$3"
@@ -22,7 +22,7 @@ localize_directory() {
   mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m rsync -r "${cloud}" "${container}" > "$gsutil_log" 2>&1
 }
 
-delocalize_file() {
+private::delocalize_file() {
   local cloud="$1"
   local container="$2"
   local rpflag="$3"
@@ -57,7 +57,7 @@ delocalize_file() {
   fi
 }
 
-delocalize_directory() {
+private::delocalize_directory() {
   local cloud="$1"
   local container="$2"
   local rpflag="$3"
@@ -77,7 +77,7 @@ delocalize_directory() {
   fi
 }
 
-delocalize_file_or_directory() {
+private::delocalize_file_or_directory() {
   local cloud="$1"
   local container="$2"
   local rpflag="$3"
@@ -86,40 +86,47 @@ delocalize_file_or_directory() {
 
   # required must be optional for 'file_or_directory' and was checked in the caller
   if [[ -f "$container" ]]; then
-    delocalize_file "$cloud" "$container" "$rpflag" "$required" "$content"
+    private::delocalize_file "$cloud" "$container" "$rpflag" "$required" "$content"
   elif [[ -d "$container" ]]; then
-    delocalize_directory "$cloud" "$container" "$rpflag" "$required" "$content"
+    private::delocalize_directory "$cloud" "$container" "$rpflag" "$required" "$content"
   elif [[ -e "$container" ]]; then
     echo "'file_or_directory' output '$container' exists but is neither a file nor a directory"
     exit 1
   fi
 }
 
-timestamped_message() {
+private::timestamped_message() {
   printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" "$1"
 }
 
-localize_message() {
+private::localize_message() {
   local cloud="$1"
   local container="$2"
   local message=$(printf "Localizing input %s -> %s" "$cloud" "$container")
-  timestamped_message "${message}"
+  private::timestamped_message "${message}"
 }
 
-delocalize_message() {
+private::delocalize_message() {
   local cloud="$1"
   local container="$2"
   local message=$(printf "Delocalizing output %s -> %s" "$container" "$cloud")
-  timestamped_message "${message}"
+  private::timestamped_message "${message}"
 }
 
 # Transfer a bundle of files or directories to or from the same GCS bucket.
 transfer() {
-  local direction="$1"
-  local project="$2"
-  local max_attempts="$3"
+  # Begin the transfer with uncertain requester pays status and first attempting transfers without requester pays.
+  private::transfer false false "$@"
+}
 
-  shift 3 # direction + project + max_attempts
+private::transfer() {
+  local rp_status_certain="$1"
+  local use_requester_pays="$2"
+  local direction="$3"
+  local project="$4"
+  local max_attempts="$5"
+
+  shift 5 # rp_status_certain + use_requester_pays + direction + project + max_attempts
 
   if [[ "$direction" != "localize" && "$direction" != "delocalize" ]]; then
     echo "direction must be 'localize' or 'delocalize' but got '$direction'"
@@ -127,23 +134,22 @@ transfer() {
   fi
 
   # Whether the requester pays status of the GCS bucket is certain. rp status is presumed false until proven otherwise.
-  local rp_status_certain=false
-  local use_requester_pays=false
 
-  local message_fn="${direction}_message"
+  local message_fn="private::${direction}_message"
 
-  # Loop while there are still items in the bundle to transfer.
+  # If requester pays status is unknown, loop through the items in the transfer bundle until requester pays status is determined.
+  # Once determined, the remaining items can be transferred in parallel.
   while [[ $# -gt 0 ]]; do
     file_or_directory="$1"
     cloud="$2"
     container="$3"
 
     if [[ "$file_or_directory" = "file" ]]; then
-      transfer_fn_name="${direction}_file"
+      transfer_fn_name="private::${direction}_file"
     elif [[ "$file_or_directory" = "directory" ]]; then
-      transfer_fn_name="${direction}_directory"
+      transfer_fn_name="private::${direction}_directory"
     elif [[ "$direction" = "delocalize" && "$file_or_directory" = "file_or_directory" ]]; then
-      transfer_fn_name="delocalize_file_or_directory"
+      transfer_fn_name="private::delocalize_file_or_directory"
     else
       echo "file_or_directory must be 'file' or 'directory' or (for delocalization only) 'file_or_directory' but got '$file_or_directory' with direction = '$direction'"
       exit 1
@@ -184,11 +190,14 @@ transfer() {
       ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$content_type"
       transfer_rc=$?
 
-      if [[ ${transfer_rc} = 0 ]]; then
+      # Do not set rp_status_certain=true if an optional file was absent and no transfer was attempted.
+      if [[ ${transfer_rc} = 0 && "$required" = "false" && ! -e "$container" ]]; then
+        break
+      elif [[ ${transfer_rc} = 0 ]]; then
         rp_status_certain=true
         break
       else
-        timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
+        private::timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
 
         # Print the reason of the failure.
         cat "${gsutil_log}"
@@ -196,7 +205,7 @@ transfer() {
         # If the requester pays status of the GCS bucket is not certain look for requester pays errors.
         if [[ ${rp_status_certain} = false ]]; then
           if grep -q "Bucket is requester pays bucket but no user project provided." "${gsutil_log}"; then
-            timestamped_message "Retrying with user project"
+            private::timestamped_message "Retrying with user project"
             use_requester_pays=true
             # Do not increment the attempt number, a requester pays failure does not count against retries.
             # Do mark that the bucket in question is certain to have requester pays status.
@@ -215,4 +224,6 @@ transfer() {
       exit ${transfer_rc}
     fi
   done
+
+  rm -f "${gsutil_log}"
 }

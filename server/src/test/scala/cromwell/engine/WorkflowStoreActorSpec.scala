@@ -21,7 +21,7 @@ import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse}
-import cromwell.services.metadata.impl.ReadMetadataActor
+import cromwell.services.metadata.impl.ReadDatabaseMetadataWorkerActor
 import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
@@ -186,7 +186,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         "WorkflowStoreActor-FetchEncryptedWorkflowOptions"
       )
       val readMetadataActor = system.actorOf(
-        ReadMetadataActor.props(metadataReadTimeout = 30 seconds),
+        ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds),
         "ReadMetadataActor-FetchEncryptedOptions"
       )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))

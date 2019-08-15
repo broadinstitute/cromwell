@@ -4,13 +4,13 @@ import java.io.ByteArrayInputStream
 import java.nio.file.{Files, Paths}
 
 import cats.effect.{ExitCode, IO, IOApp}
-import io.circe.parser.decode
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.Storage.BlobGetOption
 import com.google.cloud.storage.{Blob, StorageException, StorageOptions}
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.circe._
 import drs.localizer.MarthaResponseJsonSupport._
+import io.circe.parser.decode
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -32,6 +32,27 @@ object DrsLocalizerMain extends IOApp {
   val UserInfoScopes = List(UserInfoEmailScope, UserInfoProfileScope)
 
 
+  /*
+    Extract response from Sam. Martha usually responds with 502, but the response body does contains
+    response from Sam. Extract that for a more helpful error message. We parse the error response twice because
+    for some error codes, Sam does not return a text message, and in those situations the parsing fails and we
+    are unable to even see the actual status code (which is always present).
+  */
+  private def samErrorResponseMsg(error: String): String = {
+    val samErrorResponseCode = decode[SamErrorResponseCode](error) match {
+      case Left(samError) => s"Unable to parse response status from Sam. Error: $samError."
+      case Right(samResponse) => s"Response status from Sam ${samResponse.status}."
+    }
+
+    val samErrorResponseText = decode[MarthaErrorResponse](error) match {
+      case Left(samError) => s"Unable to parse response body from Sam. Error: $samError"
+      case Right(samResponse) => s"Error text- \n${samResponse.response.text}."
+    }
+
+    s"Additional parsing for error message from Sam: $samErrorResponseCode $samErrorResponseText"
+  }
+
+
   def resolveDrsThroughMartha(drsUrl: String, marthaUrl: Uri): IO[MarthaResponse] = {
     val requestBody = raw"""{"url":"$drsUrl"}"""
     val marthaErrorMsg = s"Something went wrong while trying to resolve $drsUrl through Martha $marthaUrl."
@@ -50,19 +71,12 @@ object DrsLocalizerMain extends IOApp {
 
     response.body match {
       // non-2xx status code
-      case Left(error) => {
-        // Extract response from Sam. Martha usually responds with 502, but the response body does contains
-        // response from Sam. Extract that for a more helpful error message
-        val samErrorResponse = decode[MarthaErrorResponse](error) match {
-          case Left(samError) => s"Unable to parse response body from Sam. Error: $samError"
-          case Right(samResponse) => s"Response from Sam: Status- ${samResponse.status}. Error message- \n${samResponse.response.text}"
-        }
-        IO.raiseError(new Exception(s"$marthaErrorMsg Expected 200 but got ${response.code} from Martha. $samErrorResponse"))
-      }
+      case Left(error) => IO.raiseError(new Exception(s"$marthaErrorMsg Expected 200 but got ${response.code} from Martha. ${samErrorResponseMsg(error)}"))
       case Right(marthaResponseEither) => {
         logger.info("Received successful response from Martha")
         marthaResponseEither match {
-          case Left(deserializationError) => IO.raiseError(new Exception(s"$marthaErrorMsg Failed to parse Martha response. Deserialization error: ${deserializationError.message}"))
+          case Left(deserializationError) => IO.raiseError(new Exception(s"$marthaErrorMsg Failed to parse Martha response. " +
+            s"Deserialization error: ${deserializationError.message}"))
           case Right(marthaResponse) => IO(marthaResponse)
         }
       }
@@ -100,7 +114,7 @@ object DrsLocalizerMain extends IOApp {
     val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
     Files.createDirectories(Paths.get(downloadLoc).getParent)
 
-    logger.info(s"Attempting to download $gcsUrl")
+    logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
 
     IO.delay {
       val blob = storage.get(gcsBucket, fileToBeLocalized)
@@ -123,7 +137,8 @@ object DrsLocalizerMain extends IOApp {
 
   def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
     val existStateIO = for {
-      marthaUri <- IO(uri"https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v2") //TODO: Saloni- obtain this from ENV variable
+      marthaUrlString <- IO(sys.env("MARTHA_URL"))
+      marthaUri <- IO(uri"$marthaUrlString")
       marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
       _ = httpBackendConnection.close()
       // Currently Martha only supports resolving DRS paths to GCS paths
@@ -148,7 +163,9 @@ object DrsLocalizerMain extends IOApp {
       case 2 => resolveAndDownload(args.head, args(1), None)
       case 3 => resolveAndDownload(args.head, args(1), Option(args(2)))
       case _ => {
-        logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional.")
+        val argsList = if (args.nonEmpty) args.mkString(",") else "None"
+        logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
+          s"Arguments received: $argsList")
         IO(ExitCode.Error)
       }
     }

@@ -35,21 +35,15 @@ trait PipelinesParameterConversions {
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
           val drsDockerImage = config.getString("drs.localization.docker-image")
-          val drsCommandTemplate = config.getString("drs.localization.command-template")
           val drsMarthaUrl = drsFileSystemProvider.config.getString("martha.url")
-          val drsCommand = drsCommandTemplate
-            .replace(s"$${drsPath}", fileInput.cloudPath.escape)
-            .replace(s"$${containerPath}", fileInput.containerPath.escape)
+          val drsCommand = List(fileInput.cloudPath.escape, fileInput.containerPath.escape) ++ drsPath.requesterPaysProjectIdOption.toList
           val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
-          val requesterPaysEnv = drsPath.requesterPaysProjectIdOption.map("REQUESTER_PAYS_PROJECT_ID" -> _).toMap
-          val environment = marthaEnv ++ requesterPaysEnv
           val localizationAction = ActionBuilder
             .withImage(drsDockerImage)
-            .withCommand("/bin/sh", "-c", drsCommand)
+            .withCommand(drsCommand: _*)
             .withMounts(mounts)
-            .setEnvironment(environment.asJava)
+            .setEnvironment(marthaEnv.asJava)
             .withLabels(labels)
-            .setEntrypoint("")
           List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case sraPath: SraPath =>
           val sraConfig = config.getConfig("filesystems.sra")

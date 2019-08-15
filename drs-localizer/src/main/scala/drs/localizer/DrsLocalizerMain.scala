@@ -156,7 +156,7 @@ object DrsLocalizerMain extends IOApp {
     IO.delay {
       val blob = storage.get(gcsBucket, fileToBeLocalized)
       blob.downloadTo(Paths.get(downloadLoc))
-      logger.info(s"Download complete without using Requester Pays")
+      logger.info(s"Download complete!")
     } handleErrorWith { throwable =>
       (requesterPaysProjectIdOption, throwable) match {
         case (Some(requesterPaysProjectId), storageException: StorageException) if storageException.getMessage == RequesterPaysErrorMsg => {
@@ -164,6 +164,7 @@ object DrsLocalizerMain extends IOApp {
           IO.delay {
             val blob = storage.get(gcsBucket, fileToBeLocalized, BlobGetOption.userProject(requesterPaysProjectId))
             blob.downloadTo(Paths.get(downloadLoc), Blob.BlobSourceOption.userProject(requesterPaysProjectId))
+            logger.info(s"Download complete with Requester Pays!")
           }
         }
         case _ => IO.raiseError(throwable)

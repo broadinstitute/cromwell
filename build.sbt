@@ -357,7 +357,6 @@ lazy val perf = project
 
 lazy val `drs-localizer` = project
   .withExecutableSettings("drs-localizer", drsLocalizerDependencies)
-  .dependsOn(cromwellApiClient)
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)

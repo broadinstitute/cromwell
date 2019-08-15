@@ -32,6 +32,43 @@ object DrsLocalizerMain extends IOApp {
   val UserInfoScopes = List(UserInfoEmailScope, UserInfoProfileScope)
 
 
+  /* This assumes the args are as follows:
+      0: DRS input
+      1: download location
+      2: Optional parameter- Requester Pays Billing project ID
+     Martha URL is passed as an environment variable
+   */
+  override def run(args: List[String]): IO[ExitCode] = {
+    val argsLength = args.length
+
+    argsLength match {
+      case 2 => resolveAndDownload(args.head, args(1), None)
+      case 3 => resolveAndDownload(args.head, args(1), Option(args(2)))
+      case _ => {
+        val argsList = if (args.nonEmpty) args.mkString(",") else "None"
+        logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
+          s"Arguments received: $argsList")
+        IO(ExitCode.Error)
+      }
+    }
+  }
+
+
+  def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
+    val existStateIO = for {
+      marthaUrlString <- IO(sys.env("MARTHA_URL"))
+      marthaUri <- IO(uri"$marthaUrlString")
+      marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
+      _ = httpBackendConnection.close()
+      // Currently Martha only supports resolving DRS paths to GCS paths
+      gcsUrl <- extractFirstGcsUrl(marthaResponse.dos.data_object.urls)
+      exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
+    } yield exitState
+
+    existStateIO.map(_ => ExitCode.Success)
+  }
+
+
   /*
     Extract response from Sam. Martha usually responds with 502, but the response body does contains
     response from Sam. Extract that for a more helpful error message. We parse the error response twice because
@@ -53,7 +90,7 @@ object DrsLocalizerMain extends IOApp {
   }
 
 
-  def resolveDrsThroughMartha(drsUrl: String, marthaUrl: Uri): IO[MarthaResponse] = {
+  private def resolveDrsThroughMartha(drsUrl: String, marthaUrl: Uri): IO[MarthaResponse] = {
     val requestBody = raw"""{"url":"$drsUrl"}"""
     val marthaErrorMsg = s"Something went wrong while trying to resolve $drsUrl through Martha $marthaUrl."
 
@@ -84,7 +121,7 @@ object DrsLocalizerMain extends IOApp {
   }
 
 
-  def extractFirstGcsUrl(urlArray: Array[Url]): IO[String] = {
+  private def extractFirstGcsUrl(urlArray: Array[Url]): IO[String] = {
     val urlOption = urlArray.find(urlObj => urlObj.url.startsWith(GcsScheme))
 
     urlOption match {
@@ -94,7 +131,7 @@ object DrsLocalizerMain extends IOApp {
   }
 
 
-  def downloadFileFromGcs(gcsUrl: String,
+  private def downloadFileFromGcs(gcsUrl: String,
                           serviceAccountJsonOption: Option[String],
                           downloadLoc: String,
                           requesterPaysProjectIdOption: Option[String]) : IO[Unit] = {
@@ -130,43 +167,6 @@ object DrsLocalizerMain extends IOApp {
           }
         }
         case _ => IO.raiseError(throwable)
-      }
-    }
-  }
-
-
-  def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
-    val existStateIO = for {
-      marthaUrlString <- IO(sys.env("MARTHA_URL"))
-      marthaUri <- IO(uri"$marthaUrlString")
-      marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
-      _ = httpBackendConnection.close()
-      // Currently Martha only supports resolving DRS paths to GCS paths
-      gcsUrl <- extractFirstGcsUrl(marthaResponse.dos.data_object.urls)
-      exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
-    } yield exitState
-
-    existStateIO.map(_ => ExitCode.Success)
-  }
-
-
-  /* This assumes the args are as follows:
-      0: DRS input
-      1: download location
-      2: Optional parameter- Requester Pays Billing project ID
-     Martha URL is passed as an environment variable
-   */
-  override def run(args: List[String]): IO[ExitCode] = {
-    val argsLength = args.length
-
-    argsLength match {
-      case 2 => resolveAndDownload(args.head, args(1), None)
-      case 3 => resolveAndDownload(args.head, args(1), Option(args(2)))
-      case _ => {
-        val argsList = if (args.nonEmpty) args.mkString(",") else "None"
-        logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
-          s"Arguments received: $argsList")
-        IO(ExitCode.Error)
       }
     }
   }

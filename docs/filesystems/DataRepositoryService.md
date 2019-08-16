@@ -20,7 +20,7 @@ The `drs` section needs to be added to
 
 **Localization Configuration**
 
-The DRS localization must be configured with specification of the docker image to use.
+DRS localization must be configured with specification of the docker image to use.
 
 ```hocon
 drs {

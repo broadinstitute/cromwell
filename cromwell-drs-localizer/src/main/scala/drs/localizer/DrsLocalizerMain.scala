@@ -55,7 +55,7 @@ object DrsLocalizerMain extends IOApp {
 
 
   def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
-    val existStateIO = for {
+    val exitStateIO = for {
       marthaUrlString <- IO(sys.env("MARTHA_URL"))
       marthaUri <- IO(uri"$marthaUrlString")
       marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
@@ -65,12 +65,12 @@ object DrsLocalizerMain extends IOApp {
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
     } yield exitState
 
-    existStateIO.map(_ => ExitCode.Success)
+    exitStateIO.map(_ => ExitCode.Success)
   }
 
 
   /*
-    Extract response from Sam. Martha usually responds with 502, but the response body does contains
+    Extract the response from Sam. Martha usually responds with 502 on an error, but the response body does contain the
     response from Sam. Extract that for a more helpful error message. We parse the error response twice because
     for some error codes, Sam does not return a text message, and in those situations the parsing fails and we
     are unable to even see the actual status code (which is always present).
@@ -122,7 +122,7 @@ object DrsLocalizerMain extends IOApp {
 
 
   private def extractFirstGcsUrl(urlArray: Array[Url]): IO[String] = {
-    val urlOption = urlArray.find(urlObj => urlObj.url.startsWith(GcsScheme))
+    val urlOption = urlArray.find(_.url.startsWith(GcsScheme))
 
     urlOption match {
       case Some(url) => IO(url.url)

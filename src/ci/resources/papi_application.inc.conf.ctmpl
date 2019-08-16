@@ -79,13 +79,6 @@ filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.c
 
 drs {
   localization {
-    #######################################################################
-    #######################################################################
-    ###                                                                 ###
-    ###  Replace this with broadinstitue/cromwell-drs-localizer:<hash>  ###
-    ###                                                                 ###
-    #######################################################################
-    #######################################################################
-    docker-image = "salonishah/dos:from-broad-45-f0b42c5-SNAP"
+    docker-image = "broadinstitute/cromwell-drs-localizer:centaur-test-45-2013939-SNAP"
   }
 }

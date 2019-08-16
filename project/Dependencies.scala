@@ -2,8 +2,8 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.24.3"
-  private val akkaHttpV = "10.1.7"
-  private val akkaV = "2.5.19"
+  private val akkaHttpV = "10.1.9"
+  private val akkaV = "2.5.23"
   private val aliyunBcsV = "6.1.0"
   private val aliyunCoreV = "4.3.2"
   private val aliyunCrV = "3.0.0"
@@ -518,6 +518,14 @@ object Dependencies {
   val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
     googleApiClientDependencies ++ googleCloudDependencies
 
+  val drsLocalizerDependencies = List(
+    "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
+    "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "com.iheart" %% "ficus" % ficusV,
+    "com.softwaremill.sttp" %% "circe" % sttpV
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
+
   val allProjectDependencies =
     backendDependencies ++
       bcsBackendDependencies ++
@@ -533,6 +541,7 @@ object Dependencies {
       databaseSqlDependencies ++
       dockerHashingDependencies ++
       draft2LanguageFactoryDependencies ++
+      drsLocalizerDependencies ++
       engineDependencies ++
       gcsFileSystemDependencies ++
       httpFileSystemDependencies ++

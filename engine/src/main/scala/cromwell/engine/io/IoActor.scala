@@ -179,6 +179,11 @@ object IoActor {
     case _ => false
   }
 
+  def isServerError(failure: Throwable): Boolean = {
+    val serverErrorPattern = "^.*5\\d{2} \\w+(.*)?"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
   val AdditionalRetryableHttpCodes = List(
     // HTTP 410: Gone
     // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
@@ -192,11 +197,6 @@ object IoActor {
     503
   )
 
-  val retryableIOExceptionMessages = List(
-    "Error getting access token for service account",
-    "500 Internal Server Error Backend Error",
-  )
-  
   // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
   val AdditionalRetryableErrorMessages = List(
     "Connection closed prematurely"
@@ -215,12 +215,8 @@ object IoActor {
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
-    case ioE: IOException => isRetryableIOException(ioE)
-    case other => isTransient(other)
-  }
-
-  private def isRetryableIOException(ioE: IOException): Boolean = {
-    Option(ioE.getMessage).exists(errMsg => retryableIOExceptionMessages.exists(retrMsg => errMsg.contains(retrMsg)))
+    case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
+    case other => isTransient(other) || isServerError(other)
   }
 
   def isFatal(failure: Throwable) = !isRetryable(failure)

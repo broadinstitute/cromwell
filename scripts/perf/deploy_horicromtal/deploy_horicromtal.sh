@@ -68,13 +68,11 @@ gcloud_deploy_instance \
    "${INSTANCE_TEMPLATE}" \
    "$(join ${reader_metadata[@]})" | tee reader1.txt
 
-AWK_STRING="'""{print \$${FIELD_NO_TO_RETURN}}""'"
-
 typeset RUNNER_UNDER_TEST_1=$(cat runner1.txt | tail -n1 | awk '{print $5}')
 typeset RUNNER_UNDER_TEST_2=$(cat runner2.txt | tail -n1 | awk '{print $5}')
 
 typeset READER_UNDER_TEST_1=$(cat reader1.txt | tail -n1 | awk '{print $5}')
-typeset CROMWELL_VALUE_TO_RETURN=$(cat reader1.txt | tail -n1 | awk ${AWK_STRING} )
+typeset CROMWELL_VALUE_TO_RETURN=$(cat reader1.txt | tail -n1 | awk "{print \$${FIELD_NO_TO_RETURN}}" )
 
 if test -z "${RUNNER_UNDER_TEST_1}" -o -z "${RUNNER_UNDER_TEST_2}" -o -z "${READER_UNDER_TEST_1}"
 then

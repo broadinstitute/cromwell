@@ -8,6 +8,7 @@ import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.jdbc.TransactionIsolation.Serializable
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -132,6 +133,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                     (implicit ec: ExecutionContext): DBIO[Unit] = {
     if (useSlickUpserts) {
       for {
+        // Assert non-zero return value?
         _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
       } yield ()
     } else {
@@ -185,6 +187,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
+      // warn on non-contiguous summarizeMetadata() blocks?
       maximumMetadataEntryIdConsidered <- summarizeMetadata(
         minMetadataEntryId = previousMaxMetadataEntryId + 1L,
         maxMetadataEntryId = nextMaxMetadataEntryId,
@@ -221,7 +224,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       }
     } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
 
-    runTransaction(action)
+    runTransaction(action, isolationLevel = Serializable)
   }
 
   override def summarizeDecreasing(summaryNameDecreasing: String,

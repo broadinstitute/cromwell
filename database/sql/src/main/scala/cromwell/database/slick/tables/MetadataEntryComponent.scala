@@ -121,16 +121,6 @@ trait MetadataEntryComponent {
     }
   )
 
-  val existsMetadataEntriesGreaterThanMetadataEntryId = Compiled(
-    (metadataEntryId: Rep[Long]) => {
-      val query = for {
-        metadataEntry <- metadataEntries
-        if metadataEntry.metadataEntryId > metadataEntryId
-      } yield metadataEntry.metadataEntryId
-      query.exists
-    }
-  )
-
   /**
     * Returns metadata entries that are "like" metadataKeys for the specified workflow.
     * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level

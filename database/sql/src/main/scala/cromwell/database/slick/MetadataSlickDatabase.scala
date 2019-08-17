@@ -280,6 +280,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                 summaryPositionFunction: Seq[MetadataEntry] => Long,
                                 summaryName: String
                                )(implicit ec: ExecutionContext): DBIO[Long] = {
+
+    val exactMatchMetadataKeys = List(
+      startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+    val startsWithMetadataKeys = List(labelMetadataKey)
+
     for {
       rawMetadataEntries <- dataAccess.metadataEntriesForIdRange((
         minMetadataEntryId,
@@ -287,10 +292,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       )).result
       summaryPosition = summaryPositionFunction(rawMetadataEntries)
       metadataEntries = rawMetadataEntries filter { entry =>
-        val key = entry.metadataKey
-        entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
-          (key == startMetadataKey || key == endMetadataKey || key == statusMetadataKey || key == submissionMetadataKey ||
-            key == parentWorkflowIdKey || key == rootWorkflowIdKey || key.startsWith(labelMetadataKey))
+        entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty && (
+          exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith)
+          )
       }
       metadataWithoutLabels = metadataEntries
         .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?

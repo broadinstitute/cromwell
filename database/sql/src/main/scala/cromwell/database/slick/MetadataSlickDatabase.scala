@@ -281,9 +281,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                 summaryName: String
                                )(implicit ec: ExecutionContext): DBIO[Long] = {
 
-    val exactMatchMetadataKeys = List(
+    val exactMatchMetadataKeys = Set(
       startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
-    val startsWithMetadataKeys = List(labelMetadataKey)
+    val startsWithMetadataKeys = Set(labelMetadataKey)
 
     for {
       rawMetadataEntries <- dataAccess.metadataEntriesForIdRange((

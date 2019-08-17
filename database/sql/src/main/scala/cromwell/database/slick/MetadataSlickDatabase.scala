@@ -292,9 +292,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       )).result
       summaryPosition = summaryPositionFunction(rawMetadataEntries)
       metadataEntries = rawMetadataEntries filter { entry =>
-        entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty && (
-          exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith)
-          )
+        entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+          (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
       }
       metadataWithoutLabels = metadataEntries
         .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?

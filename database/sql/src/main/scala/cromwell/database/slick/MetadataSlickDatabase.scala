@@ -288,25 +288,23 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                 summaryName: String
                                )(implicit ec: ExecutionContext): DBIO[Long] = {
     for {
-      metadataEntries <- dataAccess.metadataEntriesForIdRange((
+      rawMetadataEntries <- dataAccess.metadataEntriesForIdRange((
         minMetadataEntryId,
-        maxMetadataEntryId,
-        startMetadataKey,
-        endMetadataKey,
-        nameMetadataKey,
-        statusMetadataKey,
-        submissionMetadataKey,
-        parentWorkflowIdKey,
-        rootWorkflowIdKey,
-        labelMetadataKey
+        maxMetadataEntryId
       )).result
+      summaryPosition <- summaryPositionFunction(rawMetadataEntries)
+      metadataEntries = rawMetadataEntries filter { entry =>
+        val key = entry.metadataKey
+        entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+          (key == startMetadataKey || key == endMetadataKey || key == statusMetadataKey || key == submissionMetadataKey ||
+            key == parentWorkflowIdKey || key == rootWorkflowIdKey || key.startsWith(labelMetadataKey))
+      }
       metadataWithoutLabels = metadataEntries
-        .filterNot(_.metadataKey.contains(labelMetadataKey))
+        .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
         .groupBy(_.workflowExecutionUuid)
       customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
-      summaryPosition <- summaryPositionFunction(metadataEntries)
       _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
     } yield summaryPosition
   }

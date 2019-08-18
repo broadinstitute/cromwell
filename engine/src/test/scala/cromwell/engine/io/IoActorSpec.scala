@@ -238,7 +238,8 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   it should "have correct non-retryable exceptions" in {
     val nonRetryables = List(
       new IOException("404 File Not Found"),
-      new Exception("5xx HTTP Status Code")
+      new Exception("5xx HTTP Status Code"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found")
     )
 
     nonRetryables foreach {IoActor.isRetryable(_) shouldBe false}

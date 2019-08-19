@@ -106,11 +106,8 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
 
   //cr.cn-beijing.aliyuncs.com  or  cr-vpc.cn-beijing.aliyuncs.com
   private[alibabacloudcrregistry] def getAliyunEndpointFromContext(context: DockerInfoContext): Option[String] = {
-    context.credentials find {
-      _.isInstanceOf[String]
-    } match {
-      case Some(endpoint: String) => Option(endpoint).filter(isValidAlibabaCloudCREndpoint)
-      case _ => None
+    context.credentials collectFirst {
+      case endpoint: String if (isValidAlibabaCloudCREndpoint(endpoint)) => endpoint
     }
   }
 

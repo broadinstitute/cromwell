@@ -20,7 +20,7 @@ import wom.types._
 import wom.values._
 
 object GpuResource {
-  val DefaultNvidiaDriverVersion = "390.46"
+  val DefaultNvidiaDriverVersion = "430.40"
 
   final case class GpuType(name: String) {
     override def toString: String = name

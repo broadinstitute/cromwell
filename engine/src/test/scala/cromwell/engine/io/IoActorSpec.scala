@@ -1,5 +1,6 @@
 package cromwell.engine.io
 
+import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
 
 import akka.stream.ActorMaterializer
@@ -221,10 +222,27 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
       new StorageException(429, "message"),
       BatchFailedException(new Exception),
       new SocketException(),
-      new SocketTimeoutException()
+      new SocketTimeoutException(),
+      new IOException("text Error getting access token for service account some other text"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"),
+      new IOException("message: 500 Internal Server Error Backend Error"),
+      new Exception("500 Internal Server Error"),
+      new Exception("501 Not Implemented"),
+      new Exception("510 Extensions are Missing")
     )
 
     retryables foreach { IoActor.isRetryable(_) shouldBe true }
     retryables foreach { IoActor.isFatal(_) shouldBe false }
+  }
+
+  it should "have correct non-retryable exceptions" in {
+    val nonRetryables = List(
+      new IOException("404 File Not Found"),
+      new Exception("5xx HTTP Status Code"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found")
+    )
+
+    nonRetryables foreach {IoActor.isRetryable(_) shouldBe false}
+    nonRetryables foreach {IoActor.isFatal(_) shouldBe true}
   }
 }

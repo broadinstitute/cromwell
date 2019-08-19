@@ -1,5 +1,30 @@
 # Cromwell Change Log
 
+## 45 Release Notes
+
+### Improved input and output transfer performance on PAPI v2
+
+Cromwell now requires only a single PAPI "action" each for the entire localization or delocalization process, rather than two per file or directory.
+This greatly increases execution speed for jobs with large numbers of input or output files.
+In testing, total execution time for a call with 800 inputs improved from more than 70 minutes to less than 20 minutes.
+
+### List dependencies flag in Womtool Command Line [(#5098)](https://github.com/broadinstitute/cromwell/pull/5098)
+
+Womtool now outputs the list of files referenced in import statements using `-l` flag for `validate` command.
+More info [here](https://cromwell.readthedocs.io/en/stable/WOMtool/)
+
+### BCS backend new Features support
+
+#### New docker registry
+Alibaba Cloud Container Registry is now supported for the `docker` runtime attribute, and the previous `dockerTag` 
+runtime attribute continues to be available for Alibaba Cloud OSS Registry.
+#### Call caching
+Cromwell now supports Call caching when using the BCS backend.
+#### Workflow output glob
+Globs can be used to define outputs for BCS backend.
+#### NAS mount
+Alibaba Cloud NAS is now supported for the `mounts` runtime attribute.
+
 ## 44 Release Notes
 
 ### Improved PAPI v2 Preemptible VM Support

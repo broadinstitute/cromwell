@@ -1,11 +1,10 @@
 package cromwell.backend.impl.bcs
 
-import java.io.FileNotFoundException
-
 import better.files.File.OpenOptions
 import com.aliyuncs.batchcompute.main.v20151111.BatchComputeClient
 import com.aliyuncs.exceptions.{ClientException, ServerException}
 import common.collections.EnhancedCollections._
+import common.util.StringUtil._
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.bcs.RunStatus.{Finished, TerminalRunStatus}
@@ -15,10 +14,12 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.ExecutionEvent
 import cromwell.filesystems.oss.OssPath
 import wom.callable.Callable.OutputDefinition
+import wom.callable.RuntimeEnvironment
 import wom.core.FullyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.types.WomSingleFileType
 import wom.values._
+import mouse.all._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -65,8 +66,8 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     val tmp = DefaultPathBuilder.get("/" + ossPath.pathWithoutScheme)
     val dir = tmp.getParent
     val local = BcsJobPaths.BcsTempInputDirectory.resolve(dir.pathAsString.md5SumShort).resolve(tmp.getFileName)
-    val ret = BcsInputMount(ossPath, local, writeSupport = false)
-    if (!inputMounts.exists(mount => mount.src == ossPath && mount.dest == local)) {
+    val ret = BcsInputMount(Left(ossPath), Left(local), writeSupport = false)
+    if (!inputMounts.exists(mount => mount.src == Left(ossPath) && mount.dest == Left(local))) {
       inputMounts :+= ret
     }
 
@@ -74,7 +75,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   }
 
   private[bcs] def womFileToMount(file: WomFile): Option[BcsInputMount] = file match {
-    case path if userDefinedMounts exists(bcsMount => path.valueString.startsWith(bcsMount.src.pathAsString)) => None
+    case path if userDefinedMounts exists(bcsMount => path.valueString.startsWith(BcsMount.toString(bcsMount.src))) => None
     case path => PathFactory.buildPath(path.valueString, initializationData.pathBuilders) match {
       case ossPath: OssPath => Some(ossPathToMount(ossPath))
       case _ => None
@@ -146,8 +147,8 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     callRawOutputFiles.flatMap(_.flattenFiles).distinct flatMap { womFile =>
       womFile match {
         case singleFile: WomSingleFile => List(generateBcsSingleFileOutput(singleFile))
-        case _: WomGlobFile => throw new RuntimeException(s"glob output not supported currently")
-        case _: WomUnlistedDirectory => throw new RuntimeException(s"directory output not supported currently")
+        case globFile: WomGlobFile => generateBcsGlobFileOutputs(globFile)
+        case unlistedDirectory: WomUnlistedDirectory => generateUnlistedDirectoryOutputs(unlistedDirectory)
       }
     }
   }
@@ -161,7 +162,34 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
     val src = relativePath(wdlFile.valueString)
 
-    BcsOutputMount(src, destination, writeSupport = false)
+    BcsOutputMount(Left(src), Left(destination), writeSupport = false)
+  }
+
+  protected def generateBcsGlobFileOutputs(womFile: WomGlobFile): List[BcsOutputMount] = {
+    val globName = GlobFunctions.globName(womFile.value)
+    val globDirectory = globName + "/"
+    val globListFile = globName + ".list"
+    val bcsGlobDirectoryDestinationPath = callRootPath.resolve(globDirectory)
+    val bcsGlobListFileDestinationPath = callRootPath.resolve(globListFile)
+
+    // We need both the glob directory and the glob list:
+    List(
+      BcsOutputMount(Left(relativePath(globDirectory)), Left(bcsGlobDirectoryDestinationPath), writeSupport = false),
+      BcsOutputMount(Left(relativePath(globListFile)), Left(bcsGlobListFileDestinationPath), writeSupport = false)
+    )
+  }
+
+  private def generateUnlistedDirectoryOutputs(womFile: WomUnlistedDirectory): List[BcsOutputMount] = {
+    val directoryPath = womFile.value.ensureSlashed
+    val directoryListFile = womFile.value.ensureUnslashed + ".list"
+    val bcsDirDestinationPath = callRootPath.resolve(directoryPath)
+    val bcsListDestinationPath = callRootPath.resolve(directoryListFile)
+
+    // We need both the collection directory and the collection list:
+    List(
+      BcsOutputMount(Left(relativePath(directoryPath)), Left(bcsDirDestinationPath), writeSupport = false),
+      BcsOutputMount(Left(relativePath(directoryListFile)), Left(bcsListDestinationPath), writeSupport = false)
+    )
   }
 
   private[bcs] def getOssFileName(ossPath: OssPath): String = {
@@ -174,17 +202,23 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   private[bcs] def localizeOssPath(ossPath: OssPath): String = {
     if (isOutputOssFileString(ossPath.pathAsString) && !ossPath.isAbsolute) {
       if (ossPath.exists) {
-        ossPathToMount(ossPath).dest.normalize().pathAsString
+        ossPathToMount(ossPath).dest match {
+          case Left(p) => p.normalize().pathAsString
+          case _ => throw new RuntimeException("only support oss")
+        }
       } else {
         commandDirectory.resolve(getOssFileName(ossPath)).normalize().pathAsString
       }
     } else {
       userDefinedMounts collectFirst {
-        case bcsMount: BcsMount if ossPath.pathAsString.startsWith(bcsMount.src.pathAsString) =>
-          bcsMount.dest.resolve(ossPath.pathAsString.stripPrefix(bcsMount.src.pathAsString)).pathAsString
+        case bcsMount: BcsMount if ossPath.pathAsString.startsWith(BcsMount.toString(bcsMount.src)) =>
+          bcsMount.dest match {
+            case Left(p) => p.resolve(ossPath.pathAsString.stripPrefix(BcsMount.toString(bcsMount.src))).pathAsString
+            case _ => throw new RuntimeException("only support oss")
+          }
       } getOrElse {
         val mount = ossPathToMount(ossPath)
-        mount.dest.pathAsString
+        BcsMount.toString(mount.dest)
       }
     }
   }
@@ -197,7 +231,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     }
   }
 
-  override def mapCommandLineWomFile(womFile: WomFile): WomFile = {
+  private[bcs] def mapWomFile(womFile: WomFile): WomFile = {
     getPath(womFile.valueString) match {
       case Success(ossPath: OssPath) =>
         WomFile(WomSingleFileType, localizeOssPath(ossPath))
@@ -205,6 +239,24 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
         WomFile(WomSingleFileType, relativeOutputPath(path).pathAsString)
       case _ => womFile
     }
+  }
+
+  override def preProcessWomFile(womFile: WomFile): WomFile = mapWomFile(womFile)
+
+  override def mapCommandLineWomFile(womFile: WomFile): WomFile = mapWomFile(womFile)
+
+  override def runtimeEnvironmentPathMapper(env: RuntimeEnvironment): RuntimeEnvironment = {
+    def localize(path: String): String = (WomSingleFile(path) |> mapRuntimeEnvs).valueString
+    env.copy(outputPath = env.outputPath |> localize, tempPath = env.tempPath |> localize)
+  }
+
+  private[bcs] def mapRuntimeEnvs(womFile: WomSingleFile): WomFile = {
+    getPath(womFile.valueString) match {
+      case Success(ossPath: OssPath) =>
+        WomFile(WomSingleFileType, BcsJobPaths.BcsCommandDirectory.resolve(ossPath.pathWithoutScheme).pathAsString)
+      case _ => womFile
+    }
+
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
@@ -246,33 +298,17 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
   }
 
   private[bcs] lazy val rcBcsOutput = BcsOutputMount(
-    commandDirectory.resolve(bcsJobPaths.returnCodeFilename), bcsJobPaths.returnCode, writeSupport = false)
+    Left(commandDirectory.resolve(bcsJobPaths.returnCodeFilename)), Left(bcsJobPaths.returnCode), writeSupport = false)
 
   private[bcs] lazy val stdoutBcsOutput = BcsOutputMount(
-    commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename), standardPaths.output, writeSupport = false)
+    Left(commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename)), Left(standardPaths.output), writeSupport = false)
   private[bcs] lazy val stderrBcsOutput = BcsOutputMount(
-    commandDirectory.resolve(bcsJobPaths.defaultStderrFilename), standardPaths.error, writeSupport = false)
+    Left(commandDirectory.resolve(bcsJobPaths.defaultStderrFilename)), Left(standardPaths.error), writeSupport = false)
 
   private[bcs] lazy val uploadBcsWorkerPackage = {
-    getPath(runtimeAttributes.workerPath.getOrElse(bcsJobPaths.workerFileName)) match {
-      case Success(ossPath: OssPath) =>
-        if (ossPath.notExists) {
-          throw new FileNotFoundException(s"$ossPath")
-        }
-        ossPath
-      case Success(path: Path) =>
-        if (path.notExists) {
-          throw new FileNotFoundException(s"$path")
-        }
+    bcsJobPaths.workerPath.writeByteArray(BcsJobCachingActorHelper.workerScript.getBytes)(OpenOptions.default)
 
-        if (bcsJobPaths.workerPath.notExists) {
-          val content = path.byteArray
-          bcsJobPaths.workerPath.writeByteArray(content)(OpenOptions.default)
-        }
-
-        bcsJobPaths.workerPath
-      case _ => throw new RuntimeException(s"Invalid worker packer path")
-    }
+    bcsJobPaths.workerPath
   }
 
   override def executeAsync(): Future[ExecutionHandle] = {
@@ -283,13 +319,15 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
     setBcsVerbose()
 
+    val envs = bcsEnvs
+
     val bcsJob = new BcsJob(
           jobName,
           jobTag,
           bcsCommandLine,
           uploadBcsWorkerPackage,
           bcsMounts,
-          bcsEnvs,
+          envs,
           runtimeAttributes,
           Some(bcsJobPaths.bcsStdoutPath),
           Some(bcsJobPaths.bcsStderrPath),
@@ -315,7 +353,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
 
   private[bcs] def wdlFileToOssPath(bcsOutputs: Seq[BcsMount])(wdlFile: WomFile): WomFile = {
     bcsOutputs collectFirst {
-      case bcsOutput if bcsOutput.src.pathAsString.endsWith(wdlFile.valueString) => WomFile(WomSingleFileType, bcsOutput.dest.pathAsString)
+      case bcsOutput if BcsMount.toString(bcsOutput.src).endsWith(wdlFile.valueString) => WomFile(WomSingleFileType, BcsMount.toString(bcsOutput.dest))
     } getOrElse wdlFile
   }
 
@@ -353,6 +391,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     throwable match {
       case _: ServerException => true
       case e: ClientException if e.getErrCode == "InternalError" => true
+      case e: ClientException if e.getErrCode.startsWith("Throttling") => true
       case _ => false
     }
   }
@@ -364,16 +403,16 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     }
   }
 
-  private[bcs] lazy val bcsEnvs: Map[String, String] = Map(
+  private[bcs] lazy val bcsEnvs: Map[String, String] = {
+    val mount = ossPathToMount(bcsJobPaths.script.asInstanceOf[OssPath])
+
+    Map(
       BcsJobPaths.BcsEnvCwdKey -> commandDirectory.pathAsString,
-      BcsJobPaths.BcsEnvExecKey -> bcsJobPaths.script.pathAsString,
+      BcsJobPaths.BcsEnvExecKey -> BcsMount.toString(mount.dest),
       BcsJobPaths.BcsEnvStdoutKey -> commandDirectory.resolve(bcsJobPaths.defaultStdoutFilename).pathAsString,
-      BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.defaultStderrFilename).pathAsString,
-      BcsConfiguration.OssEndpointKey -> bcsConfiguration.ossEndpoint,
-      BcsConfiguration.OssIdKey -> bcsConfiguration.ossAccessId,
-      BcsConfiguration.OssSecretKey -> bcsConfiguration.ossAccessKey,
-      BcsConfiguration.OssTokenKey -> bcsConfiguration.ossSecurityToken
-  )
+      BcsJobPaths.BcsEnvStderrKey -> commandDirectory.resolve(bcsJobPaths.defaultStderrFilename).pathAsString
+    )
+  }
 
   private[bcs] lazy val bcsMounts: Seq[BcsMount] ={
     generateBcsInputs(jobDescriptor)

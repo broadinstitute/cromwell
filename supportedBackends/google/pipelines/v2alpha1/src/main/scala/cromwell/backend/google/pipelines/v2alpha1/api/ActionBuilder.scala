@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
-import akka.http.scaladsl.model.ContentTypes
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
@@ -57,11 +56,6 @@ object ActionBuilder {
       } yield keyValue
       list.toMap
     }
-  }
-
-  object Gsutil {
-    private val contentTypeText = ContentTypes.`text/plain(UTF-8)`.toString()
-    val ContentTypeTextHeader = s"Content-Type: $contentTypeText"
   }
 
   // TODO revert this to google/cloud-sdk:slim once latest is unbroken
@@ -204,10 +198,7 @@ object ActionBuilder {
     )
   }
 
-  // This "sleep 5" is ugly, but hopefully prevents a PAPIv2 race condition whereby very-fast-completing tests never
-  // get identified as complete (and thus PAPIv2 continues to run the operation indefinitely.
-  def timestampedMessage(withSleep: Boolean)(message: String) =
-    (if (withSleep) "sleep 5 && " else "") +
+  def timestampedMessage(message: String): String =
     s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
   /**
@@ -227,7 +218,7 @@ object ActionBuilder {
                                    actionLabels: Map[String, String]): Action = {
     // Uses the cloudSdk image as that image will be used for other operations as well.
     cloudSdkShellAction(
-      timestampedMessage(withSleep = true)(message)
+      timestampedMessage(message)
     )(
       flags = actionFlags,
       labels = actionLabels collect {

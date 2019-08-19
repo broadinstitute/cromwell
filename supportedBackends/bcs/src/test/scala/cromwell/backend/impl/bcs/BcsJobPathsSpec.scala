@@ -6,7 +6,7 @@ import org.mockito.Mockito.when
 class BcsJobPathsSpec extends BcsTestUtilSpec {
   behavior of s"BcsJobPathsSpec"
 
-  var root: OssPath = mockPathBuiler.build("oss://bcs-test/root/").getOrElse(throw new IllegalArgumentException())
+  var root: OssPath = mockPathBuilder.build("oss://bcs-test/root/").getOrElse(throw new IllegalArgumentException())
 
   var workflowPath = {
     val workflowPaths = mock[BcsWorkflowPaths]

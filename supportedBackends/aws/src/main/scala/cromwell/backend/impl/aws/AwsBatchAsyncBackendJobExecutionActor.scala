@@ -154,7 +154,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       generateAwsBatchInputs(jobDescriptor),
       generateAwsBatchOutputs(jobDescriptor),
       jobPaths, Seq.empty[AwsBatchParameter],
-      configuration.awsConfig.region)
+      configuration.awsConfig.region,
+      Option(configuration.awsAuth))
   }
   /* Tries to abort the job in flight
    *

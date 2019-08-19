@@ -2,10 +2,11 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.24.3"
-  private val akkaHttpV = "10.1.7"
-  private val akkaV = "2.5.19"
-  private val aliyunBcsV = "6.0.6"
+  private val akkaHttpV = "10.1.9"
+  private val akkaV = "2.5.23"
+  private val aliyunBcsV = "6.1.0"
   private val aliyunCoreV = "4.3.2"
+  private val aliyunCrV = "3.0.0"
   private val aliyunOssV = "3.4.0"
   private val ammoniteOpsV = "1.6.3"
   private val apacheCommonNetV = "3.6"
@@ -42,7 +43,8 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
   private val http4sVersion = "0.20.0-M5"
-  private val jacksonV = "2.9.8"
+  private val jacksonDatabindV = "2.9.9.3"
+  private val jacksonV = "2.9.9" // NOTE: On the next version, please remove jacksonDatabindV and just use this!
   private val janinoV = "3.0.12"
   private val javaxActivationV = "1.2.0"
   private val jaxbV = "2.3.2"
@@ -321,6 +323,15 @@ object Dependencies {
       exclude("jakarta.activation", "jakarta.activation-api"),
   )
 
+  private val aliyunCrDependencies = List(
+    "com.aliyun" % "aliyun-java-sdk-cr" % aliyunCrV,
+    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
+      exclude("javax.xml.bind", "jaxb-api")
+      exclude("com.sun.xml.bind", "jaxb-core")
+      exclude("javax.activation", "activation"),
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
+  )
+
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
     "org.mariadb.jdbc" % "mariadb-java-client" % mariadbV,
@@ -437,6 +448,7 @@ object Dependencies {
   val coreDependencies = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
+    "com.storm-enroute" %% "scalameter" % scalameterV % Test,
     "com.github.scopt" %% "scopt" % scoptV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
@@ -446,7 +458,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = http4sDependencies ++ circeDependencies
+  val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
@@ -467,7 +479,7 @@ object Dependencies {
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
@@ -507,6 +519,14 @@ object Dependencies {
   val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
     googleApiClientDependencies ++ googleCloudDependencies
 
+  val drsLocalizerDependencies = List(
+    "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
+    "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "com.iheart" %% "ficus" % ficusV,
+    "com.softwaremill.sttp" %% "circe" % sttpV
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
+
   val allProjectDependencies =
     backendDependencies ++
       bcsBackendDependencies ++
@@ -522,6 +542,7 @@ object Dependencies {
       databaseSqlDependencies ++
       dockerHashingDependencies ++
       draft2LanguageFactoryDependencies ++
+      drsLocalizerDependencies ++
       engineDependencies ++
       gcsFileSystemDependencies ++
       httpFileSystemDependencies ++

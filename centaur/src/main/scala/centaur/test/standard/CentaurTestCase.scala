@@ -55,7 +55,7 @@ case class CentaurTestCase(workflow: Workflow,
 
 object CentaurTestCase {
   def fromFile(cromwellTracker: Option[CromwellTracker])(file: File): ErrorOr[CentaurTestCase] = {
-    Try(ConfigFactory.parseFile(file.toJava)) match {
+    Try(ConfigFactory.parseFile(file.toJava).resolve()) match {
       case Success(c) =>
         CentaurTestCase.fromConfig(c, file.parent, cromwellTracker) flatMap validateTestCase leftMap { s"Error in test file '$file'." :: _ }
       case Failure(f) => invalidNel(s"Invalid test config: $file (${f.getMessage})")

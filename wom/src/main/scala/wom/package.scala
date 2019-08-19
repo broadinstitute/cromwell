@@ -57,6 +57,11 @@ package object core {
   type ExecutableInputMap = Map[String, Any]
 }
 
+/***
+  * @param importPath The string representing the resolved import.
+  */
+final case class ResolvedImportRecord(importPath: String) extends AnyVal
+
 /**
   * @param commandString The string representing the instantiation of this command.
   * @param environmentVariables Key/value environment variable pairs.

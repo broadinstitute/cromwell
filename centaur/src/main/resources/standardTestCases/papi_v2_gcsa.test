@@ -1,0 +1,17 @@
+name: papi_v2_gcsa
+testFormat: WorkflowSuccess
+backends: [papi-v2-gcsa]
+
+files {
+  workflow: papi_v2_gcsa/papi_v2_gcsa.wdl
+  options-dir: ../../../../../target/ci/resources/
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_gcsa.options.json
+}
+
+metadata {
+  workflowName: papi_v2_gcsa
+  status: Succeeded
+  "outputs.papi_v2_gcsa.email": "cromwell@broad-dsde-cromwell-dev.iam.gserviceaccount.com"
+  "outputs.papi_v2_gcsa.scope": "https://www.googleapis.com/auth/bigquery https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/cloudkms https://www.googleapis.com/auth/compute https://www.googleapis.com/auth/devstorage.full_control https://www.googleapis.com/auth/genomics https://www.googleapis.com/auth/monitoring.write https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+}

@@ -38,6 +38,14 @@ google {
       json-file = ${google.json-dir}/cromwell-centaur-requester-pays-service-account.json
     }
     {
+      name = "google_compute_service_account"
+      scheme = "service_account"
+      # This service account has only:
+      # 1. The role "Genomics Pipelines Runner"
+      # 2. Has been added a "Service Account User" on cromwell@broad-dsde-cromwell-dev.iam.gserviceaccount.com
+      json-file = ${google.json-dir}/cromwell-centaur-google-compute-service-account.json
+    }
+    {
       name = "refresh_token"
       scheme = "refresh_token"
       client-id = "{{$cromwellRefreshToken.Data.client_id}}"
@@ -71,7 +79,6 @@ filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.c
 
 drs {
   localization {
-    docker-image = "broadinstitute/cromwell-dos:34-d8acfe3"
-    command-template = "mkdir -p $(dirname ${containerPath}) && /scripts/dosUrlLocalizer.sc ${drsPath} ${containerPath}"
+    docker-image = "broadinstitute/cromwell-drs-localizer:centaur-test-45-7216b84-SNAP"
   }
 }

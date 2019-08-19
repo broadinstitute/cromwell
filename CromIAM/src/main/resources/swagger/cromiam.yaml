@@ -248,6 +248,37 @@ paths:
           - email
           - profile
   '/api/workflows/{version}/{id}/labels':
+    get:
+      operationId: labels
+      summary: Retrieves the current labels for a workflow
+      parameters:
+      - version:
+        name: version
+        description: Cromwell API Version
+        required: true
+        type: string
+        in: path
+        default: v1
+      - id:
+        name: id
+        description: A workflow ID
+        required: true
+        type: string
+        in: path
+        pattern: ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Successful Request
+          schema:
+            $ref: '#/definitions/LabelsResponse'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
     patch:
       summary: Add new labels or update values for existing label keys by workflow id.
       parameters:
@@ -845,6 +876,14 @@ paths:
               schema:
                 $ref: '#/definitions/StatusResponse'
 
+responses:
+  BadRequest:
+    description: Malformed Workflow ID
+  NotFound:
+    description: Workflow ID Not Found
+  ServerError:
+    description: Internal Error
+
 parameters:
   workflowTypeParam:
     name: workflowType
@@ -1195,6 +1234,7 @@ definitions:
           - Tuple
           - Map
           - Object
+          - Pair
       optionalType:
         $ref: '#/definitions/ValueType'
       arrayType:

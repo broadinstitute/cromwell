@@ -16,6 +16,7 @@ import wom.callable.MetaValueElement._
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
 import wom.executable.WomBundle
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
+import wom.graph.{ScatterNode, WorkflowCallNode}
 import wom.types._
 
 class WdlFileToWomSpec extends FlatSpec with Matchers {
@@ -41,7 +42,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     }
 
     testOrIgnore {
-      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+      val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", convertNestedScatterToSubworkflow = true, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
 
       converter.run(testCase) match {
         case Right(bundle) => validators(testName).apply(bundle)
@@ -51,6 +52,68 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
       }
     }
   }
+
+  // There is a scatter within a scatter
+  //
+  // scatter(a in indices) {
+  //   scatter(b in indices) {
+  //     Int x = a + b
+  //   }
+  // }
+  //
+  it should "be able to leave nested scatters intact" in {
+    val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", convertNestedScatterToSubworkflow = false, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+
+    val twoLevelScatterFile = File("wdl/transforms/draft3/src/test/cases/two_level_scatter.wdl")
+
+    converter.run(twoLevelScatterFile) match {
+      case Right(bundle) =>
+        val wf = bundle.primaryCallable.get.asInstanceOf[WorkflowDefinition]
+        val graph = wf.innerGraph
+
+        // get the top scatter node
+        graph.scatters.size shouldBe(1)
+        val topScatter : ScatterNode = graph.scatters.toVector.head
+        val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
+
+        // don't generate any sub-workflows
+        wfCalls.size shouldBe(0)
+
+        // there should be one scatter inside the top scatter
+        val innerGraph = topScatter.innerGraph
+        innerGraph.scatters.size shouldBe(1)
+        Succeeded
+
+      case Left(errors) =>
+        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+        fail(s"Failed to create WOM bundle: $formattedErrors")
+    }
+  }
+
+
+  it should "split a nested scatter into a toplevel scatter, and a bottom sub-workflow" in {
+    val converter: CheckedAtoB[File, WomBundle] = fileToAst andThen wrapAst andThen astToFileElement.map(fe => FileElementToWomBundleInputs(fe, "{}", convertNestedScatterToSubworkflow = true, List.empty, List.empty, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+
+    val twoLevelScatterFile = File("wdl/transforms/draft3/src/test/cases/two_level_scatter.wdl")
+
+    converter.run(twoLevelScatterFile) match {
+      case Right(bundle) =>
+        val wf = bundle.primaryCallable.get.asInstanceOf[WorkflowDefinition]
+        val graph = wf.innerGraph
+
+        // There should be just one scatter.
+        graph.scatters.size shouldBe(1)
+        val wfCalls = graph.allNodes.filterByType[WorkflowCallNode]
+
+        // There should be a call to a generated sub-workflow in the graph
+        wfCalls.size shouldBe(1)
+        Succeeded
+      case Left(errors) =>
+        val formattedErrors = errors.toList.mkString(System.lineSeparator(), System.lineSeparator(), System.lineSeparator())
+        fail(s"Failed to create WOM bundle: $formattedErrors")
+    }
+  }
+
 
   private val validators: Map[String, WomBundle => Assertion] = Map(
     "declaration_chain" -> anyWomWillDo,
@@ -68,6 +131,7 @@ class WdlFileToWomSpec extends FlatSpec with Matchers {
     "simple_scatter" -> anyWomWillDo,
     "ogin_scatter" -> anyWomWillDo,
     "nested_scatter" -> anyWomWillDo,
+    "two_level_scatter" -> anyWomWillDo,
     "simple_conditional" -> anyWomWillDo,
     "lots_of_nesting" -> anyWomWillDo,
     "standalone_task" -> anyWomWillDo,

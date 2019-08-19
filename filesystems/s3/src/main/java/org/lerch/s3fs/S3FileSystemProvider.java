@@ -12,7 +12,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.S3Object;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -26,7 +25,6 @@ import org.lerch.s3fs.util.AttributesUtils;
 import org.lerch.s3fs.util.Cache;
 import org.lerch.s3fs.util.S3Utils;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -38,6 +36,7 @@ import java.nio.file.spi.FileSystemProvider;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 import static com.google.common.collect.Sets.difference;
 import static org.lerch.s3fs.AmazonS3Factory.*;
@@ -91,6 +90,14 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) {
+        return newFileSystem(uri, env, props -> createFileSystem(uri, props));
+    }
+
+    public FileSystem newFileSystem(URI uri, Map<String, ?> env, S3Client client) {
+        return newFileSystem(uri, env, props -> createFileSystem(uri, props, client));
+    }
+
+    private FileSystem newFileSystem(URI uri, Map<String, ?> env, Function<Properties, S3FileSystem> createFileSystemFunc) {
         validateUri(uri);
         // get properties for the env or properties or system
         Properties props = getProperties(uri, env);
@@ -101,7 +108,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
             throw new FileSystemAlreadyExistsException("File system " + uri.getScheme() + ':' + key + " already exists");
         }
         // create the filesystem with the final properties, store and return
-        S3FileSystem fileSystem = createFileSystem(uri, props);
+        S3FileSystem fileSystem = createFileSystemFunc.apply(props);
         fileSystems.put(fileSystem.getKey(), fileSystem);
         return fileSystem;
     }
@@ -267,13 +274,13 @@ public class S3FileSystemProvider extends FileSystemProvider {
      * @param env environment settings.
      * @return new or existing filesystem.
      */
-    public FileSystem getFileSystem(URI uri, Map<String, ?> env) {
+    public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client) {
         validateUri(uri);
         Properties props = getProperties(uri, env);
         String key = this.getFileSystemKey(uri, props); // s3fs_access_key is part of the key here.
         if (fileSystems.containsKey(key))
             return fileSystems.get(key);
-        return newFileSystem(uri, env);
+        return newFileSystem(uri, env, client);
     }
 
     @Override
@@ -570,6 +577,10 @@ public class S3FileSystemProvider extends FileSystemProvider {
      */
     public S3FileSystem createFileSystem(URI uri, Properties props) {
         return new S3FileSystem(this, getFileSystemKey(uri, props), getS3Client(uri, props), uri.getHost());
+    }
+
+    public S3FileSystem createFileSystem(URI uri, Properties props, S3Client client) {
+        return new S3FileSystem(this, getFileSystemKey(uri, props), client, uri.getHost());
     }
 
     protected S3Client getS3Client(URI uri, Properties props) {

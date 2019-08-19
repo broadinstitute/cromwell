@@ -77,7 +77,7 @@
         </else>
     </if>
 
-    <!-- Configure the Sentry appender, overriding the logging threshold to the WARN level -->
+   <!-- Configure the Sentry appender, overriding the logging threshold to the WARN level -->
     <appender name="Sentry" class="io.sentry.logback.SentryAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>WARN</level>

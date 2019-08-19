@@ -40,7 +40,10 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   it should "create a DRS input parameter" in {
 
-    val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter))
+    val drsPathBuilder = DrsPathBuilder(
+      new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+      None,
+    )
     val drsPath = drsPathBuilder.build("dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)
@@ -55,7 +58,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
     logging.get("commands") should be(a[java.util.List[_]])
     logging.get("commands").asInstanceOf[java.util.List[_]] should contain(
-      """sleep 5 && printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
+      """printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" """ +
         """Localizing\ input\ dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba\ """ +
         """-\>\ /cromwell_root/path/to/file.bai"""
     )
@@ -76,18 +79,13 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     val action = actions.tail.head
 
     action.keySet.asScala should contain theSameElementsAs
-      Set("commands", "entrypoint", "environment", "imageUri", "labels", "mounts")
+      Set("commands", "environment", "imageUri", "labels", "mounts")
 
     action.get("commands") should be(a[java.util.List[_]])
-    action.get("commands").asInstanceOf[java.util.List[_]] should contain(
-      "/path/to/some_executable " +
-      "before args " +
-      "dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba " +
-      "middle args " +
-      "/cromwell_root/path/to/file.bai ends args"
+    action.get("commands").asInstanceOf[java.util.List[_]] should contain theSameElementsAs List(
+      "dos://dos.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba",
+      "/cromwell_root/path/to/file.bai"
     )
-
-    action.get("entrypoint") should be("")
 
     action.get("mounts") should be(a[java.util.List[_]])
     action.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)

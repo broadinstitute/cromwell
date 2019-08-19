@@ -180,7 +180,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
      Responses from services
      */
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), _) =>
-      log.error(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
+      log.info(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()
     /*
      Watched transitions

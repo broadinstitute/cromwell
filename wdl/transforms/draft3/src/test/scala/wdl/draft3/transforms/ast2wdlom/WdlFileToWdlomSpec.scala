@@ -581,6 +581,41 @@ object WdlFileToWdlomSpec {
       ),
       Vector()
     ),
+    "two_level_scatter" -> FileElement(
+      Vector(),
+      Vector(),
+      Vector(WorkflowDefinitionElement(
+        "two_level_scatter",
+        None,
+        Set(
+          IntermediateValueDeclarationElement(
+            ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)),
+            "indices",
+            ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))
+          ),
+          ScatterElement(
+            scatterName = "ScatterAt8_11",
+            IdentifierLookup("indices"),
+            "a",
+            Vector(
+              ScatterElement(
+                scatterName = "ScatterAt9_13",
+                IdentifierLookup("indices"), "b",
+                Vector(
+                  IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", Add(IdentifierLookup("a"), IdentifierLookup("b")))),
+                sourceLocation = None
+              )
+            ),
+            None
+          )
+        ),
+        None,
+        None,
+        None,
+        Some(SourceFileLocation(3)))
+      ),
+      Vector()
+    ),
     "simple_conditional" -> FileElement(
       imports = Vector.empty,
       structs = Vector.empty,

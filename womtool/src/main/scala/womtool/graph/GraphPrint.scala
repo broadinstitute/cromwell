@@ -16,7 +16,8 @@ object GraphPrint {
 
   def generateWorkflowDigraph(file: String): WorkflowDigraph = {
     // It's ok to use .get here, we're happy to throw an exception and crash the program!
-    val namespace = WdlNamespaceWithWorkflow.load(Files.readAllLines(Paths.get(file)).asScala.mkString(System.lineSeparator()), Seq(WdlNamespace.fileResolver _)).get
+    val namespace = WdlNamespaceWithWorkflow.load(Files.readAllLines(Paths.get(file))
+      .asScala.mkString(System.lineSeparator()), Seq(WdlNamespace.fileResolver _)).get
 
     val digraph = listAllGraphNodes(namespace.workflow)
 
@@ -82,7 +83,7 @@ object GraphPrint {
     case d: Declaration =>
       s"${d.womType.stableName} ${d.unqualifiedName}"
     case c: WdlCall =>
-      s"call ${c.unqualifiedName}"
+        s"call ${c.callable.fullyQualifiedName}&${c.unqualifiedName}"
     case i: If =>
       s"if (${i.condition.toWomString})"
     case s: Scatter =>

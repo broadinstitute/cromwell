@@ -5,6 +5,7 @@ import cats.instances.list._
 import cats.instances.map._
 import cats.syntax.foldable._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
+import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common._
@@ -58,27 +59,50 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](localizationConfiguration: LocalizationConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
     val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
     val maxAttempts = localizationConfiguration.localizationAttempts
-    val transferItems = inputs.toList.flatMap { i =>
-      val kind = i match {
-        case _: PipelinesApiFileInput => "file"
-        case _: PipelinesApiDirectoryInput => "directory"
-      }
-      List(kind, i.cloudPath, i.containerPath)
-    } mkString("\"", "\"\n|  \"", "\"")
 
-    // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
-    val arrayIdentifier = s"localize_" + DigestUtils.md5Hex(bucket)
-    s"""
-       |# $bucket
-       |$arrayIdentifier=(
-       |  "localize" # direction
-       |  "$project"       # project
-       |  "$maxAttempts"   # max attempts
-       |  $transferItems
-       |)
-       |
-       |transfer "$${$arrayIdentifier[@]}"
-      """.stripMargin
+    // Split files and directories out so files can possibly benefit from a `gsutil -m cp -I ...` optimization
+    // on a per-container-parent-directory basis.
+    val (files, directories) = inputs.toList partition { _.isInstanceOf[PipelinesApiFileInput] }
+
+    val filesByContainerParentDirectory = files.groupBy(_.containerPath.parent.toString)
+
+    val fileTransferBundles: List[String] = filesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
+      val arrayIdentifier = s"files_to_localize_" + DigestUtils.md5Hex(bucket + containerParent)
+      val entries = filesWithSameParent.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
+
+      s"""
+         |# Localize files from source bucket '$bucket' to container parent directory '$containerParent'.
+         |$arrayIdentifier=(
+         |  "$project"   # project to use if requester pays
+         |  "$maxAttempts" # max transfer attempts
+         |  "${containerParent.ensureSlashed}" # container parent directory
+         |  $entries
+         |)
+         |
+         |localize_files "$${$arrayIdentifier[@]}"
+       """.stripMargin
+    }
+
+    // Only write a transfer bundle for directories if there are directories to be localized. Emptiness isn't a concern
+    // for files since there is always at least the command script to be localized.
+    val directoryTransferBundle = if (directories.isEmpty) "" else {
+      val entries = directories flatMap { i => List(i.cloudPath, i.containerPath) } mkString("\"", "\"\n|  \"", "\"")
+
+      val arrayIdentifier = s"directories_to_localize_" + DigestUtils.md5Hex(bucket)
+
+      s"""
+         |# Directories from source bucket '$bucket'.
+         |$arrayIdentifier=(
+         |  "$project"    # project to use if requester pays
+         |  "$maxAttempts" # max transfer attempts
+         |  $entries
+         |)
+         |
+         |localize_directories "$${$arrayIdentifier[@]}"
+       """.stripMargin
+    }
+
+    (directoryTransferBundle :: fileTransferBundles) mkString "\n\n"
   }
 
   private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](localizationConfiguration: LocalizationConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
@@ -104,13 +128,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     s"""
        |# $bucket
        |$arrayIdentifier=(
-       |  "delocalize" # direction
        |  "$project"       # project
        |  "$maxAttempts"   # max attempts
        |  $transferItems
        |)
        |
-       |transfer "$${$arrayIdentifier[@]}"
+       |delocalize "$${$arrayIdentifier[@]}"
       """.stripMargin
   }
 

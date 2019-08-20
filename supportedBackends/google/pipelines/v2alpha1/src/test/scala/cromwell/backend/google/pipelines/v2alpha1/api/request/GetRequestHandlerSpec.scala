@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1.api.request
 
 import java.net.URL
+import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
 import com.google.api.client.http.GenericUrl
@@ -10,7 +11,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.P
 import cromwell.backend.google.pipelines.common.api.RunStatus._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import cromwell.core.WorkflowId
+import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.Status
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
@@ -100,6 +101,89 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
          |""".stripMargin,
       Failed(Status.UNAVAILABLE, None, Nil, Nil, None, None, None)
     ),
+    ("Check that we classify error code 10 as a preemption",
+      """{
+        |  "done": true,
+        |  "error": {
+        |    "code": 10,
+        |    "message": "The assigned worker has failed to complete the operation"
+        |  },
+        |  "metadata": {
+        |    "@type": "type.googleapis.com/google.genomics.v2alpha1.Metadata",
+        |    "createTime": "2019-08-18T12:04:38.082650Z",
+        |    "endTime": "2019-08-18T15:58:26.659602622Z",
+        |    "events": [],
+        |    "labels": {
+        |      "cromwell-sub-workflow-name": "bamtocram",
+        |      "cromwell-workflow-id": "asdfasdf",
+        |      "wdl-call-alias": "validatecram",
+        |      "wdl-task-name": "validatesamfile"
+        |    },
+        |    "pipeline": {
+        |      "actions": [],
+        |      "environment": {},
+        |      "resources": {
+        |        "projectId": "",
+        |        "regions": [],
+        |        "virtualMachine": {
+        |          "accelerators": [],
+        |          "bootDiskSizeGb": 11,
+        |          "bootImage": "asdfasdf",
+        |          "cpuPlatform": "",
+        |          "disks": [
+        |            {
+        |              "name": "local-disk",
+        |              "sizeGb": 41,
+        |              "sourceImage": "",
+        |              "type": "pd-standard"
+        |            }
+        |          ],
+        |          "enableStackdriverMonitoring": false,
+        |          "labels": {
+        |            "cromwell-sub-workflow-name": "bamtocram",
+        |            "cromwell-workflow-id": "asdfasdf",
+        |            "goog-pipelines-worker": "true",
+        |            "wdl-call-alias": "validatecram",
+        |            "wdl-task-name": "validatesamfile"
+        |          },
+        |          "machineType": "custom-2-7168",
+        |          "network": {
+        |            "name": "",
+        |            "subnetwork": "",
+        |            "usePrivateAddress": false
+        |          },
+        |          "nvidiaDriverVersion": "",
+        |          "preemptible": true,
+        |          "serviceAccount": {
+        |            "email": "default",
+        |            "scopes": [
+        |              "https://www.googleapis.com/auth/genomics",
+        |              "https://www.googleapis.com/auth/compute",
+        |              "https://www.googleapis.com/auth/devstorage.full_control",
+        |              "https://www.googleapis.com/auth/cloudkms",
+        |              "https://www.googleapis.com/auth/userinfo.email",
+        |              "https://www.googleapis.com/auth/userinfo.profile",
+        |              "https://www.googleapis.com/auth/monitoring.write",
+        |              "https://www.googleapis.com/auth/cloud-platform"
+        |            ]
+        |          }
+        |        },
+        |        "zones": [
+        |          "us-central1-a",
+        |          "us-central1-b",
+        |          "us-east1-d",
+        |          "us-central1-c",
+        |          "us-central1-f",
+        |          "us-east1-c"
+        |        ]
+        |      },
+        |      "timeout": "604800s"
+        |    },
+        |    "startTime": "2019-08-18T12:04:39.192909594Z"
+        |  },
+        |  "name": "asdfasdf"
+        |}""".stripMargin, Preempted(Status.ABORTED, None, Nil, List(ExecutionEvent("waiting for quota", OffsetDateTime.parse("2019-08-18T12:04:38.082650Z"),None)), Some("custom-2-7168"), None, None)
+    )
   )
 
   forAll(interpretedStatus) { (description, json, expectedStatus) =>

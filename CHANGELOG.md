@@ -2,7 +2,7 @@
 
 ## 46 Release Notes
 
-### Enhanced reliability when handling "error code 10" in PAPIv2
+### Enhanced "error code 10" handling in PAPIv2
 
 On Google Pipelines API v2, a worker VM that is preempted may emit a generic error message like
 ```

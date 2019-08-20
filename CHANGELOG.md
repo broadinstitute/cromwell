@@ -12,7 +12,10 @@ instead a preemption-specific message like
 ```
 PAPI error code 14. Task was preempted for the 2nd time.
 ```
-Cromwell 44 introduced special handling that attempts to detect these preemptions and distinguish them from failures. Cromwell 46 enhances this handling in response to user reports of possible continued issues.   
+Cromwell 44 introduced special handling that detects both preemption indicators and re-runs the job consistent with the `preemptible` setting.
+
+Cromwell 46 enhances this handling in response to user reports of possible continued issues.   
+
 ## 45 Release Notes
 
 ### Improved input and output transfer performance on PAPI v2

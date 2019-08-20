@@ -17,10 +17,12 @@ import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import java.nio.file.{Path => NioPath}
+import java.security.MessageDigest
 
 import cromwell.core.WorkflowId
 import wom.ResolvedImportRecord
 import wom.core.WorkflowSource
+import wom.values._
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
@@ -38,12 +40,16 @@ object ImportResolver {
       innerResolver(request.toResolve, request.currentResolvers).contextualizeErrors(s"resolve '${request.toResolve}' using resolver: '$name'")
     }
     def cleanupIfNecessary(): ErrorOr[Unit]
+
+    // Used when checking that imports are unchanged when caching parse results.
+    // If it's impossible or infeasible to guarantee that imports are unchanged, returns an invalid response.
+    def hashKey: ErrorOr[String]
   }
 
   object DirectoryResolver {
-    def apply(directory: Path, allowEscapingDirectory: Boolean, customName: Option[String]): DirectoryResolver = {
+    private def apply(directory: Path, allowEscapingDirectory: Boolean, customName: Option[String]): DirectoryResolver = {
       val dontEscapeFrom = if (allowEscapingDirectory) None else Option(directory.toJava.getCanonicalPath)
-      DirectoryResolver(directory, dontEscapeFrom, customName)
+      DirectoryResolver(directory, dontEscapeFrom, customName, deleteOnClose = false, directoryHash = None)
     }
 
     def localFilesystemResolvers(baseWdl: Option[Path]) = List(
@@ -69,14 +75,15 @@ object ImportResolver {
   case class DirectoryResolver(directory: Path,
                                dontEscapeFrom: Option[String] = None,
                                customName: Option[String],
-                               deleteOnClose: Boolean = false) extends ImportResolver {
+                               deleteOnClose: Boolean,
+                               directoryHash: Option[String]) extends ImportResolver {
     lazy val absolutePathToDirectory: String = directory.toJava.getCanonicalPath
 
     override def innerResolver(path: String, currentResolvers: List[ImportResolver]): Checked[ResolvedImportBundle] = {
 
       def updatedResolverSet(oldRootDirectory: Path, newRootDirectory: Path, current: List[ImportResolver]): List[ImportResolver] = {
         current map {
-          case d if d == this => DirectoryResolver(newRootDirectory, dontEscapeFrom, customName)
+          case d if d == this => DirectoryResolver(newRootDirectory, dontEscapeFrom, customName, deleteOnClose = false, directoryHash = None)
           case other => other
         }
       }
@@ -139,11 +146,15 @@ object ImportResolver {
         }.toErrorOr
       else
         ().validNel
+
+    override def hashKey: ErrorOr[String] = directoryHash.map(_.validNel).getOrElse("No hashKey available for directory importer".invalidNel)
   }
 
   def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
+
+    val zipHash = new String(MessageDigest.getInstance("MD5").digest(zippedImports))
     LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
-      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None, deleteOnClose = true)
+      DirectoryResolver(dir, Option(dir.toJava.getCanonicalPath), None, deleteOnClose = true, directoryHash = Option(zipHash))
     }
   }
 
@@ -194,6 +205,8 @@ object ImportResolver {
     }
 
     override def cleanupIfNecessary(): ErrorOr[Unit] = ().validNel
+
+    override def hashKey: ErrorOr[String] = relativeTo.toString.md5Sum.validNel
   }
 
   object HttpResolver {

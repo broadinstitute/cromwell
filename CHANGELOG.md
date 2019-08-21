@@ -8,7 +8,7 @@ On Google Pipelines API v2, a worker VM that is preempted may emit a generic err
 ```
 PAPI error code 10. The assigned worker has failed to complete the operation
 ```
-instead a preemption-specific message like
+instead of a preemption-specific message like
 ```
 PAPI error code 14. Task was preempted for the 2nd time.
 ```

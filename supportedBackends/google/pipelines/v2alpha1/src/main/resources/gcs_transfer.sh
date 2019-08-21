@@ -136,7 +136,7 @@ localize_files() {
   local first_cloud_file="$4"
   shift 4
 
-  # All inputs are required. We need to determine requester pays status of the first file attempting at most `max_attempts` times.
+  # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
   NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil cp '$first_cloud_file' '$container_parent'"
   REQUESTER_PAYS_COMMAND="gsutil -u $project cp '$first_cloud_file' '$container_parent'"
 
@@ -153,10 +153,16 @@ localize_files() {
 
 
   if [[ $# -gt 0 ]]; then
+    touch files_to_localize.txt
+    while [[ $# -gt 0 ]]; do
+      echo "$0" >> files_to_localize.txt
+      shift
+    done
+
     attempt=1
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
-      echo "$@" | gsutil -m ${rpflag} cp -I "$container_parent"
+      cat files_to_localize.txt | gsutil -m ${rpflag} cp -I "$container_parent"
       if [[ $? = 0 ]]; then
         break
       else

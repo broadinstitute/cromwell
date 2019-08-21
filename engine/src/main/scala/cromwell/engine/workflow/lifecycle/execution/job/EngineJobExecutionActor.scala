@@ -398,7 +398,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   onTransition {
     case fromState -> toState =>
       log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
-      eventList :+= ExecutionEvent(toState.toString)
+
+      EngineJobExecutionActorState.transitionEventString(fromState, toState) foreach {
+        eventList :+= ExecutionEvent(_)
+      }
+
   }
 
   whenUnhandled {
@@ -758,6 +762,26 @@ object EngineJobExecutionActor {
   case object CheckingCacheEntryExistence extends EngineJobExecutionActorState
   case object UpdatingJobStore extends EngineJobExecutionActorState
   case object InvalidatingCacheEntry extends EngineJobExecutionActorState
+
+  object EngineJobExecutionActorState {
+    def transitionEventString(fromState: EngineJobExecutionActorState, toState: EngineJobExecutionActorState): Option[String] = {
+
+      def callCacheStateGroup: Set[EngineJobExecutionActorState] = Set(
+        CheckingCallCache,
+        FetchingCachedOutputsFromDatabase,
+        BackendIsCopyingCachedOutputs,
+        CheckingCacheEntryExistence,
+        InvalidatingCacheEntry
+      )
+
+      if (fromState == toState) None
+      else if (callCacheStateGroup.contains(fromState) && callCacheStateGroup.contains(toState)) None
+      else if (callCacheStateGroup.contains(toState)) Option("CallCacheReading")
+      else Option(toState.toString)
+    }
+  }
+
+
 
   /** Commands */
   sealed trait EngineJobExecutionActorCommand

@@ -90,6 +90,14 @@ private::timestamped_message() {
 }
 
 
+private::localize_message() {
+  local cloud="$1"
+  local container="$2"
+  local message=$(printf "Localizing input %s -> %s" "$cloud" "$container")
+  private::timestamped_message "${message}"
+}
+
+
 private::delocalize_message() {
   local cloud="$1"
   local container="$2"
@@ -140,6 +148,7 @@ localize_files() {
   NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil cp '$first_cloud_file' '$container_parent'"
   REQUESTER_PAYS_COMMAND="gsutil -u $project cp '$first_cloud_file' '$container_parent'"
 
+  private::localize_message "$first_cloud_file" "${container_parent}$(basename $first_cloud_file)"
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
@@ -155,6 +164,9 @@ localize_files() {
   if [[ $# -gt 0 ]]; then
     touch files_to_localize.txt
     while [[ $# -gt 0 ]]; do
+      cloud="$0"
+      container="${container_parent}$(basename $cloud)"
+      private::localize_message "$cloud" "$container"
       echo "$0" >> files_to_localize.txt
       shift
     done
@@ -181,6 +193,7 @@ private::localize_directory() {
   local rpflag="$4"
 
   local attempt=1
+  private::localize_message "$cloud" "$container"
   while [[ ${attempt} -lt ${max_attempts} ]]; do
     # Do not quote rpflag, when that is set it will be -u project which should be two distinct arguments.
     mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m rsync -r "${cloud}" "${container}" > /dev/null 2>&1

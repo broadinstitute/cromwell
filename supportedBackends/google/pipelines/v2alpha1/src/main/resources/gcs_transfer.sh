@@ -44,6 +44,7 @@ private::delocalize_file() {
   fi
 }
 
+
 private::delocalize_directory() {
   local cloud="$1"
   local container="$2"
@@ -64,6 +65,7 @@ private::delocalize_directory() {
   fi
 }
 
+
 private::delocalize_file_or_directory() {
   local cloud="$1"
   local container="$2"
@@ -82,16 +84,11 @@ private::delocalize_file_or_directory() {
   fi
 }
 
+
 private::timestamped_message() {
   printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" "$1"
 }
 
-#private::localize_message() {
-#  local cloud="$1"
-#  local container="$2"
-#  local message=$(printf "Localizing input %s -> %s" "$cloud" "$container")
-#  private::timestamped_message "${message}"
-#}
 
 private::delocalize_message() {
   local cloud="$1"
@@ -114,9 +111,8 @@ private::determine_requester_pays() {
 
   while [[ "$attempt" -le ${max_attempts} ]]; do
     eval ${command} > ${gsutil_log} 2>&1
-    rc="$?"
 
-    if [[ "$rc" = 0 ]]; then
+    if [[ $? = 0 ]]; then
       USE_REQUESTER_PAYS=${use_requester_pays}
       break
     elif [[ "$use_requester_pays" = "false" ]]; then
@@ -170,6 +166,7 @@ localize_files() {
   fi
 }
 
+
 # Requires known requester pays status.
 private::localize_directory() {
   local cloud="$1"
@@ -193,11 +190,12 @@ private::localize_directory() {
   fi
 }
 
+
 # Called from the localization script with unknown requester pays status on the source bucket. This attempts to localize
 # the first input directory without requester pays. If that fails with a requester pays error, this attempts again with
 # the project flag required for requester pays. Both no-requester-pays and requester-pays attempts are retried up to
-# max_attempts times. Once requester# pays status is determined the remaining files are localized with or without the
-# project flag as appropriate.
+# max_attempts times. Once requester pays status is determined via the first directory the remaining files are localized
+# with or without the project flag as appropriate.
 localize_directories() {
   local project="$1"
   local max_attempts="$2"
@@ -226,6 +224,7 @@ localize_directories() {
     private::localize_directory "$cloud_directory" "$container_directory" "$max_attempts" "$rpflag"
   done
 }
+
 
 # Handles all delocalizations for a transfer bundle (a grouping of file, directories, or files_or_directories targeting
 # a single GCS bucket).

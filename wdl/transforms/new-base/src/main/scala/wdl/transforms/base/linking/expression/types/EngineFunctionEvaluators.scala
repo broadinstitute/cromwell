@@ -80,6 +80,13 @@ object EngineFunctionEvaluators {
     }
   }
 
+  implicit val readBigDecimalFunctionEvaluator: TypeEvaluator[ReadBigDecimal] = new TypeEvaluator[ReadBigDecimal] {
+    override def evaluateType(a: ReadBigDecimal, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
+      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomBigDecimalType)
+    }
+  }
+
   implicit val readStringFunctionEvaluator: TypeEvaluator[ReadString] = new TypeEvaluator[ReadString] {
     override def evaluateType(a: ReadString, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {

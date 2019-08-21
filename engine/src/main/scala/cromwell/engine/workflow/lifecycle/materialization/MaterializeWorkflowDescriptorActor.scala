@@ -239,9 +239,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def workflowOptionsAndPathBuilders(sourceFiles: WorkflowSourceFilesCollection): (WorkflowOptions, Future[List[PathBuilder]]) = {
-    sourceFiles.workflowOptions
-    val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(sourceFiles.workflowOptions, pathBuilderFactories)(context.system)
-    (sourceFiles.workflowOptions, pathBuilders)
+    val workflowOptions = sourceFiles.workflowOptions
+    val pathBuilders = EngineFilesystems.pathBuildersForWorkflow(workflowOptions, pathBuilderFactories)(context.system)
+    (workflowOptions, pathBuilders)
   }
 
   private def buildWorkflowDescriptor(id: WorkflowId,

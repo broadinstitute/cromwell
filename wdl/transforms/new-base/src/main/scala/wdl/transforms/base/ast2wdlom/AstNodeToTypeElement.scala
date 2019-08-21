@@ -49,6 +49,7 @@ object AstNodeToTypeElement {
 
   private val typeMap: Map[String, WomPrimitiveType] = Map(
     "Int" -> WomIntegerType,
+    "BigDecimal" -> WomBigDecimalType,
     "String" -> WomStringType,
     "Float" -> WomFloatType,
     "Boolean" -> WomBooleanType,

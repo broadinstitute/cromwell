@@ -10,6 +10,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
     case r:WomInteger => Success(WomInteger(value + r.value))
+    case r:WomBigDecimal => Success(WomBigDecimal(value + r.value))
     case r:WomString => Success(WomString(value + r.value))
     case r:WomFloat => Success(WomFloat(value + r.value))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
@@ -18,6 +19,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def subtract(rhs: WomValue): Try[WomValue] = rhs match {
     case r:WomInteger => Success(WomInteger(value - r.value))
+    case r:WomBigDecimal => Success(WomBigDecimal(value - r.value))
     case r:WomFloat => Success(WomFloat(value - r.value))
     case r: WomOptionalValue => evaluateIfDefined("-", r, subtract)
     case _ => invalid(s"$value - $rhs")
@@ -25,6 +27,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def multiply(rhs: WomValue): Try[WomValue] = rhs match {
     case r:WomInteger => Success(WomInteger(value * r.value))
+    case r:WomBigDecimal => Success(WomBigDecimal(value * r.value))
     case r:WomFloat => Success(WomFloat(value * r.value))
     case r: WomOptionalValue => evaluateIfDefined("*", r, multiply)
     case _ => invalid(s"$value * $rhs")
@@ -33,6 +36,8 @@ case class WomInteger(value: Int) extends WomPrimitive {
   override def divide(rhs: WomValue): Try[WomValue] = rhs match {
     case r:WomInteger if r.value == 0 => Failure(new WomExpressionException(s"Divide by zero error: $value / $rhs"))
     case r:WomInteger => Success(WomInteger(value / r.value))
+    case r:WomBigDecimal if r.value == 0 => Failure(new WomExpressionException(s"Divide by zero error: $value / $rhs"))
+    case r:WomBigDecimal => Success(WomBigDecimal(value / r.value))
     case r:WomFloat if r.value == 0.toDouble => Failure(new WomExpressionException(s"Divide by zero error: $value / $rhs"))
     case r:WomFloat => Success(WomFloat(value / r.value))
     case r: WomOptionalValue => evaluateIfDefined("/", r, divide)
@@ -42,6 +47,8 @@ case class WomInteger(value: Int) extends WomPrimitive {
   override def mod(rhs: WomValue): Try[WomValue] = rhs match {
     case r:WomInteger if r.value == 0 => Failure(new WomExpressionException(s"Divide by zero error: $value / $rhs"))
     case r:WomInteger => Success(WomInteger(value % r.value))
+    case r:WomBigDecimal if r.value == 0 => Failure(new WomExpressionException(s"Divide by zero error: $value / $rhs"))
+    case r:WomBigDecimal => Success(WomBigDecimal(value % r.value))
     case r:WomFloat if r.value == 0.toDouble => Failure(new WomExpressionException(s"Divide by zero error: $value / $rhs"))
     case r:WomFloat => Success(WomFloat(value % r.value))
     case r: WomOptionalValue => evaluateIfDefined("%", r, mod)
@@ -50,6 +57,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r:WomInteger => Success(WomBoolean(value == r.value))
+    case r:WomBigDecimal => Success(WomBoolean(value == r.value))
     case r:WomFloat => Success(WomBoolean(value == r.value))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
@@ -57,6 +65,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def lessThan(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r:WomInteger => Success(WomBoolean(value < r.value))
+    case r:WomBigDecimal => Success(WomBoolean(value < r.value))
     case r:WomFloat => Success(WomBoolean(value < r.value))
     case r: WomOptionalValue => evaluateIfDefined("<", r, lessThan)
     case _ => invalid(s"$value < $rhs")
@@ -64,6 +73,7 @@ case class WomInteger(value: Int) extends WomPrimitive {
 
   override def greaterThan(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r:WomInteger => Success(WomBoolean(value > r.value))
+    case r:WomBigDecimal => Success(WomBoolean(value > r.value))
     case r:WomFloat => Success(WomBoolean(value > r.value))
     case r: WomOptionalValue => evaluateIfDefined(">", r, greaterThan)
     case _ => invalid(s"$value > $rhs")

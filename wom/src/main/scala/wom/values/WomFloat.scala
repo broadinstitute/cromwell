@@ -11,6 +11,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomFloat(value + r.value))
       case r:WomInteger => Success(WomFloat(value + r.value))
+      case r:WomBigDecimal => Success(WomBigDecimal(value + r.value))
       case r:WomString => Success(WomString(value + r.value))
       case r: WomOptionalValue => evaluateIfDefined("+", r, add)
       case _ => invalid(s"$this + $rhs")
@@ -20,6 +21,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomFloat(value - r.value))
       case r:WomInteger => Success(WomFloat(value - r.value))
+      case r:WomBigDecimal => Success(WomBigDecimal(value - r.value))
       case r: WomOptionalValue => evaluateIfDefined("-", r, subtract)
       case _ => invalid(s"$this - $rhs")
     }
@@ -28,6 +30,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomFloat(value * r.value))
       case r:WomInteger => Success(WomFloat(value * r.value))
+      case r:WomBigDecimal => Success(WomBigDecimal(value * r.value))
       case r: WomOptionalValue => evaluateIfDefined("*", r, multiply)
       case _ => invalid(s"$this * $rhs")
     }
@@ -38,6 +41,8 @@ case class WomFloat(value: Double) extends WomPrimitive {
       case r:WomFloat => Success(WomFloat(value / r.value))
       case r:WomInteger if r.value == 0 => Failure(new WomExpressionException("Divide by zero"))
       case r:WomInteger => Success(WomFloat(value / r.value))
+      case r:WomBigDecimal if r.value == 0 => Failure(new WomExpressionException("Divide by zero"))
+      case r:WomBigDecimal => Success(WomBigDecimal(value / r.value))
       case r: WomOptionalValue => evaluateIfDefined("/", r, divide)
       case _ => invalid(s"$this / $rhs")
     }
@@ -48,6 +53,8 @@ case class WomFloat(value: Double) extends WomPrimitive {
       case r:WomFloat => Success(WomFloat(value % r.value))
       case r:WomInteger if r.value == 0 => Failure(new WomExpressionException("Divide by zero"))
       case r:WomInteger => Success(WomFloat(value % r.value))
+      case r:WomBigDecimal if r.value == 0 => Failure(new WomExpressionException("Divide by zero"))
+      case r:WomBigDecimal => Success(WomBigDecimal(value % r.value))
       case r: WomOptionalValue => evaluateIfDefined("%", r, mod)
       case _ => invalid(s"$this % $rhs")
     }
@@ -56,6 +63,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomBoolean(value == r.value))
       case r:WomInteger => Success(WomBoolean(value == r.value))
+      case r:WomBigDecimal => Success(WomBoolean(value == r.value))
       case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
       case _ => invalid(s"$this == $rhs")
     }
@@ -64,6 +72,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomBoolean(value < r.value))
       case r:WomInteger => Success(WomBoolean(value < r.value))
+      case r:WomBigDecimal => Success(WomBoolean(value < r.value))
       case r: WomOptionalValue => evaluateIfDefined("<", r, lessThan)
       case _ => invalid(s"$this < $rhs")
     }
@@ -72,6 +81,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
     rhs match {
       case r:WomFloat => Success(WomBoolean(value > r.value))
       case r:WomInteger => Success(WomBoolean(value > r.value))
+      case r:WomBigDecimal => Success(WomBoolean(value > r.value))
       case r: WomOptionalValue => evaluateIfDefined(">", r, greaterThan)
       case _ => invalid(s"$this > $rhs")
     }

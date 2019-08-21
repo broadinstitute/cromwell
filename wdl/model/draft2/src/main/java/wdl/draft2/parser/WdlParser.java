@@ -5555,7 +5555,7 @@ public void wdl_unescape(LexerContext ctx, TerminalIdentifier terminal, String s
                 })
             ),
             new HermesRegex(
-                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
+                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|BigDecimal|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
                 Arrays.asList(new LexerOutput[] {
                     new LexerRegexOutput(
                         WdlTerminalIdentifier.TERMINAL_TYPE,
@@ -5877,7 +5877,7 @@ public void wdl_unescape(LexerContext ctx, TerminalIdentifier terminal, String s
                 })
             ),
             new HermesRegex(
-                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
+                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|BigDecimal|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
                 Arrays.asList(new LexerOutput[] {
                     new LexerRegexOutput(
                         WdlTerminalIdentifier.TERMINAL_TYPE,
@@ -6063,7 +6063,7 @@ public void wdl_unescape(LexerContext ctx, TerminalIdentifier terminal, String s
                 })
             ),
             new HermesRegex(
-                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
+                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|BigDecimal|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
                 Arrays.asList(new LexerOutput[] {
                     new LexerRegexOutput(
                         WdlTerminalIdentifier.TERMINAL_TYPE,
@@ -6660,7 +6660,7 @@ public void wdl_unescape(LexerContext ctx, TerminalIdentifier terminal, String s
                 })
             ),
             new HermesRegex(
-                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
+                Pattern.compile("(Array|Map|Object|Pair|Boolean|Int|BigDecimal|Float|Uri|File|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
                 Arrays.asList(new LexerOutput[] {
                     new LexerRegexOutput(
                         WdlTerminalIdentifier.TERMINAL_TYPE,

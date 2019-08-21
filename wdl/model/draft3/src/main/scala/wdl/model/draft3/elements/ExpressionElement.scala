@@ -101,6 +101,7 @@ object ExpressionElement {
   final case class ReadObjects(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class ReadJson(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class ReadInt(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class ReadBigDecimal(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class ReadString(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class ReadFloat(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class ReadBoolean(param: ExpressionElement) extends OneParamFunctionCallElement

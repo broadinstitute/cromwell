@@ -3,7 +3,7 @@ package cromwell
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.{CallCachingSimpletonEntry, JobStoreSimpletonEntry}
-import wom.types.{WomBooleanType, WomFloatType, WomIntegerType, WomLongType, WomStringType}
+import wom.types.{WomBigDecimalType, WomBooleanType, WomFloatType, WomIntegerType, WomLongType, WomStringType}
 import wom.values.{WomPrimitive, WomSingleFile, WomUnlistedDirectory, WomValue}
 
 import scala.util.Try
@@ -26,6 +26,7 @@ object Simpletons {
       case "Int" => WomIntegerType.coerceRawValue
       case "Float" => WomFloatType.coerceRawValue
       case "Long" => WomLongType.coerceRawValue
+      case "BigDecimal" => WomBigDecimalType.coerceRawValue
       case "Boolean" => WomBooleanType.coerceRawValue
       case "File" => s => Try(WomSingleFile(s))
       case "Directory" => s => Try(WomUnlistedDirectory(s))

@@ -6638,7 +6638,7 @@ public void output(LexerContext ctx, TerminalIdentifier terminal, String source_
                 })
             ),
             new HermesRegex(
-                Pattern.compile("(Array|Map|Pair|Boolean|Int|Float|File|Directory|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
+                Pattern.compile("(Array|Map|Pair|Boolean|Int|BigDecimal|Float|File|Directory|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
                 Arrays.asList(new LexerOutput[] {
                     new LexerRegexOutput(
                         WdlTerminalIdentifier.TERMINAL_TYPE,
@@ -7466,7 +7466,7 @@ public void output(LexerContext ctx, TerminalIdentifier terminal, String source_
                 })
             ),
             new HermesRegex(
-                Pattern.compile("(Array|Map|Pair|Boolean|Int|Float|File|Directory|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
+                Pattern.compile("(Array|Map|Pair|Boolean|Int|BigDecimal|Float|File|Directory|String)(?![a-zA-Z0-9_])(?![a-zA-Z0-9_])"),
                 Arrays.asList(new LexerOutput[] {
                     new LexerRegexOutput(
                         WdlTerminalIdentifier.TERMINAL_TYPE,

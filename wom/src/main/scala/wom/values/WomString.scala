@@ -11,6 +11,7 @@ case class WomString(value: String) extends WomPrimitive {
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
     case r: WomString => Success(WomString(value + r.value))
     case r: WomInteger => Success(WomString(value + r.value))
+    case r: WomBigDecimal => Success(WomString(value + r.value))
     case r: WomFloat => Success(WomString(value + r.value))
     case r: WomPrimitiveFile => Success(WomString(value + r.value))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)

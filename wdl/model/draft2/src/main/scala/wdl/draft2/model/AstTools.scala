@@ -119,6 +119,7 @@ object AstTools {
             case WomSingleFileType.`stableName` => WomSingleFileType
             case WomStringType.`stableName` => WomStringType
             case WomIntegerType.`stableName` => WomIntegerType
+            case WomBigDecimalType.`stableName` => WomBigDecimalType
             case WomFloatType.`stableName` => WomFloatType
             case WomBooleanType.`stableName` => WomBooleanType
             case WomObjectType.`stableName` => WomObjectType
@@ -209,6 +210,7 @@ object AstTools {
         case t: Terminal if t.getTerminalStr == "string" && womType == WomGlobFileType =>
           WomGlobFile(t.getSourceString)
         case t: Terminal if t.getTerminalStr == "integer" && womType == WomIntegerType => WomInteger(t.getSourceString.toInt)
+        case t: Terminal if t.getTerminalStr == "bigdecimal" && womType == WomBigDecimalType => WomBigDecimal(BigDecimal(t.getSourceString))
         case t: Terminal if t.getTerminalStr == "float" && womType == WomFloatType => WomFloat(t.getSourceString.toDouble)
         case t: Terminal if t.getTerminalStr == "boolean" && womType == WomBooleanType => t.getSourceString.toLowerCase match {
           case "true" => WomBoolean.True

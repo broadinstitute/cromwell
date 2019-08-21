@@ -10,6 +10,7 @@ trait WomPrimitiveType extends WomType {
     WomSingleFileType -> Seq(WomStringType, WomSingleFileType),
     WomGlobFileType -> Seq(WomStringType, WomGlobFileType),
     WomIntegerType -> Seq(WomStringType, WomIntegerType, WomFloatType),
+    WomBigDecimalType -> Seq(WomStringType, WomIntegerType, WomFloatType, WomBigDecimalType),
     WomFloatType -> Seq(WomStringType, WomFloatType),
     WomBooleanType -> Seq(WomStringType, WomBooleanType)
   )

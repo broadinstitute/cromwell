@@ -63,15 +63,25 @@ object RuntimeAttributesValidation {
 
   def validateInt(value: WomValue): ErrorOr[Int] = {
     WomIntegerType.coerceRawValue(value) match {
-      case scala.util.Success(WomInteger(i)) => i.intValue.validNel
-      case _ => s"Could not coerce ${value.valueString} into an integer".invalidNel
+      case Success(WomInteger(i)) => i.intValue.validNel
+      //Failure or Success of coercion of other type that is not WomInteger
+      case Failure(_) | Success(_) => s"Could not coerce ${value.valueString} into an integer".invalidNel
+    }
+  }
+
+  def validateBigDecimal(value: WomValue): ErrorOr[BigDecimal] = {
+    WomIntegerType.coerceRawValue(value) match {
+      case Success(WomBigDecimal(i)) => i.validNel
+      //Failure or Success of coercion of other type that is not WomBigDecimal
+      case Failure(_) | Success(_) => s"Could not coerce ${value.valueString} into a BigDecimal".invalidNel
     }
   }
 
   def validateBoolean(value: WomValue): ErrorOr[Boolean] = {
     WomBooleanType.coerceRawValue(value) match {
-      case scala.util.Success(WomBoolean(b)) => b.booleanValue.validNel
-      case _ => s"Could not coerce ${value.valueString} into a boolean".invalidNel
+      case Success(WomBoolean(b)) => b.booleanValue.validNel
+      //Failure or Success of coercion of other type that is not WomBoolean
+      case Failure(_) | Success(_) => s"Could not coerce ${value.valueString} into a boolean".invalidNel
     }
   }
 

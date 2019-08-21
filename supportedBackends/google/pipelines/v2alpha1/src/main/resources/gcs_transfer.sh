@@ -207,7 +207,7 @@ localize_directories() {
   NO_REQUESTER_PAYS_COMMAND="${BASE_COMMAND} ''"
   REQUESTER_PAYS_COMMAND="${BASE_COMMAND} '-u $project'"
 
-  private::determine_requester_pays_n_attempts ${max_attempts}
+  private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
     rpflag="-u $project"

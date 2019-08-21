@@ -81,7 +81,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with KvClient with AskSupport {
 
   override lazy val ioCommandBuilder = configuration.fileSystem match  {
-    case "s3" => S3BatchCommandBuilder
+    case AWSBatchStorageSystems.s3 => S3BatchCommandBuilder
     case _ =>  DefaultIoCommandBuilder
   }
 
@@ -109,7 +109,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   private lazy val jobScriptMountPath =  configuration.fileSystem match  {
-    case "s3" =>  AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
+    case AWSBatchStorageSystems.s3 =>  AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
     case _ =>  jobPaths.script.pathWithoutScheme
   }
 
@@ -203,7 +203,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       getPath(value) match {
         case Success(path) => {
           configuration.fileSystem match  {
-            case "s3" => path.pathWithoutScheme
+            case AWSBatchStorageSystems.s3 => path.pathWithoutScheme
             case _ =>  path.toString
           }
         }
@@ -261,7 +261,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     def getAbsolutePath(path: Path) = {
       configuration.fileSystem match {
-        case "s3" => AwsBatchWorkingDisk.MountPoint.resolve(path)
+        case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint.resolve(path)
         case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
       }
   }
@@ -358,13 +358,13 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   override lazy val commandDirectory: Path = configuration.fileSystem match  {
-    case "s3" => AwsBatchWorkingDisk.MountPoint
+    case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint
     case _ =>  jobPaths.callExecutionRoot
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =
     configuration.fileSystem match {
-      case "s3" => {
+      case  AWSBatchStorageSystems.s3 => {
         val (_, disk) = relativePathAndVolume(womGlobFile.value, runtimeAttributes.disks)
         disk.mountPoint
       }

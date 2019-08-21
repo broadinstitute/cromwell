@@ -57,3 +57,11 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
     PathBuilderFactory
   }
 }
+
+object AWSBatchStorageSystems {
+  val s3:String = "s3"
+  val efs:String = "efs"
+  val ebs:String = "ebs"
+  val local:String = "local"
+}
+

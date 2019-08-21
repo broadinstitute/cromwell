@@ -33,6 +33,7 @@ package cromwell.backend.impl.aws.callcaching
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.aws.AwsBatchBackendInitializationData
+import cromwell.backend.impl.aws.AWSBatchStorageSystems
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.core.io.DefaultIoCommandBuilder
@@ -53,13 +54,13 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
     .configuration.batchAttributes
 
   override protected val commandBuilder = batchAttributes.fileSystem match {
-    case "s3" => S3BatchCommandBuilder
+    case AWSBatchStorageSystems.s3  => S3BatchCommandBuilder
     case  _ => DefaultIoCommandBuilder
   }
   private val cachingStrategy = batchAttributes.duplicationStrategy
 
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path) = (batchAttributes.fileSystem, cachingStrategy)  match {
-    case ("s3", UseOriginalCachedOutputs) =>  {
+    case (AWSBatchStorageSystems.s3 , UseOriginalCachedOutputs) =>  {
           val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
             case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map S3BatchCommandBuilder.touchCommand
           }
@@ -72,7 +73,7 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
   }
 
   override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = (batchAttributes.fileSystem, cachingStrategy)  match {
-      case ("s3", UseOriginalCachedOutputs) => {
+      case (AWSBatchStorageSystems.s3, UseOriginalCachedOutputs) => {
         // apply getPath on each detritus string file
         val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>
           key -> getPath(sourceJobDetritusFiles(key))
@@ -91,7 +92,7 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
                                               newOutputs: CallOutputs,
                                               originalDetritus:  Map[String, String],
                                               newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = (batchAttributes.fileSystem, cachingStrategy)  match {
-      case ("s3", UseOriginalCachedOutputs) =>
+      case (AWSBatchStorageSystems.s3, UseOriginalCachedOutputs) =>
             val content =
               s"""
                  |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
@@ -100,7 +101,7 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
       """.stripMargin
 
             List(Set(S3BatchCommandBuilder.writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
-       case ("s3", CopyCachedOutputs) => List.empty
+       case (AWSBatchStorageSystems.s3, CopyCachedOutputs) => List.empty
        case (_, _) => super.additionalIoCommands(sourceCallRootPath,originalSimpletons, newOutputs, originalDetritus,newDetritus)
     }
 }

@@ -59,7 +59,7 @@ class AwsBatchFinalizationActor(val params: AwsBatchFinalizationActorParams)
   lazy val configuration: AwsBatchConfiguration = params.configuration
 
   override lazy val ioCommandBuilder =  configuration.fileSystem match {
-    case "s3" =>  S3BatchCommandBuilder
+    case  AWSBatchStorageSystems.s3 =>  S3BatchCommandBuilder
     case _ =>   DefaultIoCommandBuilder
   }
 

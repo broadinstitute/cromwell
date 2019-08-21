@@ -177,7 +177,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val jobDefinitionContext = AwsBatchJobDefinitionContext(runtimeAttributes,
                                                             taskId,
                                                             awsBatchAttributes.fileSystem match {
-                                                                    case "s3" => reconfiguredScript
+                                                                    case AWSBatchStorageSystems.s3  => reconfiguredScript
                                                                      case _ => script
                                                             },
                                                             dockerRc,

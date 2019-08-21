@@ -92,7 +92,7 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
       case None =>  new  AwsBatchConfiguration(params.configurationDescriptor)
     }
     conf.fileSystem match {
-      case "s3" =>  S3BatchCommandBuilder
+      case  AWSBatchStorageSystems.s3 =>  S3BatchCommandBuilder
       case _ =>   DefaultIoCommandBuilder
     }
   }

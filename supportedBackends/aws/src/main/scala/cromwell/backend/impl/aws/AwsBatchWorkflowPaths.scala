@@ -42,7 +42,6 @@ import cromwell.filesystems.s3.S3PathBuilderFactory
 
 object AwsBatchWorkflowPaths {
   private val RootOptionKey = "aws_s3_root"
-  //private val AuthFilePathOptionKey = "auth_bucket"
 }
 
 case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
@@ -50,7 +49,7 @@ case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                             configuration: AwsBatchConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {
 
   override lazy val executionRootString: String =  configuration.fileSystem match {
-    case "s3" => workflowDescriptor.workflowOptions.getOrElse(AwsBatchWorkflowPaths.RootOptionKey, configuration.root)
+    case AWSBatchStorageSystems.s3  => workflowDescriptor.workflowOptions.getOrElse(AwsBatchWorkflowPaths.RootOptionKey, configuration.root)
     case _ => configuration.root
   }
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions

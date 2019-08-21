@@ -45,5 +45,5 @@ case class AwsBatchBackendInitializationData
   //genomics: Genomics
 ) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder,
    configuration.fileSystem match {
-   case "s3" => classOf[AwsBatchExpressionFunctions]
+   case AWSBatchStorageSystems.s3 => classOf[AwsBatchExpressionFunctions]
    case _ => classOf[AwsBatchExpressionFunctionsForFS]})

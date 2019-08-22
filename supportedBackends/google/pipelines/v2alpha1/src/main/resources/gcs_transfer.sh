@@ -148,7 +148,8 @@ localize_files() {
   NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil cp '$first_cloud_file' '$container_parent'"
   REQUESTER_PAYS_COMMAND="gsutil -u $project cp '$first_cloud_file' '$container_parent'"
 
-  private::localize_message "$first_cloud_file" "${container_parent}$(basename $first_cloud_file)"
+  basefile=$(basename "$first_cloud_file")
+  private::localize_message "$first_cloud_file" "${container_parent}${basefile}"
   private::determine_requester_pays ${max_attempts}
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
@@ -164,10 +165,11 @@ localize_files() {
   if [[ $# -gt 0 ]]; then
     touch files_to_localize.txt
     while [[ $# -gt 0 ]]; do
-      cloud="$0"
-      container="${container_parent}$(basename $cloud)"
+      cloud="$1"
+      basefile=$(basename "$cloud")
+      container="${container_parent}${basefile}"
       private::localize_message "$cloud" "$container"
-      echo "$0" >> files_to_localize.txt
+      echo "$cloud" >> files_to_localize.txt
       shift
     done
 

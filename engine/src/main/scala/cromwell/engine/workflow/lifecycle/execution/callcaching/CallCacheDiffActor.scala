@@ -8,11 +8,11 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CallCacheDiffActorData, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
-import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
+import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
 import cromwell.services.metadata._
-import cromwell.webservice.metadata.MetadataComponent._
-import cromwell.webservice.metadata._
+import cromwell.services.metadata.impl.builder._
 import spray.json.JsObject
+import cromwell.services.metadata.impl.builder.MetadataComponent.metadataComponentJsonWriter
 
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -57,8 +57,8 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     case Event(CallCacheDiffQueryParameter(callA, callB), CallCacheDiffNoData) =>
       val queryA = makeMetadataQuery(callA)
       val queryB = makeMetadataQuery(callB)
-      serviceRegistryActor ! GetMetadataQueryAction(queryA)
-      serviceRegistryActor ! GetMetadataQueryAction(queryB)
+      serviceRegistryActor ! GetMetadataAction(queryA)
+      serviceRegistryActor ! GetMetadataAction(queryB)
       goto(WaitingForMetadata) using CallCacheDiffWithRequest(queryA, queryB, None, None, sender())
   }
 

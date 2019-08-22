@@ -5,7 +5,7 @@ import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
-import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
+import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
 import cromwell.services.metadata._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -66,8 +66,8 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     actor ! CallCacheDiffQueryParameter(callA, callB)
 
-    mockServiceRegistryActor.expectMsg(GetMetadataQueryAction(queryA))
-    mockServiceRegistryActor.expectMsg(GetMetadataQueryAction(queryB))
+    mockServiceRegistryActor.expectMsg(GetMetadataAction(queryA))
+    mockServiceRegistryActor.expectMsg(GetMetadataAction(queryB))
   }
 
   it should "save response for callA and wait for callB" in {

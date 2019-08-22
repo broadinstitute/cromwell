@@ -13,7 +13,6 @@ import wom.values._
 
 import scala.util.Random
 
-
 object MetadataService {
 
   final val MetadataServiceName = "MetadataService"
@@ -40,6 +39,11 @@ object MetadataService {
     def serviceName = MetadataServiceName
   }
   trait MetadataReadAction extends MetadataServiceAction
+
+  trait WorkflowMetadataReadAction extends MetadataReadAction {
+    def workflowId: WorkflowId
+  }
+
   object PutMetadataAction {
     def apply(event: MetadataEvent, others: MetadataEvent*) = new PutMetadataAction(List(event) ++ others)
   }
@@ -83,17 +87,25 @@ object MetadataService {
 
   final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
 
-  final case class GetSingleWorkflowMetadataAction(workflowId: WorkflowId,
-                                                   includeKeysOption: Option[NonEmptyList[String]],
-                                                   excludeKeysOption: Option[NonEmptyList[String]],
-                                                   expandSubWorkflows: Boolean)
-    extends MetadataReadAction
-  final case class GetMetadataQueryAction(key: MetadataQuery) extends MetadataReadAction
-  final case class GetStatus(workflowId: WorkflowId) extends MetadataReadAction
-  final case class GetLabels(workflowId: WorkflowId) extends MetadataReadAction
+  // Utility object to get GetMetadataAction's for a workflow-only query:
+  object GetSingleWorkflowMetadataAction {
+    def apply(workflowId: WorkflowId,
+              includeKeysOption: Option[NonEmptyList[String]],
+              excludeKeysOption: Option[NonEmptyList[String]],
+              expandSubWorkflows: Boolean): WorkflowMetadataReadAction = {
+      GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+    }
+  }
+
+
+  final case class GetMetadataAction(key: MetadataQuery) extends WorkflowMetadataReadAction {
+    override def workflowId: WorkflowId = key.workflowId
+  }
+  final case class GetStatus(workflowId: WorkflowId) extends WorkflowMetadataReadAction
+  final case class GetLabels(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   final case class WorkflowQuery(parameters: Seq[(String, String)]) extends MetadataReadAction
-  final case class WorkflowOutputs(workflowId: WorkflowId) extends MetadataReadAction
-  final case class GetLogs(workflowId: WorkflowId) extends MetadataReadAction
+  final case class WorkflowOutputs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
+  final case class GetLogs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit

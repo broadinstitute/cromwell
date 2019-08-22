@@ -1,8 +1,11 @@
 package cromwell.services.metadata.impl
 
+import java.util.UUID
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.services.metadata.MetadataService.MetadataServiceAction
+import cromwell.services.metadata.MetadataService
+import cromwell.services.metadata.MetadataService.{MetadataServiceAction, WorkflowMetadataReadAction}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.ReadMetadataWorkerMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.MetadataBuilderActorResponse
@@ -21,12 +24,22 @@ class ReadMetadataRegulatorActor(readMetadataWorkerMaker: ReadMetadataWorkerMake
   // as the lookup key for requesters in the above Map.
   val builderRequests = new mutable.HashMap[ActorRef, MetadataServiceAction]()
 
+  val metadataBuilderProps = MetadataBuilderActor.props(readMetadataWorkerMaker)
+
   override def receive: Receive = {
-    case action: MetadataServiceAction =>
+    case action: WorkflowMetadataReadAction =>
       val currentRequesters = apiRequests.getOrElse(action, Set.empty)
       apiRequests.put(action, currentRequesters + sender())
       if (currentRequesters.isEmpty) {
-        val readMetadataActor = context.actorOf(readMetadataWorkerMaker.apply().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName)
+        val readMetadataActor = context.actorOf(metadataBuilderProps.withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(action.workflowId.toString))
+        builderRequests.put(readMetadataActor, action)
+        readMetadataActor ! action
+      }
+    case action: MetadataService.WorkflowQuery =>
+      val currentRequesters = apiRequests.getOrElse(action, Set.empty)
+      apiRequests.put(action, currentRequesters + sender())
+      if (currentRequesters.isEmpty) {
+        val readMetadataActor = context.actorOf(readMetadataWorkerMaker.apply().withDispatcher(ApiDispatcher), s"MetadataQueryWorker-${UUID.randomUUID()}")
         builderRequests.put(readMetadataActor, action)
         readMetadataActor ! action
       }

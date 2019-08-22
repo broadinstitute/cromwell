@@ -55,19 +55,19 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 
       eventually(Timeout(10.seconds), Interval(2.seconds)) {
         (for {
-          response1 <- (actor ? GetMetadataQueryAction(query1)).mapTo[MetadataServiceResponse]
+          response1 <- (actor ? GetMetadataAction(query1)).mapTo[MetadataServiceResponse]
           _ = response1 shouldBe MetadataLookupResponse(query1, Seq(event1_1, event1_2))
 
-          response2 <- (actor ? GetMetadataQueryAction(query2)).mapTo[MetadataServiceResponse]
+          response2 <- (actor ? GetMetadataAction(query2)).mapTo[MetadataServiceResponse]
           _ = response2 shouldBe MetadataLookupResponse(query2, Seq(event2_1))
 
-          response3 <- (actor ? GetMetadataQueryAction(query3)).mapTo[MetadataServiceResponse]
+          response3 <- (actor ? GetMetadataAction(query3)).mapTo[MetadataServiceResponse]
           _ = response3 shouldBe MetadataLookupResponse(query3, Seq(event3_1, event3_2))
 
-          response4 <- (actor ? GetMetadataQueryAction(query4)).mapTo[MetadataServiceResponse]
+          response4 <- (actor ? GetMetadataAction(query4)).mapTo[MetadataServiceResponse]
           _ = response4 shouldBe MetadataLookupResponse(query4, Seq(event1_1, event1_2, event2_1, event3_1, event3_2))
 
-          response5 <- (actor ? GetMetadataQueryAction(query5)).mapTo[MetadataServiceResponse]
+          response5 <- (actor ? GetMetadataAction(query5)).mapTo[MetadataServiceResponse]
           _ = response5 shouldBe MetadataLookupResponse(query5, Seq(event3_1, event3_2))
 
         } yield ()).futureValue

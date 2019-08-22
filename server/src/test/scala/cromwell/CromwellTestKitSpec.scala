@@ -46,6 +46,7 @@ case class OutputNotFoundException(outputFqn: String, actualOutputs: String) ext
 case class LogNotFoundException(log: String) extends RuntimeException(s"Expected log $log was not found")
 
 object CromwellTestKitSpec {
+
   val ConfigText =
     """
       |akka {

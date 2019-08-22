@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
-import cromwell.CromwellTestKitWordSpec
+import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import cromwell.core.CromwellGraphNode._
 import cromwell.core.labels.Labels
 import cromwell.core._
@@ -28,7 +28,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       |backend {
       |  default = "Local"
       |}
-    """.stripMargin)
+      |""".stripMargin
+  ).withFallback(CromwellTestKitSpec.DefaultConfig)
   val differentDefaultBackendConf = ConfigFactory.parseString(
     """
       |backend {
@@ -39,9 +40,10 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       |    SpecifiedBackend {}
       |  }
       |}
-    """.stripMargin)
+      |""".stripMargin
+  ).withFallback(CromwellTestKitSpec.DefaultConfig)
   val unstructuredFile = "fubar badness!"
-  val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": "true" } """).get
+  val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": true } """).get
   val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2", "Label1": "valu£1" }"""
   val badCustomLabelsFile="""{ "key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas": "value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa" }"""
 

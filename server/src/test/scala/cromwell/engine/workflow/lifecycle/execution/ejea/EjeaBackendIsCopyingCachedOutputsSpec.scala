@@ -107,7 +107,15 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             eventually {
               ejea.stateName should be(InvalidatingCacheEntry)
             }
-            ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, initialHashData, Option(helper.ejhaProbe.ref), cacheHit))
+            ejea.stateData should be(ResponsePendingData(
+              helper.backendJobDescriptor,
+              helper.bjeaProps,
+              initialHashData,
+              Option(helper.ejhaProbe.ref),
+              cacheHit,
+              None,
+              1,
+            ))
           }
 
           s"not invalidate a call for caching if backend coping failed when invalidation is disabled, when it was going to receive $hashComboName, if call caching is $mode" in {
@@ -147,7 +155,15 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             eventually {
               ejea.stateName should be(InvalidatingCacheEntry)
             }
-            ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, finalHashData, Option(helper.ejhaProbe.ref), cacheHit))
+            ejea.stateData should be(ResponsePendingData(
+              helper.backendJobDescriptor,
+              helper.bjeaProps,
+              finalHashData,
+              Option(helper.ejhaProbe.ref),
+              cacheHit,
+              None,
+              1,
+            ))
           }
         }
       }

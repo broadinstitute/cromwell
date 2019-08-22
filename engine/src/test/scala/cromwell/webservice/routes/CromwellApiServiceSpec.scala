@@ -597,10 +597,6 @@ object CromwellApiServiceSpec {
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! WorkflowOutputsResponse(id, event)
       case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
-      case GetSingleWorkflowMetadataAction(id, withKeys, withoutKeys, _) =>
-        val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
-        val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
-        sender ! MetadataLookupResponse(metadataQuery(id), responseMetadataValues(id, withKeysList, withoutKeysList))
       case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)

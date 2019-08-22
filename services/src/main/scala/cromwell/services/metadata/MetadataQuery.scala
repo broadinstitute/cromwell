@@ -94,7 +94,9 @@ object MetadataQueryJobKey {
   def forMetadataJobKey(jobKey: MetadataJobKey) = MetadataQueryJobKey(jobKey.callFqn, jobKey.index, Option(jobKey.attempt))
 }
 
-case class MetadataQuery(workflowId: WorkflowId, jobKey: Option[MetadataQueryJobKey], key: Option[String],
+case class MetadataQuery(workflowId: WorkflowId,
+                         jobKey: Option[MetadataQueryJobKey],
+                         key: Option[String],
                          includeKeysOption: Option[NonEmptyList[String]],
                          excludeKeysOption: Option[NonEmptyList[String]],
                          expandSubWorkflows: Boolean)

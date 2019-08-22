@@ -5,7 +5,7 @@ import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{CallMetadataKeys, MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
@@ -20,12 +20,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
   implicit val ec = context.dispatcher
 
   def receive = {
-    case GetSingleWorkflowMetadataAction(workflowId, includeKeysOption, excludeKeysOption, expandSubWorkflows) =>
-      val includeKeys = if (expandSubWorkflows) {
-        includeKeysOption map { _ :+ CallMetadataKeys.SubWorkflowId }
-      } else includeKeysOption
-      queryAndRespond(MetadataQuery(workflowId, None, None, includeKeys, excludeKeysOption, expandSubWorkflows))
-    case GetMetadataQueryAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
+    case GetMetadataAction(query@MetadataQuery(_, _, _, _, _, _)) => queryAndRespond(query)
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLabels(workflowId) => queryLabelsAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)

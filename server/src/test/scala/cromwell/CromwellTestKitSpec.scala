@@ -27,8 +27,7 @@ import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
-import cromwell.webservice.metadata.MetadataBuilderActor
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import org.scalactic.Equality
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -386,14 +385,12 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   }
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WomValue] = {
-    val mba = system.actorOf(MetadataBuilderActor.props(serviceRegistryActor))
-    val response = mba.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
-      case BuiltMetadataResponse(r) => r
-      case FailedMetadataResponse(e) => throw e
+
+    val response = serviceRegistryActor.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
+      case BuiltMetadataResponse(_, r) => r
+      case FailedMetadataResponse(_, e) => throw e
     }
     val jsObject = Await.result(response, TimeoutDuration)
-
-    system.stop(mba)
 
     jsObject.getFields(WorkflowMetadataKeys.Outputs).toList match {
       case head::_ => head.asInstanceOf[JsObject].fields.map( x => (x._1, jsValueToWdlValue(x._2)))

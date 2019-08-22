@@ -20,7 +20,7 @@ import cromwell.engine.workflow.workflowstore._
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata.MetadataQuery
-import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse}
+import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataLookupResponse}
 import cromwell.services.metadata.impl.ReadDatabaseMetadataWorkerActor
 import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
@@ -214,7 +214,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
               // We need to wait for workflow metadata to be flushed before we can successfully query for it
               eventually(timeout(15 seconds), interval(5 seconds)) {
-                readMetadataActor ! GetMetadataQueryAction(MetadataQuery.forWorkflow(id))
+                readMetadataActor ! GetMetadataAction(MetadataQuery.forWorkflow(id))
                 expectMsgPF(10 seconds) {
                   case MetadataLookupResponse(_, eventList) =>
                     val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get

@@ -52,6 +52,22 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
     fromEither[IO](checked)
   }
 
+
+  // The only reason this isn't a sub-def inside 'getWomBundle' is that it gets overridden in test cases:
+  protected def makeWomBundle(workflowSource: WorkflowSource,
+                            workflowSourceOrigin: Option[ResolvedImportRecord],
+                            workflowOptionsJson: WorkflowOptionsJson,
+                            importResolvers: List[ImportResolver],
+                            languageFactories: List[LanguageFactory],
+                            convertNestedScatterToSubworkflow : Boolean = true): ErrorOr[WomBundle] = {
+
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+
+    converter
+      .run(FileStringParserInput(workflowSource, workflowSourceOrigin.map(_.importPath).getOrElse("input.wdl")))
+      .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin)).toValidated
+  }
+
   override def getWomBundle(workflowSource: WorkflowSource,
                             workflowSourceOrigin: Option[ResolvedImportRecord],
                             workflowOptionsJson: WorkflowOptionsJson,
@@ -59,12 +75,8 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
                             languageFactories: List[LanguageFactory],
                             convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
 
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
-
     lazy val validationCallable = new Callable[ErrorOr[WomBundle]] {
-      def call: ErrorOr[WomBundle] = converter
-        .run(FileStringParserInput(workflowSource, workflowSourceOrigin.map(_.importPath).getOrElse("input.wdl")))
-        .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin)).toValidated
+      def call: ErrorOr[WomBundle] = makeWomBundle(workflowSource, workflowSourceOrigin, workflowOptionsJson, importResolvers, languageFactories, convertNestedScatterToSubworkflow)
     }
 
     lazy val parserCacheInputs = ParserCacheInputs(Option(workflowSource), workflowSourceOrigin.map(_.importPath), None, importResolvers)

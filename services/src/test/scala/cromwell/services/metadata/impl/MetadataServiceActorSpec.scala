@@ -123,52 +123,6 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 
     }
   }
-
-//      eventually(Timeout(10.seconds), Interval(2.seconds)) {
-//        val response1 = Await.result((actor ? GetMetadataAction(query1)).mapTo[BuiltMetadataResponse], 1.seconds)
-//        response1.response.prettyPrint shouldBe
-//          s"""{
-//             |  "${event1_2.key.key}": "${event1_2.value.map(_.value).get}",
-//             |  "calls": {
-//             |
-//             |  },
-//             |  "id": "$workflowId"
-//             |}""".stripMargin
-//      }
-//
-//      val response2 = Await.result((actor ? GetMetadataAction(query2)).mapTo[BuiltMetadataResponse], 10.seconds)
-//      response2 shouldBe MetadataLookupResponse(query2, Seq(event2_1))
-//
-//      val response3 = Await.result((actor ? GetMetadataAction(query3)).mapTo[BuiltMetadataResponse], 10.seconds)
-//      response3 shouldBe MetadataLookupResponse(query3, Seq(event3_1, event3_2))
-//
-//      val response4 = Await.result((actor ? GetMetadataAction(query4)).mapTo[BuiltMetadataResponse], 10.seconds)
-//      response4 shouldBe MetadataLookupResponse(query4, Seq(event1_1, event1_2, event2_1, event3_1, event3_2))
-//
-//      val response5 = Await.result((actor ? GetMetadataAction(query5)).mapTo[BuiltMetadataResponse], 10.seconds)
-//      response5 shouldBe MetadataLookupResponse(query5, Seq(event3_1, event3_2))
-
-//      eventually(Timeout(10.seconds), Interval(2.seconds)) {
-//      {
-//        (for {
-//          response1 <- (actor ? GetMetadataAction(query1)).mapTo[MetadataServiceResponse]
-//          _ = response1 shouldBe MetadataLookupResponse(query1, Seq(event1_1, event1_2))
-//
-//          response2 <- (actor ? GetMetadataAction(query2)).mapTo[MetadataServiceResponse]
-//          _ = response2 shouldBe MetadataLookupResponse(query2, Seq(event2_1))
-//
-//          response3 <- (actor ? GetMetadataAction(query3)).mapTo[MetadataServiceResponse]
-//          _ = response3 shouldBe MetadataLookupResponse(query3, Seq(event3_1, event3_2))
-//
-//          response4 <- (actor ? GetMetadataAction(query4)).mapTo[MetadataServiceResponse]
-//          _ = response4 shouldBe MetadataLookupResponse(query4, Seq(event1_1, event1_2, event2_1, event3_1, event3_2))
-//
-//          response5 <- (actor ? GetMetadataAction(query5)).mapTo[MetadataServiceResponse]
-//          _ = response5 shouldBe MetadataLookupResponse(query5, Seq(event3_1, event3_2))
-//
-//        } yield ()).futureValue
-//      }
-
 }
 
 object MetadataServiceActorSpec {

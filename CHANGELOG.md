@@ -4,7 +4,7 @@
 
 ### Nvidia GPU Driver Update
 
-The default driver for Nvidia GPU's on Google Cloud has been updated from 390 to 418.87.00.  A user may override this option at anytime by providing the `nvidiaDriverVersion` runtime attribute.  See the [Runtime Attribute description for GPUs](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#runtime-attribute-descriptions) for detailed information.
+The default driver for Nvidia GPU's on Google Cloud has been updated from `390` to `418.87.00`.  A user may override this option at anytime by providing the `nvidiaDriverVersion` runtime attribute.  See the [Runtime Attribute description for GPUs](https://cromwell.readthedocs.io/en/stable/RuntimeAttributes/#runtime-attribute-descriptions) for detailed information.
 
 ### Enhanced "error code 10" handling in PAPIv2
 

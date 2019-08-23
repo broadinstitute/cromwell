@@ -1,7 +1,7 @@
 #!/bin/bash
 # The `papi_v2_log` Centaur test is opinionated about the number of log messages around localization/delocalization.
 # The trace logging of `set -x` must be turned off for the `papi_v2_log` test to pass.
-set -x
+set +x
 
 gsutil_log=gsutil.log
 

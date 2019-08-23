@@ -344,6 +344,8 @@ delocalize() {
 }
 
 
+# Required for files whose names are not consistent between cloud and container. There should be very few of these,
+# the monitoring script being the single known example.
 localize_singleton_file() {
   local project="$1"
   local max_attempts="$2"

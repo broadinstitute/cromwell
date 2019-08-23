@@ -1,7 +1,7 @@
 #!/bin/bash
 # The `papi_v2_log` Centaur test is opinionated about the number of log messages around localization/delocalization.
 # The trace logging of `set -x` must be turned off for the `papi_v2_log` test to pass.
-set +x
+set -x
 
 gsutil_log=gsutil.log
 
@@ -341,4 +341,20 @@ delocalize() {
   done
 
   rm -f "${gsutil_log}"
+}
+
+
+localize_singleton_file() {
+  local project="$1"
+  local max_attempts="$2"
+  local cloud="$3"
+  local container="$4"
+
+  local container_parent=$(dirname "$container")
+
+  private::localize_message "$cloud" "$container"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil cp '$cloud' '$container'"
+  REQUESTER_PAYS_COMMAND="gsutil -u $project cp '$cloud' '$container'"
+  # As a side effect of determining requester pays this one file will be localized.
+  private::determine_requester_pays ${max_attempts}
 }

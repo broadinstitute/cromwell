@@ -64,9 +64,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     // on a per-container-parent-directory basis.
     val (files, directories) = inputs.toList partition { _.isInstanceOf[PipelinesApiFileInput] }
 
-    val filesByContainerParentDirectory = files.groupBy(_.containerPath.parent.toString)
+    // Files with different names between cloud and container are not eligible for bulk copying.
+    val (filesWithSameNames, filesWithDifferentNames) = files partition { f =>
+      f.cloudPath.asInstanceOf[GcsPath].nioPath.getFileName.toString == f.containerPath.getFileName.toString
+    }
 
-    val fileTransferBundles: List[String] = filesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
+    val filesByContainerParentDirectory = filesWithSameNames.groupBy(_.containerPath.parent.toString)
+
+    val filesWithSameNamesTransferBundles: List[String] = filesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
       val arrayIdentifier = s"files_to_localize_" + DigestUtils.md5Hex(bucket + containerParent)
       val entries = filesWithSameParent.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
 
@@ -80,6 +85,21 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
          |)
          |
          |localize_files "$${$arrayIdentifier[@]}"
+       """.stripMargin
+    }
+
+    val filesWithDifferentNamesTransferBundles = filesWithDifferentNames map { f =>
+      val arrayIdentifier = s"singleton_file_to_localize_" + DigestUtils.md5Hex(f.cloudPath.pathAsString + f.containerPath.pathAsString)
+      s"""
+         |# Localize singleton file '${f.cloudPath.pathAsString}' to '${f.containerPath.pathAsString}'.
+         |$arrayIdentifier=(
+         |  "$project"
+         |  "$maxAttempts"
+         |  "${f.cloudPath}"
+         |  "${f.containerPath}"
+         |)
+         |
+         |localize_singleton_file "$${$arrayIdentifier[@]}"
        """.stripMargin
     }
 
@@ -102,7 +122,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
        """.stripMargin
     }
 
-    (directoryTransferBundle :: fileTransferBundles) mkString "\n\n"
+    (directoryTransferBundle :: (filesWithSameNamesTransferBundles ++ filesWithDifferentNamesTransferBundles)) mkString "\n\n"
   }
 
   private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](localizationConfiguration: LocalizationConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {

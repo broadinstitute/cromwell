@@ -206,6 +206,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
   startWith(Idle, IdleData)
   val tag = self.path.name
 
+  // If I've still left this log in at PR time, you have permission to call me a fool:
+  log.info(s"New ${getClass.getSimpleName} created as $tag")
+
   when(Idle) {
     case Event(action: MetadataReadAction, IdleData) =>
 
@@ -264,6 +267,12 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
       log.error(s"Received unexpected message $message in state $stateName with target: $target")
       self ! PoisonPill
       stay
+  }
+
+  onTransition {
+    case (from, to) =>
+      // If I've still left this log in at PR time, you have permission to call me a fool:
+      log.info(s"${getClass.getSimpleName} transitioning from $from (using $stateData) to $to (using $nextStateData)")
   }
 
   def processSubWorkflowMetadata(metadataResponse: MetadataBuilderActorResponse, data: HasReceivedEventsData) = {

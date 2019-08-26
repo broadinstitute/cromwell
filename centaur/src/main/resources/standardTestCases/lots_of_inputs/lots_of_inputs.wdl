@@ -32,7 +32,7 @@ task make_array {
 }
 
 workflow lots_of_inputs {
-  call make_array { input: n = 400 }
+  call make_array { input: n = 20000 }
   call do_nothing { input: f = make_array.a }
 
   output {

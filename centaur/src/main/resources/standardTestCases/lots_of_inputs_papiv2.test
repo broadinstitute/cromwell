@@ -1,13 +1,14 @@
 # This test makes sure that:
 # - 400 output files are all found and collected by the glob() method
 # - 400 input files to a task doesn't make anything explode inappropriately
-name: lots_of_inputs
+name: lots_of_inputs_papiv2
 testFormat: workflowsuccess
 tags: [ big_metadata ]
+backends: [ Papiv2 ]
 
 files {
   workflow: lots_of_inputs/lots_of_inputs.wdl
-  inputs: lots_of_inputs/lots_of_inputs.inputs
+  inputs: lots_of_inputs/logs_of_inputs_papiv2.inputs
 }
 
 metadata {

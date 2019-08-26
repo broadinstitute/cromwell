@@ -103,7 +103,7 @@ object MetadataService {
   }
   final case class GetStatus(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   final case class GetLabels(workflowId: WorkflowId) extends WorkflowMetadataReadAction
-  final case class WorkflowQuery(parameters: Seq[(String, String)]) extends MetadataReadAction
+  final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends MetadataReadAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   final case class GetLogs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   case object RefreshSummary extends MetadataServiceAction

@@ -42,7 +42,7 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMa
             builderRequests.put(builderActor, singleWorkflowAction)
             builderActor ! singleWorkflowAction
           }
-        case crossWorkflowAction: MetadataService.WorkflowQuery =>
+        case crossWorkflowAction: MetadataService.QueryForWorkflowsMatchingParameters =>
           val currentRequesters = apiRequests.getOrElse(crossWorkflowAction, Set.empty)
           apiRequests.put(crossWorkflowAction, currentRequesters + sender())
           if (currentRequesters.isEmpty) {

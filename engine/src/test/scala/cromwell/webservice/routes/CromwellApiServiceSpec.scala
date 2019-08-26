@@ -565,7 +565,7 @@ object CromwellApiServiceSpec {
     import MockServiceRegistryActor._
 
     override def receive = {
-      case WorkflowQuery(parameters) =>
+      case QueryForWorkflowsMatchingParameters(parameters) =>
         val labels: Option[Map[String, String]] = {
           parameters.contains(("additionalQueryResultFields", "labels")).option(
             Map("key1" -> "label1", "key2" -> "label2"))
@@ -597,6 +597,10 @@ object CromwellApiServiceSpec {
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! WorkflowOutputsResponse(id, event)
       case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
+      case GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _)) =>
+        val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
+        val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
+        sender ! MetadataLookupResponse(metadataQuery(id), responseMetadataValues(id, withKeysList, withoutKeysList))
       case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)

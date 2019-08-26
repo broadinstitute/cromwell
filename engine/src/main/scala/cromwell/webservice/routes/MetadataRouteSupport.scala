@@ -161,7 +161,7 @@ object MetadataRouteSupport {
 
   def metadataQueryRequest(parameters: Seq[(String, String)],
                            serviceRegistryActor: ActorRef)(implicit timeout: Timeout): Future[MetadataQueryResponse] = {
-    serviceRegistryActor.ask(WorkflowQuery(parameters)).mapTo[MetadataQueryResponse]
+    serviceRegistryActor.ask(QueryForWorkflowsMatchingParameters(parameters)).mapTo[MetadataQueryResponse]
   }
 
   def completeMetadataQueryResponse(response: Future[MetadataQueryResponse]): Route = {

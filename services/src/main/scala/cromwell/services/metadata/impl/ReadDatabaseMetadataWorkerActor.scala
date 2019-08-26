@@ -24,7 +24,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
     case GetStatus(workflowId) => queryStatusAndRespond(workflowId)
     case GetLabels(workflowId) => queryLabelsAndRespond(workflowId)
     case GetLogs(workflowId) => queryLogsAndRespond(workflowId)
-    case query: WorkflowQuery => queryWorkflowsAndRespond(query.parameters)
+    case query: QueryForWorkflowsMatchingParameters => queryWorkflowsAndRespond(query.parameters)
     case WorkflowOutputs(id) => queryWorkflowOutputsAndRespond(id)
   }
 

@@ -2,6 +2,7 @@
 # The `papi_v2_log` Centaur test is opinionated about the number of log messages around localization/delocalization.
 # The trace logging of `set -x` must be turned off for the `papi_v2_log` test to pass.
 set +x
+set -euo pipefail
 
 gsutil_log=gsutil.log
 
@@ -117,7 +118,7 @@ private::determine_requester_pays() {
   # assume the worst
   USE_REQUESTER_PAYS=error
 
-  while [[ "$attempt" -le ${max_attempts} ]]; do
+  while [[ ${attempt} -le ${max_attempts} ]]; do
     eval ${command} > ${gsutil_log} 2>&1
 
     if [[ $? = 0 ]]; then
@@ -134,6 +135,11 @@ private::determine_requester_pays() {
       attempt=$((attempt + 1))
     fi
   done
+
+  if [[ ${attempt} -gt ${max_attempts} ]]; then
+    echo "Error attempting to localize file with command: '$command'"
+    cat ${gsutil_log}
+  fi
 }
 
 

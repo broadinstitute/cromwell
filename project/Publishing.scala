@@ -55,7 +55,7 @@ object Publishing {
         entryPoint(
           "/bin/bash",
           "-c",
-          s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase}_ARGS} $${*}",
+          s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
           "--"
         )
       }

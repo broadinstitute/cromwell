@@ -60,8 +60,8 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
 
     val validation = Try(CromwellEntryPoint.validateRunArguments(optionsFirst))
     validation.isSuccess shouldBe true
-    validation.get.workflowSource shouldBe None
-    validation.get.workflowUrl shouldBe Some(threeStep.wdl)
+    validation.get.workflowSource shouldBe Some(threeStep.sampleWdl.workflowSource())
+    validation.get.workflowUrl shouldBe None
   }
 
   it should "run single when supplying workflow using url" in {

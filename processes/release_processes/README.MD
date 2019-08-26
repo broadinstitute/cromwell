@@ -5,11 +5,15 @@
 Have a better idea about how the deployment processes should work? 
 See our "updating the process" [process](../README.MD)!
 
-## How to Publish Cromwell
+## Core Process: How to Publish and Release Cromwell
 
-![release-cromwell-version](release-cromwell-version.dot.png) 
+If you're the lucky "Release Rotation Engineer" this time, you should do the following three things:
+
+First: Run the publish script to create a new version of Cromwell.
+Second: Run through the "How to Release Cromwell into Firecloud" process.
+Third: Run through the "How to Deploy Cromwell in CAAS prod" process.
  
-## How to Release Cromwell into Firecloud
+### How to Release Cromwell into Firecloud
 
 **Note:** How to accomplish some of these steps might be non-obvious to you. If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
 
@@ -30,13 +34,17 @@ for any performance changes since the previous release.
 runs and fill in any missing entries in the table.
  
 
-## How to Deploy Cromwell in CAAS prod
+### How to Deploy Cromwell in CAAS prod
 
 **Note:** Full details on how to complete each of these steps is found in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
 
 ![caas-prod](caas-prod.dot.png)
 
-## How to Generate and Publish Swagger Client Library
+## Bonus Processes
+
+The swagger client library is not part of our core publish/release process but can be performed from time to time, as required.
+
+### How to Generate and Publish Swagger Client Library
 
 The first step is to generate the client library.  From the root of the repo run
 

@@ -2,10 +2,9 @@ package cromwell.engine.workflow.lifecycle.materialization
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
-import cats.Monad
 import cats.data.EitherT._
-import cats.data.Validated.{Invalid, Valid}
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.apply._
@@ -21,14 +20,15 @@ import common.validation.IOChecked._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
-import cromwell.core.{HogGroup, _}
 import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
+import cromwell.core._
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
+import cromwell.engine.workflow.WorkflowProcessingEventPublishing._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -105,9 +105,15 @@ object MaterializeWorkflowDescriptorActor {
       }
     }
 
-    val enabled = conf.as[Option[Boolean]]("call-caching.enabled").getOrElse(false)
-    val invalidateBadCacheResults = conf.as[Option[Boolean]]("call-caching.invalidate-bad-cache-results").getOrElse(true)
-    if (enabled) {
+    val callCachingConfig = conf.getConfig("call-caching")
+
+    def errorOrCallCachingBoolean(path: String): ErrorOr[Boolean] = {
+      import common.validation.Validation._
+      validate(callCachingConfig.getBoolean(path))
+    }
+
+    val errorOrEnabled = errorOrCallCachingBoolean("enabled")
+    if (errorOrEnabled.exists(_ == true)) {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
@@ -120,14 +126,28 @@ object MaterializeWorkflowDescriptorActor {
         }
       }
 
+      val errorOrMaybePrefixes = workflowOptions.getVectorOfStrings("call_cache_hit_path_prefixes")
+      val errorOrInvalidateBadCacheResults = errorOrCallCachingBoolean("invalidate-bad-cache-results")
+      val errorOrCallCachingOptions = (
+        errorOrMaybePrefixes,
+        errorOrInvalidateBadCacheResults,
+      ) mapN {
+        (
+          maybePrefixes,
+          invalidateBadCacheResults,
+        ) =>
+          CallCachingOptions(
+            invalidateBadCacheResults,
+            maybePrefixes,
+          )
+      }
       for {
-        maybePrefixes <- workflowOptions.getVectorOfStrings("call_cache_hit_path_prefixes")
-        callCachingOptions = CallCachingOptions(invalidateBadCacheResults, maybePrefixes)
+        callCachingOptions <- errorOrCallCachingOptions
         mode <- errorOrCallCachingMode(callCachingOptions)
       } yield mode
     }
     else {
-      CallCachingOff.validNel
+      errorOrEnabled.map(_ => CallCachingOff)
     }
   }
 }
@@ -267,7 +287,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val labels = convertJsonToLabels(sourceFiles.labelsJson)
 
     for {
-      _ <- publishLabelsToMetadata(id, labels)
+      _ <- publishLabelsToMetadata(id, labels.asMap, serviceRegistryActor)
       zippedImportResolver <- zippedResolverCheck
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
       sourceAndResolvers <- fromEither[IO](LanguageFactoryUtil.findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers))
@@ -351,18 +371,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case (key, JsString(value)) => Label(key, value)
       }))
       case _ => Labels(Vector.empty)
-    }
-  }
-
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, labels: Labels): IOChecked[Unit] = {
-    val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
-    val customLabels = labels.asMap
-    Monad[IOChecked].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
-  }
-
-  protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
-    labels foreach { case (k, v) =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$k"), MetadataValue(v)))
     }
   }
 

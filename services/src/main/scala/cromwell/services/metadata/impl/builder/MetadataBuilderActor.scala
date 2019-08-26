@@ -196,6 +196,49 @@ object MetadataBuilderActor {
     val tupledGrouper = (makeSyntheticGroupedExecutionEvents _).tupled
     nonExecutionEvents ++ ungroupedExecutionEvents.values.toList.flatten ++ (groupedExecutionEventsByGrouping.toList flatMap tupledGrouper)
   }
+
+
+
+  def processMetadataEvents(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {
+    // Should we send back some message ? Or even fail the request instead ?
+    if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
+    else {
+      query match {
+        case MetadataQuery(w, _, _, _, _, _) => workflowMetadataResponse(w, eventsList, includeCallsIfEmpty = true, expandedValues)
+        case _ => MetadataBuilderActor.parse(eventsList, expandedValues)
+      }
+    }
+  }
+
+  def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
+    JsObject(Map(
+      WorkflowMetadataKeys.Status -> JsString(status.toString),
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString)
+    ))
+  }
+
+  def processLabelsResponse(workflowId: WorkflowId, labels: Map[String, String]): JsObject = {
+    val jsLabels = labels map { case (k, v) => k -> JsString(v) }
+    JsObject(Map(
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
+      WorkflowMetadataKeys.Labels -> JsObject(jsLabels)
+    ))
+  }
+
+  def processOutputsResponse(id: WorkflowId, events: Seq[MetadataEvent]): JsObject = {
+    // Add in an empty output event if there aren't already any output events.
+    val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
+    val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
+
+    workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false, Map.empty)
+  }
+
+  def workflowMetadataResponse(workflowId: WorkflowId,
+                               eventsList: Seq[MetadataEvent],
+                               includeCallsIfEmpty: Boolean,
+                               expandedValues: Map[String, JsValue]): JsObject = {
+    JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty, expandedValues)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
+  }
 }
 
 class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
@@ -231,10 +274,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
       target ! BuiltMetadataResponse(originalRequest, processLabelsResponse(w, labels))
       allDone()
     case Event(WorkflowOutputsResponse(id, events), HasWorkData(target, originalRequest)) =>
-      // Add in an empty output event if there aren't already any output events.
-      val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
-      val updatedEvents = if (hasOutputs) events else MetadataEvent.empty(MetadataKey(id, None, WorkflowMetadataKeys.Outputs)) +: events
-      target ! BuiltMetadataResponse(originalRequest, workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false, Map.empty))
+      target ! BuiltMetadataResponse(originalRequest, processOutputsResponse(id, events))
       allDone()
     case Event(LogsResponse(w, l), HasWorkData(target, originalRequest)) =>
       target ! BuiltMetadataResponse(originalRequest, workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))
@@ -328,38 +368,5 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
     } else {
       buildAndStop(query, eventsList, Map.empty, target, originalRequest)
     }
-  }
-
-  def processMetadataEvents(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue]): JsObject = {
-    // Should we send back some message ? Or even fail the request instead ?
-    if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
-    else {
-      query match {
-        case MetadataQuery(w, _, _, _, _, _) => workflowMetadataResponse(w, eventsList, includeCallsIfEmpty = true, expandedValues)
-        case _ => MetadataBuilderActor.parse(eventsList, expandedValues)
-      }
-    }
-  }
-
-  def processStatusResponse(workflowId: WorkflowId, status: WorkflowState): JsObject = {
-    JsObject(Map(
-      WorkflowMetadataKeys.Status -> JsString(status.toString),
-      WorkflowMetadataKeys.Id -> JsString(workflowId.toString)
-    ))
-  }
-
-  def processLabelsResponse(workflowId: WorkflowId, labels: Map[String, String]): JsObject = {
-    val jsLabels = labels map { case (k, v) => k -> JsString(v) }
-    JsObject(Map(
-      WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
-      WorkflowMetadataKeys.Labels -> JsObject(jsLabels)
-    ))
-  }
-
-  private def workflowMetadataResponse(workflowId: WorkflowId,
-                                       eventsList: Seq[MetadataEvent],
-                                       includeCallsIfEmpty: Boolean,
-                                       expandedValues: Map[String, JsValue]): JsObject = {
-    JsObject(MetadataBuilderActor.parseWorkflowEvents(includeCallsIfEmpty, expandedValues)(eventsList).fields + ("id" -> JsString(workflowId.toString)))
   }
 }

@@ -2,7 +2,7 @@
 # The `papi_v2_log` Centaur test is opinionated about the number of log messages around localization/delocalization.
 # The trace logging of `set -x` must be turned off for the `papi_v2_log` test to pass.
 set +x
-set -uo pipefail
+set -euo pipefail
 
 gsutil_log=gsutil.log
 
@@ -119,9 +119,7 @@ private::determine_requester_pays() {
   USE_REQUESTER_PAYS=error
 
   while [[ ${attempt} -le ${max_attempts} ]]; do
-    eval ${command} > ${gsutil_log} 2>&1
-
-    if [[ $? = 0 ]]; then
+    if eval ${command} > ${gsutil_log} 2>&1 ; then
       USE_REQUESTER_PAYS=${use_requester_pays}
       break
     elif [[ "$use_requester_pays" = "false" ]]; then
@@ -182,8 +180,7 @@ localize_files() {
     attempt=1
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
-      cat files_to_localize.txt | gsutil -m ${rpflag} cp -I "$container_parent"
-      if [[ $? = 0 ]]; then
+      if cat files_to_localize.txt | gsutil -m ${rpflag} cp -I "$container_parent"; then
         break
       else
         attempt=$((attempt + 1))
@@ -204,8 +201,7 @@ private::localize_directory() {
   private::localize_message "$cloud" "$container"
   while [[ ${attempt} -lt ${max_attempts} ]]; do
     # Do not quote rpflag, when that is set it will be -u project which should be two distinct arguments.
-    mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m rsync -r "${cloud}" "${container}" > /dev/null 2>&1
-    if [[ $? = 0 ]]; then
+    if mkdir -p "${container}" && rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m rsync -r "${cloud}" "${container}" > /dev/null 2>&1; then
       break
     else
       attempt=$(($attempt + 1))
@@ -308,15 +304,14 @@ delocalize() {
       fi
 
       # Note the localization versions of transfer functions are passed "required" and "content_type" parameters they will not use.
-      ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$content_type"
-      transfer_rc=$?
-
-      # Do not set rp_status_certain=true if an optional file was absent and no transfer was attempted.
-      if [[ ${transfer_rc} = 0 && "$required" = "false" && ! -e "$container" ]]; then
-        break
-      elif [[ ${transfer_rc} = 0 ]]; then
-        rp_status_certain=true
-        break
+      if ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$content_type"; then
+        if [[ "$required" = "false" && ! -e "$container" ]]; then
+          # Do not set rp_status_certain=true if an optional file was absent and no transfer was attempted.
+          break
+        else
+          rp_status_certain=true
+          break
+        fi
       else
         private::timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
 

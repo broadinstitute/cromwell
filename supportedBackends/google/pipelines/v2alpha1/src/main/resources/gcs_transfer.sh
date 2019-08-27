@@ -6,8 +6,8 @@ set -euo pipefail
 
 gsutil_log=gsutil.log
 
-NO_REQUESTER_PAYS_COMMAND=
-REQUESTER_PAYS_COMMAND=
+NO_REQUESTER_PAYS_COMMAND=""
+REQUESTER_PAYS_COMMAND=""
 
 
 private::delocalize_file() {

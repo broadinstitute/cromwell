@@ -3,10 +3,12 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 
 import akka.actor.ActorRef
+import cats.Monad
 import common.util.VersionUtil
-import cromwell.core.WorkflowId
+import common.validation.IOChecked.IOChecked
 import cromwell.core.WorkflowProcessingEvents.EventKey.{CromwellId, CromwellVersion, Description, Timestamp}
 import cromwell.core.WorkflowProcessingEvents.{DescriptionEventValue, ProcessingEventsKey}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
@@ -35,5 +37,22 @@ object WorkflowProcessingEventPublishing {
     }
 
     serviceRegistry ! PutMetadataAction(metadata)
+  }
+
+  def publishLabelsToMetadata(workflowId: WorkflowId,
+                              labels: Map[String, String],
+                              serviceRegistry: ActorRef): IOChecked[Unit] = {
+    val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$workflowId"
+    Monad[IOChecked].pure(labelsToMetadata(workflowId, labels + defaultLabel, serviceRegistry))
+  }
+
+  private def labelsToMetadata(workflowId: WorkflowId,
+                               labels: Map[String, String],
+                               serviceRegistry: ActorRef): Unit = {
+    labels foreach { case (labelKey, labelValue) =>
+      val metadataKey = MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$labelKey")
+      val metadataValue = MetadataValue(labelValue)
+      serviceRegistry ! PutMetadataAction(MetadataEvent(metadataKey, metadataValue))
+    }
   }
 }

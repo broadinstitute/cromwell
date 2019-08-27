@@ -355,6 +355,9 @@ lazy val perf = project
   .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
   .dependsOn(common)
 
+lazy val `cromwell-drs-localizer` = project
+  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
@@ -397,6 +400,7 @@ lazy val root = (project in file("."))
   .aggregate(databaseSql)
   .aggregate(dockerHashing)
   .aggregate(drsFileSystem)
+  .aggregate(`cromwell-drs-localizer`)
   .aggregate(engine)
   .aggregate(ftpFileSystem)
   .aggregate(gcsFileSystem)

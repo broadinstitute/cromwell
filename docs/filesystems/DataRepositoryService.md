@@ -20,13 +20,12 @@ The `drs` section needs to be added to
 
 **Localization Configuration**
 
-The DRS localization must be configured with specification of the docker image to use, and the command template to copy a file from DRS down to the container.
+DRS localization must be configured with the docker image to use.
 
 ```hocon
 drs {
     localization {
         docker-image = "broadinstitute/drs-localizer:latest"
-        command-template = "./whatever_you_want_here.sh ${drsPath} ${containerPath}"
     }
 }
 ```
@@ -68,7 +67,6 @@ backend {
 drs {
     localization {
         docker-image = "broadinstitute/drs-localizer:latest"
-        command-template = "mkdir -p $(dirname ${containerPath}) && /scripts/drs_localizer.sc ${drsPath} ${containerPath}"
     }
 }
 ```

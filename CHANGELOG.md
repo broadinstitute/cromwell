@@ -1,5 +1,21 @@
 # Cromwell Change Log
 
+## 46 Release Notes
+
+### Enhanced "error code 10" handling in PAPIv2
+
+On Google Pipelines API v2, a worker VM that is preempted may emit a generic error message like
+```
+PAPI error code 10. The assigned worker has failed to complete the operation
+```
+instead of a preemption-specific message like
+```
+PAPI error code 14. Task was preempted for the 2nd time.
+```
+Cromwell 44 introduced special handling that detects both preemption indicators and re-runs the job consistent with the `preemptible` setting.
+
+Cromwell 46 enhances this handling in response to user reports of possible continued issues.   
+
 ## 45 Release Notes
 
 ### Improved input and output transfer performance on PAPI v2
@@ -24,6 +40,13 @@ Cromwell now supports Call caching when using the BCS backend.
 Globs can be used to define outputs for BCS backend.
 #### NAS mount
 Alibaba Cloud NAS is now supported for the `mounts` runtime attribute.
+
+### Call Caching Failure Messages [(#5095)](https://github.com/broadinstitute/cromwell/pull/5095)
+
+Call cache failures are no longer sent to the workflow metadata. Instead a limited number of call cache failure messages
+will be sent to the workflow log. See [the Cromwell call caching
+documentation](https://cromwell.readthedocs.io/en/stable/cromwell_features/CallCaching/) for more information on call
+cache failure logging.
 
 ## 44 Release Notes
 

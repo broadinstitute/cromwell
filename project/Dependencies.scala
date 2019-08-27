@@ -2,8 +2,8 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.24.3"
-  private val akkaHttpV = "10.1.7"
-  private val akkaV = "2.5.19"
+  private val akkaHttpV = "10.1.9"
+  private val akkaV = "2.5.23"
   private val aliyunBcsV = "6.1.0"
   private val aliyunCoreV = "4.3.2"
   private val aliyunCrV = "3.0.0"
@@ -43,7 +43,8 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
   private val http4sVersion = "0.20.0-M5"
-  private val jacksonV = "2.9.8"
+  private val jacksonDatabindV = "2.9.9.3"
+  private val jacksonV = "2.9.9" // NOTE: On the next version, please remove jacksonDatabindV and just use this!
   private val janinoV = "3.0.12"
   private val javaxActivationV = "1.2.0"
   private val jaxbV = "2.3.2"
@@ -478,7 +479,7 @@ object Dependencies {
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
@@ -518,6 +519,14 @@ object Dependencies {
   val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
     googleApiClientDependencies ++ googleCloudDependencies
 
+  val drsLocalizerDependencies = List(
+    "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
+    "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
+    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "com.iheart" %% "ficus" % ficusV,
+    "com.softwaremill.sttp" %% "circe" % sttpV
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
+
   val allProjectDependencies =
     backendDependencies ++
       bcsBackendDependencies ++
@@ -533,6 +542,7 @@ object Dependencies {
       databaseSqlDependencies ++
       dockerHashingDependencies ++
       draft2LanguageFactoryDependencies ++
+      drsLocalizerDependencies ++
       engineDependencies ++
       gcsFileSystemDependencies ++
       httpFileSystemDependencies ++

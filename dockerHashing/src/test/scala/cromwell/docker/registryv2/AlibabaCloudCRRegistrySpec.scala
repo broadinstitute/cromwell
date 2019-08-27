@@ -23,6 +23,7 @@ object AlibabaCloudCRRegistrySpec {
        |alibabacloudcr {
        |  num-threads = 5
        |  auth {
+       |    endpoint = "cr.cn-shanghai.aliyuncs.com"
        |    access-id = "test-access-id"
        |    access-key = "test-access-key"
        |    security-token = "test-security-token"
@@ -125,14 +126,26 @@ class AlibabaCloudCRRegistrySpec extends TestKitSuite with FlatSpecLike with Mat
 
     val basicCredential = new BasicCredentials(access_id, access_key)
     val sessionCredential = new BasicSessionCredentials(access_id, access_key, security_token)
+    val vpcEndpoint: String = "cr-vpc.cn-shanghai.aliyuncs.com"
+    val normalEndpoint = "cr.cn-shanghai.aliyuncs.com"
+    val validEndpoint = "cr.validendpoint.com"
 
-    val dockerRequest = DockerInfoRequest(DockerImageIdentifier.fromString(testCRDockerImageTagNotExist).get, List(basicCredential))
+    val dockerRequest = DockerInfoRequest(DockerImageIdentifier.fromString(testCRDockerImageTagNotExist).get, List(basicCredential, normalEndpoint))
     val context: DockerInfoContext = DockerInfoContext(dockerRequest, null)
-    registry.getAliyunCredentialFromContext(context) shouldEqual Some(basicCredential)
+    registry.getAliyunCredentialFromContext(context) shouldEqual Option(basicCredential)
+    registry.getAliyunEndpointFromContext(context) shouldEqual Option(normalEndpoint)
+
+    val vpcDockerRequest = DockerInfoRequest(DockerImageIdentifier.fromString(testCRDockerImageTagNotExist).get, List(basicCredential, vpcEndpoint))
+    val vpcContext: DockerInfoContext = DockerInfoContext(vpcDockerRequest, null)
+    registry.getAliyunEndpointFromContext(vpcContext) shouldEqual Option(vpcEndpoint)
+
+    val validDockerRequest = DockerInfoRequest(DockerImageIdentifier.fromString(testCRDockerImageTagNotExist).get, List(basicCredential, validEndpoint))
+    val validContext: DockerInfoContext = DockerInfoContext(validDockerRequest, null)
+    registry.getAliyunEndpointFromContext(validContext) shouldEqual None
 
     val sessionDockerRequest = DockerInfoRequest(DockerImageIdentifier.fromString(testCRDockerImageTagNotExist).get, List(sessionCredential))
     val sessionContext: DockerInfoContext = DockerInfoContext(sessionDockerRequest, null)
-    registry.getAliyunCredentialFromContext(sessionContext) shouldEqual Some(sessionCredential)
+    registry.getAliyunCredentialFromContext(sessionContext) shouldEqual Option(sessionCredential)
 
     val invalidDockerRequest = DockerInfoRequest(DockerImageIdentifier.fromString(testCRDockerImageTagNotExist).get, List.empty)
     val invalidContext: DockerInfoContext = DockerInfoContext(invalidDockerRequest, null)

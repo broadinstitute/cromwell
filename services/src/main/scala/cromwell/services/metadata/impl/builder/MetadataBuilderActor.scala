@@ -1,6 +1,7 @@
 package cromwell.services.metadata.impl.builder
 
 import java.time.OffsetDateTime
+import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.{ActorRef, LoggingFSM, PoisonPill, Props}
 import common.collections.EnhancedCollections._
@@ -139,7 +140,9 @@ object MetadataBuilderActor {
     JsObject(events.groupBy(_.key.workflowId.toString) safeMapValues parseWorkflowEvents(includeCallsIfEmpty = true, expandedValues))
   }
 
-  def uniqueActorName(workflowId: String): String = s"${getClass.getSimpleName}-for-$workflowId"
+  val actorIdIterator = new AtomicLong(0)
+
+  def uniqueActorName(workflowId: String): String = s"${getClass.getSimpleName}.${actorIdIterator.getAndIncrement()}-for-$workflowId"
 
   case class JobKeyAndGrouping(jobKey: MetadataJobKey, grouping: String)
 

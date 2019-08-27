@@ -8,7 +8,7 @@ backends: [ Papiv2 ]
 
 files {
   workflow: lots_of_inputs/lots_of_inputs.wdl
-  inputs: lots_of_inputs/logs_of_inputs_papiv2.inputs
+  inputs: lots_of_inputs/lots_of_inputs_papiv2.inputs
 }
 
 metadata {

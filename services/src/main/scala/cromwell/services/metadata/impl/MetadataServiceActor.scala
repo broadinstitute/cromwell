@@ -36,7 +36,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   override val supervisorStrategy = new OneForOneStrategy()(decider) {
     override def logFailure(context: ActorContext, child: ActorRef, cause: Throwable, decision: Directive) = {
       val childName = if (child == readActor) "Read" else "Write"
-      log.error(s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...", cause)
+      log.error(cause, s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...")
     }
   }
 

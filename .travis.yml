@@ -4,7 +4,7 @@ services:
   - docker
 language: scala
 scala:
-  - 2.12.6
+  - 2.12.9
 jdk:
   - oraclejdk8
 cache:
@@ -54,6 +54,9 @@ env:
     - >-
       BUILD_TYPE=centaurLocal
       BUILD_MYSQL=5.7
+    - >-
+      BUILD_TYPE=centaurLocal
+      BUILD_POSTGRESQL=11.3
     - >-
       BUILD_TYPE=centaurPapiV1
       BUILD_MYSQL=5.7

@@ -2,7 +2,7 @@
 <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
-    <changeSet author="rmunshi" id="BACKEND_KV_STORE">
+    <changeSet author="rmunshi" id="BACKEND_KV_STORE" dbms="mysql,hsqldb">
         <comment>
             Storage for all Backend K/V Pairs.
         </comment>
@@ -31,7 +31,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet author="rmunshi" id="backend_KV_store_job_key_constraint">
+    <changeSet author="rmunshi" id="backend_KV_store_job_key_constraint" dbms="mysql,hsqldb">
         <addUniqueConstraint
                 tableName="BACKEND_KV_STORE"
                 columnNames="WORKFLOW_EXECUTION_UUID, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT, STORE_KEY"

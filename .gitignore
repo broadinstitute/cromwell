@@ -13,6 +13,7 @@ tags
 .idea/inspectionProfiles/*
 !/.idea/inspectionProfiles/Project_Default.xml
 target
+/site
 
 # custom config
 cromwell-executions
@@ -41,6 +42,7 @@ dockerhub_provider_config_v2.inc.conf
 github_private_deploy_key
 papi_application.inc.conf
 papi_refresh_token.txt
+papi_v2_gcsa.options.json
 private_docker_papi_v2_usa.options
 tesk_application_ftp.conf
 ftp_centaur_cwl_runner.conf

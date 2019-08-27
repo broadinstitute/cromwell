@@ -15,6 +15,7 @@ import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.s3.S3Path
+import cromwell.filesystems.oss.OssPath
 import cromwell.util.TryWithResource._
 
 import scala.concurrent.ExecutionContext
@@ -111,6 +112,7 @@ class NioFlow(parallelism: Int,
       case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case s3Path: S3Path => IO { s3Path.eTag }
+      case ossPath: OssPath => IO { ossPath.eTag}
       case path =>
         IO.fromEither(
         tryWithResource(() => path.newInputStream) { inputStream =>

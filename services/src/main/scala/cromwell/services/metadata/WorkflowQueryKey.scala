@@ -134,6 +134,10 @@ object WorkflowQueryKey {
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
+      /*
+        The inclusion of `WorkflowMetadataKeys.ParentWorkflowId` is for backwards compatibility. As of #4381
+        parentWorkflowId is always included, but we did not want to break old automated queries
+        */
       val allowedValues = Seq(WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.ParentWorkflowId)
       val nels: List[ErrorOr[String]] = values map { v => {
         allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])

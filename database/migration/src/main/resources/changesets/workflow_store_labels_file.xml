@@ -6,7 +6,7 @@
     <property name="clob.type" value="LONGTEXT" dbms="mysql"/>
     <property name="clob.type" value="LONGVARCHAR" dbms="hsqldb"/>
 
-    <changeSet author="cjllanwarne" id="workflow-store-labels-file">
+    <changeSet author="cjllanwarne" id="workflow-store-labels-file" dbms="mysql,hsqldb">
         <addColumn
                 tableName="WORKFLOW_STORE_ENTRY">
             <column name="CUSTOM_LABELS" type="${clob.type}">

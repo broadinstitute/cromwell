@@ -9,7 +9,7 @@ import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.core.{SimpleIoActor, WorkflowId, WorkflowSourceFilesWithoutImports}
+import cromwell.core._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
 import cromwell.engine.workflow.WorkflowActor._
@@ -46,7 +46,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       workflowType = Option("WDL"),
       workflowTypeVersion = None,
       inputsJson = rawInputsOverride,
-      workflowOptionsJson = "{}",
+      workflowOptions = WorkflowOptions.empty,
       labelsJson = "{}",
       warnings = Vector.empty
     )
@@ -54,7 +54,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
     val config = ConfigFactory.load()
-    val workflowToStart = WorkflowToStart(workflowId, OffsetDateTime.now(), workflowSources, Submitted)
+    val workflowToStart = WorkflowToStart(workflowId, OffsetDateTime.now(), workflowSources, Submitted, HogGroup("foo"))
     val workflowActor = TestFSMRef(
       factory = new WorkflowActor(workflowToStart, config,
         ioActor = system.actorOf(SimpleIoActor.props),

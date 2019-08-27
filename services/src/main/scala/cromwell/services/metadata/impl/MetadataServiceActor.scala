@@ -46,7 +46,10 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
 
-  val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
+  private val metadataReadTimeout: Duration =
+    serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
+
+  val readActor = context.actorOf(ReadMetadataActor.props(metadataReadTimeout), "read-metadata-actor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
@@ -72,7 +75,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   private def buildSummaryActor: Option[ActorRef] = {
     val actor = metadataSummaryRefreshInterval map {
-      _ => context.actorOf(MetadataSummaryRefreshActor.props(), "metadata-summary-actor")
+      _ => context.actorOf(MetadataSummaryRefreshActor.props(serviceRegistryActor), "metadata-summary-actor")
     }
     val message = metadataSummaryRefreshInterval match {
       case Some(interval) => s"Metadata summary refreshing every $interval."

@@ -18,7 +18,7 @@ import collection.mutable.ArrayBuffer
 
 
 final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) extends FileSystemProvider {
-  lazy val ossClient: OSSClient = config.newOssClient()
+  def ossClient: OSSClient = config.newOssClient()
 
   class PathIterator(ossClient: OSSClient, prefix: OssStoragePath, filter: DirectoryStream.Filter[_ >: Path]) extends AbstractIterator[Path] {
     var nextMarker: Option[String] = None
@@ -139,7 +139,7 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     for (opt <- options.asScala) {
       opt match {
         case StandardOpenOption.READ =>
-        case StandardOpenOption.WRITE => throw new IllegalArgumentException("WRITE byte channel not allowed currently")
+        case StandardOpenOption.WRITE => throw new IllegalArgumentException(s"WRITE byte channel not allowed currently, $path")
         case StandardOpenOption.SPARSE | StandardOpenOption.TRUNCATE_EXISTING =>
         case StandardOpenOption.APPEND | StandardOpenOption.CREATE | StandardOpenOption.DELETE_ON_CLOSE |
              StandardOpenOption.CREATE_NEW | StandardOpenOption.DSYNC | StandardOpenOption.SYNC => throw new UnsupportedOperationException()
@@ -147,6 +147,12 @@ final case class OssStorageFileSystemProvider(config: OssStorageConfiguration) e
     }
 
     OssFileReadChannel(ossClient, 0, path.asInstanceOf[OssStoragePath])
+  }
+
+  def doesObjectExist(bucket: String, name: String): Boolean = {
+    val req = new GenericRequest(bucket, name)
+    req.setLogEnabled(false)
+    ossClient.doesBucketExist(req)
   }
 
   override def createDirectory(dir: Path, attrs: FileAttribute[_]*): Unit = {}

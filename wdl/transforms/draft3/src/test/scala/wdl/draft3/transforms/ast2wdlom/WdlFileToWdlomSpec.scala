@@ -385,7 +385,17 @@ object WdlFileToWdlomSpec {
             runtimeSection = None,
             metaSection = Some(MetaSectionElement(
               Map("author" -> MetaValueElementString("John Doe"),
-                  "email" -> MetaValueElementString("john.doe@yahoo.com")))),
+                  "email" -> MetaValueElementString("john.doe@yahoo.com"),
+                  "b" -> MetaValueElementBoolean(true),
+                  "zipcode" -> MetaValueElementInteger(94043),
+                  "f" -> MetaValueElementFloat(1.3),
+                  "numbers" -> MetaValueElementArray(Vector(MetaValueElementInteger(1),
+                                                            MetaValueElementInteger(2),
+                                                            MetaValueElementInteger(3))),
+                  "extras" -> MetaValueElementObject(
+                    Map( "house" -> MetaValueElementString("With porch"),
+                         "cat" -> MetaValueElementString("Lucy")))
+              ))),
             parameterMetaSection = None,
             sourceLocation = Some(SourceFileLocation(3))
           ))),
@@ -565,6 +575,41 @@ object WdlFileToWdlomSpec {
         Some(
           OutputsSectionElement(Vector(OutputDeclarationElement(ArrayTypeElement(ArrayTypeElement(ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)))), "ks", IdentifierLookup("k"))))
         ),
+        None,
+        None,
+        Some(SourceFileLocation(3)))
+      ),
+      Vector()
+    ),
+    "two_level_scatter" -> FileElement(
+      Vector(),
+      Vector(),
+      Vector(WorkflowDefinitionElement(
+        "two_level_scatter",
+        None,
+        Set(
+          IntermediateValueDeclarationElement(
+            ArrayTypeElement(PrimitiveTypeElement(WomIntegerType)),
+            "indices",
+            ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(1)), PrimitiveLiteralExpressionElement(WomInteger(2)), PrimitiveLiteralExpressionElement(WomInteger(3))))
+          ),
+          ScatterElement(
+            scatterName = "ScatterAt8_11",
+            IdentifierLookup("indices"),
+            "a",
+            Vector(
+              ScatterElement(
+                scatterName = "ScatterAt9_13",
+                IdentifierLookup("indices"), "b",
+                Vector(
+                  IntermediateValueDeclarationElement(PrimitiveTypeElement(WomIntegerType), "x", Add(IdentifierLookup("a"), IdentifierLookup("b")))),
+                sourceLocation = None
+              )
+            ),
+            None
+          )
+        ),
+        None,
         None,
         None,
         Some(SourceFileLocation(3)))

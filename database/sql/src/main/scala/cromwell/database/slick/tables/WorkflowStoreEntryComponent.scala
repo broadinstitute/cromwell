@@ -1,7 +1,7 @@
 package cromwell.database.slick.tables
 
-import java.sql.{Blob, Clob, Timestamp}
-
+import java.sql.Timestamp
+import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 import cromwell.database.sql.tables.WorkflowStoreEntry
 
 trait WorkflowStoreEntryComponent {
@@ -21,28 +21,30 @@ trait WorkflowStoreEntryComponent {
 
     def workflowTypeVersion = column[Option[String]]("WORKFLOW_TYPE_VERSION", O.Length(255))
 
-    def workflowDefinition = column[Option[Clob]]("WORKFLOW_DEFINITION")
+    def workflowDefinition = column[Option[SerialClob]]("WORKFLOW_DEFINITION")
 
     def workflowUrl = column[Option[String]]("WORKFLOW_URL", O.Length(2000))
 
-    def workflowInputs = column[Option[Clob]]("WORKFLOW_INPUTS")
+    def workflowInputs = column[Option[SerialClob]]("WORKFLOW_INPUTS")
 
-    def workflowOptions = column[Option[Clob]]("WORKFLOW_OPTIONS")
+    def workflowOptions = column[Option[SerialClob]]("WORKFLOW_OPTIONS")
 
-    def customLabels = column[Clob]("CUSTOM_LABELS")
+    def customLabels = column[SerialClob]("CUSTOM_LABELS")
 
     def workflowState = column[String]("WORKFLOW_STATE", O.Length(20))
 
     def submissionTime = column[Timestamp]("SUBMISSION_TIME")
 
-    def importsZip = column[Option[Blob]]("IMPORTS_ZIP")
+    def importsZip = column[Option[SerialBlob]]("IMPORTS_ZIP")
 
     def cromwellId = column[Option[String]]("CROMWELL_ID", O.Length(100))
 
     def heartbeatTimestamp = column[Option[Timestamp]]("HEARTBEAT_TIMESTAMP")
 
+    def hogGroup = column[Option[String]]("HOG_GROUP", O.Length(100))
+
     override def * = (workflowExecutionUuid, workflowDefinition, workflowUrl, workflowRoot, workflowType, workflowTypeVersion, workflowInputs, workflowOptions, workflowState,
-      submissionTime, importsZip, customLabels, cromwellId, heartbeatTimestamp, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
+      submissionTime, importsZip, customLabels, cromwellId, heartbeatTimestamp, hogGroup, workflowStoreEntryId.?) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
 

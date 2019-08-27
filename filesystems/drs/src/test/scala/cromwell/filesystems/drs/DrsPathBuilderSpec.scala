@@ -99,8 +99,8 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       description = "a path ending in /",
       path = s"dos://$bucket/hello/world/",
       normalize = false,
-      pathAsString = s"dos://$bucket/hello/world/",
-      pathWithoutScheme = s"$bucket/hello/world/",
+      pathAsString = s"dos://$bucket/hello/world",
+      pathWithoutScheme = s"$bucket/hello/world",
       parent = s"dos://$bucket/hello/",
       getParent = s"dos://$bucket/hello/",
       root = s"dos://$bucket/",
@@ -278,8 +278,8 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
       root = s"dos://blah/",
       name = "",
       getFileName = null,
-      getNameCount = 0,
-      isAbsolute = true),
+      getNameCount = 1,
+      isAbsolute = false),
 
     GoodPath(
       description = "an absolute path without a host",
@@ -322,5 +322,8 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private lazy val drsPathBuilder = DrsPathBuilder(new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter))
+  private lazy val drsPathBuilder = DrsPathBuilder(
+    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+    None,
+  )
 }

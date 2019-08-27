@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="mcovarr" id="workflow-store-type-and-version">
+    <changeSet author="mcovarr" id="workflow-store-type-and-version" dbms="mysql,hsqldb">
         <addColumn tableName="WORKFLOW_STORE_ENTRY">
             <column name="WORKFLOW_TYPE" type="VARCHAR(30)">
                 <constraints nullable="true"/>

@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 trait MetadataSqlDatabase extends SqlDatabase {
@@ -30,37 +31,42 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
-  def queryMetadataEntries(workflowExecutionUuid: String)
+  def queryMetadataEntries(workflowExecutionUuid: String,
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
-                           metadataKey: String)
+                           metadataKey: String,
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Option[Int])
+                           jobAttempt: Option[Int],
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowUuid: String,
                            metadataKey: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Option[Int])
+                           jobAttempt: Option[Int],
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                            metadataKeysToFilterFor: List[String],
                                            metadataKeysToFilterAgainst: List[String],
-                                           metadataJobQueryValue: MetadataJobQueryValue)
+                                           metadataJobQueryValue: MetadataJobQueryValue,
+                                           timeout: Duration)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
   def summarizeIncreasing(summaryNameIncreasing: String,
                           startMetadataKey: String,
@@ -75,13 +81,13 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[Long]
+                         (implicit ec: ExecutionContext): Future[(Long, Long)]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
-    * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
+    * @return A `Future` with the number of rows summarized by this invocation, and the number of rows still to summarize.
     */
   def summarizeDecreasing(summaryNameDecreasing: String,
                           summaryNameIncreasing: String,
@@ -97,7 +103,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[Long]
+                         (implicit ec: ExecutionContext): Future[(Long, Long)]
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 

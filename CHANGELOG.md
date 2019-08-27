@@ -1,6 +1,67 @@
 # Cromwell Change Log
 
+## 46 Release Notes
+
+### Enhanced "error code 10" handling in PAPIv2
+
+On Google Pipelines API v2, a worker VM that is preempted may emit a generic error message like
+```
+PAPI error code 10. The assigned worker has failed to complete the operation
+```
+instead of a preemption-specific message like
+```
+PAPI error code 14. Task was preempted for the 2nd time.
+```
+Cromwell 44 introduced special handling that detects both preemption indicators and re-runs the job consistent with the `preemptible` setting.
+
+Cromwell 46 enhances this handling in response to user reports of possible continued issues.   
+
+## 45 Release Notes
+
+### Improved input and output transfer performance on PAPI v2
+
+Cromwell now requires only a single PAPI "action" each for the entire localization or delocalization process, rather than two per file or directory.
+This greatly increases execution speed for jobs with large numbers of input or output files.
+In testing, total execution time for a call with 800 inputs improved from more than 70 minutes to less than 20 minutes.
+
+### List dependencies flag in Womtool Command Line [(#5098)](https://github.com/broadinstitute/cromwell/pull/5098)
+
+Womtool now outputs the list of files referenced in import statements using `-l` flag for `validate` command.
+More info [here](https://cromwell.readthedocs.io/en/stable/WOMtool/)
+
+### BCS backend new Features support
+
+#### New docker registry
+Alibaba Cloud Container Registry is now supported for the `docker` runtime attribute, and the previous `dockerTag` 
+runtime attribute continues to be available for Alibaba Cloud OSS Registry.
+#### Call caching
+Cromwell now supports Call caching when using the BCS backend.
+#### Workflow output glob
+Globs can be used to define outputs for BCS backend.
+#### NAS mount
+Alibaba Cloud NAS is now supported for the `mounts` runtime attribute.
+
+### Call Caching Failure Messages [(#5095)](https://github.com/broadinstitute/cromwell/pull/5095)
+
+Call cache failures are no longer sent to the workflow metadata. Instead a limited number of call cache failure messages
+will be sent to the workflow log. See [the Cromwell call caching
+documentation](https://cromwell.readthedocs.io/en/stable/cromwell_features/CallCaching/) for more information on call
+cache failure logging.
+
+## 44 Release Notes
+
+### Improved PAPI v2 Preemptible VM Support
+
+In some cases PAPI v2 will report the preemption of a VM in a way that differs from PAPI v1. This novel means of reporting
+preemption was not recognized by Cromwell's PAPI v2 backend and would result in preemptions being miscategorized as call failures.
+Cromwell's PAPI v2 backend will now handle this type of preemption.
+
 ## 43 Release Notes
+
+### Virtual Private Cloud with Subnetworks
+
+Cromwell now allows PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the subnetwork key 
+`subnetwork-label-key` inside `virtual-private-cloud` in backend configuration. More info [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
 
 ### Call caching database refactoring
 
@@ -20,6 +81,10 @@ select max(CALL_CACHING_HASH_ENTRY_ID) from CALL_CACHING_HASH_ENTRY
 Cromwell now supports sending metrics to [Google's Stackdriver API](https://cloud.google.com/monitoring/api/v3/). 
 Learn more on how to configure [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
+### BigQuery in PAPI
+
+Cromwell now allows a user to specify BigQuery jobs when using the PAPIv2 backend
+
 ### Configuration Changes
 
 #### StatsD Instrumentation
@@ -28,12 +93,30 @@ There is a small change in StatsD's configuration path. Originally, the path to 
 which now has been updated to `services.Instrumentation.config`. More info on its configuration can be found
 [here](https://cromwell.readthedocs.io/en/stable/developers/Instrumentation/).
 
+#### cached-copy
+
+A new experimental feature, the `cached-copy` localization strategy is available for the shared filesystem. 
+More information can be found in the [documentation on localization](https://cromwell.readthedocs.io/en/stable/backends/HPC).
+
+#### Yaml node limits
+
+Yaml parsing now checks for cycles, and limits the maximum number of parsed nodes to a configurable value. It also
+limits the nesting depth of sequences and mappings. See [the documentation on configuring
+YAML](https://cromwell.readthedocs.io/en/stable/Configuring/#yaml) for more information.
+
 ### API Changes
 
 #### Workflow Metadata
 
 * It is now possible to use `includeKey` and `excludeKey` at the same time. If so, the metadata key must match the `includeKey` **and not** match the `excludeKey` to be included.
 * It is now possible to use "`calls`" as one of your `excludeKey`s, to request that only workflow metadata gets returned.
+
+### PostgreSQL support
+
+Cromwell now supports PostgreSQL (version 9.6 or higher, with the Large Object
+extension installed) as a database backend.
+See [here](https://cromwell.readthedocs.io/en/stable/Configuring/#database) for
+instructions for configuring the database connection.
 
 ## 42 Release Notes
 

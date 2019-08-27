@@ -32,9 +32,15 @@ object ScatterElementToGraphNode {
               fileEvaluator: FileEvaluator[ExpressionElement],
               typeEvaluator: TypeEvaluator[ExpressionElement],
               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] =
-    if (a.insideAnotherScatter) {
-      convertInnerScatter(a)
+    if (a.convertNestedScatterToSubworkflow) {
+      // Create a sub-workflow from the inner scatter.
+      if (a.insideAnotherScatter) {
+        convertInnerScatter(a)
+      } else {
+        convertOuterScatter(a)
+      }
     } else {
+      // do not do anything special with inner scatters.
       convertOuterScatter(a)
     }
 
@@ -94,7 +100,10 @@ object ScatterElementToGraphNode {
         OuterGraphInputNode(WomIdentifier(name), port, preserveScatterIndex = false)
       }).toSet
 
-      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName, insideAScatter = true, a.callables)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName,
+                                                          insideAScatter = true,
+                                                          convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
       innerGraph map { ig =>
@@ -119,7 +128,10 @@ object ScatterElementToGraphNode {
     }
 
     val subWorkflowGraphValidation: ErrorOr[Graph] = subWorkflowInputsValidation flatMap { subWorkflowInputs =>
-      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, Map.empty, a.availableTypeAliases, a.workflowName, insideAScatter = false, a.callables)
+      val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, Map.empty, a.availableTypeAliases, a.workflowName,
+                                                          insideAScatter = false,
+                                                          convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          a.callables)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
     }
@@ -174,4 +186,5 @@ final case class ScatterNodeMakerInputs(node: ScatterElement,
                                         availableTypeAliases: Map[String, WomType],
                                         workflowName: String,
                                         insideAnotherScatter: Boolean,
+                                        convertNestedScatterToSubworkflow: Boolean,
                                         callables: Map[String, Callable])

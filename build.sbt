@@ -166,6 +166,12 @@ lazy val services = project
   .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
 
+lazy val hybridCarboniteMetadataService = project
+  .withLibrarySettings("hybrid-carbonite-metadata-service")
+  .dependsOn(services)
+  .dependsOn(engine)
+  .dependsOn(core % "test->test")
+
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project
@@ -259,6 +265,7 @@ lazy val engine = project
   .dependsOn(common % "test->test")
   .dependsOn(core % "test->test")
   .dependsOn(backend % "test->test")
+  .dependsOn(services % "test->test")
   // In the future we may have a dedicated test backend like the `TestLocalAsyncJobExecutionActor`.
   // For now, all the engine tests run on the "Local" backend, an implementation of an impl.sfs.config backend.
   .dependsOn(sfsBackend % "test->compile")
@@ -348,6 +355,9 @@ lazy val perf = project
   .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
   .dependsOn(common)
 
+lazy val `cromwell-drs-localizer` = project
+  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
@@ -390,6 +400,7 @@ lazy val root = (project in file("."))
   .aggregate(databaseSql)
   .aggregate(dockerHashing)
   .aggregate(drsFileSystem)
+  .aggregate(`cromwell-drs-localizer`)
   .aggregate(engine)
   .aggregate(ftpFileSystem)
   .aggregate(gcsFileSystem)

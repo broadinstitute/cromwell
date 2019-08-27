@@ -3,7 +3,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="custom_label_entry_key_value_index" author="mcovarr">
+    <changeSet id="custom_label_entry_key_value_index" author="mcovarr" dbms="mysql,hsqldb">
         <createIndex tableName="CUSTOM_LABEL_ENTRY" indexName="IX_CUSTOM_LABEL_ENTRY_CLK_CLV" unique="false">
             <column name="CUSTOM_LABEL_KEY"/>
             <column name="CUSTOM_LABEL_VALUE"/>

@@ -147,27 +147,32 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def metadataSummaryEntryExists(workflowExecutionUuid: String)
                                            (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def queryMetadataEntries(workflowExecutionUuid: String)
+    override def queryMetadataEntries(workflowExecutionUuid: String,
+                                      timeout: Duration)
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
-                                      metadataKey: String)(implicit ec: ExecutionContext): Nothing = notImplemented()
+                                      metadataKey: String,
+                                      timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
-                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = notImplemented()
+                                      jobAttempt: Option[Int],
+                                      timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowUuid: String,
                                       metadataKey: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
-                                      jobAttempt: Option[Int])(implicit ec: ExecutionContext): Nothing = notImplemented()
+                                      jobAttempt: Option[Int],
+                                      timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                              metadataKeysToFilterFor: List[String],
                                              metadataKeysToFilterAgainst: List[String],
-                                             metadataJobQueryValue: MetadataJobQueryValue)
+                                             metadataJobQueryValue: MetadataJobQueryValue,
+                                             timeout: Duration)
                                             (implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def summarizeIncreasing(summaryNameIncreasing: String,

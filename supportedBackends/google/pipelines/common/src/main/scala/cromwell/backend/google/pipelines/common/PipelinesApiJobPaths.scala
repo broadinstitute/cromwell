@@ -9,6 +9,9 @@ object PipelinesApiJobPaths {
   val JesLogPathKey = "jesLog"
   val JesMonitoringKey = "monitoring"
   val JesExecParamName = "exec"
+  val GcsTransferLibraryName = "gcs_transfer.sh"
+  val GcsLocalizationScriptName = "gcs_localization.sh"
+  val GcsDelocalizationScriptName = "gcs_delocalization.sh"
 }
 
 final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {

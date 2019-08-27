@@ -1,0 +1,130 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+    <changeSet author="nechols" id="postgresql-metadata-init-1" dbms="postgresql">
+        <createTable tableName="CUSTOM_LABEL_ENTRY">
+            <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="BIGSERIAL">
+                <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
+            </column>
+            <column name="CUSTOM_LABEL_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CUSTOM_LABEL_VALUE" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-2" dbms="postgresql">
+        <createTable tableName="METADATA_ENTRY">
+            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="BIGSERIAL">
+                <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="METADATA_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FQN" type="VARCHAR(255)"/>
+            <column name="JOB_SCATTER_INDEX" type="INT"/>
+            <column name="JOB_RETRY_ATTEMPT" type="INT"/>
+            <column name="METADATA_VALUE" type="CLOB"/>
+            <column name="METADATA_TIMESTAMP" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-3" dbms="postgresql">
+        <createTable tableName="SUMMARY_STATUS_ENTRY">
+            <column autoIncrement="true" name="SUMMARY_STATUS_ENTRY_ID" type="SERIAL">
+                <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_STATUS_ENTRY"/>
+            </column>
+            <column name="SUMMARY_NAME" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SUMMARY_POSITION" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-4" dbms="postgresql">
+        <createTable tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" type="BIGSERIAL">
+                <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="WORKFLOW_NAME" type="VARCHAR(100)"/>
+            <column name="WORKFLOW_STATUS" type="VARCHAR(50)"/>
+            <column name="START_TIMESTAMP" type="TIMESTAMP"/>
+            <column name="END_TIMESTAMP" type="TIMESTAMP"/>
+            <column name="SUBMISSION_TIMESTAMP" type="TIMESTAMP"/>
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-5" dbms="postgresql">
+        <addUniqueConstraint columnNames="CUSTOM_LABEL_KEY, WORKFLOW_EXECUTION_UUID" constraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU" tableName="CUSTOM_LABEL_ENTRY"/>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-6" dbms="postgresql">
+        <addUniqueConstraint columnNames="SUMMARY_NAME" constraintName="UC_SUMMARY_STATUS_ENTRY_SN" tableName="SUMMARY_STATUS_ENTRY"/>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-7" dbms="postgresql">
+        <addUniqueConstraint columnNames="WORKFLOW_EXECUTION_UUID" constraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-8" dbms="postgresql">
+        <createIndex indexName="IX_CUSTOM_LABEL_ENTRY_CLK_CLV" tableName="CUSTOM_LABEL_ENTRY">
+            <column name="CUSTOM_LABEL_KEY"/>
+            <column name="CUSTOM_LABEL_VALUE"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-9" dbms="postgresql">
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_PWEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-10" dbms="postgresql">
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-11" dbms="postgresql">
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WN" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="WORKFLOW_NAME"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-12" dbms="postgresql">
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WS" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="WORKFLOW_STATUS"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-13" dbms="postgresql">
+        <createIndex indexName="METADATA_WORKFLOW_IDX" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet author="nechols" id="postgresql-metadata-init-14" dbms="postgresql">
+        <addForeignKeyConstraint baseColumnNames="WORKFLOW_EXECUTION_UUID" baseTableName="CUSTOM_LABEL_ENTRY" constraintName="FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID" onDelete="CASCADE" referencedColumnNames="WORKFLOW_EXECUTION_UUID" referencedTableName="WORKFLOW_METADATA_SUMMARY_ENTRY"/>
+    </changeSet>
+</databaseChangeLog>

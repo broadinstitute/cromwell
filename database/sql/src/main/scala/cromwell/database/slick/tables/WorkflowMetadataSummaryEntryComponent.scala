@@ -1,11 +1,11 @@
 package cromwell.database.slick.tables
 
 import java.sql.Timestamp
-import java.util.concurrent.atomic.AtomicInteger
 
 import cats.data
 import cats.data.NonEmptyList
 import cromwell.database.sql.tables.WorkflowMetadataSummaryEntry
+import shapeless.syntax.std.tuple._
 import slick.jdbc.{GetResult, PositionedParameters, SQLActionBuilder}
 
 //noinspection SqlDialectInspection
@@ -13,6 +13,7 @@ trait WorkflowMetadataSummaryEntryComponent {
 
   this: DriverComponent with CustomLabelEntryComponent with MetadataEntryComponent =>
 
+  import driver.api.TupleMethods._
   import driver.api._
 
   class WorkflowMetadataSummaryEntries(tag: Tag)
@@ -35,9 +36,15 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def rootWorkflowExecutionUuid = column[Option[String]]("ROOT_WORKFLOW_EXECUTION_UUID", O.Length(100))
 
-    override def * = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
-      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid,
-      workflowMetadataSummaryEntryId.?) <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
+    def baseProjection = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
+      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid)
+
+    override def * = baseProjection ~ workflowMetadataSummaryEntryId.? <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
+
+    def forUpdate = baseProjection.shaped <> (
+      tuple => WorkflowMetadataSummaryEntry.tupled(tuple :+ None),
+      WorkflowMetadataSummaryEntry.unapply(_: WorkflowMetadataSummaryEntry).map(_.reverse.tail.reverse)
+    )
 
     def ucWorkflowMetadataSummaryEntryWeu =
       index("UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU", workflowExecutionUuid, unique = true)
@@ -63,7 +70,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowMetadataSummaryEntry)
+    } yield workflowMetadataSummaryEntry.forUpdate)
 
   val workflowMetadataSummaryEntryExistsForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
@@ -81,8 +88,8 @@ trait WorkflowMetadataSummaryEntryComponent {
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {
-        a.unitPConv.apply(p, pp)
-        b.unitPConv.apply(p, pp)
+      a.unitPConv.apply(p, pp)
+      b.unitPConv.apply(p, pp)
     })
   }
 
@@ -118,79 +125,130 @@ trait WorkflowMetadataSummaryEntryComponent {
                        endTimestampOption: Option[Timestamp],
                        includeSubworkflows: Boolean): SQLActionBuilder = {
 
-    val summaryTableAlias = "summaryTable"
-    val labelsOrTableAlias = "labelsOrMixin"
-    val labelsAndTableAliases = labelAndKeyLabelValues.zipWithIndex.map { case (labelPair, i) => s"labelAndTable$i" -> labelPair }.toMap
+    val customLabelEntryTable = quoted("CUSTOM_LABEL_ENTRY")
+    val workflowMetadataSummaryEntryTable = quoted("WORKFLOW_METADATA_SUMMARY_ENTRY")
+
+    val workflowExecutionUuidColumn = quoted("WORKFLOW_EXECUTION_UUID")
+    val customLabelKeyColumn = quoted("CUSTOM_LABEL_KEY")
+    val customLabelValueColumn = quoted("CUSTOM_LABEL_VALUE")
+    val parentWorkflowExecutionUuidColumn = quoted("PARENT_WORKFLOW_EXECUTION_UUID")
+
+    val summaryTableAlias = quoted("summaryTable")
+    val labelsOrTableAlias = quoted("labelsOrMixin")
+    val labelsAndTableAliases = labelAndKeyLabelValues.zipWithIndex.map {
+      case (labelPair, i) => quoted(s"labelAndTable$i") -> labelPair
+    }.toMap
+
+    val selectColumns = List(
+      "WORKFLOW_EXECUTION_UUID",
+      "WORKFLOW_NAME",
+      "WORKFLOW_STATUS",
+      "START_TIMESTAMP",
+      "END_TIMESTAMP",
+      "SUBMISSION_TIMESTAMP",
+      "PARENT_WORKFLOW_EXECUTION_UUID",
+      "ROOT_WORKFLOW_EXECUTION_UUID",
+      "WORKFLOW_METADATA_SUMMARY_ENTRY_ID",
+    )
+      .map(quoted)
+      .mkString(s"$summaryTableAlias.", ", ", "")
 
     val select = selectOrCount match {
       case Select =>
-        sql"""|SELECT #$summaryTableAlias.WORKFLOW_EXECUTION_UUID,
-              |  #$summaryTableAlias.WORKFLOW_NAME,
-              |  #$summaryTableAlias.WORKFLOW_STATUS,
-              |  #$summaryTableAlias.START_TIMESTAMP,
-              |  #$summaryTableAlias.END_TIMESTAMP,
-              |  #$summaryTableAlias.SUBMISSION_TIMESTAMP,
-              |  #$summaryTableAlias.PARENT_WORKFLOW_EXECUTION_UUID,
-              |  #$summaryTableAlias.ROOT_WORKFLOW_EXECUTION_UUID,
-              |  #$summaryTableAlias.WORKFLOW_METADATA_SUMMARY_ENTRY_ID
-              | """.stripMargin
+        sql"""|SELECT #$selectColumns
+              |""".stripMargin
       case Count =>
-        sql"""SELECT COUNT(1)
-             | """.stripMargin
+        sql"""|SELECT COUNT(1)
+              |""".stripMargin
     }
 
     val labelOrJoin = if (labelOrKeyLabelValues.nonEmpty) {
       Option(
-        sql""" JOIN CUSTOM_LABEL_ENTRY #$labelsOrTableAlias on #$summaryTableAlias.WORKFLOW_EXECUTION_UUID = #$labelsOrTableAlias.WORKFLOW_EXECUTION_UUID
-              | """.stripMargin)
+        sql"""|  JOIN #$customLabelEntryTable #$labelsOrTableAlias
+              |    ON #$summaryTableAlias.#$workflowExecutionUuidColumn
+              |      = #$labelsOrTableAlias.#$workflowExecutionUuidColumn
+              |""".stripMargin)
     } else None
 
     val labelAndJoins = labelsAndTableAliases.toList.map { case (labelAndTableAlias, _) =>
-        sql""" JOIN CUSTOM_LABEL_ENTRY #$labelAndTableAlias on #$summaryTableAlias.WORKFLOW_EXECUTION_UUID = #$labelAndTableAlias.WORKFLOW_EXECUTION_UUID
-             | """.stripMargin
+      sql"""|  JOIN #$customLabelEntryTable #$labelAndTableAlias
+            |    ON #$summaryTableAlias.#$workflowExecutionUuidColumn
+            |      = #$labelAndTableAlias.#$workflowExecutionUuidColumn
+            |""".stripMargin
     }
 
     val from = concatNel(NonEmptyList.of(
-      sql"""FROM WORKFLOW_METADATA_SUMMARY_ENTRY #$summaryTableAlias
-           | """.stripMargin) ++ labelOrJoin.toList ++ labelAndJoins )
+      sql"""|FROM #$workflowMetadataSummaryEntryTable #$summaryTableAlias
+            |""".stripMargin) ++ labelOrJoin.toList ++ labelAndJoins)
 
-    val statusConstraint = NonEmptyList.fromList(workflowStatuses.toList.map(status => sql"""#$summaryTableAlias.WORKFLOW_STATUS=$status""")).map(or).toList
-    val nameConstraint = NonEmptyList.fromList(workflowNames.toList.map(name => sql"""#$summaryTableAlias.WORKFLOW_NAME=$name""")).map(or).toList
-    val idConstraint = NonEmptyList.fromList(workflowExecutionUuids.toList.map(uuid => sql"""#$summaryTableAlias.WORKFLOW_EXECUTION_UUID=$uuid""")).map(or).toList
-    val submissionTimeConstraint = submissionTimestampOption.map(ts => sql"""#$summaryTableAlias.SUBMISSION_TIMESTAMP>=$ts""").toList
-    val startTimeConstraint = startTimestampOption.map(ts => sql"""#$summaryTableAlias.START_TIMESTAMP>=$ts""").toList
-    val endTimeConstraint = endTimestampOption.map(ts => sql"""#$summaryTableAlias.END_TIMESTAMP<=$ts""").toList
+    def makeSetConstraint(column: String, elements: Set[String]) = {
+      val list = elements.toList.map(element => sql"""#$summaryTableAlias.#${quoted(column)} = $element""")
+      NonEmptyList.fromList(list).map(or).toList
+    }
+
+    def makeTimeConstraint(column: String, comparison: String, elementOption: Option[Timestamp]) = {
+      elementOption.map(element => sql"""#$summaryTableAlias.#${quoted(column)} #$comparison $element""").toList
+    }
+
+    val statusConstraint = makeSetConstraint("WORKFLOW_STATUS", workflowStatuses)
+    val nameConstraint = makeSetConstraint("WORKFLOW_NAME", workflowNames)
+    val idConstraint = makeSetConstraint("WORKFLOW_EXECUTION_UUID", workflowExecutionUuids)
+
+    val submissionTimeConstraint = makeTimeConstraint("SUBMISSION_TIMESTAMP", ">=", submissionTimestampOption)
+    val startTimeConstraint = makeTimeConstraint("START_TIMESTAMP", ">=", startTimestampOption)
+    val endTimeConstraint = makeTimeConstraint("END_TIMESTAMP", "<=", endTimestampOption)
 
     // *ALL* of the labelAnd list of KV pairs must exist:
-    val labelsAndConstraint = NonEmptyList.fromList(labelsAndTableAliases.toList.map { case (labelsAndTableAlias, (labelKey, labelValue)) =>
-      and(NonEmptyList.of(sql"#$labelsAndTableAlias.custom_label_key=$labelKey") :+ sql"#$labelsAndTableAlias.custom_label_value=$labelValue")
+    val labelsAndConstraint = NonEmptyList.fromList(labelsAndTableAliases.toList.map {
+      case (labelsAndTableAlias, (labelKey, labelValue)) =>
+        and(NonEmptyList.of(
+          sql"""#$labelsAndTableAlias.#$customLabelKeyColumn = $labelKey""",
+          sql"""#$labelsAndTableAlias.#$customLabelValueColumn = $labelValue""",
+        ))
     }).map(and).toList
 
     // At least one of the labelOr list of KV pairs must exist:
-    val labelOrConstraint = NonEmptyList.fromList(labelOrKeyLabelValues.toList.map { case (k, v) =>
-      and(NonEmptyList.of(sql"#$labelsOrTableAlias.custom_label_key=$k") :+ sql"#$labelsOrTableAlias.custom_label_value=$v")
+    val labelOrConstraint = NonEmptyList.fromList(labelOrKeyLabelValues.toList.map {
+      case (labelKey, labelValue) =>
+        and(NonEmptyList.of(
+          sql"""#$labelsOrTableAlias.#$customLabelKeyColumn = $labelKey""",
+          sql"""#$labelsOrTableAlias.#$customLabelValueColumn = $labelValue""",
+        ))
     }).map(or).toList
 
 
-    val mixinTableCounter = new AtomicInteger(0)
+    var mixinTableCounter = 0
 
     def labelExists(labelKey: String, labelValue: String) = {
-      val tableName = s"labelsMixin" + mixinTableCounter.getAndIncrement()
-      sql"""EXISTS(SELECT 1 from CUSTOM_LABEL_ENTRY #$tableName WHERE ((#$tableName.WORKFLOW_EXECUTION_UUID = #$summaryTableAlias.WORKFLOW_EXECUTION_UUID) AND (#$tableName.CUSTOM_LABEL_KEY = $labelKey) AND (#$tableName.CUSTOM_LABEL_VALUE = $labelValue)))"""
+      val tableName = quoted(s"labelsMixin" + mixinTableCounter)
+      mixinTableCounter += 1
+      sql"""|EXISTS (
+            |  SELECT 1 FROM #$customLabelEntryTable #$tableName
+            |    WHERE (
+            |      (#$tableName.#$workflowExecutionUuidColumn = #$summaryTableAlias.#$workflowExecutionUuidColumn)
+            |        AND (#$tableName.#$customLabelKeyColumn = $labelKey)
+            |        AND (#$tableName.#$customLabelValueColumn = $labelValue)
+            |    )
+            |)
+            |""".stripMargin
     }
 
     // *ALL* of the excludeLabelOr list of KV pairs must *NOT* exist:
-    val excludeLabelsOrConstraint = NonEmptyList.fromList(excludeLabelOrValues.toList.map { case (labelKey, labelValue) => not(labelExists(labelKey, labelValue)) } ).map(and).toList
+    val excludeLabelsOrConstraint = NonEmptyList.fromList(excludeLabelOrValues.toList map {
+      case (labelKey, labelValue) => not(labelExists(labelKey, labelValue))
+    }).map(and).toList
 
     // At least one of the excludeLabelAnd list of KV pairs must *NOT* exist:
-    val excludeLabelsAndConstraint = NonEmptyList.fromList(excludeLabelAndValues.toList.map { case (labelKey, labelValue) => not(labelExists(labelKey, labelValue)) } ).map(or).toList
+    val excludeLabelsAndConstraint = NonEmptyList.fromList(excludeLabelAndValues.toList.map {
+      case (labelKey, labelValue) => not(labelExists(labelKey, labelValue))
+    }).map(or).toList
 
     val includeSubworkflowsConstraint = if (includeSubworkflows) List.empty else {
-      List(sql"""#$summaryTableAlias.PARENT_WORKFLOW_EXECUTION_UUID IS NULL""".stripMargin)
+      List(sql"""#$summaryTableAlias.#$parentWorkflowExecutionUuidColumn IS NULL""".stripMargin)
     }
 
     val constraintList =
-        statusConstraint ++
+      statusConstraint ++
         nameConstraint ++
         idConstraint ++
         submissionTimeConstraint ++
@@ -274,18 +332,20 @@ trait WorkflowMetadataSummaryEntryComponent {
     )
 
     val paginationAddendum: List[SQLActionBuilder] = (page, pageSize) match {
-      case (Some(p), Some(ps)) => List(sql""" LIMIT #${Integer.max(p-1, 0) * ps},#$ps """)
-      case (None, Some(ps)) => List(sql""" LIMIT 0,#$ps """)
+      case (Some(p), Some(ps)) => List(sql""" LIMIT #$ps OFFSET #${ps * ((p - 1) max 0)}""")
+      case (None, Some(ps)) => List(sql""" LIMIT #$ps OFFSET 0""")
       case _ => List.empty
     }
 
-    val orderByAddendum = sql""" ORDER BY WORKFLOW_METADATA_SUMMARY_ENTRY_ID DESC
-                               | """.stripMargin
+    val orderByAddendum =
+      sql"""|  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} DESC
+            |""".stripMargin
 
     // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
 
-    concatNel((NonEmptyList.of(mainQuery) :+ orderByAddendum) ++ paginationAddendum)
-      .as[WorkflowMetadataSummaryEntry](rconv = GetResult { r =>
+    val fullQuery = concatNel(NonEmptyList(mainQuery, orderByAddendum :: paginationAddendum))
+
+    fullQuery.as[WorkflowMetadataSummaryEntry](rconv = GetResult { r =>
       WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
     })
   }

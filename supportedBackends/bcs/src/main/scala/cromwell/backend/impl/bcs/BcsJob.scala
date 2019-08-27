@@ -7,7 +7,7 @@ import cromwell.core.ExecutionEvent
 import cromwell.core.path.Path
 
 import collection.JavaConverters._
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object BcsJob{
   val BcsDockerImageEnvKey = "BATCH_COMPUTE_DOCKER_IMAGE"
@@ -40,7 +40,7 @@ final case class BcsJob(name: String,
     jobId
   }
 
-  def getStatus(jobId: String): Try[RunStatus] = {
+  def getStatus(jobId: String): Try[RunStatus] = Try{
     val request: GetJobRequest = new GetJobRequest
     request.setJobId(jobId)
     val response: GetJobResponse = batchCompute.getJob(request)
@@ -48,7 +48,10 @@ final case class BcsJob(name: String,
     val status = job.getState
     val message = job.getMessage
     val eventList = Seq[ExecutionEvent]()
-    RunStatusFactory.getStatus(jobId, status, Some(message), Some(eventList))
+    RunStatusFactory.getStatus(jobId, status, Some(message), Some(eventList)) match {
+      case Success(status) => status
+      case Failure(e) => throw e
+    }
   }
 
   def cancel(jobId: String): Unit = {
@@ -129,6 +132,7 @@ final case class BcsJob(name: String,
     lazyCmd.setEnvVars(environments.asJava)
     lazyCmd.setCommandLine(commandString)
 
+    dockers foreach {docker => lazyCmd.setDocker(docker)}
     stdoutPath foreach {path => parames.setStdoutRedirectPath(path.normalize().pathAsString + "/")}
     stderrPath foreach {path => parames.setStderrRedirectPath(path.normalize().pathAsString + "/")}
 
@@ -136,10 +140,26 @@ final case class BcsJob(name: String,
     parames
   }
 
-  private[bcs] def environments: Map[String, String] = runtime.docker match {
-      case Some(docker: BcsDockerWithoutPath) => envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
-      case Some(docker: BcsDockerWithPath) => envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) +  (BcsJob.BcsDockerImageEnvKey -> docker.image)
+  private[bcs] def environments: Map[String, String] = {
+    runtime.docker match {
+      case None =>
+        runtime.dockerTag match {
+          case Some(docker: BcsDockerWithoutPath) => envs + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+          case Some(docker: BcsDockerWithPath) => envs + (BcsJob.BcsDockerPathEnvKey -> docker.path) + (BcsJob.BcsDockerImageEnvKey -> docker.image)
+          case _ => envs
+        }
       case _ => envs
+    }
+  }
+
+  val dockers: Option[Command.Docker] = {
+    runtime.docker match {
+      case Some(docker: BcsDockerWithoutPath) =>
+        val dockers = new Command.Docker
+        dockers.setImage(docker.image)
+        Some(dockers)
+      case _ => None
+    }
   }
 
   private[bcs] def jobDesc: JobDescription = {
@@ -166,20 +186,19 @@ final case class BcsJob(name: String,
     val cluster = runtime.cluster getOrElse(throw new IllegalArgumentException("cluster id or auto cluster configuration is mandatory"))
     cluster.fold(handleClusterId, handleAutoCluster)
 
+    val mnts = new Mounts
     mounts foreach  {
       case input: BcsInputMount =>
-        var destStr = input.dest.pathAsString
-        if (input.src.pathAsString.endsWith("/") && !destStr.endsWith("/")) {
-          destStr += "/"
-        }
-        lazyTask.addInputMapping(input.src.pathAsString, destStr)
+        mnts.addEntries(input.toBcsMountEntry)
       case output: BcsOutputMount =>
-        var srcStr = output.src.pathAsString
-        if (output.dest.pathAsString.endsWith("/") && !srcStr.endsWith("/")) {
+        var srcStr = BcsMount.toString(output.src)
+        if (BcsMount.toString(output.dest).endsWith("/") && !srcStr.endsWith("/")) {
           srcStr += "/"
         }
-        lazyTask.addOutputMapping(srcStr, output.dest.pathAsString)
+        lazyTask.addOutputMapping(srcStr, BcsMount.toString(output.dest))
     }
+
+    lazyTask.setMounts(mnts)
 
     lazyTask
   }
@@ -192,6 +211,7 @@ final case class BcsJob(name: String,
 
     config.spotStrategy foreach {strategy => autoCluster.setSpotStrategy(strategy)}
     config.spotPriceLimit foreach {priceLimit => autoCluster.setSpotPriceLimit(priceLimit)}
+    config.clusterId foreach {clusterId => autoCluster.setClusterId(clusterId)}
     runtime.reserveOnFail foreach {reserve => autoCluster.setReserveOnFail(reserve)}
     val userData = runtime.userData map {datas => Map(datas map {data => data.key -> data.value}: _*)}
     userData foreach {datas => autoCluster.setUserData(datas.asJava)}

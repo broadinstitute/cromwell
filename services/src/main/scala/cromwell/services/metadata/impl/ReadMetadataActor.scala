@@ -7,14 +7,15 @@ import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{CallMetadataKeys, MetadataQuery, WorkflowQueryParameters}
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object ReadMetadataActor {
-  def props() = Props(new ReadMetadataActor()).withDispatcher(ApiDispatcher)
+  def props(metadataReadTimeout: Duration) = Props(new ReadMetadataActor(metadataReadTimeout)).withDispatcher(ApiDispatcher)
 }
 
-class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore {
+class ReadMetadataActor(metadataReadTimeout: Duration) extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore {
 
   implicit val ec = context.dispatcher
 
@@ -34,7 +35,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
 
   private def queryAndRespond(query: MetadataQuery): Unit = {
     val sndr = sender()
-    queryMetadataEvents(query) onComplete {
+    queryMetadataEvents(query, metadataReadTimeout) onComplete {
       case Success(m) => sndr ! MetadataLookupResponse(query, m)
       case Failure(t) => sndr ! MetadataServiceKeyLookupFailed(query, t)
     }
@@ -78,7 +79,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
 
   private def queryWorkflowOutputsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
-    queryWorkflowOutputs(id) onComplete {
+    queryWorkflowOutputs(id, metadataReadTimeout) onComplete {
       case Success(o) => replyTo ! WorkflowOutputsResponse(id, o)
       case Failure(t) => replyTo ! WorkflowOutputsFailure(id, t)
     }
@@ -86,7 +87,7 @@ class ReadMetadataActor extends Actor with ActorLogging with MetadataDatabaseAcc
 
   private def queryLogsAndRespond(id: WorkflowId): Unit = {
     val replyTo = sender()
-    queryLogs(id) onComplete {
+    queryLogs(id, metadataReadTimeout) onComplete {
       case Success(s) => replyTo ! LogsResponse(id, s)
       case Failure(t) => replyTo ! LogsFailure(id, t)
     }

@@ -7,7 +7,7 @@
         <sqlFile relativeToChangelogFile="true" path="migration/workflow_store/replace_empty_custom_labels.sql" />
     </changeSet>
 
-    <changeSet id="custom_labels_not_null" author="rmunshi">
+    <changeSet id="custom_labels_not_null" author="rmunshi" dbms="mysql,hsqldb">
         <addNotNullConstraint tableName="WORKFLOW_STORE_ENTRY"
                               columnName="CUSTOM_LABELS"
                               columnDataType="LONGTEXT"

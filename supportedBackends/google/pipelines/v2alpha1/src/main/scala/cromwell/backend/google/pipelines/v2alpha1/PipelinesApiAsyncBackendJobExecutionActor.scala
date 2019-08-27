@@ -1,17 +1,30 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
+import cats.data.NonEmptyList
+import cats.instances.list._
+import cats.instances.map._
+import cats.syntax.foldable._
+import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
 import cromwell.backend.google.pipelines.common._
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
+import cromwell.backend.google.pipelines.v2alpha1.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
-import cromwell.core.path.DefaultPathBuilder
-import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
+import org.apache.commons.codec.digest.DigestUtils
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
 import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory, WomMaybePopulatedFile, WomSingleFile, WomUnlistedDirectory}
 
-class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend .google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
+import scala.concurrent.Future
+import scala.io.Source
+import scala.language.postfixOps
+
+class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
 
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
   // In v2 we can differentiate files from directories 
@@ -37,6 +50,106 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       key -> womFile.collectAsSeq({
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
       })
+  }
+
+  private lazy val gcsTransferLibrary =
+    Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString
+
+  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](localizationConfiguration: LocalizationConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
+    val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
+    val maxAttempts = localizationConfiguration.localizationAttempts
+    val transferItems = inputs.toList.flatMap { i =>
+      val kind = i match {
+        case _: PipelinesApiFileInput => "file"
+        case _: PipelinesApiDirectoryInput => "directory"
+      }
+      List(kind, i.cloudPath, i.containerPath)
+    } mkString("\"", "\"\n|  \"", "\"")
+
+    // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
+    val arrayIdentifier = s"localize_" + DigestUtils.md5Hex(bucket)
+    s"""
+       |# $bucket
+       |$arrayIdentifier=(
+       |  "localize" # direction
+       |  "$project"       # project
+       |  "$maxAttempts"   # max attempts
+       |  $transferItems
+       |)
+       |
+       |transfer "$${$arrayIdentifier[@]}"
+      """.stripMargin
+  }
+
+  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](localizationConfiguration: LocalizationConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
+    val project = outputs.head.cloudPath.asInstanceOf[GcsPath].projectId
+    val maxAttempts = localizationConfiguration.localizationAttempts
+
+    val transferItems = outputs.toList.flatMap { output =>
+      val kind = output match {
+        case o: PipelinesApiFileOutput if o.secondary => "file_or_directory" // if secondary the type is unknown
+        case _: PipelinesApiFileOutput => "file" // a primary file
+        case _: PipelinesApiDirectoryOutput => "directory" // a primary directory
+      }
+
+      val optional = Option(output) collectFirst { case o: PipelinesApiFileOutput if o.secondary || o.optional => "optional" } getOrElse "required"
+      val contentType = output.contentType.getOrElse("")
+
+      List(kind, output.cloudPath, output.containerPath, optional, contentType)
+    } mkString("\"", "\"\n|  \"", "\"")
+
+
+    // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
+    val arrayIdentifier = s"delocalize_" + DigestUtils.md5Hex(bucket)
+    s"""
+       |# $bucket
+       |$arrayIdentifier=(
+       |  "delocalize" # direction
+       |  "$project"       # project
+       |  "$maxAttempts"   # max attempts
+       |  $transferItems
+       |)
+       |
+       |transfer "$${$arrayIdentifier[@]}"
+      """.stripMargin
+  }
+
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit localizationConfiguration: LocalizationConfiguration): String = {
+    val bundleFunction = (gcsLocalizationTransferBundle(localizationConfiguration) _).tupled
+    generateGcsTransferScript(inputs, bundleFunction)
+  }
+
+  private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit localizationConfiguration: LocalizationConfiguration): String = {
+    val bundleFunction = (gcsDelocalizationTransferBundle(localizationConfiguration) _).tupled
+    generateGcsTransferScript(outputs, bundleFunction)
+  }
+
+  private def generateGcsTransferScript[T <: PipelinesParameter](items: List[T], bundleFunction: ((String, NonEmptyList[T])) => String): String = {
+    val gcsItems = items collect { case i if i.cloudPath.isInstanceOf[GcsPath] => i }
+    groupParametersByGcsBucket(gcsItems) map bundleFunction mkString "\n"
+  }
+
+  override protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters,
+                                                  cloudPath: Path,
+                                                  localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
+
+    asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
+
+  override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                           cloudPath: Path,
+                                           transferLibraryContainerPath: Path,
+                                           localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(localizationConfiguration)
+    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
+
+  override def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
+                                             cloudPath: Path,
+                                             transferLibraryContainerPath: Path,
+                                             localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
+    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(localizationConfiguration)
+    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
   // Simply create a PipelinesApiDirectoryOutput in v2 instead of globbing
@@ -84,12 +197,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
             * call-A/file.txt
             *
             * This code is called as part of a path mapper that will be applied to the WOMified cwl.output.json.
-            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths 
+            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
             * (as they were created by the cwl tool).
             * In order to keep things working we need to map those local paths to where they were actually delocalized,
             * which is determined in cromwell.backend.google.pipelines.v2alpha1.api.Delocalization.
             */
-          case _ => (callRootPath / 
+          case _ => (callRootPath /
             RuntimeOutputMapping
                 .prefixFilters(workflowPaths.workflowRoot)
                 .foldLeft(path)({
@@ -135,5 +248,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     val destination = callRootPath.resolve(normalizedPath)
     val jesFileOutput = PipelinesApiFileOutput(makeSafeReferenceName(womFile.value), destination, relpath, disk, fileEvaluation.optional, fileEvaluation.secondary)
     List(jesFileOutput)
+  }
+}
+
+object PipelinesApiAsyncBackendJobExecutionActor {
+  private val gcsPathMatcher = "^gs://?([^/]+)/.*".r
+
+  private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
+    parameters.map { param =>
+      param.cloudPath.toString match {
+        case gcsPathMatcher(bucket) =>
+          Map(bucket -> NonEmptyList.of(param))
+        case other =>
+          throw new RuntimeException(s"Programmer error: Path '$other' did not match the expected regex. This should have been impossible")
+      }
+    } combineAll
   }
 }

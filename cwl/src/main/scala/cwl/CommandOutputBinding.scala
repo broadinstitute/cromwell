@@ -228,12 +228,27 @@ object CommandOutputBinding {
       case WomMaybePopulatedFileType if isRegularFile(cwlPath) =>
         loadFileWithContents(ioFunctionSet, commandOutputBinding)(cwlPath).to[IOChecked].map(List(_))
       case WomMaybePopulatedFileType =>
+        //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3092 which will redeem me of this mortal sin.
+        val detritusFiles = List(
+          "docker_cid",
+          "gcs_delocalization.sh",
+          "gcs_localization.sh",
+          "gcs_transfer.sh",
+          "rc.tmp",
+          "script",
+          "script.background",
+          "script.submit",
+          "stderr",
+          "stderr.background",
+          "stdout",
+          "stdout.background",
+        )
         val globs: IOChecked[Seq[String]] = 
           ioFunctionSet.glob(cwlPath).toIOChecked
               .map({
-                _ //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3092 which will redeem me of this mortal sin.
-                .filterNot{s =>
-                  s.endsWith("rc.tmp") || s.endsWith("docker_cid") || s.endsWith("script") || s.endsWith("script.background") || s.endsWith("script.submit") || s.endsWith("stderr") || s.endsWith("stderr.background") || s.endsWith("stdout") || s.endsWith("stdout.background")
+                _
+                .filterNot{ s =>
+                  detritusFiles exists s.endsWith
                 }
               })
 

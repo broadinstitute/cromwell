@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorRef, Props, SupervisorStrategy}
+import cromwell.core.HogGroup
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest}
 import cromwell.util.AkkaTestUtil.DeathTestActor
@@ -16,7 +17,7 @@ class TestTokenGrabbingActor(tokenDispenser: ActorRef, tokenType: JobExecutionTo
     case JobExecutionTokenDispensed => hasToken = true
   }
 
-  tokenDispenser ! JobExecutionTokenRequest("hogGroupA", tokenType)
+  tokenDispenser ! JobExecutionTokenRequest(HogGroup("hogGroupA"), tokenType)
 }
 
 object TestTokenGrabbingActor {

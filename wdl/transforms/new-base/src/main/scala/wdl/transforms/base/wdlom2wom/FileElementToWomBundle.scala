@@ -46,7 +46,10 @@ object FileElementToWomBundle {
           val workflowsValidation: ErrorOr[Vector[WorkflowDefinition]] = {
             a.fileElement.workflows.toVector.traverse { workflowDefinition =>
 
-              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition, allStructs, localTaskMapping ++ imports.flatMap(_.allCallables))
+              val convertInputs = WorkflowDefinitionConvertInputs(workflowDefinition,
+                                                                  allStructs,
+                                                                  localTaskMapping ++ imports.flatMap(_.allCallables),
+                                                                  a.convertNestedScatterToSubworkflow)
               a.workflowConverter.run(convertInputs).toValidated
             }
           }
@@ -61,7 +64,7 @@ object FileElementToWomBundle {
 
             val bundledCallableMap = (localTaskMapping.values.toSet ++ workflows).map(c => c.name -> c).toMap
 
-            WomBundle(primary, bundledCallableMap, allStructs)
+            WomBundle(primary, bundledCallableMap, allStructs, imports.flatMap(_.resolvedImportRecords).toSet)
           }
         }
       }
@@ -86,7 +89,7 @@ object FileElementToWomBundle {
 
     val languageFactoryKleislis: List[CheckedAtoB[ResolvedImportBundle, WomBundle]] = languageFactories map { factory =>
       CheckedAtoB.fromCheck { resolutionBundle: ResolvedImportBundle =>
-        factory.getWomBundle(resolutionBundle.source, optionsJson, resolutionBundle.newResolvers, languageFactories)
+        factory.getWomBundle(resolutionBundle.source, Option(resolutionBundle.resolvedImportRecord), optionsJson, resolutionBundle.newResolvers, languageFactories)
       }
     }
     val compoundLanguageFactory: CheckedAtoB[ResolvedImportBundle, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")
@@ -129,6 +132,7 @@ object FileElementToWomBundle {
 
 final case class FileElementToWomBundleInputs(fileElement: FileElement,
                                               workflowOptionsJson: WorkflowOptionsJson,
+                                              convertNestedScatterToSubworkflow : Boolean,
                                               importResolvers: List[ImportResolver],
                                               languageFactories: List[LanguageFactory],
                                               workflowConverter: CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition],

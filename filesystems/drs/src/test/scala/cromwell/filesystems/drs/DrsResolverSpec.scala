@@ -28,7 +28,7 @@ class DrsResolverSpec extends FlatSpec with Matchers {
     throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
 
   private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter)
-  private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider)
+  private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider, None)
 
   val gcsRelativePath = "mybucket/foo.txt"
 

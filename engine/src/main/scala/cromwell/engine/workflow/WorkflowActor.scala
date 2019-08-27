@@ -12,7 +12,7 @@ import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Finished
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
-import cromwell.core.path.{PathBuilder, PathFactory}
+import cromwell.core.path.{PathBuilder, PathBuilderFactory, PathFactory}
 import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
@@ -206,7 +206,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   with WorkflowInstrumentation with Timers {
 
   implicit val ec = context.dispatcher
-  private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState) = workflowToStart
+  private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState, hogGroup) = workflowToStart
   override val workflowIdForLogging = workflowId.toPossiblyNotRoot
   override val rootWorkflowIdForLogging = workflowId.toRoot
 
@@ -216,6 +216,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, initialStartableState.restarted), s"WorkflowDockerLookupActor-$workflowId")
+
+  protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
   startWith(WorkflowUnstartedState, WorkflowActorData(initialStartableState))
 
@@ -246,7 +248,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   when(WorkflowUnstartedState) {
     case Event(StartWorkflowCommand, _) =>
-      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor),
+      val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor, hogGroup = hogGroup),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
       actor ! MaterializeWorkflowDescriptorCommand(sources, conf)
@@ -428,10 +430,13 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
           * being recreated so that in case MaterializeWorkflowDescriptor fails, the workflow logs can still
           * be copied by accessing the workflow options outside of the EngineWorkflowDescriptor.
           */
-        def bruteForceWorkflowOptions: WorkflowOptions = WorkflowOptions.fromJsonString(sources.workflowOptionsJson).getOrElse(WorkflowOptions.fromJsonString("{}").get)
+        def bruteForceWorkflowOptions: WorkflowOptions = sources.workflowOptions
         val system = context.system
         val ec = context.system.dispatcher
-        def bruteForcePathBuilders: Future[List[PathBuilder]] = EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions)(system)
+        def bruteForcePathBuilders: Future[List[PathBuilder]] = {
+          // Protect against path builders that may throw an exception instead of returning a failed future
+          Future(EngineFilesystems.pathBuildersForWorkflow(bruteForceWorkflowOptions, pathBuilderFactories)(system))(ec).flatten
+        }
 
         val (workflowOptions, pathBuilders) = stateData.workflowDescriptor match {
           case Some(wd) => (wd.backendDescriptor.workflowOptions, Future.successful(wd.pathBuilders))
@@ -440,7 +445,9 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
         workflowOptions.get(FinalWorkflowLogDir).toOption match {
           case Some(destinationDir) =>
-            pathBuilders.map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
+            pathBuilders
+              .map(pb => workflowLogCopyRouter ! CopyWorkflowLogsActor.Copy(workflowId, PathFactory.buildPath(destinationDir, pb)))(ec)
+              .recover { case e => log.error(e, "Failed to copy workflow log") }(ec)
           case None => workflowLogger.close(andDelete = WorkflowLogger.isTemporary) match {
             case Failure(f) => log.error(f, "Failed to delete workflow log")
             case _ =>

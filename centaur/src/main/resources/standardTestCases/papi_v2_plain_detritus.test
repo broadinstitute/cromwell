@@ -1,0 +1,13 @@
+name: papi_v2_plain_detritus
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: papi_v2_plain_detritus/papi_v2_plain_detritus.wdl
+}
+
+metadata {
+  workflowName: papi_v2_plain_detritus
+  status: Succeeded
+  "outputs.papi_v2_plain_detritus.check_detritus.out": "text/plain; charset=UTF-8"
+}

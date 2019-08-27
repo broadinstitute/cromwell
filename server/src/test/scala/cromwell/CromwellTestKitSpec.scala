@@ -158,6 +158,7 @@ object CromwellTestKitSpec {
     }
   }
 
+
   /**
     * Special case for validating outputs. Used when the test wants to check that an output exists, but doesn't care what
     * the actual value was.

@@ -13,4 +13,7 @@ cat /proc/cpuinfo
 
 java -version
 
-java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs
+java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs > console_output.txt
+
+grep -q "terminal state: WorkflowSucceededState" console_output.txt
+grep -q "\"wf_hello.hello.salutation\": \"Hello m'Lord!\"" console_output.txt

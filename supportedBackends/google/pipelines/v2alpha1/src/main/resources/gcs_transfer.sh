@@ -148,9 +148,11 @@ localize_files() {
   local first_cloud_file="$4"
   shift 4
 
+  local num_cpus=$(grep -c ^processor /proc/cpuinfo)
+
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
-  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil cp '$first_cloud_file' '$container_parent'"
-  REQUESTER_PAYS_COMMAND="gsutil -u $project cp '$first_cloud_file' '$container_parent'"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components="${num_cpus}"' cp '$first_cloud_file' '$container_parent'"
+  REQUESTER_PAYS_COMMAND="gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components="${num_cpus}"' -u $project cp '$first_cloud_file' '$container_parent'"
 
   basefile=$(basename "$first_cloud_file")
   private::localize_message "$first_cloud_file" "${container_parent}${basefile}"
@@ -180,7 +182,7 @@ localize_files() {
     attempt=1
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
-      if cat files_to_localize.txt | gsutil -m ${rpflag} cp -I "$container_parent"; then
+      if cat files_to_localize.txt | gsutil -o "GSUtil:parallel_thread_count=1" -o "GSUtil:sliced_object_download_max_components=${num_cpus}" -m ${rpflag} cp -I "$container_parent"; then
         break
       else
         attempt=$((attempt + 1))

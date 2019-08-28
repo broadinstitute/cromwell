@@ -7,8 +7,8 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-cromwell::build::setup_conformance_environment
-
 cromwell::build::assemble_jars
 
 echo "Hello world!"
+
+ls -la

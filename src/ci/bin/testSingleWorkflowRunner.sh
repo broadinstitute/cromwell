@@ -12,3 +12,5 @@ cromwell::build::assemble_jars
 echo "Hello world!"
 
 ls -la
+
+echo $CROMWELL_BUILD_CROMWELL_JAR

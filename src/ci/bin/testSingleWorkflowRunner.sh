@@ -11,6 +11,6 @@ cromwell::build::assemble_jars
 
 java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs > console_output.txt
 
+# grep exits 1 if no matches
 grep "terminal state: WorkflowSucceededState" console_output.txt
 grep "\"wf_hello.hello.salutation\": \"Hello m'Lord!\"" console_output.txt
-grep "does not exist" console_output.txt

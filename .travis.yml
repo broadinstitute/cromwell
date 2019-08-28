@@ -95,6 +95,8 @@ env:
       BUILD_MYSQL=5.7
       BUILD_POSTGRESQL=11.3
       BUILD_MARIADB=10.3
+    - >-
+      BUILD_TYPE=singleWorkflowRunner
 script:
   - src/ci/bin/test.sh
 notifications:

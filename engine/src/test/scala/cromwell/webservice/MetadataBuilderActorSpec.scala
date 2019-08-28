@@ -43,7 +43,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
     response map { r => r shouldBe a [BuiltMetadataResponse] }
-    response.mapTo[BuiltMetadataResponse] map { b => b.response shouldBe expectedRes.parseJson}
+    response.mapTo[BuiltMetadataResponse] map { b => b.responseJson shouldBe expectedRes.parseJson}
   }
 
   it should "build workflow scope tree from metadata events" in {
@@ -499,7 +499,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
 
     response map { r => r shouldBe a [BuiltMetadataResponse] }
     val bmr = response.mapTo[BuiltMetadataResponse]
-    bmr map { b => b.response shouldBe expandedRes.parseJson}
+    bmr map { b => b.responseJson shouldBe expandedRes.parseJson}
   }
   
   it should "NOT expand sub workflow metadata when NOT asked for" in {
@@ -542,7 +542,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
 
     response map { r => r shouldBe a [BuiltMetadataResponse] }
     val bmr = response.mapTo[BuiltMetadataResponse]
-    bmr map { b => b.response shouldBe nonExpandedRes.parseJson}
+    bmr map { b => b.responseJson shouldBe nonExpandedRes.parseJson}
 
   }
 

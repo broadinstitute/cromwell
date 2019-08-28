@@ -117,7 +117,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
         eventually(Timeout(10.seconds), Interval(2.seconds)) {
           val response = Await.result((actor ? GetMetadataAction(query)).mapTo[BuiltMetadataResponse], 1.seconds)
 
-          response.response shouldBe expectation.parseJson
+          response.responseJson shouldBe expectation.parseJson
         }
       }
 

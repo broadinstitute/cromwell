@@ -20,7 +20,7 @@ import scala.language.postfixOps
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorResponse extends MetadataServiceResponse { def originalRequest: MetadataReadAction }
-  final case class BuiltMetadataResponse(originalRequest: MetadataReadAction, response: JsObject) extends MetadataBuilderActorResponse
+  final case class BuiltMetadataResponse(originalRequest: MetadataReadAction, responseJson: JsObject) extends MetadataBuilderActorResponse
   final case class FailedMetadataResponse(originalRequest: MetadataReadAction, reason: Throwable) extends MetadataBuilderActorResponse
 
   sealed trait MetadataBuilderActorState

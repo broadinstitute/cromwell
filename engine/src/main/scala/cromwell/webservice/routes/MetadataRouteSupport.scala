@@ -149,7 +149,7 @@ object MetadataRouteSupport {
 
   def completeMetadataBuilderResponse(response: Future[MetadataBuilderActorResponse]): Route = {
     onComplete(response) {
-      case Success(r: BuiltMetadataResponse) => complete(r.response)
+      case Success(r: BuiltMetadataResponse) => complete(r.responseJson)
       case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)

@@ -168,8 +168,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) =>
 
-        println("Got BuiltMetadataResponse!")
-
         Try(Source.fromResource("workflowTimings/workflowTimings.html").mkString) match {
           case Success(wfTimingsContent) =>
             val response = HttpResponse(entity = wfTimingsContent.replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.response.toString))

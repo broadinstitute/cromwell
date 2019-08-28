@@ -25,7 +25,7 @@ Run the workflow and print out the outputs in JSON format.
   -l, --labels <value>     Workflow labels file.
   -p, --imports <value>    A directory or zipfile to search for workflow imports.
   -m, --metadata-output <value>
-                           An optional directory path to output metadata.
+                           An optional JSON file path to output metadata.
 ```
 
 Cromwell's Server and Run modes can be invoked with the `server` and `run` arguments respectively. More information on these Cromwell modes can be found in [Modes](Modes).

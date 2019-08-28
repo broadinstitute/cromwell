@@ -149,6 +149,10 @@ localize_files() {
   shift 4
 
   local num_cpus=$(grep -c ^processor /proc/cpuinfo)
+  # 32 is the max component count currently supported by gsutil cp.
+  if [[ ${num_cpus} -gt 32 ]]; then
+    num_cpus=32
+  fi
 
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
   NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components="${num_cpus}"' cp '$first_cloud_file' '$container_parent'"

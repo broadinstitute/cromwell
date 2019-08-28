@@ -6,7 +6,7 @@ language: scala
 scala:
   - 2.12.9
 jdk:
-  - oraclejdk8
+  - openjdk8
 cache:
   directories:
     - $HOME/.ivy2/cache

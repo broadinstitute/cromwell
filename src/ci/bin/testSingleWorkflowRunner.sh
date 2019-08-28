@@ -9,8 +9,8 @@ cromwell::build::setup_common_environment
 
 cromwell::build::assemble_jars
 
-echo "Hello world!"
+cat /proc/cpuinfo
 
-ls -la
+java -version
 
-echo $CROMWELL_BUILD_CROMWELL_JAR
+java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs

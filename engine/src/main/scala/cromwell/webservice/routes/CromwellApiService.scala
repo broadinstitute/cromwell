@@ -3,6 +3,7 @@ package cromwell.webservice.routes
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorRefFactory}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model._
@@ -22,7 +23,7 @@ import cromwell.core.{path => _, _}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
@@ -88,7 +89,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
               case Valid(queryParameter) =>
                 val diffActor = actorRefFactory.actorOf(CallCacheDiffActor.props(serviceRegistryActor), "CallCacheDiffActor-" + UUID.randomUUID())
                 onComplete(diffActor.ask(queryParameter).mapTo[CallCacheDiffActorResponse]) {
-                  case Success(r: BuiltCallCacheDiffResponse) => complete(r.response)
+                  case Success(r: SuccessfulCallCacheDiffResponse) => complete(r)
                   case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
                   case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
                   case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)

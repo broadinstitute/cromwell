@@ -90,7 +90,6 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
 
 
 object CallCacheDiffActor {
-  //  private val PlaceholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
 
   final case class CachedCallNotFoundException(message: String) extends Exception {
     override def getMessage = message
@@ -162,7 +161,7 @@ object CallCacheDiffActor {
     def processField(keyPrefix: String)(fieldValue: (String, JsValue)): ErrorOr[Map[String, String]] = fieldValue match {
       case (key, hashString: JsString) => Map(keyPrefix + key -> hashString.value).validNel
       case (key, subObject: JsObject) => extractHashEntries(key + ":", subObject)
-      case other => s"Cannot extract hashes. Expected JsString or JsObject but got $other".invalidNel
+      case (key, otherValue) => s"Cannot extract hashes for $key. Expected JsString or JsObject but got ${otherValue.getClass.getSimpleName} $otherValue".invalidNel
     }
 
     def extractHashEntries(keyPrefix: String, jsObject: JsObject): ErrorOr[Map[String, String]] = {

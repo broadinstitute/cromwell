@@ -31,7 +31,7 @@ object DrsResolver {
       drsFileSystemProvider <- toIO(drsFileSystemProviderOption, noFileSystemForDrsError)
       marthaResponse <- drsFileSystemProvider.drsPathResolver.resolveDrsThroughMartha(drsPath.pathAsString)
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      relativePath <- IO.fromEither(extractUrlForScheme(marthaResponse.dos.data_object.urls, GcsScheme))
+      relativePath <- IO.fromEither(extractUrlForScheme(marthaResponse.drs.data_object.urls, GcsScheme))
         .map(_.substring(urlProtocolLength(GcsScheme)))
         .handleErrorWith(e => IO.raiseError(new RuntimeException(s"Error while resolving DRS path: $drsPath. Error: ${ExceptionUtils.getMessage(e)}")))
     } yield relativePath

@@ -15,6 +15,8 @@ java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standard
 grep "terminal state: WorkflowSucceededState" console_output.txt
 grep "\"wf_hello.hello.salutation\": \"Hello m'Lord!\"" console_output.txt
 
+cat run_mode_metadata.json
+
 grep "\"actualWorkflowLanguageVersion\": \"draft-2\"" run_mode_metadata.json
 grep "\"actualWorkflowLanguage\": \"WDL\"" run_mode_metadata.json
 grep "\"wf_hello.hello.salutation\": \"Hello m'Lord!\"" run_mode_metadata.json

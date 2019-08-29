@@ -12,9 +12,9 @@ import common.validation.Validation._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CallCacheDiffActorData, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
-import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataServiceKeyLookupFailed}
+import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
 import spray.json.{JsArray, JsBoolean, JsObject, JsString, JsValue}
 
 class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {
@@ -44,7 +44,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     // Response B
     case Event(BuiltMetadataResponse(GetMetadataAction(originalQuery), responseJson), CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == originalQuery =>
       buildDiffAndRespond(queryA, queryB, responseA, WorkflowMetadataJson(responseJson), replyTo)
-    case Event(MetadataServiceKeyLookupFailed(_, failure), data: CallCacheDiffWithRequest) =>
+    case Event(FailedMetadataResponse(_, failure), data: CallCacheDiffWithRequest) =>
       data.replyTo ! FailedCallCacheDiffResponse(failure)
       context stop self
       stay()

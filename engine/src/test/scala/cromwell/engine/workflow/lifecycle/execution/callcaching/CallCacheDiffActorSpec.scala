@@ -8,7 +8,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQue
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.{MetadataService, _}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import spray.json.JsObject
@@ -200,29 +200,29 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     }
     expectTerminated(actor)
   }
-//
-//  it should "fail properly" in {
-//    import scala.concurrent.duration._
-//    import scala.language.postfixOps
-//
-//    val mockServiceRegistryActor = TestProbe()
-//    val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
-//    watch(actor)
-//    val exception = new Exception("Query lookup failed - but it's ok ! this is a test !")
-//    val responseA = MetadataServiceKeyLookupFailed(queryA, exception)
-//
-//    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
-//
-//    actor ! responseA
-//
-//    expectMsgPF(1 second) {
-//      case FailedCallCacheDiffResponse(e: Throwable) =>
-//        e.getMessage shouldBe "Query lookup failed - but it's ok ! this is a test !"
-//    }
-//
-//    expectTerminated(actor)
-//  }
-//
+
+  it should "fail properly" in {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+
+    val mockServiceRegistryActor = TestProbe()
+    val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
+    watch(actor)
+    val exception = new Exception("Query lookup failed - but it's ok ! this is a test !")
+    val responseA = FailedMetadataResponse(GetMetadataAction(queryA), exception)
+
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
+
+    actor ! responseA
+
+    expectMsgPF(1 second) {
+      case FailedCallCacheDiffResponse(e: Throwable) =>
+        e.getMessage shouldBe "Query lookup failed - but it's ok ! this is a test !"
+    }
+
+    expectTerminated(actor)
+  }
+
 //  it should "Respond with an appropriate message if hashes are missing" in {
 //    import scala.concurrent.duration._
 //    import scala.language.postfixOps

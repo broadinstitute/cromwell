@@ -15,7 +15,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQue
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
-import spray.json.{JsArray, JsBoolean, JsObject, JsString, JsValue}
+import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString, JsValue}
 
 class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {
   startWith(Idle, CallCacheDiffNoData)
@@ -152,7 +152,7 @@ object CallCacheDiffActor {
       // Unpack the JSON:
       allCalls <- response.value.fieldAsObject("calls")
       callShards <- allCalls.fieldAsArray(jobKey.callFqn)
-      onlyShardElement <- callShards.exactlyOneValueAsObject
+      onlyShardElement <- callShards.elementWithHighestAttemptField
       _ <- onlyShardElement.checkFieldValue("shardIndex", jobKey.index.getOrElse(-1).toString)
       callCachingElement <- onlyShardElement.fieldAsObject(CallMetadataKeys.CallCaching)
       hashes <- extractHashes(callCachingElement)
@@ -207,6 +207,7 @@ object CallCacheDiffActor {
     def fieldAsObject(field: String): ErrorOr[JsObject] = jsObject.getField(field) flatMap { _.mapToJsObject }
     def fieldAsArray(field: String): ErrorOr[JsArray] = jsObject.getField(field) flatMap { _.mapToJsArray }
     def fieldAsString(field: String): ErrorOr[JsString] = jsObject.getField(field) flatMap { _.mapToJsString }
+    def fieldAsNumber(field: String): ErrorOr[JsNumber] = jsObject.getField(field) flatMap { _.mapToJsNumber }
     def fieldAsBoolean(field: String): ErrorOr[JsBoolean] = jsObject.getField(field) flatMap { _.mapToJsBoolean }
     def checkFieldValue(field: String, expectation: String): ErrorOr[Unit] = jsObject.getField(field) flatMap {
       case v: JsValue if v.toString == expectation => ().validNel
@@ -215,10 +216,27 @@ object CallCacheDiffActor {
   }
 
   implicit class EnhancedJsArray(val jsArray: JsArray) extends AnyVal {
-    def exactlyOneValueAsObject: ErrorOr[JsObject] = if (jsArray.elements.size == 1) {
-      jsArray.elements.head.mapToJsObject
-    } else {
-      s"Expected exactly 1 array element but got ${jsArray.elements.size}".invalidNel
+
+    def elementWithHighestAttemptField: ErrorOr[JsObject] = {
+      def extractAttemptAndObject(value: JsValue): ErrorOr[(Int, JsObject)] = for {
+        asObject <- value.mapToJsObject
+        attempt <- asObject.fieldAsNumber("attempt")
+      } yield (attempt.value.intValue(), asObject)
+
+      def foldFunction(accumulator: ErrorOr[(Int, JsObject)], nextElement: JsValue): ErrorOr[(Int, JsObject)] = {
+        (accumulator, extractAttemptAndObject(nextElement)) mapN { case ((previousHighestAttempt, previousJsObject), (nextAttempt, nextJsObject)) =>
+          if (previousHighestAttempt > nextAttempt) {
+            (previousHighestAttempt, previousJsObject)
+          } else {
+            (nextAttempt, nextJsObject)
+          }
+        }
+      }
+
+      for {
+        attemptListNel <- NonEmptyList.fromList(jsArray.elements.toList).toErrorOr("Expected at least one attempt but found 0")
+        highestAttempt <- attemptListNel.toList.foldLeft(extractAttemptAndObject(attemptListNel.head))(foldFunction)
+      } yield highestAttempt._2
     }
   }
 
@@ -237,6 +255,10 @@ object CallCacheDiffActor {
     }
     def mapToJsBoolean: ErrorOr[JsBoolean] = jsValue match {
       case boo: JsBoolean => boo.validNel
+      case other => s"Invalid value type. Expected JsBoolean but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
+    }
+    def mapToJsNumber: ErrorOr[JsNumber] = jsValue match {
+      case boo: JsNumber => boo.validNel
       case other => s"Invalid value type. Expected JsNumber but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
     }
   }

@@ -137,6 +137,46 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     expectTerminated(actor)
   }
 
+  val correctCallCacheDiff = {
+    import spray.json._
+
+    s"""
+       |{
+       |   "callA":{
+       |      "executionStatus": "Done",
+       |      "allowResultReuse": true,
+       |      "callFqn": "callFqnA",
+       |      "jobIndex": 1,
+       |      "workflowId": "971652a6-139c-4ef3-96b5-aeb611a40dbf"
+       |   },
+       |   "callB":{
+       |      "executionStatus": "Failed",
+       |      "allowResultReuse": false,
+       |      "callFqn": "callFqnB",
+       |      "jobIndex": -1,
+       |      "workflowId": "bb85b3ec-e179-4f12-b90f-5191216da598"
+       |   },
+       |   "hashDifferential":[
+       |      {
+       |         "hashKey": "hash in only in A",
+       |         "callA":"hello from A",
+       |         "callB":null
+       |      },
+       |      {
+       |         "hashKey": "hash in A and B with different value",
+       |         "callA":"I'm the hash for A !",
+       |         "callB":"I'm the hash for B !"
+       |      },
+       |      {
+       |         "hashKey": "hash in only in B",
+       |         "callA":null,
+       |         "callB":"hello from B"
+       |      }
+       |   ]
+       |}
+       """.stripMargin.parseJson.asJsObject
+  }
+
   it should "build a correct response" in {
     import spray.json._
     import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
@@ -149,55 +189,65 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     actor ! responseForB
     actor ! responseForA
 
-    val expectedJson: JsObject =
-      s"""
-         |{
-         |   "callA":{
-         |      "executionStatus": "Done",
-         |      "allowResultReuse": true,
-         |      "callFqn": "callFqnA",
-         |      "jobIndex": 1,
-         |      "workflowId": "971652a6-139c-4ef3-96b5-aeb611a40dbf"
-         |   },
-         |   "callB":{
-         |      "executionStatus": "Failed",
-         |      "allowResultReuse": false,
-         |      "callFqn": "callFqnB",
-         |      "jobIndex": -1,
-         |      "workflowId": "bb85b3ec-e179-4f12-b90f-5191216da598"
-         |   },
-         |   "hashDifferential":[
-         |      {
-         |         "hashKey": "hash in only in A",
-         |         "callA":"hello from A",
-         |         "callB":null
-         |      },
-         |      {
-         |         "hashKey": "hash in A and B with different value",
-         |         "callA":"I'm the hash for A !",
-         |         "callB":"I'm the hash for B !"
-         |      },
-         |      {
-         |         "hashKey": "hash in only in B",
-         |         "callA":null,
-         |         "callB":"hello from B"
-         |      }
-         |   ]
-         |}
-       """.stripMargin.parseJson.asJsObject
-
     expectMsgPF() {
       case r: SuccessfulCallCacheDiffResponse =>
         withClue(s"""
              |Expected:
-             |${expectedJson.prettyPrint}
+             |${correctCallCacheDiff.prettyPrint}
              |
              |Actual:
              |${r.toJson.prettyPrint}""".stripMargin) {
-          r.toJson should be(expectedJson)
+          r.toJson should be(correctCallCacheDiff)
         }
       case other => fail(s"Expected SuccessfulCallCacheDiffResponse but got $other")
     }
+    expectTerminated(actor)
+  }
+
+  it should "build a correct response from multiple attempts" in {
+    import spray.json._
+    import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
+
+    val mockServiceRegistryActor = TestProbe()
+    val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
+    watch(actor)
+    actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
+
+    // Create a set of "failed" events for attempt 1:
+    val eventsAAttempt1 = List(
+      MetadataEvent(MetadataKey(workflowIdA, metadataJobKeyA, "executionStatus"), MetadataValue("Failed")),
+      MetadataEvent(MetadataKey(workflowIdA, metadataJobKeyA, "callCaching:allowResultReuse"), MetadataValue(false)),
+      MetadataEvent(MetadataKey(workflowIdA, metadataJobKeyA, "callCaching:hashes:hash in only in A"), MetadataValue("ouch!")),
+      MetadataEvent(MetadataKey(workflowIdA, metadataJobKeyA, "callCaching:hashes:hash in A and B with same value"), MetadataValue("ouch!")),
+      MetadataEvent(MetadataKey(workflowIdA, metadataJobKeyA, "callCaching:hashes:hash in A and B with different value"), MetadataValue("ouch!"))
+    )
+    // And update the old "eventsA" to represent attempt 2:
+    val eventsAAttempt2 = eventsA.map(event => event.copy(key = event.key.copy(jobKey = event.key.jobKey.map(_.copy(attempt = 2)))))
+
+    val modifiedEventsA = eventsAAttempt1 ++ eventsAAttempt2
+
+    val workflowMetadataA: JsObject = MetadataBuilderActor.workflowMetadataResponse(workflowIdA, modifiedEventsA, includeCallsIfEmpty = false, Map.empty)
+    val responseForA = BuiltMetadataResponse(MetadataService.GetMetadataAction(queryA), workflowMetadataA)
+
+
+    actor ! responseForB
+    actor ! responseForA
+
+    expectMsgPF() {
+      case r: SuccessfulCallCacheDiffResponse =>
+        withClue(s"""
+                    |Expected:
+                    |${correctCallCacheDiff.prettyPrint}
+                    |
+                    |Actual:
+                    |${r.toJson.prettyPrint}""".stripMargin) {
+          r.toJson should be(correctCallCacheDiff)
+        }
+      case other =>
+        expectTerminated(actor)
+        fail(s"Expected SuccessfulCallCacheDiffResponse but got $other")
+    }
+
     expectTerminated(actor)
   }
 

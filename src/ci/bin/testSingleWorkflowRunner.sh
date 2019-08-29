@@ -9,7 +9,7 @@ cromwell::build::setup_common_environment
 
 cromwell::build::assemble_jars
 
-java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs --metadata-output ./run_mode_metadata.json > console_output.txt
+java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs --metadata-output ./run_mode_metadata.json | tee console_output.txt
 
 # grep exits 1 if no matches
 grep "terminal state: WorkflowSucceededState" console_output.txt

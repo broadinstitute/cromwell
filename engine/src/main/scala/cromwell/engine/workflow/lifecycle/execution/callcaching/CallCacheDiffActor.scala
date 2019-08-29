@@ -57,51 +57,11 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
 
   }
 
-  /**
-    * Builds a response and sends it back as Json.
-    * The response is structured in the following way
-    * {
-    * "callA": {
-    * -- information about call A --
-    * },
-    * "callB": {
-    * -- information about call B --
-    * },
-    * "hashDifferential": [
-    * {
-    * "hash key": {
-    * "callA": -- hash value for call A, or null --,
-    * "callB": -- hash value for call B, or null --
-    * }
-    * },
-    * ...
-    * ]
-    * }
-    */
   private def buildDiffAndRespond(queryA: MetadataQuery,
                                   queryB: MetadataQuery,
                                   responseA: WorkflowMetadataJson,
                                   responseB: WorkflowMetadataJson,
                                   replyTo: ActorRef) = {
-
-    //    lazy val buildResponse = {
-    //      diffHashes(responseA.responseJson, responseB.responseJson) match {
-    //        case Success(diff) =>
-    //          val diffObject = MetadataObject(Map(
-    //            "callA" -> makeCallInfo(queryA, responseA.responseJson),
-    //            "callB" -> makeCallInfo(queryB, responseB.responseJson),
-    //            "hashDifferential" -> diff
-    //          ))
-    //
-    //          BuiltCallCacheDiffResponse(metadataComponentJsonWriter.write(diffObject).asJsObject)
-    //        case Failure(f) => FailedCallCacheDiffResponse(f)
-    //      }
-    //    }
-    //
-    //    val response = checkCallsExistence(queryA, queryB, responseA, responseB) match {
-    //      case Some(msg) => FailedCallCacheDiffResponse(CachedCallNotFoundException(msg))
-    //      case None => buildResponse
-    //    }
 
     val callACachingMetadata = extractCallMetadata(queryA, responseA)
     val callBCachingMetadata = extractCallMetadata(queryB, responseB)
@@ -126,93 +86,6 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     context stop self
     stay()
   }
-
-  //  /**
-  //    * Returns an error message if one or both of the calls are not found, or None if it does
-  //    */
-  //  private def checkCallsExistence(queryA: MetadataQuery,
-  //                                  queryB: MetadataQuery,
-  //                                  responseA: BuiltMetadataResponse,
-  //                                  responseB: BuiltMetadataResponse): Option[String] = {
-  //    import cromwell.core.ExecutionIndex._
-  //
-  //    def makeTag(query: MetadataQuery) = {
-  //      s"${query.workflowId}:${query.jobKey.get.callFqn}:${query.jobKey.get.index.fromIndex}"
-  //    }
-  //
-  //    def makeNotFoundMessage(queries: NonEmptyList[MetadataQuery]) = {
-  //      val plural = if (queries.tail.nonEmpty) "s" else ""
-  //      s"Cannot find call$plural ${queries.map(makeTag).toList.mkString(", ")}"
-  //    }
-  //
-  //    (responseA.eventList, responseB.eventList) match {
-  //      case (a, b) if a.isEmpty && b.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryA, queryB)))
-  //      case (a, _) if a.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryA)))
-  //      case (_, b) if b.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryB)))
-  //      case _ => None
-  //    }
-  //  }
-
-  //  /**
-  //    * Generates the "info" section of callA or callB
-  //    */
-  //  private def makeCallInfo(query: MetadataQuery, eventList: JsObject): MetadataComponent = {
-  //    val callKey = MetadataObject(Map(
-  //      "workflowId" -> MetadataPrimitive(MetadataValue(query.workflowId.toString)),
-  //      "callFqn" -> MetadataPrimitive(MetadataValue(query.jobKey.get.callFqn)),
-  //      "jobIndex" -> MetadataPrimitive(MetadataValue(query.jobKey.get.index.getOrElse(-1)))
-  //    ))
-  //
-  //    val allowResultReuse = attributeToComponent(eventList, { _ == CallCachingKeys.AllowReuseMetadataKey }, { _ => "allowResultReuse" })
-  //    val executionStatus = attributeToComponent(eventList, { _ == CallMetadataKeys.ExecutionStatus })
-  //
-  //    List(callKey, allowResultReuse, executionStatus) combineAll
-  //  }
-  //
-  //  /**
-  //    * Collects events from the list for which the keys verify the keyFilter predicate
-  //    * and apply keyModifier to the event's key
-  //    */
-  //  private def collectEvents(events: Seq[MetadataEvent],
-  //                            keyFilter: (String  => Boolean),
-  //                            keyModifier: (String => String)) = events collect {
-  //    case event @ MetadataEvent(metadataKey @ MetadataKey(_, _, key), _, _) if keyFilter(key) =>
-  //      event.copy(key = metadataKey.copy(key = keyModifier(key)))
-  //  }
-
-  //  /**
-  //    * Given a list of events, a keyFilter and a keyModifier, returns the associated MetadataComponent.
-  //    * Ensures that events are properly aggregated together (CRDTs and latest timestamp rule)
-  //    */
-  //  private def attributeToComponent(events: Seq[MetadataEvent], keyFilter: (String  => Boolean), keyModifier: (String => String) = identity[String]) = {
-  //    MetadataComponent(collectEvents(events, keyFilter, keyModifier))
-  //  }
-
-  //  /**
-  //    * Makes a diff object out of a key and a pair of values.
-  //    * Values are Option[Option[MetadataValue]] for the following reason:
-  //    *
-  //    * The outer option represents whether or not this key had a corresponding hash metadata entry for the given call
-  //    * If the above is true, the inner value is the metadata value for this entry, which is nullable, hence an Option.
-  //    * The first outer option will determine whether the resulting json value will be null (no hash entry for this key),
-  //    * or the actual value.
-  //    * If the metadata value (inner option) happens to be None, it's an error, as we don't expect to publish null hash values.
-  //    * In that case we replace it with the placeholderMissingHashValue.
-  //    */
-  //  private def makeHashDiffObject(key: String, valueA: Option[Option[MetadataValue]], valueB: Option[Option[MetadataValue]]) = {
-  //    def makeFinalValue(value: Option[Option[MetadataValue]]) = value match {
-  //      case Some(Some(metadataValue)) => MetadataPrimitive(metadataValue)
-  //      case Some(None) => PlaceholderMissingHashValue
-  //      case None => MetadataNullComponent
-  //    }
-  //
-  //    MetadataObject(
-  //      "hashKey" -> MetadataPrimitive(MetadataValue(key.trim, MetadataString)),
-  //      "callA" -> makeFinalValue(valueA),
-  //      "callB" -> makeFinalValue(valueB)
-  //    )
-  //  }
-
 }
 
 
@@ -222,11 +95,6 @@ object CallCacheDiffActor {
   final case class CachedCallNotFoundException(message: String) extends Exception {
     override def getMessage = message
   }
-
-  // Exceptions when calls exist but have no hashes in their metadata, indicating they were run pre-28
-  //  private val HashesForCallAAndBNotFoundException = new Exception("callA and callB have not finished yet, or were run on a previous version of Cromwell on which this endpoint was not supported.")
-  //  private val HashesForCallANotFoundException = new Exception("callA has not finished yet, or was run on a previous version of Cromwell on which this endpoint was not supported.")
-  //  private val HashesForCallBNotFoundException = new Exception("callB has not finished yet, or was run on a previous version of Cromwell on which this endpoint was not supported.")
 
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState

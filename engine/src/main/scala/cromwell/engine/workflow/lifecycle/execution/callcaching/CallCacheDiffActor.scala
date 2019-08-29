@@ -109,7 +109,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
     val response = (callACachingMetadata, callBCachingMetadata) flatMapN { case (callA, callB) =>
 
         val callADetails = extractCallDetails(queryA, callA)
-        val callBDetails = extractCallDetails(queryA, callB)
+        val callBDetails = extractCallDetails(queryB, callB)
 
       (callADetails, callBDetails) mapN { (cad, cbd) =>
         val callAHashes = callA.callCachingMetadataJson.hashes
@@ -313,7 +313,7 @@ object CallCacheDiffActor {
       case (key, value) if hashesB.get(key) != Option(value) => HashDifference(key, Option(value), hashesB.get(key))
     }
     val hashesUniqueToB: List[HashDifference] = hashesB.toList.collect {
-      case (key, value) if hashesA.keySet.contains(key) => HashDifference(key, None, Option(value))
+      case (key, value) if !hashesA.keySet.contains(key) => HashDifference(key, None, Option(value))
     }
     hashesInANotMatchedInB ++ hashesUniqueToB
   }

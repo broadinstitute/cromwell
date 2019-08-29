@@ -33,7 +33,7 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   override def isTransient(exception: Exception): Boolean = false
 
-  override def getScheme: String = "dos"
+  override def getScheme: String = "drs"
 
   override def getHost(uriAsString: String): String = {
     require(uriAsString.startsWith(s"$getScheme://"), s"Scheme does not match $getScheme")

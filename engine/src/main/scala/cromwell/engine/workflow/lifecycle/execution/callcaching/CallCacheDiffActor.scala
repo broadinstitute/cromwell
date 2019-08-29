@@ -63,8 +63,10 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
                                   responseB: WorkflowMetadataJson,
                                   replyTo: ActorRef) = {
 
-    val callACachingMetadata = extractCallMetadata(queryA, responseA)
-    val callBCachingMetadata = extractCallMetadata(queryB, responseB)
+    def describeCallFromQuery(query: MetadataQuery): String = s"${query.workflowId} / ${query.jobKey.map(_.callFqn).getOrElse("<<CallMissing>>")}:${query.jobKey.map(_.index.getOrElse(-1)).getOrElse("<<CallMissing>>")}"
+
+    val callACachingMetadata = extractCallMetadata(queryA, responseA).contextualizeErrors(s"extract relevant metadata for call A (${describeCallFromQuery(queryA)})")
+    val callBCachingMetadata = extractCallMetadata(queryB, responseB).contextualizeErrors(s"extract relevant metadata for call B (${describeCallFromQuery(queryB)})")
 
     val response = (callACachingMetadata, callBCachingMetadata) flatMapN { case (callA, callB) =>
 
@@ -78,7 +80,7 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
         SuccessfulCallCacheDiffResponse(cad, cbd, calculateHashDifferential(callAHashes, callBHashes))
       }
     } valueOr {
-      e => FailedCallCacheDiffResponse(AggregatedMessageException("", e.toList))
+      e => FailedCallCacheDiffResponse(AggregatedMessageException("Failed to calculate diff for call A and call B", e.toList))
     }
 
     replyTo ! response
@@ -201,7 +203,7 @@ object CallCacheDiffActor {
   }
 
   implicit class EnhancedJsObject(val jsObject: JsObject) extends AnyVal {
-    def getField(field: String): ErrorOr[JsValue] = jsObject.fields.get(field).toErrorOr("No value provided")
+    def getField(field: String): ErrorOr[JsValue] = jsObject.fields.get(field).toErrorOr(s"No '$field' field found")
     def fieldAsObject(field: String): ErrorOr[JsObject] = jsObject.getField(field) flatMap { _.mapToJsObject }
     def fieldAsArray(field: String): ErrorOr[JsArray] = jsObject.getField(field) flatMap { _.mapToJsArray }
     def fieldAsString(field: String): ErrorOr[JsString] = jsObject.getField(field) flatMap { _.mapToJsString }

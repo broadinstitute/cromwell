@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, WorkflowMetadataReadAction}
+import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, WorkflowMetadataReadAction}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.ReadMetadataWorkerMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.MetadataBuilderActorResponse
@@ -46,24 +46,29 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMa
             readMetadataActor ! crossWorkflowAction
           }
       }
-    case response: MetadataBuilderActorResponse =>
-      val sndr = sender()
-      builderRequests.get(sndr) match {
-        case Some(action) =>
-          apiRequests.get(action) match {
-            case Some(requesters) =>
-              apiRequests.remove(action)
-              requesters foreach { _ ! response}
-            case None =>
-              // unpossible: there had to have been a request that corresponded to this response
-              log.error(s"MetadataBuilderRegulatorActor unpossible error: no requesters found for action: $action")
-          }
-          builderRequests.remove(sndr)
-          ()
-        case None =>
-          // unpossible: this actor should know about all the child MetadataBuilderActors it has begotten
-          log.error(s"MetadataBuilderRegulatorActor unpossible error: unrecognized sender $sndr")
-      }
+    case response: MetadataBuilderActorResponse => handleResponseFromMetadataWorker(response)
+    case response: MetadataQueryResponse => handleResponseFromMetadataWorker(response)
+    case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")
+  }
+
+  def handleResponseFromMetadataWorker(response: Any): Unit = {
+    val sndr = sender()
+    builderRequests.get(sndr) match {
+      case Some(action) =>
+        apiRequests.get(action) match {
+          case Some(requesters) =>
+            apiRequests.remove(action)
+            requesters foreach { _ ! response}
+          case None =>
+            // unpossible: there had to have been a request that corresponded to this response
+            log.error(s"Programmer Error: MetadataBuilderRegulatorActor has no registered requesters found for action: $action")
+        }
+        builderRequests.remove(sndr)
+        ()
+      case None =>
+        // unpossible: this actor should know about all the child MetadataBuilderActors it has begotten
+        log.error(s"Programmer Error: MetadataBuilderRegulatorActor received a metadata response from an unrecognized sender $sndr")
+    }
   }
 }
 

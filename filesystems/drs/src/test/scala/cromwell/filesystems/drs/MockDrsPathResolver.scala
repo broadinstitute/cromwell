@@ -28,14 +28,14 @@ class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBui
 
 
   private def createMarthaResponse(urlArray: Array[Url]): IO[MarthaResponse] =  {
-    val dosDataObject = DosDataObject(
+    val drsDataObject = DosDataObject(
       size = Option(123),
       checksums = Option(Array(checksumObj)),
       updated = None,
       urls = urlArray
     )
 
-    IO(MarthaResponse(DosObject(dosDataObject), Option(SADataObject(Json.fromString("{}")))))
+    IO(MarthaResponse(DosObject(drsDataObject), Option(SADataObject(Json.fromString("{}")))))
   }
 
   override def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String]): IO[MarthaResponse] = {
@@ -62,7 +62,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config,
 
 
 object MockDrsPaths {
-  private val drsPathPrefix = "dos://drs-host/"
+  private val drsPathPrefix = "drs://drs-host/"
 
   val drsPathResolvingToOneGcsPath = s"$drsPathPrefix/4d427aa3-5640-4f00-81ae-c33443f84acf"
 

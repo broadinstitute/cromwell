@@ -20,7 +20,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
   implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
   implicit lazy val dataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
-  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
+  implicit lazy val drsObjectDecoder: Decoder[DosObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
@@ -48,7 +48,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
       e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
     }
   }
-  
+
   private def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))

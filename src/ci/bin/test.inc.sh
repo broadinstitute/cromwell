@@ -197,6 +197,13 @@ cromwell::private::create_build_variables() {
     hours_to_minutes=60
     CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
 
+    local git_revision
+    if git_revision="$(git rev-parse --short=7 HEAD 2>/dev/null)"; then
+        CROMWELL_BUILD_GIT_HASH_SUFFIX="g${git_revision}"
+    else
+        CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
+    fi
+
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
     export CROMWELL_BUILD_BRANCH_PULL_REQUEST
@@ -206,6 +213,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
     export CROMWELL_BUILD_GENERATE_COVERAGE
+    export CROMWELL_BUILD_GIT_HASH_SUFFIX
     export CROMWELL_BUILD_GIT_USER_EMAIL
     export CROMWELL_BUILD_GIT_USER_NAME
     export CROMWELL_BUILD_HEARTBEAT_MINUTES
@@ -446,6 +454,17 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER}"
+    else
+        CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_TYPE}-${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
+    fi
+
+    # Trim and replace invalid characters in the docker tag
+    # https://docs.docker.com/engine/reference/commandline/tag/#extended-description
+    CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_CENTAUR_DOCKER_TAG:0:128}"
+    CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_CENTAUR_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
+
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=512000
@@ -477,6 +496,7 @@ cromwell::private::create_centaur_variables() {
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
+    export CROMWELL_BUILD_CENTAUR_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
     export CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
@@ -1259,6 +1279,23 @@ cromwell::build::pip_install() {
 
 cromwell::build::add_exit_function() {
     cromwell::private::add_exit_function "$1"
+}
+
+cromwell::build::delete_docker_images() {
+    local docker_delete_function
+    local docker_image_file
+    docker_delete_function="${1:?delete_images called without a docker_delete_function}"
+    docker_image_file="${2:?delete_images called without a docker_image_file}"
+    shift
+    shift
+
+    if [[ -f "${docker_image_file}" ]]; then
+        local docker_image
+        while read -r docker_image; do
+          ${docker_delete_function} "${docker_image}" || true
+        done < "${docker_image_file}"
+        rm "${docker_image_file}" || true
+    fi
 }
 
 cromwell::build::kill_tree() {

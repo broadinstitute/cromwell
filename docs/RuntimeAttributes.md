@@ -380,17 +380,28 @@ Configure your Google network to use "Private Google Access". This will allow yo
 
 That's it!  You can now run with `noAddress` runtime attribute and it will work as expected.
 
-### `gpuCount` and `gpuType`
+### `gpuCount`, `gpuType`, and `nvidiaDriverVersion`
 
-Attach GPUs to the instance when running on the Pipelines API: https://cloud.google.com/compute/docs/gpus/
+Attach GPUs to the instance when running on the Pipelines API([GPU documentation](https://cloud.google.com/compute/docs/gpus/)).
 Make sure to choose a zone for which the type of GPU you want to attach is available.
 
-The two types of GPU supported are `nvidia-tesla-k80` and `nvidia-tesla-p100`.
+The types of compute GPU supported are:
+
+* `nvidia-tesla-k80` 
+* `nvidia-tesla-v100`
+* `nvidia-tesla-p100`
+* `nvidia-tesla-p4`
+* `nvidia-tesla-t4`
+
+For the latest list of supported GPU's, please visit [Google's GPU documentation](nvidia-drivers-us-public).
+
+The default driver is `418.87.00`, you may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
 
 ```
 runtime {
     gpuType: "nvidia-tesla-k80"
     gpuCount: 2
+    nvidiaDriverVersion: "418.87.00"
     zones: ["us-central1-c"]
 }
 ```

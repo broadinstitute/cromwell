@@ -155,8 +155,8 @@ localize_files() {
   fi
 
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
-  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components="${num_cpus}"' cp '$first_cloud_file' '$container_parent'"
-  REQUESTER_PAYS_COMMAND="gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components="${num_cpus}"' -u $project cp '$first_cloud_file' '$container_parent'"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' cp '$first_cloud_file' '$container_parent'"
+  REQUESTER_PAYS_COMMAND="gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' -u $project cp '$first_cloud_file' '$container_parent'"
 
   basefile=$(basename "$first_cloud_file")
   private::localize_message "$first_cloud_file" "${container_parent}${basefile}"

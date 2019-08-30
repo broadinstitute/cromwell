@@ -25,6 +25,12 @@ cat > expected.json <<FIN
 }
 FIN
 
-jq '{actualWorkflowLanguage,actualWorkflowLanguageVersion,dockerImageUsed:.calls["wf_hello.hello"][0].dockerImageUsed,addressee:.inputs["wf_hello.hello.addressee"],salutation:.outputs["wf_hello.hello.salutation"]}' run_mode_metadata.json > actual.json
+jq '{
+  actualWorkflowLanguage,
+  actualWorkflowLanguageVersion,
+  dockerImageUsed:.calls["wf_hello.hello"][0].dockerImageUsed,
+  addressee:.inputs["wf_hello.hello.addressee"],
+  salutation:.outputs["wf_hello.hello.salutation"]
+}' run_mode_metadata.json > actual.json
 
 cmp <(jq -cS . actual.json) <(jq -cS . expected.json)

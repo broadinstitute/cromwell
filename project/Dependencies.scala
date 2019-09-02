@@ -101,7 +101,7 @@ object Dependencies {
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
   )
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
@@ -139,16 +139,16 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
-    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
+    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV
   )
 
   val spiDependencies = List(
-    "com.iheart" %% "ficus" % ficusV,
+    "com.iheart" %% "ficus" % ficusV
   ) ++ googleApiClientDependencies ++ slf4jFacadeDependencies
 
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.typelevel" %% "cats-effect" % catsEffectV
   )
 
   val implFtpDependencies = List(
@@ -205,20 +205,19 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV,
-    // This is to stop liquibase from being so noisy by default
+    "org.liquibase" % "liquibase-core" % liquibaseV, // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV
   )
 
   private val akkaDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
   )
 
   private val akkaStreamDependencies = List(
     "com.typesafe.akka" %% "akka-stream" % akkaV,
-    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test
   ) ++ akkaDependencies
 
   private val akkaHttpDependencies = List(
@@ -226,7 +225,7 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test,
     // WOM internally embeds spray-json. Leave this import here until WOM externalizes the json library choice like
     // other libraries do. See akka-http, elastic4s, etc.
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
   ) ++ akkaStreamDependencies
 
   private val akkaHttpCirceIntegrationDependency = List(
@@ -259,8 +258,7 @@ object Dependencies {
   private val s3fsDependencies = List(
     "com.google.code.findbugs" % "jsr305" % "3.0.2",
     "com.google.guava" % "guava" % guavaV,
-    "org.apache.tika" % "tika-core" % tikaV,
-    "software.amazon.awssdk" % "s3" % awsSdkV,
+    "org.apache.tika" % "tika-core" % tikaV, "software.amazon.awssdk" % "s3" % awsSdkV
   ) ++ slf4jBindingDependencies
 
   private val awsCloudDependencies = List(
@@ -271,7 +269,7 @@ object Dependencies {
     "core",
     "cloudwatchlogs",
     "s3",
-    "sts",
+    "sts"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -306,7 +304,7 @@ object Dependencies {
     "com.sun.xml.bind" % "jaxb-impl" % jaxbV,
     "org.glassfish.jaxb" % "jaxb-runtime" % jaxbV
       // already included in com.sun.activation
-      exclude("jakarta.activation", "jakarta.activation-api"),
+      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   private val aliyunBatchComputeDependencies = List(
@@ -323,7 +321,7 @@ object Dependencies {
     "com.sun.xml.bind" % "jaxb-impl" % jaxbV,
     "org.glassfish.jaxb" % "jaxb-runtime" % jaxbV
       // already included in com.sun.activation
-      exclude("jakarta.activation", "jakarta.activation-api"),
+      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   private val aliyunCrDependencies = List(
@@ -357,7 +355,7 @@ object Dependencies {
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies = List(
-    "commons-io" % "commons-io" % commonsIoV,
+    "commons-io" % "commons-io" % commonsIoV
   ) ++ configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val statsDDependencies = List(
@@ -388,7 +386,7 @@ object Dependencies {
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "com.github.mpilquist" %% "simulacrum" % simulacrumV,
-    "commons-codec" % "commons-codec" % commonsCodecV,
+    "commons-codec" % "commons-codec" % commonsCodecV
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 
   val wdlDependencies = List(
@@ -453,7 +451,7 @@ object Dependencies {
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.storm-enroute" %% "scalameter" % scalameterV % Test,
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
+    "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
@@ -466,7 +464,7 @@ object Dependencies {
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "co.fs2" %% "fs2-io" % fs2V % Test,
+    "co.fs2" %% "fs2-io" % fs2V % Test
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies = List(
@@ -482,7 +480,7 @@ object Dependencies {
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
@@ -590,7 +588,7 @@ object Dependencies {
     https://mvnrepository.com/artifact/com.google.api-client/google-api-client/1.28.0
      */
     "com.google.http-client" % "google-http-client-apache" % googleHttpClientApacheV,
-    "com.google.http-client" % "google-http-client" % googleHttpClientV,
+    "com.google.http-client" % "google-http-client" % googleHttpClientV
   )
 
   val nettyDependencyOverrides = List(
@@ -606,7 +604,7 @@ object Dependencies {
     "resolver-dns",
     "transport",
     "transport-native-epoll",
-    "transport-native-unix-common",
+    "transport-native-unix-common"
   ).map(m => "io.netty" % s"netty-$m" % nettyV)
 
   val rdf4jDependencyOverrides = List(
@@ -634,7 +632,7 @@ object Dependencies {
     "rio-trig",
     "rio-trix",
     "rio-turtle",
-    "util",
+    "util"
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
   // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
@@ -647,7 +645,7 @@ object Dependencies {
     "netty-shaded",
     "protobuf-lite",
     "protobuf",
-    "stub",
+    "stub"
   ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
 
   /*

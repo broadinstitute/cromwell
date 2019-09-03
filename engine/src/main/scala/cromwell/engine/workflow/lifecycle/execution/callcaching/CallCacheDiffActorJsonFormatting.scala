@@ -23,6 +23,5 @@ object CallCacheDiffActorJsonFormatting extends SprayJsonSupport with DefaultJso
       throw new NotImplementedException("Programmer Error: No reader for HashDifferentials written. It was not expected to be required")
   }
 
-  //jsonFormat3(HashDifference)
   implicit val successfulResponseJsonFormatter = jsonFormat3(SuccessfulCallCacheDiffResponse)
 }

@@ -5,25 +5,26 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 
 import java.util.Objects;
 
 public class AmazonS3ClientProvider {
-    private final AwsCredentials credentials;
+    private final AwsCredentialsProvider provider;
     private final Region region;
     private static AmazonS3ClientProvider instance;
 
-    public static void init(AwsCredentials credentials, Region region) {
+    public static void init(AwsCredentialsProvider provider, Region region) {
         if (Objects.isNull(instance))
-            instance = new AmazonS3ClientProvider(credentials, region);
+            instance = new AmazonS3ClientProvider(provider, region);
     }
 
     public static AmazonS3 buildAmazonS3Client() throws AssertionError {
         if (Objects.isNull(instance))
             throw new AssertionError("AmazonS3ClientProvider instance should no be null!");
 
-        final AwsCredentials creds = instance.credentials;
+        final AwsCredentials creds = instance.provider.resolveCredentials();
         final Region reg = instance.region;
 
         final BasicAWSCredentials basicAWSCredentials = new BasicAWSCredentials(creds.accessKeyId(),
@@ -34,8 +35,8 @@ public class AmazonS3ClientProvider {
                 .build();
     }
 
-    private AmazonS3ClientProvider(AwsCredentials credentials, Region region) {
-        this.credentials = credentials;
+    private AmazonS3ClientProvider(AwsCredentialsProvider provider, Region region) {
+        this.provider = provider;
         this.region = region;
     }
 }

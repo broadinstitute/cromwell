@@ -24,7 +24,6 @@ import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
-import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
@@ -124,7 +123,6 @@ object Operations extends StrictLogging {
     storageOptions.getService
   }
 
-  lazy val awsConfiguration: AwsConfiguration = AwsConfiguration(CentaurConfig.conf)
   lazy val awsConf: Config = CentaurConfig.conf.getConfig("aws")
   lazy val awsAuthName: String = awsConf.getString("auths")
   lazy val region: String  = awsConf.getString("region")

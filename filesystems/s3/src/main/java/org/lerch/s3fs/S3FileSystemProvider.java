@@ -443,28 +443,22 @@ public class S3FileSystemProvider extends FileSystemProvider {
                 keyTarget
         ));
 
-        copy.addProgressListener((ProgressListener) progressEvent ->
-                log.info("Bytes transferred: {},\nsource: {},\ntarget: {}",
-                        progressEvent.getBytesTransferred(),
-                        s3Source.toAbsolutePath(),
-                        s3Target.toAbsolutePath()));
-
         try {
             log.info("Starting file transferring:\nsource: {},\ntarget: {}",
                     s3Source.toAbsolutePath(),
                     s3Target.toAbsolutePath());
             copy.waitForCompletion();
         } catch (InterruptedException e) {
-            log.error("File transferring was interrupted.\nSource path: {},\ndestination path: {},\nerror: {}",
-                    s3Source.toAbsolutePath(),
-                    s3Target.toAbsolutePath(),
-                    e.getMessage()
+            log.error("File transferring was interrupted.\nSource path: "
+                + s3Source.toAbsolutePath()
+                + ",\ndestination path: "
+                + s3Target.toAbsolutePath()
+                + ",\nerror: ",
+                e
             );
         } finally {
             manager.shutdownNow();
         }
-
-        manager.shutdownNow();
     }
 
     @Override

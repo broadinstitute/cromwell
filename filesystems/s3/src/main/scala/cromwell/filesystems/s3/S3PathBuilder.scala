@@ -33,8 +33,6 @@ package cromwell.filesystems.s3
 import java.net.URI
 
 import com.google.common.net.UrlEscapers
-import software.amazon.awssdk.auth.credentials.{AwsCredentials, AwsCredentialsProvider}
-import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
@@ -42,15 +40,13 @@ import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
 import org.lerch.s3fs.util.{AmazonS3ClientProvider, S3Utils}
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.util.{Failure, Try}
-import org.lerch.s3fs.util.{AmazonS3ClientProvider, S3Utils}
-import org.lerch.s3fs.util.S3Utils
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
-import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 object S3PathBuilder {
 

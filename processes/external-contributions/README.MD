@@ -13,10 +13,11 @@
 
 ### Decide "Community" or "Supported"
 
-**Community:** If the PR only changes parts of Cromwell which are not part of the supported feature set, treat them with a little more
+**Community Supported:** If the PR only changes parts of Cromwell which are not part of the supported feature set, treat them with a little more
 flexibility and with the assumption that the contributor probably knows better than us what they want the feature to do.
 
-**Supported:** If the PR changes core/supported features in Cromwell, review them as ruthlessly as you would PRs from within the team.
+**Officially Supported:** If the PR changes core/supported features in Cromwell, review them as thoroughly as you would PRs from within the team. Remember
+that one day you might need to support this code!
 
 ### Reviewing the Concept
 
@@ -33,7 +34,7 @@ Ask the questions:
   - Remember: we will have to support these changes in the future. Possibly forever!
 - For PRs only making changes to features we don't officially support - be generous. But make sure:
   - That any new optional functionality is opt-in rather than becoming the default.
-  - That any community features are flagged in documentation and config examples as originating externally (and thus may not be supported if there are bugs)
+  - That any community features are flagged in documentation and config examples as originating from the community (and thus may not be supported by the team if bugs are found).
   
 ### Run CI against the PR
 
@@ -45,12 +46,12 @@ Note: inspired by the community answer [here](https://github.community/t5/How-to
     - Example: for pull request 938 there will be a reference `refs/pull/938/head`
     - We can fetch that reference to a new branch using: `git fetch -f origin refs/pull/938/head:938_pr_clone`
   - Push the branch to github
-  - Create a new PR for the clone branch. Indicate that it only exists to test an external contribution. 
+  - Create a new PR for the clone branch. Indicate that it only exists to test a community contribution. 
     - Example title: `[PR 938 Clone] PR for CI only`
 
 ### Cycle through Review and CI
 
-- If the external contributor makes changes following your reviews or the CI results:
+- If the community contributor makes changes following your reviews or the CI results:
   - Glance at the changes to make sure they still seem reasonable.
   - Make any additional comments
   - Re-fetch the remote reference: `git fetch -f origin refs/pull/860/head:938_pr_clone`
@@ -75,12 +76,11 @@ luckily you don't have to!
 clone-pr = !sh -c 'git fetch -f origin pull/$1/head:$1_pr_clone && git checkout $1_pr_clone' -
 ```
 
-**Step 2:** whoa! your regular `git` command line now has new superpowers:
+**Step 2:** Your regular `git` command line now has new superpowers:
 ```
 [develop] $ git clone-pr 938
 From https://github.com/broadinstitute/cromwell
  * [new ref]             refs/pull/938/head -> 938_pr_clone
-A       processes/external-contributions/README.MD
 Switched to branch '938_pr_clone'
 
 [938_pr_clone] $ git push

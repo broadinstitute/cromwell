@@ -281,7 +281,6 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
-
     case Event(failure: MetadataServiceFailure, HasWorkData(target, originalRequest)) =>
       target ! FailedMetadataResponse(originalRequest, failure.reason)
       allDone()

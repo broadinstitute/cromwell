@@ -4,17 +4,17 @@ import java.time.OffsetDateTime
 
 import akka.pattern._
 import akka.testkit.TestProbe
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
+import cromwell.services.metadata.impl.MetadataServiceActorSpec._
 
 import scala.concurrent.Await
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
-
 import spray.json._
 
 import scala.concurrent.duration._
@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   import MetadataServiceActorSpec.Config
   val config = ConfigFactory.parseString(Config)
-  val actor = system.actorOf(MetadataServiceActor.props(config, config, TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
 
     val workflowId = WorkflowId.randomId()
 
@@ -131,4 +131,15 @@ object MetadataServiceActorSpec {
       |services.MetadataService.db-batch-size = 3
       |services.MetadataService.db-flush-rate = 100 millis
     """.stripMargin
+
+  val ConfigWithoutSummarizer = Config + """
+      |services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
+    """.stripMargin
+
+  // Use this to convert the above "global" configs into metadata service specific "service config"s:
+  def globalConfigToMetadataServiceConfig(config: Config): Config = if (config.hasPath("services.MetadataService.config")) {
+    config.getConfig("services.MetadataService.config")
+  } else {
+    ConfigFactory.empty()
+  }
 }

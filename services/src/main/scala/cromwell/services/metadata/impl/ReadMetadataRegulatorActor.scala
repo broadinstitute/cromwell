@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, WorkflowMetadataReadAction}
+import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, MetadataServiceResponse, WorkflowMetadataReadAction}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.ReadMetadataWorkerMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.MetadataBuilderActorResponse
@@ -46,8 +46,11 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMa
             readMetadataActor ! crossWorkflowAction
           }
       }
-    case response: MetadataBuilderActorResponse => handleResponseFromMetadataWorker(response)
-    case response: MetadataQueryResponse => handleResponseFromMetadataWorker(response)
+    case serviceResponse: MetadataServiceResponse =>
+      serviceResponse match {
+        case response: MetadataBuilderActorResponse => handleResponseFromMetadataWorker(response)
+        case response: MetadataQueryResponse => handleResponseFromMetadataWorker(response)
+      }
     case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")
   }
 

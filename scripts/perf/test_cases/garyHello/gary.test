@@ -1,0 +1,11 @@
+name: garyHello
+testFormat: workflowsuccess
+
+files {
+  workflow: "https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_tests/scripts/perf/garyHello/gary.wdl"
+  inputs: "https://raw.githubusercontent.com/broadinstitute/cromwell/db_perf_tests/scripts/perf/garyHello/gary.json"
+}
+
+metadata {
+  status: Succeeded
+}

@@ -86,5 +86,11 @@ Switched to branch '938_pr_clone'
 [938_pr_clone] $ git push
 ```
 
+Note: The final `git push` command may not work as-is, depending on your ~/.gitconfig value of `push.default`. 
+If it doesn't work then one of the following solutions may work:
+  * Setting `git`'s `push.default` config value to be '`current`'.
+  * Using `git push --set-upstream origin 5070_pr_clone` instead
+  * Using `git push origin HEAD` instead
+
 **Step 3:** If you need to re-sync your cloned PR against changes on their remote branch - no problem! The
 exact same `git clone-pr 938` will *update* your local reference allowing you to push changes up to github easily!  

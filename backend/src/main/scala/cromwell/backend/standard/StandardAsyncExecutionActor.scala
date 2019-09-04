@@ -1,6 +1,7 @@
 package cromwell.backend.standard
 
 import java.io.IOException
+import java.nio.ByteBuffer
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
@@ -10,6 +11,8 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.functor._
 import cats.syntax.traverse._
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.cloud.storage.StorageOptions
 import common.Checked
 import common.exception.MessageAggregation
 import common.util.StringUtil._
@@ -130,6 +133,8 @@ trait StandardAsyncExecutionActor
     path = "temporary-directory",
     default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
   )
+
+  lazy val retryWithDoubleMemoryKeys = configurationDescriptor.backendConfig.as[Option[List[String]]]("retry-with-double-memory")
 
   def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
@@ -895,14 +900,15 @@ trait StandardAsyncExecutionActor
     * @return The execution handle.
     */
   def retryElseFail(runStatus: StandardAsyncRunState,
-                    backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
+                    backendExecutionStatus: Future[ExecutionHandle],
+                    retryWithDoubleMemory: Boolean = false): Future[ExecutionHandle] = {
 
     val retryable = previousFailedRetries < maxRetries
 
     backendExecutionStatus flatMap {
       case failed: FailedNonRetryableExecutionHandle if retryable =>
         incrementFailedRetryCount map { _ =>
-          FailedRetryableExecutionHandle(failed.throwable, failed.returnCode)
+          FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, retryWithDoubleMemory)
         }
       case _ => backendExecutionStatus
     }
@@ -1074,18 +1080,68 @@ trait StandardAsyncExecutionActor
   def handleExecutionResult(status: StandardAsyncRunState,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
+    def stderrContainsDoubleMemoryKeys(contents: String): Boolean = {
+      retryWithDoubleMemoryKeys match {
+        case Some(doubleMemoryKeysList) => doubleMemoryKeysList.map(s => contents.contains(s)).reduce(_ || _)
+        case None => false
+      }
+    }
+
+//    def readLastBytes(filePath: Path): String = {
+//      val file = new RandomAccessFile(filePath.pathAsString, "r")
+//
+//      val fileSize = file.length()
+//      val objectInputStream = new ObjectInputStream(Channels.newInputStream(file.getChannel))
+//
+//      if (fileSize < 5242880) {
+//        val contents = objectInputStream.readObject()
+//        contents.asInstanceOf[String]
+//      } else {
+//        file.seek(fileSize - 5242880)
+//        val contents = objectInputStream.readObject()
+//        contents.asInstanceOf[String]
+//      }
+//    }
+
+    def readLastBytesOfGsFile(filePath: Path) = {
+//      val userSA = jobDescriptor.workflowDescriptor.workflowOptions.get(GoogleAuthMode.UserServiceAccountKey)
+
+//      val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(ns getBytes()))
+      val credentials = GoogleCredentials.getApplicationDefault
+      val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
+
+      val Array(bucket, fileToBeLocalized) = filePath.pathAsString.replace(s"gs://", "").split("/", 2)
+
+      val blob = storage.get(bucket, fileToBeLocalized)
+
+      Future {
+        val reader = blob.reader()
+        reader.seek(34)
+        val bytes: ByteBuffer = ByteBuffer.allocate(12)
+        reader.read(bytes)
+        bytes.array()
+      }
+    }
+
+
     val stderr = jobPaths.standardPaths.error
     lazy val stderrAsOption: Option[Path] = Option(stderr)
 
-    val stderrSizeAndReturnCode = for {
+    val stderrSizeAndReturnCodeAndRetry = for {
       returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
-    } yield (stderrSize, returnCodeAsString)
+      //TODO: Saloni- I am pretty sure there is a better way to do this! REFACTOR!!
+//      stderrContents <- asyncIo.contentAsStringAsync(stderr, None, failOnOverflow = false)
+//      stderrContents = readLastBytes(stderr)
+      stderrContents <- readLastBytesOfGsFile(stderr)
+      retryWithDoubleMemory = stderrContainsDoubleMemoryKeys(stderrContents.map(_.toChar).mkString)
+//      retryWithDoubleMemory = stderrContainsDoubleMemoryKeys(stderrContents)
+    } yield (stderrSize, returnCodeAsString, retryWithDoubleMemory)
 
-    stderrSizeAndReturnCode flatMap {
-      case (stderrSize, returnCodeAsString) =>
+    stderrSizeAndReturnCodeAndRetry flatMap {
+      case (stderrSize, returnCodeAsString, retryWithDoubleMemory) =>
         val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
 
         if (isDone(status)) {
@@ -1098,6 +1154,9 @@ trait StandardAsyncExecutionActor
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
+            case Success(returnCodeAsInt) if retryWithDoubleMemory  =>
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithDoubleMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
+              retryElseFail(status, executionHandle, retryWithDoubleMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>

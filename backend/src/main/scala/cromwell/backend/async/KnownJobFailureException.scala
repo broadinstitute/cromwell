@@ -25,6 +25,10 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
   override def getMessage = s"stderr for job $jobTag has length $stderrLength and 'failOnStderr' runtime attribute was true."
 }
 
+final case class RetryWithDoubleMemory(jobTag: String, stderrPath: Option[Path]) extends KnownJobFailureException {
+  override def getMessage = s"stderr for job $jobTag contains one of the `retryOnDoubleMemory` keys."
+}
+
 
 object RuntimeAttributeValidationFailure {
   def apply(jobTag: String,

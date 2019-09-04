@@ -139,7 +139,10 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
       val allActions = containerSetup ++ localization ++ userAction ++ deLocalization ++ monitoring
 
-      val environment = Map.empty[String, String].asJava
+      // add memory as environment variables which makes it easy for a user to retrieve the new value of memory
+      // on the machine to utilize in their command blocks if needed
+      val runtimeMemory = createPipelineParameters.runtimeAttributes.memory
+      val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       // Start background actions first, leave the rest as is
       val sortedActions = allActions.sortWith({

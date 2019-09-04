@@ -24,6 +24,7 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
+import wom.format.MemorySize
 import wom.values._
 
 import scala.concurrent.duration._
@@ -66,7 +67,10 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(Idle) {
     case Event(Start(valueStore), JobPreparationActorNoData) =>
       evaluateInputsAndAttributes(valueStore) match {
-        case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
+        case Valid((inputs, attributes)) => {
+          val updatedRuntimeAttributes = updateRuntimeMemory(attributes)
+          fetchDockerHashesIfNecessary(inputs, updatedRuntimeAttributes)
+        }
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
@@ -150,6 +154,21 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case None =>
         // If there is no docker attribute at all - we're ok for call caching
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
+    }
+  }
+
+  private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
+    runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
+      case Some(WomString(memory)) => {
+        MemorySize.parse(memory) match {
+          case Success(mem) =>
+            val memString = MemorySize(mem.amount * jobKey.memoryDoubleMultiplier, mem.unit).toString
+            runtimeAttributes ++ Map("memory" -> WomString(memString))
+          case _ =>
+            runtimeAttributes
+        }
+      }
+      case _ => runtimeAttributes
     }
   }
 

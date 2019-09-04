@@ -44,7 +44,7 @@ object BackendJobExecutionActor {
   
   sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {  def throwable: Throwable; def returnCode: Option[Int] }
   case class JobFailedNonRetryableResponse(jobKey: JobKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
-  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
+  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int], retryWithDoubleMemory: Boolean = false) extends BackendJobFailedResponse
   
   // Reconnection Exceptions
   case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey) extends Exception(

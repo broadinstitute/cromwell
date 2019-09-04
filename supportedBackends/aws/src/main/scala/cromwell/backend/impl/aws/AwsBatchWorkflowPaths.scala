@@ -64,7 +64,7 @@ case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
   override def pathBuilders: List[PathBuilder] = {
     if (configuration.fileSystem == "s3") {
       List(configuration.pathBuilderFactory.asInstanceOf[S3PathBuilderFactory].fromCredentials(workflowOptions, credentials))
-    }else {
+    } else {
       WorkflowPaths.DefaultPathBuilders}
   }
 }

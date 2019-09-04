@@ -633,6 +633,14 @@ cromwell::private::install_wait_for_it() {
     chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
 }
 
+cromwell::private::install_git_secrets() {
+    git clone https://github.com/awslabs/git-secrets.git
+    pushd git-secrets
+    git checkout ad82d68ee924906a0401dfd48de5057731a9bc84
+    export PATH="${PATH}:${PWD}"
+    popd
+}
+
 cromwell::private::start_docker() {
     local docker_image
     local docker_cid_file
@@ -1103,6 +1111,7 @@ cromwell::build::setup_common_environment() {
             cromwell::private::upgrade_pip
             cromwell::private::pull_common_docker_images
             cromwell::private::install_wait_for_it
+            cromwell::private::install_git_secrets
             cromwell::private::start_docker_mysql
             cromwell::private::start_docker_mariadb
             cromwell::private::start_docker_postgresql
@@ -1112,6 +1121,7 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::install_wait_for_it
+            cromwell::private::install_git_secrets
             ;;
         *)
             cromwell::private::pull_common_docker_images

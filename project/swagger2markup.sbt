@@ -17,7 +17,7 @@ val slf4jV = "1.7.21"
 val swagger2markupV = "1.3.1"
 
 resolvers ++= List(
-  "JCenter" at "http://jcenter.bintray.com"
+  "JCenter" at "https://jcenter.bintray.com"
 )
 
 libraryDependencies ++= List(

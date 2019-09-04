@@ -68,6 +68,8 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_RESOURCES_SOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/resources"
     CROMWELL_BUILD_RESOURCES_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources"
 
+    CROMWELL_BUILD_GIT_SECRETS_DIRECTORY="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/git-secrets"
+    CROMWELL_BUILD_GIT_SECRETS_COMMIT="ad82d68ee924906a0401dfd48de5057731a9bc84"
     CROMWELL_BUILD_WAIT_FOR_IT_FILENAME="wait-for-it.sh"
     CROMWELL_BUILD_WAIT_FOR_IT_BRANCH="db049716e42767d39961e95dd9696103dca813f1"
     CROMWELL_BUILD_WAIT_FOR_IT_URL="https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
@@ -214,6 +216,8 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_EXIT_FUNCTIONS
     export CROMWELL_BUILD_GENERATE_COVERAGE
     export CROMWELL_BUILD_GIT_HASH_SUFFIX
+    export CROMWELL_BUILD_GIT_SECRETS_COMMIT
+    export CROMWELL_BUILD_GIT_SECRETS_DIRECTORY
     export CROMWELL_BUILD_GIT_USER_EMAIL
     export CROMWELL_BUILD_GIT_USER_NAME
     export CROMWELL_BUILD_HEARTBEAT_MINUTES
@@ -634,11 +638,14 @@ cromwell::private::install_wait_for_it() {
 }
 
 cromwell::private::install_git_secrets() {
-    git clone https://github.com/awslabs/git-secrets.git
-    pushd git-secrets
-    git checkout ad82d68ee924906a0401dfd48de5057731a9bc84
-    export PATH="${PATH}:${PWD}"
-    popd
+    # Only install git-secrets on CI. Users should have already installed the executable.
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        git clone https://github.com/awslabs/git-secrets.git "${CROMWELL_BUILD_GIT_SECRETS_DIRECTORY}"
+        pushd "${CROMWELL_BUILD_GIT_SECRETS_DIRECTORY}" > /dev/null
+        git checkout "${CROMWELL_BUILD_GIT_SECRETS_COMMIT}"
+        export PATH="${PATH}:${PWD}"
+        popd > /dev/null
+    fi
 }
 
 cromwell::private::start_docker() {
@@ -1101,6 +1108,7 @@ cromwell::build::setup_common_environment() {
     cromwell::private::verify_secure_build
     cromwell::private::verify_pull_request_build
     cromwell::private::make_build_directories
+    cromwell::private::install_git_secrets
     cromwell::private::setup_secure_resources
 
     case "${CROMWELL_BUILD_PROVIDER}" in
@@ -1111,7 +1119,6 @@ cromwell::build::setup_common_environment() {
             cromwell::private::upgrade_pip
             cromwell::private::pull_common_docker_images
             cromwell::private::install_wait_for_it
-            cromwell::private::install_git_secrets
             cromwell::private::start_docker_mysql
             cromwell::private::start_docker_mariadb
             cromwell::private::start_docker_postgresql
@@ -1121,7 +1128,6 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::install_wait_for_it
-            cromwell::private::install_git_secrets
             ;;
         *)
             cromwell::private::pull_common_docker_images

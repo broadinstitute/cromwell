@@ -1,0 +1,17 @@
+name: cwl_input_typearray
+testFormat: workflowsuccess
+workflowType: CWL
+workflowTypeVersion: v1.0
+workflowRoot: input_typearray
+
+files {
+  workflow: cwl_input_typearray/input_typearray.cwl
+  inputs: cwl_input_typearray/input_typearray.yml
+}
+
+metadata {
+  "submittedFiles.workflowType": CWL
+  "submittedFiles.workflowTypeVersion": v1.0
+  "outputs.input_typearray.response_f": "input.txt"
+  "outputs.input_typearray.response_s": "nonexistent_path.txt"
+}

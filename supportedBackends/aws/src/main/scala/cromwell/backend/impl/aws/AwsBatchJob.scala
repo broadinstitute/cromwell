@@ -190,7 +190,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                                             outputs)
     val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
 
-
     // See:
     //
     // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
@@ -221,7 +220,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
           map(_.last.jobDefinitionArn())
     }
   }
-
 
   /** Sanitizes a job and job definition name
     *

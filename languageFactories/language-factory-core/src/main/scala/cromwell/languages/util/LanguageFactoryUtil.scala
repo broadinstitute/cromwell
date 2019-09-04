@@ -89,7 +89,7 @@ object LanguageFactoryUtil {
   }
 
   def simpleLooksParseable(startsWithOptions: List[String], commentIndicators: List[String])(content: String): Boolean = {
-    val fileWithoutInitialWhitespace = content.lines.toList.dropWhile { l =>
+    val fileWithoutInitialWhitespace = content.linesIterator.toList.dropWhile { l =>
       l.forall(_.isWhitespace) || commentIndicators.exists(l.dropWhile(_.isWhitespace).startsWith(_))
     }
 

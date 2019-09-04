@@ -41,7 +41,7 @@ object LinkedGraphMaker {
 
   def getOrdering(linkedGraph: LinkedGraph): ErrorOr[List[WorkflowGraphElement]] = {
 
-    def nodeName(workflowGraphElement: WorkflowGraphElement): String = workflowGraphElement.toWdlV1.lines.toList.headOption.getOrElse("Unnamed Element").replace("\"", "")
+    def nodeName(workflowGraphElement: WorkflowGraphElement): String = workflowGraphElement.toWdlV1.linesIterator.toList.headOption.getOrElse("Unnamed Element").replace("\"", "")
 
     // Find the topological order in which we must create the graph nodes:
     val edges = linkedGraph.edges map { case LinkedGraphEdge(from, to) => DiEdge(from, to) }

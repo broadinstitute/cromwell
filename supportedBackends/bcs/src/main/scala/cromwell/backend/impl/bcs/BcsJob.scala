@@ -205,7 +205,7 @@ final case class BcsJob(name: String,
 
   private def handleAutoCluster(config: AutoClusterConfiguration): Unit = {
     val autoCluster = new AutoCluster
-    autoCluster.setImageId(config.imageId)
+    autoCluster.setImageId(runtime.imageId.getOrElse(config.imageId))
     autoCluster.setInstanceType(config.instanceType)
     autoCluster.setResourceType(config.resourceType)
 

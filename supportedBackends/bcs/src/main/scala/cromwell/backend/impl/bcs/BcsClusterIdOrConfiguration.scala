@@ -38,7 +38,7 @@ object BcsClusterIdOrConfiguration {
 
   val attachClusterPattern = s"""$resourceAndInstanceAndImagePattern\\s+$idPattern""".r
 
-  val attachCllusterSpotPattern = s"""$spotPattern\\s+$idPattern""".r
+  val attachClusterSpotPattern = s"""$spotPattern\\s+$idPattern""".r
 
 
   def parse(cluster: String): Try[BcsClusterIdOrConfiguration] = {
@@ -49,7 +49,7 @@ object BcsClusterIdOrConfiguration {
       case resourceAndInstanceAndImagePattern(resourceType, instanceType, imageId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId)))
       case attachClusterPattern(resourceType, instanceType, imageId, clusterId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, clusterId = Option(clusterId))))
       case spotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Option(spotStrategy), Option(spotPriceLimit.toFloat))))
-      case attachCllusterSpotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit, clusterId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Option(spotStrategy), Option(spotPriceLimit.toFloat), Option(clusterId))))
+      case attachClusterSpotPattern(resourceType, instanceType, imageId, spotStrategy, spotPriceLimit, clusterId) => Success(Right(AutoClusterConfiguration(resourceType, instanceType, imageId, Option(spotStrategy), Option(spotPriceLimit.toFloat), Option(clusterId))))
       case _ => Failure(new IllegalArgumentException("must be some string like 'cls-xxxx' or 'OnDemand ecs.s1.large img-ubuntu' or 'OnDemand ecs.s1.large img-ubuntu cls-xxxx'"))
     }
   }

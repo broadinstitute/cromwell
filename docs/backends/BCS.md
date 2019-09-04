@@ -115,7 +115,8 @@ backend {
         # BCS and OSS related configurations mentioned above
        
         default-runtime-attributes {
-          cluster: "OnDemand ecs.sn1ne.large "
+          cluster: "OnDemand ecs.sn1ne.large img-ubuntu-vpc"
+          imageId: "img-ubuntu-vpc"
           mounts: "oss://<test-bucket>/inputs/ /home/inputs/ false"
           dockerTag: "ubuntu/latest oss://<test-bucket>/registry/ubuntu/"
           docker: "registry.cn-shanghai.aliyuncs.com/batchcompute/myubuntu:0.2"
@@ -155,6 +156,17 @@ There are two different ways of specifying an Alibaba Cloud BatchCompute cluster
       default-runtime-attributes {
         cluster: "<resource-type> <instance-type> <image-id>"
         # Maybe like cluster: "OnDemand ecs.sn1ne.large img-ubuntu"
+      }
+```
+
+#### imageId
+
+The BCS job image ID can be specified by the runtime `cluster`, while if you are going to use Call Caching, another optional runtime 
+`imageId` should be specified. The change of image ID will lead to a cache miss and the call will be executed as normal.
+
+```hocon
+      default-runtime-attributes {
+        imageId: "img-ubuntu-vpc"
       }
 ```
 

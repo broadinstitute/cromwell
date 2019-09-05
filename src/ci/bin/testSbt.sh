@@ -27,8 +27,8 @@ esac
 export CROMWELL_SBT_TEST_EXCLUDE_TAGS
 export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 
-cat $JVM_OPTS
-cat $SBT_OPTS
+cat /etc/sbt/jvmopts
+cat /etc/sbt/sbtopts
 
 sbt -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 

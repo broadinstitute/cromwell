@@ -17,15 +17,36 @@ In addition, the following changes are to be expected:
 
 ### Setting up PAPIv2
 
-For now the easiest way to try PAPIv2 is to migrate an existing set up from PAPIv1 (see below). After that, copy the PAPIv2 sample configuration in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) in place of the PAPIv1 backend.
+For now the easiest way to try PAPIv2 is to migrate an existing set up from PAPIv1 (see below). After that, copy the PAPIv2 sample configuration in [cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/PAPIv2.conf) in place of the PAPIv1 backend.
 
 #### Permissions:
 
-With Pipelines API v2, the mode of authentication (ie, Application Default, User Service Account, default compute service account, etc) will need to have these permissions on the bucket holding the Cromwell directory (root directory):
+Google recommends using a service account to authenticate to GCP.  
 
-* storage.objects.list
-* storage.objects.create
-* storage.objects.delete
+You may create a service account using the `gcloud` command, consider running the following script and replace MY-GOOGLE-PROJECT:
+
+```
+#!/bin/bash
+RANDOM_BUCKET_NAME=$(head /dev/urandom | tr -dc a-z | head -c 32 ; echo '')
+
+#Create a new service account called "MyServiceAccount", and from the output of the command, take the email address that was generated
+EMAIL=$(gcloud beta iam service-accounts create MyServiceAccount --description "to run cromwell"  --display-name "cromwell service account" --format json | jq '.email' | sed -e 's/\"//g')
+
+# add all the roles to the service account
+for i in storage.objectCreator storage.objectViewer genomics.pipelinesRunner genomics.admin iam.serviceAccountUser storage.objects.create
+do
+    gcloud projects add-iam-policy-binding MY-GOOGLE-PROJECT --member serviceAccount:"$EMAIL" --role roles/$i
+done
+
+# create a bucket to keep the execution directory
+gsutil mb gs://"$RANDOM_BUCKET_NAME"
+
+# give the service account write access to the new bucket
+gsutil acl ch -u "$EMAIL":W gs://"$RANDOM_BUCKET_NAME"
+
+# create a file that represents your service account.  KEEP THIS A SECRET.
+gcloud iam service-accounts keys create sa.json --iam-account "$EMAIL"
+```
 
 ## Pipelines API v1
 

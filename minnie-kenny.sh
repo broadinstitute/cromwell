@@ -15,7 +15,7 @@ usage() {
 Usage:
     ${minnie_kenny_command_name}
     -f | --force                Modify the git config to run git secrets
-    -n | --no-force             Do not modify the git config only verify installation
+    -n | --no-force             Do not modify the git config, only verify installation
     -s | --strict               Require git-secrets to be setup or fail
     -q | --quiet                Do not output any status messages
     -i | --include=FILE         Path to the include for git-config (default: "minnie-kenny.gitconfig")
@@ -66,7 +66,7 @@ process_arguments() {
   done
 
   if [ "${minnie_kenny_gitconfig}" = "" ]; then
-    echo_err "Error: you need to provide an include file."
+    echo_err "Error: you need to provide a git-config include file."
     usage
   fi
 }
@@ -109,7 +109,7 @@ validate_setup() {
   fi
 }
 
-# Echo 1 if the the hook contains a line that starts with "git secrets" otherwise echo 0
+# Echo 1 if the hook contains a line that starts with "git secrets" otherwise echo 0
 check_hook() {
   path="${minnie_kenny_git_dir}/hooks/$1"
   if grep -q "^git secrets " "${path}" 2>/dev/null; then
@@ -120,29 +120,36 @@ check_hook() {
 }
 
 # Ensures git secrets hooks are installed along with the configuration to read in the minnie-kenny.gitconfig
-check_and_install_hooks() {
-  error_modify=0
-  expected=0
-  actual=0
+check_installation() {
+  expected_hooks=0
+  actual_hooks=0
+
   for path in "commit-msg" "pre-commit" "prepare-commit-msg"; do
     increment=$(check_hook ${path})
-    actual=$((actual + increment))
-    expected=$((expected + 1))
+    actual_hooks=$((actual_hooks + increment))
+    expected_hooks=$((expected_hooks + 1))
   done
 
-  if [ ${actual} -eq 0 ]; then
+  if [ 0 -lt ${actual_hooks} ] && [ ${actual_hooks} -lt ${expected_hooks} ]; then
+    # Only some of the hooks are setup, meaning someone updated the hook files in an unexpected way.
+    # Warn and exit as we cannot fix this with a simple `git secrets --install`.
+    echo_err "Error: git-secrets is not installed into all of the expected git hooks." \
+      "Double check the 'commit-msg' 'pre-commit' and 'prepare-commit-msg' under the directory" \
+      "${minnie_kenny_git_dir}/hooks and consider running \`git secrets --install --force\`."
+    exit 1
+  fi
+
+  # Begin checking for fixable errors
+  found_fixable_errors=0
+
+  if [ ${actual_hooks} -eq 0 ]; then
     if [ ${minnie_kenny_modify} -eq 1 ]; then
       git secrets --install
     else
       echo_err "Error: git-secrets is not installed into the expected git hooks" \
         "'commit-msg' 'pre-commit' and 'prepare-commit-msg'."
-      error_modify=1
+      found_fixable_errors=1
     fi
-  elif [ ${actual} -ne ${expected} ]; then
-    echo_err "Error: git-secrets is not installed into all of the expected git hooks." \
-      "Double check the 'commit-msg' 'pre-commit' and 'prepare-commit-msg' under the directory" \
-      "${minnie_kenny_git_dir}/hooks and consider running \`git secrets --install --force\`."
-    exit 1
   fi
 
   # Allow the minnie-kenny.gitconfig in `git secrets --scan`
@@ -151,7 +158,7 @@ check_and_install_hooks() {
       git config --add secrets.allowed "^${minnie_kenny_gitconfig}:[0-9]+:"
     else
       echo_err "Error: The expression '^${minnie_kenny_gitconfig}:[0-9]+:' should be allowed by git secrets."
-      error_modify=1
+      found_fixable_errors=1
     fi
   fi
 
@@ -161,7 +168,7 @@ check_and_install_hooks() {
       git config --add secrets.allowed "^[0-9a-f]+:${minnie_kenny_gitconfig}:[0-9]+:"
     else
       echo_err "Error: The expression '^[0-9a-f]+:${minnie_kenny_gitconfig}:[0-9]+:' should be allowed by git secrets."
-      error_modify=1
+      found_fixable_errors=1
     fi
   fi
 
@@ -170,11 +177,11 @@ check_and_install_hooks() {
       git config --add include.path "../${minnie_kenny_gitconfig}"
     else
       echo_err "Error: The path '../${minnie_kenny_gitconfig}' should be an included path in the git config."
-      error_modify=1
+      found_fixable_errors=1
     fi
   fi
 
-  if [ ${error_modify} -ne 0 ]; then
+  if [ ${found_fixable_errors} -ne 0 ]; then
     echo_err "Error: The above errors may be fixed by re-running ${minnie_kenny_command_name} with -f / --force."
     exit 1
   fi
@@ -183,7 +190,7 @@ check_and_install_hooks() {
 main() {
   process_arguments "$@"
   validate_setup
-  check_and_install_hooks
+  check_installation
 }
 
 main "$@"

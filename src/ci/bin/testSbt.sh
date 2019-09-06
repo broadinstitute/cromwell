@@ -27,15 +27,14 @@ esac
 export CROMWELL_SBT_TEST_EXCLUDE_TAGS
 export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 
-echo "printing ur jvm opts"
+echo "Contents of /etc/sbt/jvmopts:"
 cat /etc/sbt/jvmopts
-echo "printing ur sbt opts"
+echo "Contents of /etc/sbt/sbtopts"
 cat /etc/sbt/sbtopts
 
-export JAVA_OPTS="-Xms6G -Xmx6G -XX:MaxMetaspaceSize1G -Xss6M"
-sbt -v
+echo "Starting SBT..."
 
-sbt -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
+sbt -v -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 
 cromwell::build::generate_code_coverage
 

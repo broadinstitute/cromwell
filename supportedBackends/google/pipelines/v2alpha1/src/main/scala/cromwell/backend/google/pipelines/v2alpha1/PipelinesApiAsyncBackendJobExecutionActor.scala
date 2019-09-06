@@ -70,8 +70,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     }
 
     val filesByContainerParentDirectory = filesWithSameNames.groupBy(_.containerPath.parent.toString)
+    // Deduplicate any inputs since parallel localization can't deal with this.
+    val uniqueFilesByContainerParentDirectory = filesByContainerParentDirectory map { case (p, fs) => p -> fs.toSet  }
 
-    val filesWithSameNamesTransferBundles: List[String] = filesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
+    val filesWithSameNamesTransferBundles: List[String] = uniqueFilesByContainerParentDirectory.toList map { case (containerParent, filesWithSameParent) =>
       val arrayIdentifier = s"files_to_localize_" + DigestUtils.md5Hex(bucket + containerParent)
       val entries = filesWithSameParent.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
 

@@ -648,6 +648,15 @@ cromwell::private::install_git_secrets() {
     fi
 }
 
+cromwell::private::install_minnie_kenny() {
+    # Only install minnie-kenny on CI. Users should have already run the script themselves.
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        pushd "${CROMWELL_BUILD_ROOT_DIRECTORY}" > /dev/null
+        ./minnie-kenny.sh --force
+        popd > /dev/null
+    fi
+}
+
 cromwell::private::start_docker() {
     local docker_image
     local docker_cid_file
@@ -1109,6 +1118,7 @@ cromwell::build::setup_common_environment() {
     cromwell::private::verify_pull_request_build
     cromwell::private::make_build_directories
     cromwell::private::install_git_secrets
+    cromwell::private::install_minnie_kenny
     cromwell::private::setup_secure_resources
 
     case "${CROMWELL_BUILD_PROVIDER}" in

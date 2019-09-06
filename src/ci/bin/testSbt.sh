@@ -30,7 +30,7 @@ export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 sbt \
     -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-    'minnieKenny -f' coverage test
+    coverage test
 
 cromwell::build::generate_code_coverage
 

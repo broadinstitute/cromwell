@@ -36,6 +36,7 @@ import cromwell.backend._
 import cromwell.backend.standard.{StandardFinalizationActor, StandardFinalizationActorParams}
 import cromwell.core.CallOutputs
 import cromwell.core.io.AsyncIoActorClient
+import cromwell.core.io.DefaultIoCommandBuilder
 import wom.graph.CommandCallNode
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 
@@ -57,7 +58,10 @@ class AwsBatchFinalizationActor(val params: AwsBatchFinalizationActorParams)
 
   lazy val configuration: AwsBatchConfiguration = params.configuration
 
-  override lazy val ioCommandBuilder = S3BatchCommandBuilder
+  override lazy val ioCommandBuilder =  configuration.fileSystem match {
+    case  AWSBatchStorageSystems.s3 =>  S3BatchCommandBuilder
+    case _ =>   DefaultIoCommandBuilder
+  }
 
   override def ioActor: ActorRef = params.ioActor
 }

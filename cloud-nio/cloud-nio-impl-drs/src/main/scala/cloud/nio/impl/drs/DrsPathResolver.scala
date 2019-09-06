@@ -19,8 +19,8 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
   implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
-  implicit lazy val dataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
-  implicit lazy val drsObjectDecoder: Decoder[DosObject] = deriveDecoder
+  implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
+  implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
@@ -78,13 +78,13 @@ case class Url(url: String)
 
 case class ChecksumObject(checksum: String, `type`: String)
 
-case class DosDataObject(size: Option[Long],
+case class DrsDataObject(size: Option[Long],
                          checksums: Option[Array[ChecksumObject]],
                          updated: Option[String],
                          urls: Array[Url])
 
-case class DosObject(data_object: DosDataObject)
+case class DrsObject(data_object: DrsDataObject)
 
 case class SADataObject(data: Json)
 
-case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[SADataObject])
+case class MarthaResponse(dos: DrsObject, googleServiceAccount: Option[SADataObject])

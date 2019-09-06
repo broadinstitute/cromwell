@@ -28,14 +28,14 @@ class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBui
 
 
   private def createMarthaResponse(urlArray: Array[Url]): IO[MarthaResponse] =  {
-    val drsDataObject = DosDataObject(
+    val drsDataObject = DrsDataObject(
       size = Option(123),
       checksums = Option(Array(checksumObj)),
       updated = None,
       urls = urlArray
     )
 
-    IO(MarthaResponse(DosObject(drsDataObject), Option(SADataObject(Json.fromString("{}")))))
+    IO(MarthaResponse(DrsObject(drsDataObject), Option(SADataObject(Json.fromString("{}")))))
   }
 
   override def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String]): IO[MarthaResponse] = {

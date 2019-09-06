@@ -27,13 +27,21 @@ esac
 export CROMWELL_SBT_TEST_EXCLUDE_TAGS
 export CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR
 
+echo "Installed Java version:"
+java -version
+
 echo "Contents of /etc/sbt/jvmopts:"
 cat /etc/sbt/jvmopts
 echo "Contents of /etc/sbt/sbtopts"
 cat /etc/sbt/sbtopts
 
+echo "Running Java memory experiment..."
+javac TotalMemory.java
+java -Xms2048M -Xmx2048M -Xss6M -XX:MaxPermSize=512M -Xmx4g -XX:MaxMetaspaceSize=2g -Xss8m -cp . TotalMemory
+
 echo "Starting SBT..."
 
+# `-v` prints SBT's environment variables and then carries on executing the requested command as usual
 sbt -v -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 
 cromwell::build::generate_code_coverage

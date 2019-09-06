@@ -42,7 +42,7 @@ java -Xms2048M -Xmx2048M -Xss6M -XX:MaxPermSize=512M -Xmx4g -XX:MaxMetaspaceSize
 echo "Starting SBT..."
 
 # `-v` prints SBT's environment variables and then carries on executing the requested command as usual
-sbt -v -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
+sbt -v -Dsbt.classloader.close=false -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} -Dbackend.providers.Local.config.filesystems.local.localization.0=copy coverage test
 
 cromwell::build::generate_code_coverage
 

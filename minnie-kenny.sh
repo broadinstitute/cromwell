@@ -11,7 +11,8 @@ minnie_kenny_modify=0
 minnie_kenny_gitconfig="minnie-kenny.gitconfig"
 
 usage() {
-  cat <<USAGE >&2
+  if [ ${minnie_kenny_quiet} -ne 1 ]; then
+    cat <<USAGE >&2
 Usage:
     ${minnie_kenny_command_name}
     -f | --force                Modify the git config to run git secrets
@@ -20,9 +21,11 @@ Usage:
     -q | --quiet                Do not output any status messages
     -i | --include=FILE         Path to the include for git-config (default: "minnie-kenny.gitconfig")
 USAGE
+  fi
   exit 1
 }
 
+run_command() { if [ ${minnie_kenny_quiet} -ne 1 ]; then "$@"; else "$@" >/dev/null 2>&1; fi; }
 echo_out() { if [ ${minnie_kenny_quiet} -ne 1 ]; then echo "$@"; fi; }
 echo_err() { if [ ${minnie_kenny_quiet} -ne 1 ]; then echo "$@" 1>&2; fi; }
 
@@ -144,7 +147,7 @@ check_installation() {
 
   if [ ${actual_hooks} -eq 0 ]; then
     if [ ${minnie_kenny_modify} -eq 1 ]; then
-      git secrets --install
+      run_command git secrets --install
     else
       echo_err "Error: git-secrets is not installed into the expected git hooks" \
         "'commit-msg' 'pre-commit' and 'prepare-commit-msg'."
@@ -155,7 +158,7 @@ check_installation() {
   # Allow the minnie-kenny.gitconfig in `git secrets --scan`
   if ! git config --get-all secrets.allowed | grep -Fxq "^${minnie_kenny_gitconfig}:[0-9]+:"; then
     if [ ${minnie_kenny_modify} -eq 1 ]; then
-      git config --add secrets.allowed "^${minnie_kenny_gitconfig}:[0-9]+:"
+      run_command git config --add secrets.allowed "^${minnie_kenny_gitconfig}:[0-9]+:"
     else
       echo_err "Error: The expression '^${minnie_kenny_gitconfig}:[0-9]+:' should be allowed by git secrets."
       found_fixable_errors=1
@@ -165,7 +168,7 @@ check_installation() {
   # Allow minnie-kenny.gitconfig to appear in `git secrets --scan-history`
   if ! git config --get-all secrets.allowed | grep -Fxq "^[0-9a-f]+:${minnie_kenny_gitconfig}:[0-9]+:"; then
     if [ ${minnie_kenny_modify} -eq 1 ]; then
-      git config --add secrets.allowed "^[0-9a-f]+:${minnie_kenny_gitconfig}:[0-9]+:"
+      run_command git config --add secrets.allowed "^[0-9a-f]+:${minnie_kenny_gitconfig}:[0-9]+:"
     else
       echo_err "Error: The expression '^[0-9a-f]+:${minnie_kenny_gitconfig}:[0-9]+:' should be allowed by git secrets."
       found_fixable_errors=1
@@ -174,7 +177,7 @@ check_installation() {
 
   if ! git config --get-all include.path | grep -Fxq "../${minnie_kenny_gitconfig}"; then
     if [ ${minnie_kenny_modify} -eq 1 ]; then
-      git config --add include.path "../${minnie_kenny_gitconfig}"
+      run_command git config --add include.path "../${minnie_kenny_gitconfig}"
     else
       echo_err "Error: The path '../${minnie_kenny_gitconfig}' should be an included path in the git config."
       found_fixable_errors=1

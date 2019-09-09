@@ -7,6 +7,8 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
+cromwell::build::start_build_heartbeat
+
 cromwell::build::assemble_jars
 
 java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs --metadata-output ./run_mode_metadata.json | tee console_output.txt

@@ -38,7 +38,19 @@ object Testing {
   private val excludeTestArgs = excludeTestTags.map(Tests.Argument(TestFrameworks.ScalaTest, "-l", _))
 
   private val TestReportArgs =
-    Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports", "-u", "target/test-reports", "-F", spanScaleFactor)
+    Tests.Argument(
+      TestFrameworks.ScalaTest,
+      "-oDSI",
+      "-h",
+      "target/test-reports",
+      "-u",
+      "target/test-reports",
+      "-F",
+      spanScaleFactor,
+      "-W",
+      "300",
+      "300",
+    )
 
   val testSettings = List(
     libraryDependencies ++= testDependencies.map(_ % Test),

@@ -636,7 +636,7 @@ cromwell::private::install_wait_for_it() {
 cromwell::private::start_docker() {
     local docker_image
     local docker_cid_file
-    docker_image="${1:?foo called without a docker image}"; shift
+    docker_image="${1:?start_docker called without a docker image}"; shift
     docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/$(echo "${docker_image}" | tr "/" "_" | tr ":" "-").cid.$$"
 
     docker run --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
@@ -946,6 +946,7 @@ cromwell::private::start_build_heartbeat() {
         printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
     done &
     CROMWELL_BUILD_HEARTBEAT_PID=$!
+    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 }
 
 cromwell::private::start_cromwell_log_tail() {
@@ -953,6 +954,7 @@ cromwell::private::start_cromwell_log_tail() {
         sleep 2
     done && tail -n 0 -f "${CROMWELL_BUILD_CROMWELL_LOG}" 2> /dev/null &
     CROMWELL_BUILD_CROMWELL_LOG_TAIL_PID=$!
+    cromwell::private::add_exit_function cromwell::private::kill_cromwell_log_tail
 }
 
 cromwell::private::start_centaur_log_tail() {
@@ -960,6 +962,7 @@ cromwell::private::start_centaur_log_tail() {
         sleep 2
     done && tail -n 0 -f "${CROMWELL_BUILD_CENTAUR_LOG}" 2> /dev/null &
     CROMWELL_BUILD_CENTAUR_LOG_TAIL_PID=$!
+    cromwell::private::add_exit_function cromwell::private::kill_centaur_log_tail
 }
 
 cromwell::private::cat_centaur_log() {
@@ -1037,7 +1040,6 @@ cromwell::private::kill_tree() {
   kill "${pid}" 2> /dev/null
 }
 
-
 cromwell::private::start_conformance_cromwell() {
     # Start the Cromwell server in the directory containing input files so it can access them via their relative path
     pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
@@ -1055,6 +1057,8 @@ cromwell::private::start_conformance_cromwell() {
     CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID=$!
 
     popd > /dev/null
+
+    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
 }
 
 cromwell::private::kill_conformance_cromwell() {
@@ -1131,9 +1135,6 @@ cromwell::build::setup_centaur_environment() {
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::add_exit_function cromwell::private::cat_centaur_log
     fi
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
-    cromwell::private::add_exit_function cromwell::private::kill_cromwell_log_tail
-    cromwell::private::add_exit_function cromwell::private::kill_centaur_log_tail
 }
 
 cromwell::build::setup_conformance_environment() {
@@ -1146,12 +1147,10 @@ cromwell::build::setup_conformance_environment() {
     cromwell::private::write_cwl_test_inputs
     cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 }
 
 cromwell::build::setup_docker_environment() {
     cromwell::private::start_build_heartbeat
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
         # Upgrade docker-compose so that we get the correct exit codes
@@ -1200,7 +1199,6 @@ cromwell::build::run_centaur() {
 
 cromwell::build::run_conformance() {
     cromwell::private::start_conformance_cromwell
-    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
 
     # Give cromwell time to start up
     sleep 30
@@ -1275,6 +1273,10 @@ cromwell::build::exec_silent_function() {
 
 cromwell::build::pip_install() {
     cromwell::private::pip_install "$@"
+}
+
+cromwell::build::start_build_heartbeat() {
+    cromwell::private::start_build_heartbeat
 }
 
 cromwell::build::add_exit_function() {

@@ -1,6 +1,7 @@
 package cromwell.engine
 
 import java.time.OffsetDateTime
+import java.util.UUID
 
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
@@ -185,10 +186,6 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         ),
         "WorkflowStoreActor-FetchEncryptedWorkflowOptions"
       )
-      val readMetadataActor = system.actorOf(
-        ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds),
-        "ReadMetadataActor-FetchEncryptedOptions"
-      )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -213,7 +210,13 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
                 Seq("iv", "ciphertext")
 
               // We need to wait for workflow metadata to be flushed before we can successfully query for it
-              eventually(timeout(15 seconds), interval(5 seconds)) {
+              eventually(timeout(15.seconds.dilated), interval(500.millis.dilated)) {
+                val actorNameUniquificationString = UUID.randomUUID().toString.take(7)
+                val readMetadataActor = system.actorOf(
+                  ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds),
+                  s"ReadMetadataActor-FetchEncryptedOptions-$actorNameUniquificationString"
+                )
+
                 readMetadataActor ! GetMetadataAction(MetadataQuery.forWorkflow(id))
                 expectMsgPF(10 seconds) {
                   case MetadataLookupResponse(_, eventList) =>

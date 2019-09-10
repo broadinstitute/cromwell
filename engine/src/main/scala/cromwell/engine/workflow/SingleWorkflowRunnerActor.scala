@@ -1,7 +1,5 @@
 package cromwell.engine.workflow
 
-import java.util.UUID
-
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import akka.stream.ActorMaterializer
@@ -23,9 +21,8 @@ import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowSt
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, ListenToMetadataWriteActor, WorkflowOutputs}
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
-import cromwell.webservice.metadata.MetadataBuilderActor
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
 import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -79,18 +76,18 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     case Event(IssuePollRequest, RunningSwraData(_, id)) =>
       requestStatus(id)
       stay()
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(_, _)) if !jsObject.state.isTerminal =>
+    case Event(BuiltMetadataResponse(_, jsObject: JsObject), RunningSwraData(_, _)) if !jsObject.state.isTerminal =>
       schedulePollRequest()
       stay()
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
+    case Event(BuiltMetadataResponse(_, jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowSucceeded =>
       log.info(s"$Tag workflow finished with status '$WorkflowSucceeded'.")
       serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using SucceededSwraData(replyTo, id)
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
+    case Event(BuiltMetadataResponse(_, jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowFailed =>
       log.info(s"$Tag workflow finished with status '$WorkflowFailed'.")
       serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using FailedSwraData(replyTo, id, new RuntimeException(s"Workflow $id transitioned to state $WorkflowFailed"))
-    case Event(BuiltMetadataResponse(jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
+    case Event(BuiltMetadataResponse(_, jsObject: JsObject), RunningSwraData(replyTo, id)) if jsObject.state == WorkflowAborted =>
       log.info(s"$Tag workflow finished with status '$WorkflowAborted'.")
       serviceRegistryActor ! ListenToMetadataWriteActor
       goto(WaitingForFlushedMetadata) using AbortedSwraData(replyTo, id)
@@ -99,22 +96,21 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   when (WaitingForFlushedMetadata) {
     case Event(QueueWeight(weight), _) if weight > 0 => stay()
     case Event(QueueWeight(_), data: SucceededSwraData) =>
-      val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor),
-        s"CompleteRequest-Workflow-${data.id}-request-${UUID.randomUUID()}")
-      metadataBuilder ! WorkflowOutputs(data.id)
+
+      serviceRegistryActor ! WorkflowOutputs(data.id)
       goto(RequestingOutputs)
     case Event(QueueWeight(_), data : TerminalSwraData) =>
       requestMetadataOrIssueReply(data)
   }
 
   when (RequestingOutputs) {
-    case Event(BuiltMetadataResponse(outputs: JsObject), data: TerminalSwraData) =>
+    case Event(BuiltMetadataResponse(_, outputs: JsObject), data: TerminalSwraData) =>
       outputOutputs(outputs)
       requestMetadataOrIssueReply(data)
   }
 
   when (RequestingMetadata) {
-    case Event(BuiltMetadataResponse(metadata: JsObject), data: TerminalSwraData) =>
+    case Event(BuiltMetadataResponse(_, metadata: JsObject), data: TerminalSwraData) =>
       outputMetadata(metadata)
       issueReply(data)
   }
@@ -128,7 +124,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     case Event(r: WorkflowAbortFailureResponse, data) => failAndFinish(r.failure, data)
     case Event(Failure(e), data) => failAndFinish(e, data)
     case Event(Status.Failure(e), data) => failAndFinish(e, data)
-    case Event(FailedMetadataResponse(e), data) => failAndFinish(e, data)
+    case Event(FailedMetadataResponse(_, e), data) => failAndFinish(e, data)
     case Event(CurrentState(_, _) | Transition(_, _, _), _) =>
       // ignore uninteresting current state and transition messages
       stay()
@@ -144,8 +140,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   private def requestMetadataOrIssueReply(newData: TerminalSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
   
   private def requestMetadata(newData: TerminalSwraData): State = {
-    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"MetadataRequest-Workflow-${newData.id}")
-    metadataBuilder ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true)
+    serviceRegistryActor ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true)
     goto (RequestingMetadata) using newData
   }
 
@@ -159,8 +154,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     // This requests status via the metadata service rather than instituting an FSM watch on the underlying workflow actor.
     // Cromwell's eventual consistency means it isn't safe to use an FSM transition to a terminal state as the signal for
     // when outputs or metadata have stabilized.
-    val metadataBuilder = context.actorOf(MetadataBuilderActor.props(serviceRegistryActor), s"StatusRequest-Workflow-$id-request-${UUID.randomUUID()}")
-    metadataBuilder ! GetStatus(id)
+    serviceRegistryActor ! GetStatus(id)
   }
 
   private def issueSuccessReply(replyTo: ActorRef): State = {

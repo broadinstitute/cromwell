@@ -2,7 +2,7 @@ package cromwell.webservice.routes.wes
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import cromwell.core._
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, RootJsonFormat}
+import spray.json.{DefaultJsonProtocol, JsObject, JsString, JsValue, RootJsonFormat}
 
 object WesState {
   sealed trait WesState extends Product with Serializable { val name: String }
@@ -28,6 +28,15 @@ object WesState {
       case WorkflowFailed => ExecutorError
       case _ => Unknown
     }
+  }
+
+  def fromCromwellStatusJson(jsonResponse: JsObject): WesState = {
+
+    val statusString = jsonResponse.fields.get("status").collect {
+      case str: JsString => str.value
+    }.getOrElse(throw new IllegalArgumentException(s"Could not coerce Cromwell status response ${jsonResponse.compactPrint} into a valid WES status"))
+
+    fromCromwellStatus(WorkflowState.withName(statusString))
   }
 
   def fromString(status: String): WesState = {

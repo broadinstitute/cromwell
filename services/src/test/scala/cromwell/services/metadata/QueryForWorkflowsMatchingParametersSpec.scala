@@ -7,7 +7,7 @@ import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
 import org.scalatest.{Matchers, WordSpec}
 
-class WorkflowQueryParametersSpec extends WordSpec with Matchers {
+class QueryForWorkflowsMatchingParametersSpec extends WordSpec with Matchers {
 
   val StartDateString = "2015-11-01T11:11:11Z"
   val EndDateString = "2015-11-01T12:12:12Z"

@@ -3,6 +3,7 @@ package cromwell.webservice.routes
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorRefFactory}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model._
@@ -22,7 +23,7 @@ import cromwell.core.{path => _, _}
 import cromwell.engine.backend.BackendConfiguration
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{BuiltCallCacheDiffResponse, CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
@@ -30,7 +31,7 @@ import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
-import cromwell.webservice.metadata.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
@@ -88,7 +89,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
               case Valid(queryParameter) =>
                 val diffActor = actorRefFactory.actorOf(CallCacheDiffActor.props(serviceRegistryActor), "CallCacheDiffActor-" + UUID.randomUUID())
                 onComplete(diffActor.ask(queryParameter).mapTo[CallCacheDiffActorResponse]) {
-                  case Success(r: BuiltCallCacheDiffResponse) => complete(r.response)
+                  case Success(r: SuccessfulCallCacheDiffResponse) => complete(r)
                   case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
                   case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
                   case Failure(e: CachedCallNotFoundException) => e.errorRequest(StatusCodes.NotFound)
@@ -161,19 +162,19 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
     val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
 
-    metadataBuilderRegulatorActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
+    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
   }
 
   private def completeTimingRouteResponse(metadataResponse: Future[MetadataBuilderActorResponse]) = {
     onComplete(metadataResponse) {
-      case Success(r: BuiltMetadataResponse) => {
+      case Success(r: BuiltMetadataResponse) =>
+
         Try(Source.fromResource("workflowTimings/workflowTimings.html").mkString) match {
           case Success(wfTimingsContent) =>
-            val response = HttpResponse(entity = wfTimingsContent.replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.response.toString))
+            val response = HttpResponse(entity = wfTimingsContent.replace("\"{{REPLACE_THIS_WITH_METADATA}}\"", r.responseJson.toString))
             complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))
           case Failure(e) => completeResponse(StatusCodes.InternalServerError, APIResponse.fail(new RuntimeException("Error while loading workflowTimings.html", e)), Seq.empty)
         }
-      }
       case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)

@@ -141,6 +141,18 @@ object ActionCommands {
        |fi""".stripMargin
   }
 
+  def checkForRetryWithDoubleMemory: String = {
+    s"""
+       |grep -E -q 'OutOfMemory|Killed' /cromwell_root/stderr
+       |RC_GREP=$$?
+       |if [ "$$RC_GREP" = "1" ]; then
+       |  echo 250 > /cromwell_root/doubleMemoryRetryRC
+       |else
+       |  echo $$RC_GREP > /cromwell_root/doubleMemoryRetryRC
+       |fi
+     """.stripMargin
+  }
+
   def multiLineCommand(commandString: String) = {
     val randomUuid = UUID.randomUUID().toString
     val withBashShebang = s"#!/bin/bash\n\n$commandString"

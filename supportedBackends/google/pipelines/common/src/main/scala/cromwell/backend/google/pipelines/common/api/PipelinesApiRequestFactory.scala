@@ -37,9 +37,10 @@ object PipelinesApiRequestFactory {
     */
   case class DetritusOutputParameters(
                                        monitoringScriptOutputParameter: Option[PipelinesApiFileOutput],
-                                       rcFileOutputParameter: PipelinesApiFileOutput
+                                       rcFileOutputParameter: PipelinesApiFileOutput,
+                                       doubleMemoryRetryRCFileOutputParameter: PipelinesApiFileOutput
                                     ) {
-    def all: List[PipelinesApiFileOutput] = List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    def all: List[PipelinesApiFileOutput] = doubleMemoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
   }
 
   /**

@@ -495,6 +495,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false,
         contentType = plainTextContentType)
 
+      val doubleMemoryRetryRCFileOutput = PipelinesApiFileOutput(doubleMemoryRCFilename, doubleMemoryRetryRCGcsPath, DefaultPathBuilder.get(doubleMemoryRCFilename), workingDisk, optional = false, secondary = false,
+        contentType = plainTextContentType)
+
       case class StandardStream(name: String, f: StandardPaths => Path) {
         val filename = f(pipelinesApiCallPaths.standardPaths).name
       }
@@ -516,7 +519,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         generateOutputs(jobDescriptor).toList ++ standardStreams,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
-          rcFileOutputParameter = rcFileOutput
+          rcFileOutputParameter = rcFileOutput,
+          doubleMemoryRetryRCFileOutputParameter = doubleMemoryRetryRCFileOutput
         ),
         gcsAuthParameter.toList
       )

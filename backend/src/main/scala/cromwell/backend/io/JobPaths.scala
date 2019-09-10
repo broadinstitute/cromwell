@@ -32,6 +32,7 @@ trait JobPaths {
 
   def workflowPaths: WorkflowPaths
   def returnCodeFilename: String = "rc"
+  def doubleMemoryRCFilename: String = "doubleMemoryRetryRC"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
   def isDocker: Boolean = false
@@ -72,6 +73,7 @@ trait JobPaths {
   lazy val script = callExecutionRoot.resolve(scriptFilename)
   lazy val dockerCid = callExecutionRoot.resolve(dockerCidFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
+  lazy val doubleMemoryRetryRC = callExecutionRoot.resolve(doubleMemoryRCFilename)
 
   // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
   // standard output and error file names.

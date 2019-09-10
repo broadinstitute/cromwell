@@ -11,3 +11,5 @@ cromwell::build::pip_install mkdocs
 mkdocs build -s
 
 sbt checkRestApiDocs +package assembly dockerPushCheck +doc
+
+git secrets --scan-history

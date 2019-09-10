@@ -315,7 +315,7 @@ database {
   profile = "slick.jdbc.PostgresProfile$"
   db {
     driver = "org.postgresql.Driver"
-    url = "jdbc:postgresql//localhost:5432/cromwell"
+    url = "jdbc:postgresql://localhost:5432/cromwell"
     user = "user"
     password = "pass"
     port = 5432

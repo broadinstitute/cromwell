@@ -44,6 +44,7 @@ final class BcsConfiguration(val configurationDescriptor: BackendConfigurationDe
   lazy val dockerHashAccessId = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.access-id")
   lazy val dockerHashAccessKey = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.access-key")
   lazy val dockerHashSecurityToken = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.security-token")
+  lazy val dockerHashEndpoint = DockerConfiguration.dockerHashLookupConfig.as[Option[String]]("alibabacloudcr.auth.endpoint")
 
   val dockerCredentials = {
     for {

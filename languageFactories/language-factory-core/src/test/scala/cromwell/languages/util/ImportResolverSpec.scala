@@ -121,7 +121,7 @@ class ImportResolverSpec extends FlatSpec with Matchers {
   behavior of "directory resolver from root"
 
   val workingDirectory = sys.props("user.dir")
-  val rootDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/")), customName = None)
+  val rootDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/")), customName = None, deleteOnClose = false, directoryHash = None)
 
   it should "resolve a random path" in {
     val pathToLookup = rootDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
@@ -140,10 +140,10 @@ class ImportResolverSpec extends FlatSpec with Matchers {
 
   behavior of "unprotected relative directory resolver"
 
-  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), customName = None)
+  val relativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), customName = None, deleteOnClose = false, directoryHash = None)
 
   val relativeDirForSampleWf = s"$workingDirectory/languageFactories/language-factory-core/src/test/"
-  val relativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)), customName = None)
+  val relativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)), customName = None, deleteOnClose = false, directoryHash = None)
 
   it should "resolve an absolute path" in {
     val pathToLookup = relativeDirectoryResolver.resolveAndMakeAbsolute("/path/to/file.wdl")
@@ -177,8 +177,8 @@ class ImportResolverSpec extends FlatSpec with Matchers {
 
   behavior of "protected relative directory resolver"
 
-  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), Some("/path/to/imports/"), customName = None)
-  val protectedRelativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)), Some(relativeDirForSampleWf), customName = None)
+  val protectedRelativeDirectoryResolver = DirectoryResolver(DefaultPath(Paths.get("/path/to/imports/")), Some("/path/to/imports/"), customName = None, deleteOnClose = false, directoryHash = None)
+  val protectedRelativeDirResolverForSampleWf = DirectoryResolver(DefaultPath(Paths.get(relativeDirForSampleWf)), Some(relativeDirForSampleWf), customName = None, deleteOnClose = false, directoryHash = None)
 
   it should "resolve a good relative path" in {
     val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("path/to/file.wdl")

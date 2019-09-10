@@ -1,4 +1,4 @@
-package cromwell.webservice.metadata
+package cromwell.services.metadata.impl.builder
 
 import cats.instances.list._
 import cats.instances.map._

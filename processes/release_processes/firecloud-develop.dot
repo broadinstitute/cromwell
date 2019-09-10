@@ -8,7 +8,7 @@ digraph {
     node [style=filled,color=white];
     color="lightgrey"
 
-    release_cromwell [shape=oval label="PUBLISH: We have a new Cromwell version! Woohoo!"];
+    release_cromwell [shape=oval label="PUBLISH: Run the publish script to create a new Cromwell version"];
   }
 
   subgraph cluster_1 {
@@ -44,7 +44,7 @@ digraph {
 
   }
 
-  fcdev_upnext [shape=oval label="Create a 'work in progress' firecloud-develop PR\nfor the next Cromwell version. Mark it 'Do Not Merge'"];
+  update_caas [shape=oval label="Now follow the 'How to Deploy Cromwell in CAAS prod' Process"];
 
   # Edges
 
@@ -66,5 +66,5 @@ digraph {
   qa_perf -> dspjenkins_merge
   qa_perf -> fcdev_merge
 
-  fcdev_merge -> fcdev_upnext
+  fcdev_merge -> update_caas
 }

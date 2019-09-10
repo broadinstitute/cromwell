@@ -68,6 +68,8 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_RESOURCES_SOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/src/ci/resources"
     CROMWELL_BUILD_RESOURCES_DIRECTORY="${CROMWELL_BUILD_ROOT_DIRECTORY}/target/ci/resources"
 
+    CROMWELL_BUILD_GIT_SECRETS_DIRECTORY="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/git-secrets"
+    CROMWELL_BUILD_GIT_SECRETS_COMMIT="ad82d68ee924906a0401dfd48de5057731a9bc84"
     CROMWELL_BUILD_WAIT_FOR_IT_FILENAME="wait-for-it.sh"
     CROMWELL_BUILD_WAIT_FOR_IT_BRANCH="db049716e42767d39961e95dd9696103dca813f1"
     CROMWELL_BUILD_WAIT_FOR_IT_URL="https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
@@ -197,6 +199,13 @@ cromwell::private::create_build_variables() {
     hours_to_minutes=60
     CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
 
+    local git_revision
+    if git_revision="$(git rev-parse --short=7 HEAD 2>/dev/null)"; then
+        CROMWELL_BUILD_GIT_HASH_SUFFIX="g${git_revision}"
+    else
+        CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
+    fi
+
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
     export CROMWELL_BUILD_BRANCH_PULL_REQUEST
@@ -206,6 +215,9 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
     export CROMWELL_BUILD_GENERATE_COVERAGE
+    export CROMWELL_BUILD_GIT_HASH_SUFFIX
+    export CROMWELL_BUILD_GIT_SECRETS_COMMIT
+    export CROMWELL_BUILD_GIT_SECRETS_DIRECTORY
     export CROMWELL_BUILD_GIT_USER_EMAIL
     export CROMWELL_BUILD_GIT_USER_NAME
     export CROMWELL_BUILD_HEARTBEAT_MINUTES
@@ -446,6 +458,17 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER}"
+    else
+        CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_TYPE}-${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
+    fi
+
+    # Trim and replace invalid characters in the docker tag
+    # https://docs.docker.com/engine/reference/commandline/tag/#extended-description
+    CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_CENTAUR_DOCKER_TAG:0:128}"
+    CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_CENTAUR_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
+
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=512000
@@ -477,6 +500,7 @@ cromwell::private::create_centaur_variables() {
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
+    export CROMWELL_BUILD_CENTAUR_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
     export CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
@@ -613,10 +637,30 @@ cromwell::private::install_wait_for_it() {
     chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
 }
 
+cromwell::private::install_git_secrets() {
+    # Only install git-secrets on CI. Users should have already installed the executable.
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        git clone https://github.com/awslabs/git-secrets.git "${CROMWELL_BUILD_GIT_SECRETS_DIRECTORY}"
+        pushd "${CROMWELL_BUILD_GIT_SECRETS_DIRECTORY}" > /dev/null
+        git checkout "${CROMWELL_BUILD_GIT_SECRETS_COMMIT}"
+        export PATH="${PATH}:${PWD}"
+        popd > /dev/null
+    fi
+}
+
+cromwell::private::install_minnie_kenny() {
+    # Only install minnie-kenny on CI. Users should have already run the script themselves.
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        pushd "${CROMWELL_BUILD_ROOT_DIRECTORY}" > /dev/null
+        ./minnie-kenny.sh --force
+        popd > /dev/null
+    fi
+}
+
 cromwell::private::start_docker() {
     local docker_image
     local docker_cid_file
-    docker_image="${1:?foo called without a docker image}"; shift
+    docker_image="${1:?start_docker called without a docker image}"; shift
     docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/$(echo "${docker_image}" | tr "/" "_" | tr ":" "-").cid.$$"
 
     docker run --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
@@ -926,6 +970,7 @@ cromwell::private::start_build_heartbeat() {
         printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
     done &
     CROMWELL_BUILD_HEARTBEAT_PID=$!
+    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 }
 
 cromwell::private::start_cromwell_log_tail() {
@@ -933,6 +978,7 @@ cromwell::private::start_cromwell_log_tail() {
         sleep 2
     done && tail -n 0 -f "${CROMWELL_BUILD_CROMWELL_LOG}" 2> /dev/null &
     CROMWELL_BUILD_CROMWELL_LOG_TAIL_PID=$!
+    cromwell::private::add_exit_function cromwell::private::kill_cromwell_log_tail
 }
 
 cromwell::private::start_centaur_log_tail() {
@@ -940,6 +986,7 @@ cromwell::private::start_centaur_log_tail() {
         sleep 2
     done && tail -n 0 -f "${CROMWELL_BUILD_CENTAUR_LOG}" 2> /dev/null &
     CROMWELL_BUILD_CENTAUR_LOG_TAIL_PID=$!
+    cromwell::private::add_exit_function cromwell::private::kill_centaur_log_tail
 }
 
 cromwell::private::cat_centaur_log() {
@@ -1017,7 +1064,6 @@ cromwell::private::kill_tree() {
   kill "${pid}" 2> /dev/null
 }
 
-
 cromwell::private::start_conformance_cromwell() {
     # Start the Cromwell server in the directory containing input files so it can access them via their relative path
     pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
@@ -1035,6 +1081,8 @@ cromwell::private::start_conformance_cromwell() {
     CROMWELL_BUILD_CONFORMANCE_CROMWELL_PID=$!
 
     popd > /dev/null
+
+    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
 }
 
 cromwell::private::kill_conformance_cromwell() {
@@ -1073,6 +1121,8 @@ cromwell::build::setup_common_environment() {
     cromwell::private::verify_secure_build
     cromwell::private::verify_pull_request_build
     cromwell::private::make_build_directories
+    cromwell::private::install_git_secrets
+    cromwell::private::install_minnie_kenny
     cromwell::private::setup_secure_resources
 
     case "${CROMWELL_BUILD_PROVIDER}" in
@@ -1111,9 +1161,6 @@ cromwell::build::setup_centaur_environment() {
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::add_exit_function cromwell::private::cat_centaur_log
     fi
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
-    cromwell::private::add_exit_function cromwell::private::kill_cromwell_log_tail
-    cromwell::private::add_exit_function cromwell::private::kill_centaur_log_tail
 }
 
 cromwell::build::setup_conformance_environment() {
@@ -1126,12 +1173,10 @@ cromwell::build::setup_conformance_environment() {
     cromwell::private::write_cwl_test_inputs
     cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 }
 
 cromwell::build::setup_docker_environment() {
     cromwell::private::start_build_heartbeat
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
 
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
         # Upgrade docker-compose so that we get the correct exit codes
@@ -1180,7 +1225,6 @@ cromwell::build::run_centaur() {
 
 cromwell::build::run_conformance() {
     cromwell::private::start_conformance_cromwell
-    cromwell::private::add_exit_function cromwell::private::kill_conformance_cromwell
 
     # Give cromwell time to start up
     sleep 30
@@ -1257,8 +1301,29 @@ cromwell::build::pip_install() {
     cromwell::private::pip_install "$@"
 }
 
+cromwell::build::start_build_heartbeat() {
+    cromwell::private::start_build_heartbeat
+}
+
 cromwell::build::add_exit_function() {
     cromwell::private::add_exit_function "$1"
+}
+
+cromwell::build::delete_docker_images() {
+    local docker_delete_function
+    local docker_image_file
+    docker_delete_function="${1:?delete_images called without a docker_delete_function}"
+    docker_image_file="${2:?delete_images called without a docker_image_file}"
+    shift
+    shift
+
+    if [[ -f "${docker_image_file}" ]]; then
+        local docker_image
+        while read -r docker_image; do
+          ${docker_delete_function} "${docker_image}" || true
+        done < "${docker_image_file}"
+        rm "${docker_image_file}" || true
+    fi
 }
 
 cromwell::build::kill_tree() {

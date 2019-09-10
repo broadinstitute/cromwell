@@ -33,8 +33,10 @@ package cromwell.backend.impl.aws.callcaching
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.aws.AwsBatchBackendInitializationData
+import cromwell.backend.impl.aws.AWSBatchStorageSystems
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
+import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.CallOutputs
 import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
@@ -47,53 +49,59 @@ import scala.language.postfixOps
 import scala.util.Try
 
 class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) {
-  override protected val commandBuilder = S3BatchCommandBuilder
-  private val cachingStrategy = BackendInitializationData
+  private val batchAttributes = BackendInitializationData
     .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
-    .configuration.batchAttributes.duplicationStrategy
+    .configuration.batchAttributes
 
-  override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path) = cachingStrategy match {
-    case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
-    case UseOriginalCachedOutputs =>
-      val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
-        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map S3BatchCommandBuilder.touchCommand
-      }
+  override protected val commandBuilder = batchAttributes.fileSystem match {
+    case AWSBatchStorageSystems.s3  => S3BatchCommandBuilder
+    case  _ => DefaultIoCommandBuilder
+  }
+  private val cachingStrategy = batchAttributes.duplicationStrategy
 
-      TryUtil.sequence(touchCommands) map {
-        WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
-      }
+  override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path) = (batchAttributes.fileSystem, cachingStrategy)  match {
+    case (AWSBatchStorageSystems.s3 , UseOriginalCachedOutputs) =>  {
+          val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
+            case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map S3BatchCommandBuilder.touchCommand
+          }
+
+          TryUtil.sequence(touchCommands) map {
+            WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
+          }
+    }
+    case (_, _) => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
   }
 
-  override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = cachingStrategy match {
-    case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
-    case UseOriginalCachedOutputs =>
-      // apply getPath on each detritus string file
-      val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>
-        key -> getPath(sourceJobDetritusFiles(key))
-      } toMap
+  override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = (batchAttributes.fileSystem, cachingStrategy)  match {
+      case (AWSBatchStorageSystems.s3, UseOriginalCachedOutputs) => {
+        // apply getPath on each detritus string file
+        val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>
+          key -> getPath(sourceJobDetritusFiles(key))
+        } toMap
 
-      // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
-      TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") map { newDetritus =>
-        (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) -> newDetritus.values.map(S3BatchCommandBuilder.touchCommand).toSet
+        // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
+        TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") map { newDetritus =>
+          (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) -> newDetritus.values.map(S3BatchCommandBuilder.touchCommand).toSet
+        }
       }
-  }
+      case (_, _) => super.processDetritus(sourceJobDetritusFiles)
+   }
 
   override protected def additionalIoCommands(sourceCallRootPath: Path,
                                               originalSimpletons: Seq[WomValueSimpleton],
                                               newOutputs: CallOutputs,
                                               originalDetritus:  Map[String, String],
-                                              newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {
-    cachingStrategy match {
-      case UseOriginalCachedOutputs =>
-        val content =
-          s"""
-             |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
-             |Cromwell is configured to not copy outputs during call caching. To change this, edit the filesystems.aws.caching.duplication-strategy field in your backend configuration.
-             |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
+                                              newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = (batchAttributes.fileSystem, cachingStrategy)  match {
+      case (AWSBatchStorageSystems.s3, UseOriginalCachedOutputs) =>
+            val content =
+              s"""
+                 |This directory does not contain any output files because this job matched an identical job that was previously run, thus it was a cache-hit.
+                 |Cromwell is configured to not copy outputs during call caching. To change this, edit the filesystems.aws.caching.duplication-strategy field in your backend configuration.
+                 |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
       """.stripMargin
 
-        List(Set(S3BatchCommandBuilder.writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
-      case CopyCachedOutputs => List.empty
+            List(Set(S3BatchCommandBuilder.writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
+       case (AWSBatchStorageSystems.s3, CopyCachedOutputs) => List.empty
+       case (_, _) => super.additionalIoCommands(sourceCallRootPath,originalSimpletons, newOutputs, originalDetritus,newDetritus)
     }
-  }
 }

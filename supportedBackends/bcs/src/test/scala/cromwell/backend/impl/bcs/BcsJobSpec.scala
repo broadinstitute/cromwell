@@ -72,6 +72,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
     val spotStrategy = "SpotWithPriceLimit"
     val spotPriceLimit = 0.12
     val cluster = s"$resourceType $instanceType $imageId $spotStrategy $spotPriceLimit"
+    val imageIdForCallCaching = "img-ubuntu-vpc"
     val reserveOnFail = true
     val cidr = "172.16.16.0/20"
     val vpcId = "vpc-test"
@@ -89,7 +90,8 @@ class BcsJobSpec extends BcsTestUtilSpec {
       "vpc" -> WomString(s"$cidr $vpcId"),
       "systemDisk" -> WomString(s"$systemDiskType $systemDiskSize"),
       "dataDisk" -> WomString(s"$dataDiskType $dataDiskSize $dataDiskMountPoint"),
-      "userData" -> WomString(s"$userDataKey $userDataValue")
+      "userData" -> WomString(s"$userDataKey $userDataValue"),
+      "imageId" -> WomString(s"$imageIdForCallCaching")
     )
 
     val task = taskWithRuntime(runtime)
@@ -97,7 +99,7 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
     val autoCluster = task.getAutoCluster
     autoCluster.isReserveOnFail shouldEqual reserveOnFail
-    autoCluster.getImageId shouldEqual imageId
+    autoCluster.getImageId shouldEqual imageIdForCallCaching
     autoCluster.getResourceType shouldEqual resourceType
     autoCluster.getInstanceType shouldEqual instanceType
     autoCluster.getSpotStrategy shouldEqual spotStrategy
@@ -122,8 +124,8 @@ class BcsJobSpec extends BcsTestUtilSpec {
 
 
   private def withRuntime(runtime: Map[String, WomValue] = Map.empty[String, WomValue]): BcsJob = {
-    val rumtimeAttributes = createBcsRuntimeAttributes(runtime)
-    BcsJob(name, description, command, packagePath, rumtimeAttributes.mounts.getOrElse(mounts), envs, rumtimeAttributes, None, None, mockBcsClient)
+    val runtimeAttributes = createBcsRuntimeAttributes(runtime)
+    BcsJob(name, description, command, packagePath, runtimeAttributes.mounts.getOrElse(mounts), envs, runtimeAttributes, None, None, mockBcsClient)
   }
 
   private def taskWithRuntime(runtime: Map[String, WomValue] = Map.empty[String, WomValue]): TaskDescription = {

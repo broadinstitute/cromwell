@@ -3,31 +3,99 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cats.instances.list._
-import cats.syntax.foldable._
+import cats.syntax.apply._
+import cats.syntax.traverse._
+import cats.syntax.validated._
+import common.exception.AggregatedMessageException
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CallCacheDiffActorData, _}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
-import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
-import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse, MetadataServiceKeyLookupFailed}
+import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata._
-import cromwell.webservice.metadata.MetadataComponent._
-import cromwell.webservice.metadata._
-import spray.json.JsObject
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
+import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString, JsValue}
 
-import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {
+  startWith(Idle, CallCacheDiffNoData)
+
+  when(Idle) {
+    case Event(CallCacheDiffQueryParameter(callA, callB), CallCacheDiffNoData) =>
+      val queryA = makeMetadataQuery(callA)
+      val queryB = makeMetadataQuery(callB)
+      serviceRegistryActor ! GetMetadataAction(queryA)
+      serviceRegistryActor ! GetMetadataAction(queryB)
+      goto(WaitingForMetadata) using CallCacheDiffWithRequest(queryA, queryB, None, None, sender())
+  }
+
+  when(WaitingForMetadata) {
+    // First Response
+    // Response A
+    case Event(BuiltMetadataResponse(GetMetadataAction(originalQuery), responseJson), data@CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == originalQuery =>
+      stay() using data.copy(responseA = Option(WorkflowMetadataJson(responseJson)))
+    // Response B
+    case Event(BuiltMetadataResponse(GetMetadataAction(originalQuery), responseJson), data@CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == originalQuery =>
+      stay() using data.copy(responseB = Option(WorkflowMetadataJson(responseJson)))
+    // Second Response
+    // Response A
+    case Event(BuiltMetadataResponse(GetMetadataAction(originalQuery), responseJson), CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == originalQuery =>
+      buildDiffAndRespond(queryA, queryB, WorkflowMetadataJson(responseJson), responseB, replyTo)
+    // Response B
+    case Event(BuiltMetadataResponse(GetMetadataAction(originalQuery), responseJson), CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == originalQuery =>
+      buildDiffAndRespond(queryA, queryB, responseA, WorkflowMetadataJson(responseJson), replyTo)
+    case Event(FailedMetadataResponse(_, failure), data: CallCacheDiffWithRequest) =>
+      data.replyTo ! FailedCallCacheDiffResponse(failure)
+      context stop self
+      stay()
+  }
+
+  whenUnhandled {
+    case Event(oops, oopsData) =>
+      log.error(s"Programmer Error: Unexpected event received by ${this.getClass.getSimpleName}: $oops / $oopsData (in state $stateName)")
+      stay()
+
+  }
+
+  private def buildDiffAndRespond(queryA: MetadataQuery,
+                                  queryB: MetadataQuery,
+                                  responseA: WorkflowMetadataJson,
+                                  responseB: WorkflowMetadataJson,
+                                  replyTo: ActorRef) = {
+
+    def describeCallFromQuery(query: MetadataQuery): String = s"${query.workflowId} / ${query.jobKey.map(_.callFqn).getOrElse("<<CallMissing>>")}:${query.jobKey.map(_.index.getOrElse(-1)).getOrElse("<<CallMissing>>")}"
+
+    val callACachingMetadata = extractCallMetadata(queryA, responseA).contextualizeErrors(s"extract relevant metadata for call A (${describeCallFromQuery(queryA)})")
+    val callBCachingMetadata = extractCallMetadata(queryB, responseB).contextualizeErrors(s"extract relevant metadata for call B (${describeCallFromQuery(queryB)})")
+
+    val response = (callACachingMetadata, callBCachingMetadata) flatMapN { case (callA, callB) =>
+
+        val callADetails = extractCallDetails(queryA, callA)
+        val callBDetails = extractCallDetails(queryB, callB)
+
+      (callADetails, callBDetails) mapN { (cad, cbd) =>
+        val callAHashes = callA.callCachingMetadataJson.hashes
+        val callBHashes = callB.callCachingMetadataJson.hashes
+
+        SuccessfulCallCacheDiffResponse(cad, cbd, calculateHashDifferential(callAHashes, callBHashes))
+      }
+    } valueOr {
+      e => FailedCallCacheDiffResponse(AggregatedMessageException("Failed to calculate diff for call A and call B", e.toList))
+    }
+
+    replyTo ! response
+
+    context stop self
+    stay()
+  }
+}
+
 
 object CallCacheDiffActor {
-  private val PlaceholderMissingHashValue = MetadataPrimitive(MetadataValue("Error: there is a hash entry for this key but the value is null !"))
 
   final case class CachedCallNotFoundException(message: String) extends Exception {
     override def getMessage = message
   }
-
-  // Exceptions when calls exist but have no hashes in their metadata, indicating they were run pre-28
-  private val HashesForCallAAndBNotFoundException = new Exception("callA and callB have not finished yet, or were run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val HashesForCallANotFoundException = new Exception("callA has not finished yet, or was run on a previous version of Cromwell on which this endpoint was not supported.")
-  private val HashesForCallBNotFoundException = new Exception("callB has not finished yet, or was run on a previous version of Cromwell on which this endpoint was not supported.")
 
   sealed trait CallCacheDiffActorState
   case object Idle extends CallCacheDiffActorState
@@ -37,269 +105,161 @@ object CallCacheDiffActor {
   case object CallCacheDiffNoData extends CallCacheDiffActorData
   case class CallCacheDiffWithRequest(queryA: MetadataQuery,
                                       queryB: MetadataQuery,
-                                      responseA: Option[MetadataLookupResponse],
-                                      responseB: Option[MetadataLookupResponse],
+                                      responseA: Option[WorkflowMetadataJson],
+                                      responseB: Option[WorkflowMetadataJson],
                                       replyTo: ActorRef
                                      ) extends CallCacheDiffActorData
 
   sealed abstract class CallCacheDiffActorResponse
-  case class BuiltCallCacheDiffResponse(response: JsObject) extends CallCacheDiffActorResponse
+
   case class FailedCallCacheDiffResponse(reason: Throwable) extends CallCacheDiffActorResponse
-
-
+  final case class SuccessfulCallCacheDiffResponse(callA: CallDetails, callB: CallDetails, hashDifferential: List[HashDifference]) extends CallCacheDiffActorResponse
   def props(serviceRegistryActor: ActorRef) = Props(new CallCacheDiffActor(serviceRegistryActor)).withDispatcher(EngineDispatcher)
-}
 
-class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {
-  startWith(Idle, CallCacheDiffNoData)
+  final case class CallDetails(executionStatus: String, allowResultReuse: Boolean, callFqn: String, jobIndex: Int, workflowId: String)
+  final case class HashDifference(hashKey: String, callA: Option[String], callB: Option[String])
 
-  when(Idle) {
-    case Event(CallCacheDiffQueryParameter(callA, callB), CallCacheDiffNoData) =>
-      val queryA = makeMetadataQuery(callA)
-      val queryB = makeMetadataQuery(callB)
-      serviceRegistryActor ! GetMetadataQueryAction(queryA)
-      serviceRegistryActor ! GetMetadataQueryAction(queryB)
-      goto(WaitingForMetadata) using CallCacheDiffWithRequest(queryA, queryB, None, None, sender())
-  }
-
-  when(WaitingForMetadata) {
-    // First Response
-    // Response A
-    case Event(response: MetadataLookupResponse, data @ CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == response.query =>
-      stay() using data.copy(responseA = Option(response))
-    // Response B
-    case Event(response: MetadataLookupResponse, data @ CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == response.query =>
-      stay() using data.copy(responseB = Option(response))
-    // Second Response
-    // Response A
-    case Event(response: MetadataLookupResponse, CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == response.query =>
-      buildDiffAndRespond(queryA, queryB, response, responseB, replyTo)
-    // Response B
-    case Event(response: MetadataLookupResponse, CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == response.query =>
-      buildDiffAndRespond(queryA, queryB, responseA, response, replyTo)
-    case Event(MetadataServiceKeyLookupFailed(_, failure), data: CallCacheDiffWithRequest) =>
-      data.replyTo ! FailedCallCacheDiffResponse(failure)
-      context stop self
-      stay()
-  }
-
-  /**
-    * Builds a response and sends it back as Json.
-    * The response is structured in the following way
-    * {
-    *   "callA": {
-    *     -- information about call A --
-    *   },
-    *   "callB": {
-    *     -- information about call B --
-    *   },
-    *   "hashDifferential": [
-    *     {
-    *       "hash key": {
-    *         "callA": -- hash value for call A, or null --,
-    *         "callB": -- hash value for call B, or null --
-    *       }
-    *     },
-    *     ...
-    *   ]
-    * }
-    */
-  private def buildDiffAndRespond(queryA: MetadataQuery,
-                                  queryB: MetadataQuery,
-                                  responseA: MetadataLookupResponse,
-                                  responseB: MetadataLookupResponse,
-                                  replyTo: ActorRef) = {
-
-    lazy val buildResponse = {
-      diffHashes(responseA.eventList, responseB.eventList) match {
-        case Success(diff) =>
-          val diffObject = MetadataObject(Map(
-            "callA" -> makeCallInfo(queryA, responseA.eventList),
-            "callB" -> makeCallInfo(queryB, responseB.eventList),
-            "hashDifferential" -> diff
-          ))
-
-          BuiltCallCacheDiffResponse(metadataComponentJsonWriter.write(diffObject).asJsObject)
-        case Failure(f) => FailedCallCacheDiffResponse(f)
-      }
-    }
-
-    val response = checkCallsExistence(queryA, queryB, responseA, responseB) match {
-      case Some(msg) => FailedCallCacheDiffResponse(CachedCallNotFoundException(msg))
-      case None => buildResponse
-    }
-
-    replyTo ! response
-
-    context stop self
-    stay()
-  }
-
-  /**
-    * Returns an error message if one or both of the calls are not found, or None if it does
-    */
-  private def checkCallsExistence(queryA: MetadataQuery,
-                                  queryB: MetadataQuery,
-                                  responseA: MetadataLookupResponse,
-                                  responseB: MetadataLookupResponse): Option[String] = {
-    import cromwell.core.ExecutionIndex._
-
-    def makeTag(query: MetadataQuery) = {
-      s"${query.workflowId}:${query.jobKey.get.callFqn}:${query.jobKey.get.index.fromIndex}"
-    }
-
-    def makeNotFoundMessage(queries: NonEmptyList[MetadataQuery]) = {
-      val plural = if (queries.tail.nonEmpty) "s" else ""
-      s"Cannot find call$plural ${queries.map(makeTag).toList.mkString(", ")}"
-    }
-
-    (responseA.eventList, responseB.eventList) match {
-      case (a, b) if a.isEmpty && b.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryA, queryB)))
-      case (a, _) if a.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryA)))
-      case (_, b) if b.isEmpty => Option(makeNotFoundMessage(NonEmptyList.of(queryB)))
-      case _ => None
-    }
-  }
-
-  /**
-    * Generates the "info" section of callA or callB
-    */
-  private def makeCallInfo(query: MetadataQuery, eventList: Seq[MetadataEvent]): MetadataComponent = {
-    val callKey = MetadataObject(Map(
-      "workflowId" -> MetadataPrimitive(MetadataValue(query.workflowId.toString)),
-      "callFqn" -> MetadataPrimitive(MetadataValue(query.jobKey.get.callFqn)),
-      "jobIndex" -> MetadataPrimitive(MetadataValue(query.jobKey.get.index.getOrElse(-1)))
-    ))
-
-    val allowResultReuse = attributeToComponent(eventList, { _ == CallCachingKeys.AllowReuseMetadataKey }, { _ => "allowResultReuse" })
-    val executionStatus = attributeToComponent(eventList, { _ == CallMetadataKeys.ExecutionStatus })
-
-    List(callKey, allowResultReuse, executionStatus) combineAll
-  }
-
-  /**
-    * Collects events from the list for which the keys verify the keyFilter predicate
-    * and apply keyModifier to the event's key
-    */
-  private def collectEvents(events: Seq[MetadataEvent],
-                            keyFilter: (String  => Boolean),
-                            keyModifier: (String => String)) = events collect {
-    case event @ MetadataEvent(metadataKey @ MetadataKey(_, _, key), _, _) if keyFilter(key) =>
-      event.copy(key = metadataKey.copy(key = keyModifier(key)))
-  }
-
-  /**
-    * Given a list of events, a keyFilter and a keyModifier, returns the associated MetadataComponent.
-    * Ensures that events are properly aggregated together (CRDTs and latest timestamp rule)
-    */
-  private def attributeToComponent(events: Seq[MetadataEvent], keyFilter: (String  => Boolean), keyModifier: (String => String) = identity[String]) = {
-    MetadataComponent(collectEvents(events, keyFilter, keyModifier))
-  }
-
-  /**
-    * Makes a diff object out of a key and a pair of values.
-    * Values are Option[Option[MetadataValue]] for the following reason:
-    *
-    * The outer option represents whether or not this key had a corresponding hash metadata entry for the given call
-    * If the above is true, the inner value is the metadata value for this entry, which is nullable, hence an Option.
-    * The first outer option will determine whether the resulting json value will be null (no hash entry for this key),
-    * or the actual value.
-    * If the metadata value (inner option) happens to be None, it's an error, as we don't expect to publish null hash values.
-    * In that case we replace it with the placeholderMissingHashValue.
-    */
-  private def makeHashDiffObject(key: String, valueA: Option[Option[MetadataValue]], valueB: Option[Option[MetadataValue]]) = {
-    def makeFinalValue(value: Option[Option[MetadataValue]]) = value match {
-      case Some(Some(metadataValue)) => MetadataPrimitive(metadataValue)
-      case Some(None) => PlaceholderMissingHashValue
-      case None => MetadataNullComponent
-    }
-
-    MetadataObject(
-      "hashKey" -> MetadataPrimitive(MetadataValue(key.trim, MetadataString)),
-      "callA" -> makeFinalValue(valueA),
-      "callB" -> makeFinalValue(valueB)
-    )
-  }
-
-  /**
-    * Creates the hash differential between 2 list of events
-    */
-  private def diffHashes(eventsA: Seq[MetadataEvent], eventsB: Seq[MetadataEvent]): Try[MetadataComponent] = {
-    val hashesKey = CallCachingKeys.HashesKey + MetadataKey.KeySeparator
-    // Collect hashes events and map their key to only keep the meaningful part of the key
-    // Then map the result to get a Map of hashKey -> Option[MetadataValue]. This will allow for fast lookup when
-    // comparing the 2 hash sets.
-    // Note that it's an Option[MetadataValue] because metadata values can be null, although for this particular
-    // case we don't expect it to be (we should never publish a hash metadata event with a null value)
-    // If that happens we will place a placeholder value in place of the hash to signify of the unexpected absence of it
-    def collectHashes(events: Seq[MetadataEvent]) = {
-      collectEvents(events, { _.startsWith(hashesKey) }, { _.stripPrefix(hashesKey) })  map {
-        case MetadataEvent(MetadataKey(_, _, keyA), valueA, _) => keyA -> valueA
-      } toMap
-    }
-
-    val hashesA: Map[String, Option[MetadataValue]] = collectHashes(eventsA)
-    val hashesB: Map[String, Option[MetadataValue]] = collectHashes(eventsB)
-
-    (hashesA.isEmpty, hashesB.isEmpty) match {
-      case (true, true) => Failure(HashesForCallAAndBNotFoundException)
-      case (true, false) => Failure(HashesForCallANotFoundException)
-      case (false, true) => Failure(HashesForCallBNotFoundException)
-      case (false, false) => Success(diffHashEvents(hashesA, hashesB))
-    }
-
-  }
-
-  private def diffHashEvents(hashesA: Map[String, Option[MetadataValue]], hashesB: Map[String, Option[MetadataValue]]) = {
-    val hashesUniqueToB: Map[String, Option[MetadataValue]] = hashesB.filterNot({ case (k, _) => hashesA.keySet.contains(k) })
-
-    val hashDiff: List[MetadataComponent] = {
-      // Start with all hashes in A
-      hashesA
-        // Try to find the corresponding pair in B.
-        // We end up with a 
-        // List[(Option[String, Option[MetadataValue], Option[String, Option[MetadataValue])]
-        //                ^               ^                     ^               ^
-        //             hashKey        hashValue              hashKey         hashValue
-        //               for             for                   for              for
-        //                A               A                     B                B
-        //      |____________________________________| |___________________________________|
-        //                  hashPair for A                        hashPair for B
-        // 
-        // HashPairs are Some or None depending on whether or not they have a metadata entry for the corresponding hashKey
-        // At this stage we only have Some(hashPair) for A, and either Some(hashPair) or None for B depending on if we found it in hashesB
-        .map({
-        hashPairA => Option(hashPairA) -> hashesB.find(_._1 == hashPairA._1)
-      })
-        // Add the missing hashes that are in B but not in A. The left hashPair is therefore None
-        .++(hashesUniqueToB.map(None -> Option(_)))
-        .collect({
-          // Both have a value but they're different. We can assume the keys are the same (if we did our job right until here)
-          case (Some((keyA, valueA)), Some((_, valueB))) if valueA != valueB =>
-            makeHashDiffObject(keyA, Option(valueA), Option(valueB))
-          // Key is in A but not in B
-          case (Some((keyA, valueA)), None) =>
-            makeHashDiffObject(keyA, Option(valueA), None)
-          // Key is in B but not in A
-          case (None, Some((keyB, valueB))) =>
-            makeHashDiffObject(keyB, None, Option(valueB))
-        })
-        .toList
-    }
-
-    MetadataList(hashDiff)
-  }
 
   /**
     * Create a Metadata query from a CallCacheDiffQueryCall
     */
-  private def makeMetadataQuery(call: CallCacheDiffQueryCall) = MetadataQuery(
-    call.workflowId,
+  def makeMetadataQuery(call: CallCacheDiffQueryCall) = MetadataQuery(
+    workflowId = call.workflowId,
     // jobAttempt None will return keys for all attempts
-    Option(MetadataQueryJobKey(call.callFqn, call.jobIndex, None)),
-    None,
-    Option(NonEmptyList.of("callCaching", "executionStatus")),
-    None,
+    jobKey = Option(MetadataQueryJobKey(call.callFqn, call.jobIndex, None)),
+    key = None,
+    includeKeysOption = Option(NonEmptyList.of("callCaching", "executionStatus")),
+    excludeKeysOption = Option(NonEmptyList.of("callCaching:hitFailures")),
     expandSubWorkflows = false
   )
+
+  // These simple case classes are just to help apply a little type safety to input and output types:
+  final case class WorkflowMetadataJson(value: JsObject) extends AnyVal
+  final case class CallMetadataJson(rawValue: JsObject, jobKey: MetadataQueryJobKey, callCachingMetadataJson: CallCachingMetadataJson)
+  final case class CallCachingMetadataJson(rawValue: JsObject, hashes: Map[String, String])
+
+
+  /*
+   * Takes in the JsObject returned from a metadata query and filters out only the appropriate call's callCaching section
+   */
+  def extractCallMetadata(query: MetadataQuery, response: WorkflowMetadataJson): ErrorOr[CallMetadataJson] = {
+
+    for {
+      // Sanity Checks:
+      _ <- response.value.checkFieldValue("id", s""""${query.workflowId}"""")
+      jobKey <- query.jobKey.toErrorOr("Call is required in call cache diff query")
+
+      // Unpack the JSON:
+      allCalls <- response.value.fieldAsObject("calls")
+      callShards <- allCalls.fieldAsArray(jobKey.callFqn)
+      onlyShardElement <- callShards.elementWithHighestAttemptField
+      _ <- onlyShardElement.checkFieldValue("shardIndex", jobKey.index.getOrElse(-1).toString)
+      callCachingElement <- onlyShardElement.fieldAsObject(CallMetadataKeys.CallCaching)
+      hashes <- extractHashes(callCachingElement)
+    } yield CallMetadataJson(onlyShardElement, jobKey, CallCachingMetadataJson(callCachingElement, hashes))
+  }
+
+  def extractHashes(callCachingMetadataJson: JsObject): ErrorOr[Map[String, String]] = {
+    def processField(keyPrefix: String)(fieldValue: (String, JsValue)): ErrorOr[Map[String, String]] = fieldValue match {
+      case (key, hashString: JsString) => Map(keyPrefix + key -> hashString.value).validNel
+      case (key, subObject: JsObject) => extractHashEntries(key + ":", subObject)
+      case (key, otherValue) => s"Cannot extract hashes for $key. Expected JsString or JsObject but got ${otherValue.getClass.getSimpleName} $otherValue".invalidNel
+    }
+
+    def extractHashEntries(keyPrefix: String, jsObject: JsObject): ErrorOr[Map[String, String]] = {
+      val traversed = jsObject.fields.toList.traverse(processField(keyPrefix))
+      traversed.map(_.flatten.toMap)
+    }
+
+    for {
+      hashesSection <- callCachingMetadataJson.fieldAsObject("hashes")
+      entries <- extractHashEntries("", hashesSection)
+    } yield entries
+  }
+
+  def calculateHashDifferential(hashesA: Map[String, String], hashesB: Map[String, String]): List[HashDifference] = {
+    val hashesInANotMatchedInB: List[HashDifference] = hashesA.toList collect {
+      case (key, value) if hashesB.get(key) != Option(value) => HashDifference(key, Option(value), hashesB.get(key))
+    }
+    val hashesUniqueToB: List[HashDifference] = hashesB.toList.collect {
+      case (key, value) if !hashesA.keySet.contains(key) => HashDifference(key, None, Option(value))
+    }
+    hashesInANotMatchedInB ++ hashesUniqueToB
+  }
+
+  def extractCallDetails(query: MetadataQuery, callMetadataJson: CallMetadataJson): ErrorOr[CallDetails] = {
+    val executionStatus = callMetadataJson.rawValue.fieldAsString("executionStatus")
+    val allowResultReuse = callMetadataJson.callCachingMetadataJson.rawValue.fieldAsBoolean("allowResultReuse")
+
+    (executionStatus, allowResultReuse) mapN { (es, arr) =>
+      CallDetails(
+        executionStatus = es.value,
+        allowResultReuse = arr.value,
+        callFqn = callMetadataJson.jobKey.callFqn,
+        jobIndex = callMetadataJson.jobKey.index.getOrElse(-1),
+        workflowId = query.workflowId.toString
+      )
+    }
+  }
+
+  implicit class EnhancedJsObject(val jsObject: JsObject) extends AnyVal {
+    def getField(field: String): ErrorOr[JsValue] = jsObject.fields.get(field).toErrorOr(s"No '$field' field found")
+    def fieldAsObject(field: String): ErrorOr[JsObject] = jsObject.getField(field) flatMap { _.mapToJsObject }
+    def fieldAsArray(field: String): ErrorOr[JsArray] = jsObject.getField(field) flatMap { _.mapToJsArray }
+    def fieldAsString(field: String): ErrorOr[JsString] = jsObject.getField(field) flatMap { _.mapToJsString }
+    def fieldAsNumber(field: String): ErrorOr[JsNumber] = jsObject.getField(field) flatMap { _.mapToJsNumber }
+    def fieldAsBoolean(field: String): ErrorOr[JsBoolean] = jsObject.getField(field) flatMap { _.mapToJsBoolean }
+    def checkFieldValue(field: String, expectation: String): ErrorOr[Unit] = jsObject.getField(field) flatMap {
+      case v: JsValue if v.toString == expectation => ().validNel
+      case other => s"Unexpected metadata field '$field'. Expected '$expectation' but got ${other.toString}".invalidNel
+    }
+  }
+
+  implicit class EnhancedJsArray(val jsArray: JsArray) extends AnyVal {
+
+    def elementWithHighestAttemptField: ErrorOr[JsObject] = {
+      def extractAttemptAndObject(value: JsValue): ErrorOr[(Int, JsObject)] = for {
+        asObject <- value.mapToJsObject
+        attempt <- asObject.fieldAsNumber("attempt")
+      } yield (attempt.value.intValue(), asObject)
+
+      def foldFunction(accumulator: ErrorOr[(Int, JsObject)], nextElement: JsValue): ErrorOr[(Int, JsObject)] = {
+        (accumulator, extractAttemptAndObject(nextElement)) mapN { case ((previousHighestAttempt, previousJsObject), (nextAttempt, nextJsObject)) =>
+          if (previousHighestAttempt > nextAttempt) {
+            (previousHighestAttempt, previousJsObject)
+          } else {
+            (nextAttempt, nextJsObject)
+          }
+        }
+      }
+
+      for {
+        attemptListNel <- NonEmptyList.fromList(jsArray.elements.toList).toErrorOr("Expected at least one attempt but found 0")
+        highestAttempt <- attemptListNel.toList.foldLeft(extractAttemptAndObject(attemptListNel.head))(foldFunction)
+      } yield highestAttempt._2
+    }
+  }
+
+  implicit class EnhancedJsValue(val jsValue: JsValue) extends AnyVal {
+    def mapToJsObject: ErrorOr[JsObject] = jsValue match {
+      case obj: JsObject => obj.validNel
+      case other => s"Invalid value type. Expected JsObject but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
+    }
+    def mapToJsArray: ErrorOr[JsArray] = jsValue match {
+      case arr: JsArray => arr.validNel
+      case other => s"Invalid value type. Expected JsArray but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
+    }
+    def mapToJsString: ErrorOr[JsString] = jsValue match {
+      case str: JsString => str.validNel
+      case other => s"Invalid value type. Expected JsString but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
+    }
+    def mapToJsBoolean: ErrorOr[JsBoolean] = jsValue match {
+      case boo: JsBoolean => boo.validNel
+      case other => s"Invalid value type. Expected JsBoolean but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
+    }
+    def mapToJsNumber: ErrorOr[JsNumber] = jsValue match {
+      case boo: JsNumber => boo.validNel
+      case other => s"Invalid value type. Expected JsNumber but got ${other.getClass.getSimpleName}: ${other.prettyPrint}".invalidNel
+    }
+  }
 }

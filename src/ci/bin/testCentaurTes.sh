@@ -12,16 +12,33 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-FUNNEL_PATH="${CROMWELL_BUILD_ROOT_DIRECTORY}/funnel"
-FUNNEL_CONF="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/funnel.conf"
+startup_funnel() {
+    local funnel_path
+    local funnel_conf
+    local funnel_tar_gz
 
-# Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
-ulimit -n "$(ulimit -n -H)"
-if [[ ! -f "${FUNNEL_PATH}" ]]; then
-    FUNNEL_TAR_GZ="funnel-${CROMWELL_BUILD_OS}-amd64-0.5.0.tar.gz"
-    curl "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${FUNNEL_TAR_GZ}" -o "${FUNNEL_TAR_GZ}" -L
-    tar xzf "${FUNNEL_TAR_GZ}"
-fi
+    funnel_path="${CROMWELL_BUILD_ROOT_DIRECTORY}/funnel"
+    funnel_conf="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/funnel.conf"
+
+    # Increase max open files to the maximum allowed. Attempt to help on macos due to the default soft ulimit -n -S 256.
+    ulimit -n "$(ulimit -n -H)"
+    if [[ ! -f "${funnel_path}" ]]; then
+        funnel_tar_gz="funnel-${CROMWELL_BUILD_OS}-amd64-0.5.0.tar.gz"
+        curl \
+            --location \
+            --output "${funnel_tar_gz}" \
+            "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${funnel_tar_gz}"
+        tar xzf "${funnel_tar_gz}"
+    fi
+
+    mkdir -p logs
+    nohup "${funnel_path}" server run --config "${funnel_conf}" &> logs/funnel.log &
+
+    FUNNEL_PID=$!
+    export FUNNEL_PID
+
+    cromwell::build::add_exit_function shutdown_funnel
+}
 
 shutdown_funnel() {
     if [[ -n "${FUNNEL_PID+set}" ]]; then
@@ -29,12 +46,7 @@ shutdown_funnel() {
     fi
 }
 
-cromwell::build::add_exit_function shutdown_funnel
-
-mkdir -p logs
-nohup "${FUNNEL_PATH}" server run --config "${FUNNEL_CONF}" &> logs/funnel.log &
-
-FUNNEL_PID=$!
+startup_funnel
 
 # The following tests are skipped:
 #

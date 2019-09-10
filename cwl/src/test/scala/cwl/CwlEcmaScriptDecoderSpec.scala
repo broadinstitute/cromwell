@@ -23,7 +23,7 @@ class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPr
         "class" -> WomString("File"),
         "location" -> WomString("path/to/file.txt"),
         "checksum" -> WomString("hash_here"),
-        "size" -> WomFloat(Double.box(123.4)),
+        "size" -> WomFloat(123.4),
         "format" -> WomString("file_format"),
         "contents" -> WomString("file_contents")
       )),
@@ -31,6 +31,26 @@ class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPr
         valueOption = Option("path/to/file.txt"),
         checksumOption = Option("hash_here"),
         sizeOption = Option(123L),
+        formatOption = Option("file_format"),
+        contentsOption = Option("file_contents"),
+        secondaryFiles = Vector()
+      )
+    ),
+    (
+      "a passed through file log",
+      "inputMap",
+      Map("inputMap" -> Map(
+        "class" -> WomString("File"),
+        "location" -> WomString("path/to/file.txt"),
+        "checksum" -> WomString("hash_here"),
+        "size" -> WomFloat(7000000000L),
+        "format" -> WomString("file_format"),
+        "contents" -> WomString("file_contents")
+      )),
+      WomMaybePopulatedFile(
+        valueOption = Option("path/to/file.txt"),
+        checksumOption = Option("hash_here"),
+        sizeOption = Option(7000000000L),
         formatOption = Option("file_format"),
         contentsOption = Option("file_contents"),
         secondaryFiles = Vector()

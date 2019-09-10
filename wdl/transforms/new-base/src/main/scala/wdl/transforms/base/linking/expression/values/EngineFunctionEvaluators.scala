@@ -24,6 +24,7 @@ import wdl.model.draft3.elements.ExpressionElement
 import wdl.shared.FileSizeLimitationConfig
 import wdl.shared.model.expression.ValueEvaluation
 import wom.CommandSetupSideEffectFile
+import BigDecimal.RoundingMode.{CEILING, HALF_UP, FLOOR}
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
@@ -448,8 +449,9 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
-        EvaluatedValue(WomInteger(math.floor(float.value).toInt), Seq.empty).validNel
+      val value = a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+      processValidatedSingleValue[WomFloat, WomInteger](value) {
+        bidDecimal => EvaluatedValue(WomInteger(bidDecimal.value.setScale(0, FLOOR).toIntExact), Seq.empty).validNel
       }
     }
   }
@@ -460,8 +462,9 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
-        EvaluatedValue(WomInteger(math.ceil(float.value).toInt), Seq.empty).validNel
+      val value = a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+      processValidatedSingleValue[WomFloat, WomInteger](value) {
+        bigDecimal => EvaluatedValue(WomInteger(bigDecimal.value.setScale(0, CEILING).toIntExact), Seq.empty).validNel
       }
     }
   }
@@ -472,8 +475,9 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
-        EvaluatedValue(WomInteger(math.round(float.value).toInt), Seq.empty).validNel
+      val value = a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+      processValidatedSingleValue[WomFloat, WomInteger](value) {
+        bigDecimal => EvaluatedValue(WomInteger(bigDecimal.value.setScale(0, HALF_UP).toIntExact), Seq.empty).validNel
       }
     }
   }

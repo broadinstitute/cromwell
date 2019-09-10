@@ -11,7 +11,8 @@ import wom.format.MemorySize
 
 object MachineConstraints {
   implicit class EnhancedInformation(val information: MemorySize) extends AnyVal {
-    def asMultipleOf(factor: MemorySize): MemorySize = MemorySize(factor.amount * (information.bytes / factor.bytes).ceil, factor.unit)
+    def asMultipleOf(factor: MemorySize): MemorySize =
+      MemorySize(factor.amount * (information.bytes / factor.bytes).ceil, factor.unit)
     def toMBString = information.to(MemoryUnit.MB).toString
   }
 

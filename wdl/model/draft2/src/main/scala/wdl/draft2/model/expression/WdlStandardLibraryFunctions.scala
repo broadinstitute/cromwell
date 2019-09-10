@@ -16,6 +16,7 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 import wom.values._
+import BigDecimal.RoundingMode.{FLOOR, HALF_UP, CEILING}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -129,15 +130,21 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
   }
 
   def floor(params: Seq[Try[WomValue]]): Try[WomInteger] = {
-    extractSingleArgument("floor", params) flatMap { f => WomFloatType.coerceRawValue(f) } map { f => WomInteger(Math.floor(f.asInstanceOf[WomFloat].value).toInt) }
+    extractSingleArgument("floor", params)
+      .flatMap { f => WomFloatType.coerceRawValue(f) }
+      .map { f => WomInteger(f.asInstanceOf[WomFloat].value.setScale(0, FLOOR).toIntExact) }
   }
 
   def round(params: Seq[Try[WomValue]]): Try[WomInteger] = {
-    extractSingleArgument("round", params) flatMap { f => WomFloatType.coerceRawValue(f) } map { f => WomInteger(Math.round(f.asInstanceOf[WomFloat].value).toInt) }
+    extractSingleArgument("round", params)
+     .flatMap { f => WomFloatType.coerceRawValue(f) }
+     .map { f => WomInteger(f.asInstanceOf[WomFloat].value.setScale(0, HALF_UP).toIntExact) }
   }
 
   def ceil(params: Seq[Try[WomValue]]): Try[WomInteger] = {
-    extractSingleArgument("ceil", params) flatMap { f => WomFloatType.coerceRawValue(f) } map { f => WomInteger(Math.ceil(f.asInstanceOf[WomFloat].value).toInt) }
+    extractSingleArgument("ceil", params)
+     .flatMap { f => WomFloatType.coerceRawValue(f) }
+     .map { f => WomInteger(f.asInstanceOf[WomFloat].value.setScale(0, CEILING).toIntExact) }
   }
 
   def transpose(params: Seq[Try[WomValue]]): Try[WomArray] = {
@@ -332,7 +339,7 @@ object WdlStandardLibraryFunctions {
         }
 
         // Inner function: get the file size and convert into the requested memory unit
-        def fileSize(womValue: Try[WomValue], convertTo: Try[MemoryUnit] = Success(MemoryUnit.Bytes)): Try[Double] = {
+        def fileSize(womValue: Try[WomValue], convertTo: Try[MemoryUnit] = Success(MemoryUnit.Bytes)): Try[BigDecimal] = {
           for {
             value <- womValue
             unit <- convertTo

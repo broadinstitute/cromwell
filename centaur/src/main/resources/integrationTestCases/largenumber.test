@@ -1,0 +1,12 @@
+name: largenumber
+testFormat: workflowsuccess
+
+files {
+  workflow: largenumber/largenumber.wdl
+  inputs: largenumber/inputs.json
+}
+
+metadata {
+  workflowName: Largenumber
+  status: Succeeded
+}

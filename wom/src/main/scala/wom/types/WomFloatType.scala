@@ -9,6 +9,7 @@ case object WomFloatType extends WomPrimitiveType {
   val stableName: String = "Float"
 
   override protected def coercion = {
+    case b: BigDecimal => WomFloat(b)
     case f: Float => WomFloat(f.toDouble)
     case d: Double => WomFloat(d)
     case i: Integer => WomFloat(i.toDouble)

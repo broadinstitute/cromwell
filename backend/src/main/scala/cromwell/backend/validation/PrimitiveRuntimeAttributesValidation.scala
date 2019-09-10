@@ -53,11 +53,11 @@ class BooleanRuntimeAttributesValidation(override val key: String) extends
 }
 
 class FloatRuntimeAttributesValidation(override val key: String) extends
-  PrimitiveRuntimeAttributesValidation[Double, WomFloat] {
+  PrimitiveRuntimeAttributesValidation[BigDecimal, WomFloat] {
 
   override val womType = WomFloatType
 
-  override protected def validateCoercedValue(womValue: WomFloat): ErrorOr[Double] = womValue.value.validNel
+  override protected def validateCoercedValue(womValue: WomFloat): ErrorOr[BigDecimal] = womValue.value.validNel
 }
 
 class IntRuntimeAttributesValidation(override val key: String) extends

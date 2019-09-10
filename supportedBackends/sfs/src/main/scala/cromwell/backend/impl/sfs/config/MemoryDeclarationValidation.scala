@@ -53,11 +53,13 @@ class MemoryDeclarationValidation(declaration: Declaration, attributeName: Strin
     validation.withDefault(WomLong(memorySize.bytes.toLong))
   }
 
+  case class NotInDoubleRangeException(message: String) extends Exception(message)
+
   private def defaultAmount(womValue: WomValue): Double = {
     womValue match {
       case WomInteger(value) => value.toDouble
       case WomLong(value) => value.toDouble
-      case WomFloat(value) => value
+      case WomFloat(value) => if (value.isDecimalDouble) value.doubleValue else throw NotInDoubleRangeException("Can not allocate memory")
       case WomOptionalValue(_, Some(optionalWdlValue)) => defaultAmount(optionalWdlValue)
       case other => throw new RuntimeException(s"Unsupported memory default: $other")
     }

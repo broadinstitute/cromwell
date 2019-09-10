@@ -39,7 +39,7 @@ class EcmaScriptEncoder {
       case WomString(string) => string |> ESPrimitive
       case WomInteger(int) => Int.box(int) |> ESPrimitive
       case WomLong(long) => Long.box(long) |> ESPrimitive
-      case WomFloat(double) => Double.box(double) |> ESPrimitive
+      case WomFloat(bigDecimal) => bigDecimal |> ESPrimitive
       case WomBoolean(boolean) => Boolean.box(boolean) |> ESPrimitive
       case WomArray(_, array) => array.toList.map(encode).toArray |> ESArray
       case WomMap(_, map) => map.map{

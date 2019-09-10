@@ -5,7 +5,7 @@ import wom.types.WomFloatType
 
 import scala.util.{Failure, Success, Try}
 
-case class WomFloat(value: Double) extends WomPrimitive {
+case class WomFloat(value: BigDecimal) extends WomPrimitive {
   val womType = WomFloatType
   override def add(rhs: WomValue): Try[WomValue] = {
     rhs match {
@@ -76,7 +76,7 @@ case class WomFloat(value: Double) extends WomPrimitive {
       case _ => invalid(s"$this > $rhs")
     }
   }
-  override def unaryPlus: Try[WomValue] = Success(WomFloat(math.abs(value)))
+  override def unaryPlus: Try[WomValue] = Success(WomFloat(value.abs))
   override def unaryMinus: Try[WomValue] = Success(WomFloat(-value))
   override def toWomString = value.toString
 }

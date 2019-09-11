@@ -1,11 +1,14 @@
 package cromwell.services.metadata.impl.carboniter
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.services.metadata.impl.carboniter.CarboniteWorkerActor.DoCarboniting
-import scala.concurrent.ExecutionContext
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with ActorLogging {
+class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with ActorLogging with GracefulShutdownHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -13,7 +16,7 @@ class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with
 
   override def receive: Receive = {
     case DoCarboniting => doCarboniting()
-
+    case ShutdownCommand => stopGracefully()
     case oops => log.error(s"Programmer Error! The CarboniteWorkerActor is not to be talked to! ($sender sent $oops})")
   }
 
@@ -27,6 +30,11 @@ class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with
       self ! DoCarboniting
     }
     ()
+  }
+
+  // TODO: Can we be more graceful?
+  def stopGracefully(): Unit = {
+    context.stop(self)
   }
 }
 

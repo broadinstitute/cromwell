@@ -1,15 +1,18 @@
 package cromwell.services.metadata.impl.carboniter
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, MetadataWriteAction}
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -44,6 +47,8 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
       case write: MetadataWriteAction => classicMetadataService.forward(write)
     }
+
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(classicMetadataService, carboniteMetadataService))
   }
 }
 

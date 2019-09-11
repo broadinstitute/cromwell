@@ -1,12 +1,16 @@
 package cromwell.services.metadata.impl.carboniter
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataWriteAction, MetadataWriteFailure}
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.duration._
 
-class CarboniteMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+class CarboniteMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
 
   val carboniteWorker: Option[ActorRef] = {
 
@@ -27,6 +31,11 @@ class CarboniteMetadataServiceActor(serviceConfig: Config, globalConfig: Config,
     case write: MetadataWriteAction =>
       val error = new NotImplementedError(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")
       sender ! MetadataWriteFailure(error, write.events)
+    case ShutdownCommand =>
+      carboniteWorker match {
+        case Some(worker) => waitForActorsAndShutdown(NonEmptyList.of(worker))
+        case None => context.stop(self)
+      }
   }
 }
 

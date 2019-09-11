@@ -1,4 +1,4 @@
-package cromwell.services.metadata.impl.carboniter
+package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList

@@ -1,4 +1,4 @@
-package cromwell.services.metadata.impl.carboniter
+package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.services.metadata.MetadataService.MetadataReadAction

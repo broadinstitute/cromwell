@@ -1,8 +1,8 @@
-package cromwell.services.metadata.impl
+package cromwell.services.metadata.hybridcarbonite
 
 import akka.testkit.TestProbe
-import cromwell.services.metadata.impl.MetadataServiceActorSpec.{globalConfigToMetadataServiceConfig}
-import cromwell.services.metadata.impl.carboniter.HybridMetadataServiceActor
+import cromwell.services.metadata.impl.MetadataServiceActorSpec
+import cromwell.services.metadata.impl.MetadataServiceActorSpec.globalConfigToMetadataServiceConfig
 
 class HybridMetadataServiceActorSpec extends MetadataServiceActorSpec {
 

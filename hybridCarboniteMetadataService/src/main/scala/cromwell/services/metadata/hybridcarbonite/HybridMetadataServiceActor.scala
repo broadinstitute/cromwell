@@ -1,11 +1,11 @@
-package cromwell.services.metadata.impl.carboniter
+package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, MetadataWriteAction}
+import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 

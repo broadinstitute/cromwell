@@ -1,11 +1,11 @@
 package cromwell.services.metadata.impl.carboniter
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.services.metadata.impl.carboniter.CarboniteWorkerActor.DoCarboniting
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext}
 import scala.concurrent.duration._
 
 class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with ActorLogging with GracefulShutdownHelper {

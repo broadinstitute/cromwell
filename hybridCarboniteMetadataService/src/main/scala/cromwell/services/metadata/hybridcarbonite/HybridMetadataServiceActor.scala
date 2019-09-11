@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, MetadataWriteAction}
+import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, MetadataWriteAction, ValidateWorkflowIdInMetadata}
 import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -46,7 +46,10 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
         }
 
       case write: MetadataWriteAction => classicMetadataService.forward(write)
+      case validate: ValidateWorkflowIdInMetadata => classicMetadataService forward validate
     }
+
+
 
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(classicMetadataService, carboniteMetadataService))
   }

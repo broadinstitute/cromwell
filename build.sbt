@@ -373,6 +373,7 @@ lazy val server = project
   .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(wdlBiscayneLanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
+  .dependsOn(hybridCarboniteMetadataService)
   .dependsOn(engine % "test->test")
   .dependsOn(common % "test->test")
 

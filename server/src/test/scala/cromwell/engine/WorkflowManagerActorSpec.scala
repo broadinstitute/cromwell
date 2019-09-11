@@ -1,3 +1,4 @@
+
 package cromwell.engine
 
 import com.typesafe.config.ConfigValueFactory
@@ -111,3 +112,4 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
     }
   }
 }
+

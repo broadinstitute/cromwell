@@ -142,6 +142,8 @@ object WorkflowActor {
 
   def props(workflowToStart: WorkflowToStart,
             conf: Config,
+            callCachingEnabled: Boolean,
+            invalidateBadCacheResults: Boolean,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
@@ -162,6 +164,8 @@ object WorkflowActor {
       new WorkflowActor(
         workflowToStart = workflowToStart,
         conf = conf,
+        callCachingEnabled = callCachingEnabled,
+        invalidateBadCacheResults = invalidateBadCacheResults,
         ioActor = ioActor,
         serviceRegistryActor = serviceRegistryActor,
         workflowLogCopyRouter = workflowLogCopyRouter,
@@ -186,6 +190,8 @@ object WorkflowActor {
   */
 class WorkflowActor(workflowToStart: WorkflowToStart,
                     conf: Config,
+                    callCachingEnabled: Boolean,
+                    invalidateBadCacheResults:Boolean,
                     ioActor: ActorRef,
                     override val serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
@@ -251,7 +257,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor, hogGroup = hogGroup),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
-      actor ! MaterializeWorkflowDescriptorCommand(sources, conf)
+      actor ! MaterializeWorkflowDescriptorCommand(sources, conf, callCachingEnabled, invalidateBadCacheResults)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     // If the workflow is not being restarted then we can abort it immediately as nothing happened yet
     case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)

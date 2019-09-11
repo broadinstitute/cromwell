@@ -98,7 +98,8 @@ validate_setup() {
     fi
   fi
 
-  minnie_kenny_git_dir="$(git rev-parse --absolute-git-dir)"
+  # Get the git absolute directory, even when older versions of git do not support --absolute-git-dir
+  minnie_kenny_git_dir="$(cd "$(git rev-parse --git-dir)" && pwd)"
   if [ ! -f "${minnie_kenny_git_dir}/../${minnie_kenny_gitconfig}" ]; then
     echo_err "Error: ${minnie_kenny_gitconfig} was not found next to the directory ${minnie_kenny_git_dir}"
     exit 1

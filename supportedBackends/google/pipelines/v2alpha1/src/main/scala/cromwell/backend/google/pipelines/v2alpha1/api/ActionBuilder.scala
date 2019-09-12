@@ -33,7 +33,7 @@ object ActionBuilder {
       val Localization = "Localization"
       val Delocalization = "Delocalization"
       val Background = "Background"
-      val RetryWithDoubleMemory = "CheckForRetryWithDoubleMemory"
+      val RetryWithDoubleMemory = "CheckingForRetryWithDoubleMemory"
     }
   }
 
@@ -121,9 +121,9 @@ object ActionBuilder {
       .setCredentials(secret.orNull)
   }
 
-  def doubleMemoryAction(mounts: List[Mount]): Action = {
+  def checkForMemoryRetryAction(retryLookupKeys: Vector[String], mounts: List[Mount]): Action = {
     cloudSdkAction
-      .withCommand("/bin/sh", "-c", ActionCommands.multiLineCommand(ActionCommands.checkForRetryWithDoubleMemory))
+      .withCommand("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))
       .withFlags(List(ActionFlag.AlwaysRun))
       .withLabels(Map(Key.Tag -> Value.RetryWithDoubleMemory))
       .withMounts(mounts)

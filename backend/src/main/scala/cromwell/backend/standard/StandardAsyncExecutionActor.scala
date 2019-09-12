@@ -35,6 +35,7 @@ import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
+import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression, RuntimeEnvironment}
 import wom.expression.WomExpression
@@ -1077,42 +1078,14 @@ trait StandardAsyncExecutionActor
   def handleExecutionResult(status: StandardAsyncRunState,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
-//    def stderrContainsDoubleMemoryKeys(contents: String): Boolean = {
-//      retryWithDoubleMemoryKeys match {
-//        case Some(doubleMemoryKeysList) => doubleMemoryKeysList.map(s => contents.contains(s)).reduce(_ || _)
-//        case None => false
-//      }
-//    }
-
-//    def readLastBytesOfGsFile(filePath: Path) = {
-////      val userSA = jobDescriptor.workflowDescriptor.workflowOptions.get(GoogleAuthMode.UserServiceAccountKey)
-//
-////      val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(ns getBytes()))
-//      val credentials = GoogleCredentials.getApplicationDefault
-//      val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
-//
-//      val Array(bucket, fileToBeLocalized) = filePath.pathAsString.replace(s"gs://", "").split("/", 2)
-//
-//      val blob = storage.get(bucket, fileToBeLocalized)
-//
-//      Future {
-//        val reader = blob.reader()
-//        reader.seek(34)
-//        val bytes: ByteBuffer = ByteBuffer.allocate(12)
-//        reader.read(bytes)
-//        bytes.array()
-//      }
-//    }
-
     def retryWithDoubleMemory(codeAsString: String): Boolean = {
       Try(codeAsString.trim.toInt) match {
-        case Success(code) => code match {
+        case Success(code) => code match { //TODO: Saloni- make these constants
           case 0 => true
-          case 250 => false
           case _ => false
         }
         case Failure(e) => {
-          log.error(s"Something went wrong while trying to convert doubleMemoryRetryCheckRC to Int. Error: ${e.getMessage}")
+          log.error(s"Something went wrong while trying to convert return code in `double_memory_retry_rc file` to Int. Error: ${ExceptionUtils.getMessage(e)}")
           false
         }
       }

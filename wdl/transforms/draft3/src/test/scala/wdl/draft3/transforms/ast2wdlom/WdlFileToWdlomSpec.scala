@@ -730,6 +730,24 @@ object WdlFileToWdlomSpec {
             parameterMetaSection = None,
             sourceLocation = Some(SourceFileLocation(5))))
     ),
+    "simple_task_with_oom" -> FileElement(
+      imports = Vector.empty,
+      structs = Vector.empty,
+      workflows = Vector(WorkflowDefinitionElement("simple_task", None, Set.empty,
+        None, None, None,
+        Some(SourceFileLocation(3)))),
+      tasks = Vector(
+        TaskDefinitionElement(
+          name = "simple",
+          inputsSection = None,
+          declarations = Vector.empty,
+          outputsSection = None,
+          commandSection = CommandSectionElement(Vector(CommandSectionLine(Vector(StringCommandPartElement("echo Hello World "))))),
+          runtimeSection = Some(RuntimeAttributesSectionElement(Vector(KvPair("retryWithDoubleMemory",ArrayLiteral(Vector(StringLiteral("OutOfMemory"), StringLiteral("Killed"))))))),
+          metaSection = None,
+          parameterMetaSection = None,
+          sourceLocation = Some(SourceFileLocation(5))))
+    ),
     "default_input_overrides" -> null,
     "nio_file" -> FileElement(
       imports = Vector.empty,

@@ -32,6 +32,8 @@ object RuntimeAttributesKeys {
   val OutDirMaxKey = "outDirMax"
   val FailOnStderrKey = "failOnStderr"
   val ContinueOnReturnCodeKey = "continueOnReturnCode"
+
+  val RetryWithDoubleMemoryKeys = "retryWithDoubleMemory"
 }
 
 case class RuntimeAttributes(attributes: Map[String, WomExpression])

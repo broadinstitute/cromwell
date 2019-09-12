@@ -448,9 +448,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], retryWithDoubleMemory: Boolean) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
-    val retryWithDoubleMemoryAttempt = if (retryWithDoubleMemory) jobKey.memoryDoubleMultiplier * 2 else jobKey.memoryDoubleMultiplier
+    val currentMemoryMultiplier = jobKey.memoryDoubleMultiplier
+    val newMemoryMultiplier = if (retryWithDoubleMemory) currentMemoryMultiplier * 2 else currentMemoryMultiplier
 
-    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryDoubleMultiplier = retryWithDoubleMemoryAttempt)
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryDoubleMultiplier = newMemoryMultiplier)
     workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
 
     // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status

@@ -261,7 +261,7 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
     MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
-    ContinueOnReturnCodeSet(Set(0)), false)
+    ContinueOnReturnCodeSet(Set(0)), false, None)
 
   def assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],
                                                     expectedRuntimeAttributes: PipelinesApiRuntimeAttributes,

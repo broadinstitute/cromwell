@@ -26,7 +26,7 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
 }
 
 final case class RetryWithDoubleMemory(jobTag: String, stderrPath: Option[Path]) extends KnownJobFailureException {
-  override def getMessage = s"stderr for job $jobTag contains one of the `retryOnDoubleMemory` keys."
+  override def getMessage = s"stderr for job $jobTag contains one of the `retry-with-double-memory` keys specified in the task. "
 }
 
 

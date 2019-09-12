@@ -141,16 +141,9 @@ object ActionCommands {
        |fi""".stripMargin
   }
 
-  def checkForRetryWithDoubleMemory: String = {
-    s"""
-       |grep -E -q 'OutOfMemory|Killed' /cromwell_root/stderr
-       |RC_GREP=$$?
-       |if [ "$$RC_GREP" = "1" ]; then
-       |  echo 250 > /cromwell_root/doubleMemoryRetryRC
-       |else
-       |  echo $$RC_GREP > /cromwell_root/doubleMemoryRetryRC
-       |fi
-     """.stripMargin
+  def checkIfStderrContainsRetryKeys(retryLookupKeys: Vector[String]): String = {
+    val lookupKeysAsString = retryLookupKeys.mkString("|")
+    s"grep -E -q '$lookupKeysAsString' /cromwell_root/stderr ; echo $$? > /cromwell_root/double_memory_retry_rc"
   }
 
   def multiLineCommand(commandString: String) = {

@@ -22,7 +22,7 @@ class LobSpec extends FlatSpec with Matchers with ScalaFutures {
 
   DatabaseSystem.All foreach { databaseSystem =>
 
-    behavior of s"CLOBs and BLOBs on ${databaseSystem.shortName}"
+    behavior of s"CLOBs and BLOBs on ${databaseSystem.name}"
 
     lazy val database = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
 
@@ -54,8 +54,8 @@ class LobSpec extends FlatSpec with Matchers with ScalaFutures {
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
 
-      val future = databaseSystem match {
-        case MysqlDatabaseSystem =>
+      val future = databaseSystem.platform match {
+        case MysqlDatabasePlatform =>
           // MySQL crashes because it calls SerialBlob's getBytes instead of getBinaryStream
           database.addWorkflowStoreEntries(workflowStoreEntries).failed map { exception =>
             exception should be(a[SerialException])

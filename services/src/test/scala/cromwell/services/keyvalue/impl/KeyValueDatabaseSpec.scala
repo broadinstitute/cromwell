@@ -21,7 +21,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
 
   DatabaseSystem.All foreach { databaseSystem =>
-    behavior of s"KeyValueDatabase on ${databaseSystem.shortName}"
+    behavior of s"KeyValueDatabase on ${databaseSystem.name}"
 
     lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
     val workflowId = WorkflowId.randomId().toString
@@ -100,26 +100,30 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
         ex.getClass should be(getFailureClass(databaseSystem))
       }).flatMap(_ => verifyValues).futureValue
     }
+
+    it should "close the database" taggedAs DbmsTest in {
+      dataAccess.close()
+    }
   }
 }
 
 object KeyValueDatabaseSpec {
   private def getFailureRegex(databaseSystem: DatabaseSystem): String = {
-    databaseSystem match {
-      case HsqldbDatabaseSystem =>
+    databaseSystem.platform match {
+      case HsqldbDatabasePlatform =>
         "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
-      case MariadbDatabaseSystem => """\(conn=\d+\) Column 'STORE_VALUE' cannot be null"""
-      case MysqlDatabaseSystem => "Column 'STORE_VALUE' cannot be null"
-      case PostgresqlDatabaseSystem => """ERROR: null value in column "STORE_VALUE" violates not-null constraint"""
+      case MariadbDatabasePlatform => """\(conn=\d+\) Column 'STORE_VALUE' cannot be null"""
+      case MysqlDatabasePlatform => "Column 'STORE_VALUE' cannot be null"
+      case PostgresqlDatabasePlatform => """ERROR: null value in column "STORE_VALUE" violates not-null constraint"""
     }
   }
 
   private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
-    databaseSystem match {
-      case HsqldbDatabaseSystem => classOf[SQLIntegrityConstraintViolationException]
-      case MariadbDatabaseSystem => classOf[BatchUpdateException]
-      case MysqlDatabaseSystem => classOf[BatchUpdateException]
-      case PostgresqlDatabaseSystem => classOf[PSQLException]
+    databaseSystem.platform match {
+      case HsqldbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
+      case MariadbDatabasePlatform => classOf[BatchUpdateException]
+      case MysqlDatabasePlatform => classOf[BatchUpdateException]
+      case PostgresqlDatabasePlatform => classOf[PSQLException]
     }
   }
 }

@@ -178,7 +178,6 @@ object Settings {
     }
   }
 
-
   // Adds settings to build the root project
   implicit class ProjectRootSettings(val project: Project) extends AnyVal {
     def withRootSettings(): Project = {
@@ -194,6 +193,14 @@ object Settings {
       )
 
       buildProject(project, "root", Nil, builders)
+    }
+
+    /**
+      * After aggregations have been added to the root project, we can do additional tasks like checking if every
+      * sub-project in build.sbt will also be tested by the root-aggregated `sbt test` command.
+      */
+    def withAggregateSettings(): Project = {
+      project.settings(aggregateSettings(project))
     }
   }
 

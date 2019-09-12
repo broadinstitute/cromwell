@@ -374,7 +374,7 @@ trait BetterFileMethods {
   final def posixAttributes(implicit linkOptions: LinkOptions = LinkOptions.default): PosixFileAttributes =
     betterFile.posixAttributes(linkOptions)
 
-  final def drsAttributes(implicit linkOptions: LinkOptions = LinkOptions.default): DosFileAttributes =
+  final def dosAttributes(implicit linkOptions: LinkOptions = LinkOptions.default): DosFileAttributes =
     betterFile.dosAttributes(linkOptions)
 
   final def owner(implicit linkOptions: LinkOptions = LinkOptions.default): UserPrincipal =

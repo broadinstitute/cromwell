@@ -192,6 +192,8 @@ localize_files() {
         attempt=$((attempt + 1))
       fi
     done
+    if [[ ${attempt} -gt ${max_attempts} ]]; then exit 1; fi
+    rm -f files_to_localize.txt
   fi
 }
 

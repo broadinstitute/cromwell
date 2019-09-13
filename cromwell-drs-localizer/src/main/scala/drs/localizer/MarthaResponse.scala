@@ -6,21 +6,21 @@ import io.circe.generic.semiauto.deriveDecoder
 
 object MarthaResponseJsonSupport {
   implicit val urlFormat: Decoder[Url] = deriveDecoder
-  implicit val dataObject: Decoder[DosDataObject] = deriveDecoder
-  implicit val dosObjectFormat: Decoder[DosObject] = deriveDecoder
+  implicit val dataObject: Decoder[DrsDataObject] = deriveDecoder
+  implicit val drsObjectFormat: Decoder[DrsObject] = deriveDecoder
   implicit val googleServiceAccountFormat: Decoder[GoogleServiceAccount] = deriveDecoder
   implicit val marthaResponseFormat: Decoder[MarthaResponse] = deriveDecoder
 
   implicit val samErrorResponseFormat: Decoder[SamErrorResponse] = deriveDecoder
   implicit val samErrorResponseCodeFormat: Decoder[SamErrorResponseCode] = deriveDecoder
-  implicit val marthaErrorResponseFormat: Decoder[MarthaErrorResponse] = deriveDecoder
+  implicit val marthaErrorResponseFormat: Decoder[MarthaErrorResponse] = dDecoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
 }
 
 case class Url(url: String)
-case class DosDataObject(urls: Array[Url])
-case class DosObject(data_object: DosDataObject)
+case class DrsDataObject(urls: Array[Url])
+case class DrsObject(data_object: DrsDataObject)
 case class GoogleServiceAccount(data: Json)
-case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[GoogleServiceAccount])
+case class MarthaResponse(drs: DrsObject, googleServiceAccount: Option[GoogleServiceAccount])
 
 
 case class SamErrorResponse(text: String)

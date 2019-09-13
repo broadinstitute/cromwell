@@ -543,10 +543,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                                      data: WorkflowExecutionActorData,
                                                      expressionNode: TaskCallInputExpressionNode): ErrorOr[WorkflowExecutionDiff] = {
     import cats.syntax.either._
-    val taskCallNode = expressionNode.taskCallNodeReceivingInput.get(())
+    val taskCallNode: CommandCallNode = expressionNode.taskCallNodeReceivingInput.get(())
 
     (for {
-      backendJobDescriptorKey <- data.executionStore.backendJobDescriptorKeyForNode(taskCallNode) toChecked s"No BackendJobDescriptorKey found for call node $taskCallNode"
+      backendJobDescriptorKey <- data.executionStore.backendJobDescriptorKeyForNode(taskCallNode) toChecked s"No BackendJobDescriptorKey found for call node ${taskCallNode.identifier.fullyQualifiedName}"
       factory <- backendFactoryForTaskCallNode(taskCallNode)
       backendInitializationData = params.initializationData.get(factory.name)
       functions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, backendJobDescriptorKey, backendInitializationData, params.ioActor, ioEc)

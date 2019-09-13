@@ -94,11 +94,11 @@ object Validation {
   }
 
   implicit class OptionValidation[A](val o: Option[A]) extends AnyVal {
-    def toErrorOr(errorMessage: String): ErrorOr[A] = {
+    def toErrorOr(errorMessage: => String): ErrorOr[A] = {
       Validated.fromOption(o, NonEmptyList.of(errorMessage))
     }
 
-    def toChecked(errorMessage: String): Checked[A] = {
+    def toChecked(errorMessage: => String): Checked[A] = {
       Either.fromOption(o, NonEmptyList.of(errorMessage))
     }
   }

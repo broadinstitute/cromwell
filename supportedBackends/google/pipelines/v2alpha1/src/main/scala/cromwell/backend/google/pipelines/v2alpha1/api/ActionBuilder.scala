@@ -121,7 +121,7 @@ object ActionBuilder {
       .setCredentials(secret.orNull)
   }
 
-  def checkForMemoryRetryAction(retryLookupKeys: Vector[String], mounts: List[Mount]): Action = {
+  def checkForMemoryRetryAction(retryLookupKeys: List[String], mounts: List[Mount]): Action = {
     cloudSdkAction
       .withCommand("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))
       .withFlags(List(ActionFlag.AlwaysRun))

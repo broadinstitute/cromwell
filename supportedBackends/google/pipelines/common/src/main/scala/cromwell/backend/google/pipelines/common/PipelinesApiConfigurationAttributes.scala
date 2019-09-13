@@ -91,7 +91,8 @@ object PipelinesApiConfigurationAttributes {
     "virtual-private-cloud",
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
-    "virtual-private-cloud.auth"
+    "virtual-private-cloud.auth",
+    "retry-with-double-memory"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(

@@ -85,6 +85,9 @@ trait StandardAsyncExecutionActor
   val SIGINT = 130
   val SIGKILL = 137
 
+  //TODO: Saloni- explain!
+  val StderrContainsRetryKeysCode = 0
+
   /** The type of the run info when a job is started. */
   type StandardAsyncRunInfo
 
@@ -1078,17 +1081,32 @@ trait StandardAsyncExecutionActor
   def handleExecutionResult(status: StandardAsyncRunState,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
-    def retryWithDoubleMemory(codeAsString: String): Boolean = {
-      Try(codeAsString.trim.toInt) match {
-        case Success(code) => code match { //TODO: Saloni- make these constants
-          case 0 => true
-          case _ => false
-        }
-        case Failure(e) => {
-          log.error(s"Something went wrong while trying to convert return code in `double_memory_retry_rc file` to Int. Error: ${ExceptionUtils.getMessage(e)}")
-          false
+    def doubleMemoryRetryRC: Future[Boolean] = {
+
+      def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean = {
+        codeAsOption match {
+          case Some(codeAsString) => {
+            Try(codeAsString.trim.toInt) match {
+              case Success(code) => code match {
+                case StderrContainsRetryKeysCode => true
+                case _ => false
+              }
+              case Failure(e) => {
+                log.error(s"'CheckingForRetryWithDoubleMemory' action exited with code '$codeAsString' which couldn't be " +
+                  s"converted to an Integer. Task will not be retried with double memory. Error: ${ExceptionUtils.getMessage(e)}")
+                false
+              }
+            }
+          }
+          case None => false
         }
       }
+
+      for {
+        fileExists <- asyncIo.existsAsync(jobPaths.doubleMemoryRetryRC)
+        retryCheckRCAsOption <- if (fileExists) asyncIo.contentAsStringAsync(jobPaths.doubleMemoryRetryRC, None, failOnOverflow = false).map(Option(_)) else Future.successful(None)
+        retry = returnCodeAsBoolean(retryCheckRCAsOption)
+      } yield retry
     }
 
     val stderr = jobPaths.standardPaths.error
@@ -1096,16 +1114,15 @@ trait StandardAsyncExecutionActor
 
     val stderrSizeAndReturnCodeAndRetry = for {
       returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
-      doubleMemoryRetryCheckRCAsString <- asyncIo.contentAsStringAsync(jobPaths.doubleMemoryRetryRC, None, failOnOverflow = false)
-      // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
+       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
-    } yield (stderrSize, returnCodeAsString, doubleMemoryRetryCheckRCAsString)
+      retryWithDoubleMemory <- doubleMemoryRetryRC
+    } yield (stderrSize, returnCodeAsString, retryWithDoubleMemory)
 
     stderrSizeAndReturnCodeAndRetry flatMap {
-      case (stderrSize, returnCodeAsString, doubleMemoryRetryCheckRCAsString) =>
+      case (stderrSize, returnCodeAsString, retryWithDoubleMemory) =>
         val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
-        val retryWithMoreMemory = retryWithDoubleMemory(doubleMemoryRetryCheckRCAsString)
 
         if (isDone(status)) {
           tryReturnCodeAsInt match {
@@ -1117,9 +1134,9 @@ trait StandardAsyncExecutionActor
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
-            case Success(returnCodeAsInt) if retryWithMoreMemory  =>
+            case Success(returnCodeAsInt) if retryWithDoubleMemory  =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithDoubleMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle, retryWithMoreMemory)
+              retryElseFail(status, executionHandle, retryWithDoubleMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>

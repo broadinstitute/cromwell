@@ -141,7 +141,9 @@ object ActionCommands {
        |fi""".stripMargin
   }
 
-  def checkIfStderrContainsRetryKeys(retryLookupKeys: Vector[String]): String = {
+  def checkIfStderrContainsRetryKeys(retryLookupKeys: List[String]): String = {
+//    s"echo 'who_are_you' > /cromwell_root/double_memory_retry_rc"
+
     val lookupKeysAsString = retryLookupKeys.mkString("|")
     s"grep -E -q '$lookupKeysAsString' /cromwell_root/stderr ; echo $$? > /cromwell_root/double_memory_retry_rc"
   }

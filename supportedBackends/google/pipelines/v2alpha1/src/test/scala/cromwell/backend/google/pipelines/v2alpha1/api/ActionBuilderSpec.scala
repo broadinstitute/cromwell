@@ -51,4 +51,21 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
     }
   }
 
+//  val mounts = List(new Mount().setDisk("read-only-disk").setPath("/read/only/container")).asJava
+//  val singleRetryKey = List("OutOfMemory")
+//  val retryWithDoubleMemoryActions = Table(
+//    ("description", "action", "command"),
+//    ("with one key in the config",
+//      singleRetryKey,
+//    new Action()
+//      .setImageUri("google/cloud-sdk:251.0.0-slim")
+//      .setCommands(List("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(singleRetryKey)).asJava)
+//      .setFlags(List(ActionFlag.AlwaysRun).map(_.toString).asJava)
+//      .setLabels(Map(Key.Tag -> Value.RetryWithDoubleMemory).asJava)
+//      .setMounts(mounts))
+//  )
+//
+//  forAll(retryWithDoubleMemoryActions) {
+//
+//  }
 }

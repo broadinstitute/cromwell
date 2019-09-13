@@ -48,8 +48,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                dockerImage: String,
                                                failOnStderr: Boolean,
                                                continueOnReturnCode: ContinueOnReturnCode,
-                                               noAddress: Boolean,
-                                               retryWithDoubleMemory: Option[Vector[String]])
+                                               noAddress: Boolean)
 
 object PipelinesApiRuntimeAttributes {
 
@@ -124,10 +123,6 @@ object PipelinesApiRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
-  private def retryWithDoubleMemoryValidation: OptionalRuntimeAttributesValidation[Vector[String]] = {
-    RetryWithDoubleMemoryKeysValidation.optional(RuntimeAttributesKeys.RetryWithDoubleMemoryKeys)
-  }
-
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
@@ -162,8 +157,7 @@ object PipelinesApiRuntimeAttributes {
       dockerValidation,
       outDirMinValidation,
       tmpDirMinValidation,
-      inputDirMinValidation,
-      retryWithDoubleMemoryValidation
+      inputDirMinValidation
     )
   }
 
@@ -201,8 +195,6 @@ object PipelinesApiRuntimeAttributes {
 
     val adjustedDisks = disks.adjustWorkingDiskWithNewMin(totalExecutionDiskSize, ())
 
-    val retryWithDoubleMemory: Option[Vector[String]] = RuntimeAttributesValidation.extractOption(retryWithDoubleMemoryValidation.key, validatedRuntimeAttributes)
-
     new PipelinesApiRuntimeAttributes(
       cpu,
       cpuPlatform,
@@ -215,8 +207,7 @@ object PipelinesApiRuntimeAttributes {
       docker,
       failOnStderr,
       continueOnReturnCode,
-      noAddress,
-      retryWithDoubleMemory
+      noAddress
     )
   }
 }

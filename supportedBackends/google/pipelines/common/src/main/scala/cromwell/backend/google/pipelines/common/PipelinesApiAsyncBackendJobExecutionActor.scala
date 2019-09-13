@@ -447,7 +447,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
-          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration
+          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
+          retryWithDoubleMemoryKeys = retryWithDoubleMemoryKeys
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -500,7 +501,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         doubleMemoryRetryRCGcsPath,
         DefaultPathBuilder.get(doubleMemoryRetryRCFilename),
         workingDisk,
-        optional = false,
+        optional = true,
         secondary = false,
         contentType = plainTextContentType
       )

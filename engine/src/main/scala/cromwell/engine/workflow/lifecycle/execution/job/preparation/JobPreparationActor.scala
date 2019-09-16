@@ -171,7 +171,6 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
     }
 
-
     jobKey.memoryDoubleMultiplier match {
       case 1 => runtimeAttributes
       case multiplier: Int => doubleRuntimeMemory(multiplier)

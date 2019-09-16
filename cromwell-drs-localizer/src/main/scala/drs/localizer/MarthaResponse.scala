@@ -9,11 +9,11 @@ object MarthaResponseJsonSupport {
   implicit val dataObject: Decoder[DrsDataObject] = deriveDecoder
   implicit val drsObjectFormat: Decoder[DrsObject] = deriveDecoder
   implicit val googleServiceAccountFormat: Decoder[GoogleServiceAccount] = deriveDecoder
-  implicit val marthaResponseFormat: Decoder[MarthaResponse] = deriveDecoder
+  implicit val marthaResponseFormat: Decoder[MarthaResponse] = Decoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
 
   implicit val samErrorResponseFormat: Decoder[SamErrorResponse] = deriveDecoder
   implicit val samErrorResponseCodeFormat: Decoder[SamErrorResponseCode] = deriveDecoder
-  implicit val marthaErrorResponseFormat: Decoder[MarthaErrorResponse] = dDecoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
+  implicit val marthaErrorResponseFormat: Decoder[MarthaErrorResponse] = deriveDecoder
 }
 
 case class Url(url: String)

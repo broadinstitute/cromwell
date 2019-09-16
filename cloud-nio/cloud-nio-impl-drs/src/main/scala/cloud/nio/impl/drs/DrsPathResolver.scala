@@ -22,7 +22,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
   implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
   implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = Decoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
 
   private val DrsPathToken = "${drsPath}"
 
@@ -87,4 +87,4 @@ case class DrsObject(data_object: DrsDataObject)
 
 case class SADataObject(data: Json)
 
-case class MarthaResponse(dos: DrsObject, googleServiceAccount: Option[SADataObject])
+case class MarthaResponse(drs: DrsObject, googleServiceAccount: Option[SADataObject])

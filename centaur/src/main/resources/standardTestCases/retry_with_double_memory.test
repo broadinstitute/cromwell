@@ -1,0 +1,19 @@
+name: retry_with_double_memory
+testFormat: workflowfailure
+backends: [Papiv2-Retry-With-Double-Memory]
+
+files {
+  workflow: retry_with_double_memory/retry_with_double_memory.wdl
+}
+
+metadata {
+  workflowName: retry_with_double_memory
+  status: Failed
+  "failures.0.message": "stderr for job retry_with_double_memory.imitate_oom_error:NA:2 contained one of the `retry-with-double-memory` keys specified in the config. Job might have run out of memory."
+  "calls.retry_with_double_memory.imitate_oom_error.0.attempt": 1
+  "calls.retry_with_double_memory.imitate_oom_error.0.executionStatus": "RetryableFailure"
+  "calls.retry_with_double_memory.imitate_oom_error.0.runtimeAttributes.memory": "1 GB" "executionStatus": "RetryableFailure",
+  "calls.retry_with_double_memory.imitate_oom_error.1.attempt": 2
+  "calls.retry_with_double_memory.imitate_oom_error.0.executionStatus": "Failed"
+  "calls.retry_with_double_memory.imitate_oom_error.1.runtimeAttributes.memory": "2 GB"
+}

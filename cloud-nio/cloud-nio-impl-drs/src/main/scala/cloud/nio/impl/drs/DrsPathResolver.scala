@@ -19,10 +19,14 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
   implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
-  implicit lazy val dataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
-  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
+  implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
+  implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  // Martha is still returning objects keyed by the obsolete "dos" terminology rather than the current term "drs".
+  // In order to avoid having Cromwell's case classes use the obsolete terminology that would arise from a derived
+  // decoder, this `forProduct2` construct instructs Circe to take the value keyed by `dos` and pass that as the
+  // first argument to `MarthaResponse.apply`, which happens to be the constructor parameter formally named `drs`.
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = Decoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
 
   private val DrsPathToken = "${drsPath}"
 
@@ -48,7 +52,7 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
       e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
     }
   }
-  
+
   private def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
@@ -78,13 +82,13 @@ case class Url(url: String)
 
 case class ChecksumObject(checksum: String, `type`: String)
 
-case class DosDataObject(size: Option[Long],
+case class DrsDataObject(size: Option[Long],
                          checksums: Option[Array[ChecksumObject]],
                          updated: Option[String],
                          urls: Array[Url])
 
-case class DosObject(data_object: DosDataObject)
+case class DrsObject(data_object: DrsDataObject)
 
 case class SADataObject(data: Json)
 
-case class MarthaResponse(dos: DosObject, googleServiceAccount: Option[SADataObject])
+case class MarthaResponse(drs: DrsObject, googleServiceAccount: Option[SADataObject])

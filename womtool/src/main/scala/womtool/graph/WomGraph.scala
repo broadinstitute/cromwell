@@ -31,7 +31,7 @@ import scala.collection.JavaConverters._
 
 class WomGraph(graphName: String, graph: Graph) {
 
-  def indent(s: String) = s.lines.map(x => s"  $x").mkString(System.lineSeparator)
+  def indent(s: String) = s.linesIterator.map(x => s"  $x").mkString(System.lineSeparator)
   def combine(ss: Iterable[String]) = ss.mkString(start="", sep=System.lineSeparator, end=System.lineSeparator)
   def indentAndCombine(ss: Iterable[String]) = combine(ss.map(indent))
   implicit val monoid = cats.derived.MkMonoid[NodesAndLinks]

@@ -3,7 +3,7 @@ version 1.0
 workflow gpu_cuda_image {
 
     input {
-      Array[String] driver_versions = [ "390.46" ]
+      Array[String] driver_versions = [ "418.87.00" ]
     }
 
     scatter (driver_version in driver_versions) {

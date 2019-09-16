@@ -18,7 +18,7 @@ object CwltoolRunner {
 
   lazy val instance: CwltoolRunner = {
     val runnerClass = config.getString("cwltool-runner.class")
-    Class.forName(runnerClass).newInstance().asInstanceOf[CwltoolRunner]
+    Class.forName(runnerClass).getDeclaredConstructor().newInstance().asInstanceOf[CwltoolRunner]
   }
 }
 

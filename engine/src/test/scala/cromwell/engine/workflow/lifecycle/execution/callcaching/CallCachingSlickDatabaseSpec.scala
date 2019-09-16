@@ -30,7 +30,7 @@ class CallCachingSlickDatabaseSpec
   )
 
   DatabaseSystem.All foreach { databaseSystem =>
-    behavior of s"CallCachingSlickDatabase on ${databaseSystem.shortName}"
+    behavior of s"CallCachingSlickDatabase on ${databaseSystem.name}"
 
     lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
 
@@ -124,6 +124,10 @@ class CallCachingSlickDatabaseSpec
         } yield ()).futureValue
       }
 
+    }
+
+    it should "close the database" taggedAs DbmsTest in {
+      dataAccess.close()
     }
   }
 }

@@ -61,7 +61,7 @@ object DrsLocalizerMain extends IOApp {
       marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
       _ = httpBackendConnection.close()
       // Currently Martha only supports resolving DRS paths to GCS paths
-      gcsUrl <- extractFirstGcsUrl(marthaResponse.dos.data_object.urls)
+      gcsUrl <- extractFirstGcsUrl(marthaResponse.drs.data_object.urls)
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
     } yield exitState
 

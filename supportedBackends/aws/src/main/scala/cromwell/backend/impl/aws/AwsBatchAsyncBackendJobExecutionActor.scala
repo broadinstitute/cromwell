@@ -49,6 +49,7 @@ import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
@@ -79,7 +80,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AwsBatchJobCachingActorHelper
     with KvClient with AskSupport {
 
-  override lazy val ioCommandBuilder = S3BatchCommandBuilder
+  override lazy val ioCommandBuilder = configuration.fileSystem match  {
+    case AWSBatchStorageSystems.s3 => S3BatchCommandBuilder
+    case _ =>  DefaultIoCommandBuilder
+  }
 
   val backendSingletonActor: ActorRef =
     standardParams.backendSingletonActorOption.getOrElse(
@@ -104,8 +108,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
-  private lazy val jobScriptMountPath =
-    AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
+  private lazy val jobScriptMountPath =  configuration.fileSystem match  {
+    case AWSBatchStorageSystems.s3 =>  AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
+    case _ =>  jobPaths.script.pathWithoutScheme
+  }
+
 
   private lazy val execScript =
     s"""|#!$jobShell
@@ -195,7 +202,12 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(path) => path.pathWithoutScheme
+        case Success(path) => {
+          configuration.fileSystem match  {
+            case AWSBatchStorageSystems.s3 => path.pathWithoutScheme
+            case _ =>  path.toString
+          }
+        }
         case _ => value
       }
     )
@@ -247,8 +259,15 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     * @throws Exception if the `path` does not live in one of the supplied `disks`
     */
   private def relativePathAndVolume(path: String, disks: Seq[AwsBatchVolume]): (Path, AwsBatchVolume) = {
+
+    def getAbsolutePath(path: Path) = {
+      configuration.fileSystem match {
+        case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint.resolve(path)
+        case _ => DefaultPathBuilder.get(configuration.root).resolve(path)
+      }
+  }
     val absolutePath = DefaultPathBuilder.get(path) match {
-      case p if !p.isAbsolute => AwsBatchWorkingDisk.MountPoint.resolve(p)
+      case p if !p.isAbsolute => getAbsolutePath(p)
       case p => p
     }
 
@@ -339,14 +358,21 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
-  override lazy val commandDirectory: Path = AwsBatchWorkingDisk.MountPoint
-
-  override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
-    val (_, disk) = relativePathAndVolume(womGlobFile.value, runtimeAttributes.disks)
-    disk.mountPoint
+  override lazy val commandDirectory: Path = configuration.fileSystem match  {
+    case AWSBatchStorageSystems.s3 => AwsBatchWorkingDisk.MountPoint
+    case _ =>  jobPaths.callExecutionRoot
   }
 
-  override def isTerminal(runStatus: RunStatus): Boolean = {
+  override def globParentDirectory(womGlobFile: WomGlobFile): Path =
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 => {
+        val (_, disk) = relativePathAndVolume(womGlobFile.value, runtimeAttributes.disks)
+        disk.mountPoint
+      }
+      case _ => commandDirectory
+    }
+
+      override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
       case _ => false

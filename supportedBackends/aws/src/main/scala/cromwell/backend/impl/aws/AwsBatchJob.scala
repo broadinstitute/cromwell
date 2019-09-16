@@ -180,9 +180,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                      implicit async: Async[F],
                                      timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
+    val commandStr = awsBatchAttributes.fileSystem match {
+      case AWSBatchStorageSystems.s3  => reconfiguredScript
+      case _ => script
+    }
     val jobDefinitionContext = AwsBatchJobDefinitionContext(runtimeAttributes,
                                                             taskId,
-                                                            reconfiguredScript,
+                                                            commandStr,
                                                             dockerRc,
                                                             dockerStdout,
                                                             dockerStderr,

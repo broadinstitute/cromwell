@@ -24,7 +24,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
 
   DatabaseSystem.All foreach { databaseSystem =>
 
-    behavior of s"SqlWorkflowStore on ${databaseSystem.shortName}"
+    behavior of s"SqlWorkflowStore on ${databaseSystem.name}"
 
     it should "honor the onHold flag" taggedAs DbmsTest in {
       runWithDatabase(databaseSystem) { workflowStore =>

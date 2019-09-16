@@ -2,6 +2,10 @@ import Dependencies._
 import sbt.Defaults._
 import sbt.Keys._
 import sbt._
+import complete.DefaultParsers._
+import sbt.util.Logger
+
+import scala.sys.process._
 
 object Testing {
   private val AllTests = config("alltests") extend Test
@@ -21,6 +25,15 @@ object Testing {
     DbmsTestTag
   )
 
+  val minnieKenny = inputKey[Unit]("Run minnie-kenny.")
+
+  private val includeTestTags: Seq[String] =
+    sys.env
+      .get("CROMWELL_SBT_TEST_INCLUDE_TAGS")
+      .filter(_.nonEmpty)
+      .map(_.split(",").toList.map(_.trim))
+      .getOrElse(Nil)
+
   private val excludeTestTags: Seq[String] =
     sys.env
       .get("CROMWELL_SBT_TEST_EXCLUDE_TAGS")
@@ -34,22 +47,70 @@ object Testing {
   The arguments that will be added to the default test config, but removed from all other configs.
   `sbt coverage test` adds other arguments added to generate the coverage reports.
   Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
- */
+   */
+  private val includeTestArgs = includeTestTags.map(Tests.Argument(TestFrameworks.ScalaTest, "-n", _))
   private val excludeTestArgs = excludeTestTags.map(Tests.Argument(TestFrameworks.ScalaTest, "-l", _))
+  private val filterTestArgs = if (includeTestArgs.nonEmpty) includeTestArgs else excludeTestArgs
 
   private val TestReportArgs =
-    Tests.Argument(TestFrameworks.ScalaTest, "-oDSI", "-h", "target/test-reports", "-u", "target/test-reports", "-F", spanScaleFactor)
+    Tests.Argument(
+      TestFrameworks.ScalaTest,
+      "-oDSI",
+      "-h",
+      "target/test-reports",
+      "-u",
+      "target/test-reports",
+      "-F",
+      spanScaleFactor,
+      "-W",
+      "300",
+      "300",
+    )
+
+  /** Run minnie-kenny only once per sbt invocation. */
+  class MinnieKennySingleRunner() {
+    private val mutex = new Object
+    private var resultOption: Option[Int] = None
+
+    /** Run using the logger, throwing an exception only on the first failure. */
+    def runOnce(log: Logger, args: Seq[String]): Unit = {
+      mutex synchronized {
+        if (resultOption.isEmpty) {
+          log.debug(s"Running minnie-kenny.sh${args.mkString(" ", " ", "")}")
+          val result = ("./minnie-kenny.sh" +: args) ! log
+          resultOption = Option(result)
+          if (result == 0)
+            log.debug("Successfully ran minnie-kenny.sh")
+          else
+            sys.error("Running minnie-kenny.sh failed. Please double check for errors above.")
+        }
+      }
+    }
+  }
+
+  // Only run one minnie-kenny.sh at a time!
+  private lazy val minnieKennySingleRunner = new MinnieKennySingleRunner
 
   val testSettings = List(
     libraryDependencies ++= testDependencies.map(_ % Test),
-    // `test` (or `assembly`) - Run all tests, except docker and integration and DBMS
-    testOptions in Test ++= Seq(TestReportArgs) ++ excludeTestArgs,
+    // `test` (or `assembly`) - Run most tests
+    testOptions in Test ++= Seq(TestReportArgs) ++ filterTestArgs,
     // `alltests:test` - Run all tests
-    testOptions in AllTests := (testOptions in Test).value.diff(excludeTestArgs),
+    testOptions in AllTests := (testOptions in Test).value.diff(filterTestArgs),
     // Add scalameter as a test framework in the CromwellBenchmarkTest scope
     testFrameworks in CromwellBenchmarkTest += new TestFramework("org.scalameter.ScalaMeterFramework"),
     // Don't execute benchmarks in parallel
-    parallelExecution in CromwellBenchmarkTest := false
+    parallelExecution in CromwellBenchmarkTest := false,
+    // Make sure no secrets are commited to git
+    minnieKenny := {
+      val log = streams.value.log
+      val args = spaceDelimited("<arg>").parsed
+      minnieKennySingleRunner.runOnce(log, args)
+    },
+    test in Test := {
+      minnieKenny.toTask("").value
+      (test in Test).value
+    },
   )
 
   val integrationTestSettings = List(

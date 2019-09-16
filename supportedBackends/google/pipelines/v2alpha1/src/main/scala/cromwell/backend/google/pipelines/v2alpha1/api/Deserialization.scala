@@ -106,7 +106,7 @@ private [api] object Deserialization {
     */
   private [api] def deserializeTo[T <: GenericJson](attributes: JMap[String, Object])(implicit tag: ClassTag[T]): Try[T] = Try {
     // Create a new instance, because it's a GenericJson there's always a 0-arg constructor
-    val newT = tag.runtimeClass.asInstanceOf[Class[T]].newInstance()
+    val newT = tag.runtimeClass.asInstanceOf[Class[T]].getConstructor().newInstance()
 
     // Optionally returns the field with the given name
     def field(name: String) = Option(newT.getClassInfo.getField(name))

@@ -13,6 +13,7 @@ tags
 .idea/inspectionProfiles/*
 !/.idea/inspectionProfiles/Project_Default.xml
 target
+/site
 
 # custom config
 cromwell-executions

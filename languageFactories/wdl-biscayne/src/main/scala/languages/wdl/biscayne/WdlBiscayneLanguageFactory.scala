@@ -1,15 +1,20 @@
 package languages.wdl.biscayne
 
+import java.util.concurrent.Callable
+
+import cats.syntax.either._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
 import cats.instances.either._
 import com.typesafe.config.Config
 import common.Checked
 import common.transforms.CheckedAtoB
+import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked.IOChecked
 import cromwell.core._
 import cromwell.languages.util.ImportResolver._
-import cromwell.languages.util.LanguageFactoryUtil
+import cromwell.languages.util.{LanguageFactoryUtil, ParserCache}
+import cromwell.languages.util.ParserCache.ParserCacheInputs
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import wdl.transforms.base.wdlom2wom.WomBundleToWomExecutable._
 import wdl.transforms.base.wdlom2wom._
@@ -22,7 +27,7 @@ import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 import wom.transforms.WomExecutableMaker.ops._
 
-class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFactory {
+class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFactory with ParserCache[WomBundle] {
 
   override val languageName: String = "WDL"
   override val languageVersionName: String = "Biscayne"
@@ -53,10 +58,21 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
                             importResolvers: List[ImportResolver],
                             languageFactories: List[LanguageFactory],
                             convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
-    val checkEnabled: CheckedAtoB[FileStringParserInput, FileStringParserInput] = CheckedAtoB.fromCheck(x => enabledCheck map(_ => x))
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = checkEnabled andThen stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
-    converter.run(FileStringParserInput(workflowSource, "input.wdl"))
-      .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin))
+
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
+
+    lazy val validationCallable = new Callable[ErrorOr[WomBundle]] {
+      def call: ErrorOr[WomBundle] = converter
+        .run(FileStringParserInput(workflowSource, workflowSourceOrigin.map(_.importPath).getOrElse("input.wdl")))
+        .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin)).toValidated
+    }
+
+    lazy val parserCacheInputs = ParserCacheInputs(Option(workflowSource), workflowSourceOrigin.map(_.importPath), None, importResolvers)
+
+    for {
+      _ <- enabledCheck
+      womBundle <- retrieveOrCalculate(parserCacheInputs, validationCallable).toEither
+    } yield womBundle
   }
 
   override def createExecutable(womBundle: WomBundle, inputsJson: WorkflowJson, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {

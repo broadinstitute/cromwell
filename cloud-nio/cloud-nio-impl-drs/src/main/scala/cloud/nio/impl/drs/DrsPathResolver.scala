@@ -22,6 +22,10 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
   implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
   implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
+  // Martha is still returning objects keyed by the obsolete "dos" terminology rather than the current term "drs".
+  // In order to avoid having Cromwell's case classes use the obsolete terminology that would arise from a derived
+  // decoder, this `forProduct2` construct instructs Circe to take the value keyed by `dos` and pass that as the
+  // first argument to `MarthaResponse.apply`, which happens to be the constructor parameter formally named `drs`.
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = Decoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
 
   private val DrsPathToken = "${drsPath}"

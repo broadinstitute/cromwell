@@ -7,7 +7,7 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
-import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, LocalizationConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths

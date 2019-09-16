@@ -226,16 +226,13 @@ workflows using the Google backend.
 
 With `retry-with-double-memory` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with double memory. 
 This retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. For example,
-
 ```hocon
 backend.providers.Papiv2.config {
   retry-with-double-memory = ["OutOfMemoryError", "Killed"]
 }
 ```  
-
 this tells Cromwell to retry the task with double memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
 runtime attributes as below 
-
 ```hocon
 runtimeAtrributes {
   memory: "1 GB"

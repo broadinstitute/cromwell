@@ -85,7 +85,10 @@ trait StandardAsyncExecutionActor
   val SIGINT = 130
   val SIGKILL = 137
 
-  //TODO: Saloni- explain!
+  /*
+    `CheckingForRetryWithDoubleMemory` action in Papiv2 exits with code 0 if the stderr file contains keys
+    mentioned in `retry-with-double-memory` config.
+   */
   val StderrContainsRetryKeysCode = 0
 
   /** The type of the run info when a job is started. */
@@ -1082,19 +1085,17 @@ trait StandardAsyncExecutionActor
     def doubleMemoryRetryRC: Future[Boolean] = {
       def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean = {
         codeAsOption match {
-          case Some(codeAsString) => {
+          case Some(codeAsString) =>
             Try(codeAsString.trim.toInt) match {
               case Success(code) => code match {
                 case StderrContainsRetryKeysCode => true
                 case _ => false
               }
-              case Failure(e) => {
+              case Failure(e) =>
                 log.error(s"'CheckingForRetryWithDoubleMemory' action exited with code '$codeAsString' which couldn't be " +
                   s"converted to an Integer. Task will not be retried with double memory. Error: ${ExceptionUtils.getMessage(e)}")
                 false
-              }
             }
-          }
           case None => false
         }
       }
@@ -1105,7 +1106,6 @@ trait StandardAsyncExecutionActor
         else
           Future.successful(None)
       }
-
 
       for {
         fileExists <- asyncIo.existsAsync(jobPaths.doubleMemoryRetryRC)
@@ -1119,7 +1119,7 @@ trait StandardAsyncExecutionActor
 
     val stderrSizeAndReturnCodeAndMemoryRetry = for {
       returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
-       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
+      // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
       retryWithDoubleMemory <- doubleMemoryRetryRC

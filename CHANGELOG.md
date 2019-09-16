@@ -2,7 +2,7 @@
 
 ## 47 Release Notes
 
-### Retry with double memory 
+### Retry with double memory [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
 
 Cromwell now allows user defined retries. With `retry-with-double-memory` you can specify an array of strings which when encountered in the `stderr` 
 file by Cromwell, allows the task to be retried with double memory. More information [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).

@@ -29,6 +29,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     pipelinesApiAttributes.maxPollingInterval should be(600)
     pipelinesApiAttributes.computeServiceAccount should be("default")
     pipelinesApiAttributes.restrictMetadataAccess should be(false)
+    pipelinesApiAttributes.retryWithDoubleMemoryKeys should be(None)
   }
 
   it should "parse correct preemptible config" in {
@@ -144,6 +145,14 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
     pipelinesApiAttributes.virtualPrivateCloudConfiguration should be(None)
+  }
+
+  it should "parse retry-with-double-memory" in {
+    val customConfig = """retry-with-double-memory = ["OutOfMemory", "Killed", "Exit123"]"""
+    val backendConfig = ConfigFactory.parseString(configString(customConfig))
+
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
+    pipelinesApiAttributes.retryWithDoubleMemoryKeys shouldBe Option(List("OutOfMemory", "Killed", "Exit123"))
   }
 
   it should "not parse invalid config" in {

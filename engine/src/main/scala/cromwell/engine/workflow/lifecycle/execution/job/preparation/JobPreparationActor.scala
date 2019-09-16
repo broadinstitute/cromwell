@@ -158,14 +158,13 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-
     def doubleRuntimeMemory(multiplier: Int): Map[LocallyQualifiedName, WomValue] = {
       runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
         case Some(WomString(memory)) => {
           MemorySize.parse(memory) match {
             case Success(mem) =>
               val memString = MemorySize(mem.amount * multiplier, mem.unit).toString
-              runtimeAttributes ++ Map("memory" -> WomString(memString))
+              runtimeAttributes ++ Map(RuntimeAttributesKeys.MemoryKey -> WomString(memString))
             case _ => runtimeAttributes
           }
         }

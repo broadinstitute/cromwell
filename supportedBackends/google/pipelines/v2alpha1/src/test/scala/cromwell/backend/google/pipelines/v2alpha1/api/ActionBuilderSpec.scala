@@ -1,6 +1,9 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
+import java.util
+
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.{Key, Value}
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -51,22 +54,42 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
     }
   }
 
-//  val mounts = List(new Mount().setDisk("read-only-disk").setPath("/read/only/container")).asJava
-//  val singleRetryKey = List("OutOfMemory")
-//  val retryWithDoubleMemoryActions = Table(
-//    ("description", "action", "command"),
-//    ("with one key in the config",
-//      singleRetryKey,
-//    new Action()
-//      .setImageUri("google/cloud-sdk:251.0.0-slim")
-//      .setCommands(List("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(singleRetryKey)).asJava)
-//      .setFlags(List(ActionFlag.AlwaysRun).map(_.toString).asJava)
-//      .setLabels(Map(Key.Tag -> Value.RetryWithDoubleMemory).asJava)
-//      .setMounts(mounts))
-//  )
-//
-//  forAll(retryWithDoubleMemoryActions) {
-//
-//  }
-//
+  def grepForRetryKeysCommand(lookupString: String) =
+    s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/double_memory_retry_rc"
+
+  def doubleMemoryRetryExpectedCommand(lookupString: String): util.List[String] = {
+    List(
+      "/bin/sh",
+      "-c",
+      grepForRetryKeysCommand(lookupString)
+    ).asJava
+  }
+
+  val mounts = List(new Mount().setDisk("read-only-disk").setPath("/read/only/container"))
+  val memoryRetryActionExpectedFlags = List(ActionFlag.AlwaysRun.toString).asJava
+  val memoryRetryActionExpectedLabels = Map(Key.Tag -> Value.RetryWithDoubleMemory).asJava
+
+  it should "return cloud sdk action for one key in retry-with-double-memory" in {
+    val lookupKeyList = List("OutOfMemory")
+    val expectedCommand = doubleMemoryRetryExpectedCommand(lookupKeyList.mkString("|"))
+
+    val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
+
+    action.getCommands shouldBe expectedCommand
+    action.getFlags shouldBe memoryRetryActionExpectedFlags
+    action.getLabels shouldBe memoryRetryActionExpectedLabels
+    action.getMounts shouldBe mounts.asJava
+  }
+
+  it should "return cloud sdk action for multiple keys in retry-with-double-memory" in {
+    val lookupKeyList = List("OutOfMemory", "Killed", "Exit123")
+    val expectedCommand = doubleMemoryRetryExpectedCommand(lookupKeyList.mkString("|"))
+
+    val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
+
+    action.getCommands shouldBe expectedCommand
+    action.getFlags shouldBe memoryRetryActionExpectedFlags
+    action.getLabels shouldBe memoryRetryActionExpectedLabels
+    action.getMounts shouldBe mounts.asJava
+  }
 }

@@ -7,9 +7,9 @@ import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation._
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{LocalizationConfiguration, BatchRequestTimeoutConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, LocalizationConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -37,7 +37,8 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                logFlushPeriod: Option[FiniteDuration],
                                                localizationConfiguration: LocalizationConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
+                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                               retryWithDoubleMemoryKeys: Option[List[String]])
 
 object PipelinesApiConfigurationAttributes {
 
@@ -170,6 +171,8 @@ object PipelinesApiConfigurationAttributes {
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
+    val retryWithDoubleMemoryKeys: ErrorOr[Option[List[String]]] = validate { backendConfig.as[Option[List[String]]]("retry-with-double-memory") }
+
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
                                                        endpointUrl: URL,
@@ -181,7 +184,8 @@ object PipelinesApiConfigurationAttributes {
                                                        requestWorkers: Int Refined Positive,
                                                        localizationConfiguration: LocalizationConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration): ErrorOr[PipelinesApiConfigurationAttributes] =
+                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                                       retryWithDoubleMemoryKeys: Option[List[String]]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           PipelinesApiConfigurationAttributes(
@@ -198,7 +202,8 @@ object PipelinesApiConfigurationAttributes {
             logFlushPeriod = logFlushPeriod,
             localizationConfiguration = localizationConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
-            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration
+            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
+            retryWithDoubleMemoryKeys = retryWithDoubleMemoryKeys
           )
     }
 
@@ -213,7 +218,8 @@ object PipelinesApiConfigurationAttributes {
       requestWorkers,
       localizationConfiguration,
       virtualPrivateCloudConfiguration,
-      batchRequestTimeoutConfigurationValidation
+      batchRequestTimeoutConfigurationValidation,
+      retryWithDoubleMemoryKeys
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>

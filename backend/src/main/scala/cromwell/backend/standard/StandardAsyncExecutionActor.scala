@@ -135,8 +135,6 @@ trait StandardAsyncExecutionActor
     default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
   )
 
-  lazy val retryWithDoubleMemoryKeys = configurationDescriptor.backendConfig.as[Option[List[String]]]("retry-with-double-memory")
-
   def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
   /** @see [[Command.instantiate]] */
@@ -1082,7 +1080,6 @@ trait StandardAsyncExecutionActor
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
     def doubleMemoryRetryRC: Future[Boolean] = {
-
       def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean = {
         codeAsOption match {
           case Some(codeAsString) => {
@@ -1102,17 +1099,25 @@ trait StandardAsyncExecutionActor
         }
       }
 
+      def readMemoryRetryRCFile(fileExists: Boolean): Future[Option[String]] = {
+        if (fileExists)
+          asyncIo.contentAsStringAsync(jobPaths.doubleMemoryRetryRC, None, failOnOverflow = false).map(Option(_))
+        else
+          Future.successful(None)
+      }
+
+
       for {
         fileExists <- asyncIo.existsAsync(jobPaths.doubleMemoryRetryRC)
-        retryCheckRCAsOption <- if (fileExists) asyncIo.contentAsStringAsync(jobPaths.doubleMemoryRetryRC, None, failOnOverflow = false).map(Option(_)) else Future.successful(None)
-        retry = returnCodeAsBoolean(retryCheckRCAsOption)
-      } yield retry
+        retryCheckRCAsOption <- readMemoryRetryRCFile(fileExists)
+        retryWithMoreMemory = returnCodeAsBoolean(retryCheckRCAsOption)
+      } yield retryWithMoreMemory
     }
 
     val stderr = jobPaths.standardPaths.error
     lazy val stderrAsOption: Option[Path] = Option(stderr)
 
-    val stderrSizeAndReturnCodeAndRetry = for {
+    val stderrSizeAndReturnCodeAndMemoryRetry = for {
       returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
        // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
@@ -1120,7 +1125,7 @@ trait StandardAsyncExecutionActor
       retryWithDoubleMemory <- doubleMemoryRetryRC
     } yield (stderrSize, returnCodeAsString, retryWithDoubleMemory)
 
-    stderrSizeAndReturnCodeAndRetry flatMap {
+    stderrSizeAndReturnCodeAndMemoryRetry flatMap {
       case (stderrSize, returnCodeAsString, retryWithDoubleMemory) =>
         val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
 

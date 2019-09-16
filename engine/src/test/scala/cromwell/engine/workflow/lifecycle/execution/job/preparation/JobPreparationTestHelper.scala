@@ -29,15 +29,23 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   workflowDescriptor.rootWorkflowId returns workflowId.toRoot
   workflowDescriptor.rootWorkflow returns workflowDescriptor
   executionData.workflowDescriptor returns workflowDescriptor
-  val jobKey = mock[BackendJobDescriptorKey]
+  val mockJobKey = mock[BackendJobDescriptorKey]
   val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, Set.empty, null, None)
-  jobKey.call returns call
-  jobKey.node returns call
-  jobKey.index returns None
-  jobKey.attempt returns 1
+  mockJobKey.call returns call
+  mockJobKey.node returns call
+  mockJobKey.index returns None
+  mockJobKey.attempt returns 1
+  mockJobKey.memoryDoubleMultiplier returns 1
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
+
+  val mockJobKeyWithMemoryMultiplier4 = mock[BackendJobDescriptorKey]
+  mockJobKeyWithMemoryMultiplier4.call returns call
+  mockJobKeyWithMemoryMultiplier4.node returns call
+  mockJobKeyWithMemoryMultiplier4.index returns None
+  mockJobKeyWithMemoryMultiplier4.attempt returns 3
+  mockJobKeyWithMemoryMultiplier4.memoryDoubleMultiplier returns 4
 
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 
@@ -45,7 +53,8 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
                                    noResponseTimeout: FiniteDuration,
                                    dockerHashCredentials: List[Any],
                                    inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
-                                   kvStoreKeysForPrefetch: List[String]) = {
+                                   kvStoreKeysForPrefetch: List[String],
+                                   jobKey: BackendJobDescriptorKey = mockJobKey) = {
 
     Props(new TestJobPreparationActor(
       kvStoreKeysForPrefetch = kvStoreKeysForPrefetch,

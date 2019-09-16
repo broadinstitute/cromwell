@@ -448,7 +448,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
-          retryWithDoubleMemoryKeys = retryWithDoubleMemoryKeys
+          retryWithDoubleMemoryKeys = jesAttributes.retryWithDoubleMemoryKeys
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

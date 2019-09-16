@@ -24,13 +24,24 @@
         </addColumn>
     </changeSet>
 
-    <changeSet author="kshakir" id="restore_auto_increment_call_caching_hash_entry_id_postgresql" dbms="postgresql">
+    <changeSet author="kshakir" id="restore_auto_increment_call_caching_hash_entry_id_sequence" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
         <!--
         Ensure that the sequence also generates bigint values:
         https://stackoverflow.com/questions/52195303/postgresql-primary-key-id-datatype-from-serial-to-bigserial#answer-52195920
         -->
         <sql>alter sequence "CALL_CACHING_HASH_ENTRY_CALL_CACHING_HASH_ENTRY_ID_seq" as bigint;</sql>
+    </changeSet>
 
+    <changeSet author="kshakir" id="restore_auto_increment_call_caching_hash_entry_id_postgresql" dbms="postgresql">
+        <validCheckSum>8:b0e84d303355e808f09cc8a9ddd87595</validCheckSum>
         <modifyDataType
                 tableName="CALL_CACHING_HASH_ENTRY"
                 columnName="CALL_CACHING_HASH_ENTRY_ID"

@@ -36,9 +36,10 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 
     DatabaseSystem.All foreach { databaseSystem =>
 
-      behavior of s"Liquibase Comparison for ${databaseType.name} ${databaseSystem.shortName}"
+      behavior of s"Liquibase Comparison for ${databaseType.name} ${databaseSystem.name}"
 
       lazy val liquibasedDatabase = DatabaseTestKit.initializedDatabaseFromSystem(databaseType, databaseSystem)
+      lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 
       lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
       lazy val actualColumns = get[Column](actualSnapshot)
@@ -112,7 +113,12 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
             }
 
             // Verify that sequence widths are the same as columns
-            sequenceTypeValidationOption(expectedColumn, databaseSystem) foreach { expectedSequenceType =>
+            val expectedSequenceTypeOption = sequenceTypeValidationOption(
+              expectedColumn,
+              databaseSystem,
+              connectionMetadata,
+            )
+            expectedSequenceTypeOption foreach { expectedSequenceType =>
               val dbio = sequenceTypeDbio(expectedColumn, databaseSystem, liquibasedDatabase)
               val future = liquibasedDatabase.database.run(dbio)
               val res = future.futureValue
@@ -334,11 +340,11 @@ object LiquibaseComparisonSpec {
     * Returns the column mapping for the DBMS.
     */
   private def getColumnMapping(databaseSystem: DatabaseSystem): ColumnMapping = {
-    databaseSystem match {
-      case HsqldbDatabaseSystem => HsqldbColumnMapping
-      case MariadbDatabaseSystem => MariadbColumnMapping
-      case MysqlDatabaseSystem => MysqldbColumnMapping
-      case PostgresqlDatabaseSystem => PostgresqlColumnMapping
+    databaseSystem.platform match {
+      case HsqldbDatabasePlatform => HsqldbColumnMapping
+      case MariadbDatabasePlatform => MariadbColumnMapping
+      case MysqlDatabasePlatform => MysqldbColumnMapping
+      case PostgresqlDatabasePlatform => PostgresqlColumnMapping
     }
   }
 
@@ -363,8 +369,8 @@ object LiquibaseComparisonSpec {
   private def getAutoIncrementDefault(databaseSystem: DatabaseSystem,
                                       columnMapping: ColumnMapping,
                                       column: Column): ColumnDefault = {
-    databaseSystem match {
-      case PostgresqlDatabaseSystem =>
+    databaseSystem.platform match {
+      case PostgresqlDatabasePlatform =>
         val columnType = column.getType.getTypeName match {
           case "BIGINT" => ColumnType("BIGSERIAL", None)
           case "INTEGER" => ColumnType("SERIAL", None)
@@ -394,8 +400,8 @@ object LiquibaseComparisonSpec {
     * This check also has to be done here, as Liquibase does not return the precision for Mysql datetime fields.
     */
   private def columnTypeValidationOption(column: Column, databaseSystem: DatabaseSystem): Option[String] = {
-    databaseSystem match {
-      case MysqlDatabaseSystem | MariadbDatabaseSystem if column.getType.getTypeName == "TIMESTAMP" =>
+    databaseSystem.platform match {
+      case MysqlDatabasePlatform | MariadbDatabasePlatform if column.getType.getTypeName == "TIMESTAMP" =>
         Option("datetime(6)")
       case _ => None
     }
@@ -405,8 +411,8 @@ object LiquibaseComparisonSpec {
                              databaseSystem: DatabaseSystem,
                              database: SlickDatabase): database.dataAccess.driver.api.DBIO[String] = {
     import database.dataAccess.driver.api._
-    databaseSystem match {
-      case MysqlDatabaseSystem | MariadbDatabaseSystem if column.getType.getTypeName == "TIMESTAMP" =>
+    databaseSystem.platform match {
+      case MysqlDatabasePlatform | MariadbDatabasePlatform if column.getType.getTypeName == "TIMESTAMP" =>
         val getType = GetResult(_.rs.getString("Type"))
 
         //noinspection SqlDialectInspection
@@ -427,9 +433,16 @@ object LiquibaseComparisonSpec {
     * https://stackoverflow.com/questions/52195303/postgresql-primary-key-id-datatype-from-serial-to-bigserial#answer-52195920
     * https://www.postgresql.org/docs/11/datatype-numeric.html#DATATYPE-SERIAL
     */
-  private def sequenceTypeValidationOption(column: Column, databaseSystem: DatabaseSystem): Option[String] = {
-    databaseSystem match {
-      case PostgresqlDatabaseSystem if column.isAutoIncrement => Option(column.getType.getTypeName.toLowerCase)
+  private def sequenceTypeValidationOption(column: Column,
+                                           databaseSystem: DatabaseSystem,
+                                           connectionMetadata: ConnectionMetadata,
+                                          ): Option[String] = {
+    databaseSystem.platform match {
+      case PostgresqlDatabasePlatform if column.isAutoIncrement && connectionMetadata.databaseMajorVersion <= 9 =>
+        // "this is currently always bigint" --> https://www.postgresql.org/docs/9.6/infoschema-sequences.html
+        Option("bigint")
+      case PostgresqlDatabasePlatform if column.isAutoIncrement =>
+        Option(column.getType.getTypeName.toLowerCase)
       case _ => None
     }
   }
@@ -438,11 +451,10 @@ object LiquibaseComparisonSpec {
                                databaseSystem: DatabaseSystem,
                                database: SlickDatabase): database.dataAccess.driver.api.DBIO[String] = {
     import database.dataAccess.driver.api._
-    databaseSystem match {
-      case PostgresqlDatabaseSystem if column.isAutoIncrement =>
-
-        //noinspection SqlDialectInspection
-        sql"""select data_type
+    databaseSystem.platform match {
+      case PostgresqlDatabasePlatform if column.isAutoIncrement =>
+          //noinspection SqlDialectInspection
+          sql"""select data_type
               from INFORMATION_SCHEMA.sequences
               where sequence_name = '#${postgresqlSeqName(column)}'
            """.as[String].head
@@ -453,7 +465,7 @@ object LiquibaseComparisonSpec {
   private def unsupportedColumnTypeException(column: Column,
                                              databaseSystem: DatabaseSystem): UnsupportedOperationException = {
     new UnsupportedOperationException(
-      s"${databaseSystem.shortName} ${column.getRelation.getName}.${column.getName}: ${column.getType.getTypeName}"
+      s"${databaseSystem.name} ${column.getRelation.getName}.${column.getName}: ${column.getType.getTypeName}"
     )
   }
 
@@ -466,8 +478,8 @@ object LiquibaseComparisonSpec {
     */
   private def getNullTodos(databaseSystem: DatabaseSystem,
                            databaseType: CromwellDatabaseType[_ <: SlickDatabase]): Seq[ColumnDescription] = {
-    (databaseSystem, databaseType) match {
-      case (MysqlDatabaseSystem, EngineDatabaseType) =>
+    (databaseSystem.platform, databaseType) match {
+      case (MysqlDatabasePlatform, EngineDatabaseType) =>
         List(
           ColumnDescription("CALL_CACHING_DETRITUS_ENTRY", "CALL_CACHING_ENTRY_ID"),
           ColumnDescription("CALL_CACHING_DETRITUS_ENTRY", "DETRITUS_KEY"),
@@ -493,7 +505,7 @@ object LiquibaseComparisonSpec {
           ColumnDescription("WORKFLOW_STORE_ENTRY", "WORKFLOW_EXECUTION_UUID"),
           ColumnDescription("WORKFLOW_STORE_ENTRY", "WORKFLOW_STATE"),
         )
-      case (MysqlDatabaseSystem, MetadataDatabaseType) =>
+      case (MysqlDatabasePlatform, MetadataDatabaseType) =>
         List(
           ColumnDescription("CUSTOM_LABEL_ENTRY", "CUSTOM_LABEL_KEY"),
           ColumnDescription("CUSTOM_LABEL_ENTRY", "CUSTOM_LABEL_VALUE"),

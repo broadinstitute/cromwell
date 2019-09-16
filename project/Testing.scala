@@ -27,6 +27,13 @@ object Testing {
 
   val minnieKenny = inputKey[Unit]("Run minnie-kenny.")
 
+  private val includeTestTags: Seq[String] =
+    sys.env
+      .get("CROMWELL_SBT_TEST_INCLUDE_TAGS")
+      .filter(_.nonEmpty)
+      .map(_.split(",").toList.map(_.trim))
+      .getOrElse(Nil)
+
   private val excludeTestTags: Seq[String] =
     sys.env
       .get("CROMWELL_SBT_TEST_EXCLUDE_TAGS")
@@ -40,8 +47,10 @@ object Testing {
   The arguments that will be added to the default test config, but removed from all other configs.
   `sbt coverage test` adds other arguments added to generate the coverage reports.
   Tracking the arguments we add to the default allows one to later remove them when building up other configurations.
- */
+   */
+  private val includeTestArgs = includeTestTags.map(Tests.Argument(TestFrameworks.ScalaTest, "-n", _))
   private val excludeTestArgs = excludeTestTags.map(Tests.Argument(TestFrameworks.ScalaTest, "-l", _))
+  private val filterTestArgs = if (includeTestArgs.nonEmpty) includeTestArgs else excludeTestArgs
 
   private val TestReportArgs =
     Tests.Argument(
@@ -84,10 +93,10 @@ object Testing {
 
   val testSettings = List(
     libraryDependencies ++= testDependencies.map(_ % Test),
-    // `test` (or `assembly`) - Run all tests, except docker and integration and DBMS
-    testOptions in Test ++= Seq(TestReportArgs) ++ excludeTestArgs,
+    // `test` (or `assembly`) - Run most tests
+    testOptions in Test ++= Seq(TestReportArgs) ++ filterTestArgs,
     // `alltests:test` - Run all tests
-    testOptions in AllTests := (testOptions in Test).value.diff(excludeTestArgs),
+    testOptions in AllTests := (testOptions in Test).value.diff(filterTestArgs),
     // Add scalameter as a test framework in the CromwellBenchmarkTest scope
     testFrameworks in CromwellBenchmarkTest += new TestFramework("org.scalameter.ScalaMeterFramework"),
     // Don't execute benchmarks in parallel

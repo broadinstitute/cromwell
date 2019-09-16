@@ -269,98 +269,99 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_URL='${CROMWELL_BUILD_URL}'"
 }
 
+# Create environment variables used by the DatabaseTestKit and cromwell::private::create_centaur_variables()
 cromwell::private::create_database_variables() {
+    CROMWELL_BUILD_DATABASE_USERNAME="cromwell"
+    CROMWELL_BUILD_DATABASE_PASSWORD="test"
+    CROMWELL_BUILD_DATABASE_SCHEMA="cromwell_test"
+
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
-            CROMWELL_BUILD_MARIADB_PORT="13306"
-            CROMWELL_BUILD_MARIADB_USERNAME="cromwell"
-            CROMWELL_BUILD_MARIADB_PASSWORD="test"
-            CROMWELL_BUILD_MARIADB_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
+            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_MARIADB_LATEST_PORT="33306"
+            CROMWELL_BUILD_MARIADB_LATEST_TAG="${BUILD_MARIADB_LATEST-}"
             CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
             CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_USERNAME="cromwell"
-            CROMWELL_BUILD_MYSQL_PASSWORD="test"
-            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_MYSQL_DOCKER_TAG="${BUILD_MYSQL-}"
+            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_LATEST_PORT="13306"
+            CROMWELL_BUILD_MYSQL_LATEST_TAG="${BUILD_MYSQL_LATEST-}"
             CROMWELL_BUILD_POSTGRESQL_HOSTNAME="localhost"
             CROMWELL_BUILD_POSTGRESQL_PORT="5432"
-            CROMWELL_BUILD_POSTGRESQL_USERNAME="cromwell"
-            CROMWELL_BUILD_POSTGRESQL_PASSWORD="test"
-            CROMWELL_BUILD_POSTGRESQL_SCHEMA="cromwell_test"
             CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG="${BUILD_POSTGRESQL-}"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
             # We don't define a docker tag because the docker-compose has already spun up the database containers by the
             # time this script is run. Other variables here must match the database service names and settings the yaml.
-            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
             CROMWELL_BUILD_MARIADB_HOSTNAME="mariadb-db"
             CROMWELL_BUILD_MARIADB_PORT="3306"
-            CROMWELL_BUILD_MARIADB_USERNAME="cromwell"
-            CROMWELL_BUILD_MARIADB_PASSWORD="test"
-            CROMWELL_BUILD_MARIADB_SCHEMA="cromwell_test"
-            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
+            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
+            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="mariadb-db-latest"
+            CROMWELL_BUILD_MARIADB_LATEST_PORT="3306"
+            CROMWELL_BUILD_MARIADB_LATEST_TAG=""
             CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
             CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_USERNAME="cromwell"
-            CROMWELL_BUILD_MYSQL_PASSWORD="test"
-            CROMWELL_BUILD_MYSQL_SCHEMA="cromwell_test"
-            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
+            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
+            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="mysql-db-latest"
+            CROMWELL_BUILD_MYSQL_LATEST_PORT="3306"
+            CROMWELL_BUILD_MYSQL_LATEST_TAG=""
             CROMWELL_BUILD_POSTGRESQL_HOSTNAME="postgresql-db"
             CROMWELL_BUILD_POSTGRESQL_PORT="5432"
-            CROMWELL_BUILD_POSTGRESQL_USERNAME="cromwell"
-            CROMWELL_BUILD_POSTGRESQL_PASSWORD="test"
-            CROMWELL_BUILD_POSTGRESQL_SCHEMA="cromwell_test"
+            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
+            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="postgresql-db-latest"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="3306"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
             ;;
         *)
             CROMWELL_BUILD_MARIADB_HOSTNAME="${CROMWELL_BUILD_MARIADB_HOSTNAME-localhost}"
             CROMWELL_BUILD_MARIADB_PORT="${CROMWELL_BUILD_MARIADB_PORT-13306}"
-            CROMWELL_BUILD_MARIADB_USERNAME="${CROMWELL_BUILD_MARIADB_USERNAME-cromwell}"
-            CROMWELL_BUILD_MARIADB_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD-test}"
-            CROMWELL_BUILD_MARIADB_SCHEMA="${CROMWELL_BUILD_MARIADB_SCHEMA-cromwell_test}"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
+            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="${CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MARIADB_LATEST_PORT="${CROMWELL_BUILD_MARIADB_LATEST_PORT-13306}"
+            CROMWELL_BUILD_MARIADB_LATEST_TAG=""
             CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
             CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
-            CROMWELL_BUILD_MYSQL_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME-cromwell}"
-            CROMWELL_BUILD_MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD-test}"
-            CROMWELL_BUILD_MYSQL_SCHEMA="${CROMWELL_BUILD_MYSQL_SCHEMA-cromwell_test}"
             CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
+            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="${CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MYSQL_LATEST_PORT="${CROMWELL_BUILD_MYSQL_LATEST_PORT-13306}"
+            CROMWELL_BUILD_MYSQL_LATEST_TAG=""
             CROMWELL_BUILD_POSTGRESQL_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_HOSTNAME-localhost}"
             CROMWELL_BUILD_POSTGRESQL_PORT="${CROMWELL_BUILD_POSTGRESQL_PORT-5432}"
-            CROMWELL_BUILD_POSTGRESQL_USERNAME="${CROMWELL_BUILD_POSTGRESQL_USERNAME-cromwell}"
-            CROMWELL_BUILD_POSTGRESQL_PASSWORD="${CROMWELL_BUILD_POSTGRESQL_PASSWORD-test}"
-            CROMWELL_BUILD_POSTGRESQL_SCHEMA="${CROMWELL_BUILD_POSTGRESQL_SCHEMA-cromwell_test}"
             CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
+            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME-localhost}"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT-13306}"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
             ;;
     esac
 
-    CROMWELL_BUILD_MARIADB_JDBC_URL="jdbc:mariadb://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_MARIADB_SCHEMA}?rewriteBatchedStatements=true"
-    CROMWELL_BUILD_MYSQL_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}/${CROMWELL_BUILD_MYSQL_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
-    CROMWELL_BUILD_POSTGRESQL_JDBC_URL="jdbc:postgresql://${CROMWELL_BUILD_POSTGRESQL_HOSTNAME}:${CROMWELL_BUILD_POSTGRESQL_PORT}/${CROMWELL_BUILD_POSTGRESQL_SCHEMA}?reWriteBatchedInserts=true"
-
+    export CROMWELL_BUILD_DATABASE_USERNAME
+    export CROMWELL_BUILD_DATABASE_PASSWORD
+    export CROMWELL_BUILD_DATABASE_SCHEMA
     export CROMWELL_BUILD_MARIADB_DOCKER_TAG
     export CROMWELL_BUILD_MARIADB_HOSTNAME
-    export CROMWELL_BUILD_MARIADB_JDBC_URL
-    export CROMWELL_BUILD_MARIADB_PASSWORD
+    export CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME
+    export CROMWELL_BUILD_MARIADB_LATEST_PORT
+    export CROMWELL_BUILD_MARIADB_LATEST_TAG
     export CROMWELL_BUILD_MARIADB_PORT
-    export CROMWELL_BUILD_MARIADB_SCHEMA
-    export CROMWELL_BUILD_MARIADB_USERNAME
     export CROMWELL_BUILD_MYSQL_DOCKER_TAG
     export CROMWELL_BUILD_MYSQL_HOSTNAME
-    export CROMWELL_BUILD_MYSQL_JDBC_URL
-    export CROMWELL_BUILD_MYSQL_PASSWORD
+    export CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME
+    export CROMWELL_BUILD_MYSQL_LATEST_PORT
+    export CROMWELL_BUILD_MYSQL_LATEST_TAG
     export CROMWELL_BUILD_MYSQL_PORT
-    export CROMWELL_BUILD_MYSQL_SCHEMA
-    export CROMWELL_BUILD_MYSQL_USERNAME
     export CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG
     export CROMWELL_BUILD_POSTGRESQL_HOSTNAME
-    export CROMWELL_BUILD_POSTGRESQL_JDBC_URL
-    export CROMWELL_BUILD_POSTGRESQL_PASSWORD
+    export CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME
+    export CROMWELL_BUILD_POSTGRESQL_LATEST_PORT
+    export CROMWELL_BUILD_POSTGRESQL_LATEST_TAG
     export CROMWELL_BUILD_POSTGRESQL_PORT
-    export CROMWELL_BUILD_POSTGRESQL_SCHEMA
-    export CROMWELL_BUILD_POSTGRESQL_USERNAME
 }
 
 cromwell::private::create_centaur_variables() {
@@ -407,6 +408,14 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TEST_RENDERED="${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}/rendered"
     CROMWELL_BUILD_CENTAUR_LOG="${CROMWELL_BUILD_LOG_DIRECTORY}/centaur.log"
 
+    local mariadb_jdbc_url
+    local mysql_jdbc_url
+    local postgresql_jdbc_url
+
+    mariadb_jdbc_url="jdbc:mariadb://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?rewriteBatchedStatements=true"
+    mysql_jdbc_url="jdbc:mysql://${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
+    postgresql_jdbc_url="jdbc:postgresql://${CROMWELL_BUILD_POSTGRESQL_HOSTNAME}:${CROMWELL_BUILD_POSTGRESQL_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?reWriteBatchedInserts=true"
+
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -414,23 +423,17 @@ cromwell::private::create_centaur_variables() {
             if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-                CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME}"
-                CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD}"
-                CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_MYSQL_JDBC_URL}"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
 
             elif [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.mariadb.jdbc.Driver"
-                CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_MARIADB_USERNAME}"
-                CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD}"
-                CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_MARIADB_JDBC_URL}"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="${mariadb_jdbc_url}"
 
             elif [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.PostgresProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.postgresql.Driver"
-                CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_POSTGRESQL_USERNAME}"
-                CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_POSTGRESQL_PASSWORD}"
-                CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_POSTGRESQL_JDBC_URL}"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="${postgresql_jdbc_url}"
 
             else
                 echo "Error: Unable to determine which RDBMS to use for Centaur." >&2
@@ -443,17 +446,13 @@ cromwell::private::create_centaur_variables() {
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
             CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-            CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_MYSQL_USERNAME}"
-            CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD}"
-            CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_MYSQL_JDBC_URL}"
+            CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS-}"
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE-slick.jdbc.MySQLProfile\$}"
             CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER-com.mysql.cj.jdbc.Driver}"
-            CROMWELL_BUILD_CENTAUR_JDBC_USERNAME="${CROMWELL_BUILD_CENTAUR_JDBC_USERNAME-${CROMWELL_BUILD_MYSQL_USERNAME}}"
-            CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD="${CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD-${CROMWELL_BUILD_MYSQL_PASSWORD}}"
-            CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_JDBC_URL-${CROMWELL_BUILD_MYSQL_JDBC_URL}}"
+            CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_JDBC_URL-${mysql_jdbc_url}}"
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=
             ;;
     esac
@@ -484,15 +483,11 @@ cromwell::private::create_centaur_variables() {
 
         CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
         CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME="${CROMWELL_BUILD_MARIADB_USERNAME}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_MARIADB_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
+        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
     else
 
         CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE-${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE}}"
         CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER-${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER}}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME-${CROMWELL_BUILD_CENTAUR_JDBC_USERNAME}}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD-${CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD}}"
         CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL-${CROMWELL_BUILD_CENTAUR_JDBC_URL}}"
     fi
 
@@ -659,11 +654,14 @@ cromwell::private::install_minnie_kenny() {
 
 cromwell::private::start_docker() {
     local docker_image
+    local docker_name
     local docker_cid_file
     docker_image="${1:?start_docker called without a docker image}"; shift
-    docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/$(echo "${docker_image}" | tr "/" "_" | tr ":" "-").cid.$$"
+    docker_name="$(echo "${docker_image}" | tr "/" "_" | tr ":" "-")_$$"
+    docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${docker_name}.cid"
 
-    docker run --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
+    docker run --name="${docker_name}" --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
+    docker logs --follow "${docker_name}" 2>&1 | sed "s/^/$(tput setaf 5)${docker_name}$(tput sgr0) /" &
 
     cromwell::private::add_exit_function docker rm --force --volumes "$(cat "${docker_cid_file}")"
     cromwell::private::add_exit_function rm "${docker_cid_file}"
@@ -671,16 +669,21 @@ cromwell::private::start_docker() {
 
 cromwell::private::start_docker_mysql() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::start_docker_mysql
+        cromwell::private::exec_silent_function cromwell::private::start_docker_mysql "$@"
 
-    elif [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
+    else
+        local docker_tag
+        local docker_port
+        docker_tag="${1?start_docker_mysql called without a docker_tag}"
+        docker_port="${2?start_docker_mysql called without a docker_port}"
+        shift 2
         cromwell::private::start_docker \
-            mysql:"${CROMWELL_BUILD_MYSQL_DOCKER_TAG}" \
+            mysql:"${docker_tag}" \
+            --publish "${docker_port}":3306 \
             --env MYSQL_ROOT_PASSWORD=private \
-            --env MYSQL_USER="${CROMWELL_BUILD_MYSQL_USERNAME}" \
-            --env MYSQL_PASSWORD="${CROMWELL_BUILD_MYSQL_PASSWORD}" \
-            --env MYSQL_DATABASE="${CROMWELL_BUILD_MYSQL_SCHEMA}" \
-            --publish "${CROMWELL_BUILD_MYSQL_PORT}":3306 \
+            --env MYSQL_USER="${CROMWELL_BUILD_DATABASE_USERNAME}" \
+            --env MYSQL_PASSWORD="${CROMWELL_BUILD_DATABASE_PASSWORD}" \
+            --env MYSQL_DATABASE="${CROMWELL_BUILD_DATABASE_SCHEMA}" \
             --volume "${CROMWELL_BUILD_DOCKER_DIRECTORY}"/mysql-conf.d:/etc/mysql/conf.d \
 
     fi
@@ -688,16 +691,21 @@ cromwell::private::start_docker_mysql() {
 
 cromwell::private::start_docker_mariadb() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::start_docker_mariadb
+        cromwell::private::exec_silent_function cromwell::private::start_docker_mariadb "$@"
 
-    elif [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
+    else
+        local docker_tag
+        local docker_port
+        docker_tag="${1?start_docker_mariadb called without a docker_tag}"
+        docker_port="${2?start_docker_mariadb called without a docker_port}"
+        shift 2
         cromwell::private::start_docker \
-            mariadb:"${CROMWELL_BUILD_MARIADB_DOCKER_TAG}" \
+            mariadb:"${docker_tag}" \
+            --publish "${docker_port}":3306 \
             --env MYSQL_ROOT_PASSWORD=private \
-            --env MYSQL_USER="${CROMWELL_BUILD_MARIADB_USERNAME}" \
-            --env MYSQL_PASSWORD="${CROMWELL_BUILD_MARIADB_PASSWORD}" \
-            --env MYSQL_DATABASE="${CROMWELL_BUILD_MARIADB_SCHEMA}" \
-            --publish "${CROMWELL_BUILD_MARIADB_PORT}":3306 \
+            --env MYSQL_USER="${CROMWELL_BUILD_DATABASE_USERNAME}" \
+            --env MYSQL_PASSWORD="${CROMWELL_BUILD_DATABASE_PASSWORD}" \
+            --env MYSQL_DATABASE="${CROMWELL_BUILD_DATABASE_SCHEMA}" \
             --volume "${CROMWELL_BUILD_DOCKER_DIRECTORY}"/mariadb-conf.d:/etc/mysql/conf.d \
 
     fi
@@ -705,17 +713,49 @@ cromwell::private::start_docker_mariadb() {
 
 cromwell::private::start_docker_postgresql() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::start_docker_postgresql
+        cromwell::private::exec_silent_function cromwell::private::start_docker_postgresql "$@"
 
-    elif [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
+    else
+        local docker_tag
+        local docker_port
+        docker_tag="${1?start_docker_postgresql called without a docker_tag}"
+        docker_port="${2?start_docker_postgresql called without a docker_port}"
+        shift 2
         cromwell::private::start_docker \
-            postgres:"${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG}" \
-            --env POSTGRES_USER="${CROMWELL_BUILD_POSTGRESQL_USERNAME}" \
-            --env POSTGRES_PASSWORD="${CROMWELL_BUILD_POSTGRESQL_PASSWORD}" \
-            --env POSTGRES_DB="${CROMWELL_BUILD_POSTGRESQL_SCHEMA}" \
-            --publish "${CROMWELL_BUILD_POSTGRESQL_PORT}":5432 \
+            postgres:"${docker_tag}" \
+            --publish "${docker_port}":5432 \
+            --env POSTGRES_USER="${CROMWELL_BUILD_DATABASE_USERNAME}" \
+            --env POSTGRES_PASSWORD="${CROMWELL_BUILD_DATABASE_PASSWORD}" \
+            --env POSTGRES_DB="${CROMWELL_BUILD_DATABASE_SCHEMA}" \
             --volume "${CROMWELL_BUILD_DOCKER_DIRECTORY}"/postgresql-initdb.d:/docker-entrypoint-initdb.d \
 
+    fi
+}
+
+cromwell::private::start_docker_databases() {
+    if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
+        cromwell::private::start_docker_mysql \
+            "${CROMWELL_BUILD_MYSQL_DOCKER_TAG}" "${CROMWELL_BUILD_MYSQL_PORT}"
+    fi
+    if [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
+        cromwell::private::start_docker_mariadb \
+            "${CROMWELL_BUILD_MARIADB_DOCKER_TAG}" "${CROMWELL_BUILD_MARIADB_PORT}"
+    fi
+    if [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
+        cromwell::private::start_docker_postgresql \
+            "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG}" "${CROMWELL_BUILD_POSTGRESQL_PORT}"
+    fi
+    if [[ -n "${CROMWELL_BUILD_MYSQL_LATEST_TAG:+set}" ]]; then
+        cromwell::private::start_docker_mysql \
+            "${CROMWELL_BUILD_MYSQL_LATEST_TAG}" "${CROMWELL_BUILD_MYSQL_LATEST_PORT}"
+    fi
+    if [[ -n "${CROMWELL_BUILD_MARIADB_LATEST_TAG:+set}" ]]; then
+        cromwell::private::start_docker_mariadb \
+            "${CROMWELL_BUILD_MARIADB_LATEST_TAG}" "${CROMWELL_BUILD_MARIADB_LATEST_PORT}"
+    fi
+    if [[ -n "${CROMWELL_BUILD_POSTGRESQL_LATEST_TAG:+set}" ]]; then
+        cromwell::private::start_docker_postgresql \
+            "${CROMWELL_BUILD_POSTGRESQL_LATEST_TAG}" "${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT}"
     fi
 }
 
@@ -1133,9 +1173,7 @@ cromwell::build::setup_common_environment() {
             cromwell::private::upgrade_pip
             cromwell::private::pull_common_docker_images
             cromwell::private::install_wait_for_it
-            cromwell::private::start_docker_mysql
-            cromwell::private::start_docker_mariadb
-            cromwell::private::start_docker_postgresql
+            cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config

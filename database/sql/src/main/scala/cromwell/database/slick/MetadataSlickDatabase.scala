@@ -200,16 +200,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         summaryPositionFunction =
           metadataEntries => {
             if (metadataEntries.nonEmpty) {
-              DBIO.successful(metadataEntries.map(_.metadataEntryId.get).max)
+              metadataEntries.map(_.metadataEntryId.get).max
             } else {
-              /*
-              Nothing seen within the window of (previousMetadataEntryId, nextMaxMetadataEntryId].
-              Check if there are more entries above nextMaxMetadataEntryId.
-              If yes, then start next time after nextMaxMetadataEntryId, otherwise reuse previousMetadataEntryId.
-               */
-              dataAccess.existsMetadataEntriesGreaterThanMetadataEntryId(nextMaxMetadataEntryId).result map {
-                existsGreater => if (existsGreater) nextMaxMetadataEntryId else previousMaxMetadataEntryId
-              }
+              previousMaxMetadataEntryId
             }
           },
         summaryName = summarizeNameIncreasing
@@ -261,7 +254,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
             rootWorkflowIdKey = rootWorkflowIdKey,
             labelMetadataKey = labelMetadataKey,
             buildUpdatedSummary = buildUpdatedSummary,
-            summaryPositionFunction = _ => DBIO.successful(minimumMetadataEntryId),
+            summaryPositionFunction = _ => minimumMetadataEntryId,
             summaryName = summaryNameDecreasing
           )
       }
@@ -284,29 +277,30 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                 buildUpdatedSummary:
                                 (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                   => WorkflowMetadataSummaryEntry,
-                                summaryPositionFunction: Seq[MetadataEntry] => DBIO[Long],
+                                summaryPositionFunction: Seq[MetadataEntry] => Long,
                                 summaryName: String
                                )(implicit ec: ExecutionContext): DBIO[Long] = {
+
+    val exactMatchMetadataKeys = Set(
+      startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+    val startsWithMetadataKeys = Set(labelMetadataKey)
+
     for {
-      metadataEntries <- dataAccess.metadataEntriesForIdRange((
+      rawMetadataEntries <- dataAccess.metadataEntriesForIdRange((
         minMetadataEntryId,
-        maxMetadataEntryId,
-        startMetadataKey,
-        endMetadataKey,
-        nameMetadataKey,
-        statusMetadataKey,
-        submissionMetadataKey,
-        parentWorkflowIdKey,
-        rootWorkflowIdKey,
-        labelMetadataKey
+        maxMetadataEntryId
       )).result
+      summaryPosition = summaryPositionFunction(rawMetadataEntries)
+      metadataEntries = rawMetadataEntries filter { entry =>
+        entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+          (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
+      }
       metadataWithoutLabels = metadataEntries
-        .filterNot(_.metadataKey.contains(labelMetadataKey))
+        .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
         .groupBy(_.workflowExecutionUuid)
       customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
-      summaryPosition <- summaryPositionFunction(metadataEntries)
       _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
     } yield summaryPosition
   }

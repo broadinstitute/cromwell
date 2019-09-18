@@ -49,8 +49,6 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
       case validate: ValidateWorkflowIdInMetadata => classicMetadataService forward validate
     }
 
-
-
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(classicMetadataService, carboniteMetadataService))
   }
 }

@@ -29,7 +29,7 @@ class CarboniteMetadataServiceActor(serviceConfig: Config, globalConfig: Config,
       val worker = context.actorOf(CarbonitedMetadataReaderActor.props)
       worker forward read
     case write: MetadataWriteAction =>
-      val error = new NotImplementedError(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")
+      val error = new UnsupportedOperationException(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")
       sender ! MetadataWriteFailure(error, write.events)
     case ShutdownCommand =>
       carboniteWorker match {

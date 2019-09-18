@@ -8,7 +8,7 @@ class CarbonitedMetadataReaderActor extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case read: MetadataReadAction =>
-      val error = new NotImplementedError("CarboniteWorkerActor")
+      val error = new UnsupportedOperationException("CarboniteWorkerActor")
       log.error(error, "Programmer Error! The CarbonitedMetadataReaderActor is not ready yet!")
       sender ! FailedMetadataResponse(read, error)
   }

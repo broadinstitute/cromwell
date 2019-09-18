@@ -165,6 +165,7 @@ lazy val services = project
   .dependsOn(wdlBiscayneLanguageFactory % "test->test")
   .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
+  .dependsOn(ftpFileSystem % "test->test")
 
 lazy val hybridCarboniteMetadataService = project
   .withLibrarySettings("hybrid-carbonite-metadata-service")
@@ -172,6 +173,9 @@ lazy val hybridCarboniteMetadataService = project
   .dependsOn(engine)
   .dependsOn(core % "test->test")
   .dependsOn(services % "test->test")
+  .dependsOn(ftpFileSystem % "test->test")
+  .dependsOn(httpFileSystem % "test->test")
+
 
 lazy val backendRoot = Path("supportedBackends")
 

@@ -68,8 +68,7 @@ object ContinuousIntegration {
     * For "reasons" these projects are excluded from the root aggregation in build.sbt.
     */
   private val unaggregatedProjects = Map(
-    "cwlEncoder" -> "not sure what this is",
-    "hybridCarboniteMetadataService" -> "not sure why this is excluded",
+    "cwlEncoder" -> "not sure what this is"
   )
 
   /**

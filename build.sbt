@@ -171,6 +171,7 @@ lazy val hybridCarboniteMetadataService = project
   .dependsOn(services)
   .dependsOn(engine)
   .dependsOn(core % "test->test")
+  .dependsOn(services % "test->test")
 
 lazy val backendRoot = Path("supportedBackends")
 

@@ -31,7 +31,10 @@ final case class BcsBackendLifecycleActorFactory(val name: String, val configura
   override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationData: Option[BackendInitializationData]) = {
     Try(BackendInitializationData.as[BcsBackendInitializationData](initializationData)) match {
       case Success(bcsData) =>
-        List(bcsData.bcsConfiguration.dockerCredentials).flatten
+        bcsData.bcsConfiguration.dockerHashEndpoint match {
+          case Some(endpoint) => List(bcsData.bcsConfiguration.dockerCredentials, Option(endpoint)).flatten
+          case None => List(bcsData.bcsConfiguration.dockerCredentials).flatten
+        }
       case _ => List.empty[Any]
     }
   }  

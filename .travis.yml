@@ -92,9 +92,18 @@ env:
       BUILD_MYSQL=5.7
     - >-
       BUILD_TYPE=sbt
-      BUILD_MYSQL=5.7
-      BUILD_POSTGRESQL=11.3
-      BUILD_MARIADB=10.3
+    # The below list of docker tags should be synced with the tags in DatabaseTestKit.getDatabaseSystemSettings
+    - >-
+      BUILD_TYPE=dbms
+      BUILD_MARIADB=5.5
+      BUILD_MARIADB_LATEST=latest
+      BUILD_MYSQL=5.6
+      BUILD_MYSQL_LATEST=latest
+      BUILD_POSTGRESQL=9.5
+      BUILD_POSTGRESQL_LATEST=latest
+    # The list above of docker tags should be synced with the tags in DatabaseTestKit.getDatabaseSystemSettings
+    - >-
+      BUILD_TYPE=singleWorkflowRunner
 script:
   - src/ci/bin/test.sh
 notifications:

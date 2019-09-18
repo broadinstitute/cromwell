@@ -5,6 +5,7 @@ import java.sql.Timestamp
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
+import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 trait MetadataSqlDatabase extends SqlDatabase {
@@ -30,30 +31,35 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
-  def queryMetadataEntries(workflowExecutionUuid: String)
+  def queryMetadataEntries(workflowExecutionUuid: String,
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
-                           metadataKey: String)
+                           metadataKey: String,
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Option[Int])
+                           jobAttempt: Option[Int],
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntries(workflowUuid: String,
                            metadataKey: String,
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
-                           jobAttempt: Option[Int])
+                           jobAttempt: Option[Int],
+                           timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                            metadataKeysToFilterFor: List[String],
                                            metadataKeysToFilterAgainst: List[String],
-                                           metadataJobQueryValue: MetadataJobQueryValue)
+                                           metadataJobQueryValue: MetadataJobQueryValue,
+                                           timeout: Duration)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   /**

@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.{AskTimeoutException, ask}
 import akka.util.Timeout
 import cromwell.engine.instrumentation.HttpInstrumentation
-import cromwell.services.metadata.MetadataService.{GetStatus, MetadataServiceResponse, StatusLookupFailed, StatusLookupResponse}
+import cromwell.services.metadata.MetadataService.{GetStatus, MetadataServiceResponse, StatusLookupFailed}
 import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadata}
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 
@@ -19,6 +19,7 @@ import WesRouteSupport._
 import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.server.CromwellShutdown
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
 import cromwell.webservice.routes.CromwellApiService
 
 trait WesRouteSupport extends HttpInstrumentation {
@@ -56,9 +57,9 @@ trait WesRouteSupport extends HttpInstrumentation {
                   val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
                   // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
                   onComplete(response) {
-                    case Success(s: StatusLookupResponse) =>
-                      val wesState = WesState.fromCromwellStatus(s.status)
-                      complete(WesRunStatus(s.workflowId.toString, wesState))
+                    case Success(BuiltMetadataResponse(_, jsObject)) =>
+                      val wesState = WesState.fromCromwellStatusJson(jsObject)
+                      complete(WesRunStatus(possibleWorkflowId, wesState))
                     case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)
                     case Success(m: MetadataServiceResponse) =>
                       // This should never happen, but ....

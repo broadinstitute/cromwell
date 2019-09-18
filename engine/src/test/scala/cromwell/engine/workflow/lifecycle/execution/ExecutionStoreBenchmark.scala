@@ -72,4 +72,30 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
       }
     }
   }
+
+  performance of "CommandCallNode" in {
+
+    measure method "default toString" in {
+
+      val sizes = Gen.range("size")(from = 10000, upto = 10000, hop = 10000)
+      using(sizes) in { size =>
+        1 to size foreach { _ =>
+          (scatterCall.toString, prepareCall.toString)
+        }
+      }
+
+    }
+
+    measure method "simple toString" in {
+
+      val sizes = Gen.range("size")(from = 10000, upto = 10000, hop = 10000)
+      using(sizes) in { size =>
+        1 to size foreach { _ =>
+          (scatterCall.identifier.fullyQualifiedName, prepareCall.identifier.fullyQualifiedName)
+        }
+      }
+
+    }
+
+  }
 }

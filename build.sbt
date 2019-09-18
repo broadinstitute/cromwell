@@ -166,6 +166,12 @@ lazy val services = project
   .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
 
+lazy val hybridCarboniteMetadataService = project
+  .withLibrarySettings("hybrid-carbonite-metadata-service")
+  .dependsOn(services)
+  .dependsOn(engine)
+  .dependsOn(core % "test->test")
+
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project
@@ -349,6 +355,9 @@ lazy val perf = project
   .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
   .dependsOn(common)
 
+lazy val `cromwell-drs-localizer` = project
+  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies)
+
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
@@ -374,6 +383,7 @@ lazy val root = (project in file("."))
   .aggregate(`cloud-nio-impl-ftp`)
   .aggregate(`cloud-nio-spi`)
   .aggregate(`cloud-nio-util`)
+  .aggregate(`cromwell-drs-localizer`)
   .aggregate(awsBackend)
   .aggregate(awsS3FileSystem)
   .aggregate(backend)
@@ -397,6 +407,7 @@ lazy val root = (project in file("."))
   .aggregate(googlePipelinesCommon)
   .aggregate(googlePipelinesV1Alpha2)
   .aggregate(googlePipelinesV2Alpha1)
+  .aggregate(httpFileSystem)
   .aggregate(jesBackend)
   .aggregate(languageFactoryCore)
   .aggregate(ossFileSystem)
@@ -423,3 +434,4 @@ lazy val root = (project in file("."))
   .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
+  .withAggregateSettings()

@@ -1,56 +1,61 @@
 package cromwell.services.database
 
 /**
-  * Cromwell supported DBMS.
+  * Cromwell unit tested DBMS. Each DBMS must match a database spun up in test.inc.sh.
   */
 // Someday https://github.com/lloydmeta/enumeratum, someday...
 sealed trait DatabaseSystem {
-  val productName: String
-  val shortName: String
-  val configPath: String
+  val name: String
+  val platform: DatabasePlatform
 
-  override def toString: String = productName
+  override def toString: String = name
 }
 
 object DatabaseSystem {
-  def apply(productName: String): DatabaseSystem = {
-    productName match {
-      case MysqlDatabaseSystem.productName => MysqlDatabaseSystem
-      case HsqldbDatabaseSystem.productName => HsqldbDatabaseSystem
-      case PostgresqlDatabaseSystem.productName => PostgresqlDatabaseSystem
-      case MariadbDatabaseSystem.productName => MariadbDatabaseSystem
-      case _ => throw new UnsupportedOperationException(s"Unknown database system: $productName")
-    }
-  }
-
   val All: Seq[DatabaseSystem] = List(
     HsqldbDatabaseSystem,
-    MariadbDatabaseSystem,
-    MysqlDatabaseSystem,
-    PostgresqlDatabaseSystem,
+    MariadbEarliestDatabaseSystem,
+    MariadbLatestDatabaseSystem,
+    MysqlEarliestDatabaseSystem,
+    MysqlLatestDatabaseSystem,
+    PostgresqlEarliestDatabaseSystem,
+    PostgresqlLatestDatabaseSystem,
   )
 }
 
 case object HsqldbDatabaseSystem extends DatabaseSystem {
-  override val productName: String = "HSQL Database Engine"
-  override val shortName: String = "HSQLDB"
-  override val configPath: String = "database"
+  override val name: String = "HSQLDB"
+  override val platform: HsqldbDatabasePlatform.type = HsqldbDatabasePlatform
 }
 
-case object MariadbDatabaseSystem extends DatabaseSystem {
-  override val productName: String = "MariaDB"
-  override val shortName = productName
-  override val configPath: String = "database-test-mariadb"
+sealed trait NetworkDatabaseSystem extends DatabaseSystem
+
+case object MariadbEarliestDatabaseSystem extends NetworkDatabaseSystem {
+  override val name: String = "MariaDB"
+  override val platform: MariadbDatabasePlatform.type = MariadbDatabasePlatform
 }
 
-case object MysqlDatabaseSystem extends DatabaseSystem {
-  override val productName: String = "MySQL"
-  override val shortName = productName
-  override val configPath: String = "database-test-mysql"
+case object MariadbLatestDatabaseSystem extends NetworkDatabaseSystem {
+  override val name: String = "MariaDB (latest)"
+  override val platform: MariadbDatabasePlatform.type = MariadbDatabasePlatform
 }
 
-case object PostgresqlDatabaseSystem extends DatabaseSystem {
-  override val productName: String = "PostgreSQL"
-  override val shortName = productName
-  override val configPath: String = "database-test-postgresql"
+case object MysqlEarliestDatabaseSystem extends NetworkDatabaseSystem {
+  override val name: String = "MySQL"
+  override val platform: MysqlDatabasePlatform.type = MysqlDatabasePlatform
+}
+
+case object MysqlLatestDatabaseSystem extends NetworkDatabaseSystem {
+  override val name: String = "MySQL (latest)"
+  override val platform: MysqlDatabasePlatform.type = MysqlDatabasePlatform
+}
+
+case object PostgresqlEarliestDatabaseSystem extends NetworkDatabaseSystem {
+  override val name: String = "PostgreSQL"
+  override val platform: PostgresqlDatabasePlatform.type = PostgresqlDatabasePlatform
+}
+
+case object PostgresqlLatestDatabaseSystem extends NetworkDatabaseSystem {
+  override val name: String = "PostgreSQL (latest)"
+  override val platform: PostgresqlDatabasePlatform.type = PostgresqlDatabasePlatform
 }

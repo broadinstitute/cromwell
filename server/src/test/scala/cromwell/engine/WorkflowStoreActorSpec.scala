@@ -1,6 +1,7 @@
 package cromwell.engine
 
 import java.time.OffsetDateTime
+import java.util.UUID
 
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
@@ -20,8 +21,8 @@ import cromwell.engine.workflow.workflowstore._
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata.MetadataQuery
-import cromwell.services.metadata.MetadataService.{GetMetadataQueryAction, MetadataLookupResponse}
-import cromwell.services.metadata.impl.ReadMetadataActor
+import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataLookupResponse}
+import cromwell.services.metadata.impl.ReadDatabaseMetadataWorkerActor
 import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
@@ -185,10 +186,6 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         ),
         "WorkflowStoreActor-FetchEncryptedWorkflowOptions"
       )
-      val readMetadataActor = system.actorOf(
-        ReadMetadataActor.props(),
-        "ReadMetadataActor-FetchEncryptedOptions"
-      )
       storeActor ! BatchSubmitWorkflows(NonEmptyList.of(optionedSourceFiles))
       val insertedIds = expectMsgType[WorkflowsBatchSubmittedToStore](10 seconds).workflowIds.toList
 
@@ -213,8 +210,14 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
                 Seq("iv", "ciphertext")
 
               // We need to wait for workflow metadata to be flushed before we can successfully query for it
-              eventually(timeout(15 seconds), interval(5 seconds)) {
-                readMetadataActor ! GetMetadataQueryAction(MetadataQuery.forWorkflow(id))
+              eventually(timeout(15.seconds.dilated), interval(500.millis.dilated)) {
+                val actorNameUniquificationString = UUID.randomUUID().toString.take(7)
+                val readMetadataActor = system.actorOf(
+                  ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds),
+                  s"ReadMetadataActor-FetchEncryptedOptions-$actorNameUniquificationString"
+                )
+
+                readMetadataActor ! GetMetadataAction(MetadataQuery.forWorkflow(id))
                 expectMsgPF(10 seconds) {
                   case MetadataLookupResponse(_, eventList) =>
                     val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get

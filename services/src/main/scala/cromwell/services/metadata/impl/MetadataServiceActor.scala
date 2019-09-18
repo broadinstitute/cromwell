@@ -10,6 +10,7 @@ import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
@@ -24,7 +25,7 @@ object MetadataServiceActor {
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(MetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
 }
 
-final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore with GracefulShutdownHelper {
 
   private val decider: Decider = {
@@ -35,7 +36,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
   override val supervisorStrategy = new OneForOneStrategy()(decider) {
     override def logFailure(context: ActorContext, child: ActorRef, cause: Throwable, decision: Directive) = {
       val childName = if (child == readActor) "Read" else "Write"
-      log.error(s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...", cause)
+      log.error(cause, s"The $childName Metadata Actor died unexpectedly, metadata events might have been lost. Restarting it...")
     }
   }
 
@@ -46,7 +47,13 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
 
   private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
 
-  val readActor = context.actorOf(ReadMetadataActor.props(), "read-metadata-actor")
+  private val metadataReadTimeout: Duration =
+    serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
+
+  def readMetadataWorkerActorProps(): Props = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout).withDispatcher(ServiceDispatcher)
+  def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps).withDispatcher(ServiceDispatcher)
+
+  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "singleton-ReadMetadataRegulatorActor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
@@ -106,7 +113,7 @@ final case class MetadataServiceActor(serviceConfig: Config, globalConfig: Confi
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
-    case action: ReadAction => readActor forward action
+    case action: MetadataReadAction => readActor forward action
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
     case MetadataSummarySuccess => scheduleSummary()
     case MetadataSummaryFailure(t) =>

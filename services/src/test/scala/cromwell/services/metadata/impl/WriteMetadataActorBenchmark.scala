@@ -1,14 +1,13 @@
 package cromwell.services.metadata.impl
 
 import akka.testkit.{TestFSMRef, TestProbe}
-import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase}
-import cromwell.services.ServicesStore.EnhancedSqlDatabase
+import cromwell.database.slick.MetadataSlickDatabase
+import cromwell.services.MetadataServicesStore
+import cromwell.services.database.{DatabaseTestKit, EngineDatabaseType, MetadataDatabaseType, MysqlEarliestDatabaseSystem}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -33,18 +32,18 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
     x
   }
 
+  private lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
+    override val metadataDatabaseInterface: MetadataSlickDatabase = {
+      val databaseSystem = MysqlEarliestDatabaseSystem
+      // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
+      DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem).close()
+      DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
+    }
+  }
+
   it should "provide good throughput" taggedAs IntegrationTest in {
     val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue) {
-      override val metadataDatabaseInterface = {
-        val databaseConfig = ConfigFactory.load.getConfig("database-test-mysql")
-
-        // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        new EngineSlickDatabase(databaseConfig)
-          .initialized(EngineServicesStore.EngineLiquibaseSettings)
-
-        new MetadataSlickDatabase(databaseConfig)
-          .initialized(MetadataServicesStore.MetadataLiquibaseSettings)
-      }
+      override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess.metadataDatabaseInterface
     })
     
     time("metadata write") {
@@ -58,5 +57,9 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
         writeActor.underlyingActor.stateData.weight shouldBe 0
       }
     }
+  }
+
+  it should "close the database" taggedAs IntegrationTest in {
+    dataAccess.metadataDatabaseInterface.close()
   }
 }

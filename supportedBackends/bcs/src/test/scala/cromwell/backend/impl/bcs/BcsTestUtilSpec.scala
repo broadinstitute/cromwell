@@ -35,6 +35,7 @@ object BcsTestUtilSpec {
       |  timeout: 3000
       |  vpc: "192.168.0.0/16 vpc-xxxx"
       |  tag: "jobTag"
+      |  imageId: "img-ubuntu-vpc"
       |}
     """.stripMargin
 
@@ -134,25 +135,26 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
 
 
   val expectedContinueOnReturn = ContinueOnReturnCodeSet(Set(0))
-  val expectedDockerTag = Some(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
-  val expectedDocker = Some(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
+  val expectedDockerTag = Option(BcsDockerWithPath("ubuntu/latest", "oss://bcs-reg/ubuntu/"))
+  val expectedDocker = Option(BcsDockerWithoutPath("registry.cn-beijing.aliyuncs.com/test/testubuntu:0.1"))
   val expectedFailOnStderr = false
-  val expectedUserData = Some(Vector(new BcsUserData("key", "value")))
-  val expectedMounts = Some(Vector(new BcsInputMount(Left(mockPathBuilder.build("oss://bcs-bucket/bcs-dir/").get), Right("/home/inputs/"), false)))
-  val expectedCluster = Some(Left("cls-mycluster"))
-  val expectedSystemDisk = Some(BcsSystemDisk("cloud", 50))
-  val expectedDataDsik = Some(BcsDataDisk("cloud", 250, "/home/data/"))
+  val expectedUserData = Option(Vector(new BcsUserData("key", "value")))
+  val expectedMounts = Option(Vector(new BcsInputMount(Left(mockPathBuilder.build("oss://bcs-bucket/bcs-dir/").get), Right("/home/inputs/"), false)))
+  val expectedCluster = Option(Left("cls-mycluster"))
+  val expectedImageId = Option("img-ubuntu-vpc")
+  val expectedSystemDisk = Option(BcsSystemDisk("cloud", 50))
+  val expectedDataDisk = Option(BcsDataDisk("cloud", 250, "/home/data/"))
 
-  val expectedReserveOnFail = Some(true)
-  val expectedAutoRelease = Some(true)
-  val expectedTimeout = Some(3000)
-  val expectedVerbose = Some(false)
-  val expectedVpc = Some(BcsVpcConfiguration(Some("192.168.0.0/16"), Some("vpc-xxxx")))
-  val expectedTag = Some("jobTag")
+  val expectedReserveOnFail = Option(true)
+  val expectedAutoRelease = Option(true)
+  val expectedTimeout = Option(3000)
+  val expectedVerbose = Option(false)
+  val expectedVpc = Option(BcsVpcConfiguration(Option("192.168.0.0/16"), Option("vpc-xxxx")))
+  val expectedTag = Option("jobTag")
 
 
   val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
-    expectedSystemDisk, expectedDataDsik, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
+    expectedImageId, expectedSystemDisk, expectedDataDisk, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
 
 
   protected def createBcsRuntimeAttributes(runtimeAttributes: Map[String, WomValue]): BcsRuntimeAttributes = {

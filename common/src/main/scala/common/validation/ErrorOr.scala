@@ -10,7 +10,7 @@ object ErrorOr {
   type ErrorOr[+A] = Validated[NonEmptyList[String], A]
 
   implicit class EnhancedErrorOr[A](val eoa: ErrorOr[A]) extends AnyVal {
-    def contextualizeErrors(s: String): ErrorOr[A] = eoa.leftMap { errors =>
+    def contextualizeErrors(s: => String): ErrorOr[A] = eoa.leftMap { errors =>
       val total = errors.size
       errors.zipWithIndex map { case (e, i) => s"Failed to $s (reason ${i + 1} of $total): $e" }
     }

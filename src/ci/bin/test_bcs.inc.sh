@@ -88,6 +88,7 @@ cromwell::private::bcs::bcs_config() {
 
 cromwell::private::bcs::bcs_create_cluster() {
     cromwell::build::exec_retry_function cromwell::private::bcs::try_bcs_create_cluster
+    cromwell::build::add_exit_function cromwell::private::bcs::bcs_delete_cluster
 }
 
 cromwell::private::bcs::bcs_delete_cluster() {
@@ -125,6 +126,5 @@ cromwell::build::bcs::setup_bcs_environment() {
     cromwell::private::bcs::bcs_delete_old_resources
 
     # Create the BCS cluster before sbt assembly as cluster creation takes a few minutes
-    cromwell::build::add_exit_function cromwell::private::bcs::bcs_delete_cluster
     cromwell::private::bcs::bcs_create_cluster
 }

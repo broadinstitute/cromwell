@@ -3,6 +3,7 @@ package cromwell.services.database
 import java.io.{ByteArrayOutputStream, PrintStream}
 
 import better.files._
+import cromwell.core.Tags.DbmsTest
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.database.DatabaseTestKit._
@@ -60,7 +61,7 @@ class SchemaManagerSpec extends FlatSpec with Matchers with ScalaFutures {
 
       val otherSchemaManager = schemaManager.other
 
-      it should s"have the same schema as ${databaseType.name} ${otherSchemaManager.name}" in {
+      it should s"have the same schema as ${databaseType.name} ${otherSchemaManager.name}" taggedAs DbmsTest in {
         for {
           actualDatabase <- inMemoryDatabase(databaseType, schemaManager).autoClosed
           expectedDatabase <- inMemoryDatabase(databaseType, otherSchemaManager).autoClosed
@@ -105,7 +106,7 @@ class SchemaManagerSpec extends FlatSpec with Matchers with ScalaFutures {
         }
       }
 
-      it should "match expected generated names" in {
+      it should "match expected generated names" taggedAs DbmsTest in {
         var schemaMetadata: SchemaMetadata = null
 
         for {

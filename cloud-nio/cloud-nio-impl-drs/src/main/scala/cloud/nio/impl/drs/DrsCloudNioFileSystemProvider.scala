@@ -33,13 +33,13 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   override def isTransient(exception: Exception): Boolean = false
 
-  override def getScheme: String = "dos"
+  override def getScheme: String = "drs"
 
   override def getHost(uriAsString: String): String = {
     require(uriAsString.startsWith(s"$getScheme://"), s"Scheme does not match $getScheme")
 
     /*
-     * In some cases for a URI, the host name is null. For example, for DRS urls like 'dos://dg.123/123-123-123',
+     * In some cases for a URI, the host name is null. For example, for DRS urls like 'drs://dg.123/123-123-123',
      * even though 'dg.123' is a valid host, somehow since it does not conform to URI's standards, uri.getHost returns null. In such
      * cases, authority is used instead of host. If there is no authority, use an empty string.
      */

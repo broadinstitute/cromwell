@@ -43,4 +43,11 @@ case class AwsBatchBackendInitializationData
   // TODO: We'll need something specific for batch probably, but I need to
   //       understand more about the genomics node first
   //genomics: Genomics
-) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, classOf[AwsBatchExpressionFunctions])
+) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, AwsBatchBackendInitializationDataUtility.getExpressionFunctionsClass(configuration.fileSystem))
+
+object  AwsBatchBackendInitializationDataUtility {
+   def getExpressionFunctionsClass(fs: String) = fs match {
+      case AWSBatchStorageSystems.s3 => classOf[AwsBatchExpressionFunctions]
+      case _ => classOf[AwsBatchExpressionFunctionsForFS]
+   }
+}

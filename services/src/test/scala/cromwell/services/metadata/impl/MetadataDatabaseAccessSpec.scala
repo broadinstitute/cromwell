@@ -17,6 +17,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 object MetadataDatabaseAccessSpec {
@@ -41,12 +42,12 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
   implicit val defaultPatience = PatienceConfig(scaled(Span(30, Seconds)), scaled(Span(100, Millis)))
 
   DatabaseSystem.All foreach { databaseSystem =>
-    behavior of s"MetadataDatabaseAccess on ${databaseSystem.shortName}"
+    behavior of s"MetadataDatabaseAccess on ${databaseSystem.name}"
 
     lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
       override val metadataDatabaseInterface: MetadataSlickDatabase = {
         // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+        DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem).close()
         DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
       }
     }
@@ -132,7 +133,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name)
         expected <- unorderedEvents(workflow1Id)
-        response <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false))
+        response <- dataAccess.queryMetadataEvents(MetadataQuery(workflow1Id, None, Option(WorkflowMetadataKeys.WorkflowRoot), None, None, expandSubWorkflows = false), 5.seconds)
         _ = response shouldBe expected
       } yield()).futureValue
     }

@@ -1,0 +1,13 @@
+name: dedup_localizations_papi_v2
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: dedup_localizations_papi_v2/dedup_localizations_papi_v2.wdl
+}
+
+metadata {
+  workflowName: dedup_localizations_papi_v2
+  status: Succeeded
+  "outputs.dedup_localizations_papi_v2.check_log.num_input_localizations": 1
+}

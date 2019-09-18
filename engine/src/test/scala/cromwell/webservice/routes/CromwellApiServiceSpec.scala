@@ -19,6 +19,8 @@ import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurren
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor
+import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess}
 import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.SampleWdl.HelloWorld
@@ -543,11 +545,13 @@ object CromwellApiServiceSpec {
       )
     }
 
-    def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]) = {
+    def responseMetadataValues(workflowId: WorkflowId, withKeys: List[String], withoutKeys: List[String]): JsObject = {
       def keyFilter(keys: List[String])(m: MetadataEvent) = keys.exists(k => m.key.key.startsWith(k))
-      fullMetadataResponse(workflowId)
+      val events = fullMetadataResponse(workflowId)
         .filter(m => withKeys.isEmpty || keyFilter(withKeys)(m))
         .filter(m => withoutKeys.isEmpty || !keyFilter(withoutKeys)(m))
+
+      MetadataBuilderActor.workflowMetadataResponse(workflowId, events, includeCallsIfEmpty = false, Map.empty)
     }
 
     def metadataQuery(workflowId: WorkflowId) =
@@ -565,7 +569,7 @@ object CromwellApiServiceSpec {
     import MockServiceRegistryActor._
 
     override def receive = {
-      case WorkflowQuery(parameters) =>
+      case QueryForWorkflowsMatchingParameters(parameters) =>
         val labels: Option[Map[String, String]] = {
           parameters.contains(("additionalQueryResultFields", "labels")).option(
             Map("key1" -> "label1", "key2" -> "label2"))
@@ -585,22 +589,28 @@ object CromwellApiServiceSpec {
           ok = true,
           systems = Map(
             "Engine Database" -> SubsystemStatus(ok = true, messages = None)))
-      case GetStatus(id) if id == OnHoldWorkflowId => sender ! StatusLookupResponse(id, WorkflowOnHold)
-      case GetStatus(id) if id == RunningWorkflowId => sender ! StatusLookupResponse(id, WorkflowRunning)
-      case GetStatus(id) if id == AbortingWorkflowId => sender ! StatusLookupResponse(id, WorkflowAborting)
-      case GetStatus(id) if id == AbortedWorkflowId => sender ! StatusLookupResponse(id, WorkflowAborted)
-      case GetStatus(id) if id == SucceededWorkflowId => sender ! StatusLookupResponse(id, WorkflowSucceeded)
-      case GetStatus(id) if id == FailedWorkflowId => sender ! StatusLookupResponse(id, WorkflowFailed)
-      case GetStatus(id) => sender ! StatusLookupResponse(id, WorkflowSubmitted)
-      case GetLabels(id) => sender ! LabelLookupResponse(id, Map("key1" -> "label1", "key2" -> "label2"))
-      case WorkflowOutputs(id) =>
+      case request @ GetStatus(id) =>
+        val status = id match {
+          case OnHoldWorkflowId => WorkflowOnHold
+          case RunningWorkflowId => WorkflowRunning
+          case AbortingWorkflowId => WorkflowAborting
+          case AbortedWorkflowId => WorkflowAborted
+          case SucceededWorkflowId => WorkflowSucceeded
+          case FailedWorkflowId => WorkflowFailed
+          case _ => WorkflowSubmitted
+        }
+        sender ! BuiltMetadataResponse(request, MetadataBuilderActor.processStatusResponse(id, status))
+      case request @ GetLabels(id) =>
+        sender ! BuiltMetadataResponse(request, MetadataBuilderActor.processLabelsResponse(id, Map("key1" -> "label1", "key2" -> "label2")))
+      case request @ WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
-        sender ! WorkflowOutputsResponse(id, event)
-      case GetLogs(id) => sender ! LogsResponse(id, logsEvents(id))
-      case GetSingleWorkflowMetadataAction(id, withKeys, withoutKeys, _) =>
+        sender ! BuiltMetadataResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
+      case request @ GetLogs(id) =>
+        sender ! BuiltMetadataResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
+      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _)) =>
         val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
         val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
-        sender ! MetadataLookupResponse(metadataQuery(id), responseMetadataValues(id, withKeysList, withoutKeysList))
+        sender ! BuiltMetadataResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))
       case PutMetadataActionAndRespond(events, _, _) =>
         events.head.key.workflowId match {
           case CromwellApiServiceSpec.ExistingWorkflowId => sender ! MetadataWriteSuccess(events)

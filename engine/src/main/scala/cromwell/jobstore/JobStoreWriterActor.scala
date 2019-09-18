@@ -41,7 +41,7 @@ case class JobStoreWriterActor(jsd: JobStore,
         case Success(_) =>
           data foreach { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
         case Failure(regerts) =>
-          log.error("Failed to properly job store entries to database", regerts)
+          log.error(regerts, "Failed to write job store entries to database")
           data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
       }
 

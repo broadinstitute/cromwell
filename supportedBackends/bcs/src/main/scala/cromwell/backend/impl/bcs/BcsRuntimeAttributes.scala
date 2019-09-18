@@ -34,6 +34,7 @@ final case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode
                                 mounts: Option[Seq[BcsMount]],
                                 userData: Option[Seq[BcsUserData]],
                                 cluster: Option[BcsClusterIdOrConfiguration],
+                                imageId: Option[String],
                                 systemDisk: Option[BcsSystemDisk],
                                 dataDisk: Option[BcsDataDisk],
                                 reserveOnFail: Option[Boolean],
@@ -90,6 +91,7 @@ object BcsRuntimeAttributes {
 
   private def tagValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = TagValidation.optionalWithDefault(runtimeConfig)
 
+  private def imageIdValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = ImageIdValidation.optionalWithDefault(runtimeConfig)
 
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder = {
     val defaults = StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
@@ -103,7 +105,8 @@ object BcsRuntimeAttributes {
       timeoutValidation(backendRuntimeConfig),
       verboseValidation(backendRuntimeConfig),
       vpcValidation(backendRuntimeConfig),
-      tagValidation(backendRuntimeConfig)
+      tagValidation(backendRuntimeConfig),
+      imageIdValidation(backendRuntimeConfig)
     )
 
     // TODO: docker trips up centaur testing, for now https://github.com/broadinstitute/cromwell/issues/3518
@@ -126,6 +129,7 @@ object BcsRuntimeAttributes {
     val userData: Option[Seq[BcsUserData]] = RuntimeAttributesValidation.extractOption(userDataValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
 
     val cluster: Option[BcsClusterIdOrConfiguration] = RuntimeAttributesValidation.extractOption(clusterValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val imageId: Option[String] = RuntimeAttributesValidation.extractOption(imageIdValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val dockerTag: Option[BcsDocker] = RuntimeAttributesValidation.extractOption(dockerTagValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val docker: Option[BcsDocker] = RuntimeAttributesValidation.extractOption(dockerValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val systemDisk: Option[BcsSystemDisk] = RuntimeAttributesValidation.extractOption(systemDiskValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
@@ -146,6 +150,7 @@ object BcsRuntimeAttributes {
       mounts,
       userData,
       cluster,
+      imageId,
       systemDisk,
       dataDisk,
       reserveOnFail,
@@ -273,8 +278,6 @@ class ClusterValidation(override val config: Option[Config]) extends RuntimeAttr
 {
   override def key: String = "cluster"
 
-  override def usedInCallCaching: Boolean = true
-
   override def coercion: Traversable[WomType] = Set(WomStringType)
 
   override def validateValue: PartialFunction[WomValue, ErrorOr[BcsClusterIdOrConfiguration]] = {
@@ -364,4 +367,13 @@ object TagValidation {
 }
 
 class TagValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("tag") with OptionalWithDefault[String]
+
+object ImageIdValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new ImageIdValidation(config).optional
+}
+
+class ImageIdValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("imageId") with OptionalWithDefault[String]
+{
+  override def usedInCallCaching: Boolean = true
+}
 

@@ -5,7 +5,8 @@ import cats.data.Validated.{Invalid, Valid}
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.Key
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.RequestHandler.logger
@@ -57,7 +58,7 @@ class ErrorReporter(machineType: Option[String],
                     workflowId: WorkflowId) {
   import ErrorReporter._
 
-  def toUnsuccessfulRunStatus(error: Status, events: List[Event]) = {
+  def toUnsuccessfulRunStatus(error: Status, events: List[Event]): UnsuccessfulRunStatus = {
     // If for some reason the status is null, set it as UNAVAILABLE
     val statusOption = for {
       errorValue <- Option(error)
@@ -67,6 +68,7 @@ class ErrorReporter(machineType: Option[String],
     val builder = status match {
       case GStatus.UNAVAILABLE if wasPreemptible => Preempted.apply _
       case GStatus.CANCELLED => Cancelled.apply _
+      case GStatus.ABORTED if Option(error.getMessage).exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
       case _ => Failed.apply _
     }
 

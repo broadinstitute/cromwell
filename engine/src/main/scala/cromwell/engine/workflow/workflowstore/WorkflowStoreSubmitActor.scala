@@ -3,14 +3,14 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import cats.Monad
-import cats.data.EitherT._
 import cats.data.NonEmptyList
 import common.validation.IOChecked._
+import common.validation.Validation._
 import cromwell.core.Dispatcher._
 import cromwell.core._
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowMetadataHelper
+import cromwell.engine.workflow.WorkflowProcessingEventPublishing._
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreState, WorkflowSubmissionResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -43,7 +43,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
           val wfTypeVersion = cmd.source.workflowTypeVersion.getOrElse("Unspecified version")
           log.info("{} ({}) workflow {} submitted", wfType, wfTypeVersion, workflowSubmissionResponse.id)
           val labelsMap = convertJsonToLabelsMap(cmd.source.labelsJson)
-          publishLabelsToMetadata(workflowSubmissionResponse.id, labelsMap)
+          publishLabelsToMetadata(workflowSubmissionResponse.id, labelsMap, serviceRegistryActor).toErrorOr.toTry.get
           sndr ! WorkflowSubmittedToStore(
             workflowSubmissionResponse.id,
             convertDatabaseStateToApiState(workflowSubmissionResponse.state)
@@ -68,7 +68,7 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         case Success(workflowSubmissionResponses) =>
           log.info("Workflows {} submitted.", workflowSubmissionResponses.toList.map(res => res.id).mkString(", "))
           val labelsMap = convertJsonToLabelsMap(cmd.sources.head.labelsJson)
-          workflowSubmissionResponses.map(res => publishLabelsToMetadata(res.id, labelsMap))
+          workflowSubmissionResponses.map(res => publishLabelsToMetadata(res.id, labelsMap, serviceRegistryActor))
           sndr ! WorkflowsBatchSubmittedToStore(
             workflowSubmissionResponses.map(res => res.id),
             convertDatabaseStateToApiState(workflowSubmissionResponses.head.state)
@@ -104,17 +104,6 @@ final case class WorkflowStoreSubmitActor(store: WorkflowStore, serviceRegistryA
         case (key, JsString(value)) => key -> value
       })
       case _ => Map.empty
-    }
-  }
-
-  private def publishLabelsToMetadata(rootWorkflowId: WorkflowId, customLabels: Map[String, String]): IOChecked[Unit] = {
-    val defaultLabel = "cromwell-workflow-id" -> s"cromwell-$rootWorkflowId"
-    Monad[IOChecked].pure(labelsToMetadata(customLabels + defaultLabel, rootWorkflowId))
-  }
-
-  protected def labelsToMetadata(labels: Map[String, String], workflowId: WorkflowId): Unit = {
-    labels foreach { case (k, v) =>
-      serviceRegistryActor ! PutMetadataAction(MetadataEvent(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Labels}:$k"), MetadataValue(v)))
     }
   }
 

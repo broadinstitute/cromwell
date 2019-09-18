@@ -53,14 +53,15 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
-case class AwsBatchAttributes(auth: AwsAuthMode,
+case class AwsBatchAttributes(fileSystem: String,
+                              auth: AwsAuthMode,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
                               createDefinitionAttempts: Int Refined Positive)
 
 object AwsBatchAttributes {
-  lazy val Logger = LoggerFactory.getLogger("AwsBatchAttributes")
+  lazy val Logger = LoggerFactory.getLogger(this.getClass)
 
   private val availableConfigKeys = Set(
     "concurrent-job-limit",
@@ -69,8 +70,10 @@ object AwsBatchAttributes {
     "dockerhub.account",
     "dockerhub.token",
     "filesystems",
+    "filesystems.local.auth",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
+    "filesystems.local.caching.duplication-strategy",
     "default-runtime-attributes",
     "default-runtime-attributes.disks",
     "default-runtime-attributes.memory",
@@ -102,16 +105,30 @@ object AwsBatchAttributes {
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
-    val filesystemAuthMode: ErrorOr[AwsAuthMode] =
+
+    val fileSysStr:ErrorOr[String] =  validate {backendConfig.hasPath("filesystems.s3") match {
+      case true => "s3"
+      case false => "local"
+    }}
+
+    val fileSysPath = backendConfig.hasPath("filesystems.s3") match {
+      case true => "filesystems.s3"
+      case false => "filesystems.local"
+    }
+    val filesystemAuthMode: ErrorOr[AwsAuthMode] = {
       (for {
-        authName <- validate { backendConfig.as[String]("filesystems.s3.auth") }.toEither
+        authName <- validate {
+          backendConfig.as[String](s"${fileSysPath}.auth")
+        }.toEither
         validAuth <- awsConfig.auth(authName).toEither
       } yield validAuth).toValidated
+    }
+
 
     val duplicationStrategy: ErrorOr[AwsBatchCacheHitDuplicationStrategy] =
       validate {
         backendConfig.
-          as[Option[String]]("filesystems.s3.caching.duplication-strategy").
+          as[Option[String]](s"${fileSysPath}.caching.duplication-strategy").
           getOrElse("copy") match {
             case "copy" => CopyCachedOutputs
             case "reference" => UseOriginalCachedOutputs
@@ -120,6 +137,7 @@ object AwsBatchAttributes {
       }
 
     (
+      fileSysStr,
       filesystemAuthMode,
       executionBucket,
       duplicationStrategy,

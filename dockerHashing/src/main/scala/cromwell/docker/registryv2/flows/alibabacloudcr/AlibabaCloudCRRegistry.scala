@@ -1,6 +1,5 @@
 package cromwell.docker.registryv2.flows.alibabacloudcrregistry
 
-import akka.stream._
 import cats.effect.IO
 import com.aliyuncs.DefaultAcsClient
 import com.aliyuncs.auth.{AlibabaCloudCredentials, BasicCredentials, BasicSessionCredentials}
@@ -24,6 +23,9 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
   val regionPattern = """[^\s]+"""
   val validAlibabaCloudCRHosts: Regex = s"""registry.($regionPattern).aliyuncs.com""".r
 
+  val validCrEndpoint: Regex = s"""cr.($regionPattern).aliyuncs.com""".r
+  val validCrVpcEndpoint: Regex = s"""cr-vpc.($regionPattern).aliyuncs.com""".r
+
 
   def isValidAlibabaCloudCRHost(host: Option[String]): Boolean = {
     host.exists {
@@ -33,6 +35,15 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
       }
     }
   }
+
+  def isValidAlibabaCloudCREndpoint(endpoint: String): Boolean = {
+    endpoint match {
+      case validCrEndpoint(_) => true
+      case validCrVpcEndpoint(_) => true
+      case _ => false
+    }
+  }
+
 
   override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean = isValidAlibabaCloudCRHost(dockerImageIdentifier.host)
 
@@ -59,7 +70,8 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
       case _ => throw new Exception(s"The host ${context.dockerImageID.host} does not have the expected region id")
     }
 
-    val endpoint = ProductName + "." + regionId + ".aliyuncs.com"
+    val defaultEndpoint = ProductName + "." + regionId + ".aliyuncs.com"
+    val endpoint = getAliyunEndpointFromContext(context).getOrElse(defaultEndpoint)
     DefaultProfile.addEndpoint(regionId, ProductName, endpoint)
 
     val profile: IClientProfile = getAliyunCredentialFromContext(context) match {
@@ -89,6 +101,13 @@ class AlibabaCloudCRRegistry(config: DockerRegistryConfig) extends DockerRegistr
       case Some(cred: BasicCredentials) => Some(cred)
       case Some(sCred: BasicSessionCredentials) => Some(sCred)
       case _ => None
+    }
+  }
+
+  //cr.cn-beijing.aliyuncs.com  or  cr-vpc.cn-beijing.aliyuncs.com
+  private[alibabacloudcrregistry] def getAliyunEndpointFromContext(context: DockerInfoContext): Option[String] = {
+    context.credentials collectFirst {
+      case endpoint: String if (isValidAlibabaCloudCREndpoint(endpoint)) => endpoint
     }
   }
 

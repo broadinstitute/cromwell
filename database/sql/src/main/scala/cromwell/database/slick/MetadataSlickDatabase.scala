@@ -359,7 +359,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String): Future[Int] = {
+  override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+    val x = dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.map(_.toList).map { list =>
+      list match {
+        case head :: Nil =>
+        case head :: tail =>
+      }
+    }
+
     if (!dataAccess.isRootWorkflowId(rootWorkflowId)) {
       Future.failed(new Exception(s"Programmer error! Attempting to delete metadata rows of non-root workflow $rootWorkflowId."))
     }

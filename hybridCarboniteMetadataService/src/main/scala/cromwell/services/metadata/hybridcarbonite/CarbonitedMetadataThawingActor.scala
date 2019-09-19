@@ -1,6 +1,6 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import akka.actor.{ActorRef, LoggingFSM, Status}
+import akka.actor.{ActorRef, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
@@ -71,6 +71,9 @@ final class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConf
 }
 
 object CarbonitedMetadataThawingActor {
+
+  def props(carboniterConfig: HybridCarboniteConfig, serviceRegistry: ActorRef, ioActor: ActorRef): Props =
+    Props(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistry, ioActor))
 
   sealed trait ThawCarboniteMessage
 

@@ -2,26 +2,21 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
-import com.typesafe.config.Config
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataWriteAction, MetadataWriteFailure}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import net.ceedubs.ficus.Ficus._
 
-import scala.concurrent.duration._
+class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
 
-class CarboniteMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
+  // TODO: [CARBONITE] Pass in a real reference to the IO actor somehow
+  val ioActor = context.actorOf(Props(new Actor {
+    override def receive: Receive = Actor.emptyBehavior }))
+
+  // TODO: [CARBONITE] Validate the carbonite config
+  def thawingActorProps(): Props = CarbonitedMetadataThawingActor.props(carboniteConfig, serviceRegistryActor, ioActor)
 
   val carboniteWorker: Option[ActorRef] = {
-
-    val carboniteInterval = serviceConfig.getOrElse[Duration]("metadata-summary-refresh-interval", default = Duration.Inf)
-    if (carboniteInterval.isFinite()) {
-      val finiteCarboniteInterval = carboniteInterval.asInstanceOf[FiniteDuration]
-      Option(context.actorOf(CarboniteWorkerActor.props(finiteCarboniteInterval)))
-    } else {
-      log.info("Carboniting interval is not specified. No metadata carboniting will be performed.")
-      None
-    }
+    carboniteConfig.carboniteInterval map { interval => context.actorOf(CarboniteWorkerActor.props(interval)) }
   }
 
   override def receive: Receive = {
@@ -40,5 +35,5 @@ class CarboniteMetadataServiceActor(serviceConfig: Config, globalConfig: Config,
 }
 
 object CarboniteMetadataServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new CarboniteMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
+  def props(serviceConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef) = Props(new CarboniteMetadataServiceActor(serviceConfig, serviceRegistryActor))
 }

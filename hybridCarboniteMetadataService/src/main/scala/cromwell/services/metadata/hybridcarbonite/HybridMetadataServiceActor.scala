@@ -3,7 +3,9 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import cats.data.NonEmptyList
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
+import common.exception.AggregatedMessageException
+import common.validation.Checked._
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, MetadataWriteAction, ValidateWorkflowIdInMetadata}
 import cromwell.services.metadata.impl.{MetadataServiceActor, ReadMetadataRegulatorActor}
@@ -16,16 +18,20 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  def getSubserviceConfig(configPath: String) = if (serviceConfig.hasPath(configPath)) serviceConfig.getConfig(configPath) else {
-    log.warning(s"No ${getClass.getSimpleName} subservice config found for $configPath: assuming empty.")
-    ConfigFactory.empty()
+  val carboniteMetadataServiceActorConfig: HybridCarboniteConfig = {
+    val configPath = "carboniteMetadataServiceActor"
+    if (serviceConfig.hasPath(configPath))
+      HybridCarboniteConfig.make(serviceConfig.getConfig(configPath))(context.system)
+    else {
+      s"No ${getClass.getSimpleName} subservice config found for $configPath".invalidNelCheck
+    }
+  } match {
+    case Right(config) => config
+    case Left(e) => throw AggregatedMessageException("Failed to initialize HybridMetadataServiceActor config", e.toList)
   }
 
-  val classicMetadataServiceActorConfig = getSubserviceConfig("classicMetadataServiceActor")
-  val carboniteMetadataServiceActorConfig = getSubserviceConfig("carboniteMetadataServiceActor")
-
-  val classicMetadataService = context.actorOf(MetadataServiceActor.props(classicMetadataServiceActorConfig, globalConfig, serviceRegistryActor).withDispatcher(ServiceDispatcher))
-  val carboniteMetadataService = context.actorOf(CarboniteMetadataServiceActor.props(carboniteMetadataServiceActorConfig, globalConfig, serviceRegistryActor).withDispatcher(ServiceDispatcher))
+  val classicMetadataService = context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor).withDispatcher(ServiceDispatcher))
+  val carboniteMetadataService = context.actorOf(CarboniteMetadataServiceActor.props(carboniteMetadataServiceActorConfig, serviceRegistryActor).withDispatcher(ServiceDispatcher))
 
   def readDeciderActorProps(): Props = {
     HybridReadDeciderActor.props(classicMetadataService, carboniteMetadataService).withDispatcher(ServiceDispatcher)

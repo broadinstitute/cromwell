@@ -1,12 +1,30 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.testkit.TestProbe
+import com.typesafe.config.ConfigFactory
 import cromwell.services.metadata.impl.MetadataServiceActorSpec
 import cromwell.services.metadata.impl.MetadataServiceActorSpec.globalConfigToMetadataServiceConfig
 
 class HybridMetadataServiceActorSpec extends MetadataServiceActorSpec {
 
   override def actorName: String = "HybridMetadataServiceActor"
-  override lazy val actor = system.actorOf(HybridMetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "HybridMetadataServiceActor-for-MetadataServiceActorSpec")
+
+  val hybridConfigString =
+    s"""metadata-summary-refresh-interval = "Inf"
+        |${HybridMetadataServiceActor.CarboniteConfigPath} {
+        |    carbonite-interval = Inf
+        |
+        |    bucket = "this test shouldn't need a bucket"
+        |
+        |    filesystems {
+        |      # This wouldn't work in the real world... this is just for the tests
+        |      local {
+        |      }
+        |    }
+        |}""".stripMargin
+
+  val hybridConfig = ConfigFactory.parseString(hybridConfigString)
+
+  override lazy val actor = system.actorOf(HybridMetadataServiceActor.props(hybridConfig, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "HybridMetadataServiceActor-for-MetadataServiceActorSpec")
 
 }

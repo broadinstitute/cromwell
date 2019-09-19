@@ -85,10 +85,7 @@ trait StandardAsyncExecutionActor
   val SIGINT = 130
   val SIGKILL = 137
 
-  /*
-    `CheckingForRetryWithDoubleMemory` action in Papiv2 exits with code 0 if the stderr file contains keys
-    mentioned in `retry-with-double-memory` config.
-   */
+  // `CheckingForMemoryRetry` action exits with code 0 if the stderr file contains keys mentioned in `memory-retry` config.
   val StderrContainsRetryKeysCode = 0
 
   /** The type of the run info when a job is started. */
@@ -186,6 +183,9 @@ trait StandardAsyncExecutionActor
     * The local path where the command will run.
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
+
+  lazy val DefaultMemoryRetryFactor = 2.0
+  lazy val MemoryRetryFactor: Double = configurationDescriptor.backendConfig.as[Option[Double]]("memory-retry.multiplier").getOrElse(DefaultMemoryRetryFactor)
 
   /**
     * Returns the shell scripting for finding all files listed within a directory.
@@ -903,14 +903,16 @@ trait StandardAsyncExecutionActor
     */
   def retryElseFail(runStatus: StandardAsyncRunState,
                     backendExecutionStatus: Future[ExecutionHandle],
-                    retryWithDoubleMemory: Boolean = false): Future[ExecutionHandle] = {
+                    retryWithMoreMemory: Boolean = false): Future[ExecutionHandle] = {
 
     val retryable = previousFailedRetries < maxRetries
 
     backendExecutionStatus flatMap {
       case failed: FailedNonRetryableExecutionHandle if retryable =>
         incrementFailedRetryCount map { _ =>
-          FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, retryWithDoubleMemory)
+          val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
+          val newMemoryMultiplier = if (retryWithMoreMemory) currentMemoryMultiplier * MemoryRetryFactor else currentMemoryMultiplier
+          FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, newMemoryMultiplier)
         }
       case _ => backendExecutionStatus
     }
@@ -1082,7 +1084,7 @@ trait StandardAsyncExecutionActor
   def handleExecutionResult(status: StandardAsyncRunState,
                             oldHandle: StandardAsyncPendingExecutionHandle): Future[ExecutionHandle] = {
 
-    def doubleMemoryRetryRC: Future[Boolean] = {
+    def memoryRetryRC: Future[Boolean] = {
       def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean = {
         codeAsOption match {
           case Some(codeAsString) =>
@@ -1092,7 +1094,7 @@ trait StandardAsyncExecutionActor
                 case _ => false
               }
               case Failure(e) =>
-                log.error(s"'CheckingForRetryWithDoubleMemory' action exited with code '$codeAsString' which couldn't be " +
+                log.error(s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
                   s"converted to an Integer. Task will not be retried with double memory. Error: ${ExceptionUtils.getMessage(e)}")
                 false
             }
@@ -1102,13 +1104,13 @@ trait StandardAsyncExecutionActor
 
       def readMemoryRetryRCFile(fileExists: Boolean): Future[Option[String]] = {
         if (fileExists)
-          asyncIo.contentAsStringAsync(jobPaths.doubleMemoryRetryRC, None, failOnOverflow = false).map(Option(_))
+          asyncIo.contentAsStringAsync(jobPaths.memoryRetryRC, None, failOnOverflow = false).map(Option(_))
         else
           Future.successful(None)
       }
 
       for {
-        fileExists <- asyncIo.existsAsync(jobPaths.doubleMemoryRetryRC)
+        fileExists <- asyncIo.existsAsync(jobPaths.memoryRetryRC)
         retryCheckRCAsOption <- readMemoryRetryRCFile(fileExists)
         retryWithMoreMemory = returnCodeAsBoolean(retryCheckRCAsOption)
       } yield retryWithMoreMemory
@@ -1122,11 +1124,11 @@ trait StandardAsyncExecutionActor
       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
-      retryWithDoubleMemory <- doubleMemoryRetryRC
-    } yield (stderrSize, returnCodeAsString, retryWithDoubleMemory)
+      retryWithMoreMemory <- memoryRetryRC
+    } yield (stderrSize, returnCodeAsString, retryWithMoreMemory)
 
     stderrSizeAndReturnCodeAndMemoryRetry flatMap {
-      case (stderrSize, returnCodeAsString, retryWithDoubleMemory) =>
+      case (stderrSize, returnCodeAsString, retryWithMoreMemory) =>
         val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
 
         if (isDone(status)) {
@@ -1139,9 +1141,9 @@ trait StandardAsyncExecutionActor
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
               retryElseFail(status, executionHandle)
-            case Success(returnCodeAsInt) if retryWithDoubleMemory  =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithDoubleMemory(jobDescriptor.key.tag, stderrAsOption, maxRetries), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle, retryWithDoubleMemory)
+            case Success(returnCodeAsInt) if retryWithMoreMemory  =>
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
+              retryElseFail(status, executionHandle, retryWithMoreMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>

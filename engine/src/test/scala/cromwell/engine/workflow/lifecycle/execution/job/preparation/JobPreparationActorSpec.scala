@@ -157,7 +157,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
 
   it should "double memory attribute when `memoryMultiplier` in BackendJobDescriptorKey is greater than 1" in {
     val attributes = Map(
-      "memory" -> WomString("1 GB")
+      "memory" -> WomString("2 GB")
     )
     val inputsAndAttributes = (inputs, attributes).validNel
 
@@ -173,8 +173,8 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.key.attempt shouldBe 3
-        success.jobDescriptor.key.memoryDoubleMultiplier shouldBe 4
-        success.jobDescriptor.runtimeAttributes("memory").valueString shouldBe "4 GB"
+        success.jobDescriptor.key.memoryMultiplier shouldBe 1.21
+        success.jobDescriptor.runtimeAttributes("memory").valueString shouldBe "2.42 GB"
     }
   }
 }

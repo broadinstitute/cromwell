@@ -38,9 +38,9 @@ object PipelinesApiRequestFactory {
   case class DetritusOutputParameters(
                                        monitoringScriptOutputParameter: Option[PipelinesApiFileOutput],
                                        rcFileOutputParameter: PipelinesApiFileOutput,
-                                       doubleMemoryRetryRCFileOutputParameter: PipelinesApiFileOutput
+                                       memoryRetryRCFileOutputParameter: PipelinesApiFileOutput
                                     ) {
-    def all: List[PipelinesApiFileOutput] = doubleMemoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    def all: List[PipelinesApiFileOutput] = memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
   }
 
   /**
@@ -78,7 +78,7 @@ object PipelinesApiRequestFactory {
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
                                       virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                      retryWithDoubleMemoryKeys: Option[List[String]]) {
+                                      retryWithMoreMemoryKeys: Option[List[String]]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

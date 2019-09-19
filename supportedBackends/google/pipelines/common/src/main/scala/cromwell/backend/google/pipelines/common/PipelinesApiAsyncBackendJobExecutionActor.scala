@@ -448,7 +448,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
-          retryWithDoubleMemoryKeys = jesAttributes.retryWithDoubleMemoryKeys
+          retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -496,10 +496,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false,
         contentType = plainTextContentType)
 
-      val doubleMemoryRetryRCFileOutput = PipelinesApiFileOutput(
-        doubleMemoryRetryRCFilename,
-        doubleMemoryRetryRCGcsPath,
-        DefaultPathBuilder.get(doubleMemoryRetryRCFilename),
+      val memoryRetryRCFileOutput = PipelinesApiFileOutput(
+        memoryRetryRCFilename,
+        memoryRetryRCGcsPath,
+        DefaultPathBuilder.get(memoryRetryRCFilename),
         workingDisk,
         optional = true,
         secondary = false,
@@ -528,7 +528,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
-          doubleMemoryRetryRCFileOutputParameter = doubleMemoryRetryRCFileOutput
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         ),
         gcsAuthParameter.toList
       )

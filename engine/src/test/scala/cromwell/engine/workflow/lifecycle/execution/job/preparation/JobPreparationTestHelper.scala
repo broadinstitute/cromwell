@@ -35,17 +35,18 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   mockJobKey.node returns call
   mockJobKey.index returns None
   mockJobKey.attempt returns 1
-  mockJobKey.memoryDoubleMultiplier returns 1
+  mockJobKey.memoryMultiplier returns 1
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
 
+  // assuming the memory-retry.multiplier is 1.1
   val mockJobKeyWithMemoryMultiplier4 = mock[BackendJobDescriptorKey]
   mockJobKeyWithMemoryMultiplier4.call returns call
   mockJobKeyWithMemoryMultiplier4.node returns call
   mockJobKeyWithMemoryMultiplier4.index returns None
   mockJobKeyWithMemoryMultiplier4.attempt returns 3
-  mockJobKeyWithMemoryMultiplier4.memoryDoubleMultiplier returns 4
+  mockJobKeyWithMemoryMultiplier4.memoryMultiplier returns 1.21
 
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 

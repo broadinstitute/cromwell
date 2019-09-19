@@ -54,24 +54,22 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
     }
   }
 
-  def grepForRetryKeysCommand(lookupString: String) =
-    s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/double_memory_retry_rc"
 
-  def doubleMemoryRetryExpectedCommand(lookupString: String): util.List[String] = {
+  def memoryRetryExpectedCommand(lookupString: String): util.List[String] = {
     List(
       "/bin/sh",
       "-c",
-      grepForRetryKeysCommand(lookupString)
+      s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
     ).asJava
   }
 
   val mounts = List(new Mount().setDisk("read-only-disk").setPath("/read/only/container"))
   val memoryRetryActionExpectedFlags = List(ActionFlag.AlwaysRun.toString).asJava
-  val memoryRetryActionExpectedLabels = Map(Key.Tag -> Value.RetryWithDoubleMemory).asJava
+  val memoryRetryActionExpectedLabels = Map(Key.Tag -> Value.RetryWithMoreMemory).asJava
 
   it should "return cloud sdk action for one key in retry-with-double-memory" in {
     val lookupKeyList = List("OutOfMemory")
-    val expectedCommand = doubleMemoryRetryExpectedCommand(lookupKeyList.mkString("|"))
+    val expectedCommand = memoryRetryExpectedCommand(lookupKeyList.mkString("|"))
 
     val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
 
@@ -83,7 +81,7 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
 
   it should "return cloud sdk action for multiple keys in retry-with-double-memory" in {
     val lookupKeyList = List("OutOfMemory", "Killed", "Exit123")
-    val expectedCommand = doubleMemoryRetryExpectedCommand(lookupKeyList.mkString("|"))
+    val expectedCommand = memoryRetryExpectedCommand(lookupKeyList.mkString("|"))
 
     val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
 

@@ -2,10 +2,10 @@
 
 ## 47 Release Notes
 
-### Retry with double memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
+### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
 
-Cromwell now allows user defined retries. With `retry-with-double-memory` you can specify an array of strings which when encountered in the `stderr` 
-file by Cromwell, allows the task to be retried with double memory. More information [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+Cromwell now allows user defined retries. With `memory-retry` config you can specify an array of strings which when encountered in the `stderr` 
+file by Cromwell, allows the task to be retried with multiplier factor mentioned in the config. More information [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
 
 ## 46 Release Notes
 

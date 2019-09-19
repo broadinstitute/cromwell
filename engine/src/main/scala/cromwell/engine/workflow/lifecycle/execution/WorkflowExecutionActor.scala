@@ -241,8 +241,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       handleNonRetryableFailure(stateData, jobKey, reason, returnCode)
     // Job Retryable
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode, retryWithDoubleMemory), _) =>
-      handleRetryableFailure(jobKey, reason, returnCode, retryWithDoubleMemory)
+    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode, memoryMultiplier), _) =>
+      handleRetryableFailure(jobKey, reason, returnCode, memoryMultiplier)
     // Aborted? But we're outside of the AbortingState!?? Could happen if
     // - The job was aborted by something external to Cromwell
     // - The job lasted too long (eg PAPI 6 day timeout)
@@ -445,13 +445,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], retryWithDoubleMemory: Boolean) = {
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: Double) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
-    val currentMemoryMultiplier = jobKey.memoryDoubleMultiplier
-    val newMemoryMultiplier = if (retryWithDoubleMemory) currentMemoryMultiplier * 2 else currentMemoryMultiplier
-
-    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryDoubleMultiplier = newMemoryMultiplier)
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)
     workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
 
     // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status

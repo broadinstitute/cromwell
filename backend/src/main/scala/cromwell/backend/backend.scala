@@ -26,7 +26,7 @@ import scala.util.Try
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], attempt: Int, memoryDoubleMultiplier: Int = 1) extends CallKey {
+case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], attempt: Int, memoryMultiplier: Double = 1.0) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"

@@ -222,16 +222,20 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
-**Retry with Double Memory**
+**Retry with More Memory**
 
-With `retry-with-double-memory` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with double memory. 
-This retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. For example,
+With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
+The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. If the value is not mentioned in config, it will default 
+to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. For example,
 ```hocon
 backend.providers.Papiv2.config {
-  retry-with-double-memory = ["OutOfMemoryError", "Killed"]
+  memory-retry {
+    error-keys = ["OutOfMemoryError", "Killed"]
+    multiplier = 1.1
+  }
 }
 ```  
-this tells Cromwell to retry the task with double memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
+this tells Cromwell to retry the task with 1.1x memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
 runtime attributes as below 
 ```hocon
 runtimeAtrributes {
@@ -240,7 +244,7 @@ runtimeAtrributes {
   maxRetries: 1
 }
 ``` 
-the task will be retried at max 1 more time, and this time with "2 GB" memory. 
+the task will be retried at max 1 more time, and this time with "1.1 GB" memory. 
 
 Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
 making it easy to retrieve the new value of memory on the machine.

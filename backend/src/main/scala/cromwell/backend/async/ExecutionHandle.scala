@@ -35,7 +35,7 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnC
   override val result = NonRetryableExecution(throwable, returnCode)
 }
 
-final case class FailedRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, retryWithDoubleMemory: Boolean = false) extends ExecutionHandle {
+final case class FailedRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None, memoryMultiplier: Double = 1.0) extends ExecutionHandle {
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)
 }

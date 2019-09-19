@@ -20,7 +20,7 @@ import cromwell.core.logging.JobLogger
 import scala.collection.JavaConverters._
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL) extends PipelinesApiFactoryInterface {
-  val memoryRetryRcFilename = "double_memory_retry_rc"
+  val memoryRetryRcFilename = "memory_retry_rc"
 
   def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = {
     new PipelinesApiRequestFactory {

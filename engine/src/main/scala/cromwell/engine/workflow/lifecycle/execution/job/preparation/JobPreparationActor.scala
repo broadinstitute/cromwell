@@ -158,7 +158,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-    def doubleRuntimeMemory(multiplier: Int): Map[LocallyQualifiedName, WomValue] = {
+    def multiplyRuntimeMemory(multiplier: Double): Map[LocallyQualifiedName, WomValue] = {
       runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
         case Some(WomString(memory)) =>
           MemorySize.parse(memory) match {
@@ -171,9 +171,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
     }
 
-    jobKey.memoryDoubleMultiplier match {
-      case 1 => runtimeAttributes
-      case multiplier: Int => doubleRuntimeMemory(multiplier)
+    jobKey.memoryMultiplier match {
+      case 1.0 => runtimeAttributes
+      case multiplier: Double => multiplyRuntimeMemory(multiplier)
     }
   }
 

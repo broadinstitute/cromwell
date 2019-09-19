@@ -9,10 +9,10 @@ task imitate_oom_error {
     memory: "1 GB"
     continueOnReturnCode: true
     maxRetries: 1
-    backend: "Papiv2-Retry-With-Double-Memory"
+    backend: "Papiv2-Retry-With-More-Memory"
   }
 }
 
-workflow retry_with_double_memory {
+workflow retry_with_more_memory {
   call imitate_oom_error
 }

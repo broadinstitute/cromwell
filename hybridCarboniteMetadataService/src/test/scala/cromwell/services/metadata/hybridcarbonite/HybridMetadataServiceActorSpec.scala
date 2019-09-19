@@ -7,6 +7,6 @@ import cromwell.services.metadata.impl.MetadataServiceActorSpec.globalConfigToMe
 class HybridMetadataServiceActorSpec extends MetadataServiceActorSpec {
 
   override def actorName: String = "HybridMetadataServiceActor"
-  override val actor = system.actorOf(HybridMetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "HybridMetadataServiceActor-for-MetadataServiceActorSpec")
+  override lazy val actor = system.actorOf(HybridMetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "HybridMetadataServiceActor-for-MetadataServiceActorSpec")
 
 }

@@ -25,7 +25,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   def actorName: String = "MetadataServiceActor"
 
   val config = ConfigFactory.parseString(Config)
-  val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  lazy val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
 
     val workflowId = WorkflowId.randomId()
 

@@ -2,6 +2,7 @@ package cromwell.services.metadata.impl
 
 import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
 import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props}
+import akka.event.LoggingReceive
 import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
@@ -53,7 +54,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   def readMetadataWorkerActorProps(): Props = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout).withDispatcher(ServiceDispatcher)
   def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps).withDispatcher(ServiceDispatcher)
 
-  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "singleton-ReadMetadataRegulatorActor")
+  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "ClassicMSA-ReadMetadataRegulatorActor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
@@ -105,7 +106,15 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
   }
 
-  def receive = {
+  def summarizerReceive: Receive = {
+    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
+    case MetadataSummarySuccess => scheduleSummary()
+    case MetadataSummaryFailure(t) =>
+      log.error(t, "Error summarizing metadata")
+      scheduleSummary()
+  }
+
+  def receive = summarizerReceive orElse LoggingReceive(akka.event.Logging.InfoLevel) {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
@@ -114,10 +123,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: MetadataReadAction => readActor forward action
-    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
-    case MetadataSummarySuccess => scheduleSummary()
-    case MetadataSummaryFailure(t) =>
-      log.error(t, "Error summarizing metadata")
-      scheduleSummary()
+
   }
 }

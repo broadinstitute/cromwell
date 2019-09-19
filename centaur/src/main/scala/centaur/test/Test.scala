@@ -19,6 +19,7 @@ import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.storage.{Storage, StorageOptions}
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
@@ -82,7 +83,7 @@ object Test {
   * All operations are expected to return a Test type and implement the run method. These can then
   * be composed together via a for comprehension as a test formula and then run by some other entity.
   */
-object Operations {
+object Operations extends StrictLogging {
   lazy val configuration: GoogleConfiguration = GoogleConfiguration(CentaurConfig.conf)
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
@@ -193,6 +194,7 @@ object Operations {
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ if remainingTimeout > 0.seconds =>
+              logger.info(s"Still waiting on progress from ${workflow.id} ($remainingTimeout remaining until we give up)")
               for {
                 _ <- IO.sleep(10.seconds)
                 s <- status(remainingTimeout - 10.seconds)
@@ -203,7 +205,6 @@ object Operations {
           }
         } yield mappedStatus
       }
-
 
       override def run: IO[SubmittedWorkflow] = status(timeout).timeout(CentaurConfig.maxWorkflowLength)
 

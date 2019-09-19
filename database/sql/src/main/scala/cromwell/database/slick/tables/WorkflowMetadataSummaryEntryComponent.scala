@@ -7,6 +7,7 @@ import cats.data.NonEmptyList
 import cromwell.database.sql.tables.WorkflowMetadataSummaryEntry
 import shapeless.syntax.std.tuple._
 import slick.jdbc.{GetResult, PositionedParameters, SQLActionBuilder}
+import slick.lifted.QueryBase
 
 //noinspection SqlDialectInspection
 trait WorkflowMetadataSummaryEntryComponent {
@@ -348,5 +349,17 @@ trait WorkflowMetadataSummaryEntryComponent {
     fullQuery.as[WorkflowMetadataSummaryEntry](rconv = GetResult { r =>
       WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
     })
+  }
+
+  def isRootWorkflowId(workflowId: String) = {
+    workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === workflowId) match {
+      case head :: tail => // wtf
+      case head :: Nil => head.rootWorkflowId == None && head.parentWorkflowId == None
+      case _ => // wtf
+    }
+  }
+
+  def subworkflowIdsForRootWorkflow(rootWorkflowId: String) = {
+    workflowMetadataSummaryEntries.filter(_.rootWorkflowExecutionUuid === rootWorkflowId).map(_.workflowExecutionUuid)
   }
 }

@@ -358,4 +358,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows)
     runTransaction(action)
   }
+
+  override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String): Future[Int] = {
+    if (!dataAccess.isRootWorkflowId(rootWorkflowId)) {
+      Future.failed(new Exception(s"Programmer error! Attempting to delete metadata rows of non-root workflow $rootWorkflowId."))
+    }
+
+    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) ++ rootWorkflowId
+
+    dataAccess.metadataEntries.filter(entry => targetWorkflowIds.e(entry.workflowExecutionUuid))
+  }
 }

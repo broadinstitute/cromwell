@@ -21,7 +21,7 @@ class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with
   }
 
   def doCarboniting(): Unit = {
-    // TODO: When carboniting actually does something, we probably metrics here rather than a tick log...
+    // TODO: [CARBONITE] When carboniting actually does something, we probably metrics here rather than a tick log...
     log.info("Carbonite Worker Tick...")
 
     scheduleNextCarboniting()
@@ -34,7 +34,7 @@ class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with
     ()
   }
 
-  // TODO: When the carboniting process is implemented, we might need to implement graceful shutdowns
+  // TODO: [CARBONITE] When the carboniting process is implemented, we might need to implement graceful shutdowns
   def stopGracefully(): Unit = {
     context.stop(self)
   }

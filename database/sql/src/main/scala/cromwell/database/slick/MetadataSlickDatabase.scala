@@ -363,16 +363,22 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val x = dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.map(_.toList).map { list =>
       list match {
         case head :: Nil =>
+          println(head)
         case head :: tail =>
+          println(head)
+          println(tail)
+        case _ =>
       }
     }
 
-    if (!dataAccess.isRootWorkflowId(rootWorkflowId)) {
-      Future.failed(new Exception(s"Programmer error! Attempting to delete metadata rows of non-root workflow $rootWorkflowId."))
-    }
+    println(x)
+//    if (!dataAccess.isRootWorkflowId(rootWorkflowId)) {
+//      Future.failed(new Exception(s"Programmer error! Attempting to delete metadata rows of non-root workflow $rootWorkflowId."))
+//    }
 
-    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) ++ rootWorkflowId
+//    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) ++ rootWorkflowId
 
-    dataAccess.metadataEntries.filter(entry => targetWorkflowIds.e(entry.workflowExecutionUuid))
+//    dataAccess.metadataEntries.filter(entry => targetWorkflowIds.e(entry.workflowExecutionUuid))
+    ???
   }
 }

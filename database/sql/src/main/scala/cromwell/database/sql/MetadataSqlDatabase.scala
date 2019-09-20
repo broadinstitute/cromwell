@@ -138,5 +138,5 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 
-  def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String): Future[Int]
+  def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int]
 }

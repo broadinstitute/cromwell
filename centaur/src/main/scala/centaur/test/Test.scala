@@ -194,7 +194,6 @@ object Operations extends StrictLogging {
                 IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ if remainingTimeout > 0.seconds =>
-              logger.info(s"Still waiting on progress from ${workflow.id} ($remainingTimeout remaining until we give up)")
               for {
                 _ <- IO.sleep(10.seconds)
                 s <- status(remainingTimeout - 10.seconds)

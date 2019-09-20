@@ -360,25 +360,31 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
-    val x = dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.map(_.toList).map { list =>
-      list match {
-        case head :: Nil =>
-          println(head)
-        case head :: tail =>
-          println(head)
-          println(tail)
-        case _ =>
-      }
+    val isRootWorkflow = dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.headOption map {
+      case Some(row) =>
+        row.parentWorkflowExecutionUuid.isEmpty && row.rootWorkflowExecutionUuid.isEmpty
+      case None => ???
     }
 
-    println(x)
-//    if (!dataAccess.isRootWorkflowId(rootWorkflowId)) {
-//      Future.failed(new Exception(s"Programmer error! Attempting to delete metadata rows of non-root workflow $rootWorkflowId."))
-//    }
+    println(isRootWorkflow)
 
-//    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) ++ rootWorkflowId
+    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) map {
+      subworkflowIds =>
+        subworkflowIds ++ rootWorkflowId
+    }
 
-//    dataAccess.metadataEntries.filter(entry => targetWorkflowIds.e(entry.workflowExecutionUuid))
-    ???
+    println(targetWorkflowIds)
+
+    val delete = (dataAccess.metadataEntries.filter { entry =>
+      val idIsInTargetSet = (targetWorkflowIds filter { targetId =>
+        targetId === entry.workflowExecutionUuid
+      }).size === 1
+
+      val isLabelRow = entry.metadataKey.startsWith("label")
+
+      !isLabelRow && idIsInTargetSet
+    }).delete
+
+    runTransaction(delete)
   }
 }

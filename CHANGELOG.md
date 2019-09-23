@@ -7,6 +7,12 @@
 Cromwell now allows user defined retries. With `memory-retry` config you can specify an array of strings which when encountered in the `stderr` 
 file by Cromwell, allows the task to be retried with multiplier factor mentioned in the config. More information [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
 
+### GCS Parallel Composite Upload Support
+
+Cromwell 47 now supports GCS parallel composite uploads which can greatly improve delocalization performance.
+This feature is turned off by default, it can be turned on by either a backend-level configuration setting or
+on a per-workflow basis with workflow options. More details [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
 ## 46 Release Notes
 
 ### Nvidia GPU Driver Update

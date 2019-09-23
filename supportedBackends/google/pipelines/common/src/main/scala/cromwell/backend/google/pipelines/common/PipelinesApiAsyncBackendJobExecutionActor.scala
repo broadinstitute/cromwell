@@ -37,6 +37,8 @@ import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.CommandSetupSideEffectFile
@@ -140,6 +142,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
+
+  override lazy val memoryRetryFactor: Option[Double Refined Positive] = initializationData.papiConfiguration.papiAttributes.memoryRetryConfiguration.map(_.multiplier)
 
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 

@@ -50,7 +50,7 @@ object PipelinesApiConfigurationAttributes {
 
   final case class VirtualPrivateCloudConfiguration(name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
-  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: Double)
+  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: Double Refined Positive)
 
 
   lazy val Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
@@ -58,7 +58,7 @@ object PipelinesApiConfigurationAttributes {
   val GenomicsApiDefaultQps = 1000
   val DefaultLocalizationAttempts = refineMV[Positive](3)
 
-  lazy val DefaultMemoryRetryFactor = 2.0
+  lazy val DefaultMemoryRetryFactor: Double Refined Positive = refineMV[Positive](2.0)
 
   private val papiKeys = Set(
     "project",
@@ -123,7 +123,7 @@ object PipelinesApiConfigurationAttributes {
 
     def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[Double Refined Positive]): ErrorOr[Option[MemoryRetryConfiguration]] = {
       (errorKeys, multiplier) match {
-        case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul.value)).validNel
+        case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul)).validNel
         case (Some(keys), None) => Option(MemoryRetryConfiguration(keys, DefaultMemoryRetryFactor)).validNel
         case (None, Some(_)) => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
         case (None, None) => None.validNel

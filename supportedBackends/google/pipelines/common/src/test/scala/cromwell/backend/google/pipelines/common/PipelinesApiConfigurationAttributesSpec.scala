@@ -158,7 +158,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.memoryRetryConfiguration.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-    pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier shouldBe 1.1
+    pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier.value shouldBe 1.1
   }
 
   it should "parse memory-retry with only error-keys" in {
@@ -171,7 +171,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.memoryRetryConfiguration.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-    pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier shouldBe 2.0
+    pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier.value shouldBe 2.0
   }
 
   it should "parse memory-retry with empty body" in {

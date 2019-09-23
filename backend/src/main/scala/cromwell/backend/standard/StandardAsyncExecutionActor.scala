@@ -34,6 +34,7 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -912,12 +913,13 @@ trait StandardAsyncExecutionActor
       case failed: FailedNonRetryableExecutionHandle if retryable =>
         incrementFailedRetryCount map { _ =>
           val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
-          val newMemoryMultiplier = (retryWithMoreMemory, memoryRetryFactor) match {
-            case (true, Some(multiplier)) => currentMemoryMultiplier * multiplier.value
-            case (_, _) => currentMemoryMultiplier
+          (retryWithMoreMemory, memoryRetryFactor) match {
+            case (true, Some(multiplier)) => refineV[Positive](currentMemoryMultiplier.value * multiplier.value) match {
+              case Left(_) => FailedNonRetryableExecutionHandle(MemoryMultiplierNotPositive(jobDescriptor.key.tag, None, currentMemoryMultiplier, multiplier), failed.returnCode)
+              case Right(newMultiplier) => FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, newMultiplier)
+            }
+            case (_, _) => FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, currentMemoryMultiplier)
           }
-
-          FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, newMemoryMultiplier)
         }
       case _ => backendExecutionStatus
     }

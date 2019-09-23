@@ -11,6 +11,8 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparati
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
 import common.validation.ErrorOr.ErrorOr
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
 import org.specs2.mock.Mockito
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
@@ -35,7 +37,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   mockJobKey.node returns call
   mockJobKey.index returns None
   mockJobKey.attempt returns 1
-  mockJobKey.memoryMultiplier returns 1
+  mockJobKey.memoryMultiplier returns refineMV[Positive](1)
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
@@ -46,7 +48,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   mockJobKeyWithMemoryMultiplier4.node returns call
   mockJobKeyWithMemoryMultiplier4.index returns None
   mockJobKeyWithMemoryMultiplier4.attempt returns 3
-  mockJobKeyWithMemoryMultiplier4.memoryMultiplier returns 1.21
+  mockJobKeyWithMemoryMultiplier4.memoryMultiplier returns refineMV[Positive](1.21)
 
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 

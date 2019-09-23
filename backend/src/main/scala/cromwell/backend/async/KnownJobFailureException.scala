@@ -2,6 +2,8 @@ package cromwell.backend.async
 
 import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
 abstract class KnownJobFailureException extends Exception {
@@ -27,7 +29,14 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
 
 final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path]) extends KnownJobFailureException {
   override def getMessage = s"stderr for job $jobTag contained one of the `memory-retry` error-keys specified in the config. " +
-    s"Job might have run out of memory."
+    "Job might have run out of memory."
+}
+
+final case class MemoryMultiplierNotPositive(jobTag: String,
+                                             stderrPath: Option[Path],
+                                             currentMultiplier: Double Refined Positive,
+                                             memoryRetryFactor: Double Refined Positive) extends KnownJobFailureException {
+  override def getMessage = s"The result of multiplying current memory multiplier $currentMultiplier with memory retry factor $memoryRetryFactor was not positive."
 }
 
 

@@ -41,7 +41,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
         val inputParameters: Map[String, PipelinesApiInput] = createPipelineParameters.inputParameters.map({ i => i.name -> i }).toMap
 
-        val outputParametersExcludingMemoryRetry = createPipelineParameters.outputParameters.filterNot(x => x.name.equals(memoryRetryRcFilename))
+        val outputParametersExcludingMemoryRetry = createPipelineParameters.outputParameters.filterNot(_.name.equals(memoryRetryRcFilename))
         val finalOutputParameters: Map[String, PipelinesApiOutput] = outputParametersExcludingMemoryRetry.map({ o => o.name -> o }).toMap
 
         val literalInputPipelineParamters = createPipelineParameters.literalInputs.map(_.toGooglePipelineParameter)

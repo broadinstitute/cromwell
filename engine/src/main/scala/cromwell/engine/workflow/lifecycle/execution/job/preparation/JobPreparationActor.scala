@@ -22,6 +22,8 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.format.MemorySize
@@ -158,12 +160,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-    def multiplyRuntimeMemory(multiplier: Double): Map[LocallyQualifiedName, WomValue] = {
+    def multiplyRuntimeMemory(multiplier: Double Refined Positive): Map[LocallyQualifiedName, WomValue] = {
       runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
         case Some(WomString(memory)) =>
           MemorySize.parse(memory) match {
             case Success(mem) =>
-              val memString = MemorySize(mem.amount * multiplier, mem.unit).toString
+              val memString = MemorySize(mem.amount * multiplier.value, mem.unit).toString
               runtimeAttributes ++ Map(RuntimeAttributesKeys.MemoryKey -> WomString(memString))
             case _ => runtimeAttributes
           }
@@ -172,8 +174,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
 
     jobKey.memoryMultiplier match {
-      case 1.0 => runtimeAttributes
-      case multiplier: Double => multiplyRuntimeMemory(multiplier)
+      case multiplier: Refined[Double, Positive] if multiplier.value == 1.0 => runtimeAttributes
+      case multiplier: Refined[Double, Positive] => multiplyRuntimeMemory(multiplier)
     }
   }
 

@@ -7,6 +7,9 @@ import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
 import cromwell.core.path.Path
 import cromwell.core._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
 
@@ -44,7 +47,10 @@ object BackendJobExecutionActor {
   
   sealed trait BackendJobFailedResponse extends BackendJobExecutionResponse {  def throwable: Throwable; def returnCode: Option[Int] }
   case class JobFailedNonRetryableResponse(jobKey: JobKey, throwable: Throwable, returnCode: Option[Int]) extends BackendJobFailedResponse
-  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey, throwable: Throwable, returnCode: Option[Int], memoryMultiplier: Double = 1.0) extends BackendJobFailedResponse
+  case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey,
+                                        throwable: Throwable,
+                                        returnCode: Option[Int],
+                                        memoryMultiplier: Double Refined Positive = refineMV[Positive](1.0)) extends BackendJobFailedResponse
   
   // Reconnection Exceptions
   case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey) extends Exception(

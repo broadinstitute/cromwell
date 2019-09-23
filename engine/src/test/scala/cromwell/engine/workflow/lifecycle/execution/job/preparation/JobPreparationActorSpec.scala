@@ -173,7 +173,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.key.attempt shouldBe 3
-        success.jobDescriptor.key.memoryMultiplier shouldBe 1.21
+        success.jobDescriptor.key.memoryMultiplier.value shouldBe 1.21
         success.jobDescriptor.runtimeAttributes("memory").valueString shouldBe "2.42 GB"
     }
   }

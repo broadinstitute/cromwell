@@ -38,6 +38,8 @@ import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
 import cromwell.webservice.EngineStatsActor
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Positive
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import wom.graph.GraphNodePort.OutputPort
@@ -445,7 +447,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: Double) = {
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: Double Refined Positive) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
     val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)

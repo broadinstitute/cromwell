@@ -244,7 +244,8 @@ runtimeAtrributes {
   maxRetries: 1
 }
 ``` 
-the task will be retried at max 1 more time, and this time with "1.1 GB" memory. 
+the task will be retried at max 1 more time, and this time with "1.1 GB" memory. Please note that Pipelines API will adjust the memory value based on their
+standards for memory for a VM. So it's possible that even though the request says 1.1 GB memory, it actually allocated a bit more memory to the VM.
 
 Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
 making it easy to retrieve the new value of memory on the machine.

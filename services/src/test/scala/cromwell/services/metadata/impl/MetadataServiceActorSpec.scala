@@ -21,8 +21,11 @@ import scala.concurrent.duration._
 
 class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   import MetadataServiceActorSpec.Config
+
+  def actorName: String = "MetadataServiceActor"
+
   val config = ConfigFactory.parseString(Config)
-  val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  lazy val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
 
     val workflowId = WorkflowId.randomId()
 
@@ -109,7 +112,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |}""".stripMargin)
   )
 
-  "MetadataServiceActor" should {
+  actorName should {
 
     testCases foreach { case (name, query, expectation) =>
 

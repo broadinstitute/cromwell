@@ -44,4 +44,18 @@ object AkkaTestUtil {
     }
     override def receive = stoppingReceive orElse Actor.ignoringBehavior
   }
+
+  trait ReceiveLoggingActor extends Actor with ActorLogging {
+    def logMessage = new Receive {
+      def isDefinedAt(x: Any) = {
+        log.info(s"Received: $x")
+        false
+      }
+      def apply(x: Any) = throw new UnsupportedOperationException
+    }
+
+    def loggedReceive: Receive
+
+    override final def receive: Receive = logMessage orElse loggedReceive
+  }
 }

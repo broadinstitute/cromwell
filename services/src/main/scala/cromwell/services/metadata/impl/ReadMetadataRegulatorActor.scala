@@ -3,6 +3,7 @@ package cromwell.services.metadata.impl
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.event.LoggingReceive
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.metadata.MetadataService
 import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, MetadataServiceResponse, WorkflowMetadataReadAction}
@@ -24,7 +25,7 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMa
   // as the lookup key for requesters in the above Map.
   val builderRequests = new mutable.HashMap[ActorRef, MetadataServiceAction]()
 
-  override def receive: Receive = {
+  override def receive: Receive = LoggingReceive(akka.event.Logging.InfoLevel) {
     // This indirection via 'MetadataReadAction' lets the compiler make sure we cover all cases in the sealed trait:
     case action: MetadataReadAction =>
       action match {

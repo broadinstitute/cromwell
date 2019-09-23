@@ -12,8 +12,9 @@ import cromwell.core.path.PathFactory.PathBuilders
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
+import net.ceedubs.ficus.Ficus._
 
-final case class HybridCarboniteConfig(pathBuilders: PathBuilders, bucket: String) {
+final case class HybridCarboniteConfig(pathBuilders: PathBuilders, bucket: String, carboniteInterval: Option[FiniteDuration]) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
@@ -23,12 +24,24 @@ object HybridCarboniteConfig {
   
   def make(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
 
+    val interval: Option[FiniteDuration] = {
+      val carboniteInterval = carboniterConfig.getOrElse[Duration]("carbonite-interval", default = Duration.Inf)
+      if (carboniteInterval.isFinite()) {
+        Option(carboniteInterval.asInstanceOf[FiniteDuration])
+      } else {
+        None
+      }
+    }
+
     for {
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(carboniterConfig)
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 10.seconds)).toCheckedWithContext("construct Carboniter path builders from factories")
 
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext(s"parse Carboniter 'bucket' field from config")
-    } yield HybridCarboniteConfig(pathBuilders, bucket)
+
+    } yield HybridCarboniteConfig(pathBuilders, bucket, interval)
 
   }
+
+
 }

@@ -363,7 +363,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val checkIfRootQuery = (dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.headOption map {
       case Some(row) =>
         row.parentWorkflowExecutionUuid.isEmpty && row.rootWorkflowExecutionUuid.isEmpty
-      case None => ???
+      case None =>
+        throw new Exception(s"Programmer error: attempted to delete metadata rows for non-existent root workflow $rootWorkflowId")
     })
 
     val doTheThing: DBIO[Int] = checkIfRootQuery flatMap { isRootWorkflow: Boolean =>

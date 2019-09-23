@@ -1,6 +1,7 @@
 package common.validation
 
 import java.io.{PrintWriter, StringWriter}
+import java.lang.reflect.InvocationTargetException
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
@@ -17,7 +18,10 @@ import scala.util.{Failure, Success, Try}
 object Validation {
 
   private type ThrowableToStringFunction = Throwable => String
-  private def defaultThrowableToString: ThrowableToStringFunction = t => t.getMessage
+  private def defaultThrowableToString: ThrowableToStringFunction = {
+    case ite: InvocationTargetException => ite.getTargetException.getMessage
+    case t => t.getMessage
+  }
 
   def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)

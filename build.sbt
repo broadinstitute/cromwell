@@ -165,12 +165,17 @@ lazy val services = project
   .dependsOn(wdlBiscayneLanguageFactory % "test->test")
   .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
+  .dependsOn(ftpFileSystem % "test->test")
 
 lazy val hybridCarboniteMetadataService = project
   .withLibrarySettings("hybrid-carbonite-metadata-service")
   .dependsOn(services)
   .dependsOn(engine)
   .dependsOn(core % "test->test")
+  .dependsOn(services % "test->test")
+  .dependsOn(ftpFileSystem % "test->test")
+  .dependsOn(httpFileSystem % "test->test")
+
 
 lazy val backendRoot = Path("supportedBackends")
 
@@ -373,6 +378,7 @@ lazy val server = project
   .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(wdlBiscayneLanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
+  .dependsOn(hybridCarboniteMetadataService)
   .dependsOn(engine % "test->test")
   .dependsOn(common % "test->test")
 
@@ -434,4 +440,5 @@ lazy val root = (project in file("."))
   .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
+  .aggregate(hybridCarboniteMetadataService)
   .withAggregateSettings()

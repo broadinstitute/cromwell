@@ -98,9 +98,7 @@ object PipelinesApiConfigurationAttributes {
     "genomics.default-zones" -> "default-runtime-attributes.zones"
   )
 
-  private val context = "Jes"
-
-  def apply(googleConfig: GoogleConfiguration, backendConfig: Config): PipelinesApiConfigurationAttributes = {
+  def apply(googleConfig: GoogleConfiguration, backendConfig: Config, backendName: String): PipelinesApiConfigurationAttributes = {
 
     def vpcErrorMessage(missingKeys: List[String]) = s"Virtual Private Cloud configuration is invalid. Missing keys: `${missingKeys.mkString(",")}`.".invalidNel
 
@@ -118,14 +116,14 @@ object PipelinesApiConfigurationAttributes {
     }
 
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
-    warnNotRecognized(configKeys, papiKeys, context, Logger)
+    warnNotRecognized(configKeys, papiKeys, backendName, Logger)
 
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger) = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key => logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}") }
     }
 
-    warnDeprecated(configKeys, deprecatedJesKeys, context, Logger)
+    warnDeprecated(configKeys, deprecatedJesKeys, backendName, Logger)
 
     val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }

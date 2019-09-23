@@ -350,18 +350,6 @@ trait WorkflowMetadataSummaryEntryComponent {
     })
   }
 
-  def isRootWorkflowId(workflowId: String) = {
-    ???
-//    val x =
-//
-//
-//    match {
-//      case head :: tail => // wtf
-//      case head :: Nil => head.rootWorkflowId == None && head.parentWorkflowId == None
-//      case _ => // wtf
-//    }
-  }
-
   def subworkflowIdsForRootWorkflow(rootWorkflowId: String) = {
     workflowMetadataSummaryEntries.filter(_.rootWorkflowExecutionUuid === rootWorkflowId).map(_.workflowExecutionUuid)
   }

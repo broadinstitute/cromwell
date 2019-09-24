@@ -21,6 +21,7 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            submissionTime: Option[OffsetDateTime],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
+                                           metadataArchiveStatus: Set[MetadataArchiveStatus],
                                            page: Option[Int],
                                            pageSize: Option[Int],
                                            additionalQueryResultFields: Set[String],
@@ -113,7 +114,21 @@ object WorkflowQueryParameters {
       includeSubworkflowsValidation
     ) mapN {
       (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows)
+        WorkflowQueryParameters(statuses,
+          names,
+          ids,
+          labelsAnd,
+          labelsOr,
+          excludeLabelsAnd,
+          excludeLabelsOr,
+          submissionTime,
+          startDate,
+          endDate,
+          metadataArchiveStatus = Set.empty, // No API querying of this field is needed (at least not yet)
+          page,
+          pageSize,
+          additionalQueryResultFields,
+          includeSubworkflows)
     }
   }
 

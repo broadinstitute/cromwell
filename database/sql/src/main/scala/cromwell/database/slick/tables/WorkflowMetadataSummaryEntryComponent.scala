@@ -128,6 +128,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                        submissionTimestampOption: Option[Timestamp],
                        startTimestampOption: Option[Timestamp],
                        endTimestampOption: Option[Timestamp],
+                       metadataArchiveStatus: Set[Option[String]],
                        includeSubworkflows: Boolean): SQLActionBuilder = {
 
     val customLabelEntryTable = quoted("CUSTOM_LABEL_ENTRY")
@@ -191,6 +192,14 @@ trait WorkflowMetadataSummaryEntryComponent {
       NonEmptyList.fromList(list).map(or).toList
     }
 
+    def makeSetConstraintWithNulls(column: String, elements: Set[Option[String]]) = {
+      val list = elements.toList.map {
+        case Some(element) => sql"""#$summaryTableAlias.#${quoted(column)} = $element"""
+        case None => sql"""#$summaryTableAlias.#${quoted(column)} IS NULL"""
+      }
+      NonEmptyList.fromList(list).map(or).toList
+    }
+
     def makeTimeConstraint(column: String, comparison: String, elementOption: Option[Timestamp]) = {
       elementOption.map(element => sql"""#$summaryTableAlias.#${quoted(column)} #$comparison $element""").toList
     }
@@ -202,6 +211,8 @@ trait WorkflowMetadataSummaryEntryComponent {
     val submissionTimeConstraint = makeTimeConstraint("SUBMISSION_TIMESTAMP", ">=", submissionTimestampOption)
     val startTimeConstraint = makeTimeConstraint("START_TIMESTAMP", ">=", startTimestampOption)
     val endTimeConstraint = makeTimeConstraint("END_TIMESTAMP", "<=", endTimestampOption)
+
+    val metadataArchiveStatusConstraint = makeSetConstraintWithNulls("METADATA_ARCHIVE_STATUS", metadataArchiveStatus)
 
     // *ALL* of the labelAnd list of KV pairs must exist:
     val labelsAndConstraint = NonEmptyList.fromList(labelsAndTableAliases.toList.map {
@@ -259,6 +270,7 @@ trait WorkflowMetadataSummaryEntryComponent {
         submissionTimeConstraint ++
         startTimeConstraint ++
         endTimeConstraint ++
+        metadataArchiveStatusConstraint ++
         labelOrConstraint ++
         labelsAndConstraint ++
         excludeLabelsOrConstraint ++
@@ -286,6 +298,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp],
+                                          metadataArchiveStatus: Set[Option[String]],
                                           includeSubworkflows: Boolean) = {
     buildQueryAction(
       selectOrCount = Count,
@@ -300,6 +313,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       submissionTimestampOption,
       startTimestampOption,
       endTimestampOption,
+      metadataArchiveStatus,
       includeSubworkflows = includeSubworkflows
     ).as[Int].head
   }
@@ -317,6 +331,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           submissionTimestampOption: Option[Timestamp],
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp],
+                                          metadataArchiveStatus: Set[Option[String]],
                                           includeSubworkflows: Boolean,
                                           page: Option[Int],
                                           pageSize: Option[Int]) = {
@@ -333,6 +348,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       submissionTimestampOption,
       startTimestampOption,
       endTimestampOption,
+      metadataArchiveStatus,
       includeSubworkflows = includeSubworkflows
     )
 

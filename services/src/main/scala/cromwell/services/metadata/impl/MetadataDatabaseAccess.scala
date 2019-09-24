@@ -232,6 +232,7 @@ trait MetadataDatabaseAccess {
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows,
       queryParameters.page,
       queryParameters.pageSize
@@ -249,6 +250,7 @@ trait MetadataDatabaseAccess {
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows
     )
 

@@ -36,8 +36,10 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def rootWorkflowExecutionUuid = column[Option[String]]("ROOT_WORKFLOW_EXECUTION_UUID", O.Length(100))
 
+    def metadataArchiveStatus: Rep[Option[String]] = column[Option[String]]("METADATA_ARCHIVE_STATUS", O.Length(30))
+
     def baseProjection = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
-      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid)
+      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid, metadataArchiveStatus)
 
     override def * = baseProjection ~ workflowMetadataSummaryEntryId.? <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
 
@@ -59,6 +61,9 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def ixWorkflowMetadataSummaryEntryRweu =
       index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU", rootWorkflowExecutionUuid, unique = false)
+
+    def ixWorkflowMetadataSummaryEntryMas =
+      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS", metadataArchiveStatus, unique = false)
   }
 
   val workflowMetadataSummaryEntries = TableQuery[WorkflowMetadataSummaryEntries]

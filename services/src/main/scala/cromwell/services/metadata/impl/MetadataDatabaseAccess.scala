@@ -40,12 +40,13 @@ object MetadataDatabaseAccess {
         submissionTimestamp = summary1.submissionTimestamp orElse summary2.submissionTimestamp,
         parentWorkflowExecutionUuid = summary1.parentWorkflowExecutionUuid orElse summary2.parentWorkflowExecutionUuid,
         rootWorkflowExecutionUuid = summary1.rootWorkflowExecutionUuid orElse summary2.rootWorkflowExecutionUuid,
+        metadataArchiveStatus = summary1.metadataArchiveStatus,
       )
     }
   }
 
   def baseSummary(workflowUuid: String) =
-    WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None, None, None)
+    WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None, None, None, None)
 
   // If visibility is made `private`, there's a bogus warning about this being unused.
   implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {

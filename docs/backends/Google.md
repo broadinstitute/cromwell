@@ -225,8 +225,9 @@ workflows using the Google backend.
 **Retry with More Memory**
 
 With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
-The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. If the value is not mentioned in config, it will default 
-to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. For example,
+The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. This multiplier should be greater than 1.0. 
+If the value is not mentioned in config, it will default to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. 
+For example,
 ```hocon
 backend.providers.Papiv2.config {
   memory-retry {

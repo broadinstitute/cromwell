@@ -1,9 +1,8 @@
 package cromwell.backend.async
 
-import cromwell.core.path.Path
 import common.exception.ThrowableAggregation
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.Positive
+import common.validation.Validation.GreaterEqualRefined
+import cromwell.core.path.Path
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
 abstract class KnownJobFailureException extends Exception {
@@ -34,8 +33,8 @@ final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path]) e
 
 final case class MemoryMultiplierNotPositive(jobTag: String,
                                              stderrPath: Option[Path],
-                                             currentMultiplier: Double Refined Positive,
-                                             memoryRetryFactor: Double Refined Positive) extends KnownJobFailureException {
+                                             currentMultiplier: GreaterEqualRefined,
+                                             memoryRetryFactor: GreaterEqualRefined) extends KnownJobFailureException {
   override def getMessage = s"The result of multiplying current memory multiplier $currentMultiplier with memory retry factor $memoryRetryFactor was not positive."
 }
 

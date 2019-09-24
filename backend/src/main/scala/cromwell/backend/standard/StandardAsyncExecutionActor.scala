@@ -32,8 +32,6 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
@@ -187,7 +185,7 @@ trait StandardAsyncExecutionActor
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
 
-  lazy val memoryRetryFactor: Option[Double Refined Positive] = None
+  lazy val memoryRetryFactor: Option[GreaterEqualRefined] = None
 
   /**
     * Returns the shell scripting for finding all files listed within a directory.
@@ -914,7 +912,7 @@ trait StandardAsyncExecutionActor
         incrementFailedRetryCount map { _ =>
           val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
           (retryWithMoreMemory, memoryRetryFactor) match {
-            case (true, Some(multiplier)) => refineV[Positive](currentMemoryMultiplier.value * multiplier.value) match {
+            case (true, Some(multiplier)) => refineV[GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value) match {
               case Left(_) => FailedNonRetryableExecutionHandle(MemoryMultiplierNotPositive(jobDescriptor.key.tag, None, currentMemoryMultiplier, multiplier), failed.returnCode)
               case Right(newMultiplier) => FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, newMultiplier)
             }

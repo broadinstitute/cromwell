@@ -1,8 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
-import wdl.draft2.model.LocallyQualifiedName
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
+import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation.GreaterEqualOne
 import cromwell.backend._
 import cromwell.core.WorkflowId
 import cromwell.engine.EngineWorkflowDescriptor
@@ -10,10 +11,9 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
-import common.validation.ErrorOr.ErrorOr
-import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.specs2.mock.Mockito
+import wdl.draft2.model.LocallyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
@@ -31,24 +31,13 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   workflowDescriptor.rootWorkflowId returns workflowId.toRoot
   workflowDescriptor.rootWorkflow returns workflowDescriptor
   executionData.workflowDescriptor returns workflowDescriptor
-  val mockJobKey = mock[BackendJobDescriptorKey]
   val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, Set.empty, null, None)
-  mockJobKey.call returns call
-  mockJobKey.node returns call
-  mockJobKey.index returns None
-  mockJobKey.attempt returns 1
-  mockJobKey.memoryMultiplier returns refineMV[Positive](1)
+  val mockJobKey = BackendJobDescriptorKey(call, None, 1)
   val serviceRegistryProbe = TestProbe()
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
 
-  // assuming the memory-retry.multiplier is 1.1
-  val mockJobKeyWithMemoryMultiplier4 = mock[BackendJobDescriptorKey]
-  mockJobKeyWithMemoryMultiplier4.call returns call
-  mockJobKeyWithMemoryMultiplier4.node returns call
-  mockJobKeyWithMemoryMultiplier4.index returns None
-  mockJobKeyWithMemoryMultiplier4.attempt returns 3
-  mockJobKeyWithMemoryMultiplier4.memoryMultiplier returns refineMV[Positive](1.21)
+  val mockJobKeyWithMemoryMultiplier4 = BackendJobDescriptorKey(call, None, 3, refineMV[GreaterEqualOne](1.21))
 
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 

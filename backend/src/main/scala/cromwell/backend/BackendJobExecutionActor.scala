@@ -2,13 +2,12 @@ package cromwell.backend
 
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
+import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
-import cromwell.core.path.Path
 import cromwell.core._
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.Positive
+import cromwell.core.path.Path
 import eu.timepit.refined.refineMV
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
@@ -50,7 +49,7 @@ object BackendJobExecutionActor {
   case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey,
                                         throwable: Throwable,
                                         returnCode: Option[Int],
-                                        memoryMultiplier: Double Refined Positive = refineMV[Positive](1.0)) extends BackendJobFailedResponse
+                                        memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends BackendJobFailedResponse
   
   // Reconnection Exceptions
   case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey) extends Exception(

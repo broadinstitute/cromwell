@@ -1,11 +1,10 @@
 package cromwell.backend.async
 
+import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent}
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 
 /**
@@ -40,7 +39,7 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnC
 
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
-                                                memoryMultiplier: Double Refined Positive = refineMV[Positive](1.0)) extends ExecutionHandle {
+                                                memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends ExecutionHandle {
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)
 }

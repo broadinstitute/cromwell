@@ -50,7 +50,7 @@ object PipelinesApiConfigurationAttributes {
 
   final case class VirtualPrivateCloudConfiguration(name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
-  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: Double Refined Positive)
+  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: GreaterEqualRefined)
 
 
   lazy val Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
@@ -58,7 +58,7 @@ object PipelinesApiConfigurationAttributes {
   val GenomicsApiDefaultQps = 1000
   val DefaultLocalizationAttempts = refineMV[Positive](3)
 
-  lazy val DefaultMemoryRetryFactor: Double Refined Positive = refineMV[Positive](2.0)
+  lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
   private val papiKeys = Set(
     "project",
@@ -121,7 +121,7 @@ object PipelinesApiConfigurationAttributes {
       }
     }
 
-    def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[Double Refined Positive]): ErrorOr[Option[MemoryRetryConfiguration]] = {
+    def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[GreaterEqualRefined]): ErrorOr[Option[MemoryRetryConfiguration]] = {
       (errorKeys, multiplier) match {
         case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul)).validNel
         case (Some(keys), None) => Option(MemoryRetryConfiguration(keys, DefaultMemoryRetryFactor)).validNel
@@ -184,7 +184,7 @@ object PipelinesApiConfigurationAttributes {
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val memoryRetryMultiplier: ErrorOr[Option[Double Refined Positive]] = validatePositiveOptionDouble(
+    val memoryRetryMultiplier: ErrorOr[Option[GreaterEqualRefined]] = validatePositiveOptionDouble(
       backendConfig.as[Option[Double]]("memory-retry.multiplier"),
       configPath = "memory-retry.multiplier"
     )
@@ -290,10 +290,10 @@ object PipelinesApiConfigurationAttributes {
     }
   }
 
-  def validatePositiveOptionDouble(value: Option[Double], configPath: String): ErrorOr[Option[Refined[Double, Positive]]] = {
+  def validatePositiveOptionDouble(value: Option[Double], configPath: String): ErrorOr[Option[GreaterEqualRefined]] = {
     value match {
-      case Some(n) => refineV[Positive](n) match {
-        case Left(_) => s"Value $n for $configPath is not strictly positive".invalidNel
+      case Some(n) => refineV[GreaterEqualOne](n) match {
+        case Left(_) => s"Value $n for $configPath should be greater than 1.0.".invalidNel
         case Right(refined) => Option(refined).validNel
       }
       case None => None.validNel

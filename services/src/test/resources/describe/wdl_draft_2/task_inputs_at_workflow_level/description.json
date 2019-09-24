@@ -1,0 +1,44 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "validWorkflow" : true,
+  "name" : "my_workflow",
+  "inputs" : [
+    {
+      "name" : "my_task.task_input",
+      "valueType" : {
+        "typeName" : "String"
+      },
+      "typeDisplayName" : "String",
+      "optional" : false,
+      "default" : null
+    },
+    {
+      "name" : "workflow_input",
+      "valueType" : {
+        "typeName" : "String"
+      },
+      "typeDisplayName" : "String",
+      "optional" : false,
+      "default" : null
+    }
+  ],
+  "outputs" : [
+  ],
+  "images" : [
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : true
+}

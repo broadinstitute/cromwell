@@ -14,12 +14,8 @@ metadata {
 
   "outputs.drs_usa_hca.hash1" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
   "outputs.drs_usa_hca.hash2" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash3" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash4" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash5" = "a34f51039b67d4bf3418c5ad1b94a1ea"
+  "outputs.drs_usa_hca.hash3" = "a34f51039b67d4bf3418c5ad1b94a1ea"
   "outputs.drs_usa_hca.size1" = 36895.0
   "outputs.drs_usa_hca.size2" = 36895.0
-  "outputs.drs_usa_hca.size3" = 36895.0
-  "outputs.drs_usa_hca.size4" = 36895.0
-  "outputs.drs_usa_hca.size5" = 22403106
+  "outputs.drs_usa_hca.size3" = 22403106
 }

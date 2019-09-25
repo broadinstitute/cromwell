@@ -21,6 +21,7 @@ import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
+import cromwell.services.ServiceRegistryActor.IoActorRef
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 import javax.net.ssl.SSLException
 
@@ -40,6 +41,9 @@ final class IoActor(queueSize: Int,
                     override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec = context.dispatcher
+
+  // Register this IoActor with the service registry:
+  serviceRegistryActor ! IoActorRef(self)
 
   /**
     * Method for instrumentation to be executed when a IoCommand failed and is being retried.

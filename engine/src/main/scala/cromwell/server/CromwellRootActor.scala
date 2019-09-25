@@ -25,6 +25,7 @@ import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDis
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
+import cromwell.services.ServiceRegistryActor.IoActorRef
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStore, SubWorkflowStoreActor}
 import cromwell.util.GracefulShutdownHelper
@@ -108,6 +109,9 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val ioThrottle = systemConfig.getAs[Throttle]("io").getOrElse(Throttle(100000, 100.seconds, 100000))
   lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor), "IoActor")
   lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
+
+  // Register the IoActor with the service registry:
+  serviceRegistryActor ! IoActorRef(ioActorProxy)
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)

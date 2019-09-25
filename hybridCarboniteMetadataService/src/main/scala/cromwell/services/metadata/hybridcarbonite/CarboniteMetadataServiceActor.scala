@@ -2,35 +2,61 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
+import cromwell.services.ServiceRegistryActor.{IoActorRef, NoIoActorRefAvailable, RequestIoActorRef}
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataWriteAction, MetadataWriteFailure}
+import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor.ThawCarboniteFailed
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
 class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
 
-  // TODO: [CARBONITE] Pass in a real reference to the IO actor somehow
-  val ioActor = context.actorOf(Props(new Actor {
-    override def receive: Receive = Actor.emptyBehavior }))
+  implicit val ec: ExecutionContext = context.dispatcher
+
+  var ioActorOption: Option[ActorRef] = None
+  scheduleIoActorLookup()
 
   // TODO: [CARBONITE] Validate the carbonite config
-  def thawingActorProps(): Props = CarbonitedMetadataThawingActor.props(carboniteConfig, serviceRegistryActor, ioActor)
+  def thawingActorProps(ioActor: ActorRef): Props = CarbonitedMetadataThawingActor.props(carboniteConfig, serviceRegistryActor, ioActor)
 
-  val carboniteWorker: Option[ActorRef] = {
-    carboniteConfig.carboniteInterval map { interval => context.actorOf(CarboniteWorkerActor.props(interval)) }
-  }
+  var carboniteWorker: Option[ActorRef] = None
 
   override def receive: Receive = {
     case read: MetadataReadAction =>
-      val worker = context.actorOf(CarbonitedMetadataReaderActor.props)
-      worker forward read
+      ioActorOption match {
+        case Some(ioActor) =>
+          val worker = context.actorOf(thawingActorProps(ioActor))
+          worker forward read
+        case None =>
+          sender ! ThawCarboniteFailed(new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
+      }
     case write: MetadataWriteAction =>
       val error = new UnsupportedOperationException(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")
       sender ! MetadataWriteFailure(error, write.events)
+    case IoActorRef(ref) =>
+      log.info(s"${getClass.getSimpleName} has received an IoActor reference")
+      ioActorOption = Some(ref)
+      carboniteWorker = carboniteConfig.carboniteInterval map { interval =>
+        log.info(s"Initializing carbonite worker actor with an interval of $interval")
+        context.actorOf(CarboniteWorkerActor.props(interval, ref))
+      }
+    case NoIoActorRefAvailable =>
+      log.warning(s"${getClass.getSimpleName} is still waiting for an IoActor reference")
+      scheduleIoActorLookup()
     case ShutdownCommand =>
       carboniteWorker match {
         case Some(worker) => waitForActorsAndShutdown(NonEmptyList.of(worker))
         case None => context.stop(self)
       }
+  }
+
+  private def scheduleIoActorLookup(): Unit = {
+    context.system.scheduler.scheduleOnce(1.second) {
+      serviceRegistryActor ! RequestIoActorRef
+    }
+    ()
   }
 }
 

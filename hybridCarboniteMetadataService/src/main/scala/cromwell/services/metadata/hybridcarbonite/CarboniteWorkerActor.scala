@@ -1,6 +1,6 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.DoCarboniting
@@ -8,7 +8,7 @@ import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.DoCarboni
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with ActorLogging with GracefulShutdownHelper {
+class CarboniteWorkerActor(carboniteInterval: FiniteDuration, ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -41,7 +41,7 @@ class CarboniteWorkerActor(carboniteInterval: FiniteDuration) extends Actor with
 }
 
 object CarboniteWorkerActor {
-  def props(carboniteInterval: FiniteDuration) = Props(new CarboniteWorkerActor(carboniteInterval))
+  def props(carboniteInterval: FiniteDuration, ioActor: ActorRef) = Props(new CarboniteWorkerActor(carboniteInterval, ioActor))
 
   case object DoCarboniting
 }

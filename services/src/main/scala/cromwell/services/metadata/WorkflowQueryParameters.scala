@@ -116,7 +116,8 @@ object WorkflowQueryParameters {
       metadataArchiveStatusValidation
     ) mapN {
       (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus) =>
-        WorkflowQueryParameters(statuses,
+        WorkflowQueryParameters(
+          statuses,
           names,
           ids,
           labelsAnd,
@@ -130,7 +131,8 @@ object WorkflowQueryParameters {
           page,
           pageSize,
           additionalQueryResultFields,
-          includeSubworkflows)
+          includeSubworkflows
+        )
     }
   }
 

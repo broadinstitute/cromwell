@@ -1,0 +1,39 @@
+{
+  "germline_single_sample_workflow.ref_fasta_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+  "germline_single_sample_workflow.final_vcf_base_name": "NA12878_small",
+  "germline_single_sample_workflow.skip_QC": "False",
+  "germline_single_sample_workflow.wgs_evaluation_interval_list": "gs://broad-references/hg38/v0/wgs_evaluation_regions.hg38.interval_list",
+  "germline_single_sample_workflow.ref_dict": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "germline_single_sample_workflow.contamination_sites_ud": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.contam.UD",
+  "germline_single_sample_workflow.ref_amb": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.amb",
+  "germline_single_sample_workflow.sample_name": "NA12878_small",
+  "germline_single_sample_workflow.wgs_calling_interval_list": "gs://broad-references/hg38/v0/wgs_calling_regions.hg38.interval_list",
+  "germline_single_sample_workflow.agg_preemptible_tries": 3,
+  "germline_single_sample_workflow.dbSNP_vcf_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
+  "germline_single_sample_workflow.preemptible_tries": 3,
+  "germline_single_sample_workflow.contamination_sites_mu": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.contam.mu",
+  "germline_single_sample_workflow.base_file_name": "NA12878_small",
+  "germline_single_sample_workflow.contamination_sites_bed": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.contam.bed",
+  "germline_single_sample_workflow.use_gatk4_haplotype_caller": "True",
+  "germline_single_sample_workflow.make_gatk4_single_sample_vcf": "True",
+  "germline_single_sample_workflow.ref_pac": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.pac",
+  "germline_single_sample_workflow.break_bands_at_multiples_of": 1000000,
+  "germline_single_sample_workflow.ref_fasta": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "germline_single_sample_workflow.ref_ann": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.ann",
+  "germline_single_sample_workflow.known_indels_sites_VCFs": [
+    "gs://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+    "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz"
+  ],
+  "germline_single_sample_workflow.ref_alt": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.alt",
+  "germline_single_sample_workflow.flowcell_unmapped_bams_fofn": "gs://gatk-test-data/wgs_ubam/NA12878_24RG/NA12878_24RG_small.txt",
+  "germline_single_sample_workflow.ref_sa": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.sa",
+  "germline_single_sample_workflow.dbSNP_vcf": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf",
+  "germline_single_sample_workflow.known_indels_sites_indices": [
+    "gs://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
+    "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
+  ],
+  "germline_single_sample_workflow.wgs_coverage_interval_list": "gs://broad-references/hg38/v0/wgs_coverage_regions.hg38.interval_list",
+  "germline_single_sample_workflow.ref_bwt": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.bwt",
+  "germline_single_sample_workflow.unmapped_bam_suffix": ".unmapped.bam",
+  "germline_single_sample_workflow.haplotype_scatter_count": 50
+}

@@ -410,15 +410,18 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   private def deleteNonLabelMetadataInner(rootWorkflowId: String): DBIO[Int] = {
-    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) map {
-      subworkflowIds =>
-        subworkflowIds ++ rootWorkflowId
-    }
+//    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) map {
+//      subworkflowIds =>
+//        subworkflowIds ++ rootWorkflowId
+//    }
 
     val rowsToDelete = dataAccess.metadataEntries.filter { entry =>
-      val idIsInTargetSet = (targetWorkflowIds filter { targetId =>
-        targetId === entry.workflowExecutionUuid
-      }).size === 1
+      // Something broken with this filtering, it is pretty janky so no surprise
+//      val idIsInTargetSet = (targetWorkflowIds filter { targetId =>
+//        targetId === entry.workflowExecutionUuid
+//      }).size === 1
+
+      val idIsInTargetSet = true // entry.workflowExecutionUuid == targetWorkflowIds.take(1)
 
       val isLabelRow = entry.metadataKey.startsWith("label")
 

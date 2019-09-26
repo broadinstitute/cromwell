@@ -2,7 +2,11 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cats.data.NonEmptyList
+import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
+import common.Checked
+import common.validation.Checked._
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
@@ -360,22 +364,51 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
-    val verifyIsRootWorkflow = (dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.headOption map {
-      case Some(row) =>
-        row.parentWorkflowExecutionUuid.isEmpty && row.rootWorkflowExecutionUuid.isEmpty
-      case None =>
-        throw new Exception(s"Programmer error: attempted to delete metadata rows for non-existent root workflow $rootWorkflowId")
-    })
 
-    val delete: DBIO[Int] = verifyIsRootWorkflow flatMap { isRootWorkflow: Boolean =>
-      if (isRootWorkflow) {
-        deleteNonLabelMetadataInner(rootWorkflowId)
-      } else {
-        throw new Exception(s"Programmer error: attempted to delete metadata rows for non-root workflow $rootWorkflowId")
+    val check: dataAccess.driver.api.DBIO[Checked[Unit]] = checkDeletionPreconditions(rootWorkflowId)
+
+    val delete: DBIO[Int] = check flatMap { blah: Checked[Unit] =>
+      blah match {
+        case Right(_) =>
+          deleteNonLabelMetadataInner(rootWorkflowId)
+        case Left(errors: NonEmptyList[String]) =>
+          DBIO.failed(new Exception(errors.toList.mkString(",")))
       }
     }
 
     runTransaction(delete)
+  }
+
+  private def checkDeletionPreconditions(rootWorkflowId: String)(implicit ec: ExecutionContext): DBIO[Checked[Unit]] = {
+    dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.headOption map {
+      case Some(workflow: WorkflowMetadataSummaryEntry) =>
+        (isTerminalCheck(workflow), isRootWorkflowCheck(workflow)) mapN {
+          case (_, _) => ()
+        }
+      case None =>
+        s"""Programmer error: attempted to delete metadata rows for non-existent root workflow "$rootWorkflowId"""".invalidNelCheck
+    }
+  }
+
+  private def isTerminalCheck(summaryEntry: WorkflowMetadataSummaryEntry): Checked[Unit] = {
+    import cromwell.core.WorkflowState
+
+    summaryEntry.workflowStatus match {
+      case Some(status) =>
+        if (WorkflowState.WorkflowStateValues.filter(_.isTerminal).map(_.toString).contains(status))
+          ().validNelCheck
+        else
+          s"""Attempted to delete metadata for workflow  in non-terminal summary state "${summaryEntry.workflowStatus}"""".invalidNelCheck
+      case None =>
+        s"""Attempted to delete metadata for workflow "${summaryEntry.workflowExecutionUuid}" but summary status is empty""".invalidNelCheck
+    }
+  }
+
+  private def isRootWorkflowCheck(summaryEntry: WorkflowMetadataSummaryEntry): Checked[Unit] = {
+    if (summaryEntry.parentWorkflowExecutionUuid.isEmpty && summaryEntry.rootWorkflowExecutionUuid.isEmpty)
+      ().validNelCheck
+    else
+      s"""Programmer error: attempted to delete metadata rows for non-root workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
   }
 
   private def deleteNonLabelMetadataInner(rootWorkflowId: String): DBIO[Int] = {

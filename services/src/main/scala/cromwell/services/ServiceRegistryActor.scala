@@ -93,9 +93,8 @@ class ServiceRegistryActor(globalConfig: Config) extends Actor with ActorLogging
         case None => sender ! NoIoActorRefAvailable
       }
       case IoActorRef(ref) =>
-        ioActor foreach { existingIoActor =>
-          log.error(s"Programmer Error: More than one IoActor is trying to register itself in the service registry ($ref will replace $existingIoActor)") }
-        ioActor = Option(ref)
+        if (ioActor.isEmpty) { ioActor = Option(ref) }
+        else { log.error(s"Programmer Error: More than one IoActor is trying to register itself in the service registry ($ref will *NOT* replace the existing $ioActor)") }
     }
     case ShutdownCommand =>
       services.values.toList match {

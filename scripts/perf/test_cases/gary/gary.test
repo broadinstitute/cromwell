@@ -1,0 +1,11 @@
+name: gary
+testFormat: workflowsuccess
+
+files {
+  workflow: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/centaur/src/main/resources/standardTestCases/hello/hello.wdl"
+  inputs: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/centaur/src/main/resources/standardTestCases/hello/hello.inputs"
+}
+
+metadata {
+  status: Succeeded
+}

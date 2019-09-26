@@ -37,7 +37,7 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
       sender ! MetadataWriteFailure(error, write.events)
     case IoActorRef(ref) =>
       log.info(s"${getClass.getSimpleName} has received an IoActor reference")
-      ioActorOption = Some(ref)
+      ioActorOption = Option(ref)
       carboniteWorker = carboniteConfig.carboniteInterval map { interval =>
         log.info(s"Initializing carbonite worker actor with an interval of $interval")
         context.actorOf(CarboniteWorkerActor.props(interval, ref))

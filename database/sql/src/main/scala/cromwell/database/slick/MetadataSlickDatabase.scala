@@ -365,10 +365,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
 
-    val check: dataAccess.driver.api.DBIO[Checked[Unit]] = checkDeletionPreconditions(rootWorkflowId)
-
-    val delete: DBIO[Int] = check flatMap { blah: Checked[Unit] =>
-      blah match {
+    val delete: DBIO[Int] = checkDeletionPreconditions(rootWorkflowId) flatMap { checkResult: Checked[Unit] =>
+      checkResult match {
         case Right(_) =>
           deleteNonLabelMetadataInner(rootWorkflowId)
         case Left(errors: NonEmptyList[String]) =>

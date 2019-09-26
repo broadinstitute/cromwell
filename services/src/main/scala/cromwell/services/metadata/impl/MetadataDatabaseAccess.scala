@@ -6,6 +6,8 @@ import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
+//import cats.syntax.validated._
+import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
@@ -273,8 +275,13 @@ trait MetadataDatabaseAccess {
         queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels).fold(
           metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
 
-      workflowLabels map { labels =>
-        MetadataService.WorkflowQueryResult(
+      val archiveStatus = MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
+//      val archiveStatus = MetadataArchiveStatus.Archived.validNel // MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
+
+      for {
+        labels <- workflowLabels
+        archived <- Future.fromTry(archiveStatus.toTry)
+      } yield MetadataService.WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
           status = workflow.workflowStatus,
@@ -283,9 +290,9 @@ trait MetadataDatabaseAccess {
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
           labels = labels.nonEmpty.option(labels),
           parentWorkflowId = workflow.parentWorkflowExecutionUuid,
-          rootWorkflowId = workflow.rootWorkflowExecutionUuid
+          rootWorkflowId = workflow.rootWorkflowExecutionUuid,
+          metadataArchiveStatus = archived
         )
-      }
     }
 
     for {

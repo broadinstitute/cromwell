@@ -154,6 +154,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       "SUBMISSION_TIMESTAMP",
       "PARENT_WORKFLOW_EXECUTION_UUID",
       "ROOT_WORKFLOW_EXECUTION_UUID",
+      "METADATA_ARCHIVE_STATUS",
       "WORKFLOW_METADATA_SUMMARY_ENTRY_ID",
     )
       .map(quoted)
@@ -367,7 +368,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     val fullQuery = concatNel(NonEmptyList(mainQuery, orderByAddendum :: paginationAddendum))
 
     fullQuery.as[WorkflowMetadataSummaryEntry](rconv = GetResult { r =>
-      WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
+      WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
     })
   }
 }

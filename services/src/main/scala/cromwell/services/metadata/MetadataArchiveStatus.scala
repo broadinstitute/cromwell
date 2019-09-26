@@ -11,7 +11,12 @@ object MetadataArchiveStatus {
 
   def toDatabaseValue(status: MetadataArchiveStatus): Option[String] = status match {
     case Unarchived => None
-    case other => Option(other.toString)
+    case other => Option(other.getClass.getSimpleName)
+  }
+
+  def fromDatabaseValue(status: Option[String]): ErrorOr[MetadataArchiveStatus] = status match {
+    case None => Unarchived.validNel
+    case Some(other) => withName(other)
   }
 
   def withName(str: String): ErrorOr[MetadataArchiveStatus] = MetadataArchiveStatusValues.find(_.toString.equalsIgnoreCase(str)) match {

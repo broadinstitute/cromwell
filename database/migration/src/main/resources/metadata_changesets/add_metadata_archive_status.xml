@@ -6,7 +6,7 @@
 
     <changeSet id="add_metadata_archive_status" author="cjllanwarne" dbms="hsqldb,mariadb,mysql,postgresql">
         <addColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
-            <column name="METADATA_ARCHIVE_STATUS" type="VARCHAR(30)">
+            <column name="METADATA_ARCHIVE_STATUS" type="VARCHAR(30)" defaultValue="Howdy!">
                 <constraints nullable="true" />
             </column>
         </addColumn>

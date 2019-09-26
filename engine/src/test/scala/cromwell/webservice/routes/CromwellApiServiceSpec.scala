@@ -17,6 +17,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{Workflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
+import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
@@ -576,7 +577,7 @@ object CromwellApiServiceSpec {
         }
 
         val response = WorkflowQuerySuccess(WorkflowQueryResponse(List(WorkflowQueryResult(ExistingWorkflowId.toString,
-          None, Some(WorkflowSucceeded.toString), None, None, None, labels, Option("pid"), Option("rid"))), 1), None)
+          None, Some(WorkflowSucceeded.toString), None, None, None, labels, Option("pid"), Option("rid"), Unarchived)), 1), None)
         sender ! response
       case ValidateWorkflowIdInMetadata(id) =>
         if (RecognizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId

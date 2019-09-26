@@ -127,15 +127,19 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
     }
 
     "be able to query by Unarchived metadataArchiveStatus" in {
+
       val summarizableStatusUpdate = PutMetadataAction(MetadataEvent(
         MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
         Option(MetadataValue("Running")),
         moment.plusSeconds(1)
       ))
-
       actor ! summarizableStatusUpdate
 
       eventually(Timeout(10.seconds), Interval(2.seconds)) {
+        val queryEverythingResponse = Await.result((actor ? QueryForWorkflowsMatchingParameters(List.empty)).mapTo[WorkflowQuerySuccess], 1.seconds)
+        queryEverythingResponse.response.results.length should be(1)
+        println(queryEverythingResponse)
+
         val response1 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Unarchived")))).mapTo[WorkflowQuerySuccess], 1.seconds)
         // We submitted one workflow, so we should should see one value here:
         response1.response.results.length should be(1)

@@ -10,8 +10,7 @@ class HybridMetadataServiceActorSpec extends MetadataServiceActorSpec {
   override def actorName: String = "HybridMetadataServiceActor"
 
   val hybridConfigString =
-    s"""metadata-summary-refresh-interval = "Inf"
-        |${HybridMetadataServiceActor.CarboniteConfigPath} {
+    s"""${HybridMetadataServiceActor.CarboniteConfigPath} {
         |    carbonite-interval = Inf
         |
         |    bucket = "this test shouldn't need a bucket"

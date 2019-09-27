@@ -229,6 +229,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                         submissionTimestamp: Option[Timestamp],
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
+                                        metadataArchiveStatus: Set[Option[String]],
                                         includeSubworkflows: Boolean,
                                         page: Option[Int],
                                         pageSize: Option[Int])
@@ -247,6 +248,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                         submissionTimestamp: Option[Timestamp],
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
+                                        metadataArchiveStatus: Set[Option[String]],
                                         includeSubworkflows: Boolean)(implicit ec: ExecutionContext): Nothing = {
       notImplemented()
     }

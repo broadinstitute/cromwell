@@ -14,7 +14,9 @@ import scala.concurrent.ExecutionContext
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
-  DatabaseSystem.All foreach { databaseSystem =>
+  // Postgres has a crazy quoting behavior, would need different version of query just for it
+  // HSQL doesn't support `UNION`?!
+  Seq(MysqlEarliestDatabaseSystem, MysqlLatestDatabaseSystem, MariadbEarliestDatabaseSystem, MariadbLatestDatabaseSystem) foreach { databaseSystem =>
 
     implicit val ec = ExecutionContext.global
 
@@ -38,7 +40,7 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           MetadataEntry("workflow id: I am the subworkflow", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am the subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
         )
-      )
+      ).futureValue(Timeout(10.seconds))
 
       database.runTestTransaction(
         database.dataAccess.workflowMetadataSummaryEntries ++= Seq(
@@ -47,7 +49,7 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None),
           WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow")),
         )
-      )
+      ).futureValue(Timeout(10.seconds))
     }
 
     // attempt deleting root workflow that does not exist
@@ -81,8 +83,8 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
     it should "clean up & close the database" taggedAs DbmsTest in {
       // Not relevant in Travis where all state gets nuked but useful for testing locally
-      database.runTestTransaction(database.dataAccess.metadataEntries.delete)
-      database.runTestTransaction(database.dataAccess.workflowMetadataSummaryEntries.delete)
+      database.runTestTransaction(database.dataAccess.metadataEntries.delete).futureValue(Timeout(10.seconds))
+      database.runTestTransaction(database.dataAccess.workflowMetadataSummaryEntries.delete).futureValue(Timeout(10.seconds))
 
       database.close()
     }

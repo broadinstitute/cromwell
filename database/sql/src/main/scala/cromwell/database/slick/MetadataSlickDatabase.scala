@@ -413,32 +413,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
     sqlu"""DELETE FROM METADATA_ENTRY
            WHERE WORKFLOW_EXECUTION_UUID IN
-             ( SELECT $rootWorkflowId UNION SELECT WORKFLOW_EXECUTION_UUID AS SUBWORKFLOW_IDS FROM WORKFLOW_METADATA_SUMMARY_ENTRY WHERE ROOT_WORKFLOW_EXECUTION_UUID = $rootWorkflowId )
+             (
+               SELECT $rootWorkflowId
+               UNION
+               SELECT WORKFLOW_EXECUTION_UUID AS SUBWORKFLOW_IDS FROM WORKFLOW_METADATA_SUMMARY_ENTRY WHERE ROOT_WORKFLOW_EXECUTION_UUID = $rootWorkflowId
+             )
            AND
              METADATA_KEY NOT LIKE 'label%'"""
 
-//    val targetWorkflowIds = dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId) map {
-//      subworkflowIds =>
-//        subworkflowIds ++ rootWorkflowId
-//    }
-
-//    // TODO: validate the comments below against the generated SQL
-//    val deletes = (targetWorkflowIds map { workflowId: dataAccess.driver.api.Rep[String] =>
-//      val rowsForId: Query[dataAccess.MetadataEntries, dataAccess.MetadataEntries#TableElementType, Seq] = dataAccess.metadataEntries filter { metadataEntry: dataAccess.MetadataEntries =>
-//        // First narrow down by ID, uses index `METADATA_WORKFLOW_IDX`
-//        metadataEntry.workflowExecutionUuid === workflowId
-//      } filterNot { metadataEntry: dataAccess.MetadataEntries =>
-//        // Much slower, non-indexable: evaluate substring
-//        metadataEntry.metadataKey.startsWith("label")
-//      }
-//
-//      import slick.dbio.Effect
-//
-//      val x: FixedSqlAction[Int, NoStream, Effect.Write] = rowsForId.delete
-//
-//      x
-//    })
-
-//    deletes
   }
 }

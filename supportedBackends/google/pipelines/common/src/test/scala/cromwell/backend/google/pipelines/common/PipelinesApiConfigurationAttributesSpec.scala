@@ -156,7 +156,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
         |}""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.memoryRetryConfiguration.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
     pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier.value shouldBe 1.1
   }
@@ -169,7 +169,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
         |}""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.memoryRetryConfiguration.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
     pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier.value shouldBe 2.0
   }
@@ -178,7 +178,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     val customConfig = """memory-retry { }""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig)
     pipelinesApiAttributes.memoryRetryConfiguration shouldBe None
   }
 
@@ -306,7 +306,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiConfigurationAttributes(googleConfig, config, "papi")
+      PipelinesApiConfigurationAttributes(googleConfig, config)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("memory-retry configuration is invalid. No error-keys provided.")
@@ -323,7 +323,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiConfigurationAttributes(googleConfig, config, "papi")
+      PipelinesApiConfigurationAttributes(googleConfig, config)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("Value 0.5 for memory-retry.multiplier should be greater than 1.0.")
@@ -340,7 +340,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      PipelinesApiConfigurationAttributes(googleConfig, config, "papi")
+      PipelinesApiConfigurationAttributes(googleConfig, config)
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("Value -2.0 for memory-retry.multiplier should be greater than 1.0.")

@@ -59,7 +59,7 @@ object AwsBatchTestConfig {
       |    disks: "local-disk"
       |    noAddress: false
       |    zones:["us-east-1a", "us-east-1b"]
-      |    queueArn: "arn::::"
+      |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
       |}
       |
       |""".stripMargin

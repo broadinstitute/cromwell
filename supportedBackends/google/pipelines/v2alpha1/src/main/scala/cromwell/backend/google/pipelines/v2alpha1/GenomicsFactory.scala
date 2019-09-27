@@ -36,7 +36,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   with MonitoringAction
   with Localization
   with UserAction
-  with Delocalization {
+  with Delocalization
+  with MemoryRetryCheckAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
     implicit lazy val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
@@ -135,11 +136,15 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val containerSetup: List[Action] = containerSetupActions(mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
+      val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ deLocalization ++ monitoring
+      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring
 
-      val environment = Map.empty[String, String].asJava
+      // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
+      // on the machine to utilize in their command blocks if needed
+      val runtimeMemory = createPipelineParameters.runtimeAttributes.memory
+      val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       // Start background actions first, leave the rest as is
       val sortedActions = allActions.sortWith({

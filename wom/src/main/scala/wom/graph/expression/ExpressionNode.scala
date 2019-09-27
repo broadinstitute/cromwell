@@ -42,7 +42,6 @@ abstract class ExpressionNode(override val identifier: WomIdentifier,
       evaluated <- evaluateAndCoerce(inputs, ioFunctionSet)
     } yield Map(singleOutputPort -> evaluated)
   }
-  
 }
 
 object ExpressionNode {
@@ -67,7 +66,7 @@ object ExpressionNode {
       _ = graphNodeSetter._graphNode = expressionNode
     } yield expressionNode
 
-    def safeSourceString(e: WomExpression) = Try(expression.sourceString).getOrElse("<<ERROR>>")
+    def safeSourceString(e: WomExpression) = Try(expression.sourceString).getOrElse("<<expected an expression, none found>>")
 
     builtExpressionNode.leftMap(es => es.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${safeSourceString(expression)}': $e"))
   }

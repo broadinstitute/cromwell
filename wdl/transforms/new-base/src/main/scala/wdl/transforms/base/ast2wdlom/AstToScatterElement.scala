@@ -10,7 +10,7 @@ import wom.SourceFileLocation
 object AstToScatterElement {
   def astToScatterElement(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement],
                           astNodeToWorkflowGraphElement: CheckedAtoB[GenericAstNode, WorkflowGraphElement]
-                         ): CheckedAtoB[GenericAst, ScatterElement] = CheckedAtoB.fromErrorOr("read scatter section") { ast =>
+                         ): CheckedAtoB[GenericAst, ScatterElement] = CheckedAtoB.fromErrorOr("process scatter block") { ast =>
 
     val scatterVariableValidation: ErrorOr[GenericTerminal] = ast.getAttributeAs[GenericTerminal]("item").toValidated
 

@@ -20,7 +20,7 @@ task delete_self_if_preemptible {
 
   runtime {
     preemptible: 1
-    docker: "google/cloud-sdk:slim"
+    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
   }
 }
 

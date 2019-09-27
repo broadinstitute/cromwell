@@ -13,6 +13,13 @@ Cromwell 47 now supports GCS parallel composite uploads which can greatly improv
 This feature is turned off by default, it can be turned on by either a backend-level configuration setting or
 on a per-workflow basis with workflow options. More details [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
 
+### Papi V2 Localization Using GCR [(#5200)](https://github.com/broadinstitute/cromwell/pull/5200)
+
+The Docker image for the Google Cloud SDK was previously only [published on Docker
+Hub](https://hub.docker.com/r/google/cloud-sdk). Now that the image is [publicly hosted in
+GCR](http://gcr.io/google.com/cloudsdktool/cloud-sdk), Papi V2 jobs will localize inputs and delocalize outputs using
+the GCR image.
+
 ## 46 Release Notes
 
 ### Nvidia GPU Driver Update

@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
+import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag.ActionFlag
 import cromwell.docker.DockerImageIdentifier
@@ -59,10 +60,7 @@ object ActionBuilder {
     }
   }
 
-  // TODO revert this to google/cloud-sdk:slim once latest is unbroken
-  // TODO https://github.com/GoogleCloudPlatform/gsutil/issues/806
-  val cloudSdkImage = "google/cloud-sdk:251.0.0-slim"
-  def cloudSdkAction: Action = new Action().setImageUri(cloudSdkImage)
+  def cloudSdkAction: Action = new Action().setImageUri(GenomicsFactory.CloudSdkImage)
 
   def withImage(image: String) = new Action()
     .setImageUri(image)

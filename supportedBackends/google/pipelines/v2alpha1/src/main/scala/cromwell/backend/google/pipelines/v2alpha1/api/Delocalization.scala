@@ -9,7 +9,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsDelocalizationScriptName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
-import cromwell.backend.google.pipelines.v2alpha1.RuntimeOutputMapping
+import cromwell.backend.google.pipelines.v2alpha1.{GenomicsFactory, RuntimeOutputMapping}
 import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.{Key, Value}
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
@@ -63,7 +63,7 @@ trait Delocalization {
     )
 
     ActionBuilder
-      .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(cloudSdkImage))
+      .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(GenomicsFactory.CloudSdkImage))
       .setCommands(commands.asJava)
       .withMounts(mounts)
       .setEntrypoint("/bin/bash")

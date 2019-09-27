@@ -33,6 +33,10 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am the subworkflow", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am the subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
         )
       )
 
@@ -40,6 +44,8 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
         database.dataAccess.workflowMetadataSummaryEntries ++= Seq(
           WorkflowMetadataSummaryEntry("workflow id: I am not a root workflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("I have a parent"), Option("I have a parent")),
           WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None),
+          WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None),
+          WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow")),
         )
       )
     }
@@ -66,6 +72,10 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
     }
 
     // attempt deleting root workflow id with subworkflows. should delete expected row count
+    it should "delete non-label rows from the root workflow and its subworkflows" taggedAs DbmsTest in {
+      val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I am a root workflow with a subworkflow")
+      delete.futureValue(Timeout(10.seconds)) should be(2)
+    }
 
     // attempt deleting root workflow id with subworkflows that have subworkflows. should delete expected row count
 

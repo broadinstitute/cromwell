@@ -1,7 +1,6 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.event.LoggingReceive
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.AggregatedMessageException
@@ -41,7 +40,7 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   val readRegulatorActor = context.actorOf(ReadMetadataRegulatorActor.props(readDeciderActorProps, readDeciderActorProps), "ReadMetadataRegulatorActor_for_HMSA")
 
-  override def receive = LoggingReceive(akka.event.Logging.InfoLevel) {
+  override def receive = {
     case action: MetadataServiceAction => action match {
       case read: MetadataReadAction => readRegulatorActor forward read
       case write: MetadataWriteAction => classicMetadataService.forward(write)

@@ -2,7 +2,6 @@ package cromwell.services.metadata.impl
 
 import akka.actor.SupervisorStrategy.{Decider, Directive, Escalate, Resume}
 import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props}
-import akka.event.LoggingReceive
 import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
@@ -114,7 +113,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
       scheduleSummary()
   }
 
-  def receive = summarizerReceive orElse LoggingReceive(akka.event.Logging.InfoLevel) {
+  def receive = summarizerReceive orElse {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action

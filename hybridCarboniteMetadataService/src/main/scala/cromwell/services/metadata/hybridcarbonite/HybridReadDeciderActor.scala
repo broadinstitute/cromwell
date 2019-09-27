@@ -1,7 +1,6 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorRef, PoisonPill, Props}
-import akka.event.LoggingReceive
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceResponse}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.FailedMetadataResponse
 
@@ -19,7 +18,7 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
 
   var sndr: Option[ActorRef] = None
 
-  override def receive: Receive = LoggingReceive(akka.event.Logging.InfoLevel) {
+  override def receive: Receive = {
     case read: MetadataReadAction =>
       sndr = Option(sender())
       decide(read) onComplete {

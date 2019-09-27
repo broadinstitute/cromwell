@@ -20,15 +20,16 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
   implicit val ec: ExecutionContext = context.dispatcher
 
   val carboniteMetadataServiceActorConfig: HybridCarboniteConfig = {
-    if (serviceConfig.hasPath(CarboniteConfigPath))
-      HybridCarboniteConfig.make(serviceConfig.getConfig(CarboniteConfigPath))(context.system).contextualizeErrors("read config")
-    else {
-      s"No ${getClass.getSimpleName} subservice config found for $CarboniteConfigPath".invalidNelCheck
+    val hybridCarboniteConfig = if (serviceConfig.hasPath(CarboniteConfigPath)) {
+      HybridCarboniteConfig.parseConfig(globalConfig, serviceConfig.getConfig(CarboniteConfigPath))(context.system).contextualizeErrors("parse config")
+    } else {
+      s"No ${getClass.getSimpleName} subservice config found for $CarboniteConfigPath.".invalidNelCheck
     }
-  } match {
-    case Right(config) => config
-    case Left(e) =>
-      throw AggregatedMessageException("Failed to initialize HybridMetadataServiceActor", e.toList)
+
+    hybridCarboniteConfig match {
+      case Right(config) => config
+      case Left(e) => throw AggregatedMessageException("Failed to initialize HybridMetadataServiceActor", e.toList)
+    }
   }
 
   val classicMetadataService = context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor).withDispatcher(ServiceDispatcher))
@@ -42,16 +43,17 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   override def receive = {
     case action: MetadataServiceAction => action match {
-      case read: MetadataReadAction => readRegulatorActor forward read
+      case read: MetadataReadAction =>
+        readRegulatorActor forward read
       case write: MetadataWriteAction => classicMetadataService.forward(write)
       case validate: ValidateWorkflowIdInMetadata => classicMetadataService forward validate
     }
-
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(classicMetadataService, carboniteMetadataService))
   }
 }
 
 object HybridMetadataServiceActor {
-  val CarboniteConfigPath = "carboniteMetadataServiceActor"
+  val CarboniteConfigPath = "carbonite-metadata-service"
+
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef))
 }

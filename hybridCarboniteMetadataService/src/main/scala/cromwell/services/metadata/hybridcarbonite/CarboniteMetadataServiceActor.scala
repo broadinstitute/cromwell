@@ -18,10 +18,10 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
   var ioActorOption: Option[ActorRef] = None
   scheduleIoActorLookup()
 
-  // TODO: [CARBONITE] Validate the carbonite config
   def thawingActorProps(ioActor: ActorRef): Props = CarbonitedMetadataThawingActor.props(carboniteConfig, serviceRegistryActor, ioActor)
 
   var carboniteWorker: Option[ActorRef] = None
+
 
   override def receive: Receive = {
     case read: MetadataReadAction =>
@@ -38,10 +38,7 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
     case IoActorRef(ref) =>
       log.info(s"${getClass.getSimpleName} has received an IoActor reference")
       ioActorOption = Option(ref)
-      carboniteWorker = carboniteConfig.carboniteInterval map { interval =>
-        log.info(s"Initializing carbonite worker actor with an interval of $interval")
-        context.actorOf(CarboniteWorkerActor.props(interval, ref))
-      }
+      carboniteWorker = if (carboniteConfig.enabled) Option(context.actorOf(CarboniteWorkerActor.props(serviceRegistryActor, ref))) else None
     case NoIoActorRefAvailable =>
       log.warning(s"${getClass.getSimpleName} is still waiting for an IoActor reference")
       scheduleIoActorLookup()

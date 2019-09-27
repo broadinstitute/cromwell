@@ -12,6 +12,7 @@ import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, HogGroup, WorkflowId, WorkflowOptions}
 import cromwell.docker.DockerInfoActor.DockerSize
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
+import eu.timepit.refined.refineMV
 import net.ceedubs.ficus.Ficus._
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
@@ -26,7 +27,10 @@ import scala.util.Try
 /**
   * For uniquely identifying a job which has been or will be sent to the backend.
   */
-case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], attempt: Int) extends CallKey {
+case class BackendJobDescriptorKey(call: CommandCallNode,
+                                   index: Option[Int],
+                                   attempt: Int,
+                                   memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"

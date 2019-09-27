@@ -141,6 +141,11 @@ object ActionCommands {
        |fi""".stripMargin
   }
 
+  def checkIfStderrContainsRetryKeys(retryLookupKeys: List[String]): String = {
+    val lookupKeysAsString = retryLookupKeys.mkString("|")
+    s"grep -E -q '$lookupKeysAsString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
+  }
+
   def multiLineCommand(commandString: String) = {
     val randomUuid = UUID.randomUUID().toString
     val withBashShebang = s"#!/bin/bash\n\n$commandString"

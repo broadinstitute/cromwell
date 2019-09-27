@@ -9,7 +9,7 @@ import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{LocalizationConfiguration, BatchRequestTimeoutConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, LocalizationConfiguration, MemoryRetryConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -37,7 +37,8 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                logFlushPeriod: Option[FiniteDuration],
                                                localizationConfiguration: LocalizationConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
+                                               batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                               memoryRetryConfiguration: Option[MemoryRetryConfiguration])
 
 object PipelinesApiConfigurationAttributes {
 
@@ -49,12 +50,15 @@ object PipelinesApiConfigurationAttributes {
 
   final case class VirtualPrivateCloudConfiguration(name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
+  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: GreaterEqualRefined)
 
 
   lazy val Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
 
   val GenomicsApiDefaultQps = 1000
   val DefaultLocalizationAttempts = refineMV[Positive](3)
+
+  lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
   private val papiKeys = Set(
     "project",
@@ -91,7 +95,9 @@ object PipelinesApiConfigurationAttributes {
     "virtual-private-cloud",
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
-    "virtual-private-cloud.auth"
+    "virtual-private-cloud.auth",
+    "memory-retry.error-keys",
+    "memory-retry.multiplier",
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -112,6 +118,15 @@ object PipelinesApiConfigurationAttributes {
         case (None, _, Some(_)) => vpcErrorMessage(List("network-label-key"))
         case (None, Some(_), None) => vpcErrorMessage(List("network-label-key", "auth"))
         case (None, None, None) => None.validNel
+      }
+    }
+
+    def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[GreaterEqualRefined]): ErrorOr[Option[MemoryRetryConfiguration]] = {
+      (errorKeys, multiplier) match {
+        case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul)).validNel
+        case (Some(keys), None) => Option(MemoryRetryConfiguration(keys, DefaultMemoryRetryFactor)).validNel
+        case (None, Some(_)) => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
+        case (None, None) => None.validNel
       }
     }
 
@@ -169,6 +184,17 @@ object PipelinesApiConfigurationAttributes {
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
+    val memoryRetryMultiplier: ErrorOr[Option[GreaterEqualRefined]] = validatePositiveOptionDouble(
+      backendConfig.as[Option[Double]]("memory-retry.multiplier"),
+      configPath = "memory-retry.multiplier"
+    )
+
+    val memoryRetryKeys: ErrorOr[Option[List[String]]] = validate { backendConfig.as[Option[List[String]]]("memory-retry.error-keys") }
+
+    val memoryRetryConfig: ErrorOr[Option[MemoryRetryConfiguration]] = {
+      (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
+    }
+
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
                                                        endpointUrl: URL,
@@ -180,7 +206,8 @@ object PipelinesApiConfigurationAttributes {
                                                        requestWorkers: Int Refined Positive,
                                                        localizationConfiguration: LocalizationConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration): ErrorOr[PipelinesApiConfigurationAttributes] =
+                                                       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
+                                                       memoryRetryConfig: Option[MemoryRetryConfiguration]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           PipelinesApiConfigurationAttributes(
@@ -197,7 +224,8 @@ object PipelinesApiConfigurationAttributes {
             logFlushPeriod = logFlushPeriod,
             localizationConfiguration = localizationConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
-            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration
+            batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
+            memoryRetryConfiguration = memoryRetryConfig,
           )
     }
 
@@ -212,7 +240,8 @@ object PipelinesApiConfigurationAttributes {
       requestWorkers,
       localizationConfiguration,
       virtualPrivateCloudConfiguration,
-      batchRequestTimeoutConfigurationValidation
+      batchRequestTimeoutConfigurationValidation,
+      memoryRetryConfig,
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
@@ -257,6 +286,16 @@ object PipelinesApiConfigurationAttributes {
 
     backendConfig.as[Option[FiniteDuration]](configPath) match {
       case Some(value) => validate(value).map(Option.apply)
+      case None => None.validNel
+    }
+  }
+
+  def validatePositiveOptionDouble(value: Option[Double], configPath: String): ErrorOr[Option[GreaterEqualRefined]] = {
+    value match {
+      case Some(n) => refineV[GreaterEqualOne](n) match {
+        case Left(_) => s"Value $n for $configPath should be greater than 1.0.".invalidNel
+        case Right(refined) => Option(refined).validNel
+      }
       case None => None.validNel
     }
   }

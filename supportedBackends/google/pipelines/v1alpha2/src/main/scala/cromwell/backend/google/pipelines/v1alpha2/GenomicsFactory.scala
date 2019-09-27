@@ -20,6 +20,8 @@ import cromwell.core.logging.JobLogger
 import scala.collection.JavaConverters._
 
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL) extends PipelinesApiFactoryInterface {
+  val memoryRetryRcFilename = "memory_retry_rc"
+
   def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = {
     new PipelinesApiRequestFactory {
       private val genomics = new Genomics.Builder(
@@ -38,7 +40,9 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         val pipelineInfo = pipelineInfoBuilder.build(commandLine, createPipelineParameters.runtimeAttributes, createPipelineParameters.dockerImage)
 
         val inputParameters: Map[String, PipelinesApiInput] = createPipelineParameters.inputParameters.map({ i => i.name -> i }).toMap
-        val outputParameters: Map[String, PipelinesApiOutput] = createPipelineParameters.outputParameters.map({ o => o.name -> o }).toMap
+
+        val outputParametersExcludingMemoryRetry = createPipelineParameters.outputParameters.filterNot(_.name.equals(memoryRetryRcFilename))
+        val finalOutputParameters: Map[String, PipelinesApiOutput] = outputParametersExcludingMemoryRetry.map({ o => o.name -> o }).toMap
 
         val literalInputPipelineParamters = createPipelineParameters.literalInputs.map(_.toGooglePipelineParameter)
         val literalInputRunParameters = createPipelineParameters.literalInputs.map(l => l.name -> l.toGoogleRunParameter).toMap
@@ -49,7 +53,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           .setResources(pipelineInfo.resources)
           .setName(workflow.callable.name)
           .setInputParameters((inputParameters.values.map(_.toGooglePipelineParameter) ++ literalInputPipelineParamters).toVector.asJava)
-          .setOutputParameters(outputParameters.values.map(_.toGooglePipelineParameter).toVector.asJava)
+          .setOutputParameters(finalOutputParameters.values.map(_.toGooglePipelineParameter).toVector.asJava)
 
         // disks cannot have mount points at runtime, so set them null
         val runtimePipelineResources = {
@@ -68,7 +72,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         val rpargs = new RunPipelineArgs().setProjectId(createPipelineParameters.projectId).setServiceAccount(svcAccount).setResources(runtimePipelineResources)
 
         rpargs.setInputs((inputParameters.safeMapValues(_.toGoogleRunParameter) ++ literalInputRunParameters).asJava)
-        rpargs.setOutputs(outputParameters.safeMapValues(_.toGoogleRunParameter).asJava)
+        rpargs.setOutputs(finalOutputParameters.safeMapValues(_.toGoogleRunParameter).asJava)
 
         rpargs.setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
 

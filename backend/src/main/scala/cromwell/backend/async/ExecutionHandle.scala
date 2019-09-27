@@ -1,9 +1,11 @@
 package cromwell.backend.async
 
+import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent}
+import eu.timepit.refined.refineMV
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
@@ -35,7 +37,9 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnC
   override val result = NonRetryableExecution(throwable, returnCode)
 }
 
-final case class FailedRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
+final case class FailedRetryableExecutionHandle(throwable: Throwable,
+                                                returnCode: Option[Int] = None,
+                                                memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends ExecutionHandle {
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)
 }

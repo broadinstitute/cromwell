@@ -7,7 +7,7 @@ import cats.syntax.foldable._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
@@ -56,9 +56,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   private lazy val gcsTransferLibrary =
     Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString
 
-  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](localizationConfiguration: LocalizationConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
+  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](gcsTransferConfiguration: GcsTransferConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
     val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
-    val maxAttempts = localizationConfiguration.localizationAttempts
+    val maxAttempts = gcsTransferConfiguration.transferAttempts
 
     // Split files and directories out so files can possibly benefit from a `gsutil -m cp -I ...` optimization
     // on a per-container-parent-directory basis.
@@ -127,9 +127,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     (directoryTransferBundle :: (filesWithSameNamesTransferBundles ++ filesWithDifferentNamesTransferBundles)) mkString "\n\n"
   }
 
-  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](localizationConfiguration: LocalizationConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
+  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](transferConfiguration: GcsTransferConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
     val project = outputs.head.cloudPath.asInstanceOf[GcsPath].projectId
-    val maxAttempts = localizationConfiguration.localizationAttempts
+    val maxAttempts = transferConfiguration.transferAttempts
 
     val transferItems = outputs.toList.flatMap { output =>
       val kind = output match {
@@ -144,6 +144,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       List(kind, output.cloudPath, output.containerPath, optional, contentType)
     } mkString("\"", "\"\n|  \"", "\"")
 
+    val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
+      "parallel_composite_upload_threshold", transferConfiguration.parallelCompositeUploadThreshold)
 
     // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
     val arrayIdentifier = s"delocalize_" + DigestUtils.md5Hex(bucket)
@@ -152,6 +154,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
        |$arrayIdentifier=(
        |  "$project"       # project
        |  "$maxAttempts"   # max attempts
+       |  "$parallelCompositeUploadThreshold" # parallel composite upload threshold, will not be used for directory types
        |  $transferItems
        |)
        |
@@ -159,13 +162,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       """.stripMargin
   }
 
-  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit localizationConfiguration: LocalizationConfiguration): String = {
-    val bundleFunction = (gcsLocalizationTransferBundle(localizationConfiguration) _).tupled
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
     generateGcsTransferScript(inputs, bundleFunction)
   }
 
-  private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit localizationConfiguration: LocalizationConfiguration): String = {
-    val bundleFunction = (gcsDelocalizationTransferBundle(localizationConfiguration) _).tupled
+  private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val bundleFunction = (gcsDelocalizationTransferBundle(gcsTransferConfiguration) _).tupled
     generateGcsTransferScript(outputs, bundleFunction)
   }
 
@@ -176,7 +179,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   override protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters,
                                                   cloudPath: Path,
-                                                  localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
+                                                  gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
 
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
@@ -184,16 +187,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(localizationConfiguration)
+                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
   override def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                              cloudPath: Path,
                                              transferLibraryContainerPath: Path,
-                                             localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
-    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(localizationConfiguration)
+                                             gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 

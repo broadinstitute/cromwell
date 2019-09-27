@@ -332,3 +332,76 @@ For example, if your `virtual-private-cloud` config looks like the one above, an
 Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
+
+### Parallel Composite Uploads
+
+Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
+is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
+`genomics.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
+must have to be a candidate for `gsutil` parallel composite uploading:
+
+```
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        genomics {
+          ...
+          parallel-composite-upload-threshold = 150M
+          ...
+        }
+        ...
+      }
+    }
+  }
+}
+```
+
+Alternatively this threshold can be specified in workflow options using the key `parallel-composite-upload-threshold`,
+which takes precedence over a setting in configuration. The default setting for this threshold is `0` which turns off
+parallel composite uploads; a value of `0` can also be used in workflow options to turn off parallel composite uploads
+in a Cromwell deployment where they are turned on in config.
+
+#### Issues with composite files
+
+Please see the [Google documentation](https://cloud.google.com/storage/docs/gsutil/commands/cp#parallel-composite-uploads)
+describing the benefits and drawbacks of parallel composite uploads.
+
+The actual error message observed when attempting to download a composite file on a system without a compiled `crcmod`
+looks like the following:
+
+```
+/ # gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp gs://my-bucket/composite.bam .
+Copying gs://my-bucket/composite.bam...
+==> NOTE: You are downloading one or more large file(s), which would
+run significantly faster if you enabled sliced object downloads. This
+feature is enabled by default but requires that compiled crcmod be
+installed (see "gsutil help crcmod").
+
+CommandException:
+Downloading this composite object requires integrity checking with CRC32c,
+but your crcmod installation isn't using the module's C extension, so the
+hash computation will likely throttle download performance. For help
+installing the extension, please see "gsutil help crcmod".
+
+To download regardless of crcmod performance or to skip slow integrity
+checks, see the "check_hashes" option in your boto config file.
+
+NOTE: It is strongly recommended that you not disable integrity checks. Doing so
+could allow data corruption to go undetected during uploading/downloading.
+/ #
+```
+
+As the message states, the best option would be to have a compiled `crcmod` installed on the system.
+Turning off integrity checks on downloads does get around this issue but really isn't a great idea.
+
+#### Parallel composite uploads and call caching
+
+Because the parallel composite upload threshold is not considered part of the hash used for call caching purposes, calls
+which would be expected to generate non-composite outputs may call cache to results that did generate composite
+outputs. Calls which are executed and not cached will always honor the parallel composite upload setting at the time of
+their execution.

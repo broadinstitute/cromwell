@@ -96,8 +96,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.localizationConfiguration.localizationAttempts.value should be(31380)
-
+    pipelinesApiAttributes.gcsTransferConfiguration.transferAttempts.value should be(31380)
   }
 
   it should "parse virtual-private-cloud" in {
@@ -369,4 +368,22 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
       |   }
       |}
       | """.stripMargin
+
+  it should "parse gsutil memory specifications" in {
+    val valids = List("0", "150M", "14   PIBIT", "6kib")
+
+    valids foreach {
+      case PipelinesApiConfigurationAttributes.GsutilHumanBytes(_, _) =>
+      case bad => fail(s"'$bad' was expected to be a valid gsutil memory specification")
+    }
+  }
+
+  it should "reject invalid memory specifications" in {
+    val invalids = List("-1", "150MB", "14PB")
+
+    invalids foreach {
+      case invalid@PipelinesApiConfigurationAttributes.GsutilHumanBytes(_, _) => fail(s"Memory specification $invalid not expected to be accepted")
+      case _ =>
+    }
+  }
 }

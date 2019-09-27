@@ -1,6 +1,6 @@
 # Cromwell Change Log
 
-## 47 Release Notes
+## 46.1 Release Notes
 
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
 

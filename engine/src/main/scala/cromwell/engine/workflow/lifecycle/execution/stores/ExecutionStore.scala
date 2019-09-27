@@ -92,7 +92,7 @@ object ExecutionStore {
   def apply(callable: ExecutableCallable, totalJobsByRootWf: AtomicInteger, totalMaxJobsPerRootWf: Int): ErrorOr[ActiveExecutionStore] = {
     // Keys that are added in a NotStarted Status
     val notStartedKeys = callable.graph.nodes collect {
-      case call: CommandCallNode => BackendJobDescriptorKey(call, None, 1)
+      case call: CommandCallNode => BackendJobDescriptorKey(call, None, attempt = 1)
       case expression: ExpressionNodeLike => ExpressionKey(expression, None)
       case scatterNode: ScatterNode => ScatterKey(scatterNode)
       case conditionalNode: ConditionalNode => ConditionalKey(conditionalNode, None)

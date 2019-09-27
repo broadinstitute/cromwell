@@ -60,5 +60,5 @@ task check_log {
         File out = stdout()
         Array[Int] out_counts = read_lines(stdout())
     }
-    runtime { docker: "google/cloud-sdk" }
+    runtime { docker: "gcr.io/google.com/cloudsdktool/cloud-sdk" }
 }

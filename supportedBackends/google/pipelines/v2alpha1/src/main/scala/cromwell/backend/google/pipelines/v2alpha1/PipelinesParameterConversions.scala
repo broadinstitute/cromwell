@@ -70,7 +70,7 @@ trait PipelinesParameterConversions {
             .withFlags(List(ActionFlag.RunInBackground, ActionFlag.EnableFuse))
           List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case _: HttpPath =>
-          val dockerImage = "google/cloud-sdk:slim"
+          val dockerImage = GenomicsFactory.CloudSdkImage
           val command = s"curl --silent --create-dirs --output ${fileInput.containerPath} ${fileInput.cloudPath}"
           val localizationAction = ActionBuilder
             .withImage(dockerImage)

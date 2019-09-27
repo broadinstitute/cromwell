@@ -178,10 +178,6 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
        * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */
       val adjustedBootDiskSize = {
-        /*
-         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
-         */
-        val cromwellImagesSize = 1
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
         // Compute the decompressed size based on the information available
         val actualSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
@@ -193,7 +189,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           jobLogger.info(s"Adjusting boot disk size to $actualSizeRoundedUpInGB GB to account for docker image size")
         }
 
-        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + cromwellImagesSize
+        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + GenomicsFactory.CromwellImagesSizeRoundedUpInGB
       }
 
       val virtualMachine = new VirtualMachine()
@@ -251,6 +247,22 @@ object GenomicsFactory {
     * For some reason we couldn't find this scope within Google libraries
     */
   val MonitoringWrite = "https://www.googleapis.com/auth/monitoring.write"
+
+  /**
+    * An image with the Google Cloud SDK installed.
+    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
+    *
+    * FYI additional older versions are available on DockerHub at:
+    * https://hub.docker.com/r/google/cloud-sdk
+    *
+    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
+    */
+  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+
+  /*
+   * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
+   */
+  val CromwellImagesSizeRoundedUpInGB = 1
 }
 
 case class ProjectLabels(labels: Map[String, String])

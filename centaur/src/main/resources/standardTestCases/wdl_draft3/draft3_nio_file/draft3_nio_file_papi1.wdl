@@ -131,7 +131,7 @@ task nio_file {
     grep -q "draft3_nio_file.nio_file.y" <<< $PAPI_METADATA && echo "y was incorrectly localized" >> errors.txt
   }
   runtime {
-    docker: "google/cloud-sdk:slim"
+    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     zones: ["us-central1-c"]
 
     # Depending on the final 'grep', the return code is probably going to be '1'... which is fine!

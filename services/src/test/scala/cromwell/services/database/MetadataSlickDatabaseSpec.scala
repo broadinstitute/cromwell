@@ -14,9 +14,7 @@ import scala.concurrent.ExecutionContext
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
-  // Postgres has a crazy quoting behavior, would need different version of query just for it
-  // HSQL doesn't support `UNION`?!
-  Seq(MysqlEarliestDatabaseSystem, MysqlLatestDatabaseSystem, MariadbEarliestDatabaseSystem, MariadbLatestDatabaseSystem) foreach { databaseSystem =>
+  DatabaseSystem.All foreach { databaseSystem =>
 
     implicit val ec = ExecutionContext.global
 
@@ -34,20 +32,20 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: I am the subworkflow", None, None, None, "label:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am the subworkflow", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am the subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
         )
       ).futureValue(Timeout(10.seconds))
 
       database.runTestTransaction(
         database.dataAccess.workflowMetadataSummaryEntries ++= Seq(
-          WorkflowMetadataSummaryEntry("workflow id: I am not a root workflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("I have a parent"), Option("I have a parent")),
-          WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None),
-          WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None),
-          WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow")),
+          WorkflowMetadataSummaryEntry("workflow id: I am not a root workflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("I have a parent"), Option("I have a parent"), None),
+          WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
+          WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
+          WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
         )
       ).futureValue(Timeout(10.seconds))
     }

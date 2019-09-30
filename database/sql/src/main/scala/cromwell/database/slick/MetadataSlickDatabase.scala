@@ -378,7 +378,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   private def checkDeletionPreconditions(rootWorkflowId: String)(implicit ec: ExecutionContext): DBIO[Checked[Unit]] = {
-    dataAccess.workflowMetadataSummaryEntries.filter(_.workflowExecutionUuid === rootWorkflowId).result.headOption map {
+    dataAccess.workflowMetadataSummaryEntriesForWorkflowExecutionUuid(rootWorkflowId).result.headOption map {
       case Some(workflow: WorkflowMetadataSummaryEntry) =>
         (isTerminalCheck(workflow), isRootWorkflowCheck(workflow)) mapN {
           case (_, _) => ()
@@ -409,17 +409,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       s"""Programmer error: attempted to delete metadata rows for non-root workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
   }
 
-  private def deleteNonLabelMetadataInner(rootWorkflowId: String): DBIO[Int] = {
+  private def deleteNonLabelMetadataInner(rootWorkflowId: String): DBIO[Int] =
+    dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
 
-    sqlu"""DELETE FROM METADATA_ENTRY
-           WHERE WORKFLOW_EXECUTION_UUID IN
-             (
-               SELECT $rootWorkflowId
-               UNION
-               SELECT WORKFLOW_EXECUTION_UUID AS SUBWORKFLOW_IDS FROM WORKFLOW_METADATA_SUMMARY_ENTRY WHERE ROOT_WORKFLOW_EXECUTION_UUID = $rootWorkflowId
-             )
-           AND
-             METADATA_KEY NOT LIKE 'label%'"""
-
-  }
 }

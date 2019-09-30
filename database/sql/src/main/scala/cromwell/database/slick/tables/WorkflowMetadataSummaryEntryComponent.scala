@@ -372,7 +372,4 @@ trait WorkflowMetadataSummaryEntryComponent {
     })
   }
 
-  def subworkflowIdsForRootWorkflow(rootWorkflowId: String) = {
-    workflowMetadataSummaryEntries.filter(_.rootWorkflowExecutionUuid === rootWorkflowId).map(_.workflowExecutionUuid)
-  }
 }

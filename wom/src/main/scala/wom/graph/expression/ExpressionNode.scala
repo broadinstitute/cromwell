@@ -68,7 +68,7 @@ object ExpressionNode {
 
     def safeSourceString(e: WomExpression) = Try(expression.sourceString).getOrElse("<<expected an expression, none found>>")
 
-    builtExpressionNode.leftMap(es => es.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${safeSourceString(expression)}': $e"))
+    builtExpressionNode.leftMap(_.map(e => s"Cannot build expression for '${identifier.fullyQualifiedName.value} = ${safeSourceString(expression)}': $e"))
   }
 
   /**

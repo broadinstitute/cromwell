@@ -33,10 +33,16 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+
           MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am the subworkflow", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am the subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+
+          MetadataEntry("nested subworkflows: root", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("nested subworkflows: first nesting", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("nested subworkflows: second nesting", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("nested subworkflows: third nesting nesting", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
         )
       ).futureValue(Timeout(10.seconds))
 
@@ -44,11 +50,17 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
         database.dataAccess.workflowMetadataSummaryEntries ++= Seq(
           WorkflowMetadataSummaryEntry("workflow id: I am not a root workflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("I have a parent"), Option("I have a parent"), None),
           WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
+
           WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
           WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
+
           WorkflowMetadataSummaryEntry("workflow id: I am still running!", Option("workflow name"), Option("Running"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
           WorkflowMetadataSummaryEntry("workflow id: I inexplicably do not have a workflow status", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
 
+          WorkflowMetadataSummaryEntry("nested subworkflows: root", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: first nesting", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("nested subworkflows: root"), Option("nested subworkflows: root"), None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: third nesting nesting", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("nested subworkflows: third nesting nesting"), Option("nested subworkflows: root"), None),
         )
       ).futureValue(Timeout(10.seconds))
     }
@@ -87,7 +99,10 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       delete.futureValue(Timeout(10.seconds)) should be(2)
     }
 
-    // attempt deleting root workflow id with subworkflows that have subworkflows. should delete expected row count
+    it should "delete the right number of rows for a nested subworkflow" taggedAs DbmsTest in {
+      val delete = database.deleteNonLabelMetadataForWorkflow("nested subworkflows: root")
+      delete.futureValue(Timeout(10.seconds)) should be(4)
+    }
 
     it should "clean up & close the database" taggedAs DbmsTest in {
       // Not relevant in Travis where all state gets nuked but useful for testing locally

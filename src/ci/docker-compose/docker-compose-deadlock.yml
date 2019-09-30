@@ -15,93 +15,96 @@
 # WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
 # WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
 
-# Startup:
-# ```
-# CROMWELL_TAG=develop \
-# docker-compose \
-#   -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
-#   up \
-#   --scale cromwell=3 \
-#   --exit-code-from deadlocker
-# ```
-
-# Cleanup:
-# ```
-# docker-compose \
-#   -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
-#   down \
-#   -v \
-# && rm -r \
-#   scripts/docker-compose-mysql/cromwell-executions \
-#   scripts/docker-compose-mysql/compose/mysql/data
-# ```
 version: '2.1'
 services:
-  cromwell_master:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
-    working_dir: /cromwell-working-dir
-    volumes:
-      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
-      - ./compose/cromwell/app-config:/app-config
-    links:
-      - mysql-db
-    depends_on:
-      mysql-db:
-        condition: service_healthy
-    command: ["server"]
-    environment:
-      - JAVA_OPTS=-Dconfig.file=/app-config/test-deadlock.conf
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000"]
-      interval: 2s
-      timeout: 30s
-      retries: 60
-  cromwell_norefresh:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
-    working_dir: /cromwell-working-dir
-    volumes:
-      - ./cromwell-executions:/cromwell-working-dir/cromwell-executions
-      - ./compose/cromwell/app-config:/app-config
-    links:
-      - mysql-db
-    depends_on:
-      mysql-db:
-        condition: service_healthy
-      cromwell_master:
-        condition: service_healthy
-    command: ["server"]
-    environment:
-      - JAVA_OPTS=-Dconfig.file=/app-config/test-deadlock-norefresh.conf
   mysql-db:
     image: "mysql:5.7"
-    command: --general_log=1 --general-log-file=/var/log/mysql/cromwell_mysql.general.log
     environment:
-      - MYSQL_ROOT_PASSWORD=cromwell
-      - MYSQL_DATABASE=cromwell_db
+      - MYSQL_ROOT_PASSWORD=private
+      - MYSQL_USER=cromwell
+      - MYSQL_PASSWORD=test
+      - MYSQL_DATABASE=cromwell_test
     volumes:
-      - ./compose/mysql/init:/docker-entrypoint-initdb.d
-      - ./compose/mysql/data:/var/lib/mysql
+      - ${CROMWELL_BUILD_DOCKER_DIRECTORY}/mysql-conf.d:/etc/mysql/conf.d
     healthcheck:
       test: ["CMD", "service", "mysql", "status"]
       interval: 2s
       timeout: 30s
       retries: 15
-  lb:
+  cromwell-master:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application_deadlock.conf
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  cromwell-norefresh:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell-master:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application_deadlock.conf
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  deadlocker:
+    image: python:3.7
+    links:
+      - cromwell-master
+      - cromwell-norefresh
+      - load-balancer
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["bash", "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/test-deadlock.sh"]
+    environment:
+      - CROMWELL_BUILD_ROOT_DIRECTORY
+      - CROMWELL_BUILD_SCRIPTS_DIRECTORY
+      - CROMWELL_BUILD_LOG_DIRECTORY
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell-master:
+        condition: service_healthy
+      cromwell-norefresh:
+        condition: service_healthy
+  load-balancer:
     image: dockercloud/haproxy
     links:
-      - cromwell_master
-      - cromwell_norefresh
+      - cromwell-master
+      - cromwell-norefresh
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 8000:80
-  deadlocker:
-    image: python:3.7
-    links:
-      - cromwell_master
-      - cromwell_norefresh
-      - lb
-    volumes:
-      - ./compose/cromwell/bin:/cromwell/bin
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: ["bash", "/cromwell/bin/test-deadlock.sh"]
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell-master:
+        condition: service_healthy
+      cromwell-norefresh:
+        condition: service_healthy

@@ -77,9 +77,41 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_build_exit_functions.$$"
 
     if [[ -n "${VIRTUAL_ENV:+set}" ]]; then
-      CROMWELL_BUILD_IS_VIRTUAL_ENV=true
+        CROMWELL_BUILD_IS_VIRTUAL_ENV=true
     else
-      CROMWELL_BUILD_IS_VIRTUAL_ENV=false
+        CROMWELL_BUILD_IS_VIRTUAL_ENV=false
+    fi
+
+    CROMWELL_BUILD_CURRENT_VERSION_NUMBER="$( \
+        grep 'val cromwellVersion' "${CROMWELL_BUILD_ROOT_DIRECTORY}/project/Version.scala" \
+        | awk -F \" '{print $2}' \
+        )"
+
+    if git merge-base --is-ancestor "${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}" HEAD 2>/dev/null; then
+        CROMWELL_BUILD_IS_HOTFIX=true
+    else
+        CROMWELL_BUILD_IS_HOTFIX=false
+    fi
+
+    if [[ "${CROMWELL_BUILD_IS_HOTFIX}" == "true" ]]; then
+        CROMWELL_BUILD_PRIOR_VERSION_NUMBER=${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}
+    else
+        CROMWELL_BUILD_PRIOR_VERSION_NUMBER=$((${CROMWELL_BUILD_CURRENT_VERSION_NUMBER} - 1))
+    fi
+
+    local git_commit_message
+    git_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+    if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
+        CROMWELL_BUILD_FORCE_TESTS=true
+    else
+        CROMWELL_BUILD_FORCE_TESTS=false
+    fi
+
+    local git_revision
+    if git_revision="$(git rev-parse --short=7 HEAD 2>/dev/null)"; then
+        CROMWELL_BUILD_GIT_HASH_SUFFIX="g${git_revision}"
+    else
+        CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
 
     case "${CROMWELL_BUILD_PROVIDER}" in
@@ -87,15 +119,8 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
 
-            if [[ -n "${TRAVIS_PULL_REQUEST_BRANCH:+set}" ]]; then
-              CROMWELL_BUILD_IS_PULL_REQUEST=true
-            else
-              CROMWELL_BUILD_IS_PULL_REQUEST=false
-            fi
-
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
-            CROMWELL_BUILD_BRANCH_PULL_REQUEST="${TRAVIS_PULL_REQUEST_BRANCH:-""}"
             CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
             CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
             CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
@@ -109,20 +134,18 @@ cromwell::private::create_build_variables() {
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]] && \
-                [[ "${TRAVIS_COMMIT_MESSAGE}" != *"[force ci]"* ]]; then
-              CROMWELL_BUILD_RUN_TESTS=false
+                [[ "${CROMWELL_BUILD_FORCE_TESTS}" != "true" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
             else
-              CROMWELL_BUILD_RUN_TESTS=true
+                CROMWELL_BUILD_RUN_TESTS=true
             fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # External variables must be passed through in the ENVIRONMENT of src/ci/docker-compose/docker-compose.yml
             CROMWELL_BUILD_IS_CI=true
             CROMWELL_BUILD_IS_SECURE=true
-            CROMWELL_BUILD_IS_PULL_REQUEST=false
             CROMWELL_BUILD_TYPE="${JENKINS_BUILD_TYPE}"
             CROMWELL_BUILD_BRANCH="${GIT_BRANCH#origin/}"
-            CROMWELL_BUILD_BRANCH_PULL_REQUEST=""
             CROMWELL_BUILD_EVENT=""
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
@@ -136,10 +159,8 @@ cromwell::private::create_build_variables() {
         *)
             CROMWELL_BUILD_IS_CI=false
             CROMWELL_BUILD_IS_SECURE=true
-            CROMWELL_BUILD_IS_PULL_REQUEST=false
             CROMWELL_BUILD_TYPE="unknown"
             CROMWELL_BUILD_BRANCH="unknown"
-            CROMWELL_BUILD_BRANCH_PULL_REQUEST="${CROMWELL_BUILD_BRANCH_PULL_REQUEST-}"
             CROMWELL_BUILD_EVENT="unknown"
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER=""
@@ -189,31 +210,43 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
     fi
 
+    case "${CROMWELL_BUILD_TYPE}" in
+        centaurPapiUpgrade*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2_upgrade_application.conf"
+            ;;
+        centaurHoricromtalPapi*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_horicromtal_application.conf"
+            ;;
+        centaurHoricromtalEngineUpgrade*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_application.conf"
+            ;;
+        *)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
+            ;;
+    esac
+
     CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
-    CROMWELL_BUILD_REQUIRES_PULL_REQUEST="${CROMWELL_BUILD_REQUIRES_PULL_REQUEST-false}"
+    CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
     CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND-assembly}"
+    CROMWELL_BUILD_CROMWELL_DOCKER_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG-just-testing-horicromtal}"
+    CROMWELL_BUILD_CROMWELL_DOCKER_COMPOSE="${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-horicromtal.yml"
     VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
     hours_to_minutes=60
     CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
 
-    local git_revision
-    if git_revision="$(git rev-parse --short=7 HEAD 2>/dev/null)"; then
-        CROMWELL_BUILD_GIT_HASH_SUFFIX="g${git_revision}"
-    else
-        CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
-    fi
-
+    export CROMWELL_BUILD_UNIT_TEST_EXCLUDE_TAGS
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
-    export CROMWELL_BUILD_BRANCH_PULL_REQUEST
     export CROMWELL_BUILD_CROMWELL_CONFIG
     export CROMWELL_BUILD_CROMWELL_LOG
+    export CROMWELL_BUILD_CURRENT_VERSION_NUMBER
     export CROMWELL_BUILD_DOCKER_DIRECTORY
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
+    export CROMWELL_BUILD_FORCE_TESTS
     export CROMWELL_BUILD_GENERATE_COVERAGE
     export CROMWELL_BUILD_GIT_HASH_SUFFIX
     export CROMWELL_BUILD_GIT_SECRETS_COMMIT
@@ -224,7 +257,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_HEARTBEAT_PATTERN
     export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
-    export CROMWELL_BUILD_IS_PULL_REQUEST
+    export CROMWELL_BUILD_IS_HOTFIX
     export CROMWELL_BUILD_IS_SECURE
     export CROMWELL_BUILD_IS_VIRTUAL_ENV
     export CROMWELL_BUILD_LOG_DIRECTORY
@@ -233,11 +266,13 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
+    export CROMWELL_BUILD_PRIOR_VERSION_NUMBER
     export CROMWELL_BUILD_PROVIDER
     export CROMWELL_BUILD_PROVIDER_JENKINS
     export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_REQUIRES_SECURE
+    export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION
     export CROMWELL_BUILD_RESOURCES_DIRECTORY
     export CROMWELL_BUILD_RESOURCES_SOURCES
     export CROMWELL_BUILD_ROOT_DIRECTORY
@@ -245,6 +280,8 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
     export CROMWELL_BUILD_TAG
+    export CROMWELL_BUILD_CROMWELL_DOCKER_COMPOSE
+    export CROMWELL_BUILD_CROMWELL_DOCKER_TAG
     export CROMWELL_BUILD_TYPE
     export CROMWELL_BUILD_URL
     export CROMWELL_BUILD_WAIT_FOR_IT_BRANCH
@@ -260,7 +297,9 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_OPTIONAL_SECURE='${CROMWELL_BUILD_OPTIONAL_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
-    echo "CROMWELL_BUILD_BRANCH_PULL_REQUEST='${CROMWELL_BUILD_BRANCH_PULL_REQUEST}'"
+    echo "CROMWELL_BUILD_IS_HOTFIX='${CROMWELL_BUILD_IS_HOTFIX}'"
+    echo "CROMWELL_BUILD_CURRENT_VERSION_NUMBER='${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}'"
+    echo "CROMWELL_BUILD_PRIOR_VERSION_NUMBER='${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}'"
     echo "CROMWELL_BUILD_EVENT='${CROMWELL_BUILD_EVENT}'"
     echo "CROMWELL_BUILD_TAG='${CROMWELL_BUILD_TAG}'"
     echo "CROMWELL_BUILD_NUMBER='${CROMWELL_BUILD_NUMBER}'"
@@ -373,39 +412,50 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE="horicromtalEngineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL="horicromtal"
 
-    if [[ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]]; then
-        if [[ "${CROMWELL_BUILD_TYPE}" == centaurEngineUpgrade* ]]; then
+    case "${CROMWELL_BUILD_TYPE}" in
+        centaurEngineUpgrade*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}"
-        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgradeNewWorkflows* ]]; then
+            ;;
+        centaurPapiUpgradeNewWorkflows*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS}"
-        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]]; then
+            ;;
+        centaurPapiUpgrade*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}"
-        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtalEngineUpgrade* ]]; then
+            ;;
+        centaurHoricromtalEngineUpgrade*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}"
-        elif [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtal* ]]; then
+            ;;
+        centaurHoricromtal*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}"
-        else
-            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_STANDARD}"
-        fi
-    fi
+            ;;
+        *)
+            # Only set the type if Jenkins, etc. has not already set the centaur type
+            if [[ -z "${CROMWELL_BUILD_CENTAUR_TYPE-}" ]]; then
+                CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_STANDARD}"
+            fi
+            ;;
+    esac
 
     CROMWELL_BUILD_CENTAUR_RESOURCES="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/src/main/resources"
-    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}" ]]; then
-      # Use the standard test cases despite the horicromtal Centaur build type.
-      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
-      # Special horicromtal Centaur config.
-      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
-    elif [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}" ]] ; then
-      # Use the engine upgrade test cases despite the horicromtal Centaur build type.
-      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/engineUpgradeTestCases"
-      # Special horicromtal engine upgrade Centaur config with horicromtal assertions turned off.
-      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal_no_assert.conf"
-    else
-      CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
-      CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
-    fi
+    case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
+        "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}")
+            # Use the standard test cases despite the horicromtal Centaur build type.
+            CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
+            # Special horicromtal Centaur config.
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
+            ;;
+        "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}")
+            # Use the engine upgrade test cases despite the horicromtal Centaur build type.
+            CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/engineUpgradeTestCases"
+            # Special horicromtal engine upgrade Centaur config with horicromtal assertions turned off.
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal_no_assert.conf"
+            ;;
+        *)
+            CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+            ;;
+    esac
 
-    CROMWELL_BUILD_CENTAUR_TEST_RENDERED="${CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY}/rendered"
     CROMWELL_BUILD_CENTAUR_LOG="${CROMWELL_BUILD_LOG_DIRECTORY}/centaur.log"
 
     local mariadb_jdbc_url
@@ -413,7 +463,7 @@ cromwell::private::create_centaur_variables() {
     local postgresql_jdbc_url
 
     mariadb_jdbc_url="jdbc:mariadb://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?rewriteBatchedStatements=true"
-    mysql_jdbc_url="jdbc:mysql://${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
+    mysql_jdbc_url="jdbc:mysql://${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
     postgresql_jdbc_url="jdbc:postgresql://${CROMWELL_BUILD_POSTGRESQL_HOSTNAME}:${CROMWELL_BUILD_POSTGRESQL_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?reWriteBatchedInserts=true"
 
     # Pick **one** of the databases to run Centaur against
@@ -483,7 +533,7 @@ cromwell::private::create_centaur_variables() {
 
         CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
         CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
+        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
     else
 
         CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE-${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE}}"
@@ -503,7 +553,6 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_CENTAUR_LOG
     export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
     export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
-    export CROMWELL_BUILD_CENTAUR_TEST_RENDERED
     export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
     export CROMWELL_BUILD_CENTAUR_RESOURCES
     export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
@@ -556,26 +605,6 @@ cromwell::private::verify_secure_build() {
                 echo "**                                                    **"
                 echo "********************************************************"
                 echo "********************************************************"
-                exit 0
-            fi
-            ;;
-        *)
-            ;;
-    esac
-}
-
-cromwell::private::verify_pull_request_build() {
-    case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            if [[ "${CROMWELL_BUILD_IS_PULL_REQUEST}" != "true" ]] && \
-                [[ "${CROMWELL_BUILD_REQUIRES_PULL_REQUEST}" == "true" ]]; then
-                echo "**************************************************"
-                echo "**************************************************"
-                echo "**                                              **"
-                echo "**  NOTE: Build is not a Pull Request. Exiting. **"
-                echo "**                                              **"
-                echo "**************************************************"
-                echo "**************************************************"
                 exit 0
             fi
             ;;
@@ -836,6 +865,7 @@ cromwell::private::vault_login() {
 }
 
 cromwell::private::render_secure_resources() {
+    # Copy the CI resources, then render the secure resources using Vault
     sbt renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
@@ -854,6 +884,7 @@ cromwell::private::render_secure_resources() {
 }
 
 cromwell::private::copy_all_resources() {
+    # Only copy the CI resources. Secure resources are not rendered.
     sbt copyCiResources
 }
 
@@ -887,63 +918,12 @@ cromwell::private::make_build_directories() {
 
 cromwell::private::find_cromwell_jar() {
     CROMWELL_BUILD_CROMWELL_JAR="$( \
-        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" \
+        find "${CROMWELL_BUILD_ROOT_DIRECTORY}/server/target/scala-2.12" -name "cromwell-*.jar" -print0 \
+        | xargs -0 ls -1 -t \
         | head -n 1 \
         2> /dev/null \
         || true)"
     export CROMWELL_BUILD_CROMWELL_JAR
-}
-
-cromwell::private::calculate_prior_version_tag() {
-    local current_version
-    local prior_version
-    current_version="$( \
-        grep 'val cromwellVersion' "${CROMWELL_BUILD_ROOT_DIRECTORY}/project/Version.scala" \
-        | awk -F \" '{print $2}' \
-        )"
-
-    # This function should only ever run on PR builds.
-    if [[ -z "${CROMWELL_BUILD_BRANCH_PULL_REQUEST-}" ]]; then
-       echo "Error: the CROMWELL_BUILD_BRANCH_PULL_REQUEST variable is not set. calculate_prior_version_tag expects to only run on Travis Pull Request builds in which this variable is set." >&2
-       exit 1
-    fi
-    # If this PR targets a hotfix branch, the previous version should be the same major version as this version.
-    # Otherwise this PR targets a non-hotfix branch so the previous version should be one less than this version.
-    if [[ "${CROMWELL_BUILD_BRANCH_PULL_REQUEST}" =~ ^[0-9\.]+_hotfix$ ]]; then
-      prior_version="$current_version"
-    else
-      prior_version=$((current_version - 1))
-    fi
-    echo "${prior_version}"
-}
-
-cromwell::private::get_prior_version_config() {
-    local prior_version
-    prior_version="${1:?get_prior_version_config called without a version}"; shift
-    prior_config="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_${prior_version}_application.conf"
-    echo "${prior_config}"
-}
-
-cromwell::private::setup_prior_version_resources() {
-    local prior_config
-    local prior_version
-    prior_version="$(cromwell::private::calculate_prior_version_tag)"
-
-    CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${prior_version}.jar"
-    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
-
-    prior_config="$(cromwell::private::get_prior_version_config "${prior_version}")"
-    if [[ -f "${prior_config}" ]]; then
-        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
-        export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
-    fi
-
-    docker run \
-      --rm \
-      --entrypoint= \
-      -v "${PWD}:${PWD}" \
-      broadinstitute/cromwell:"${prior_version}" \
-      cp /app/cromwell.jar "${CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR}"
 }
 
 cromwell::private::exists_cromwell_jar() {
@@ -955,6 +935,49 @@ cromwell::private::assemble_jars() {
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
     # shellcheck disable=SC2086
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} -error
+}
+
+cromwell::private::setup_prior_version_resources() {
+    if [[ "${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION}" == "true" ]]; then
+        local prior_config
+        local prior_jar
+        prior_config="${CROMWELL_BUILD_CROMWELL_CONFIG/%_application.conf/_${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}_application.conf}"
+        prior_jar="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}.jar"
+
+        if [[ -f "${prior_config}" ]]; then
+            CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
+        else
+            CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${CROMWELL_BUILD_CROMWELL_CONFIG}"
+        fi
+
+        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG="${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}"
+        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${prior_jar}"
+
+        # Copy the prior versions jar out of the previously published docker image
+        docker run \
+            --rm \
+            --entrypoint= \
+            --volume "${CROMWELL_BUILD_RESOURCES_DIRECTORY}:${CROMWELL_BUILD_RESOURCES_DIRECTORY}" \
+            broadinstitute/cromwell:"${CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG}" \
+            cp /app/cromwell.jar "${CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR}"
+    else
+        # In tests that are looking for a prior version, actually just use the current version
+        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${CROMWELL_BUILD_CROMWELL_CONFIG}"
+        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}"
+        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_CROMWELL_JAR}"
+    fi
+
+    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
+    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG
+    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
+}
+
+cromwell::private::exists_cromwell_docker() {
+    docker image ls --quiet broadinstitute/cromwell:"${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" | grep .
+}
+
+cromwell::private::build_cromwell_docker() {
+    CROMWELL_SBT_DOCKER_TAGS="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" sbt server/docker -error
 }
 
 cromwell::private::generate_code_coverage() {
@@ -1159,10 +1182,10 @@ cromwell::build::setup_common_environment() {
     cromwell::private::echo_build_variables
     cromwell::private::create_database_variables
     cromwell::private::verify_secure_build
-    cromwell::private::verify_pull_request_build
     cromwell::private::make_build_directories
     cromwell::private::install_git_secrets
     cromwell::private::install_minnie_kenny
+    cromwell::private::install_wait_for_it
     cromwell::private::setup_secure_resources
 
     case "${CROMWELL_BUILD_PROVIDER}" in
@@ -1172,14 +1195,12 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::pull_common_docker_images
-            cromwell::private::install_wait_for_it
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::install_wait_for_it
             ;;
         *)
             cromwell::private::pull_common_docker_images
@@ -1189,10 +1210,6 @@ cromwell::build::setup_common_environment() {
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    if [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE}" ]] || \
-        [[ "${CROMWELL_BUILD_CENTAUR_TYPE}" == "${CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE}" ]]; then
-        cromwell::private::setup_prior_version_resources
-    fi
     cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
@@ -1229,7 +1246,7 @@ cromwell::build::setup_docker_environment() {
     fi
 }
 
-cromwell::build::assemble_jars() {
+cromwell::private::find_or_assemble_cromwell_jar() {
     cromwell::private::find_cromwell_jar
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]] || ! cromwell::private::exists_cromwell_jar; then
         echo "Please wait, building jars…"
@@ -1237,8 +1254,20 @@ cromwell::build::assemble_jars() {
     fi
     cromwell::private::find_cromwell_jar
     if ! cromwell::private::exists_cromwell_jar; then
-        echo "Error: find_cromwell_jar did not locate a cromwell jar even after assembly" >&2
+        echo "Error: find_or_assemble_cromwell_jar did not locate a cromwell jar even after assembly" >&2
         exit 1
+    fi
+}
+
+cromwell::build::assemble_jars() {
+    cromwell::private::find_or_assemble_cromwell_jar
+    cromwell::private::setup_prior_version_resources
+}
+
+cromwell::build::build_cromwell_docker() {
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]] || ! cromwell::private::exists_cromwell_docker; then
+        echo "Please wait, building cromwell docker…"
+        cromwell::private::build_cromwell_docker
     fi
 }
 

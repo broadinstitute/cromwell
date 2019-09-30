@@ -2,7 +2,11 @@
 
 # `sbt assembly` must have already been run.
 build_root="$( dirname "${BASH_SOURCE[0]}" )/../../.."
-centaur_cwl_jar="${CENTAUR_CWL_JAR:-"$( find "${build_root}/centaurCwlRunner/target/scala-2.12" -name 'centaur-cwl-runner-*.jar' | head -n 1 )"}"
+centaur_cwl_jar="${CENTAUR_CWL_JAR:-"$( \
+    find "${build_root}/centaurCwlRunner/target/scala-2.12" -name 'centaur-cwl-runner-*.jar' -print0 \
+    | xargs -0 ls -1 -t \
+    | head -n 1 \
+    )"}"
 centaur_cwl_skip_file="${build_root}/centaurCwlRunner/src/main/resources/skipped_tests.csv"
 
 centaur_cwl_java_args=("-Xmx1g")

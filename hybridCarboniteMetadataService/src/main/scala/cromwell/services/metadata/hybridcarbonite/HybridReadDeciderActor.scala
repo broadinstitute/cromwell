@@ -1,6 +1,5 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import akka.actor.FSM.Normal
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceResponse, QueryForWorkflowsMatchingParameters, WorkflowMetadataReadAction, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
@@ -17,30 +16,34 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
 
   when(Pending) {
     case Event(read: MetadataReadAction, NoData) =>
-      val sndr = sender()
-
       read match {
         case wmra: WorkflowMetadataReadAction =>
           classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> wmra.workflowId.toString))
-          goto(RequestingMetadataArchiveStatus) using WorkingData(sndr, read)
+          goto(RequestingMetadataArchiveStatus) using WorkingData(sender(), read)
 
         case query: QueryForWorkflowsMatchingParameters =>
           classicMetadataServiceActor ! query
-          goto(WaitingForMetadataResponse) using WorkingData(sndr, read)
+          goto(WaitingForMetadataResponse) using WorkingData(sender(), read)
       }
   }
 
   when(RequestingMetadataArchiveStatus) {
     case Event(WorkflowQuerySuccess(response, _), wd: WorkingData) =>
-      if (response.results.size == 1 && response.results.headOption.exists(_.metadataArchiveStatus == MetadataArchiveStatus.Archived)) {
+      if (response.results.size > 1) {
+        val errorMsg = s"Programmer Error: Got more than one status row back looking up metadata archive status for ${wd.request}: $response"
+        wd.actor ! makeAppropriateFailureForRequest(errorMsg, wd.request)
+        stop(FSM.Failure(errorMsg))
+      } else if (response.results.headOption.exists(_.metadataArchiveStatus == MetadataArchiveStatus.Archived)) {
         carboniteMetadataServiceActor ! wd.request
+        goto(WaitingForMetadataResponse)
       } else {
         classicMetadataServiceActor ! wd.request
+        goto(WaitingForMetadataResponse)
       }
-      goto(WaitingForMetadataResponse)
+
 
     case Event(WorkflowQueryFailure(reason), wd: WorkingData) =>
-      log.error(reason, s"Failed to determine how to route ${wd.request.getClass.getSimpleName}. Falling back to classic.")
+      log.error(reason, s"Programmer Error: Failed to determine how to route ${wd.request.getClass.getSimpleName}. Falling back to classic.")
       classicMetadataServiceActor ! wd.request
       goto(WaitingForMetadataResponse)
   }
@@ -48,7 +51,7 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
   when(WaitingForMetadataResponse) {
     case Event(response: MetadataServiceResponse , wd: WorkingData) =>
       wd.actor ! response
-      stop(Normal)
+      stop(FSM.Normal)
   }
 
   whenUnhandled {

@@ -30,8 +30,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
 
     val decidedUponActor = if (shouldChooseCarboniter) carboniteMetadataActor else classicMetadataActor
 
-    val hrda: TestFSMRef[HybridReadDeciderState, HybridReadDeciderData, HybridReadDeciderActor] =
-      TestFSMRef.apply(new HybridReadDeciderActor(classicMetadataActor.ref, carboniteMetadataActor.ref))
+    val hrda = TestFSMRef.apply(new HybridReadDeciderActor(classicMetadataActor.ref, carboniteMetadataActor.ref))
     watch(hrda)
 
     hrda.stateName should be(Pending)
@@ -75,8 +74,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
     val classicMetadataActor = TestProbe("classic")
     val carboniteMetadataActor = TestProbe("carboniter")
 
-    val hrda: TestFSMRef[HybridReadDeciderState, HybridReadDeciderData, HybridReadDeciderActor] =
-      TestFSMRef.apply(new HybridReadDeciderActor(classicMetadataActor.ref, carboniteMetadataActor.ref))
+    val hrda = TestFSMRef.apply(new HybridReadDeciderActor(classicMetadataActor.ref, carboniteMetadataActor.ref))
     watch(hrda)
 
     hrda.stateName should be(Pending)

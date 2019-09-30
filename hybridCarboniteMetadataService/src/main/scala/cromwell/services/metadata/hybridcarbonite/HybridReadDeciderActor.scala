@@ -7,7 +7,7 @@ import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.FailedMetadataResponse
 import cromwell.services.metadata.{MetadataArchiveStatus, WorkflowQueryKey}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMetadataServiceActor: ActorRef) extends LoggingFSM[HybridReadDeciderState, HybridReadDeciderData] {
 

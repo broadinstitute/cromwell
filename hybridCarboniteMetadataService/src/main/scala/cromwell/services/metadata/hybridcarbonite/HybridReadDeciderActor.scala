@@ -15,12 +15,6 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  // TODO: [CARBONITE] Decide which actor to send the read request to
-  // NOTE: the 'Future' return value was arbitrary to demonstrate the concept... feel free to refactor all this logic into something better
-  //  like (eg) sending a message to the summary table followed by some appropriate forwarding action when the response comes back
-  def decide(read: MetadataReadAction): Future[ActorRef] = Future.successful(classicMetadataServiceActor)
-
-
   when(Pending) {
     case Event(read: MetadataReadAction, NoData) =>
       val sndr = sender()

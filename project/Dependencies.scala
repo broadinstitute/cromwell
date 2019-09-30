@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.29.3"
+  private val akkaHttpCirceIntegrationV = "1.29.1"
   private val akkaHttpV = "10.1.9"
   private val akkaV = "2.5.23"
   private val aliyunBcsV = "6.1.0"
@@ -27,6 +27,7 @@ object Dependencies {
   private val delightRhinoSandboxV = "0.0.10"
   private val ficusV = "1.4.4"
   private val fs2V = "2.0.0"
+  private val fs2VStatsDProxy = "1.0.3"
   private val googleApiClientV = "1.28.0"
   private val googleCloudCoreV = "1.61.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
@@ -374,7 +375,7 @@ object Dependencies {
   )
 
   val statsDProxyDependencies = List(
-    "co.fs2" %% "fs2-io" % fs2V,
+    "co.fs2" %% "fs2-io" % fs2VStatsDProxy,
     "com.iheart" %% "ficus" % ficusV,
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
   ) ++ commonDependencies

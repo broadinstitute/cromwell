@@ -1,6 +1,5 @@
 package common.validation
 
-import java.util.concurrent.Executors
 
 import cats.arrow.FunctionK
 import cats.data.EitherT.fromEither
@@ -12,7 +11,7 @@ import common.exception.{AggregatedException, AggregatedMessageException, Compos
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 object IOChecked {

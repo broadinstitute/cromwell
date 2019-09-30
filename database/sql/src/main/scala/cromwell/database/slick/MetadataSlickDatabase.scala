@@ -384,7 +384,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           case (_, _) => ()
         }
       case None =>
-        s"""Programmer error: attempted to delete metadata rows for non-existent root workflow "$rootWorkflowId"""".invalidNelCheck
+        s"""[Carbonite metadata deletion] Failed with non-existent root workflow "$rootWorkflowId"""".invalidNelCheck
     }
   }
 
@@ -396,9 +396,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         if (WorkflowState.WorkflowStateValues.filter(_.isTerminal).map(_.toString).contains(status))
           ().validNelCheck
         else
-          s"""Attempted to delete metadata for workflow  in non-terminal summary state "${summaryEntry.workflowStatus}"""".invalidNelCheck
+          s"""[Carbonite metadata deletion] Failed with non-terminal summary status "$status" for workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
       case None =>
-        s"""Attempted to delete metadata for workflow "${summaryEntry.workflowExecutionUuid}" but summary status is empty""".invalidNelCheck
+        s"""[Carbonite metadata deletion] Failed because summary status unexpectedly empty for workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
     }
   }
 
@@ -406,7 +406,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     if (summaryEntry.parentWorkflowExecutionUuid.isEmpty && summaryEntry.rootWorkflowExecutionUuid.isEmpty)
       ().validNelCheck
     else
-      s"""Programmer error: attempted to delete metadata rows for non-root workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
+      s"""[Carbonite metadata deletion] Failed because workflow is not root: "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
   }
 
   private def deleteNonLabelMetadataInner(rootWorkflowId: String): DBIO[Int] =

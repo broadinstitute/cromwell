@@ -46,33 +46,43 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
           WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
           WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
+          WorkflowMetadataSummaryEntry("workflow id: I am still running!", Option("workflow name"), Option("Running"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
+          WorkflowMetadataSummaryEntry("workflow id: I inexplicably do not have a workflow status", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
+
         )
       ).futureValue(Timeout(10.seconds))
     }
 
-    // attempt deleting root workflow that does not exist
     it should "error when deleting a root workflow that does not exist" taggedAs DbmsTest in {
       val delete = database.deleteNonLabelMetadataForWorkflow("does not exist")
 
-      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""Programmer error: attempted to delete metadata rows for non-existent root workflow "does not exist"""")
+      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""[Carbonite metadata deletion] Failed with non-existent root workflow "does not exist"""")
     }
 
-    // attempt deleting subworkflow id. should error
-    it should "error when deleting a subworkflow" taggedAs DbmsTest in {
+    it should "error when calling delete on a subworkflow ID" taggedAs DbmsTest in {
       val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I am not a root workflow")
-      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""Programmer error: attempted to delete metadata rows for non-root workflow "workflow id: I am not a root workflow"""")
+      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""[Carbonite metadata deletion] Failed because workflow is not root: "workflow id: I am not a root workflow"""")
     }
 
     // attempt deleting a subworkflow that has subworkflows itself. should error
 
-    // attempt deleting . should delete expected row count
-    it should "delete the right number of rows for a root workflow id w/o subworkflows" taggedAs DbmsTest in {
+    it should "error when trying to delete a still running workflow" taggedAs DbmsTest in {
+      val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I am still running!")
+      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""[Carbonite metadata deletion] Failed with non-terminal summary status "Running" for workflow "workflow id: I am still running!"""")
+    }
+
+    it should "error when trying to delete a workflow with missing workflow status" taggedAs DbmsTest in {
+      // I don't know how this would happen but it is technically nullable, and pretty important to not screw up
+      val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I inexplicably do not have a workflow status")
+      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""[Carbonite metadata deletion] Failed because summary status unexpectedly empty for workflow "workflow id: I inexplicably do not have a workflow status"""")
+    }
+
+    it should "delete the right number of rows for a root workflow without subworkflows" taggedAs DbmsTest in {
       val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: 3 to delete, 1 label")
       delete.futureValue(Timeout(10.seconds)) should be(3)
     }
 
-    // attempt deleting root workflow id with subworkflows. should delete expected row count
-    it should "delete non-label rows from the root workflow and its subworkflows" taggedAs DbmsTest in {
+    it should "delete the right number of rows for a root workflow with subworkflows" taggedAs DbmsTest in {
       val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I am a root workflow with a subworkflow")
       delete.futureValue(Timeout(10.seconds)) should be(2)
     }
@@ -86,6 +96,7 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
       database.close()
     }
+
   }
 
 

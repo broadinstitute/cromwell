@@ -120,6 +120,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
                              page: Option[Int],
                              pageSize: Option[Int])
@@ -135,6 +136,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 

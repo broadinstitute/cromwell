@@ -55,5 +55,5 @@ task check_log {
       File out = stdout()
       Int num_input_localizations = read_int(stdout())
   }
-  runtime { docker: "google/cloud-sdk" }
+  runtime { docker: "gcr.io/google.com/cloudsdktool/cloud-sdk" }
 }

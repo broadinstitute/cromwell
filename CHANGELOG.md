@@ -1,5 +1,25 @@
 # Cromwell Change Log
 
+## 47 Release Notes
+
+### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
+
+Cromwell now allows user defined retries. With `memory-retry` config you can specify an array of strings which when encountered in the `stderr` 
+file by Cromwell, allows the task to be retried with multiplier factor mentioned in the config. More information [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+### GCS Parallel Composite Upload Support
+
+Cromwell 47 now supports GCS parallel composite uploads which can greatly improve delocalization performance.
+This feature is turned off by default, it can be turned on by either a backend-level configuration setting or
+on a per-workflow basis with workflow options. More details [here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
+### Papi V2 Localization Using GCR [(#5200)](https://github.com/broadinstitute/cromwell/pull/5200)
+
+The Docker image for the Google Cloud SDK was previously only [published on Docker
+Hub](https://hub.docker.com/r/google/cloud-sdk). Now that the image is [publicly hosted in
+GCR](http://gcr.io/google.com/cloudsdktool/cloud-sdk), Papi V2 jobs will localize inputs and delocalize outputs using
+the GCR image.
+
 ## 46 Release Notes
 
 ### Nvidia GPU Driver Update

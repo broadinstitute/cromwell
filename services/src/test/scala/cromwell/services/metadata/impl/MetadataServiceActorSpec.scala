@@ -109,7 +109,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |    }]
                           |  },
                           |  "id": "$workflowId"
-                          |}""".stripMargin)
+                          |}""".stripMargin),
+
   )
 
   actorName should {
@@ -123,7 +124,45 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
           response.responseJson shouldBe expectation.parseJson
         }
       }
+    }
 
+    "be able to query by Unarchived metadataArchiveStatus" in {
+
+      val summarizableStatusUpdate = PutMetadataAction(MetadataEvent(
+        MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
+        Option(MetadataValue("Running")),
+        moment.plusSeconds(1)
+      ))
+      actor ! summarizableStatusUpdate
+
+      eventually(Timeout(10.seconds), Interval(2.seconds)) {
+        val queryEverythingResponse = Await.result((actor ? QueryForWorkflowsMatchingParameters(List.empty)).mapTo[WorkflowQuerySuccess], 1.seconds)
+        queryEverythingResponse.response.results.length should be(1)
+        println(queryEverythingResponse)
+
+        val response1 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Unarchived")))).mapTo[WorkflowQuerySuccess], 1.seconds)
+        // We submitted one workflow, so we should should see one value here:
+        response1.response.results.length should be(1)
+      }
+    }
+
+    "be able to query by Archived metadataArchiveStatus" in {
+
+      val response2 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "Archived")))).mapTo[WorkflowQuerySuccess], 1.seconds)
+      // That workflow hasn't been marked as archived so this result set is empty:
+      response2.response.results.length should be(0)
+    }
+
+    "be able to query by ArchiveFailed metadataArchiveStatus" in {
+      val response3 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "ArchiveFailed")))).mapTo[WorkflowQuerySuccess], 1.seconds)
+      // That workflow hasn't been marked as archived so this result set is empty:
+      response3.response.results.length should be(0)
+    }
+
+    "not be able to query by an invalid metadataArchiveStatus" in {
+      val response4 = Await.result((actor ? QueryForWorkflowsMatchingParameters(List(("metadataArchiveStatus", "!!OOPS!!")))).mapTo[WorkflowQueryFailure], 1.seconds)
+      // That workflow hasn't been marked as archived so this result set is empty:
+      response4.reason.getMessage should be("Unrecognized 'metadata archive status' value(s): No such MetadataArchiveStatus: !!OOPS!!")
     }
   }
 }

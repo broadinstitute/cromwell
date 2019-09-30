@@ -58,6 +58,8 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
       fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/execution/stdout")
     jobPaths.toDockerPath(DefaultPathBuilder.get("/cromwell-executions/dock/path")).pathAsString shouldBe
       fullPath("/cromwell-executions/dock/path")
+    jobPaths.memoryRetryRC.pathAsString shouldBe
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/memory_retry_rc")
 
     val jobKeySharded: BackendJobDescriptorKey = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = new JobPathsWithDocker(workflowPaths, jobKeySharded)

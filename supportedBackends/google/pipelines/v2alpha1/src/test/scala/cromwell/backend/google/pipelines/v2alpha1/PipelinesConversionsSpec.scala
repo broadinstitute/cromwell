@@ -6,10 +6,9 @@ import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
 import eu.timepit.refined.refineMV
@@ -21,7 +20,8 @@ import scala.collection.JavaConverters._
 class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
-  implicit val localizationConfiguration = LocalizationConfiguration(refineMV(1))
+  implicit val gcsTransferConfiguration =
+    GcsTransferConfiguration(transferAttempts = refineMV(1), parallelCompositeUploadThreshold = "0")
 
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
@@ -69,7 +69,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     logging.get("mounts") should be(a[java.util.List[_]])
     logging.get("mounts").asInstanceOf[java.util.List[_]] should be (empty)
 
-    logging.get("imageUri") should be(ActionBuilder.cloudSdkImage)
+    logging.get("imageUri") should be(GenomicsFactory.CloudSdkImage)
 
     val loggingLabels = logging.get("labels").asInstanceOf[java.util.Map[_, _]]
     loggingLabels.keySet.asScala should contain theSameElementsAs List("logging", "inputName")

@@ -57,7 +57,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
 
   val expectedDefaults = new AwsBatchRuntimeAttributes(refineMV[Positive](1), Vector("us-east-1a", "us-east-1b"),
 
-    MemorySize(2, MemoryUnit.GB), Vector(AwsBatchWorkingDisk()), "ubuntu:latest", "arn::::", false,
+    MemorySize(2, MemoryUnit.GB), Vector(AwsBatchWorkingDisk()), "ubuntu:latest", "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue", false,
     ContinueOnReturnCodeSet(Set(0)), false)
 
   "AwsBatchRuntimeAttributes" should {
@@ -76,7 +76,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     //       object. I have not yet investigated this configuration mechanism.
     //
     // "use hardcoded defaults if not declared in task, workflow options, or config (except for docker)" in {
-    //   val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "queueArn" -> WomString("arn::::"))
+    //   val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "queueArn" -> WomString("arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"))
     //   val expectedRuntimeAttributes = expectedDefaults
     //   assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, configuration = noDefaultsAwsBatchConfiguration)
     // }
@@ -215,6 +215,42 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "noAddress" -> WomInteger(1))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes,
         "Expecting noAddress runtime attribute to be a Boolean")
+    }
+
+    "validate a valid queueArn entry" in {
+      val validArnsAsStrings = List(
+        "arn:aws:batch:us-east-1:111122223333:job-queue/HighPriority",
+        "arn:aws:batch:us-west-2:123456789012:job-queue/default-a4e50e00-b850-11e9",
+        "arn:aws:batch:us-gov-west-1:123456789012:job-queue/default-a4e50e00-b850-11e9",
+        "arn:aws-cn:batch:us-west-2:123456789012:job-queue/default-a4e50e00-b850-11e9",
+        "arn:aws-cn:batch:us-gov-west-1:123456789012:job-queue/default-a4e50e00-b850-11e9",
+        "arn:aws-us-gov:batch:us-west-2:123456789012:job-queue/default-a4e50e00-b850-11e9",
+        "arn:aws:batch:us-east-1:123456789012:job-queue/my_queue",
+      )
+      validArnsAsStrings foreach { validArn =>
+        val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "queueArn" -> WomString(validArn))
+        val expectedRuntimeAttributes = expectedDefaults.copy(queueArn = validArn)
+        assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+      }
+    }
+
+    "fail to validate an invalid queueArn entry" in {
+      val invalidArnsAsStrings = List(
+        "arn:aws:s3::my_corporate_bucket",
+        "arn:AWS:batch:us-west-2:123456789012:job-queue/default-a4e50e00-b850-11e9",
+        "arn:aws:batch:us-east-1:123456789012:job-queue/",
+        "arn:aws:batch:us-west-2:123456789012:job-queue:default-a4e50e00-b850-11e9",
+        "arn:aws-cn:batch:us-west-2:123456789012:job-queue:default-a4e50e00-b850-11e9",
+        "arn:aws:batch:us-east-1:123456789012:compute-environment/my-environment",
+        "arn:aws:batch:us-east-1:123456789012:job-definition/my-job-definition",
+        "arn:aws:batch:us-east-1:123456789012:job-queue/QueueNameLongerThan128Chars_129CharsActually_LoremIpsumDolorSitAmetConsecteturAdipiscingElitSedDoEiusmodTemporIncididuntUtLabore-",
+        "arn:aws:batch:::job-queue/tt"
+      )
+      invalidArnsAsStrings foreach { invalidArn =>
+        val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "queueArn" -> WomString(invalidArn))
+        assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes,
+          "ARN has invalid format")
+      }
     }
 
     "override config default attributes with default attributes declared in workflow options" in {

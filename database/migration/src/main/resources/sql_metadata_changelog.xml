@@ -13,5 +13,6 @@
     <include file="metadata_changesets/metadata_index_removals.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/postgresql_metadata_schema.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/mariadb_metadata_schema.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/add_metadata_archive_status.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

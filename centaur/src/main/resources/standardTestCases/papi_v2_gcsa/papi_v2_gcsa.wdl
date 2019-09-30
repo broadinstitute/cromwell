@@ -26,7 +26,7 @@ task get_token_info {
     >>>
 
     runtime {
-        docker: "google/cloud-sdk:slim"
+        docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
         backend: "papi-v2-gcsa"
     }
 

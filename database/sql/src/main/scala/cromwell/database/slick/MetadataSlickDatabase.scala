@@ -368,7 +368,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val delete: DBIO[Int] = checkDeletionPreconditions(rootWorkflowId) flatMap { checkResult: Checked[Unit] =>
       checkResult match {
         case Right(_) =>
-          deleteNonLabelMetadataInner(rootWorkflowId)
+          dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
         case Left(errors: NonEmptyList[String]) =>
           DBIO.failed(new Exception(errors.toList.mkString(",")))
       }
@@ -408,8 +408,5 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     else
       s"""[Carbonite metadata deletion] Failed because workflow is not root: "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
   }
-
-  private def deleteNonLabelMetadataInner(rootWorkflowId: String): DBIO[Int] =
-    dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
 
 }

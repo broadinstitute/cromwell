@@ -11,6 +11,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMetadataServiceActor: ActorRef) extends LoggingFSM[HybridReadDeciderState, HybridReadDeciderData] {
 
+  startWith(Pending, NoData)
+
   implicit val ec: ExecutionContext = context.dispatcher
 
   // TODO: [CARBONITE] Decide which actor to send the read request to
@@ -24,8 +26,8 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
       val sndr = sender()
 
       read match {
-        case _: WorkflowMetadataReadAction =>
-          classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> ""))
+        case wmra: WorkflowMetadataReadAction =>
+          classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> wmra.workflowId.toString))
           goto(RequestingMetadataArchiveStatus) using WorkingData(sndr, read)
 
         case query: QueryForWorkflowsMatchingParameters =>

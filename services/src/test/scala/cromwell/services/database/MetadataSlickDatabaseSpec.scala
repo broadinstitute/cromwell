@@ -59,7 +59,7 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
           WorkflowMetadataSummaryEntry("nested subworkflows: root", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
           WorkflowMetadataSummaryEntry("nested subworkflows: first nesting", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("nested subworkflows: root"), Option("nested subworkflows: root"), None),
-          WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None),
           WorkflowMetadataSummaryEntry("nested subworkflows: third nesting nesting", Option("workflow name"), None, Option(now), Option(now), Option(now), Option("nested subworkflows: third nesting nesting"), Option("nested subworkflows: root"), None),
         )
       ).futureValue(Timeout(10.seconds))
@@ -76,7 +76,10 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""[Carbonite metadata deletion] Failed because workflow is not root: "workflow id: I am not a root workflow"""")
     }
 
-    // attempt deleting a subworkflow that has subworkflows itself. should error
+    it should "error when trying to delete a workflow that has subworkflows itself" taggedAs DbmsTest in {
+      val delete = database.deleteNonLabelMetadataForWorkflow("nested subworkflows: second nesting")
+      delete.failed.futureValue(Timeout(10.seconds)).getMessage should be("""[Carbonite metadata deletion] Failed because workflow is not root: "nested subworkflows: second nesting"""")
+    }
 
     it should "error when trying to delete a still running workflow" taggedAs DbmsTest in {
       val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I am still running!")

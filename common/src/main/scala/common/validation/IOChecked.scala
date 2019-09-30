@@ -18,12 +18,6 @@ import scala.util.{Failure, Success, Try}
 object IOChecked {
 
   /**
-    * This thread pool introduced to provide compatibility for a small number of `fromFuture` calls to translate
-    * Futures to IO's.
-    */
-  val contextShift = IO.contextShift(ExecutionContext.fromExecutorService(Executors.newCachedThreadPool()))
-
-  /**
     * Type alias for EitherT[IO, NonEmptyList[String], A]
     * Represents an IO[ Either[NonEmptyList[String], A] ]
     * The monad transformer allows to flatMap over the value while keeping the IO effect as well as the list of potential errors

@@ -60,7 +60,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       import cats.instances.list._
       import cats.syntax.traverse._
       for {
-        listing <- ioFunctionSet.listDirectory(directory)().toIOChecked(IOChecked.contextShift)
+        listing <- ioFunctionSet.listDirectory(directory)().toIOChecked(ioFunctionSet.cs)
         fileListing <- listing.toList.traverse[IOChecked, WomFile] {
           case IoDirectory(e) => recursivelyBuildDirectory(e).widen
           case IoFile(e) => WomSingleFile(e).validIOChecked.widen

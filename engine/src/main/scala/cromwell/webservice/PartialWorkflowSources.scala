@@ -171,7 +171,7 @@ object PartialWorkflowSources {
     val parseInputsTry = Try {
       YamlUtils.parse(data) match {
         // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
-        case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.pretty(Printer.noSpaces))).validNel
+        case Right(json) => json.asArray.map(_.map(_.toString())).getOrElse(Vector(json.printWith(Printer.noSpaces))).validNel
         case Left(error) => s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
       }
     }

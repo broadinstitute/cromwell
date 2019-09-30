@@ -54,8 +54,8 @@ object CwlCodecs {
   implicit lazy val decodeCommandOutputBinding: Decoder[CommandOutputBinding] = deriveDecoder
   implicit lazy val decodeCommandOutputParameter: Decoder[CommandOutputParameter] = deriveDecoder
   implicit lazy val decodeCwlAny: Decoder[CwlAny] = decodeCCons
-  implicit lazy val decodeCwlType: Decoder[CwlType] = Decoder.enumDecoder(CwlType)
-  implicit lazy val decodeCwlVersion: Decoder[CwlVersion] = Decoder.enumDecoder(CwlVersion)
+  implicit lazy val decodeCwlType: Decoder[CwlType] = Decoder.decodeEnumeration(CwlType)
+  implicit lazy val decodeCwlVersion: Decoder[CwlVersion] = Decoder.decodeEnumeration(CwlVersion)
   implicit lazy val decodeDirectory: Decoder[Directory] = deriveDecoder
   implicit lazy val decodeDockerRequirement: Decoder[DockerRequirement] = deriveDecoder
   implicit lazy val decodeEnvVarRequirement: Decoder[EnvVarRequirement] = deriveDecoder
@@ -79,7 +79,7 @@ object CwlCodecs {
   implicit lazy val decodeInputRecordSchema: Decoder[InputRecordSchema] = deriveDecoder
   implicit lazy val decodeInputResourceRequirement: Decoder[DnaNexusInputResourceRequirement] = deriveDecoder
   implicit lazy val decodeIwdrListingArrayEntry: Decoder[IwdrListingArrayEntry] = decodeCCons
-  implicit lazy val decodeLinkMergeMethod: Decoder[LinkMergeMethod] = Decoder.enumDecoder(LinkMergeMethod)
+  implicit lazy val decodeLinkMergeMethod: Decoder[LinkMergeMethod] = Decoder.decodeEnumeration(LinkMergeMethod)
   implicit lazy val decodeMultipleInputFeatureRequirement: Decoder[MultipleInputFeatureRequirement] = deriveDecoder
   implicit lazy val decodeMyriadInputInnerType: Decoder[MyriadInputInnerType] = decodeCCons
   implicit lazy val decodeMyriadInputType: Decoder[MyriadInputType] = decodeCCons
@@ -92,7 +92,7 @@ object CwlCodecs {
   implicit lazy val decodeResourceRequirement: Decoder[ResourceRequirement] = deriveDecoder
   implicit lazy val decodeResourceRequirementType: Decoder[ResourceRequirementType] = decodeCCons
   implicit lazy val decodeScatterFeatureRequirement: Decoder[ScatterFeatureRequirement] = deriveDecoder
-  implicit lazy val decodeScatterMethod: Decoder[ScatterMethod] = Decoder.enumDecoder(ScatterMethod)
+  implicit lazy val decodeScatterMethod: Decoder[ScatterMethod] = Decoder.decodeEnumeration(ScatterMethod)
   implicit lazy val decodeSchemaDefRequirement: Decoder[SchemaDefRequirement] = deriveDecoder
   implicit lazy val decodeSchemaDefTypes: Decoder[SchemaDefTypes] = decodeCCons
   implicit lazy val decodeSecondaryFiles: Decoder[SecondaryFiles] = decodeCCons
@@ -118,8 +118,8 @@ object CwlCodecs {
   implicit lazy val encodeCommandOutputBinding: Encoder[CommandOutputBinding] = deriveEncoder
   implicit lazy val encodeCommandOutputParameter: Encoder[CommandOutputParameter] = deriveEncoder
   implicit lazy val encodeCwlAny: Encoder[CwlAny] = encodeCCons
-  implicit lazy val encodeCwlType: Encoder[CwlType] = Encoder.enumEncoder(CwlType)
-  implicit lazy val encodeCwlVersion: Encoder[CwlVersion] = Encoder.enumEncoder(CwlVersion)
+  implicit lazy val encodeCwlType: Encoder[CwlType] = Encoder.encodeEnumeration(CwlType)
+  implicit lazy val encodeCwlVersion: Encoder[CwlVersion] = Encoder.encodeEnumeration(CwlVersion)
   implicit lazy val encodeDirectory: Encoder[Directory] = deriveEncoder
   implicit lazy val encodeDockerRequirement: Encoder[DockerRequirement] = deriveEncoder
   implicit lazy val encodeEnvVarRequirement: Encoder[EnvVarRequirement] = deriveEncoder
@@ -143,7 +143,7 @@ object CwlCodecs {
   implicit lazy val encodeInputRecordSchema: Encoder[InputRecordSchema] = deriveEncoder
   implicit lazy val encodeInputResourceRequirement: Encoder[DnaNexusInputResourceRequirement] = deriveEncoder
   implicit lazy val encodeIwdrListingArrayEntry: Encoder[IwdrListingArrayEntry] = encodeCCons
-  implicit lazy val encodeLinkMergeMethod: Encoder[LinkMergeMethod] = Encoder.enumEncoder(LinkMergeMethod)
+  implicit lazy val encodeLinkMergeMethod: Encoder[LinkMergeMethod] = Encoder.encodeEnumeration(LinkMergeMethod)
   implicit lazy val encodeMultipleInputFeatureRequirement: Encoder[MultipleInputFeatureRequirement] = deriveEncoder
   implicit lazy val encodeMyriadInputInnerType: Encoder[MyriadInputInnerType] = encodeCCons
   implicit lazy val encodeMyriadInputType: Encoder[MyriadInputType] = encodeCCons
@@ -156,7 +156,7 @@ object CwlCodecs {
   implicit lazy val encodeResourceRequirement: Encoder[ResourceRequirement] = deriveEncoder
   implicit lazy val encodeResourceRequirementType: Encoder[ResourceRequirementType] = encodeCCons
   implicit lazy val encodeScatterFeatureRequirement: Encoder[ScatterFeatureRequirement] = deriveEncoder
-  implicit lazy val encodeScatterMethod: Encoder[ScatterMethod] = Encoder.enumEncoder(ScatterMethod)
+  implicit lazy val encodeScatterMethod: Encoder[ScatterMethod] = Encoder.encodeEnumeration(ScatterMethod)
   implicit lazy val encodeSchemaDefRequirement: Encoder[SchemaDefRequirement] = deriveEncoder
   implicit lazy val encodeSchemaDefTypes: Encoder[SchemaDefTypes] = encodeCCons
   implicit lazy val encodeSecondaryFiles: Encoder[SecondaryFiles] = encodeCCons

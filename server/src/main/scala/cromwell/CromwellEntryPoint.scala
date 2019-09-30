@@ -82,6 +82,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = ActorSystem("SubmitSystem")
     implicit val materializer = ActorMaterializer()
     implicit val ec = actorSystem.dispatcher
+    implicit val cs = IO.contextShift(ec)
 
     val cromwellClient = new CromwellClient(args.host, "v2")
 

@@ -168,11 +168,11 @@ object InputParameter {
               updated = loaded.copy(secondaryFiles = loaded.secondaryFiles ++  secondaries)
             } yield updated
           case womMaybeListedDirectory: WomMaybeListedDirectory => womMaybeListedDirectory.withSize(ioFunctionSet).to[IOChecked].widen
-          case WomArray(_, values) => values.toList.parTraverse[IOChecked, IOCheckedPar, WomValue](populateFiles).map(WomArray(_))
+          case WomArray(_, values) => values.toList.parTraverse[IOChecked, WomValue](populateFiles).map(WomArray(_))
           case WomOptionalValue(_, Some(innerValue)) => populateFiles(innerValue).map(WomOptionalValue(_))
           case obj: WomObjectLike =>
             // Map the values
-            val populated: IOChecked[WomObject] = obj.values.toList.parTraverse[IOChecked, IOCheckedPar, (String, WomValue)]({
+            val populated: IOChecked[WomObject] = obj.values.toList.parTraverse[IOChecked, (String, WomValue)]({
               case (key, value) => populateFiles(value).map(key -> _)
             })
             .map(_.toMap)

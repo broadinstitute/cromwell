@@ -1,5 +1,7 @@
 package common.validation
 
+import java.util.concurrent.Executors
+
 import cats.arrow.FunctionK
 import cats.data.EitherT.fromEither
 import cats.data.{EitherT, NonEmptyList, ValidatedNel}
@@ -10,10 +12,17 @@ import common.exception.{AggregatedException, AggregatedMessageException, Compos
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 object IOChecked {
+
+  /**
+    * This thread pool introduced to provide compatibility for a small number of `fromFuture` calls to translate
+    * Futures to IO's.
+    */
+  val contextShift = IO.contextShift(ExecutionContext.fromExecutorService(Executors.newCachedThreadPool()))
+
   /**
     * Type alias for EitherT[IO, NonEmptyList[String], A]
     * Represents an IO[ Either[NonEmptyList[String], A] ]
@@ -80,9 +89,11 @@ object IOChecked {
     *   EitherT.liftF(IO(Right(i.toChar))) // == IOChecked[Char]
     * )
     */
-  implicit def ioCheckedParallel(implicit cs: ContextShift[IO]): Parallel[IOChecked, IOCheckedPar] = new Parallel[IOChecked, IOCheckedPar] {
+  implicit def ioCheckedParallel(implicit cs: ContextShift[IO]) = new Parallel[IOChecked] {
+    type F[A] = IOCheckedPar[A]
     // Applicative instance for IOCheckedPar is the one for Io.Par composed with Attempt, since IOCheckedPar[A] == IO.Par[Attempt[A]]
     override def applicative: Applicative[IOCheckedPar] = IO.parApplicative(cs).compose[Attempt]
+
     // Monad instance for IOChecked can be summoned from cats implicit (IOChecked is simply an EitherT which already has a cats defined Monad instance)
     override def monad: Monad[IOChecked] = implicitly[Monad[IOChecked]]
 
@@ -139,7 +150,7 @@ object IOChecked {
 
   def goIOChecked[A](f: => A): IOChecked[A] = Try(f).toIOChecked
 
-  implicit val IOCheckedLiftIO = new LiftIO[IOChecked] {
+  implicit val IOCheckedLiftIO: LiftIO[IOChecked] = new LiftIO[IOChecked] {
     override def liftIO[A](ioa: IO[A]): IOChecked[A] = EitherT.liftF[IO, NonEmptyList[String], A](ioa)
   }
 
@@ -170,9 +181,11 @@ object IOChecked {
   implicit class TryIOChecked[A](val t: Try[A]) extends AnyVal {
     def toIOChecked: IOChecked[A] = t.toErrorOr.toIOChecked
   }
-  
+
   implicit class FutureIOChecked[A](val future: Future[A]) extends AnyVal {
-    def toIOChecked: IOChecked[A] = IO.fromFuture(IO(future)).to[IOChecked]
+    def toIOChecked(implicit cs: ContextShift[IO]): IOChecked[A] = {
+      IO.fromFuture(IO(future)).to[IOChecked]
+    }
   }
 
   implicit class ErrorOrIOChecked[A](val e: ErrorOr[A]) extends AnyVal {

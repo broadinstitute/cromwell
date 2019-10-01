@@ -18,11 +18,9 @@ cromwell::build::setup_conformance_environment
 cromwell::build::assemble_jars
 
 CENTAUR_CWL_JAVA_ARGS="-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/ftp_centaur_cwl_runner.conf"
-TESK_INPUT_FTP_PREFIX=ftp://ftp.hexdump.org/centaur-cwl-conformance/cwl-inputs/
 CROMWELL_BUILD_CWL_TEST_PARALLELISM=8
 
 export CENTAUR_CWL_JAVA_ARGS
-export TESK_INPUT_FTP_PREFIX
 export CROMWELL_BUILD_CWL_TEST_PARALLELISM
 
 cromwell::build::run_conformance

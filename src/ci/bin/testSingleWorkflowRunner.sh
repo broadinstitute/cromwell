@@ -12,7 +12,12 @@ cromwell::build::start_build_heartbeat
 cromwell::build::assemble_jars
 
 # Test 1: basic hello world
-java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs --metadata-output ./run_mode_metadata.json | tee console_output.txt
+java \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+    run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl \
+    --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs \
+    --metadata-output ./run_mode_metadata.json \
+| tee console_output.txt
 
 # grep exits 1 if no matches
 grep "terminal state: WorkflowSucceededState" console_output.txt

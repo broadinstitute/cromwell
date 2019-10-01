@@ -371,5 +371,4 @@ trait WorkflowMetadataSummaryEntryComponent {
       WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
     })
   }
-
 }

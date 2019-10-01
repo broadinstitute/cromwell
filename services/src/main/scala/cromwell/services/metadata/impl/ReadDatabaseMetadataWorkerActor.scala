@@ -2,7 +2,7 @@ package cromwell.services.metadata.impl
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.core.{WorkflowId, WorkflowSubmitted}
+import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
@@ -23,6 +23,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
     case GetMetadataAction(query@MetadataQuery(_, _, _, _, _, _)) => evaluateRespondAndStop(sender(), getMetadata(query))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
+    case GetRootAndSubworkflowLabels(rootWorkflowId: RootWorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
     case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
     case query: QueryForWorkflowsMatchingParameters => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(query.parameters))
     case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
@@ -66,6 +67,15 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
       ls => LabelLookupResponse(id, ls)
     } recover {
       case t => LabelLookupFailed(id, t)
+    }
+  }
+
+  private def queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId: RootWorkflowId): Future[MetadataServiceResponse] = {
+
+    getRootAndSubworkflowLabels(rootWorkflowId) map { labels =>
+      RootAndSubworkflowLabelsLookupResponse(rootWorkflowId, labels)
+    } recover {
+      case t => RootAndSubworkflowLabelsLookupFailed(rootWorkflowId, t)
     }
   }
 

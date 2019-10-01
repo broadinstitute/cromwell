@@ -104,6 +104,7 @@ object MetadataService {
   }
   final case class GetStatus(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   final case class GetLabels(workflowId: WorkflowId) extends WorkflowMetadataReadAction
+  final case class GetRootAndSubworkflowLabels(workflowId: RootWorkflowId) extends WorkflowMetadataReadAction
   final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends MetadataReadAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
   final case class GetLogs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
@@ -137,6 +138,9 @@ object MetadataService {
 
   final case class LabelLookupResponse(workflowId: WorkflowId, labels: Map[String, String]) extends MetadataServiceResponse
   final case class LabelLookupFailed(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
+  final case class RootAndSubworkflowLabelsLookupResponse(rootWorkflowId: RootWorkflowId, labels: Map[WorkflowId, Map[String, String]]) extends MetadataServiceResponse
+  final case class RootAndSubworkflowLabelsLookupFailed(rootWorkflowId: RootWorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class WorkflowOutputsResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class WorkflowOutputsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
